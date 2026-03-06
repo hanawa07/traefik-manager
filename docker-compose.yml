@@ -1,0 +1,43 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: traefik-manager-backend
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./traefik-config:/traefik-config
+      - backend-data:/app/data
+    networks:
+      - traefik-manager-internal
+      - proxy-network
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: traefik-manager-frontend
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - backend
+    networks:
+      - traefik-manager-internal
+      - proxy-network
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  backend-data:
+
+networks:
+  traefik-manager-internal:
+    internal: true
+  proxy-network:
+    external: true
