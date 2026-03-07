@@ -15,6 +15,8 @@ This repository is split into a FastAPI backend and a Next.js frontend.
 - `docker compose up --build`: build and run full stack (frontend + backend).
 - `docker compose logs -f backend`: follow backend logs.
 - `cd backend && pip install -r requirements.txt && uvicorn app.main:app --reload --port 8000`: run backend locally.
+- `cd backend && alembic upgrade head`: apply the latest DB migrations.
+- `cd backend && alembic revision --autogenerate -m "add xxx column"`: generate a new migration after editing models.
 - `cd frontend && npm ci && npm run dev`: run frontend locally.
 - `cd frontend && npm run lint`: run frontend lint checks.
 - `cd frontend && npm run build`: production build check.
@@ -44,3 +46,8 @@ Automated tests are not fully wired yet; treat lint/build and manual API checks 
 - Copy `.env.example` to `.env` and replace all placeholder secrets before running.
 - Never commit `.env`, tokens, or generated credentials.
 - Validate changes touching `traefik-config/dynamic` and Authentik integration with non-production credentials first.
+
+## Database Migrations
+- Alembic is the source of truth for schema changes; do not add new SQLite `ALTER TABLE` patches in `database.py`.
+- Workflow: update `backend/app/infrastructure/persistence/models.py`, run `cd backend && alembic revision --autogenerate -m "..."`, review the generated file, then run `cd backend && alembic upgrade head`.
+- Existing production DBs created before Alembic adoption must be stamped once: `cd backend && alembic stamp head` after confirming the live schema already matches the initial migration.

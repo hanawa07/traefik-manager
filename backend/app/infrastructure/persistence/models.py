@@ -1,6 +1,6 @@
 from sqlalchemy import String, Boolean, DateTime, JSON, func
 from sqlalchemy.orm import Mapped, mapped_column
-from app.infrastructure.persistence.database import Base
+from app.infrastructure.persistence.base import Base
 import uuid
 
 
