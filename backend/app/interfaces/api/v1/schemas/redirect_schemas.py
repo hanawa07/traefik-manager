@@ -71,5 +71,13 @@ class RedirectHostResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    @field_validator("domain", mode="before")
+    @classmethod
+    def normalize_domain(cls, value):
+        inner_value = getattr(value, "value", None)
+        if isinstance(inner_value, str):
+            return inner_value
+        return value
+
     class Config:
         from_attributes = True

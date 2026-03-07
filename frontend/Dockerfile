@@ -4,12 +4,18 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 FROM node:22-alpine AS builder
+ARG NEXT_PUBLIC_API_URL=/api/v1
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
 FROM node:22-alpine AS runner
+ARG NEXT_PUBLIC_API_URL=/api/v1
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 WORKDIR /app
 
 # 보안: 비루트 사용자

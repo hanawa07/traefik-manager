@@ -279,6 +279,24 @@ class ServiceResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    @field_validator("id", mode="before")
+    @classmethod
+    def normalize_id(cls, value):
+        if isinstance(value, UUID):
+            return value
+        inner_value = getattr(value, "value", None)
+        if isinstance(inner_value, UUID):
+            return inner_value
+        return value
+
+    @field_validator("domain", mode="before")
+    @classmethod
+    def normalize_domain(cls, value):
+        inner_value = getattr(value, "value", None)
+        if isinstance(inner_value, str):
+            return inner_value
+        return value
+
     class Config:
         from_attributes = True
 

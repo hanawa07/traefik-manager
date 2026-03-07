@@ -1,11 +1,22 @@
 services:
+  init-traefik-config:
+    image: alpine:3.20
+    container_name: traefik-manager-init-traefik-config
+    command: ["sh", "-c", "mkdir -p /traefik-config/dynamic && chown -R 10001:10001 /traefik-config"]
+    restart: "no"
+    volumes:
+      - ./traefik-config:/traefik-config
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: traefik-manager-backend
     restart: unless-stopped
-    env_file: .env
+    env_file: ${APP_ENV_FILE:-.env}
+    depends_on:
+      init-traefik-config:
+        condition: service_completed_successfully
     volumes:
       - ./traefik-config:/traefik-config
       - backend-data:/app/data
@@ -18,14 +29,32 @@ services:
     read_only: false
     tmpfs:
       - /tmp
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy-network
+      - traefik.http.routers.traefik-manager-backend.rule=Host(`${BACKEND_DOMAIN}`)
+      - traefik.http.routers.traefik-manager-backend.entrypoints=websecure
+      - traefik.http.routers.traefik-manager-backend.tls=true
+      - traefik.http.routers.traefik-manager-backend.tls.certresolver=letsencrypt
+      - traefik.http.services.traefik-manager-backend.loadbalancer.server.port=8000
+      - traefik.http.routers.traefik-manager-backend-http.rule=Host(`${BACKEND_DOMAIN}`)
+      - traefik.http.routers.traefik-manager-backend-http.entrypoints=web
+      - traefik.http.routers.traefik-manager-backend-http.middlewares=traefik-manager-backend-https
+      - traefik.http.middlewares.traefik-manager-backend-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.traefik-manager-backend-https.redirectscheme.permanent=true
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
     container_name: traefik-manager-frontend
     restart: unless-stopped
-    env_file: .env
+    env_file: ${APP_ENV_FILE:-.env}
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
+      BACKEND_UPSTREAM_URL: ${BACKEND_UPSTREAM_URL:-http://backend:8000}
     depends_on:
       - backend
     networks:
@@ -33,6 +62,19 @@ services:
       - proxy-network
     security_opt:
       - no-new-privileges:true
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy-network
+      - traefik.http.routers.traefik-manager-frontend.rule=Host(`${FRONTEND_DOMAIN}`)
+      - traefik.http.routers.traefik-manager-frontend.entrypoints=websecure
+      - traefik.http.routers.traefik-manager-frontend.tls=true
+      - traefik.http.routers.traefik-manager-frontend.tls.certresolver=letsencrypt
+      - traefik.http.services.traefik-manager-frontend.loadbalancer.server.port=3000
+      - traefik.http.routers.traefik-manager-frontend-http.rule=Host(`${FRONTEND_DOMAIN}`)
+      - traefik.http.routers.traefik-manager-frontend-http.entrypoints=web
+      - traefik.http.routers.traefik-manager-frontend-http.middlewares=traefik-manager-frontend-https
+      - traefik.http.middlewares.traefik-manager-frontend-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.traefik-manager-frontend-https.redirectscheme.permanent=true
 
 volumes:
   backend-data:
