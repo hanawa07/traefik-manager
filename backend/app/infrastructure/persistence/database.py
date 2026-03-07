@@ -32,6 +32,9 @@ async def _apply_sqlite_migrations(conn) -> None:
     migrations = {
         "https_redirect_enabled": "ALTER TABLE services ADD COLUMN https_redirect_enabled BOOLEAN NOT NULL DEFAULT 1",
         "allowed_ips": "ALTER TABLE services ADD COLUMN allowed_ips JSON NOT NULL DEFAULT '[]'",
+        "rate_limit_average": "ALTER TABLE services ADD COLUMN rate_limit_average INTEGER",
+        "rate_limit_burst": "ALTER TABLE services ADD COLUMN rate_limit_burst INTEGER",
+        "custom_headers": "ALTER TABLE services ADD COLUMN custom_headers JSON NOT NULL DEFAULT '{}'",
         "authentik_group_id": "ALTER TABLE services ADD COLUMN authentik_group_id VARCHAR(100)",
         "authentik_group_name": "ALTER TABLE services ADD COLUMN authentik_group_name VARCHAR(255)",
         "authentik_policy_id": "ALTER TABLE services ADD COLUMN authentik_policy_id VARCHAR(100)",

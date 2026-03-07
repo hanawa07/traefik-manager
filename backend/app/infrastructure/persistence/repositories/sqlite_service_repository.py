@@ -25,6 +25,9 @@ class SQLiteServiceRepository(ServiceRepository):
             existing.https_redirect_enabled = service.https_redirect_enabled
             existing.auth_enabled = service.auth_enabled
             existing.allowed_ips = service.allowed_ips
+            existing.rate_limit_average = service.rate_limit_average
+            existing.rate_limit_burst = service.rate_limit_burst
+            existing.custom_headers = service.custom_headers
             existing.authentik_provider_id = service.authentik_provider_id
             existing.authentik_app_slug = service.authentik_app_slug
             existing.authentik_group_id = service.authentik_group_id
@@ -42,6 +45,9 @@ class SQLiteServiceRepository(ServiceRepository):
                 https_redirect_enabled=service.https_redirect_enabled,
                 auth_enabled=service.auth_enabled,
                 allowed_ips=service.allowed_ips,
+                rate_limit_average=service.rate_limit_average,
+                rate_limit_burst=service.rate_limit_burst,
+                custom_headers=service.custom_headers,
                 authentik_provider_id=service.authentik_provider_id,
                 authentik_app_slug=service.authentik_app_slug,
                 authentik_group_id=service.authentik_group_id,
@@ -84,6 +90,9 @@ class SQLiteServiceRepository(ServiceRepository):
             updated_at=model.updated_at,
             https_redirect_enabled=model.https_redirect_enabled,
             allowed_ips=model.allowed_ips or [],
+            rate_limit_average=model.rate_limit_average,
+            rate_limit_burst=model.rate_limit_burst,
+            custom_headers=model.custom_headers or {},
             authentik_provider_id=model.authentik_provider_id,
             authentik_app_slug=model.authentik_app_slug,
             authentik_group_id=model.authentik_group_id,

@@ -1,8 +1,8 @@
 from ipaddress import ip_network
+import re
 from pydantic import BaseModel, Field, field_validator, model_validator
 from uuid import UUID
 from datetime import datetime
-import re
 
 
 class ServiceCreate(BaseModel):
@@ -14,6 +14,9 @@ class ServiceCreate(BaseModel):
     https_redirect_enabled: bool = True
     auth_enabled: bool = False
     allowed_ips: list[str] = Field(default_factory=list)
+    rate_limit_average: int | None = None
+    rate_limit_burst: int | None = None
+    custom_headers: dict[str, str] = Field(default_factory=dict)
     authentik_group_id: str | None = None
 
     @field_validator("domain")
@@ -54,12 +57,42 @@ class ServiceCreate(BaseModel):
         value = value.strip()
         return value or None
 
+    @field_validator("rate_limit_average", "rate_limit_burst")
+    @classmethod
+    def validate_rate_limit_values(cls, value: int | None) -> int | None:
+        if value is None:
+            return None
+        if value <= 0:
+            raise ValueError("Rate Limit 값은 1 이상의 정수여야 합니다")
+        return value
+
+    @field_validator("custom_headers")
+    @classmethod
+    def validate_custom_headers(cls, values: dict[str, str]) -> dict[str, str]:
+        normalized: dict[str, str] = {}
+        token_pattern = re.compile(r"^[A-Za-z0-9-]+$")
+
+        for raw_key, raw_value in values.items():
+            key = raw_key.strip()
+            value = raw_value.strip()
+            if not key:
+                continue
+            if not token_pattern.match(key):
+                raise ValueError(f"유효하지 않은 헤더 키입니다: {key}")
+            if "\n" in key or "\r" in key or "\n" in value or "\r" in value:
+                raise ValueError(f"유효하지 않은 헤더 값입니다: {key}")
+            normalized[key] = value
+
+        return normalized
+
     @model_validator(mode="after")
     def validate_cross_fields(self):
         if self.https_redirect_enabled and not self.tls_enabled:
             raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
         if not self.auth_enabled and self.authentik_group_id:
             raise ValueError("인증이 비활성화된 서비스에는 Authentik 그룹을 설정할 수 없습니다")
+        if (self.rate_limit_average is None) ^ (self.rate_limit_burst is None):
+            raise ValueError("Rate Limit을 활성화하려면 average와 burst를 모두 입력해야 합니다")
         return self
 
 
@@ -71,6 +104,10 @@ class ServiceUpdate(BaseModel):
     https_redirect_enabled: bool | None = None
     auth_enabled: bool | None = None
     allowed_ips: list[str] | None = None
+    rate_limit_enabled: bool | None = None
+    rate_limit_average: int | None = None
+    rate_limit_burst: int | None = None
+    custom_headers: dict[str, str] | None = None
     authentik_group_id: str | None = None
 
     @field_validator("allowed_ips")
@@ -98,12 +135,50 @@ class ServiceUpdate(BaseModel):
         value = value.strip()
         return value or None
 
+    @field_validator("rate_limit_average", "rate_limit_burst")
+    @classmethod
+    def validate_rate_limit_values(cls, value: int | None) -> int | None:
+        if value is None:
+            return None
+        if value <= 0:
+            raise ValueError("Rate Limit 값은 1 이상의 정수여야 합니다")
+        return value
+
+    @field_validator("custom_headers")
+    @classmethod
+    def validate_custom_headers(
+        cls,
+        values: dict[str, str] | None,
+    ) -> dict[str, str] | None:
+        if values is None:
+            return None
+
+        normalized: dict[str, str] = {}
+        token_pattern = re.compile(r"^[A-Za-z0-9-]+$")
+        for raw_key, raw_value in values.items():
+            key = raw_key.strip()
+            value = raw_value.strip()
+            if not key:
+                continue
+            if not token_pattern.match(key):
+                raise ValueError(f"유효하지 않은 헤더 키입니다: {key}")
+            if "\n" in key or "\r" in key or "\n" in value or "\r" in value:
+                raise ValueError(f"유효하지 않은 헤더 값입니다: {key}")
+            normalized[key] = value
+        return normalized
+
     @model_validator(mode="after")
     def validate_cross_fields(self):
         if self.https_redirect_enabled and self.tls_enabled is False:
             raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
         if self.auth_enabled is False and self.authentik_group_id:
             raise ValueError("인증이 비활성화된 서비스에는 Authentik 그룹을 설정할 수 없습니다")
+        if self.rate_limit_enabled is True:
+            if self.rate_limit_average is None or self.rate_limit_burst is None:
+                raise ValueError("Rate Limit을 활성화하려면 average와 burst를 모두 입력해야 합니다")
+        if self.rate_limit_enabled is False:
+            if self.rate_limit_average is not None or self.rate_limit_burst is not None:
+                raise ValueError("Rate Limit 비활성화 시 값을 함께 보낼 수 없습니다")
         return self
 
 
@@ -117,6 +192,10 @@ class ServiceResponse(BaseModel):
     https_redirect_enabled: bool
     auth_enabled: bool
     allowed_ips: list[str]
+    rate_limit_enabled: bool
+    rate_limit_average: int | None = None
+    rate_limit_burst: int | None = None
+    custom_headers: dict[str, str]
     authentik_group_id: str | None = None
     authentik_group_name: str | None = None
     created_at: datetime

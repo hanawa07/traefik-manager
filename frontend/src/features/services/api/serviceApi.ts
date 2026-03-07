@@ -10,6 +10,10 @@ export interface Service {
   https_redirect_enabled: boolean;
   auth_enabled: boolean;
   allowed_ips: string[];
+  rate_limit_enabled: boolean;
+  rate_limit_average: number | null;
+  rate_limit_burst: number | null;
+  custom_headers: Record<string, string>;
   authentik_group_id: string | null;
   authentik_group_name: string | null;
   created_at: string;
@@ -24,7 +28,11 @@ export interface ServiceCreate {
   tls_enabled: boolean;
   https_redirect_enabled: boolean;
   auth_enabled: boolean;
+  rate_limit_enabled?: boolean;
   allowed_ips: string[];
+  rate_limit_average: number | null;
+  rate_limit_burst: number | null;
+  custom_headers: Record<string, string>;
   authentik_group_id?: string | null;
 }
 
@@ -35,6 +43,10 @@ export interface ServiceUpdate {
   tls_enabled?: boolean;
   https_redirect_enabled?: boolean;
   auth_enabled?: boolean;
+  rate_limit_enabled?: boolean;
+  rate_limit_average?: number | null;
+  rate_limit_burst?: number | null;
+  custom_headers?: Record<string, string>;
   allowed_ips?: string[];
   authentik_group_id?: string | null;
 }

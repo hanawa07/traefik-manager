@@ -4,7 +4,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 
 from app.infrastructure.persistence.database import init_db
-from app.interfaces.api.v1.routers import services, auth, certificates
+from app.interfaces.api.v1.routers import services, auth, certificates, redirects
 from app.core.config import settings
 
 
@@ -41,6 +41,7 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["인증"])
 app.include_router(services.router, prefix="/api/v1/services", tags=["서비스"])
+app.include_router(redirects.router, prefix="/api/v1/redirects", tags=["리다이렉트"])
 app.include_router(certificates.router, prefix="/api/v1/certificates", tags=["인증서"])
 
 

@@ -2,12 +2,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
-import { Server, LayoutDashboard, Shield, LogOut, Settings } from "lucide-react";
+import { Server, LayoutDashboard, Shield, ArrowRightLeft, LogOut, Settings } from "lucide-react";
 import { clsx } from "clsx";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "대시보드" },
   { href: "/dashboard/services", icon: Server, label: "서비스" },
+  { href: "/dashboard/redirects", icon: ArrowRightLeft, label: "리다이렉트" },
   { href: "/dashboard/certificates", icon: Shield, label: "인증서" },
   { href: "/dashboard/settings", icon: Settings, label: "설정" },
 ];

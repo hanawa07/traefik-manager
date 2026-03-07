@@ -68,6 +68,9 @@ export default function EditServicePage() {
             https_redirect_enabled: service.https_redirect_enabled,
             auth_enabled: service.auth_enabled,
             allowed_ips: service.allowed_ips,
+            rate_limit_average: service.rate_limit_average,
+            rate_limit_burst: service.rate_limit_burst,
+            custom_headers: service.custom_headers,
             authentik_group_id: service.authentik_group_id,
           }}
           onSubmit={handleSubmit}

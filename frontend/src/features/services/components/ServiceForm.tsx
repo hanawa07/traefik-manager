@@ -1,10 +1,11 @@
 "use client";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ServiceCreate } from "../api/serviceApi";
 import { useAuthentikGroups } from "../hooks/useServices";
+import { Plus, Trash2 } from "lucide-react";
 
 const schema = z.object({
   name: z.string().min(1, "서비스 이름을 입력하세요"),
@@ -19,6 +20,15 @@ const schema = z.object({
   auth_enabled: z.boolean(),
   authentik_group_id: z.string().optional(),
   allowed_ips_input: z.string().optional(),
+  rate_limit_enabled: z.boolean(),
+  rate_limit_average: z.coerce.number().int().positive("1 이상의 정수를 입력하세요").optional(),
+  rate_limit_burst: z.coerce.number().int().positive("1 이상의 정수를 입력하세요").optional(),
+  custom_headers: z.array(
+    z.object({
+      key: z.string(),
+      value: z.string(),
+    })
+  ),
 }).superRefine((value, ctx) => {
   if (value.https_redirect_enabled && !value.tls_enabled) {
     ctx.addIssue({
@@ -32,6 +42,13 @@ const schema = z.object({
       code: z.ZodIssueCode.custom,
       path: ["authentik_group_id"],
       message: "인증이 비활성화된 상태에서는 그룹을 선택할 수 없습니다",
+    });
+  }
+  if (value.rate_limit_enabled && (!value.rate_limit_average || !value.rate_limit_burst)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["rate_limit_average"],
+      message: "Rate Limit을 활성화하면 average와 burst를 모두 입력해야 합니다",
     });
   }
 });
@@ -48,6 +65,9 @@ interface ServiceFormDefaultValues {
   auth_enabled?: boolean;
   authentik_group_id?: string | null;
   allowed_ips?: string[];
+  rate_limit_average?: number | null;
+  rate_limit_burst?: number | null;
+  custom_headers?: Record<string, string>;
 }
 
 interface ServiceFormProps {
@@ -71,11 +91,17 @@ export default function ServiceForm({
   loading,
   submitLabel = "저장",
 }: ServiceFormProps) {
+  const headerEntries = Object.entries(defaultValues?.custom_headers || {}).map(([key, value]) => ({
+    key,
+    value,
+  }));
+
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    control,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -89,11 +115,21 @@ export default function ServiceForm({
       auth_enabled: defaultValues?.auth_enabled ?? false,
       allowed_ips_input: defaultValues?.allowed_ips?.join("\n") || "",
       authentik_group_id: defaultValues?.authentik_group_id || "",
+      rate_limit_enabled:
+        defaultValues?.rate_limit_average != null && defaultValues?.rate_limit_burst != null,
+      rate_limit_average: defaultValues?.rate_limit_average ?? undefined,
+      rate_limit_burst: defaultValues?.rate_limit_burst ?? undefined,
+      custom_headers: headerEntries.length > 0 ? headerEntries : [{ key: "", value: "" }],
     },
+  });
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "custom_headers",
   });
 
   const tlsEnabled = watch("tls_enabled");
   const authEnabled = watch("auth_enabled");
+  const rateLimitEnabled = watch("rate_limit_enabled");
   const { data: authentikGroups = [], isLoading: isGroupLoading } = useAuthentikGroups(authEnabled);
 
   useEffect(() => {
@@ -108,7 +144,24 @@ export default function ServiceForm({
     }
   }, [authEnabled, setValue]);
 
+  useEffect(() => {
+    if (!rateLimitEnabled) {
+      setValue("rate_limit_average", undefined);
+      setValue("rate_limit_burst", undefined);
+    }
+  }, [rateLimitEnabled, setValue]);
+
   const submitForm = (data: FormData) => {
+    const customHeaders = data.custom_headers.reduce<Record<string, string>>((acc, item) => {
+      const key = item.key.trim();
+      const value = item.value.trim();
+      if (!key) {
+        return acc;
+      }
+      acc[key] = value;
+      return acc;
+    }, {});
+
     onSubmit({
       name: data.name,
       domain: data.domain,
@@ -117,7 +170,11 @@ export default function ServiceForm({
       tls_enabled: data.tls_enabled,
       https_redirect_enabled: data.https_redirect_enabled,
       auth_enabled: data.auth_enabled,
+      rate_limit_enabled: data.rate_limit_enabled,
       allowed_ips: parseAllowedIps(data.allowed_ips_input),
+      rate_limit_average: data.rate_limit_enabled ? data.rate_limit_average ?? null : null,
+      rate_limit_burst: data.rate_limit_enabled ? data.rate_limit_burst ?? null : null,
+      custom_headers: customHeaders,
       authentik_group_id: data.auth_enabled ? data.authentik_group_id || null : null,
     });
   };
@@ -215,6 +272,78 @@ export default function ServiceForm({
           {...register("allowed_ips_input")}
         />
         <p className="text-xs text-gray-500 mt-1">한 줄에 하나씩 입력하세요. IP 또는 CIDR 형식을 지원합니다.</p>
+      </div>
+
+      <div className="space-y-3 pt-1 border-t border-gray-100">
+        <label className="flex items-center gap-3 cursor-pointer pt-4">
+          <input type="checkbox" className="w-4 h-4 rounded accent-blue-600" {...register("rate_limit_enabled")} />
+          <div>
+            <span className="text-sm font-medium text-gray-700">Rate Limit 활성화</span>
+            <p className="text-xs text-gray-500">서비스별 초당 요청 수를 제한합니다</p>
+          </div>
+        </label>
+
+        {rateLimitEnabled && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Average (초당 평균 요청)</label>
+              <input type="number" min={1} className="input" placeholder="예: 100" {...register("rate_limit_average")} />
+              {errors.rate_limit_average && (
+                <p className="text-xs text-red-500 mt-1">{errors.rate_limit_average.message}</p>
+              )}
+            </div>
+            <div>
+              <label className="label">Burst (순간 허용량)</label>
+              <input type="number" min={1} className="input" placeholder="예: 200" {...register("rate_limit_burst")} />
+              {errors.rate_limit_burst && (
+                <p className="text-xs text-red-500 mt-1">{errors.rate_limit_burst.message}</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3 pt-1 border-t border-gray-100">
+        <div className="pt-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-700">커스텀 응답 헤더</p>
+            <p className="text-xs text-gray-500">서비스 응답에 헤더를 추가합니다</p>
+          </div>
+          <button
+            type="button"
+            className="btn-secondary py-1.5 text-sm inline-flex items-center gap-1.5"
+            onClick={() => append({ key: "", value: "" })}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            헤더 추가
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {fields.map((field, index) => (
+            <div key={field.id} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+              <input
+                className="input"
+                placeholder="헤더 키 (예: X-Frame-Options)"
+                {...register(`custom_headers.${index}.key`)}
+              />
+              <input
+                className="input"
+                placeholder="헤더 값 (예: DENY)"
+                {...register(`custom_headers.${index}.value`)}
+              />
+              <button
+                type="button"
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                onClick={() => remove(index)}
+                disabled={fields.length === 1}
+                title="헤더 삭제"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="flex justify-end gap-3 pt-2">

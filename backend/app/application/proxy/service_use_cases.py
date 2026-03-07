@@ -39,6 +39,9 @@ class ServiceUseCases:
             auth_enabled=data.auth_enabled,
             https_redirect_enabled=data.https_redirect_enabled,
             allowed_ips=data.allowed_ips,
+            rate_limit_average=data.rate_limit_average,
+            rate_limit_burst=data.rate_limit_burst,
+            custom_headers=data.custom_headers,
             authentik_group_id=data.authentik_group_id,
         )
 
@@ -60,6 +63,7 @@ class ServiceUseCases:
         update_payload = data.model_dump(exclude_unset=True)
         was_auth_enabled = service.auth_enabled
         previous_group_id = service.authentik_group_id
+        clear_rate_limit = update_payload.get("rate_limit_enabled") is False
         service.update(
             name=update_payload.get("name"),
             upstream_host=update_payload.get("upstream_host"),
@@ -68,6 +72,10 @@ class ServiceUseCases:
             auth_enabled=update_payload.get("auth_enabled"),
             https_redirect_enabled=update_payload.get("https_redirect_enabled"),
             allowed_ips=update_payload.get("allowed_ips"),
+            rate_limit_average=update_payload.get("rate_limit_average"),
+            rate_limit_burst=update_payload.get("rate_limit_burst"),
+            custom_headers=update_payload.get("custom_headers"),
+            clear_rate_limit=clear_rate_limit,
         )
 
         if "authentik_group_id" in update_payload:

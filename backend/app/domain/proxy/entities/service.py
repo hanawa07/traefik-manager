@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from ipaddress import ip_network
+import re
 from uuid import UUID, uuid4
 from ..value_objects.domain_name import DomainName
 from ..value_objects.upstream import Upstream
@@ -24,6 +25,9 @@ class Service:
     updated_at: datetime
     https_redirect_enabled: bool = True
     allowed_ips: list[str] = field(default_factory=list)
+    rate_limit_average: int | None = None
+    rate_limit_burst: int | None = None
+    custom_headers: dict[str, str] = field(default_factory=dict)
     authentik_provider_id: str | None = None
     authentik_app_slug: str | None = None
     authentik_group_id: str | None = None
@@ -43,10 +47,18 @@ class Service:
         auth_enabled: bool = False,
         https_redirect_enabled: bool = True,
         allowed_ips: list[str] | None = None,
+        rate_limit_average: int | None = None,
+        rate_limit_burst: int | None = None,
+        custom_headers: dict[str, str] | None = None,
         authentik_group_id: str | None = None,
     ) -> "Service":
         if https_redirect_enabled and not tls_enabled:
             raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
+
+        normalized_average, normalized_burst = cls._normalize_rate_limit(
+            rate_limit_average=rate_limit_average,
+            rate_limit_burst=rate_limit_burst,
+        )
 
         now = datetime.utcnow()
         service = cls(
@@ -60,6 +72,9 @@ class Service:
             updated_at=now,
             https_redirect_enabled=https_redirect_enabled,
             allowed_ips=cls._normalize_allowed_ips(allowed_ips),
+            rate_limit_average=normalized_average,
+            rate_limit_burst=normalized_burst,
+            custom_headers=cls._normalize_custom_headers(custom_headers),
             authentik_group_id=authentik_group_id if auth_enabled else None,
         )
         service._events.append(ServiceCreated(service_id=service.id, name=name, domain=domain))
@@ -74,7 +89,11 @@ class Service:
         auth_enabled: bool | None = None,
         https_redirect_enabled: bool | None = None,
         allowed_ips: list[str] | None = None,
+        rate_limit_average: int | None = None,
+        rate_limit_burst: int | None = None,
+        custom_headers: dict[str, str] | None = None,
         authentik_group_id: str | None = None,
+        clear_rate_limit: bool = False,
     ) -> None:
         if name is not None:
             self.name = name
@@ -96,6 +115,22 @@ class Service:
             self.https_redirect_enabled = https_redirect_enabled
         if allowed_ips is not None:
             self.allowed_ips = self._normalize_allowed_ips(allowed_ips)
+        if clear_rate_limit:
+            self.rate_limit_average = None
+            self.rate_limit_burst = None
+        elif rate_limit_average is not None or rate_limit_burst is not None:
+            normalized_average, normalized_burst = self._normalize_rate_limit(
+                rate_limit_average=(
+                    rate_limit_average if rate_limit_average is not None else self.rate_limit_average
+                ),
+                rate_limit_burst=(
+                    rate_limit_burst if rate_limit_burst is not None else self.rate_limit_burst
+                ),
+            )
+            self.rate_limit_average = normalized_average
+            self.rate_limit_burst = normalized_burst
+        if custom_headers is not None:
+            self.custom_headers = self._normalize_custom_headers(custom_headers)
         if authentik_group_id is not None:
             self.authentik_group_id = authentik_group_id if self.auth_enabled else None
 
@@ -118,6 +153,10 @@ class Service:
     def upstream_port(self) -> int:
         return self.upstream.port
 
+    @property
+    def rate_limit_enabled(self) -> bool:
+        return self.rate_limit_average is not None and self.rate_limit_burst is not None
+
     @staticmethod
     def _normalize_allowed_ips(allowed_ips: list[str] | None) -> list[str]:
         if not allowed_ips:
@@ -134,5 +173,39 @@ class Service:
             if network not in seen:
                 seen.add(network)
                 normalized.append(network)
+
+        return normalized
+
+    @staticmethod
+    def _normalize_rate_limit(
+        rate_limit_average: int | None,
+        rate_limit_burst: int | None,
+    ) -> tuple[int | None, int | None]:
+        if rate_limit_average is None and rate_limit_burst is None:
+            return None, None
+        if rate_limit_average is None or rate_limit_burst is None:
+            raise ValueError("Rate Limit을 활성화하려면 average와 burst를 모두 입력해야 합니다")
+        if rate_limit_average <= 0 or rate_limit_burst <= 0:
+            raise ValueError("Rate Limit 값은 1 이상의 정수여야 합니다")
+        return rate_limit_average, rate_limit_burst
+
+    @staticmethod
+    def _normalize_custom_headers(custom_headers: dict[str, str] | None) -> dict[str, str]:
+        if not custom_headers:
+            return {}
+
+        normalized: dict[str, str] = {}
+        token_pattern = re.compile(r"^[A-Za-z0-9-]+$")
+
+        for raw_key, raw_value in custom_headers.items():
+            key = raw_key.strip()
+            value = raw_value.strip()
+            if not key:
+                continue
+            if not token_pattern.match(key):
+                raise ValueError(f"유효하지 않은 헤더 키입니다: {key}")
+            if "\n" in key or "\r" in key or "\n" in value or "\r" in value:
+                raise ValueError(f"유효하지 않은 헤더 값입니다: {key}")
+            normalized[key] = value
 
         return normalized
