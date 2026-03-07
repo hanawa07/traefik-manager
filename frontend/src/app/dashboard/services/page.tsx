@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { useServices, useDeleteService } from "@/features/services/hooks/useServices";
+import { useServices, useDeleteService, useAllServicesHealth } from "@/features/services/hooks/useServices";
 import ServiceCard from "@/features/services/components/ServiceCard";
 import Modal from "@/shared/components/Modal";
 import { Service } from "@/features/services/api/serviceApi";
@@ -25,6 +25,7 @@ export default function ServicesPage() {
   const canManage = role === "admin";
   const { data: services = [], isLoading } = useServices();
   const { data: routerStatus } = useTraefikRouterStatus();
+  const { data: healthMap } = useAllServicesHealth();
   const deleteService = useDeleteService();
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
   const [search, setSearch] = useState("");
@@ -169,6 +170,7 @@ export default function ServicesPage() {
               onDelete={setDeleteTarget}
               routerActive={routerStatus?.domains?.[service.domain]?.active}
               canManage={canManage}
+              upstreamHealth={healthMap?.[service.id]}
             />
           ))}
         </div>
