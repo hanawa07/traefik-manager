@@ -1,6 +1,7 @@
-import unittest
 from datetime import datetime
 from uuid import uuid4
+
+import pytest
 
 from app.core.security import hash_password
 from app.domain.proxy.entities.user import User
@@ -35,54 +36,55 @@ class InMemoryUserRepository:
     async def count_admins(self) -> int:
         return sum(1 for user in self.users.values() if user.role == "admin")
 
+@pytest.mark.asyncio
+async def test_authenticate_user_returns_user_for_valid_credentials():
+    user = User(
+        id=uuid4(),
+        username="admin",
+        hashed_password=hash_password("secret123"),
+        role="admin",
+        is_active=True,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    use_cases = AuthUseCases(InMemoryUserRepository([user]))
 
-class AuthUseCasesTest(unittest.IsolatedAsyncioTestCase):
-    async def test_authenticate_user_returns_user_for_valid_credentials(self):
-        user = User(
-            id=uuid4(),
-            username="admin",
-            hashed_password=hash_password("secret123"),
-            role="admin",
-            is_active=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-        )
-        use_cases = AuthUseCases(InMemoryUserRepository([user]))
+    authenticated = await use_cases.authenticate_user("admin", "secret123")
 
-        authenticated = await use_cases.authenticate_user("admin", "secret123")
+    assert authenticated is not None
+    assert authenticated.username == "admin"
+    assert authenticated.role == "admin"
 
-        self.assertIsNotNone(authenticated)
-        self.assertEqual(authenticated.username, "admin")
-        self.assertEqual(authenticated.role, "admin")
+@pytest.mark.asyncio
+async def test_authenticate_user_returns_none_for_wrong_password():
+    user = User(
+        id=uuid4(),
+        username="viewer",
+        hashed_password=hash_password("secret123"),
+        role="viewer",
+        is_active=True,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    use_cases = AuthUseCases(InMemoryUserRepository([user]))
 
-    async def test_authenticate_user_returns_none_for_wrong_password(self):
-        user = User(
-            id=uuid4(),
-            username="viewer",
-            hashed_password=hash_password("secret123"),
-            role="viewer",
-            is_active=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-        )
-        use_cases = AuthUseCases(InMemoryUserRepository([user]))
+    authenticated = await use_cases.authenticate_user("viewer", "wrong-password")
 
-        authenticated = await use_cases.authenticate_user("viewer", "wrong-password")
+    assert authenticated is None
 
-        self.assertIsNone(authenticated)
+@pytest.mark.asyncio
+async def test_authenticate_user_returns_none_for_inactive_user():
+    user = User(
+        id=uuid4(),
+        username="viewer",
+        hashed_password=hash_password("secret123"),
+        role="viewer",
+        is_active=False,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    use_cases = AuthUseCases(InMemoryUserRepository([user]))
 
-    async def test_authenticate_user_returns_none_for_inactive_user(self):
-        user = User(
-            id=uuid4(),
-            username="viewer",
-            hashed_password=hash_password("secret123"),
-            role="viewer",
-            is_active=False,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-        )
-        use_cases = AuthUseCases(InMemoryUserRepository([user]))
+    authenticated = await use_cases.authenticate_user("viewer", "secret123")
 
-        authenticated = await use_cases.authenticate_user("viewer", "secret123")
-
-        self.assertIsNone(authenticated)
+    assert authenticated is None

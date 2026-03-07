@@ -1,30 +1,30 @@
-import unittest
-
+import pytest
 from fastapi import HTTPException
 
 from app.interfaces.api.dependencies import require_admin, require_write_access
 
+@pytest.mark.asyncio
+async def test_require_write_access_allows_admin():
+    user = {"username": "admin", "role": "admin"}
 
-class AuthorizationDependenciesTest(unittest.IsolatedAsyncioTestCase):
-    async def test_require_write_access_allows_admin(self):
-        user = {"username": "admin", "role": "admin"}
+    resolved = await require_write_access(user)
 
-        resolved = await require_write_access(user)
+    assert resolved["role"] == "admin"
 
-        self.assertEqual(resolved["role"], "admin")
+@pytest.mark.asyncio
+async def test_require_write_access_blocks_viewer():
+    user = {"username": "viewer", "role": "viewer"}
 
-    async def test_require_write_access_blocks_viewer(self):
-        user = {"username": "viewer", "role": "viewer"}
+    with pytest.raises(HTTPException) as exc:
+        await require_write_access(user)
 
-        with self.assertRaises(HTTPException) as exc:
-            await require_write_access(user)
+    assert exc.value.status_code == 403
 
-        self.assertEqual(exc.exception.status_code, 403)
+@pytest.mark.asyncio
+async def test_require_admin_blocks_viewer():
+    user = {"username": "viewer", "role": "viewer"}
 
-    async def test_require_admin_blocks_viewer(self):
-        user = {"username": "viewer", "role": "viewer"}
+    with pytest.raises(HTTPException) as exc:
+        await require_admin(user)
 
-        with self.assertRaises(HTTPException) as exc:
-            await require_admin(user)
-
-        self.assertEqual(exc.exception.status_code, 403)
+    assert exc.value.status_code == 403
