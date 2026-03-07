@@ -11,6 +11,7 @@ from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_user_repository import (
     SQLiteUserRepository,
 )
+from app.interfaces.api.dependencies import get_current_user
 from app.interfaces.api.v1.schemas.auth_schemas import LoginResponse
 
 router = APIRouter()
@@ -44,7 +45,8 @@ async def login(
             "sub": user.username,
             "uid": str(user.id),
             "role": user.role,
-        }
+        },
+        token_version=user.token_version,
     )
     logger.info(
         "로그인 성공: username=%s",
@@ -57,3 +59,16 @@ async def login(
         "username": user.username,
         "role": user.role,
     }
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="로그아웃")
+async def logout(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    repository = SQLiteUserRepository(db)
+    user = await repository.find_by_username(current_user["username"])
+    if user:
+        user.invalidate_tokens()
+        await repository.save(user)
+    logger.info("로그아웃: username=%s", current_user["username"])

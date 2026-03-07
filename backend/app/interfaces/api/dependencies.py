@@ -32,6 +32,13 @@ async def get_current_user(
             detail="유효하지 않은 토큰입니다",
         )
 
+    if payload.get("ver", 0) != user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="만료된 토큰입니다. 다시 로그인해주세요",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     return {
         "id": str(user.id),
         "username": user.username,

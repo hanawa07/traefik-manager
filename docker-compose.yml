@@ -43,6 +43,18 @@ services:
       - traefik.http.routers.traefik-manager-backend-http.middlewares=traefik-manager-backend-https
       - traefik.http.middlewares.traefik-manager-backend-https.redirectscheme.scheme=https
       - traefik.http.middlewares.traefik-manager-backend-https.redirectscheme.permanent=true
+      # 로그인 엔드포인트 rate limiting (1분에 최대 10회, burst 5)
+      - traefik.http.middlewares.login-ratelimit.ratelimit.average=10
+      - traefik.http.middlewares.login-ratelimit.ratelimit.burst=5
+      - traefik.http.middlewares.login-ratelimit.ratelimit.period=1m
+      - traefik.http.middlewares.login-ratelimit.ratelimit.sourcecriterion.ipstrategy.depth=1
+      - traefik.http.routers.traefik-manager-login.rule=Host(`${BACKEND_DOMAIN}`) && Path(`/api/v1/auth/login`)
+      - traefik.http.routers.traefik-manager-login.entrypoints=websecure
+      - traefik.http.routers.traefik-manager-login.tls=true
+      - traefik.http.routers.traefik-manager-login.tls.certresolver=letsencrypt
+      - traefik.http.routers.traefik-manager-login.middlewares=login-ratelimit
+      - traefik.http.routers.traefik-manager-login.service=traefik-manager-backend
+      - traefik.http.routers.traefik-manager-login.priority=10
 
   frontend:
     build:

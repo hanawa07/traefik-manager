@@ -14,6 +14,7 @@ class User:
     hashed_password: str
     role: UserRole
     is_active: bool
+    token_version: int
     created_at: datetime
     updated_at: datetime
 
@@ -32,6 +33,7 @@ class User:
             hashed_password=cls._normalize_hashed_password(hashed_password),
             role=cls._normalize_role(role),
             is_active=bool(is_active),
+            token_version=0,
             created_at=now,
             updated_at=now,
         )
@@ -47,10 +49,16 @@ class User:
             self.username = self._normalize_username(username)
         if hashed_password is not None:
             self.hashed_password = self._normalize_hashed_password(hashed_password)
+            self.token_version += 1  # 비밀번호 변경 시 기존 토큰 무효화
         if role is not None:
             self.role = self._normalize_role(role)
         if is_active is not None:
             self.is_active = bool(is_active)
+        self.updated_at = datetime.utcnow()
+
+    def invalidate_tokens(self) -> None:
+        """로그아웃 시 기존 발급된 모든 JWT 무효화"""
+        self.token_version += 1
         self.updated_at = datetime.utcnow()
 
     @staticmethod

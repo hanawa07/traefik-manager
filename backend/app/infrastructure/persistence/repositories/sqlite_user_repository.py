@@ -19,6 +19,7 @@ class SQLiteUserRepository(UserRepository):
             existing.hashed_password = user.hashed_password
             existing.role = user.role
             existing.is_active = user.is_active
+            existing.token_version = user.token_version
         else:
             self.db.add(
                 UserModel(
@@ -27,6 +28,7 @@ class SQLiteUserRepository(UserRepository):
                     hashed_password=user.hashed_password,
                     role=user.role,
                     is_active=user.is_active,
+                    token_version=user.token_version,
                 )
             )
 
@@ -66,6 +68,7 @@ class SQLiteUserRepository(UserRepository):
             hashed_password=model.hashed_password,
             role=model.role,
             is_active=model.is_active,
+            token_version=model.token_version,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )

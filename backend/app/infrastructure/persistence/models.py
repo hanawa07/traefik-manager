@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean, DateTime, JSON, func
+from sqlalchemy import String, Boolean, DateTime, Integer, JSON, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.infrastructure.persistence.base import Base
 import uuid
@@ -63,6 +63,7 @@ class UserModel(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
