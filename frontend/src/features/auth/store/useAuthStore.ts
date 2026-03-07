@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { authApi } from "../api/authApi";
 
 export type UserRole = "admin" | "viewer";
 
@@ -10,7 +11,7 @@ interface AuthState {
   isAuthenticated: boolean;
   _hydrated: boolean;
   login: (token: string, username: string, role: UserRole) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   setHydrated: () => void;
 }
 
@@ -26,7 +27,12 @@ export const useAuthStore = create<AuthState>()(
         localStorage.setItem("access_token", token);
         set({ token, username, role, isAuthenticated: true });
       },
-      logout: () => {
+      logout: async () => {
+        try {
+          await authApi.logout();
+        } catch {
+          // 서버 오류 시에도 로컬 상태는 초기화
+        }
         localStorage.removeItem("access_token");
         set({ token: null, username: null, role: null, isAuthenticated: false });
       },

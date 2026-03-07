@@ -20,8 +20,8 @@ export default function Sidebar() {
   const router = useRouter();
   const { username, role, logout } = useAuthStore();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.replace("/login");
   };
 
