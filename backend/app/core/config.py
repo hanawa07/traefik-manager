@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./data/traefik_manager.db"
 
     TRAEFIK_CONFIG_PATH: str = "/traefik-config/dynamic"
+    TRAEFIK_API_URL: str = "http://traefik:8080"
+    TRAEFIK_API_TIMEOUT_SECONDS: float = 5.0
 
     AUTHENTIK_URL: str
     AUTHENTIK_TOKEN: str

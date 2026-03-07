@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { serviceApi, ServiceCreate, ServiceUpdate } from "../api/serviceApi";
 
 const QUERY_KEY = ["services"];
+const AUTHENTIK_GROUPS_QUERY_KEY = ["authentik-groups"];
 
 export function useServices() {
   return useQuery({
@@ -39,5 +40,14 @@ export function useDeleteService() {
   return useMutation({
     mutationFn: (id: string) => serviceApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
+  });
+}
+
+export function useAuthentikGroups(enabled = true) {
+  return useQuery({
+    queryKey: AUTHENTIK_GROUPS_QUERY_KEY,
+    queryFn: serviceApi.listAuthentikGroups,
+    enabled,
+    staleTime: 60_000,
   });
 }

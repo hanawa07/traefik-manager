@@ -65,7 +65,10 @@ export default function EditServicePage() {
             upstream_host: service.upstream_host,
             upstream_port: service.upstream_port,
             tls_enabled: service.tls_enabled,
+            https_redirect_enabled: service.https_redirect_enabled,
             auth_enabled: service.auth_enabled,
+            allowed_ips: service.allowed_ips,
+            authentik_group_id: service.authentik_group_id,
           }}
           onSubmit={handleSubmit}
           loading={updateService.isPending}

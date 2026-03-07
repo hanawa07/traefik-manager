@@ -7,7 +7,11 @@ export interface Service {
   upstream_host: string;
   upstream_port: number;
   tls_enabled: boolean;
+  https_redirect_enabled: boolean;
   auth_enabled: boolean;
+  allowed_ips: string[];
+  authentik_group_id: string | null;
+  authentik_group_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -18,7 +22,10 @@ export interface ServiceCreate {
   upstream_host: string;
   upstream_port: number;
   tls_enabled: boolean;
+  https_redirect_enabled: boolean;
   auth_enabled: boolean;
+  allowed_ips: string[];
+  authentik_group_id?: string | null;
 }
 
 export interface ServiceUpdate {
@@ -26,7 +33,15 @@ export interface ServiceUpdate {
   upstream_host?: string;
   upstream_port?: number;
   tls_enabled?: boolean;
+  https_redirect_enabled?: boolean;
   auth_enabled?: boolean;
+  allowed_ips?: string[];
+  authentik_group_id?: string | null;
+}
+
+export interface AuthentikGroup {
+  id: string;
+  name: string;
 }
 
 export const serviceApi = {
@@ -52,5 +67,10 @@ export const serviceApi = {
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/services/${id}`);
+  },
+
+  listAuthentikGroups: async (): Promise<AuthentikGroup[]> => {
+    const res = await apiClient.get<AuthentikGroup[]>("/services/authentik/groups");
+    return res.data;
   },
 };

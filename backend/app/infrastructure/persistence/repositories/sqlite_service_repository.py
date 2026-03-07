@@ -22,9 +22,15 @@ class SQLiteServiceRepository(ServiceRepository):
             existing.upstream_host = service.upstream.host
             existing.upstream_port = service.upstream.port
             existing.tls_enabled = service.tls_enabled
+            existing.https_redirect_enabled = service.https_redirect_enabled
             existing.auth_enabled = service.auth_enabled
-            existing.authentik_provider_id = getattr(service, "authentik_provider_id", None)
-            existing.authentik_app_slug = getattr(service, "authentik_app_slug", None)
+            existing.allowed_ips = service.allowed_ips
+            existing.authentik_provider_id = service.authentik_provider_id
+            existing.authentik_app_slug = service.authentik_app_slug
+            existing.authentik_group_id = service.authentik_group_id
+            existing.authentik_group_name = service.authentik_group_name
+            existing.authentik_policy_id = service.authentik_policy_id
+            existing.authentik_policy_binding_id = service.authentik_policy_binding_id
         else:
             model = ServiceModel(
                 id=str(service.id),
@@ -33,7 +39,15 @@ class SQLiteServiceRepository(ServiceRepository):
                 upstream_host=service.upstream.host,
                 upstream_port=service.upstream.port,
                 tls_enabled=service.tls_enabled,
+                https_redirect_enabled=service.https_redirect_enabled,
                 auth_enabled=service.auth_enabled,
+                allowed_ips=service.allowed_ips,
+                authentik_provider_id=service.authentik_provider_id,
+                authentik_app_slug=service.authentik_app_slug,
+                authentik_group_id=service.authentik_group_id,
+                authentik_group_name=service.authentik_group_name,
+                authentik_policy_id=service.authentik_policy_id,
+                authentik_policy_binding_id=service.authentik_policy_binding_id,
             )
             self.db.add(model)
 
@@ -68,7 +82,13 @@ class SQLiteServiceRepository(ServiceRepository):
             auth_enabled=model.auth_enabled,
             created_at=model.created_at,
             updated_at=model.updated_at,
+            https_redirect_enabled=model.https_redirect_enabled,
+            allowed_ips=model.allowed_ips or [],
+            authentik_provider_id=model.authentik_provider_id,
+            authentik_app_slug=model.authentik_app_slug,
+            authentik_group_id=model.authentik_group_id,
+            authentik_group_name=model.authentik_group_name,
+            authentik_policy_id=model.authentik_policy_id,
+            authentik_policy_binding_id=model.authentik_policy_binding_id,
         )
-        service.authentik_provider_id = model.authentik_provider_id
-        service.authentik_app_slug = model.authentik_app_slug
         return service
