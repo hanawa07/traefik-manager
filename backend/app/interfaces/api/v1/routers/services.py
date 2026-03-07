@@ -92,7 +92,7 @@ async def create_service(
         ) from exc
 
 
-@router.get("/health/all", response_model=dict[UUID, UpstreamHealthResponse], summary="전체 서비스 업스트림 헬스 체크")
+@router.get("/health/all", response_model=dict[str, UpstreamHealthResponse], summary="전체 서비스 업스트림 헬스 체크")
 async def list_services_health(
     use_cases: ServiceUseCases = Depends(get_use_cases),
     _: dict = Depends(get_current_user),
@@ -107,8 +107,8 @@ async def list_services_health(
     health_results = await asyncio.gather(*tasks)
     
     return {
-        service.id: UpstreamHealthResponse(
-            service_id=service.id,
+        str(service.id): UpstreamHealthResponse(
+            service_id=service.id.value,
             domain=str(service.domain),
             **result
         )
@@ -129,7 +129,7 @@ async def get_service_health(
     result = await upstream_checker.check_upstream(service.upstream_host, service.upstream_port)
     
     return UpstreamHealthResponse(
-        service_id=service.id,
+        service_id=service.id.value,
         domain=str(service.domain),
         **result
     )
