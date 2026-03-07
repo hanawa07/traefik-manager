@@ -12,7 +12,7 @@ from app.infrastructure.persistence.repositories.sqlite_service_repository impor
     SQLiteServiceRepository,
 )
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
-from app.interfaces.api.dependencies import get_current_user
+from app.interfaces.api.dependencies import get_current_user, require_write_access
 from app.interfaces.api.v1.schemas.redirect_schemas import (
     RedirectHostCreate,
     RedirectHostResponse,
@@ -42,7 +42,7 @@ async def list_redirect_hosts(
 async def create_redirect_host(
     data: RedirectHostCreate,
     use_cases: RedirectHostUseCases = Depends(get_use_cases),
-    _: dict = Depends(get_current_user),
+    _: dict = Depends(require_write_access),
 ):
     try:
         return await use_cases.create_redirect_host(data)
@@ -67,7 +67,7 @@ async def update_redirect_host(
     redirect_id: UUID,
     data: RedirectHostUpdate,
     use_cases: RedirectHostUseCases = Depends(get_use_cases),
-    _: dict = Depends(get_current_user),
+    _: dict = Depends(require_write_access),
 ):
     try:
         redirect_host = await use_cases.update_redirect_host(redirect_id, data)
@@ -83,6 +83,6 @@ async def update_redirect_host(
 async def delete_redirect_host(
     redirect_id: UUID,
     use_cases: RedirectHostUseCases = Depends(get_use_cases),
-    _: dict = Depends(get_current_user),
+    _: dict = Depends(require_write_access),
 ):
     await use_cases.delete_redirect_host(redirect_id)

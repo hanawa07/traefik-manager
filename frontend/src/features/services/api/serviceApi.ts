@@ -14,10 +14,19 @@ export interface Service {
   rate_limit_average: number | null;
   rate_limit_burst: number | null;
   custom_headers: Record<string, string>;
+  basic_auth_enabled: boolean;
+  basic_auth_user_count: number;
+  middleware_template_ids: string[];
   authentik_group_id: string | null;
   authentik_group_name: string | null;
+  cloudflare_record_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface BasicAuthCredential {
+  username: string;
+  password: string;
 }
 
 export interface ServiceCreate {
@@ -28,11 +37,14 @@ export interface ServiceCreate {
   tls_enabled: boolean;
   https_redirect_enabled: boolean;
   auth_enabled: boolean;
+  basic_auth_enabled: boolean;
   rate_limit_enabled?: boolean;
   allowed_ips: string[];
   rate_limit_average: number | null;
   rate_limit_burst: number | null;
   custom_headers: Record<string, string>;
+  basic_auth_credentials?: BasicAuthCredential[];
+  middleware_template_ids: string[];
   authentik_group_id?: string | null;
 }
 
@@ -43,11 +55,14 @@ export interface ServiceUpdate {
   tls_enabled?: boolean;
   https_redirect_enabled?: boolean;
   auth_enabled?: boolean;
+  basic_auth_enabled?: boolean;
   rate_limit_enabled?: boolean;
   rate_limit_average?: number | null;
   rate_limit_burst?: number | null;
   custom_headers?: Record<string, string>;
   allowed_ips?: string[];
+  basic_auth_credentials?: BasicAuthCredential[];
+  middleware_template_ids?: string[];
   authentik_group_id?: string | null;
 }
 

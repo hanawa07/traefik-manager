@@ -2,12 +2,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
-import { Server, LayoutDashboard, Shield, ArrowRightLeft, LogOut, Settings } from "lucide-react";
+import { Server, LayoutDashboard, Shield, ArrowRightLeft, LogOut, Settings, SlidersHorizontal } from "lucide-react";
 import { clsx } from "clsx";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "대시보드" },
   { href: "/dashboard/services", icon: Server, label: "서비스" },
+  { href: "/dashboard/middlewares", icon: SlidersHorizontal, label: "미들웨어" },
   { href: "/dashboard/redirects", icon: ArrowRightLeft, label: "리다이렉트" },
   { href: "/dashboard/certificates", icon: Shield, label: "인증서" },
   { href: "/dashboard/settings", icon: Settings, label: "설정" },
@@ -16,7 +17,7 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { username, logout } = useAuthStore();
+  const { username, role, logout } = useAuthStore();
 
   const handleLogout = () => {
     logout();
@@ -63,7 +64,10 @@ export default function Sidebar() {
               {username?.charAt(0).toUpperCase()}
             </span>
           </div>
-          <span className="text-slate-300 text-sm flex-1 truncate">{username}</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-slate-300 text-sm truncate">{username}</p>
+            <p className="text-[11px] text-slate-500">{role === "admin" ? "관리자" : "뷰어"}</p>
+          </div>
         </div>
         <button
           onClick={handleLogout}

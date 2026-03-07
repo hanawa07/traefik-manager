@@ -12,6 +12,16 @@ class Settings(BaseSettings):
     TRAEFIK_API_URL: str = "http://traefik:8080"
     TRAEFIK_API_TIMEOUT_SECONDS: float = 5.0
 
+    DOCKER_SOCKET_PATH: str = "/var/run/docker.sock"
+    DOCKER_API_VERSION: str = "v1.41"
+    DOCKER_API_TIMEOUT_SECONDS: float = 5.0
+
+    CLOUDFLARE_API_TOKEN: str | None = None
+    CLOUDFLARE_ZONE_ID: str | None = None
+    CLOUDFLARE_RECORD_TARGET: str | None = None
+    CLOUDFLARE_PROXIED: bool = False
+    CLOUDFLARE_API_TIMEOUT_SECONDS: float = 10.0
+
     AUTHENTIK_URL: str
     AUTHENTIK_TOKEN: str
 

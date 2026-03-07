@@ -7,9 +7,16 @@ import { clsx } from "clsx";
 interface ServiceCardProps {
   service: Service;
   onDelete: (service: Service) => void;
+  routerActive?: boolean;
+  canManage?: boolean;
 }
 
-export default function ServiceCard({ service, onDelete }: ServiceCardProps) {
+export default function ServiceCard({
+  service,
+  onDelete,
+  routerActive,
+  canManage = true,
+}: ServiceCardProps) {
   return (
     <div className="card p-5 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-4">
@@ -33,20 +40,22 @@ export default function ServiceCard({ service, onDelete }: ServiceCardProps) {
         </div>
 
         {/* 액션 버튼 */}
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <Link
-            href={`/dashboard/services/${service.id}`}
-            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-          >
-            <Pencil className="w-4 h-4" />
-          </Link>
-          <button
-            onClick={() => onDelete(service)}
-            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+        {canManage ? (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Link
+              href={`/dashboard/services/${service.id}`}
+              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <Pencil className="w-4 h-4" />
+            </Link>
+            <button
+              onClick={() => onDelete(service)}
+              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {/* 상태 배지 */}
@@ -60,10 +69,38 @@ export default function ServiceCard({ service, onDelete }: ServiceCardProps) {
         </span>
         <span className={clsx(
           "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
-          service.auth_enabled ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
+          (service.auth_enabled || service.basic_auth_enabled)
+            ? "bg-blue-100 text-blue-700"
+            : "bg-gray-100 text-gray-500"
         )}>
           <Lock className="w-3 h-3" />
-          {service.auth_enabled ? "인증 활성" : "인증 없음"}
+          {service.auth_enabled
+            ? "Authentik 인증"
+            : service.basic_auth_enabled
+              ? `Basic Auth (${service.basic_auth_user_count})`
+              : "인증 없음"}
+        </span>
+        <span
+          className={clsx(
+            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+            routerActive === undefined
+              ? "bg-gray-100 text-gray-500"
+              : routerActive
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-rose-100 text-rose-700"
+          )}
+        >
+          <span
+            className={clsx(
+              "w-1.5 h-1.5 rounded-full",
+              routerActive === undefined
+                ? "bg-gray-400"
+                : routerActive
+                  ? "bg-emerald-500"
+                  : "bg-rose-500"
+            )}
+          />
+          {routerActive === undefined ? "라우터 확인 중" : routerActive ? "라우터 연결됨" : "라우터 미연결"}
         </span>
       </div>
     </div>

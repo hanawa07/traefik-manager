@@ -6,9 +6,14 @@ import ServiceCard from "@/features/services/components/ServiceCard";
 import Modal from "@/shared/components/Modal";
 import { Service } from "@/features/services/api/serviceApi";
 import { Server, Plus } from "lucide-react";
+import { useTraefikRouterStatus } from "@/features/traefik/hooks/useTraefik";
+import { useAuthStore } from "@/features/auth/store/useAuthStore";
 
 export default function ServicesPage() {
+  const role = useAuthStore((state) => state.role);
+  const canManage = role === "admin";
   const { data: services = [], isLoading } = useServices();
+  const { data: routerStatus } = useTraefikRouterStatus();
   const deleteService = useDeleteService();
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
 
@@ -28,10 +33,12 @@ export default function ServicesPage() {
             Traefik 라우팅 서비스 관리 ({services.length}개)
           </p>
         </div>
-        <Link href="/dashboard/services/new" className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          서비스 추가
-        </Link>
+        {canManage ? (
+          <Link href="/dashboard/services/new" className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            서비스 추가
+          </Link>
+        ) : null}
       </div>
 
       {/* 목록 */}
@@ -46,10 +53,12 @@ export default function ServicesPage() {
           <Server className="w-12 h-12 mx-auto mb-4 text-gray-300" />
           <p className="text-gray-500 font-medium">등록된 서비스가 없습니다</p>
           <p className="text-gray-400 text-sm mt-1">아래 버튼을 눌러 첫 번째 서비스를 추가하세요</p>
-          <Link href="/dashboard/services/new" className="btn-primary inline-flex items-center gap-2 mt-4">
-            <Plus className="w-4 h-4" />
-            서비스 추가
-          </Link>
+          {canManage ? (
+            <Link href="/dashboard/services/new" className="btn-primary inline-flex items-center gap-2 mt-4">
+              <Plus className="w-4 h-4" />
+              서비스 추가
+            </Link>
+          ) : null}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -58,6 +67,8 @@ export default function ServicesPage() {
               key={service.id}
               service={service}
               onDelete={setDeleteTarget}
+              routerActive={routerStatus?.domains?.[service.domain]?.active}
+              canManage={canManage}
             />
           ))}
         </div>

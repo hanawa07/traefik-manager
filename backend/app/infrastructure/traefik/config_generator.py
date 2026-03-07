@@ -1,6 +1,7 @@
 import re
 
 import yaml
+from app.domain.proxy.entities.middleware_template import MiddlewareTemplate
 from app.domain.proxy.entities.redirect_host import RedirectHost
 from app.domain.proxy.entities.service import Service
 
@@ -10,13 +11,19 @@ class TraefikConfigGenerator:
 
     AUTHENTIK_MIDDLEWARE = "authentik@file"
 
-    def generate(self, service: Service) -> dict:
+    def generate(
+        self,
+        service: Service,
+        middleware_templates: list[MiddlewareTemplate] | None = None,
+    ) -> dict:
+        templates = middleware_templates or []
         router_name = self._to_safe_name(str(service.domain))
         upstream_url = f"http://{service.upstream}"
         ip_allowlist_name = f"{router_name}-ipallowlist"
         redirect_middleware_name = f"{router_name}-redirectscheme"
         rate_limit_name = f"{router_name}-ratelimit"
         custom_headers_name = f"{router_name}-response-headers"
+        basic_auth_name = f"{router_name}-basicauth"
 
         middlewares: dict = {}
         router_middlewares: list[str] = []
@@ -45,6 +52,20 @@ class TraefikConfigGenerator:
                 }
             }
             router_middlewares.append(custom_headers_name)
+
+        if service.basic_auth_users:
+            middlewares[basic_auth_name] = {
+                "basicAuth": {
+                    "users": service.basic_auth_users,
+                }
+            }
+            router_middlewares.append(basic_auth_name)
+
+        for template in templates:
+            middlewares[template.shared_name] = {
+                template.type: template.config,
+            }
+            router_middlewares.append(template.shared_name)
 
         if service.auth_enabled:
             router_middlewares.append(self.AUTHENTIK_MIDDLEWARE)
@@ -104,9 +125,13 @@ class TraefikConfigGenerator:
 
         return config
 
-    def to_yaml(self, service: Service) -> str:
+    def to_yaml(
+        self,
+        service: Service,
+        middleware_templates: list[MiddlewareTemplate] | None = None,
+    ) -> str:
         return yaml.dump(
-            self.generate(service),
+            self.generate(service, middleware_templates=middleware_templates),
             default_flow_style=False,
             allow_unicode=True,
         )

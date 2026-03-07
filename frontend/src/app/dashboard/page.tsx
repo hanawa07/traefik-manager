@@ -2,6 +2,8 @@
 import { useServices } from "@/features/services/hooks/useServices";
 import { Server, Lock, Shield, AlertTriangle } from "lucide-react";
 import Link from "next/link";
+import { useTraefikHealth, useTraefikRouterStatus } from "@/features/traefik/hooks/useTraefik";
+import { useAuthStore } from "@/features/auth/store/useAuthStore";
 
 function StatCard({
   icon: Icon,
@@ -30,18 +32,38 @@ function StatCard({
 }
 
 export default function DashboardPage() {
+  const role = useAuthStore((state) => state.role);
+  const canManage = role === "admin";
   const { data: services = [], isLoading } = useServices();
+  const { data: traefikHealth } = useTraefikHealth();
+  const { data: routerStatus } = useTraefikRouterStatus();
 
   const totalServices = services.length;
-  const authEnabled = services.filter((s) => s.auth_enabled).length;
+  const authEnabled = services.filter((s) => s.auth_enabled || s.basic_auth_enabled).length;
   const tlsEnabled = services.filter((s) => s.tls_enabled).length;
-  const noAuth = services.filter((s) => !s.auth_enabled).length;
+  const noAuth = services.filter((s) => !s.auth_enabled && !s.basic_auth_enabled).length;
 
   return (
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">대시보드</h1>
         <p className="text-gray-500 text-sm mt-1">Traefik 서비스 현황</p>
+      </div>
+
+      <div
+        className={`mb-6 rounded-lg border px-4 py-3 ${
+          traefikHealth?.connected
+            ? "border-green-200 bg-green-50"
+            : "border-red-200 bg-red-50"
+        }`}
+      >
+        <p className={`text-sm font-medium ${traefikHealth?.connected ? "text-green-700" : "text-red-700"}`}>
+          Traefik 상태: {traefikHealth?.connected ? "연결됨" : "연결 안 됨"}
+        </p>
+        <p className={`text-xs mt-1 ${traefikHealth?.connected ? "text-green-600" : "text-red-600"}`}>
+          {traefikHealth?.message || "Traefik 상태를 확인하는 중입니다"}
+          {traefikHealth?.version ? ` · 버전 ${traefikHealth.version}` : ""}
+        </p>
       </div>
 
       {/* 통계 카드 */}
@@ -64,9 +86,11 @@ export default function DashboardPage() {
       <div className="card">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-semibold text-gray-900">서비스 목록</h2>
-          <Link href="/dashboard/services/new" className="btn-primary text-sm py-1.5">
-            + 서비스 추가
-          </Link>
+          {canManage ? (
+            <Link href="/dashboard/services/new" className="btn-primary text-sm py-1.5">
+              + 서비스 추가
+            </Link>
+          ) : null}
         </div>
 
         {isLoading ? (
@@ -79,9 +103,11 @@ export default function DashboardPage() {
           <div className="py-16 text-center text-gray-400">
             <Server className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="text-sm">등록된 서비스가 없습니다</p>
-            <Link href="/dashboard/services/new" className="text-blue-500 text-sm hover:underline mt-2 inline-block">
-              첫 번째 서비스 추가하기
-            </Link>
+            {canManage ? (
+              <Link href="/dashboard/services/new" className="text-blue-500 text-sm hover:underline mt-2 inline-block">
+                첫 번째 서비스 추가하기
+              </Link>
+            ) : null}
           </div>
         ) : (
           <table className="w-full">
@@ -92,6 +118,7 @@ export default function DashboardPage() {
                 <th className="px-6 py-3 text-left font-medium">업스트림</th>
                 <th className="px-6 py-3 text-left font-medium">TLS</th>
                 <th className="px-6 py-3 text-left font-medium">인증</th>
+                <th className="px-6 py-3 text-left font-medium">라우터 상태</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -108,8 +135,29 @@ export default function DashboardPage() {
                     </span>
                   </td>
                   <td className="px-6 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${service.auth_enabled ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
-                      {service.auth_enabled ? "활성" : "없음"}
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(service.auth_enabled || service.basic_auth_enabled) ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
+                      {service.auth_enabled
+                        ? "Authentik"
+                        : service.basic_auth_enabled
+                          ? `Basic(${service.basic_auth_user_count})`
+                          : "없음"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-3">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        routerStatus?.domains?.[service.domain]?.active === undefined
+                          ? "bg-gray-100 text-gray-500"
+                          : routerStatus?.domains?.[service.domain]?.active
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-rose-100 text-rose-700"
+                      }`}
+                    >
+                      {routerStatus?.domains?.[service.domain]?.active === undefined
+                        ? "확인 중"
+                        : routerStatus?.domains?.[service.domain]?.active
+                          ? "연결됨"
+                          : "미연결"}
                     </span>
                   </td>
                 </tr>

@@ -28,12 +28,15 @@ class SQLiteServiceRepository(ServiceRepository):
             existing.rate_limit_average = service.rate_limit_average
             existing.rate_limit_burst = service.rate_limit_burst
             existing.custom_headers = service.custom_headers
+            existing.basic_auth_users = service.basic_auth_users
+            existing.middleware_template_ids = service.middleware_template_ids
             existing.authentik_provider_id = service.authentik_provider_id
             existing.authentik_app_slug = service.authentik_app_slug
             existing.authentik_group_id = service.authentik_group_id
             existing.authentik_group_name = service.authentik_group_name
             existing.authentik_policy_id = service.authentik_policy_id
             existing.authentik_policy_binding_id = service.authentik_policy_binding_id
+            existing.cloudflare_record_id = service.cloudflare_record_id
         else:
             model = ServiceModel(
                 id=str(service.id),
@@ -48,12 +51,15 @@ class SQLiteServiceRepository(ServiceRepository):
                 rate_limit_average=service.rate_limit_average,
                 rate_limit_burst=service.rate_limit_burst,
                 custom_headers=service.custom_headers,
+                basic_auth_users=service.basic_auth_users,
+                middleware_template_ids=service.middleware_template_ids,
                 authentik_provider_id=service.authentik_provider_id,
                 authentik_app_slug=service.authentik_app_slug,
                 authentik_group_id=service.authentik_group_id,
                 authentik_group_name=service.authentik_group_name,
                 authentik_policy_id=service.authentik_policy_id,
                 authentik_policy_binding_id=service.authentik_policy_binding_id,
+                cloudflare_record_id=service.cloudflare_record_id,
             )
             self.db.add(model)
 
@@ -93,11 +99,14 @@ class SQLiteServiceRepository(ServiceRepository):
             rate_limit_average=model.rate_limit_average,
             rate_limit_burst=model.rate_limit_burst,
             custom_headers=model.custom_headers or {},
+            basic_auth_users=model.basic_auth_users or [],
+            middleware_template_ids=model.middleware_template_ids or [],
             authentik_provider_id=model.authentik_provider_id,
             authentik_app_slug=model.authentik_app_slug,
             authentik_group_id=model.authentik_group_id,
             authentik_group_name=model.authentik_group_name,
             authentik_policy_id=model.authentik_policy_id,
             authentik_policy_binding_id=model.authentik_policy_binding_id,
+            cloudflare_record_id=model.cloudflare_record_id,
         )
         return service

@@ -28,12 +28,15 @@ class Service:
     rate_limit_average: int | None = None
     rate_limit_burst: int | None = None
     custom_headers: dict[str, str] = field(default_factory=dict)
+    basic_auth_users: list[str] = field(default_factory=list)
+    middleware_template_ids: list[str] = field(default_factory=list)
     authentik_provider_id: str | None = None
     authentik_app_slug: str | None = None
     authentik_group_id: str | None = None
     authentik_group_name: str | None = None
     authentik_policy_id: str | None = None
     authentik_policy_binding_id: str | None = None
+    cloudflare_record_id: str | None = None
     _events: list = field(default_factory=list, repr=False)
 
     @classmethod
@@ -50,10 +53,14 @@ class Service:
         rate_limit_average: int | None = None,
         rate_limit_burst: int | None = None,
         custom_headers: dict[str, str] | None = None,
+        basic_auth_users: list[str] | None = None,
+        middleware_template_ids: list[str] | None = None,
         authentik_group_id: str | None = None,
     ) -> "Service":
         if https_redirect_enabled and not tls_enabled:
             raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
+        if auth_enabled and basic_auth_users:
+            raise ValueError("Authentik 인증과 Basic Auth는 동시에 활성화할 수 없습니다")
 
         normalized_average, normalized_burst = cls._normalize_rate_limit(
             rate_limit_average=rate_limit_average,
@@ -75,6 +82,8 @@ class Service:
             rate_limit_average=normalized_average,
             rate_limit_burst=normalized_burst,
             custom_headers=cls._normalize_custom_headers(custom_headers),
+            basic_auth_users=cls._normalize_basic_auth_users(basic_auth_users),
+            middleware_template_ids=cls._normalize_middleware_template_ids(middleware_template_ids),
             authentik_group_id=authentik_group_id if auth_enabled else None,
         )
         service._events.append(ServiceCreated(service_id=service.id, name=name, domain=domain))
@@ -92,6 +101,8 @@ class Service:
         rate_limit_average: int | None = None,
         rate_limit_burst: int | None = None,
         custom_headers: dict[str, str] | None = None,
+        basic_auth_users: list[str] | None = None,
+        middleware_template_ids: list[str] | None = None,
         authentik_group_id: str | None = None,
         clear_rate_limit: bool = False,
     ) -> None:
@@ -107,7 +118,9 @@ class Service:
                 self.https_redirect_enabled = False
         if auth_enabled is not None:
             self.auth_enabled = auth_enabled
-            if not auth_enabled:
+            if auth_enabled:
+                self.basic_auth_users = []
+            else:
                 self.authentik_group_id = None
         if https_redirect_enabled is not None:
             if https_redirect_enabled and not self.tls_enabled:
@@ -131,6 +144,13 @@ class Service:
             self.rate_limit_burst = normalized_burst
         if custom_headers is not None:
             self.custom_headers = self._normalize_custom_headers(custom_headers)
+        if basic_auth_users is not None:
+            normalized_basic_auth_users = self._normalize_basic_auth_users(basic_auth_users)
+            if normalized_basic_auth_users and self.auth_enabled:
+                raise ValueError("Authentik 인증과 Basic Auth는 동시에 활성화할 수 없습니다")
+            self.basic_auth_users = normalized_basic_auth_users
+        if middleware_template_ids is not None:
+            self.middleware_template_ids = self._normalize_middleware_template_ids(middleware_template_ids)
         if authentik_group_id is not None:
             self.authentik_group_id = authentik_group_id if self.auth_enabled else None
 
@@ -156,6 +176,14 @@ class Service:
     @property
     def rate_limit_enabled(self) -> bool:
         return self.rate_limit_average is not None and self.rate_limit_burst is not None
+
+    @property
+    def basic_auth_enabled(self) -> bool:
+        return len(self.basic_auth_users) > 0
+
+    @property
+    def basic_auth_user_count(self) -> int:
+        return len(self.basic_auth_users)
 
     @staticmethod
     def _normalize_allowed_ips(allowed_ips: list[str] | None) -> list[str]:
@@ -208,4 +236,50 @@ class Service:
                 raise ValueError(f"유효하지 않은 헤더 값입니다: {key}")
             normalized[key] = value
 
+        return normalized
+
+    @staticmethod
+    def _normalize_basic_auth_users(basic_auth_users: list[str] | None) -> list[str]:
+        if not basic_auth_users:
+            return []
+
+        normalized: list[str] = []
+        seen: set[str] = set()
+
+        for raw_user in basic_auth_users:
+            value = raw_user.strip()
+            if not value:
+                continue
+            if "\n" in value or "\r" in value:
+                raise ValueError("유효하지 않은 Basic Auth 사용자 정보입니다")
+            if ":" not in value:
+                raise ValueError("Basic Auth 사용자 정보 형식이 올바르지 않습니다")
+            username, hashed_password = value.split(":", 1)
+            username = username.strip()
+            hashed_password = hashed_password.strip()
+            if not username or not hashed_password:
+                raise ValueError("Basic Auth 사용자 정보 형식이 올바르지 않습니다")
+            if ":" in username:
+                raise ValueError("Basic Auth 사용자명에 ':' 문자를 사용할 수 없습니다")
+            normalized_value = f"{username}:{hashed_password}"
+            if normalized_value not in seen:
+                seen.add(normalized_value)
+                normalized.append(normalized_value)
+
+        return normalized
+
+    @staticmethod
+    def _normalize_middleware_template_ids(template_ids: list[str] | None) -> list[str]:
+        if not template_ids:
+            return []
+
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for raw_id in template_ids:
+            value = str(raw_id).strip()
+            if not value:
+                continue
+            if value not in seen:
+                seen.add(value)
+                normalized.append(value)
         return normalized

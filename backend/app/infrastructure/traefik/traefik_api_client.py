@@ -19,6 +19,66 @@ class TraefikApiClient:
         self.base_url = settings.TRAEFIK_API_URL.rstrip("/")
         self.timeout = settings.TRAEFIK_API_TIMEOUT_SECONDS
 
+    async def get_health(self) -> dict:
+        try:
+            overview = await self._get("/api/overview")
+        except TraefikApiClientError:
+            return {
+                "connected": False,
+                "message": "Traefik에 연결할 수 없습니다",
+                "version": None,
+            }
+
+        version = overview.get("version") if isinstance(overview, dict) else None
+        return {
+            "connected": True,
+            "message": "Traefik 연결됨",
+            "version": version,
+        }
+
+    async def get_router_status(self) -> dict:
+        try:
+            payload = await self._get("/api/http/routers")
+        except TraefikApiClientError:
+            return {
+                "connected": False,
+                "message": "Traefik 라우터 정보를 가져오지 못했습니다",
+                "domains": {},
+            }
+
+        routers = self._normalize_routers(payload)
+        domain_states: dict[str, dict] = {}
+
+        for router in routers:
+            router_name = router.get("name") or router.get("service") or "unknown"
+            status_raw = str(router.get("status", "enabled")).lower()
+            active = status_raw not in ("disabled", "error", "unknown")
+            rule = str(router.get("rule", ""))
+            domains = self._extract_domains_from_router(router)
+
+            for domain in domains:
+                current = domain_states.setdefault(
+                    domain,
+                    {
+                        "active": False,
+                        "routers": [],
+                    },
+                )
+                current["active"] = current["active"] or active
+                current["routers"].append(
+                    {
+                        "name": router_name,
+                        "status": status_raw,
+                        "rule": rule,
+                    }
+                )
+
+        return {
+            "connected": True,
+            "message": "Traefik 라우터 상태를 조회했습니다",
+            "domains": domain_states,
+        }
+
     async def list_certificates(self) -> list[dict]:
         overview, routers_payload = await asyncio.gather(
             self._get("/api/overview"),

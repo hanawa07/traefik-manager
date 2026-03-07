@@ -18,8 +18,8 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const token = await authApi.login(username, password);
-      login(token, username);
+      const result = await authApi.login(username, password);
+      login(result.access_token, result.username, result.role);
       router.replace("/dashboard");
     } catch {
       setError("아이디 또는 비밀번호가 올바르지 않습니다");
@@ -50,7 +50,7 @@ export default function LoginPage() {
                 <input
                   type="text"
                   className="input pl-9"
-                  placeholder="관리자 아이디"
+                  placeholder="사용자 아이디"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required

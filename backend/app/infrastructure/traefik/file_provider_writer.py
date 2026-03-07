@@ -1,5 +1,6 @@
 from pathlib import Path
 from app.core.config import settings
+from app.domain.proxy.entities.middleware_template import MiddlewareTemplate
 from app.domain.proxy.entities.redirect_host import RedirectHost
 from app.domain.proxy.entities.service import Service
 from app.infrastructure.traefik.config_generator import TraefikConfigGenerator
@@ -12,10 +13,17 @@ class FileProviderWriter:
         self.config_path = Path(settings.TRAEFIK_CONFIG_PATH)
         self.generator = TraefikConfigGenerator()
 
-    def write(self, service: Service) -> None:
+    def write(
+        self,
+        service: Service,
+        middleware_templates: list[MiddlewareTemplate] | None = None,
+    ) -> None:
         self.config_path.mkdir(parents=True, exist_ok=True)
         file_path = self._get_service_file_path(service)
-        file_path.write_text(self.generator.to_yaml(service), encoding="utf-8")
+        file_path.write_text(
+            self.generator.to_yaml(service, middleware_templates=middleware_templates or []),
+            encoding="utf-8",
+        )
 
     def delete(self, service: Service) -> None:
         file_path = self._get_service_file_path(service)

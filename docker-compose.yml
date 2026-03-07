@@ -9,6 +9,7 @@ services:
     volumes:
       - ./traefik-config:/traefik-config
       - backend-data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - traefik-manager-internal
       - proxy-network

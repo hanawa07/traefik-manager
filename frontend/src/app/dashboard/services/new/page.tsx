@@ -4,15 +4,31 @@ import { useCreateService } from "@/features/services/hooks/useServices";
 import ServiceForm from "@/features/services/components/ServiceForm";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
+import { useAuthStore } from "@/features/auth/store/useAuthStore";
 
 export default function NewServicePage() {
   const router = useRouter();
+  const role = useAuthStore((state) => state.role);
   const createService = useCreateService();
 
   const handleSubmit = async (data: Parameters<typeof createService.mutateAsync>[0]) => {
     await createService.mutateAsync(data);
     router.push("/dashboard/services");
   };
+
+  if (role === "viewer") {
+    return (
+      <div className="p-8 max-w-2xl">
+        <div className="card p-6">
+          <h1 className="text-xl font-semibold text-gray-900">읽기 전용 계정</h1>
+          <p className="mt-2 text-sm text-gray-500">viewer 계정은 서비스를 추가할 수 없습니다.</p>
+          <Link href="/dashboard/services" className="mt-4 inline-flex text-sm text-blue-600 hover:underline">
+            서비스 목록으로 돌아가기
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-2xl">

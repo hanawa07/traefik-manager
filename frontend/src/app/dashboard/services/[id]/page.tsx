@@ -5,10 +5,12 @@ import ServiceForm from "@/features/services/components/ServiceForm";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { ServiceUpdate } from "@/features/services/api/serviceApi";
+import { useAuthStore } from "@/features/auth/store/useAuthStore";
 
 export default function EditServicePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const role = useAuthStore((state) => state.role);
   const { data: service, isLoading } = useService(id);
   const updateService = useUpdateService(id);
 
@@ -32,6 +34,20 @@ export default function EditServicePage() {
         <Link href="/dashboard/services" className="text-blue-500 hover:underline text-sm mt-2 inline-block">
           서비스 목록으로 돌아가기
         </Link>
+      </div>
+    );
+  }
+
+  if (role === "viewer") {
+    return (
+      <div className="p-8 max-w-2xl">
+        <div className="card p-6">
+          <h1 className="text-xl font-semibold text-gray-900">읽기 전용 계정</h1>
+          <p className="mt-2 text-sm text-gray-500">viewer 계정은 서비스를 수정할 수 없습니다.</p>
+          <Link href="/dashboard/services" className="mt-4 inline-flex text-sm text-blue-600 hover:underline">
+            서비스 목록으로 돌아가기
+          </Link>
+        </div>
       </div>
     );
   }
@@ -67,6 +83,8 @@ export default function EditServicePage() {
             tls_enabled: service.tls_enabled,
             https_redirect_enabled: service.https_redirect_enabled,
             auth_enabled: service.auth_enabled,
+            basic_auth_enabled: service.basic_auth_enabled,
+            middleware_template_ids: service.middleware_template_ids,
             allowed_ips: service.allowed_ips,
             rate_limit_average: service.rate_limit_average,
             rate_limit_burst: service.rate_limit_burst,

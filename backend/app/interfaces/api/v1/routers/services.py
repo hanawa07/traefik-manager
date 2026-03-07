@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 import httpx
 
-from app.interfaces.api.dependencies import get_current_user
+from app.interfaces.api.dependencies import get_current_user, require_write_access
 from app.interfaces.api.v1.schemas.service_schemas import (
     AuthentikGroupResponse,
     ServiceCreate,
@@ -11,7 +11,11 @@ from app.interfaces.api.v1.schemas.service_schemas import (
     ServiceResponse,
 )
 from app.application.proxy.service_use_cases import ServiceUseCases
+from app.infrastructure.cloudflare.client import CloudflareClient, CloudflareClientError
 from app.infrastructure.persistence.database import get_db
+from app.infrastructure.persistence.repositories.sqlite_middleware_template_repository import (
+    SQLiteMiddlewareTemplateRepository,
+)
 from app.infrastructure.persistence.repositories.sqlite_service_repository import SQLiteServiceRepository
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.infrastructure.authentik.client import AuthentikClient
@@ -22,8 +26,10 @@ router = APIRouter()
 def get_use_cases(db: AsyncSession = Depends(get_db)) -> ServiceUseCases:
     return ServiceUseCases(
         repository=SQLiteServiceRepository(db),
+        middleware_template_repository=SQLiteMiddlewareTemplateRepository(db),
         file_writer=FileProviderWriter(),
         authentik_client=AuthentikClient(),
+        cloudflare_client=CloudflareClient(),
     )
 
 
@@ -53,7 +59,7 @@ async def list_authentik_groups(
 async def create_service(
     data: ServiceCreate,
     use_cases: ServiceUseCases = Depends(get_use_cases),
-    _: dict = Depends(get_current_user),
+    _: dict = Depends(require_write_access),
 ):
     try:
         return await use_cases.create_service(data)
@@ -63,6 +69,11 @@ async def create_service(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Authentik 연동 처리 중 오류가 발생했습니다",
+        ) from exc
+    except CloudflareClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
         ) from exc
 
 
@@ -83,7 +94,7 @@ async def update_service(
     service_id: UUID,
     data: ServiceUpdate,
     use_cases: ServiceUseCases = Depends(get_use_cases),
-    _: dict = Depends(get_current_user),
+    _: dict = Depends(require_write_access),
 ):
     try:
         service = await use_cases.update_service(service_id, data)
@@ -94,6 +105,11 @@ async def update_service(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Authentik 연동 처리 중 오류가 발생했습니다",
         ) from exc
+    except CloudflareClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
     if not service:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="서비스를 찾을 수 없습니다")
     return service
@@ -103,7 +119,7 @@ async def update_service(
 async def delete_service(
     service_id: UUID,
     use_cases: ServiceUseCases = Depends(get_use_cases),
-    _: dict = Depends(get_current_user),
+    _: dict = Depends(require_write_access),
 ):
     try:
         await use_cases.delete_service(service_id)
@@ -111,4 +127,9 @@ async def delete_service(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Authentik 연동 처리 중 오류가 발생했습니다",
+        ) from exc
+    except CloudflareClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
         ) from exc
