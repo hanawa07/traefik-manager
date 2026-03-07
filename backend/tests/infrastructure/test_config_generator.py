@@ -15,7 +15,7 @@ def test_generate_basic_service(generator, make_service):
     assert config["http"]["routers"][router_name]["rule"] == "Host(`example.com`)"
     assert config["http"]["routers"][router_name]["service"] == router_name
     assert config["http"]["routers"][router_name]["entryPoints"] == ["web"]
-    assert config["http"]["services"][router_name]["loadBalancer"]["servers"][0]["url"] == "http://127.0.0.1:8080"
+    assert config["http"]["services"][router_name]["loadBalancer"]["servers"][0]["url"] == "http://10.0.0.1:8080"
 
 def test_generate_tls_enabled(generator, make_service):
     service = make_service(domain="secure.com", tls_enabled=True, https_redirect_enabled=False)

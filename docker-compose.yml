@@ -24,7 +24,7 @@ services:
     networks:
       - traefik-manager-internal
       - proxy-network
-      - proxy-net
+      - proxy_net
     security_opt:
       - no-new-privileges:true
     read_only: false
@@ -85,5 +85,5 @@ networks:
     internal: true
   proxy-network:
     external: true
-  proxy-net:
+  proxy_net:
     external: true

@@ -20,7 +20,7 @@ def make_service():
     def _make_service(
         name="test-service",
         domain="test.example.com",
-        upstream_host="127.0.0.1",
+        upstream_host="10.0.0.1",
         upstream_port=8080,
         tls_enabled=True,
         auth_enabled=False,

@@ -13,7 +13,7 @@ async def check_upstream(host: str, port: int, timeout: float = 3.0) -> dict[str
     start_time = time.perf_counter()
     
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
             response = await client.get(url)
             latency_ms = int((time.perf_counter() - start_time) * 1000)
             

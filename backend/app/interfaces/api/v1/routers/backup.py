@@ -13,7 +13,7 @@ from app.infrastructure.persistence.repositories.sqlite_service_repository impor
     SQLiteServiceRepository,
 )
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
-from app.interfaces.api.dependencies import get_current_user, require_write_access
+from app.interfaces.api.dependencies import get_current_user, require_admin, require_write_access
 from app.interfaces.api.v1.schemas.backup_schemas import (
     BackupExportResponse,
     BackupImportRequest,
@@ -35,7 +35,7 @@ def get_use_cases(db: AsyncSession = Depends(get_db)) -> BackupUseCases:
 @router.get("/export", response_model=BackupExportResponse, summary="설정 백업 내보내기")
 async def export_backup(
     use_cases: BackupUseCases = Depends(get_use_cases),
-    _: dict = Depends(get_current_user),
+    _: dict = Depends(require_admin),
 ):
     return await use_cases.export_all()
 

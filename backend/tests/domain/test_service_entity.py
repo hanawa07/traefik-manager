@@ -5,7 +5,7 @@ def test_service_create_success(make_service):
     service = make_service(name="success-service", domain="success.com")
     assert service.name == "success-service"
     assert str(service.domain) == "success.com"
-    assert service.upstream_host == "127.0.0.1"
+    assert service.upstream_host == "10.0.0.1"
     assert service.upstream_port == 8080
 
 def test_https_redirect_requires_tls_on_create():
@@ -13,7 +13,7 @@ def test_https_redirect_requires_tls_on_create():
         Service.create(
             name="fail",
             domain="fail.com",
-            upstream_host="127.0.0.1",
+            upstream_host="10.0.0.1",
             upstream_port=80,
             tls_enabled=False,
             https_redirect_enabled=True,
@@ -24,7 +24,7 @@ def test_rate_limit_requires_both_average_and_burst():
         Service.create(
             name="fail",
             domain="fail.com",
-            upstream_host="127.0.0.1",
+            upstream_host="10.0.0.1",
             upstream_port=80,
             rate_limit_average=10,
             rate_limit_burst=None,
