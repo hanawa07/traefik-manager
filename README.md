@@ -1,0 +1,119 @@
+# Traefik Manager
+
+Traefik + Authentik 통합 관리 도구. Nginx Proxy Manager(NPM)를 대체하여 도메인 라우팅, TLS 인증서, Authentik 인증을 하나의 UI에서 관리합니다.
+
+## 스크린샷
+
+> 대시보드, 서비스 목록, 인증서 현황, 업스트림 헬스 체크
+
+## 기능
+
+| 분류 | 기능 |
+|------|------|
+| 서비스 관리 | 도메인 라우팅 CRUD, Traefik File Provider YAML 자동 생성 |
+| TLS | 인증서 목록 조회, 만료일 경고, Let's Encrypt 자동 갱신 |
+| 인증 | Authentik ForwardAuth 자동 연동, 그룹별 접근 제어 |
+| 미들웨어 | IP 허용 목록, Rate Limiting, Basic Auth, 커스텀 응답 헤더, 미들웨어 템플릿 재사용 |
+| 리다이렉트 | 도메인 간 영구/임시 리다이렉트 |
+| 운영 | Docker 컨테이너 자동 감지, Cloudflare DNS 연동, 설정 백업/복원 |
+| 모니터링 | 업스트림 헬스 체크, Traefik 라우터 상태, 감사 로그 |
+| 보안 | JWT 인증, 토큰 무효화, 로그인 Rate Limiting, RBAC(admin/viewer) |
+
+## 기술 스택
+
+- **백엔드**: Python 3.12 + FastAPI + SQLAlchemy (async) + SQLite
+- **프론트엔드**: Next.js 15 + React 19 + TypeScript + Tailwind CSS
+- **인프라**: Docker + Traefik v3 + Authentik
+
+## 시작하기
+
+### 사전 요구사항
+
+- Docker & Docker Compose
+- 실행 중인 [Traefik v3](https://traefik.io) 인스턴스
+- (선택) [Authentik](https://goauthentik.io) 인스턴스
+
+### 설치
+
+```bash
+git clone https://github.com/hanawa07/traefik-manager.git
+cd traefik-manager
+
+# 환경 변수 설정
+cp .env.example .env
+vi .env  # 필수 값 입력
+```
+
+### 필수 환경 변수
+
+```env
+# 보안 키 (랜덤 32자 이상 문자열)
+APP_SECRET_KEY=
+JWT_SECRET_KEY=
+
+# 도메인
+FRONTEND_DOMAIN=traefik-manager.example.com
+BACKEND_DOMAIN=traefik-manager-api.example.com
+
+# 관리자 계정
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=
+
+# Authentik
+AUTHENTIK_URL=http://authentik:9000
+AUTHENTIK_TOKEN=
+```
+
+### 실행
+
+```bash
+docker compose up -d --build
+```
+
+프론트엔드: `https://FRONTEND_DOMAIN`
+
+### Traefik 연동
+
+Traefik의 File Provider 디렉토리를 traefik-manager가 생성하는 경로와 동일하게 설정합니다.
+
+```yaml
+# traefik docker-compose.yml
+volumes:
+  - /path/to/traefik-manager/traefik-config:/traefik-config:ro
+command:
+  - --providers.file.directory=/traefik-config/dynamic
+  - --providers.file.watch=true
+```
+
+## 아키텍처
+
+DDD(Domain-Driven Design) 기반 레이어드 아키텍처
+
+```
+backend/app/
+├── domain/          # 비즈니스 규칙, 엔티티, Value Objects
+├── application/     # Use Cases
+├── infrastructure/  # DB, Traefik API, Authentik API, Docker
+└── interfaces/      # FastAPI 라우터, 스키마
+```
+
+## 보안
+
+- JWT Bearer 인증 + 토큰 버전 기반 즉시 무효화
+- 로그인 Rate Limiting (Traefik 미들웨어)
+- RBAC: admin(전체) / viewer(읽기 전용)
+- 보안 응답 헤더 전역 적용 (HSTS, X-Frame-Options 등)
+- 비루트 컨테이너 실행, no-new-privileges
+- Docker 소켓 read-only 마운트
+- 상세 내용: [docs/SECURITY.md](docs/SECURITY.md)
+
+## 문서
+
+- [아키텍처](docs/ARCHITECTURE.md)
+- [로드맵](docs/ROADMAP.md)
+- [보안](docs/SECURITY.md)
+- [배포](docs/DEPLOYMENT.md)
+
+## 라이선스
+
+MIT
