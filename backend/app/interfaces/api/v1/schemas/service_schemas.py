@@ -304,3 +304,12 @@ class ServiceResponse(BaseModel):
 class AuthentikGroupResponse(BaseModel):
     id: str
     name: str
+
+
+class UpstreamHealthResponse(BaseModel):
+    service_id: UUID
+    domain: str
+    status: str  # "up" | "down" | "unknown"
+    status_code: int | None = None
+    latency_ms: int | None = None
+    error: str | None = None

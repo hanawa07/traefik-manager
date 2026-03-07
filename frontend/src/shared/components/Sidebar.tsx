@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
-import { Server, LayoutDashboard, Shield, ArrowRightLeft, LogOut, Settings, SlidersHorizontal } from "lucide-react";
+import { Server, LayoutDashboard, Shield, ArrowRightLeft, LogOut, Settings, SlidersHorizontal, History } from "lucide-react";
 import { clsx } from "clsx";
 
 const navItems = [
@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard/middlewares", icon: SlidersHorizontal, label: "미들웨어" },
   { href: "/dashboard/redirects", icon: ArrowRightLeft, label: "리다이렉트" },
   { href: "/dashboard/certificates", icon: Shield, label: "인증서" },
+  { href: "/dashboard/audit", icon: History, label: "감사 로그" },
   { href: "/dashboard/settings", icon: Settings, label: "설정" },
 ];
 

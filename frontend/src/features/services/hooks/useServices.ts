@@ -51,3 +51,12 @@ export function useAuthentikGroups(enabled = true) {
     staleTime: 60_000,
   });
 }
+
+export function useAllServicesHealth() {
+  return useQuery({
+    queryKey: [...QUERY_KEY, "health-all"],
+    queryFn: serviceApi.getAllServicesHealth,
+    refetchInterval: 30_000,
+    staleTime: 30_000,
+  });
+}

@@ -9,8 +9,11 @@ from app.interfaces.api.v1.schemas.service_schemas import (
     ServiceCreate,
     ServiceUpdate,
     ServiceResponse,
+    UpstreamHealthResponse,
 )
 from app.application.proxy.service_use_cases import ServiceUseCases
+from app.infrastructure.health import upstream_checker
+import asyncio
 from app.infrastructure.cloudflare.client import CloudflareClient, CloudflareClientError
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_middleware_template_repository import (
@@ -19,6 +22,7 @@ from app.infrastructure.persistence.repositories.sqlite_middleware_template_repo
 from app.infrastructure.persistence.repositories.sqlite_service_repository import SQLiteServiceRepository
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.infrastructure.authentik.client import AuthentikClient
+from app.application.audit import audit_service
 
 router = APIRouter()
 
@@ -59,10 +63,21 @@ async def list_authentik_groups(
 async def create_service(
     data: ServiceCreate,
     use_cases: ServiceUseCases = Depends(get_use_cases),
-    _: dict = Depends(require_write_access),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_write_access),
 ):
     try:
-        return await use_cases.create_service(data)
+        service = await use_cases.create_service(data)
+        await audit_service.record(
+            db=db,
+            actor=current_user["username"],
+            action="create",
+            resource_type="service",
+            resource_id=str(service.id),
+            resource_name=service.name,
+            detail={"domain": str(service.domain)},
+        )
+        return service
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except httpx.HTTPError as exc:
@@ -75,6 +90,49 @@ async def create_service(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
+
+
+@router.get("/health/all", response_model=dict[UUID, UpstreamHealthResponse], summary="전체 서비스 업스트림 헬스 체크")
+async def list_services_health(
+    use_cases: ServiceUseCases = Depends(get_use_cases),
+    _: dict = Depends(get_current_user),
+):
+    services = await use_cases.list_services()
+    
+    # 병렬 헬스 체크 실행
+    tasks = [
+        upstream_checker.check_upstream(s.upstream_host, s.upstream_port)
+        for s in services
+    ]
+    health_results = await asyncio.gather(*tasks)
+    
+    return {
+        service.id: UpstreamHealthResponse(
+            service_id=service.id,
+            domain=str(service.domain),
+            **result
+        )
+        for service, result in zip(services, health_results)
+    }
+
+
+@router.get("/{service_id}/health", response_model=UpstreamHealthResponse, summary="개별 서비스 업스트림 헬스 체크")
+async def get_service_health(
+    service_id: UUID,
+    use_cases: ServiceUseCases = Depends(get_use_cases),
+    _: dict = Depends(get_current_user),
+):
+    service = await use_cases.get_service(service_id)
+    if not service:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="서비스를 찾을 수 없습니다")
+    
+    result = await upstream_checker.check_upstream(service.upstream_host, service.upstream_port)
+    
+    return UpstreamHealthResponse(
+        service_id=service.id,
+        domain=str(service.domain),
+        **result
+    )
 
 
 @router.get("/{service_id}", response_model=ServiceResponse, summary="서비스 조회")
@@ -94,10 +152,21 @@ async def update_service(
     service_id: UUID,
     data: ServiceUpdate,
     use_cases: ServiceUseCases = Depends(get_use_cases),
-    _: dict = Depends(require_write_access),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_write_access),
 ):
     try:
         service = await use_cases.update_service(service_id, data)
+        if service:
+            await audit_service.record(
+                db=db,
+                actor=current_user["username"],
+                action="update",
+                resource_type="service",
+                resource_id=str(service.id),
+                resource_name=service.name,
+                detail={"domain": str(service.domain)},
+            )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except httpx.HTTPError as exc:
@@ -119,10 +188,24 @@ async def update_service(
 async def delete_service(
     service_id: UUID,
     use_cases: ServiceUseCases = Depends(get_use_cases),
-    _: dict = Depends(require_write_access),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_write_access),
 ):
+    service = await use_cases.get_service(service_id)
+    if not service:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="서비스를 찾을 수 없습니다")
+    
     try:
         await use_cases.delete_service(service_id)
+        await audit_service.record(
+            db=db,
+            actor=current_user["username"],
+            action="delete",
+            resource_type="service",
+            resource_id=str(service_id),
+            resource_name=service.name,
+            detail={"domain": str(service.domain)},
+        )
     except httpx.HTTPError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

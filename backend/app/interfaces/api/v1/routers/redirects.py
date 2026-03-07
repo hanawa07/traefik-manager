@@ -13,6 +13,7 @@ from app.infrastructure.persistence.repositories.sqlite_service_repository impor
 )
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.interfaces.api.dependencies import get_current_user, require_write_access
+from app.application.audit import audit_service
 from app.interfaces.api.v1.schemas.redirect_schemas import (
     RedirectHostCreate,
     RedirectHostResponse,
@@ -42,10 +43,21 @@ async def list_redirect_hosts(
 async def create_redirect_host(
     data: RedirectHostCreate,
     use_cases: RedirectHostUseCases = Depends(get_use_cases),
-    _: dict = Depends(require_write_access),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_write_access),
 ):
     try:
-        return await use_cases.create_redirect_host(data)
+        redirect_host = await use_cases.create_redirect_host(data)
+        await audit_service.record(
+            db=db,
+            actor=current_user["username"],
+            action="create",
+            resource_type="redirect",
+            resource_id=str(redirect_host.id),
+            resource_name=redirect_host.domain,
+            detail={"target_url": redirect_host.target_url},
+        )
+        return redirect_host
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -67,22 +79,48 @@ async def update_redirect_host(
     redirect_id: UUID,
     data: RedirectHostUpdate,
     use_cases: RedirectHostUseCases = Depends(get_use_cases),
-    _: dict = Depends(require_write_access),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_write_access),
 ):
     try:
         redirect_host = await use_cases.update_redirect_host(redirect_id, data)
+        if redirect_host:
+            await audit_service.record(
+                db=db,
+                actor=current_user["username"],
+                action="update",
+                resource_type="redirect",
+                resource_id=str(redirect_host.id),
+                resource_name=redirect_host.domain,
+                detail={"target_url": redirect_host.target_url},
+            )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     if not redirect_host:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="리다이렉트를 찾을 수 없습니다")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="리다이렉트를 찾을  수 없습니다")
     return redirect_host
 
 
-@router.delete("/{redirect_id}", status_code=status.HTTP_204_NO_CONTENT, summary="리다이렉트 삭제")
+
+@router.delete("/{redirect_id}", status_code=status.HTTP_204_NO_CONTENT, summary="리다이렉트  삭제")
 async def delete_redirect_host(
     redirect_id: UUID,
     use_cases: RedirectHostUseCases = Depends(get_use_cases),
-    _: dict = Depends(require_write_access),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_write_access),
 ):
+    redirect_host = await use_cases.get_redirect_host(redirect_id)
+    if not redirect_host:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="리다이렉트를 찾을 수 없습니다")
+
     await use_cases.delete_redirect_host(redirect_id)
+    await audit_service.record(
+        db=db,
+        actor=current_user["username"],
+        action="delete",
+        resource_type="redirect",
+        resource_id=str(redirect_id),
+        resource_name=redirect_host.domain,
+    )
+

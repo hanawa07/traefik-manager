@@ -71,6 +71,15 @@ export interface AuthentikGroup {
   name: string;
 }
 
+export interface UpstreamHealth {
+  service_id: string;
+  domain: string;
+  status: "up" | "down" | "unknown";
+  status_code: number | null;
+  latency_ms: number | null;
+  error: string | null;
+}
+
 export const serviceApi = {
   list: async (): Promise<Service[]> => {
     const res = await apiClient.get<Service[]>("/services/");
@@ -98,6 +107,16 @@ export const serviceApi = {
 
   listAuthentikGroups: async (): Promise<AuthentikGroup[]> => {
     const res = await apiClient.get<AuthentikGroup[]>("/services/authentik/groups");
+    return res.data;
+  },
+
+  getServiceHealth: async (id: string): Promise<UpstreamHealth> => {
+    const res = await apiClient.get<UpstreamHealth>(`/services/${id}/health`);
+    return res.data;
+  },
+
+  getAllServicesHealth: async (): Promise<Record<string, UpstreamHealth>> => {
+    const res = await apiClient.get<Record<string, UpstreamHealth>>("/services/health/all");
     return res.data;
   },
 };

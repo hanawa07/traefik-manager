@@ -9,6 +9,7 @@ from app.infrastructure.persistence.repositories.sqlite_user_repository import (
     SQLiteUserRepository,
 )
 from app.interfaces.api.dependencies import require_admin
+from app.application.audit import audit_service
 from app.interfaces.api.v1.schemas.user_schemas import (
     UserCreate,
     UserListResponse,
@@ -35,11 +36,23 @@ async def list_users(
 async def create_user(
     data: UserCreate,
     use_cases: UserUseCases = Depends(get_use_cases),
-    _: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin),
 ):
     try:
-        return await use_cases.create_user(data)
+        user = await use_cases.create_user(data)
+        await audit_service.record(
+            db=db,
+            actor=current_user["username"],
+            action="create",
+            resource_type="user",
+            resource_id=str(user.id),
+            resource_name=user.username,
+            detail={"role": user.role},
+        )
+        return user
     except ValueError as exc:
+
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
@@ -48,10 +61,21 @@ async def update_user(
     user_id: UUID,
     data: UserUpdate,
     use_cases: UserUseCases = Depends(get_use_cases),
-    _: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin),
 ):
     try:
         user = await use_cases.update_user(user_id, data)
+        if user:
+            await audit_service.record(
+                db=db,
+                actor=current_user["username"],
+                action="update",
+                resource_type="user",
+                resource_id=str(user.id),
+                resource_name=user.username,
+                detail={"role": user.role},
+            )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -64,9 +88,22 @@ async def update_user(
 async def delete_user(
     user_id: UUID,
     use_cases: UserUseCases = Depends(get_use_cases),
-    _: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin),
 ):
+    user = await use_cases.repository.find_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="사용자를 찾을 수 없습니다")
+        
     try:
         await use_cases.delete_user(user_id)
+        await audit_service.record(
+            db=db,
+            actor=current_user["username"],
+            action="delete",
+            resource_type="user",
+            resource_id=str(user_id),
+            resource_name=user.username,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

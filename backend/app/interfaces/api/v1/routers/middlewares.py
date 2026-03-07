@@ -12,6 +12,7 @@ from app.infrastructure.persistence.repositories.sqlite_service_repository impor
     SQLiteServiceRepository,
 )
 from app.interfaces.api.dependencies import get_current_user, require_write_access
+from app.application.audit import audit_service
 from app.interfaces.api.v1.schemas.middleware_schemas import (
     MiddlewareTemplateCreate,
     MiddlewareTemplateResponse,
@@ -40,10 +41,21 @@ async def list_templates(
 async def create_template(
     data: MiddlewareTemplateCreate,
     use_cases: MiddlewareTemplateUseCases = Depends(get_use_cases),
-    _: dict = Depends(require_write_access),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_write_access),
 ):
     try:
-        return await use_cases.create_template(data)
+        template = await use_cases.create_template(data)
+        await audit_service.record(
+            db=db,
+            actor=current_user["username"],
+            action="create",
+            resource_type="middleware",
+            resource_id=str(template.id),
+            resource_name=template.name,
+            detail={"type": template.type},
+        )
+        return template
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -65,25 +77,51 @@ async def update_template(
     template_id: UUID,
     data: MiddlewareTemplateUpdate,
     use_cases: MiddlewareTemplateUseCases = Depends(get_use_cases),
-    _: dict = Depends(require_write_access),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_write_access),
 ):
     try:
         template = await use_cases.update_template(template_id, data)
+        if template:
+            await audit_service.record(
+                db=db,
+                actor=current_user["username"],
+                action="update",
+                resource_type="middleware",
+                resource_id=str(template.id),
+                resource_name=template.name,
+                detail={"type": template.type},
+            )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="미들웨어 템플릿을 찾을 수 없습니다")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="미들웨어 템플릿을  찾을 수 없습니다")
     return template
+
 
 
 @router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT, summary="미들웨어 템플릿 삭제")
 async def delete_template(
     template_id: UUID,
     use_cases: MiddlewareTemplateUseCases = Depends(get_use_cases),
-    _: dict = Depends(require_write_access),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_write_access),
 ):
+    template = await use_cases.get_template(template_id)
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="미들웨어 템플릿을 찾을 수 없습니다")
+        
     try:
         await use_cases.delete_template(template_id)
+        await audit_service.record(
+            db=db,
+            actor=current_user["username"],
+            action="delete",
+            resource_type="middleware",
+            resource_id=str(template_id),
+            resource_name=template.name,
+            detail={"type": template.type},
+        )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

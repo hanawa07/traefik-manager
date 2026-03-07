@@ -1,6 +1,6 @@
 "use client";
-import { Service } from "../api/serviceApi";
-import { Lock, Globe, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { Service, UpstreamHealth } from "../api/serviceApi";
+import { Lock, Globe, ExternalLink, Pencil, Trash2, Activity } from "lucide-react";
 import Link from "next/link";
 import { clsx } from "clsx";
 
@@ -9,6 +9,7 @@ interface ServiceCardProps {
   onDelete: (service: Service) => void;
   routerActive?: boolean;
   canManage?: boolean;
+  upstreamHealth?: UpstreamHealth;
 }
 
 export default function ServiceCard({
@@ -16,6 +17,7 @@ export default function ServiceCard({
   onDelete,
   routerActive,
   canManage = true,
+  upstreamHealth,
 }: ServiceCardProps) {
   return (
     <div className="card p-5 hover:shadow-md transition-shadow">
@@ -100,9 +102,34 @@ export default function ServiceCard({
                   : "bg-rose-500"
             )}
           />
-          {routerActive === undefined ? "라우터 확인 중" : routerActive ? "라우터 연결됨" : "라우터 미연결"}
-        </span>
-      </div>
-    </div>
-  );
-}
+          {routerActive === undefined ? "라우터 확인 중" : routerActive ? "라우터 연결됨" : " 라우터 미연결"}
+          </span>
+          <span
+          className={clsx(
+            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border",
+            !upstreamHealth
+              ? "bg-slate-50 text-slate-500 border-slate-200"
+              : upstreamHealth.status === "up"
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : "bg-rose-50 text-rose-700 border-rose-200"
+          )}
+          >
+          <Activity className={clsx("w-3 h-3", !upstreamHealth ? "text-slate-400" : upstreamHealth.status === "up" ? "text-emerald-500" : "text-rose-500")} />
+          {!upstreamHealth ? (
+            "업스트림 확인 중"
+          ) : upstreamHealth.status === "up" ? (
+            <span className="flex items-center gap-0.5">
+              UP
+              {upstreamHealth.latency_ms !== null && (
+                <span className="opacity-60 text-[10px]">({upstreamHealth.latency_ms}ms)</span>
+              )}
+            </span>
+          ) : (
+            "DOWN"
+          )}
+          </span>
+          </div>
+          </div>
+          );
+          }
+

@@ -24,6 +24,7 @@ from app.interfaces.api.v1.routers import (
     backup,
     traefik,
     settings as settings_router,
+    audit,
 )
 from app.core.config import settings
 
@@ -102,6 +103,7 @@ async def handle_unexpected_exception(request: Request, exc: Exception):
 # 라우터 등록
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["인증"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["사용자"])
+app.include_router(audit.router, prefix="/api/v1/audit", tags=["감사 로그"])
 app.include_router(services.router, prefix="/api/v1/services", tags=["서비스"])
 app.include_router(middlewares.router, prefix="/api/v1/middlewares", tags=["미들웨어"])
 app.include_router(redirects.router, prefix="/api/v1/redirects", tags=["리다이렉트"])

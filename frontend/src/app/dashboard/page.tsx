@@ -1,6 +1,6 @@
 "use client";
-import { useServices } from "@/features/services/hooks/useServices";
-import { Server, Lock, Shield, AlertTriangle } from "lucide-react";
+import { useServices, useAllServicesHealth } from "@/features/services/hooks/useServices";
+import { Server, Lock, Shield, AlertTriangle, Activity } from "lucide-react";
 import Link from "next/link";
 import { useTraefikHealth, useTraefikRouterStatus } from "@/features/traefik/hooks/useTraefik";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
@@ -35,6 +35,7 @@ export default function DashboardPage() {
   const role = useAuthStore((state) => state.role);
   const canManage = role === "admin";
   const { data: services = [], isLoading } = useServices();
+  const { data: healthData = {} } = useAllServicesHealth();
   const { data: traefikHealth } = useTraefikHealth();
   const { data: routerStatus } = useTraefikRouterStatus();
 
@@ -42,6 +43,7 @@ export default function DashboardPage() {
   const authEnabled = services.filter((s) => s.auth_enabled || s.basic_auth_enabled).length;
   const tlsEnabled = services.filter((s) => s.tls_enabled).length;
   const noAuth = services.filter((s) => !s.auth_enabled && !s.basic_auth_enabled).length;
+  const upStreamUpCount = Object.values(healthData).filter((h) => h.status === "up").length;
 
   return (
     <div className="p-8">
@@ -68,14 +70,15 @@ export default function DashboardPage() {
 
       {/* 통계 카드 */}
       {isLoading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          {[...Array(5)].map((_, i) => (
             <div key={i} className="card p-5 animate-pulse h-20" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <StatCard icon={Server} label="전체 서비스" value={totalServices} color="bg-blue-500" />
+          <StatCard icon={Activity} label="업스트림 정상" value={upStreamUpCount} color="bg-emerald-500" />
           <StatCard icon={Lock} label="인증 활성" value={authEnabled} color="bg-green-500" />
           <StatCard icon={Shield} label="HTTPS 활성" value={tlsEnabled} color="bg-indigo-500" />
           <StatCard icon={AlertTriangle} label="인증 없는 서비스" value={noAuth} color="bg-amber-500" />
