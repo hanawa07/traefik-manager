@@ -24,7 +24,7 @@ def get_use_cases(db: AsyncSession = Depends(get_db)) -> UserUseCases:
     return UserUseCases(SQLiteUserRepository(db))
 
 
-@router.get("/", response_model=UserListResponse, summary="사용자 목록")
+@router.get("", response_model=UserListResponse, summary="사용자 목록")
 async def list_users(
     use_cases: UserUseCases = Depends(get_use_cases),
     _: dict = Depends(require_admin),
@@ -32,7 +32,7 @@ async def list_users(
     return UserListResponse(users=await use_cases.list_users())
 
 
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED, summary="사용자 추가")
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED, summary="사용자 추가")
 async def create_user(
     data: UserCreate,
     use_cases: UserUseCases = Depends(get_use_cases),

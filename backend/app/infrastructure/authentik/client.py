@@ -23,6 +23,7 @@ class AuthentikClient:
                     "external_host": f"https://{domain}",
                     "mode": "forward_single",
                     "authorization_flow": await self._get_default_auth_flow(client),
+                    "invalidation_flow": await self._get_default_invalidation_flow(client),
                 },
                 timeout=10.0,
             )
@@ -168,4 +169,16 @@ class AuthentikClient:
         flows = response.json()["results"]
         if not flows:
             raise ValueError("Authentik에 인증 플로우가 없습니다")
+        return flows[0]["pk"]
+
+    async def _get_default_invalidation_flow(self, client: httpx.AsyncClient) -> str:
+        response = await client.get(
+            f"{self.base_url}/flows/instances/?designation=invalidation",
+            headers=self.headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        flows = response.json()["results"]
+        if not flows:
+            raise ValueError("Authentik에 무효화 플로우가 없습니다")
         return flows[0]["pk"]

@@ -29,7 +29,7 @@ def get_use_cases(db: AsyncSession = Depends(get_db)) -> MiddlewareTemplateUseCa
     )
 
 
-@router.get("/", response_model=list[MiddlewareTemplateResponse], summary="미들웨어 템플릿 목록")
+@router.get("", response_model=list[MiddlewareTemplateResponse], summary="미들웨어 템플릿 목록")
 async def list_templates(
     use_cases: MiddlewareTemplateUseCases = Depends(get_use_cases),
     _: dict = Depends(get_current_user),
@@ -37,7 +37,7 @@ async def list_templates(
     return await use_cases.list_templates()
 
 
-@router.post("/", response_model=MiddlewareTemplateResponse, status_code=status.HTTP_201_CREATED, summary="미들웨어 템플릿 추가")
+@router.post("", response_model=MiddlewareTemplateResponse, status_code=status.HTTP_201_CREATED, summary="미들웨어 템플릿 추가")
 async def create_template(
     data: MiddlewareTemplateCreate,
     use_cases: MiddlewareTemplateUseCases = Depends(get_use_cases),

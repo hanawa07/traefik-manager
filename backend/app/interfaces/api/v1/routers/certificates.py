@@ -11,7 +11,7 @@ def get_traefik_client() -> TraefikApiClient:
     return TraefikApiClient()
 
 
-@router.get("/", response_model=list[CertificateResponse], summary="인증서 목록")
+@router.get("", response_model=list[CertificateResponse], summary="인증서 목록")
 async def list_certificates(
     traefik_client: TraefikApiClient = Depends(get_traefik_client),
     _: dict = Depends(get_current_user),

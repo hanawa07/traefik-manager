@@ -31,7 +31,7 @@ def get_use_cases(db: AsyncSession = Depends(get_db)) -> RedirectHostUseCases:
     )
 
 
-@router.get("/", response_model=list[RedirectHostResponse], summary="리다이렉트 목록")
+@router.get("", response_model=list[RedirectHostResponse], summary="리다이렉트 목록")
 async def list_redirect_hosts(
     use_cases: RedirectHostUseCases = Depends(get_use_cases),
     _: dict = Depends(get_current_user),
@@ -39,7 +39,7 @@ async def list_redirect_hosts(
     return await use_cases.list_redirect_hosts()
 
 
-@router.post("/", response_model=RedirectHostResponse, status_code=status.HTTP_201_CREATED, summary="리다이렉트 추가")
+@router.post("", response_model=RedirectHostResponse, status_code=status.HTTP_201_CREATED, summary="리다이렉트 추가")
 async def create_redirect_host(
     data: RedirectHostCreate,
     use_cases: RedirectHostUseCases = Depends(get_use_cases),

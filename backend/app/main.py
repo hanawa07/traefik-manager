@@ -12,7 +12,8 @@ from app.core.logging_config import (
     is_logging_exempt_path,
     setup_logging,
 )
-from app.infrastructure.persistence.database import init_db
+from app.infrastructure.persistence.database import init_db, AsyncSessionLocal
+from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.interfaces.api.v1.routers import (
     services,
     auth,
@@ -36,7 +37,24 @@ request_logger = logging.getLogger("app.request")
 async def lifespan(app: FastAPI):
     setup_logging()
     await init_db()
+    await _ensure_authentik_middleware_file()
     yield
+
+
+async def _ensure_authentik_middleware_file() -> None:
+    """startup 시 auth_enabled 서비스가 있으면 authentik ForwardAuth 미들웨어 파일을 생성한다."""
+    from sqlalchemy import text
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                text("SELECT COUNT(*) FROM services WHERE auth_enabled = 1")
+            )
+            count = int(result.scalar_one())
+            if count > 0:
+                FileProviderWriter().write_authentik_middleware()
+                logger.info("Authentik 미들웨어 파일 생성 완료 (활성화된 서비스 %d개)", count)
+    except Exception:
+        logger.warning("Authentik 미들웨어 파일 startup 생성 실패 (무시)", exc_info=True)
 
 
 app = FastAPI(
@@ -44,6 +62,7 @@ app = FastAPI(
     description="Traefik + Authentik 통합 관리 도구",
     version="0.1.0",
     lifespan=lifespan,
+    redirect_slashes=False,
     # 프로덕션에서 docs 비활성화
     docs_url="/api/docs" if settings.APP_ENV == "development" else None,
     redoc_url=None,

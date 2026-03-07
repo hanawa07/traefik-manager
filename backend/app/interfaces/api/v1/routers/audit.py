@@ -10,7 +10,7 @@ from app.interfaces.api.v1.schemas.audit_schemas import AuditLogResponse
 
 router = APIRouter()
 
-@router.get("/", response_model=list[AuditLogResponse], summary="감사 로그 조회")
+@router.get("", response_model=list[AuditLogResponse], summary="감사 로그 조회")
 async def list_audit_logs(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),

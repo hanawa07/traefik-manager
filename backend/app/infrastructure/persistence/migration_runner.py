@@ -76,12 +76,17 @@ def ensure_database_schema(database_url: str | None = None) -> None:
     resolved_database_url = resolve_database_url(database_url)
     schema_state = detect_sqlite_schema_state(resolved_database_url)
     if schema_state == "legacy_unstamped":
-        logger.error("Alembic 스탬프 필요: database_url=%s", resolved_database_url)
-        raise RuntimeError(
-            "기존 운영 DB에 Alembic 버전 정보가 없습니다. "
-            "백업 후 `cd backend && DATABASE_URL=\"%s\" alembic stamp head`를 먼저 실행하세요."
-            % resolved_database_url
+        logger.info("기존 DB에 Alembic 버전 정보 없음 → stamp head 자동 실행: database_url=%s", resolved_database_url)
+        project_root_stamp = get_backend_root()
+        environment_stamp = os.environ.copy()
+        environment_stamp["DATABASE_URL"] = resolved_database_url
+        subprocess.run(
+            ["alembic", "-c", "alembic.ini", "stamp", "head"],
+            cwd=project_root_stamp,
+            env=environment_stamp,
+            check=True,
         )
+        logger.info("Alembic stamp head 완료")
 
     project_root = get_backend_root()
     target_revision = resolve_target_revision(project_root)

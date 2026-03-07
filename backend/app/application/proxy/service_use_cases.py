@@ -80,6 +80,7 @@ class ServiceUseCases:
                     },
                 )
                 raise
+            self.file_writer.write_authentik_middleware()
 
         # Cloudflare DNS 자동 등록 (선택 기능)
         try:
@@ -199,6 +200,7 @@ class ServiceUseCases:
                         },
                     )
                     raise
+                self.file_writer.write_authentik_middleware()
             elif not update_payload["auth_enabled"] and was_auth_enabled:
                 try:
                     await self._teardown_authentik(service)
@@ -212,6 +214,8 @@ class ServiceUseCases:
                         },
                     )
                     raise
+                remaining = await self._count_auth_enabled_services(exclude_id=service.id)
+                self.file_writer.delete_authentik_middleware_if_unused(remaining)
         elif service.auth_enabled and previous_group_id != service.authentik_group_id:
             try:
                 await self._sync_authentik_group_policy(service)
@@ -289,6 +293,8 @@ class ServiceUseCases:
         self.file_writer.delete(service)
         service.delete()
         await self.repository.delete(service_id)
+        remaining = await self._count_auth_enabled_services(exclude_id=service.id)
+        self.file_writer.delete_authentik_middleware_if_unused(remaining)
         logger.info("서비스 삭제: id=%s", service_id)
 
     async def list_authentik_groups(self) -> list[dict]:
@@ -419,3 +425,11 @@ class ServiceUseCases:
             return
         if any(template.type == "basicAuth" for template in templates):
             raise ValueError("Authentik 인증과 BasicAuth 미들웨어 템플릿은 동시에 사용할 수 없습니다")
+
+    async def _count_auth_enabled_services(self, exclude_id=None) -> int:
+        """auth가 활성화된 서비스 수를 반환한다 (exclude_id 서비스 제외)."""
+        all_services = await self.repository.find_all()
+        return sum(
+            1 for s in all_services
+            if s.auth_enabled and (exclude_id is None or s.id.value != exclude_id)
+        )

@@ -10,6 +10,8 @@ class TraefikConfigGenerator:
     """서비스 도메인 객체를 Traefik 동적 설정 YAML로 변환"""
 
     AUTHENTIK_MIDDLEWARE = "authentik@file"
+    AUTHENTIK_OUTPOST_SERVICE = "authentik-outpost@file"
+    AUTHENTIK_OUTPOST_PATH_PREFIX = "/outpost.goauthentik.io/"
 
     def generate(
         self,
@@ -106,6 +108,20 @@ class TraefikConfigGenerator:
                 "entryPoints": ["web"],
                 "middlewares": redirect_middlewares,
             }
+
+        if service.auth_enabled:
+            outpost_router_name = f"{router_name}-authentik-outpost"
+            outpost_router: dict = {
+                "rule": f"Host(`{service.domain}`) && PathPrefix(`{self.AUTHENTIK_OUTPOST_PATH_PREFIX}`)",
+                "service": self.AUTHENTIK_OUTPOST_SERVICE,
+                "priority": 999,
+            }
+            if service.tls_enabled:
+                outpost_router["entryPoints"] = ["websecure"]
+                outpost_router["tls"] = {}
+            else:
+                outpost_router["entryPoints"] = ["web"]
+            routers[outpost_router_name] = outpost_router
 
         config = {
             "http": {

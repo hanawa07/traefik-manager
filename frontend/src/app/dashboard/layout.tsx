@@ -7,12 +7,13 @@ import Sidebar from "@/shared/components/Sidebar";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const hydrated = useAuthStore((s) => s._hydrated);
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace("/login");
-  }, [isAuthenticated, router]);
+    if (hydrated && !isAuthenticated) router.replace("/login");
+  }, [hydrated, isAuthenticated, router]);
 
-  if (!isAuthenticated) return null;
+  if (!hydrated) return null;
 
   return (
     <div className="flex min-h-screen">

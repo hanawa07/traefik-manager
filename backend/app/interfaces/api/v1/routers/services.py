@@ -37,7 +37,7 @@ def get_use_cases(db: AsyncSession = Depends(get_db)) -> ServiceUseCases:
     )
 
 
-@router.get("/", response_model=list[ServiceResponse], summary="서비스 목록")
+@router.get("", response_model=list[ServiceResponse], summary="서비스 목록")
 async def list_services(
     use_cases: ServiceUseCases = Depends(get_use_cases),
     _: dict = Depends(get_current_user),
@@ -59,7 +59,7 @@ async def list_authentik_groups(
         ) from exc
 
 
-@router.post("/", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED, summary="서비스 추가")
+@router.post("", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED, summary="서비스 추가")
 async def create_service(
     data: ServiceCreate,
     use_cases: ServiceUseCases = Depends(get_use_cases),
