@@ -1,8 +1,17 @@
+import logging
+import time
 from fastapi import FastAPI
+from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
+from app.core.logging_config import (
+    get_client_ip,
+    is_logging_exempt_path,
+    setup_logging,
+)
 from app.infrastructure.persistence.database import init_db
 from app.interfaces.api.v1.routers import (
     services,
@@ -18,9 +27,13 @@ from app.interfaces.api.v1.routers import (
 )
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
+request_logger = logging.getLogger("app.request")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    setup_logging()
     await init_db()
     yield
 
@@ -48,6 +61,43 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    if is_logging_exempt_path(request.url.path):
+        return await call_next(request)
+
+    started_at = time.perf_counter()
+    response = await call_next(request)
+    request_logger.info(
+        "요청 완료",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": round((time.perf_counter() - started_at) * 1000, 2),
+            "client_ip": get_client_ip(request),
+        },
+    )
+    return response
+
+
+@app.exception_handler(Exception)
+async def handle_unexpected_exception(request: Request, exc: Exception):
+    logger.exception(
+        "처리되지 않은 서버 오류",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "client_ip": get_client_ip(request),
+        },
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "서버 내부 오류가 발생했습니다"},
+    )
+
 
 # 라우터 등록
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["인증"])

@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     APP_ENV: str = "development"
+    LOG_LEVEL: str = "INFO"
     APP_SECRET_KEY: str
     APP_PORT: int = 8000
 

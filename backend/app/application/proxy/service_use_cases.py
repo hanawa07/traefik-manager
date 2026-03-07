@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from passlib.hash import apr_md5_crypt
@@ -11,6 +12,8 @@ from app.domain.proxy.repositories.service_repository import ServiceRepository
 from app.infrastructure.cloudflare.client import CloudflareClient
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.infrastructure.authentik.client import AuthentikClient
+
+logger = logging.getLogger(__name__)
 
 
 class ServiceUseCases:
@@ -66,24 +69,54 @@ class ServiceUseCases:
 
         # Authentik 연동 (인증 활성화 시)
         if service.auth_enabled:
-            await self._setup_authentik(service)
+            try:
+                await self._setup_authentik(service)
+            except Exception:
+                logger.warning(
+                    "Authentik 연동 실패",
+                    extra={
+                        "service_name": service.name,
+                        "domain": str(service.domain),
+                    },
+                )
+                raise
 
         # Cloudflare DNS 자동 등록 (선택 기능)
-        service.cloudflare_record_id = await self.cloudflare_client.upsert_service_record(
-            domain=str(service.domain),
-            fallback_target=service.upstream_host,
-        )
+        try:
+            service.cloudflare_record_id = await self.cloudflare_client.upsert_service_record(
+                domain=str(service.domain),
+                fallback_target=service.upstream_host,
+            )
+        except Exception:
+            logger.warning(
+                "Cloudflare DNS 연동 실패",
+                extra={
+                    "service_name": service.name,
+                    "domain": str(service.domain),
+                },
+            )
+            raise
 
         try:
             # Traefik YAML 생성
             self.file_writer.write(service, middleware_templates=middleware_templates)
             await self.repository.save(service)
         except Exception:
+            logger.exception(
+                "서비스 생성 실패",
+                extra={
+                    "service_name": service.name,
+                    "domain": str(service.domain),
+                },
+            )
             # 저장 단계에서 실패하면 생성한 리소스를 최대한 정리한다.
             try:
                 self.file_writer.delete(service)
             except Exception:
-                pass
+                logger.exception(
+                    "Traefik 설정 롤백 실패",
+                    extra={"domain": str(service.domain)},
+                )
             if service.cloudflare_record_id:
                 try:
                     await self.cloudflare_client.delete_service_record(
@@ -91,9 +124,16 @@ class ServiceUseCases:
                         record_id=service.cloudflare_record_id,
                     )
                 except Exception:
-                    pass
+                    logger.warning(
+                        "Cloudflare DNS 롤백 실패",
+                        extra={
+                            "domain": str(service.domain),
+                            "cloudflare_record_id": service.cloudflare_record_id,
+                        },
+                    )
             raise
 
+        logger.info("서비스 생성: domain=%s", service.domain)
         return service
 
     async def update_service(self, service_id: UUID, data) -> Service | None:
@@ -147,22 +187,67 @@ class ServiceUseCases:
         # 인증 상태 변경 처리
         if "auth_enabled" in update_payload:
             if update_payload["auth_enabled"] and not was_auth_enabled:
-                await self._setup_authentik(service)
+                try:
+                    await self._setup_authentik(service)
+                except Exception:
+                    logger.warning(
+                        "Authentik 연동 실패",
+                        extra={
+                            "service_id": str(service.id),
+                            "service_name": service.name,
+                            "domain": str(service.domain),
+                        },
+                    )
+                    raise
             elif not update_payload["auth_enabled"] and was_auth_enabled:
-                await self._teardown_authentik(service)
+                try:
+                    await self._teardown_authentik(service)
+                except Exception:
+                    logger.warning(
+                        "Authentik 연동 해제 실패",
+                        extra={
+                            "service_id": str(service.id),
+                            "service_name": service.name,
+                            "domain": str(service.domain),
+                        },
+                    )
+                    raise
         elif service.auth_enabled and previous_group_id != service.authentik_group_id:
-            await self._sync_authentik_group_policy(service)
+            try:
+                await self._sync_authentik_group_policy(service)
+            except Exception:
+                logger.warning(
+                    "Authentik 그룹 정책 동기화 실패",
+                    extra={
+                        "service_id": str(service.id),
+                        "service_name": service.name,
+                        "domain": str(service.domain),
+                    },
+                )
+                raise
 
         # Cloudflare가 활성화되어 있으면 레코드도 현재 서비스 상태로 동기화한다.
         if self.cloudflare_client.enabled:
-            service.cloudflare_record_id = await self.cloudflare_client.upsert_service_record(
-                domain=str(service.domain),
-                fallback_target=service.upstream_host,
-            )
+            try:
+                service.cloudflare_record_id = await self.cloudflare_client.upsert_service_record(
+                    domain=str(service.domain),
+                    fallback_target=service.upstream_host,
+                )
+            except Exception:
+                logger.warning(
+                    "Cloudflare DNS 연동 실패",
+                    extra={
+                        "service_id": str(service.id),
+                        "service_name": service.name,
+                        "domain": str(service.domain),
+                    },
+                )
+                raise
 
         # Traefik YAML 업데이트
         self.file_writer.write(service, middleware_templates=middleware_templates)
         await self.repository.save(service)
+        logger.info("서비스 수정: id=%s", service_id)
         return service
 
     async def delete_service(self, service_id: UUID) -> None:
@@ -171,16 +256,40 @@ class ServiceUseCases:
             return
 
         if service.auth_enabled:
-            await self._teardown_authentik(service)
+            try:
+                await self._teardown_authentik(service)
+            except Exception:
+                logger.warning(
+                    "Authentik 연동 해제 실패",
+                    extra={
+                        "service_id": str(service.id),
+                        "service_name": service.name,
+                        "domain": str(service.domain),
+                    },
+                )
+                raise
 
-        await self.cloudflare_client.delete_service_record(
-            domain=str(service.domain),
-            record_id=service.cloudflare_record_id,
-        )
+        try:
+            await self.cloudflare_client.delete_service_record(
+                domain=str(service.domain),
+                record_id=service.cloudflare_record_id,
+            )
+        except Exception:
+            logger.warning(
+                "Cloudflare DNS 삭제 실패",
+                extra={
+                    "service_id": str(service.id),
+                    "service_name": service.name,
+                    "domain": str(service.domain),
+                    "cloudflare_record_id": service.cloudflare_record_id,
+                },
+            )
+            raise
 
         self.file_writer.delete(service)
         service.delete()
         await self.repository.delete(service_id)
+        logger.info("서비스 삭제: id=%s", service_id)
 
     async def list_authentik_groups(self) -> list[dict]:
         return await self.authentik_client.list_groups()

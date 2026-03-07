@@ -1,12 +1,16 @@
+import logging
 import os
 import sqlite3
 import subprocess
 from pathlib import Path
 
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy.engine import make_url
 
 DEFAULT_DATABASE_URL = "sqlite+aiosqlite:///./data/traefik_manager.db"
 LEGACY_TABLES = {"services", "redirect_hosts", "middleware_templates", "users"}
+logger = logging.getLogger(__name__)
 
 
 def get_backend_root() -> Path:
@@ -62,10 +66,17 @@ def detect_sqlite_schema_state(
     return "fresh"
 
 
+def resolve_target_revision(project_root: Path | None = None) -> str:
+    project_root = project_root or get_backend_root()
+    config = Config(str(project_root / "alembic.ini"))
+    return ScriptDirectory.from_config(config).get_current_head() or "head"
+
+
 def ensure_database_schema(database_url: str | None = None) -> None:
     resolved_database_url = resolve_database_url(database_url)
     schema_state = detect_sqlite_schema_state(resolved_database_url)
     if schema_state == "legacy_unstamped":
+        logger.error("Alembic 스탬프 필요: database_url=%s", resolved_database_url)
         raise RuntimeError(
             "기존 운영 DB에 Alembic 버전 정보가 없습니다. "
             "백업 후 `cd backend && DATABASE_URL=\"%s\" alembic stamp head`를 먼저 실행하세요."
@@ -73,6 +84,7 @@ def ensure_database_schema(database_url: str | None = None) -> None:
         )
 
     project_root = get_backend_root()
+    target_revision = resolve_target_revision(project_root)
     environment = os.environ.copy()
     environment["DATABASE_URL"] = resolved_database_url
     subprocess.run(
@@ -81,3 +93,4 @@ def ensure_database_schema(database_url: str | None = None) -> None:
         env=environment,
         check=True,
     )
+    logger.info("Alembic 마이그레이션 완료: revision=%s", target_revision)
