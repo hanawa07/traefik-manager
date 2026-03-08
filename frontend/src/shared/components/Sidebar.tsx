@@ -29,16 +29,15 @@ export default function Sidebar() {
   return (
     <aside className="w-60 min-h-screen bg-sidebar flex flex-col">
       {/* 로고 */}
-      <div className="flex flex-col items-center gap-2 px-4 py-5 border-b border-sidebar-border">
+      <div className="flex items-center justify-center px-4 py-5 border-b border-sidebar-border">
         <Image
           src="/logo.png"
           alt="Traefik Manager"
-          width={56}
-          height={56}
-          className="object-contain"
+          width={180}
+          height={180}
+          className="object-contain w-full max-w-[180px]"
           priority
         />
-        <span className="text-white font-semibold text-sm tracking-wide">Traefik Manager</span>
       </div>
 
       {/* 네비게이션 */}
