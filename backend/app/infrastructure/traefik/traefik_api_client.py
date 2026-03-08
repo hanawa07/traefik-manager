@@ -1,11 +1,16 @@
 import asyncio
+import base64
+import json
 import re
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from pathlib import Path
 
 import httpx
 
 from app.core.config import settings
+
+ACME_JSON_PATH = Path("/acme.json")
 
 
 class TraefikApiClientError(Exception):
@@ -79,6 +84,48 @@ class TraefikApiClient:
             "domains": domain_states,
         }
 
+    def _load_acme_expiry_map(self) -> dict[str, datetime]:
+        """acme.json에서 도메인별 만료일 파싱 (file 라우터 fallback용)"""
+        expiry_map: dict[str, datetime] = {}
+        if not ACME_JSON_PATH.exists():
+            return expiry_map
+        try:
+            data = json.loads(ACME_JSON_PATH.read_text())
+            for resolver_data in data.values():
+                for cert_entry in resolver_data.get("Certificates", []):
+                    cert_b64 = cert_entry.get("certificate", "")
+                    domain_info = cert_entry.get("domain", {})
+                    main = domain_info.get("main", "")
+                    sans = domain_info.get("sans") or []
+                    all_domains = [d for d in [main] + sans if d]
+                    if not cert_b64 or not all_domains:
+                        continue
+                    try:
+                        cert_der = base64.b64decode(cert_b64)
+                        # openssl로 만료일 추출
+                        import subprocess
+                        result = subprocess.run(
+                            ["openssl", "x509", "-noout", "-enddate"],
+                            input=cert_der, capture_output=True, timeout=5
+                        )
+                        # notAfter=Jun  5 06:15:37 2026 GMT
+                        out = result.stdout.decode().strip()
+                        if out.startswith("notAfter="):
+                            expiry_str = out[len("notAfter="):]
+                            from email.utils import parsedate_to_datetime as _p
+                            dt = _p(expiry_str)
+                            if dt:
+                                dt = dt.astimezone(timezone.utc)
+                                for domain in all_domains:
+                                    existing = expiry_map.get(domain)
+                                    if existing is None or dt < existing:
+                                        expiry_map[domain] = dt
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return expiry_map
+
     async def list_certificates(self) -> list[dict]:
         overview, routers_payload = await asyncio.gather(
             self._get("/api/overview"),
@@ -86,6 +133,11 @@ class TraefikApiClient:
         )
 
         expiry_map = self._extract_expiry_map(overview)
+        # acme.json 직접 파싱으로 누락된 도메인 보완 (file 라우터 등)
+        acme_map = self._load_acme_expiry_map()
+        for domain, expires_at in acme_map.items():
+            if domain not in expiry_map:
+                expiry_map[domain] = expires_at
         routers = self._normalize_routers(routers_payload)
 
         certificates_by_domain: dict[str, dict] = {}
