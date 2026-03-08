@@ -38,6 +38,28 @@ class TraefikConfigGenerator:
             }
             router_middlewares.append(ip_allowlist_name)
 
+        if service.blocked_paths:
+            block_middleware_name = f"{router_name}-block"
+            middlewares[block_middleware_name] = {
+                "ipAllowList": {
+                    "sourceRange": ["255.255.255.255/32"],
+                }
+            }
+
+            for i, path in enumerate(service.blocked_paths):
+                block_router_name = f"{router_name}-block-{i}"
+                routers[block_router_name] = {
+                    "rule": f"Host(`{service.domain}`) && PathPrefix(`{path}`)",
+                    "service": router_name,
+                    "priority": 200,
+                    "middlewares": [block_middleware_name],
+                }
+                if service.tls_enabled:
+                    routers[block_router_name]["entryPoints"] = ["websecure"]
+                    routers[block_router_name]["tls"] = {}
+                else:
+                    routers[block_router_name]["entryPoints"] = ["web"]
+
         if service.rate_limit_enabled:
             middlewares[rate_limit_name] = {
                 "rateLimit": {

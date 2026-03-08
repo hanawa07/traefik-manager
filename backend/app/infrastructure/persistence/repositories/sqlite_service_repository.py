@@ -25,6 +25,7 @@ class SQLiteServiceRepository(ServiceRepository):
             existing.https_redirect_enabled = service.https_redirect_enabled
             existing.auth_enabled = service.auth_enabled
             existing.allowed_ips = service.allowed_ips
+            existing.blocked_paths = service.blocked_paths
             existing.rate_limit_average = service.rate_limit_average
             existing.rate_limit_burst = service.rate_limit_burst
             existing.custom_headers = service.custom_headers
@@ -48,6 +49,7 @@ class SQLiteServiceRepository(ServiceRepository):
                 https_redirect_enabled=service.https_redirect_enabled,
                 auth_enabled=service.auth_enabled,
                 allowed_ips=service.allowed_ips,
+                blocked_paths=service.blocked_paths,
                 rate_limit_average=service.rate_limit_average,
                 rate_limit_burst=service.rate_limit_burst,
                 custom_headers=service.custom_headers,
@@ -96,6 +98,7 @@ class SQLiteServiceRepository(ServiceRepository):
             updated_at=model.updated_at,
             https_redirect_enabled=model.https_redirect_enabled,
             allowed_ips=model.allowed_ips or [],
+            blocked_paths=model.blocked_paths or [],
             rate_limit_average=model.rate_limit_average,
             rate_limit_burst=model.rate_limit_burst,
             custom_headers=model.custom_headers or {},

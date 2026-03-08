@@ -41,6 +41,7 @@ class ServiceCreate(BaseModel):
     auth_enabled: bool = False
     basic_auth_enabled: bool = False
     allowed_ips: list[str] = Field(default_factory=list)
+    blocked_paths: list[str] = Field(default_factory=list)
     middleware_template_ids: list[str] = Field(default_factory=list)
     rate_limit_average: int | None = None
     rate_limit_burst: int | None = None
@@ -77,6 +78,16 @@ class ServiceCreate(BaseModel):
                 seen.add(cidr)
                 normalized.append(cidr)
         return normalized
+
+    @field_validator("blocked_paths")
+    @classmethod
+    def validate_blocked_paths(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return None
+        for path in v:
+            if not path.startswith("/"):
+                raise ValueError(f"차단 경로는 '/'로 시작해야 합니다: {path}")
+        return v
 
     @field_validator("authentik_group_id")
     @classmethod
@@ -154,6 +165,7 @@ class ServiceUpdate(BaseModel):
     auth_enabled: bool | None = None
     basic_auth_enabled: bool | None = None
     allowed_ips: list[str] | None = None
+    blocked_paths: list[str] | None = None
     middleware_template_ids: list[str] | None = None
     rate_limit_enabled: bool | None = None
     rate_limit_average: int | None = None
@@ -266,6 +278,7 @@ class ServiceResponse(BaseModel):
     https_redirect_enabled: bool
     auth_enabled: bool
     allowed_ips: list[str]
+    blocked_paths: list[str]
     rate_limit_enabled: bool
     rate_limit_average: int | None = None
     rate_limit_burst: int | None = None

@@ -25,6 +25,7 @@ class Service:
     updated_at: datetime
     https_redirect_enabled: bool = True
     allowed_ips: list[str] = field(default_factory=list)
+    blocked_paths: list[str] = field(default_factory=list)
     rate_limit_average: int | None = None
     rate_limit_burst: int | None = None
     custom_headers: dict[str, str] = field(default_factory=dict)
@@ -41,7 +42,7 @@ class Service:
 
     @classmethod
     def create(
-        cls,
+        self,
         name: str,
         domain: str,
         upstream_host: str,
@@ -50,6 +51,7 @@ class Service:
         auth_enabled: bool = False,
         https_redirect_enabled: bool = True,
         allowed_ips: list[str] | None = None,
+        blocked_paths: list[str] | None = None,
         rate_limit_average: int | None = None,
         rate_limit_burst: int | None = None,
         custom_headers: dict[str, str] | None = None,
@@ -62,13 +64,13 @@ class Service:
         if auth_enabled and basic_auth_users:
             raise ValueError("Authentik 인증과 Basic Auth는 동시에 활성화할 수 없습니다")
 
-        normalized_average, normalized_burst = cls._normalize_rate_limit(
+        normalized_average, normalized_burst = self._normalize_rate_limit(
             rate_limit_average=rate_limit_average,
             rate_limit_burst=rate_limit_burst,
         )
 
         now = datetime.utcnow()
-        service = cls(
+        service = self(
             id=ServiceId(uuid4()),
             name=name,
             domain=DomainName(domain),
@@ -78,12 +80,13 @@ class Service:
             created_at=now,
             updated_at=now,
             https_redirect_enabled=https_redirect_enabled,
-            allowed_ips=cls._normalize_allowed_ips(allowed_ips),
+            allowed_ips=self._normalize_allowed_ips(allowed_ips),
+            blocked_paths=self._normalize_blocked_paths(blocked_paths),
             rate_limit_average=normalized_average,
             rate_limit_burst=normalized_burst,
-            custom_headers=cls._normalize_custom_headers(custom_headers),
-            basic_auth_users=cls._normalize_basic_auth_users(basic_auth_users),
-            middleware_template_ids=cls._normalize_middleware_template_ids(middleware_template_ids),
+            custom_headers=self._normalize_custom_headers(custom_headers),
+            basic_auth_users=self._normalize_basic_auth_users(basic_auth_users),
+            middleware_template_ids=self._normalize_middleware_template_ids(middleware_template_ids),
             authentik_group_id=authentik_group_id if auth_enabled else None,
         )
         service._events.append(ServiceCreated(service_id=service.id, name=name, domain=domain))
@@ -98,6 +101,7 @@ class Service:
         auth_enabled: bool | None = None,
         https_redirect_enabled: bool | None = None,
         allowed_ips: list[str] | None = None,
+        blocked_paths: list[str] | None = None,
         rate_limit_average: int | None = None,
         rate_limit_burst: int | None = None,
         custom_headers: dict[str, str] | None = None,
@@ -128,6 +132,8 @@ class Service:
             self.https_redirect_enabled = https_redirect_enabled
         if allowed_ips is not None:
             self.allowed_ips = self._normalize_allowed_ips(allowed_ips)
+        if blocked_paths is not None:
+            self.blocked_paths = self._normalize_blocked_paths(blocked_paths)
         if clear_rate_limit:
             self.rate_limit_average = None
             self.rate_limit_burst = None
@@ -279,6 +285,24 @@ class Service:
             value = str(raw_id).strip()
             if not value:
                 continue
+            if value not in seen:
+                seen.add(value)
+                normalized.append(value)
+        return normalized
+
+    @staticmethod
+    def _normalize_blocked_paths(paths: list[str] | None) -> list[str]:
+        if not paths:
+            return []
+
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for raw_path in paths:
+            value = raw_path.strip()
+            if not value:
+                continue
+            if not value.startswith("/"):
+                value = "/" + value
             if value not in seen:
                 seen.add(value)
                 normalized.append(value)

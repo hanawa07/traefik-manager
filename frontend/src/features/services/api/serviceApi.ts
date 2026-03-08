@@ -10,6 +10,7 @@ export interface Service {
   https_redirect_enabled: boolean;
   auth_enabled: boolean;
   allowed_ips: string[];
+  blocked_paths: string[];
   rate_limit_enabled: boolean;
   rate_limit_average: number | null;
   rate_limit_burst: number | null;
@@ -40,6 +41,7 @@ export interface ServiceCreate {
   basic_auth_enabled: boolean;
   rate_limit_enabled?: boolean;
   allowed_ips: string[];
+  blocked_paths: string[];
   rate_limit_average: number | null;
   rate_limit_burst: number | null;
   custom_headers: Record<string, string>;
@@ -61,6 +63,7 @@ export interface ServiceUpdate {
   rate_limit_burst?: number | null;
   custom_headers?: Record<string, string>;
   allowed_ips?: string[];
+  blocked_paths?: string[];
   basic_auth_credentials?: BasicAuthCredential[];
   middleware_template_ids?: string[];
   authentik_group_id?: string | null;

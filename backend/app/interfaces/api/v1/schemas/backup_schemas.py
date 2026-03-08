@@ -10,8 +10,9 @@ class BackupServiceItem(BaseModel):
     upstream_port: int
     tls_enabled: bool = True
     https_redirect_enabled: bool = True
-    auth_enabled: bool = False
+    auth_enabled: bool
     allowed_ips: list[str] = Field(default_factory=list)
+    blocked_paths: list[str] = Field(default_factory=list)
     rate_limit_average: int | None = None
     rate_limit_burst: int | None = None
     custom_headers: dict[str, str] = Field(default_factory=dict)

@@ -16,6 +16,7 @@ class ServiceModel(Base):
     https_redirect_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     auth_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     allowed_ips: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    blocked_paths: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     rate_limit_average: Mapped[int | None] = mapped_column(nullable=True)
     rate_limit_burst: Mapped[int | None] = mapped_column(nullable=True)
     custom_headers: Mapped[dict[str, str]] = mapped_column(JSON, default=dict, nullable=False)

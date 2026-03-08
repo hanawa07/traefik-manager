@@ -31,6 +31,7 @@ const schema = z.object({
     })
   ),
   allowed_ips_input: z.string().optional(),
+  blocked_paths_input: z.string().optional(),
   rate_limit_enabled: z.boolean(),
   rate_limit_average: z.coerce.number().int().positive("1 이상의 정수를 입력하세요").optional(),
   rate_limit_burst: z.coerce.number().int().positive("1 이상의 정수를 입력하세요").optional(),
@@ -85,6 +86,7 @@ interface ServiceFormDefaultValues {
   middleware_template_ids?: string[];
   authentik_group_id?: string | null;
   allowed_ips?: string[];
+  blocked_paths?: string[];
   rate_limit_average?: number | null;
   rate_limit_burst?: number | null;
   custom_headers?: Record<string, string>;
@@ -103,6 +105,15 @@ function parseAllowedIps(input: string | undefined): string[] {
     .split(/\r?\n|,/)
     .map((value) => value.trim())
     .filter(Boolean);
+}
+
+function parseBlockedPaths(input: string | undefined): string[] {
+  if (!input) return [];
+  return input
+    .split(/\r?\n|,/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((p) => (p.startsWith("/") ? p : `/${p}`));
 }
 
 export default function ServiceForm({
@@ -137,6 +148,7 @@ export default function ServiceForm({
       basic_auth_enabled: defaultValues?.basic_auth_enabled ?? false,
       middleware_template_ids: defaultValues?.middleware_template_ids || [],
       allowed_ips_input: defaultValues?.allowed_ips?.join("\n") || "",
+      blocked_paths_input: defaultValues?.blocked_paths?.join("\n") || "",
       authentik_group_id: defaultValues?.authentik_group_id || "",
       basic_auth_credentials: [{ username: "", password: "" }],
       rate_limit_enabled:
@@ -248,6 +260,7 @@ export default function ServiceForm({
       middleware_template_ids: data.middleware_template_ids,
       rate_limit_enabled: data.rate_limit_enabled,
       allowed_ips: parseAllowedIps(data.allowed_ips_input),
+      blocked_paths: parseBlockedPaths(data.blocked_paths_input),
       rate_limit_average: data.rate_limit_enabled ? data.rate_limit_average ?? null : null,
       rate_limit_burst: data.rate_limit_enabled ? data.rate_limit_burst ?? null : null,
       custom_headers: customHeaders,
@@ -474,6 +487,16 @@ export default function ServiceForm({
             {...register("allowed_ips_input")}
           />
           <p className="text-xs text-gray-500 mt-1">한 줄에 하나씩 입력하세요. IP 또는 CIDR 형식을 지원합니다.</p>
+        </div>
+
+        <div>
+          <label className="label">차단 경로 목록 (선택)</label>
+          <textarea
+            className="input min-h-24"
+            placeholder={"예:\n/admin\n/api/debug"}
+            {...register("blocked_paths_input")}
+          />
+          <p className="text-xs text-gray-500 mt-1">차단할 경로를 한 줄에 하나씩 입력하세요. 해당 경로는 외부에서 403으로 차단됩니다.</p>
         </div>
 
         <div className="space-y-3 pt-1 border-t border-gray-100">
