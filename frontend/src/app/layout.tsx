@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Traefik Manager",
     description: "Traefik + Authentik 통합 관리",
-    images: [{ url: "/images/logo.png" }],
+    images: [{ url: "/logo.png" }],
   },
 };
 
