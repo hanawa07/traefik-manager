@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
-import { Cloud, Download, Settings, Upload } from "lucide-react";
+import { Cloud, Download, Edit2, Save, Settings, Upload, X } from "lucide-react";
 
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { BackupPayload } from "@/features/settings/api/settingsApi";
 import {
   useCloudflareStatus,
+  useUpdateCloudflareSettings,
   useExportBackup,
   useImportBackup,
 } from "@/features/settings/hooks/useSettings";
@@ -19,9 +20,28 @@ export default function SettingsPage() {
   const [importResultMessage, setImportResultMessage] = useState<string>("");
   const [exportErrorMessage, setExportErrorMessage] = useState<string>("");
 
+  const [isEditingCf, setIsEditingCf] = useState(false);
+  const [cfForm, setCfForm] = useState({ api_token: "", zone_id: "", record_target: "", proxied: false });
+
   const { data: cloudflareStatus, isLoading: isCloudflareLoading } = useCloudflareStatus();
+  const updateCloudflare = useUpdateCloudflareSettings();
   const exportBackup = useExportBackup();
   const importBackup = useImportBackup();
+
+  const handleEditCf = () => {
+    setCfForm({
+      api_token: "",
+      zone_id: cloudflareStatus?.zone_id ?? "",
+      record_target: cloudflareStatus?.record_target ?? "",
+      proxied: cloudflareStatus?.proxied ?? false,
+    });
+    setIsEditingCf(true);
+  };
+
+  const handleSaveCf = async () => {
+    await updateCloudflare.mutateAsync(cfForm);
+    setIsEditingCf(false);
+  };
 
   const handleExport = async () => {
     setExportErrorMessage("");
@@ -81,47 +101,96 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="card p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Cloud className="w-5 h-5 text-blue-600" />
-            <h2 className="font-semibold text-gray-900">Cloudflare DNS 자동 연동</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <Cloud className="w-5 h-5 text-blue-600" />
+              <h2 className="font-semibold text-gray-900">Cloudflare DNS 자동 연동</h2>
+            </div>
+            {canManage && !isEditingCf && !isCloudflareLoading && (
+              <button onClick={handleEditCf} className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs">
+                <Edit2 className="w-3.5 h-3.5" /> 편집
+              </button>
+            )}
           </div>
 
           {isCloudflareLoading ? (
             <div className="h-20 bg-gray-100 rounded-lg animate-pulse" />
+          ) : isEditingCf ? (
+            <div className="space-y-3">
+              <div>
+                <label className="label">API Token</label>
+                <input
+                  type="password"
+                  className="input"
+                  placeholder="새 토큰 입력 (빈칸으로 저장 시 설정 초기화)"
+                  value={cfForm.api_token}
+                  onChange={(e) => setCfForm({ ...cfForm, api_token: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label">Zone ID</label>
+                <input
+                  type="text"
+                  className="input"
+                  value={cfForm.zone_id}
+                  onChange={(e) => setCfForm({ ...cfForm, zone_id: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label">Record Target <span className="text-gray-400 font-normal">(선택)</span></label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="예: 1.2.3.4 (비워두면 업스트림 자동 사용)"
+                  value={cfForm.record_target}
+                  onChange={(e) => setCfForm({ ...cfForm, record_target: e.target.value })}
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="accent-blue-600"
+                  checked={cfForm.proxied}
+                  onChange={(e) => setCfForm({ ...cfForm, proxied: e.target.checked })}
+                />
+                Cloudflare Proxy (Proxied) 사용
+              </label>
+              <div className="flex gap-2 pt-2">
+                <button
+                  className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
+                  onClick={handleSaveCf}
+                  disabled={updateCloudflare.isPending}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {updateCloudflare.isPending ? "저장 중..." : "저장"}
+                </button>
+                <button
+                  className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
+                  onClick={() => setIsEditingCf(false)}
+                >
+                  <X className="w-3.5 h-3.5" /> 취소
+                </button>
+              </div>
+            </div>
           ) : (
             <>
-              <p
-                className={`text-sm font-medium ${
-                  cloudflareStatus?.enabled ? "text-green-700" : "text-gray-600"
-                }`}
-              >
+              <p className={`text-sm font-medium ${cloudflareStatus?.enabled ? "text-green-700" : "text-gray-600"}`}>
                 {cloudflareStatus?.enabled ? "활성화됨" : "비활성화됨"}
               </p>
               <p className="text-xs text-gray-500 mt-1">{cloudflareStatus?.message}</p>
-
               <div className="mt-4 space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Zone ID</span>
-                  <span className="font-mono text-gray-700">
-                    {cloudflareStatus?.zone_id || "(미설정)"}
-                  </span>
+                  <span className="font-mono text-gray-700">{cloudflareStatus?.zone_id || "(미설정)"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">기본 대상</span>
-                  <span className="font-mono text-gray-700">
-                    {cloudflareStatus?.record_target || "(서비스 업스트림 사용)"}
-                  </span>
+                  <span className="font-mono text-gray-700">{cloudflareStatus?.record_target || "(서비스 업스트림 사용)"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">프록시 모드</span>
                   <span className="text-gray-700">{cloudflareStatus?.proxied ? "활성" : "비활성"}</span>
                 </div>
-              </div>
-
-              <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
-                <p className="text-xs text-blue-700">
-                  Cloudflare 값은 환경 변수(`CLOUDFLARE_*`)로 관리됩니다.
-                </p>
               </div>
             </>
           )}

@@ -1,12 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { BackupPayload, settingsApi } from "../api/settingsApi";
+import { BackupPayload, CloudflareSettingsInput, settingsApi } from "../api/settingsApi";
 
 export function useCloudflareStatus() {
   return useQuery({
     queryKey: ["settings", "cloudflare"],
     queryFn: settingsApi.getCloudflareStatus,
     staleTime: 30_000,
+  });
+}
+
+export function useUpdateCloudflareSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CloudflareSettingsInput) => settingsApi.updateCloudflareSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "cloudflare"] });
+    },
   });
 }
 

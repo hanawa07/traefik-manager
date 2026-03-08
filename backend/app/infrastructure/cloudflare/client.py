@@ -12,13 +12,32 @@ class CloudflareClientError(Exception):
 class CloudflareClient:
     """Cloudflare DNS API 클라이언트 (선택 기능)"""
 
-    def __init__(self):
-        self.api_token = settings.CLOUDFLARE_API_TOKEN
-        self.zone_id = settings.CLOUDFLARE_ZONE_ID
-        self.record_target = settings.CLOUDFLARE_RECORD_TARGET
-        self.proxied = settings.CLOUDFLARE_PROXIED
+    def __init__(
+        self,
+        api_token: str | None = None,
+        zone_id: str | None = None,
+        record_target: str | None = None,
+        proxied: bool | None = None,
+    ):
+        self.api_token = api_token or settings.CLOUDFLARE_API_TOKEN
+        self.zone_id = zone_id or settings.CLOUDFLARE_ZONE_ID
+        self.record_target = record_target or settings.CLOUDFLARE_RECORD_TARGET
+        self.proxied = proxied if proxied is not None else settings.CLOUDFLARE_PROXIED
         self.timeout = settings.CLOUDFLARE_API_TIMEOUT_SECONDS
         self.base_url = "https://api.cloudflare.com/client/v4"
+
+    @classmethod
+    def from_db_settings(cls, db_settings: dict[str, str]) -> "CloudflareClient":
+        """DB에서 로드된 설정으로 클라이언트 생성. 없으면 환경변수 fallback."""
+        proxied: bool | None = None
+        if "cf_proxied" in db_settings:
+            proxied = db_settings["cf_proxied"] == "true"
+        return cls(
+            api_token=db_settings.get("cf_api_token") or None,
+            zone_id=db_settings.get("cf_zone_id") or None,
+            record_target=db_settings.get("cf_record_target") or None,
+            proxied=proxied,
+        )
 
     @property
     def enabled(self) -> bool:

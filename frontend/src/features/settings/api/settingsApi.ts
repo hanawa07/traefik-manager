@@ -54,9 +54,21 @@ export interface BackupImportResult {
   deleted_redirects: number;
 }
 
+export interface CloudflareSettingsInput {
+  api_token: string;
+  zone_id: string;
+  record_target: string;
+  proxied: boolean;
+}
+
 export const settingsApi = {
   getCloudflareStatus: async (): Promise<CloudflareSettingsStatus> => {
     const res = await apiClient.get<CloudflareSettingsStatus>("/settings/cloudflare");
+    return res.data;
+  },
+
+  updateCloudflareSettings: async (payload: CloudflareSettingsInput): Promise<CloudflareSettingsStatus> => {
+    const res = await apiClient.put<CloudflareSettingsStatus>("/settings/cloudflare", payload);
     return res.data;
   },
 

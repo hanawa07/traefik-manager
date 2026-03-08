@@ -8,3 +8,10 @@ class CloudflareSettingsStatusResponse(BaseModel):
     record_target: str | None = None
     proxied: bool
     message: str
+
+
+class CloudflareSettingsUpdateRequest(BaseModel):
+    api_token: str = ""
+    zone_id: str = ""
+    record_target: str = ""
+    proxied: bool = False

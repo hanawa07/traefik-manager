@@ -79,3 +79,12 @@ class AuditLogModel(Base):
     resource_name: Mapped[str] = mapped_column(String(255), nullable=False)
     detail: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
+
+
+class SystemSettingModel(Base):
+    __tablename__ = "system_settings"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    key: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    value: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    updated_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
