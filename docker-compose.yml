@@ -29,7 +29,7 @@ services:
       - no-new-privileges:true
     read_only: false
     tmpfs:
-      - /tmp
+      - /tmp:noexec,nosuid,size=64m
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy-network
@@ -71,10 +71,13 @@ services:
     depends_on:
       - backend
     networks:
-      - traefik-manager-internal
       - proxy-network
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
+      - /var/tmp:noexec,nosuid,size=64m
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy-network
