@@ -18,6 +18,8 @@ const schema = z.object({
   ),
   upstream_host: z.string().min(1, "업스트림 호스트를 입력하세요"),
   upstream_port: z.coerce.number().min(1).max(65535, "1~65535 범위의 포트를 입력하세요"),
+  upstream_scheme: z.enum(["http", "https"]),
+  skip_tls_verify: z.boolean(),
   tls_enabled: z.boolean(),
   https_redirect_enabled: z.boolean(),
   auth_enabled: z.boolean(),
@@ -79,6 +81,8 @@ interface ServiceFormDefaultValues {
   domain?: string;
   upstream_host?: string;
   upstream_port?: number;
+  upstream_scheme?: "http" | "https";
+  skip_tls_verify?: boolean;
   tls_enabled?: boolean;
   https_redirect_enabled?: boolean;
   auth_enabled?: boolean;
@@ -142,6 +146,8 @@ export default function ServiceForm({
       domain: defaultValues?.domain || "",
       upstream_host: defaultValues?.upstream_host || "",
       upstream_port: defaultValues?.upstream_port ?? 80,
+      upstream_scheme: defaultValues?.upstream_scheme || "http",
+      skip_tls_verify: defaultValues?.skip_tls_verify ?? false,
       tls_enabled: defaultValues?.tls_enabled ?? true,
       https_redirect_enabled: defaultValues?.https_redirect_enabled ?? true,
       auth_enabled: defaultValues?.auth_enabled ?? false,
@@ -175,6 +181,7 @@ export default function ServiceForm({
   const authEnabled = watch("auth_enabled");
   const basicAuthEnabled = watch("basic_auth_enabled");
   const rateLimitEnabled = watch("rate_limit_enabled");
+  const upstreamScheme = watch("upstream_scheme");
   const { data: authentikGroups = [], isLoading: isGroupLoading } = useAuthentikGroups(authEnabled);
   const { data: middlewareTemplates = [], isLoading: isMiddlewareLoading } = useMiddlewareTemplates();
   const {
@@ -224,6 +231,12 @@ export default function ServiceForm({
     }
   }, [rateLimitEnabled, setValue]);
 
+  useEffect(() => {
+    if (upstreamScheme === "http") {
+      setValue("skip_tls_verify", false);
+    }
+  }, [upstreamScheme, setValue]);
+
   const submitForm = (data: FormData) => {
     const customHeaders = data.custom_headers.reduce<Record<string, string>>((acc, item) => {
       const key = item.key.trim();
@@ -253,6 +266,8 @@ export default function ServiceForm({
       domain: data.domain,
       upstream_host: data.upstream_host,
       upstream_port: data.upstream_port,
+      upstream_scheme: data.upstream_scheme,
+      skip_tls_verify: data.upstream_scheme === "https" ? data.skip_tls_verify : false,
       tls_enabled: data.tls_enabled,
       https_redirect_enabled: data.https_redirect_enabled,
       auth_enabled: data.auth_enabled,
@@ -343,7 +358,36 @@ export default function ServiceForm({
             </div>
           </label>
 
-          <label className="flex items-center gap-3 cursor-pointer">
+          <div className="pt-2 pb-1 border-t border-gray-100">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-4 h-4 rounded accent-blue-600"
+                checked={upstreamScheme === "https"}
+                onChange={(e) => setValue("upstream_scheme", e.target.checked ? "https" : "http")}
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">업스트림 HTTPS 사용</span>
+                <p className="text-xs text-gray-500">백엔드 서비스가자체 HTTPS를 사용하는 경우 체크</p>
+              </div>
+            </label>
+
+            {upstreamScheme === "https" && (
+              <label className="flex items-center gap-3 cursor-pointer mt-3 ml-7 animate-in fade-in slide-in-from-left-2">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded accent-blue-600"
+                  {...register("skip_tls_verify")}
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-700">TLS 인증서 검증 무시</span>
+                  <p className="text-xs text-gray-500">자체서명 인증서를 사용하는 경우 체크</p>
+                </div>
+              </label>
+            )}
+          </div>
+
+          <label className="flex items-center gap-3 cursor-pointer border-t border-gray-100 pt-3">
             <input type="checkbox" className="w-4 h-4 rounded accent-blue-600" {...register("auth_enabled")} />
             <div>
               <span className="text-sm font-medium text-gray-700">Authentik 인증 활성화</span>

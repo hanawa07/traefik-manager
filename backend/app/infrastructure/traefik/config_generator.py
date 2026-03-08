@@ -20,7 +20,7 @@ class TraefikConfigGenerator:
     ) -> dict:
         templates = middleware_templates or []
         router_name = self._to_safe_name(str(service.domain))
-        upstream_url = f"http://{service.upstream}"
+        upstream_url = f"{service.upstream_scheme}://{service.upstream}"
         ip_allowlist_name = f"{router_name}-ipallowlist"
         redirect_middleware_name = f"{router_name}-redirectscheme"
         rate_limit_name = f"{router_name}-ratelimit"
@@ -144,18 +144,27 @@ class TraefikConfigGenerator:
                 outpost_router["entryPoints"] = ["web"]
             routers[outpost_router_name] = outpost_router
 
-        config = {
+        traefik_service: dict = {
+            "loadBalancer": {
+                "servers": [{"url": upstream_url}]
+            }
+        }
+
+        config: dict = {
             "http": {
                 "routers": routers,
                 "services": {
-                    router_name: {
-                        "loadBalancer": {
-                            "servers": [{"url": upstream_url}]
-                        }
-                    }
+                    router_name: traefik_service
                 },
             }
         }
+
+        if service.upstream_scheme == "https" and service.skip_tls_verify:
+            transport_name = f"{router_name}-transport"
+            config["http"]["serversTransports"] = {
+                transport_name: {"insecureSkipVerify": True}
+            }
+            traefik_service["loadBalancer"]["serversTransport"] = transport_name
 
         if middlewares:
             config["http"]["middlewares"] = middlewares

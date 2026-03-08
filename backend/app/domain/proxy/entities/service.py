@@ -38,6 +38,8 @@ class Service:
     authentik_policy_id: str | None = None
     authentik_policy_binding_id: str | None = None
     cloudflare_record_id: str | None = None
+    upstream_scheme: str = "http"
+    skip_tls_verify: bool = False
     _events: list = field(default_factory=list, repr=False)
 
     @classmethod
@@ -58,11 +60,15 @@ class Service:
         basic_auth_users: list[str] | None = None,
         middleware_template_ids: list[str] | None = None,
         authentik_group_id: str | None = None,
+        upstream_scheme: str = "http",
+        skip_tls_verify: bool = False,
     ) -> "Service":
         if https_redirect_enabled and not tls_enabled:
             raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
         if auth_enabled and basic_auth_users:
             raise ValueError("Authentik 인증과 Basic Auth는 동시에 활성화할 수 없습니다")
+        if upstream_scheme not in ["http", "https"]:
+            raise ValueError("업스트림 스킴은 http 또는 https여야 합니다")
 
         normalized_average, normalized_burst = self._normalize_rate_limit(
             rate_limit_average=rate_limit_average,
@@ -88,6 +94,8 @@ class Service:
             basic_auth_users=self._normalize_basic_auth_users(basic_auth_users),
             middleware_template_ids=self._normalize_middleware_template_ids(middleware_template_ids),
             authentik_group_id=authentik_group_id if auth_enabled else None,
+            upstream_scheme=upstream_scheme,
+            skip_tls_verify=skip_tls_verify if upstream_scheme == "https" else False,
         )
         service._events.append(ServiceCreated(service_id=service.id, name=name, domain=domain))
         return service
@@ -109,6 +117,8 @@ class Service:
         middleware_template_ids: list[str] | None = None,
         authentik_group_id: str | None = None,
         clear_rate_limit: bool = False,
+        upstream_scheme: str | None = None,
+        skip_tls_verify: bool | None = None,
     ) -> None:
         if name is not None:
             self.name = name
@@ -116,6 +126,14 @@ class Service:
             host = upstream_host or self.upstream.host
             port = upstream_port or self.upstream.port
             self.upstream = Upstream(host, port)
+        if upstream_scheme is not None:
+            if upstream_scheme not in ["http", "https"]:
+                raise ValueError("업스트림 스킴은 http 또는 https여야 합니다")
+            self.upstream_scheme = upstream_scheme
+            if upstream_scheme == "http":
+                self.skip_tls_verify = False
+        if skip_tls_verify is not None:
+            self.skip_tls_verify = skip_tls_verify if self.upstream_scheme == "https" else False
         if tls_enabled is not None:
             self.tls_enabled = tls_enabled
             if not tls_enabled:

@@ -6,6 +6,8 @@ export interface Service {
   domain: string;
   upstream_host: string;
   upstream_port: number;
+  upstream_scheme: "http" | "https";
+  skip_tls_verify: boolean;
   tls_enabled: boolean;
   https_redirect_enabled: boolean;
   auth_enabled: boolean;
@@ -35,6 +37,8 @@ export interface ServiceCreate {
   domain: string;
   upstream_host: string;
   upstream_port: number;
+  upstream_scheme: "http" | "https";
+  skip_tls_verify: boolean;
   tls_enabled: boolean;
   https_redirect_enabled: boolean;
   auth_enabled: boolean;
@@ -54,6 +58,8 @@ export interface ServiceUpdate {
   name?: string;
   upstream_host?: string;
   upstream_port?: number;
+  upstream_scheme?: "http" | "https";
+  skip_tls_verify?: boolean;
   tls_enabled?: boolean;
   https_redirect_enabled?: boolean;
   auth_enabled?: boolean;

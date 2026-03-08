@@ -8,6 +8,8 @@ class BackupServiceItem(BaseModel):
     domain: str
     upstream_host: str
     upstream_port: int
+    upstream_scheme: str = "http"
+    skip_tls_verify: bool = False
     tls_enabled: bool = True
     https_redirect_enabled: bool = True
     auth_enabled: bool

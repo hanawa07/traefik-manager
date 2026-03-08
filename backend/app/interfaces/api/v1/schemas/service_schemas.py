@@ -36,6 +36,8 @@ class ServiceCreate(BaseModel):
     domain: str
     upstream_host: str
     upstream_port: int
+    upstream_scheme: str = "http"
+    skip_tls_verify: bool = False
     tls_enabled: bool = True
     https_redirect_enabled: bool = True
     auth_enabled: bool = False
@@ -48,6 +50,13 @@ class ServiceCreate(BaseModel):
     custom_headers: dict[str, str] = Field(default_factory=dict)
     basic_auth_credentials: list[BasicAuthCredential] = Field(default_factory=list)
     authentik_group_id: str | None = None
+
+    @field_validator("upstream_scheme")
+    @classmethod
+    def validate_upstream_scheme(cls, v: str) -> str:
+        if v not in ["http", "https"]:
+            raise ValueError("업스트림 스킴은 http 또는 https여야 합니다")
+        return v
 
     @field_validator("domain")
     @classmethod
@@ -160,6 +169,8 @@ class ServiceUpdate(BaseModel):
     name: str | None = None
     upstream_host: str | None = None
     upstream_port: int | None = None
+    upstream_scheme: str | None = None
+    skip_tls_verify: bool | None = None
     tls_enabled: bool | None = None
     https_redirect_enabled: bool | None = None
     auth_enabled: bool | None = None
@@ -173,6 +184,13 @@ class ServiceUpdate(BaseModel):
     custom_headers: dict[str, str] | None = None
     basic_auth_credentials: list[BasicAuthCredential] | None = None
     authentik_group_id: str | None = None
+
+    @field_validator("upstream_scheme")
+    @classmethod
+    def validate_upstream_scheme(cls, v: str | None) -> str | None:
+        if v is not None and v not in ["http", "https"]:
+            raise ValueError("업스트림 스킴은 http 또는 https여야 합니다")
+        return v
 
     @field_validator("allowed_ips")
     @classmethod
@@ -274,6 +292,8 @@ class ServiceResponse(BaseModel):
     domain: str
     upstream_host: str
     upstream_port: int
+    upstream_scheme: str
+    skip_tls_verify: bool
     tls_enabled: bool
     https_redirect_enabled: bool
     auth_enabled: bool

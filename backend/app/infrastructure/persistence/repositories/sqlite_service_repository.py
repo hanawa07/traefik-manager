@@ -21,6 +21,8 @@ class SQLiteServiceRepository(ServiceRepository):
             existing.domain = str(service.domain)
             existing.upstream_host = service.upstream.host
             existing.upstream_port = service.upstream.port
+            existing.upstream_scheme = service.upstream_scheme
+            existing.skip_tls_verify = service.skip_tls_verify
             existing.tls_enabled = service.tls_enabled
             existing.https_redirect_enabled = service.https_redirect_enabled
             existing.auth_enabled = service.auth_enabled
@@ -45,6 +47,8 @@ class SQLiteServiceRepository(ServiceRepository):
                 domain=str(service.domain),
                 upstream_host=service.upstream.host,
                 upstream_port=service.upstream.port,
+                upstream_scheme=service.upstream_scheme,
+                skip_tls_verify=service.skip_tls_verify,
                 tls_enabled=service.tls_enabled,
                 https_redirect_enabled=service.https_redirect_enabled,
                 auth_enabled=service.auth_enabled,
@@ -111,5 +115,7 @@ class SQLiteServiceRepository(ServiceRepository):
             authentik_policy_id=model.authentik_policy_id,
             authentik_policy_binding_id=model.authentik_policy_binding_id,
             cloudflare_record_id=model.cloudflare_record_id,
+            upstream_scheme=model.upstream_scheme or "http",
+            skip_tls_verify=model.skip_tls_verify or False,
         )
         return service

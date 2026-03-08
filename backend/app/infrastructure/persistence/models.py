@@ -12,6 +12,8 @@ class ServiceModel(Base):
     domain: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     upstream_host: Mapped[str] = mapped_column(String(255), nullable=False)
     upstream_port: Mapped[int] = mapped_column(nullable=False)
+    upstream_scheme: Mapped[str] = mapped_column(String(10), nullable=False, server_default="http")
+    skip_tls_verify: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     tls_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     https_redirect_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     auth_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
