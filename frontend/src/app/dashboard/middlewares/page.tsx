@@ -37,6 +37,7 @@ export default function MiddlewaresPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">미들웨어</h1>
           <p className="text-gray-500 text-sm mt-1">공통 미들웨어 템플릿 관리 ({templates.length}개)</p>
+          <p className="text-gray-400 text-xs mt-1">서비스 요청이 들어올 때 중간에서 처리하는 규칙입니다. 브라우저 → Traefik → [미들웨어] → 서비스 순으로 적용됩니다.</p>
         </div>
         {canManage ? (
           <button className="btn-primary inline-flex items-center gap-2" onClick={() => setIsCreateOpen(true)}>

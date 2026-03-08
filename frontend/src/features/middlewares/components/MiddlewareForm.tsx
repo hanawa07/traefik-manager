@@ -195,21 +195,22 @@ export default function MiddlewareForm({
       <div>
         <label className="label">미들웨어 타입</label>
         <select className="input" {...register("type")}>
-          <option value="ipAllowList">ipAllowList</option>
-          <option value="rateLimit">rateLimit</option>
-          <option value="basicAuth">basicAuth</option>
-          <option value="headers">headers</option>
+          <option value="ipAllowList">ipAllowList — 특정 IP만 접근 허용</option>
+          <option value="rateLimit">rateLimit — 초당 요청 수 제한 (DDoS 방어)</option>
+          <option value="basicAuth">basicAuth — 아이디/비밀번호 팝업 인증</option>
+          <option value="headers">headers — 응답 헤더 추가/수정</option>
         </select>
       </div>
 
       {type === "ipAllowList" && (
         <div>
-          <label className="label">sourceRange</label>
+          <label className="label">허용 IP 목록</label>
           <textarea
             className="input min-h-24"
             placeholder={"예:\n192.168.0.0/24\n10.0.0.1"}
             {...register("source_range_input")}
           />
+          <p className="text-xs text-gray-400 mt-1">한 줄에 IP 또는 CIDR 형식으로 입력. 목록에 없는 IP는 403 차단됩니다.</p>
           {errors.source_range_input && (
             <p className="text-xs text-red-500 mt-1">{errors.source_range_input.message}</p>
           )}
@@ -219,13 +220,14 @@ export default function MiddlewareForm({
       {type === "rateLimit" && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="label">average</label>
-            <input type="number" className="input" min={1} {...register("rate_limit_average")} />
+            <label className="label">average <span className="text-gray-400 font-normal">(초당 평균 요청 수)</span></label>
+            <input type="number" className="input" min={1} placeholder="예: 100" {...register("rate_limit_average")} />
           </div>
           <div>
-            <label className="label">burst</label>
-            <input type="number" className="input" min={1} {...register("rate_limit_burst")} />
+            <label className="label">burst <span className="text-gray-400 font-normal">(순간 최대 요청 수)</span></label>
+            <input type="number" className="input" min={1} placeholder="예: 200" {...register("rate_limit_burst")} />
           </div>
+          <p className="text-xs text-gray-400 col-span-2">일반 웹: 100/200 · API: 50/100 · 관리자: 20/30. 초과 시 429 응답.</p>
           {errors.rate_limit_average && (
             <p className="text-xs text-red-500 mt-1 col-span-2">{errors.rate_limit_average.message}</p>
           )}

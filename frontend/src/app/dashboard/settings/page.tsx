@@ -101,7 +101,7 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <Cloud className="w-5 h-5 text-blue-600" />
               <h2 className="font-semibold text-gray-900">Cloudflare DNS 자동 연동</h2>
@@ -112,6 +112,7 @@ export default function SettingsPage() {
               </button>
             )}
           </div>
+          <p className="text-xs text-gray-400 mb-4">서비스 추가/삭제 시 Cloudflare DNS A 레코드를 자동으로 생성/삭제합니다. 이미 DNS가 수동으로 설정되어 있다면 사용하지 않아도 됩니다.</p>
 
           {isCloudflareLoading ? (
             <div className="h-20 bg-gray-100 rounded-lg animate-pulse" />
@@ -126,6 +127,7 @@ export default function SettingsPage() {
                   value={cfForm.api_token}
                   onChange={(e) => setCfForm({ ...cfForm, api_token: e.target.value })}
                 />
+                <p className="text-xs text-gray-400 mt-1">Cloudflare → My Profile → API Tokens → Create Token → <strong>Zone:DNS:Edit</strong> 권한으로 생성. 빈칸 저장 시 모든 CF 설정이 초기화됩니다.</p>
               </div>
               <div>
                 <label className="label">Zone ID</label>
@@ -135,6 +137,7 @@ export default function SettingsPage() {
                   value={cfForm.zone_id}
                   onChange={(e) => setCfForm({ ...cfForm, zone_id: e.target.value })}
                 />
+                <p className="text-xs text-gray-400 mt-1">Cloudflare 도메인 대시보드 우측 하단 &apos;Zone ID&apos;. 이 Zone에 속한 도메인만 자동 DNS 등록됩니다.</p>
               </div>
               <div>
                 <label className="label">Record Target <span className="text-gray-400 font-normal">(선택)</span></label>
@@ -145,16 +148,20 @@ export default function SettingsPage() {
                   value={cfForm.record_target}
                   onChange={(e) => setCfForm({ ...cfForm, record_target: e.target.value })}
                 />
+                <p className="text-xs text-gray-400 mt-1">DNS A 레코드가 가리킬 서버 공인 IP. 비워두면 서비스 upstream_host를 사용하지만, upstream이 내부 IP인 경우 반드시 공인 IP를 입력하세요.</p>
               </div>
-              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="accent-blue-600"
-                  checked={cfForm.proxied}
-                  onChange={(e) => setCfForm({ ...cfForm, proxied: e.target.checked })}
-                />
-                Cloudflare Proxy (Proxied) 사용
-              </label>
+              <div>
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="accent-blue-600"
+                    checked={cfForm.proxied}
+                    onChange={(e) => setCfForm({ ...cfForm, proxied: e.target.checked })}
+                  />
+                  Cloudflare Proxy (Proxied) 사용
+                </label>
+                <p className="text-xs text-gray-400 mt-1">활성화 시 트래픽이 Cloudflare를 경유하며 실제 서버 IP가 숨겨집니다 (주황 구름 아이콘). DNS only 모드를 원하면 체크 해제.</p>
+              </div>
               <div className="flex gap-2 pt-2">
                 <button
                   className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
