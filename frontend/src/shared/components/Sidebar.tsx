@@ -1,5 +1,4 @@
 "use client";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
@@ -30,13 +29,11 @@ export default function Sidebar() {
     <aside className="w-60 min-h-screen bg-sidebar flex flex-col">
       {/* 로고 */}
       <div className="flex items-center justify-center px-4 py-5 border-b border-sidebar-border">
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src="/logo.png"
           alt="Traefik Manager"
-          width={180}
-          height={180}
-          className="object-contain w-full max-w-[180px]"
-          priority
+          className="w-full max-w-[180px] object-contain"
         />
       </div>
 
