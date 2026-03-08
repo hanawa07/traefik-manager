@@ -1,8 +1,9 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
-import { Server, LayoutDashboard, Shield, ArrowRightLeft, LogOut, Settings, SlidersHorizontal, History } from "lucide-react";
+import { LayoutDashboard, Shield, ArrowRightLeft, LogOut, Settings, SlidersHorizontal, History, Server } from "lucide-react";
 import { clsx } from "clsx";
 
 const navItems = [
@@ -28,11 +29,15 @@ export default function Sidebar() {
   return (
     <aside className="w-60 min-h-screen bg-sidebar flex flex-col">
       {/* 로고 */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-          <Server className="w-4 h-4 text-white" />
-        </div>
-        <span className="text-white font-semibold text-sm">Traefik Manager</span>
+      <div className="flex items-center px-4 py-4 border-b border-sidebar-border">
+        <Image
+          src="/images/logo.png"
+          alt="Traefik Manager"
+          width={160}
+          height={40}
+          className="object-contain"
+          priority
+        />
       </div>
 
       {/* 네비게이션 */}
