@@ -28,13 +28,11 @@ export default function Sidebar() {
   return (
     <aside className="w-60 min-h-screen bg-sidebar flex flex-col">
       {/* 로고 */}
-      <div className="flex items-center justify-center px-4 py-5 border-b border-sidebar-border">
+      <div className="flex flex-col items-center gap-2 px-4 py-5 border-b border-sidebar-border">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/logo.png"
-          alt="Traefik Manager"
-          className="w-full max-w-[180px] object-contain"
-        />
+        <img src="/icon.png" alt="" className="w-12 h-12 object-contain" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="Traefik Manager" className="w-full max-w-[160px] object-contain" />
       </div>
 
       {/* 네비게이션 */}
