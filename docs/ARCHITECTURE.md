@@ -5,7 +5,7 @@
 | 영역 | 기술 |
 |------|------|
 | 백엔드 | Python 3.12 + FastAPI |
-| 프론트엔드 | Next.js 15 + React 19 + TypeScript |
+| 프론트엔드 | Next.js 16 + React 19 + TypeScript |
 | 데이터베이스 | SQLite (SQLAlchemy async) |
 | 인증 | JWT (python-jose) |
 | 컨테이너 | Docker + Docker Compose |
@@ -27,7 +27,6 @@
 ```
 traefik-manager/
 ├── docker-compose.yml               # 개발 환경
-├── docker-compose.prod.yml          # 프로덕션 환경
 ├── .env.example                     # 환경 변수 템플릿
 │
 ├── docs/                            # 문서
@@ -74,10 +73,17 @@ traefik-manager/
 │       │   │   ├── database.py      # SQLAlchemy 비동기 엔진
 │       │   │   ├── models.py        # ORM 모델
 │       │   │   └── repositories/
-│       │   │       └── sqlite_service_repository.py
+│       │   │       ├── sqlite_service_repository.py
+│       │   │       └── sqlite_system_settings_repository.py
 │       │   ├── traefik/
 │       │   │   ├── config_generator.py      # Service → Traefik YAML 변환
 │       │   │   └── file_provider_writer.py  # /traefik-config/dynamic/ 에 파일 저장
+│       │   ├── cloudflare/
+│       │   │   └── client.py        # Cloudflare DNS API 클라이언트
+│       │   ├── docker/
+│       │   │   └── client.py        # Docker 컨테이너 감지
+│       │   ├── health/
+│       │   │   └── upstream_checker.py
 │       │   └── authentik/
 │       │       └── client.py        # Authentik REST API 클라이언트
 │       │
@@ -88,7 +94,15 @@ traefik-manager/
 │                   ├── routers/
 │                   │   ├── auth.py          # POST /api/v1/auth/login
 │                   │   ├── services.py      # CRUD /api/v1/services
-│                   │   └── certificates.py  # GET /api/v1/certificates
+│                   │   ├── certificates.py  # GET /api/v1/certificates
+│                   │   ├── middlewares.py
+│                   │   ├── redirects.py
+│                   │   ├── settings.py
+│                   │   ├── audit.py
+│                   │   ├── backup.py
+│                   │   ├── docker.py
+│                   │   ├── traefik.py
+│                   │   └── users.py
 │                   └── schemas/
 │                       └── service_schemas.py
 │
@@ -99,21 +113,31 @@ traefik-manager/
 │   └── src/
 │       ├── app/                     # Next.js App Router
 │       │   ├── layout.tsx
-│       │   ├── page.tsx             # 대시보드
+│       │   ├── page.tsx             # 루트 진입
 │       │   ├── login/
-│       │   ├── services/
-│       │   │   ├── page.tsx         # 서비스 목록
-│       │   │   └── [id]/
-│       │   │       └── page.tsx     # 서비스 상세/수정
-│       │   ├── auth/
-│       │   └── settings/
+│       │   └── dashboard/
+│       │       ├── page.tsx         # 대시보드
+│       │       ├── services/
+│       │       │   ├── page.tsx     # 서비스 목록
+│       │       │   ├── new/
+│       │       │   └── [id]/
+│       │       │       └── page.tsx # 서비스 상세/수정
+│       │       ├── certificates/
+│       │       ├── middlewares/
+│       │       ├── redirects/
+│       │       ├── audit/
+│       │       └── settings/
 │       ├── features/                # 기능별 모듈
 │       │   ├── services/
 │       │   │   ├── components/      # ServiceList, ServiceForm, ServiceCard
 │       │   │   ├── hooks/           # useServices
 │       │   │   └── api/             # serviceApi
 │       │   ├── auth/
-│       │   └── certificates/
+│       │   ├── certificates/
+│       │   ├── middlewares/
+│       │   ├── redirects/
+│       │   ├── settings/
+│       │   └── audit/
 │       └── shared/
 │           ├── components/          # Layout, Modal, StatusBadge
 │           └── lib/
@@ -135,7 +159,7 @@ UI 폼 입력
       → Service.create() 도메인 검증 (domain)
         → SQLiteServiceRepository.save() (infrastructure/persistence)
         → FileProviderWriter.write() → /traefik-config/dynamic/domain.yml
-        → AuthentikClient.create_proxy_provider() + create_application()
+        → auth_mode=authentik 인 경우 AuthentikClient 동기화
           → Traefik 자동 감지 및 라우팅 시작
 ```
 

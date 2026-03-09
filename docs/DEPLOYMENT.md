@@ -3,10 +3,12 @@
 ## Traefik Manager compose
 
 - `frontend`는 `https://<FRONTEND_DOMAIN>`로 외부 노출됩니다.
+- `FRONTEND_DOMAIN`은 Traefik 라우팅뿐 아니라 Next.js `metadataBase` 기준 URL로도 사용됩니다. 호스트명만 넣으면 빌드 시 `https://` 기준으로 처리됩니다.
 - `backend`는 기본 권장 구성이면 프론트의 `/api` 리버스 프록시를 통해 접근합니다.
 - 현재 compose에는 `BACKEND_DOMAIN` 라우터도 포함했지만, 운영에서는 직접 API 공개가 꼭 필요하지 않으면 사용하지 않는 편이 안전합니다.
 - `NEXT_PUBLIC_API_URL`은 브라우저 번들에 포함되므로 운영 권장값은 고정 상대 경로인 `/api/v1`입니다.
 - 실제 백엔드 업스트림 전환은 `BACKEND_UPSTREAM_URL`로 처리합니다. Next.js가 컨테이너 시작 시 이 값을 읽어 `/api/*`를 백엔드로 프록시합니다.
+- `FRONTEND_DOMAIN`을 바꾸면 프런트 이미지를 다시 빌드해야 메타데이터 절대 URL에도 반영됩니다.
 
 ## Traefik File Provider 설정
 
@@ -47,7 +49,7 @@ providers:
 
 1. `cp .env.example .env` 후 도메인, 시크릿, 관리자 비밀번호를 실제 값으로 바꿉니다.
 2. 기존 Traefik compose 또는 `traefik.yml`에 file provider mount/watch를 추가합니다.
-3. 외부 네트워크가 없으면 `docker network create proxy-network`를 1회 실행합니다.
+3. 외부 네트워크가 없으면 `docker network create proxy-network`와 `docker network create proxy_net`를 1회씩 실행합니다. 이미 사용 중인 Traefik 네트워크명이 다르면 compose의 외부 네트워크 이름도 함께 맞춰야 합니다.
 4. `mkdir -p traefik-config/dynamic`로 디렉토리를 만들고, 리눅스라면 필요 시 `sudo chown -R 10001:10001 traefik-config`를 적용합니다.
 5. `docker compose config`로 변수 치환, 라벨, 네트워크 구성을 확인합니다.
 6. `docker compose up --build -d`로 배포합니다.
