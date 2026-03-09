@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { authApi } from "@/features/auth/api/authApi";
-import { Server, Lock, User } from "lucide-react";
+import { Lock, User } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();

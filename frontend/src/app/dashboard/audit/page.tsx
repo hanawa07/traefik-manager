@@ -7,7 +7,6 @@ import {
   ArrowRightLeft, 
   SlidersHorizontal, 
   User, 
-  Search,
   AlertCircle,
   Loader2
 } from "lucide-react";

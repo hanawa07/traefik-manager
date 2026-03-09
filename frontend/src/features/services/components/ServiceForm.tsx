@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { AuthMode, ServiceCreate } from "../api/serviceApi";
 import { useAuthentikGroups } from "../hooks/useServices";
-import { Database, Plus, Search, Trash2, Shield, Key, Lock, Copy, Check, RefreshCw } from "lucide-react";
+import { Database, Plus, Trash2, Shield, Key, Lock, Copy, Check, RefreshCw } from "lucide-react";
 import Modal from "@/shared/components/Modal";
 import { useDockerContainers } from "@/features/docker/hooks/useDockerContainers";
 import { useMiddlewareTemplates } from "@/features/middlewares/hooks/useMiddlewares";
@@ -209,7 +209,7 @@ export default function ServiceForm({
   const isAuthentikEnabled = authMode === "authentik";
   const isAnyAuthEnabled = authMode !== "none";
 
-  const { data: authentikGroups = [], isLoading: isGroupLoading } = useAuthentikGroups(isAuthentikEnabled);
+  const { data: authentikGroups = [] } = useAuthentikGroups(isAuthentikEnabled);
   const { data: middlewareTemplates = [], isLoading: isMiddlewareLoading } = useMiddlewareTemplates();
   const {
     data: dockerContainers,
@@ -290,7 +290,8 @@ export default function ServiceForm({
         username: item.username.trim(),
         password: item.password,
       }))
-      .filter((item) => item.username && item.password);
+      // 빈 비밀번호는 기존 해시 유지 또는 백엔드 검증 대상으로 전달한다.
+      .filter((item) => item.username);
 
     onSubmit({
       name: data.name,
@@ -377,7 +378,7 @@ export default function ServiceForm({
               <input type="checkbox" className="w-4 h-4 rounded accent-blue-600" {...register("tls_enabled")} />
               <div>
                 <span className="text-sm font-medium text-gray-700">HTTPS (TLS) 활성화</span>
-                <p className="text-xs text-gray-500">Let's Encrypt 인증서 자동 발급</p>
+                    <p className="text-xs text-gray-500">Let&apos;s Encrypt 인증서 자동 발급</p>
               </div>
             </label>
 

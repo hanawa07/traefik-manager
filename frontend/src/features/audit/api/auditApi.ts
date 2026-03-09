@@ -7,7 +7,7 @@ export interface AuditLogItem {
   resource_type: "service" | "redirect" | "middleware" | "user";
   resource_id: string;
   resource_name: string;
-  detail: Record<string, any> | null;
+  detail: Record<string, unknown> | null;
   created_at: string;
 }
 

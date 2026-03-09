@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
@@ -58,7 +59,7 @@ export default function Sidebar() {
       {/* 모바일 상단 바 (Dark 모드 대응) */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-sidebar dark:bg-slate-900 border-b border-sidebar-border/30 dark:border-slate-800 px-4 flex items-center justify-between z-50 transition-colors duration-300">
         <div className="flex items-center gap-2">
-          <img src="/icon.png" alt="" className="w-8 h-8 object-contain" />
+          <Image src="/icon.png" alt="" width={32} height={32} className="w-8 h-8 object-contain" />
           <span className="text-slate-800 dark:text-white font-bold text-sm">Traefik Manager</span>
         </div>
         <button 
@@ -90,20 +91,22 @@ export default function Sidebar() {
             
             {/* 아이콘: 박스 없이 이미지 자체를 크게 노출 (w-40) */}
             <div className="relative transition-all duration-700 hover:scale-105">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
+              <Image
                 src="/icon.png" 
                 alt="" 
+                width={160}
+                height={160}
                 className="w-40 h-40 object-contain drop-shadow-[0_20px_30px_rgba(59,130,246,0.15)] dark:drop-shadow-[0_20px_40px_rgba(0,0,0,0.4)]" 
               />
             </div>
           </div>
           
           <div className="w-full text-center mt-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img 
+            <Image
               src="/logo.png" 
               alt="Traefik Manager" 
+              width={160}
+              height={40}
               className="h-10 w-auto mx-auto object-contain dark:brightness-110" 
             />
           </div>

@@ -2,7 +2,21 @@ import type { Metadata } from "next";
 import "./globals.css";
 import QueryProvider from "@/shared/components/QueryProvider";
 
+function resolveMetadataBase() {
+  const configuredDomain = process.env.FRONTEND_DOMAIN?.trim();
+  if (!configuredDomain) {
+    return new URL("http://localhost:3000");
+  }
+
+  const absoluteUrl = /^https?:\/\//.test(configuredDomain)
+    ? configuredDomain
+    : `https://${configuredDomain}`;
+
+  return new URL(absoluteUrl);
+}
+
 export const metadata: Metadata = {
+  metadataBase: resolveMetadataBase(),
   title: "Traefik Manager",
   description: "Traefik + Authentik 통합 관리",
   icons: {

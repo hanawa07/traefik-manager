@@ -80,6 +80,8 @@ export default function EditServicePage() {
             domain: service.domain,
             upstream_host: service.upstream_host,
             upstream_port: service.upstream_port,
+            upstream_scheme: service.upstream_scheme,
+            skip_tls_verify: service.skip_tls_verify,
             tls_enabled: service.tls_enabled,
             https_redirect_enabled: service.https_redirect_enabled,
             auth_mode: service.auth_mode,

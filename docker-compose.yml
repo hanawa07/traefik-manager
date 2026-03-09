@@ -67,6 +67,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
+        FRONTEND_DOMAIN: ${FRONTEND_DOMAIN}
     container_name: traefik-manager-frontend
     restart: unless-stopped
     env_file: ${APP_ENV_FILE:-.env}

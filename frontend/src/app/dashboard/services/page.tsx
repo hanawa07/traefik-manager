@@ -40,7 +40,7 @@ export default function ServicesPage() {
 
   const filteredServices = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let result = q
+    const result = q
       ? services.filter(
         (s) =>
           s.name.toLowerCase().includes(q) ||
@@ -60,8 +60,7 @@ export default function ServicesPage() {
           return 0;
         };
         cmp = getWeight(b) - getWeight(a);
-      }
-      else if (sortKey === "router") {
+      } else if (sortKey === "router") {
         const ra = routerStatus?.domains?.[a.domain]?.active;
         const rb = routerStatus?.domains?.[b.domain]?.active;
         cmp = Number(rb ?? false) - Number(ra ?? false);
