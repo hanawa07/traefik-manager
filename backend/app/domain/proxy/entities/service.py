@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from ipaddress import ip_network
 import re
+import secrets
 from uuid import UUID, uuid4
 from ..value_objects.domain_name import DomainName
 from ..value_objects.upstream import Upstream
@@ -23,6 +24,8 @@ class Service:
     auth_enabled: bool
     created_at: datetime
     updated_at: datetime
+    auth_mode: str = "none"  # "none" | "authentik" | "token"
+    api_key: str | None = None
     https_redirect_enabled: bool = True
     allowed_ips: list[str] = field(default_factory=list)
     blocked_paths: list[str] = field(default_factory=list)
@@ -42,6 +45,14 @@ class Service:
     skip_tls_verify: bool = False
     _events: list = field(default_factory=list, repr=False)
 
+    @property
+    def uses_authentik(self) -> bool:
+        return self.auth_mode == "authentik"
+
+    @property
+    def uses_token_auth(self) -> bool:
+        return self.auth_mode == "token"
+
     @classmethod
     def create(
         self,
@@ -50,7 +61,8 @@ class Service:
         upstream_host: str,
         upstream_port: int,
         tls_enabled: bool = True,
-        auth_enabled: bool = False,
+        auth_mode: str = "none",
+        api_key: str | None = None,
         https_redirect_enabled: bool = True,
         allowed_ips: list[str] | None = None,
         blocked_paths: list[str] | None = None,
@@ -65,8 +77,13 @@ class Service:
     ) -> "Service":
         if https_redirect_enabled and not tls_enabled:
             raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
-        if auth_enabled and basic_auth_users:
+        
+        auth_enabled = auth_mode != "none"
+        if auth_mode == "authentik" and basic_auth_users:
             raise ValueError("Authentik 인증과 Basic Auth는 동시에 활성화할 수 없습니다")
+        if auth_mode == "token" and basic_auth_users:
+            raise ValueError("Token 인증과 Basic Auth는 동시에 활성화할 수 없습니다")
+            
         if upstream_scheme not in ["http", "https"]:
             raise ValueError("업스트림 스킴은 http 또는 https여야 합니다")
 
@@ -74,6 +91,11 @@ class Service:
             rate_limit_average=rate_limit_average,
             rate_limit_burst=rate_limit_burst,
         )
+
+        if auth_mode == "token" and not api_key:
+            api_key = f"service_{secrets.token_urlsafe(32)}"
+        elif auth_mode != "token":
+            api_key = None
 
         now = datetime.utcnow()
         service = self(
@@ -83,6 +105,8 @@ class Service:
             upstream=Upstream(upstream_host, upstream_port),
             tls_enabled=tls_enabled,
             auth_enabled=auth_enabled,
+            auth_mode=auth_mode,
+            api_key=api_key,
             created_at=now,
             updated_at=now,
             https_redirect_enabled=https_redirect_enabled,
@@ -93,7 +117,7 @@ class Service:
             custom_headers=self._normalize_custom_headers(custom_headers),
             basic_auth_users=self._normalize_basic_auth_users(basic_auth_users),
             middleware_template_ids=self._normalize_middleware_template_ids(middleware_template_ids),
-            authentik_group_id=authentik_group_id if auth_enabled else None,
+            authentik_group_id=authentik_group_id if auth_mode == "authentik" else None,
             upstream_scheme=upstream_scheme,
             skip_tls_verify=skip_tls_verify if upstream_scheme == "https" else False,
         )
@@ -106,7 +130,8 @@ class Service:
         upstream_host: str | None = None,
         upstream_port: int | None = None,
         tls_enabled: bool | None = None,
-        auth_enabled: bool | None = None,
+        auth_mode: str | None = None,
+        api_key: str | None = None,
         https_redirect_enabled: bool | None = None,
         allowed_ips: list[str] | None = None,
         blocked_paths: list[str] | None = None,
@@ -138,12 +163,26 @@ class Service:
             self.tls_enabled = tls_enabled
             if not tls_enabled:
                 self.https_redirect_enabled = False
-        if auth_enabled is not None:
-            self.auth_enabled = auth_enabled
-            if auth_enabled:
-                self.basic_auth_users = []
+        
+        if auth_mode is not None:
+            if auth_mode == "token":
+                if api_key:
+                    self.api_key = api_key
+                elif not self.api_key:
+                    self.api_key = f"service_{secrets.token_urlsafe(32)}"
             else:
+                self.api_key = None
+                
+            self.auth_mode = auth_mode
+            self.auth_enabled = auth_mode != "none"
+            if self.auth_enabled:
+                self.basic_auth_users = []
+            if auth_mode != "authentik":
                 self.authentik_group_id = None
+        elif auth_mode is None and self.auth_mode == "token" and api_key:
+            # auth_mode는 유지하면서 키만 업데이트하는 경우
+            self.api_key = api_key
+        
         if https_redirect_enabled is not None:
             if https_redirect_enabled and not self.tls_enabled:
                 raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
@@ -168,15 +207,17 @@ class Service:
             self.rate_limit_burst = normalized_burst
         if custom_headers is not None:
             self.custom_headers = self._normalize_custom_headers(custom_headers)
+        
         if basic_auth_users is not None:
             normalized_basic_auth_users = self._normalize_basic_auth_users(basic_auth_users)
             if normalized_basic_auth_users and self.auth_enabled:
-                raise ValueError("Authentik 인증과 Basic Auth는 동시에 활성화할 수 없습니다")
+                raise ValueError("인증 모드와 Basic Auth는 동시에 활성화할 수 없습니다")
             self.basic_auth_users = normalized_basic_auth_users
+            
         if middleware_template_ids is not None:
             self.middleware_template_ids = self._normalize_middleware_template_ids(middleware_template_ids)
         if authentik_group_id is not None:
-            self.authentik_group_id = authentik_group_id if self.auth_enabled else None
+            self.authentik_group_id = authentik_group_id if self.auth_mode == "authentik" else None
 
         self.updated_at = datetime.utcnow()
         self._events.append(ServiceUpdated(service_id=self.id))

@@ -66,3 +66,17 @@ def test_generate_auth_enabled(generator, make_service):
 
     router_name = "auth-com"
     assert "authentik@file" in config["http"]["routers"][router_name]["middlewares"]
+
+def test_generate_token_auth(generator, make_service):
+    service = make_service(domain="token.com", auth_mode="token")
+    config = generator.generate(service)
+
+    router_name = "token-com"
+    middleware_name = f"{router_name}-token-auth"
+    assert middleware_name in config["http"]["routers"][router_name]["middlewares"]
+    
+    assert "forwardAuth" in config["http"]["middlewares"][middleware_name]
+    forward_auth = config["http"]["middlewares"][middleware_name]["forwardAuth"]
+    assert "backend:8000/api/v1/auth/verify" in forward_auth["address"]
+    assert forward_auth["trustForwardHeader"] is True
+    assert "X-Auth-User" in forward_auth["authResponseHeaders"]

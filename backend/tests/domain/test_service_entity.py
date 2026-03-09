@@ -31,14 +31,14 @@ def test_rate_limit_requires_both_average_and_burst():
         )
 
 def test_auth_disabled_forces_authentik_group_id_none(make_service):
-    # Case 1: create() with auth_enabled=False
-    service = make_service(auth_enabled=False, authentik_group_id="some-group")
+    # Case 1: create() with auth_mode='none'
+    service = make_service(auth_mode='none', authentik_group_id="some-group")
     assert service.authentik_group_id is None
 
-    # Case 2: update() setting auth_enabled to False
-    service = make_service(auth_enabled=True, authentik_group_id="some-group")
+    # Case 2: update() setting auth_mode to 'none'
+    service = make_service(auth_mode='authentik', authentik_group_id="some-group")
     assert service.authentik_group_id == "some-group"
-    service.update(auth_enabled=False)
+    service.update(auth_mode='none')
     assert service.authentik_group_id is None
 
 def test_allowed_ips_cidr_normalization(make_service):

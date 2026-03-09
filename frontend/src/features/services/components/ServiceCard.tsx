@@ -1,6 +1,6 @@
 "use client";
 import { Service, UpstreamHealth } from "../api/serviceApi";
-import { Lock, Globe, ExternalLink, Pencil, Trash2, Activity } from "lucide-react";
+import { Lock, Globe, ExternalLink, Pencil, Trash2, Activity, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { clsx } from "clsx";
 
@@ -19,6 +19,42 @@ export default function ServiceCard({
   canManage = true,
   upstreamHealth,
 }: ServiceCardProps) {
+  const getAuthBadge = () => {
+    if (service.auth_mode === "authentik") {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+          <ShieldCheck className="w-3 h-3" />
+          Authentik
+        </span>
+      );
+    }
+    
+    if (service.auth_mode === "token") {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
+          <Lock className="w-3 h-3" />
+          Token
+        </span>
+      );
+    }
+
+    if (service.basic_auth_enabled) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+          <Lock className="w-3 h-3" />
+          Basic Auth ({service.basic_auth_user_count})
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+        <Lock className="w-3 h-3" />
+        인증 없음
+      </span>
+    );
+  };
+
   return (
     <div className="card p-5 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-4">
@@ -61,7 +97,7 @@ export default function ServiceCard({
       </div>
 
       {/* 상태 배지 */}
-      <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100">
+      <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100">
         <span className={clsx(
           "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
           service.tls_enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
@@ -69,19 +105,9 @@ export default function ServiceCard({
           <Globe className="w-3 h-3" />
           {service.tls_enabled ? "HTTPS" : "HTTP"}
         </span>
-        <span className={clsx(
-          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
-          (service.auth_enabled || service.basic_auth_enabled)
-            ? "bg-blue-100 text-blue-700"
-            : "bg-gray-100 text-gray-500"
-        )}>
-          <Lock className="w-3 h-3" />
-          {service.auth_enabled
-            ? "Authentik 인증"
-            : service.basic_auth_enabled
-              ? `Basic Auth (${service.basic_auth_user_count})`
-              : "인증 없음"}
-        </span>
+        
+        {getAuthBadge()}
+
         <span
           className={clsx(
             "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",

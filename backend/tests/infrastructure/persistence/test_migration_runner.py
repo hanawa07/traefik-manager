@@ -53,7 +53,7 @@ def test_detect_sqlite_schema_state_returns_managed_when_alembic_version_exists(
 
         assert state == "managed"
 
-def test_ensure_database_schema_logs_error_before_legacy_unstamped_runtime_error():
+def test_ensure_database_schema_runs_stamp_for_legacy_unstamped():
     database_url = "sqlite+aiosqlite:///./data/traefik_manager.db"
 
     with patch.object(
@@ -64,13 +64,18 @@ def test_ensure_database_schema_logs_error_before_legacy_unstamped_runtime_error
         migration_runner,
         "detect_sqlite_schema_state",
         return_value="legacy_unstamped",
-    ), patch.object(migration_runner, "logger") as logger_mock:
-        with pytest.raises(RuntimeError):
-            migration_runner.ensure_database_schema()
+    ), patch.object(migration_runner.subprocess, "run") as subprocess_run_mock, patch.object(
+        migration_runner, "logger"
+    ) as logger_mock:
+        migration_runner.ensure_database_schema()
 
-    logger_mock.error.assert_called_once()
-    assert logger_mock.error.call_args.args[0] == "Alembic 스탬프 필요: database_url=%s"
-    assert logger_mock.error.call_args.args[1] == database_url
+    # Should be called twice: once for stamp head, once for upgrade head
+    assert subprocess_run_mock.call_count == 2
+    assert subprocess_run_mock.call_args_list[0].args[0] == ["alembic", "-c", "alembic.ini", "stamp", "head"]
+    assert subprocess_run_mock.call_args_list[1].args[0] == ["alembic", "-c", "alembic.ini", "upgrade", "head"]
+    
+    # Check log message
+    logger_mock.info.assert_any_call("기존 DB에 Alembic 버전 정보 없음 → stamp head 자동 실행: database_url=%s", database_url)
 
 def test_ensure_database_schema_logs_revision_after_upgrade():
     database_url = "sqlite+aiosqlite:///./data/traefik_manager.db"

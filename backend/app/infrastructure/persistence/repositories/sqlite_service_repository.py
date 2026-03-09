@@ -26,6 +26,8 @@ class SQLiteServiceRepository(ServiceRepository):
             existing.tls_enabled = service.tls_enabled
             existing.https_redirect_enabled = service.https_redirect_enabled
             existing.auth_enabled = service.auth_enabled
+            existing.auth_mode = service.auth_mode
+            existing.api_key = service.api_key
             existing.allowed_ips = service.allowed_ips
             existing.blocked_paths = service.blocked_paths
             existing.rate_limit_average = service.rate_limit_average
@@ -52,6 +54,7 @@ class SQLiteServiceRepository(ServiceRepository):
                 tls_enabled=service.tls_enabled,
                 https_redirect_enabled=service.https_redirect_enabled,
                 auth_enabled=service.auth_enabled,
+                auth_mode=service.auth_mode,
                 allowed_ips=service.allowed_ips,
                 blocked_paths=service.blocked_paths,
                 rate_limit_average=service.rate_limit_average,
@@ -98,6 +101,7 @@ class SQLiteServiceRepository(ServiceRepository):
             upstream=Upstream(model.upstream_host, model.upstream_port),
             tls_enabled=model.tls_enabled,
             auth_enabled=model.auth_enabled,
+            auth_mode=model.auth_mode or "none",
             created_at=model.created_at,
             updated_at=model.updated_at,
             https_redirect_enabled=model.https_redirect_enabled,

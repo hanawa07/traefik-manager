@@ -42,12 +42,12 @@ async def lifespan(app: FastAPI):
 
 
 async def _ensure_authentik_middleware_file() -> None:
-    """startup 시 auth_enabled 서비스가 있으면 authentik ForwardAuth 미들웨어 파일을 생성한다."""
+    """startup 시 auth_mode가 authentik인 서비스가 있으면 authentik ForwardAuth 미들웨어 파일을 생성한다."""
     from sqlalchemy import text
     try:
         async with AsyncSessionLocal() as session:
             result = await session.execute(
-                text("SELECT COUNT(*) FROM services WHERE auth_enabled = 1")
+                text("SELECT COUNT(*) FROM services WHERE auth_mode = 'authentik'")
             )
             count = int(result.scalar_one())
             if count > 0:

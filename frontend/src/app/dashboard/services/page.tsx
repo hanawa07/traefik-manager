@@ -52,10 +52,15 @@ export default function ServicesPage() {
       let cmp = 0;
       if (sortKey === "name") cmp = a.name.localeCompare(b.name);
       else if (sortKey === "domain") cmp = a.domain.localeCompare(b.domain);
-      else if (sortKey === "auth")
-        cmp =
-          Number(b.auth_enabled || b.basic_auth_enabled) -
-          Number(a.auth_enabled || a.basic_auth_enabled);
+      else if (sortKey === "auth") {
+        const getWeight = (s: Service) => {
+          if (s.auth_mode === "authentik") return 3;
+          if (s.auth_mode === "token") return 2;
+          if (s.basic_auth_enabled) return 1;
+          return 0;
+        };
+        cmp = getWeight(b) - getWeight(a);
+      }
       else if (sortKey === "router") {
         const ra = routerStatus?.domains?.[a.domain]?.active;
         const rb = routerStatus?.domains?.[b.domain]?.active;
@@ -185,7 +190,7 @@ export default function ServicesPage() {
         <p className="text-gray-600 text-sm mb-1">다음 서비스를 삭제합니다:</p>
         <p className="font-semibold text-gray-900 mb-1">{deleteTarget?.name}</p>
         <p className="text-sm text-gray-500 mb-4">{deleteTarget?.domain}</p>
-        {deleteTarget?.auth_enabled && (
+        {deleteTarget?.auth_mode === "authentik" && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
             <p className="text-amber-700 text-sm">
               ⚠️ Authentik Provider/Application도 함께 삭제됩니다

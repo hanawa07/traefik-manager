@@ -40,9 +40,9 @@ export default function DashboardPage() {
   const { data: routerStatus } = useTraefikRouterStatus();
 
   const totalServices = services.length;
-  const authEnabled = services.filter((s) => s.auth_enabled || s.basic_auth_enabled).length;
+  const authEnabled = services.filter((s) => s.auth_mode !== "none" || s.basic_auth_enabled).length;
   const tlsEnabled = services.filter((s) => s.tls_enabled).length;
-  const noAuth = services.filter((s) => !s.auth_enabled && !s.basic_auth_enabled).length;
+  const noAuth = services.filter((s) => s.auth_mode === "none" && !s.basic_auth_enabled).length;
   const upStreamUpCount = Object.values(healthData).filter((h) => h.status === "up").length;
 
   return (
@@ -138,12 +138,18 @@ export default function DashboardPage() {
                     </span>
                   </td>
                   <td className="px-6 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(service.auth_enabled || service.basic_auth_enabled) ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
-                      {service.auth_enabled
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      (service.auth_mode !== "none" || service.basic_auth_enabled) 
+                        ? (service.auth_mode === "token" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700") 
+                        : "bg-gray-100 text-gray-500"
+                    }`}>
+                      {service.auth_mode === "authentik"
                         ? "Authentik"
-                        : service.basic_auth_enabled
-                          ? `Basic(${service.basic_auth_user_count})`
-                          : "없음"}
+                        : service.auth_mode === "token"
+                          ? "Token"
+                          : service.basic_auth_enabled
+                            ? `Basic(${service.basic_auth_user_count})`
+                            : "없음"}
                     </span>
                   </td>
                   <td className="px-6 py-3">

@@ -20,7 +20,7 @@ def get_logger(name: str) -> logging.Logger:
 
 
 def is_logging_exempt_path(path: str) -> bool:
-    return path == "/api/health"
+    return path in ("/api/health", "/api/v1/auth/verify")
 
 
 def get_client_ip(request: Any) -> str:

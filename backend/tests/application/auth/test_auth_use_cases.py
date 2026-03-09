@@ -44,9 +44,11 @@ async def test_authenticate_user_returns_user_for_valid_credentials():
         hashed_password=hash_password("secret123"),
         role="admin",
         is_active=True,
+        token_version=0,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
+
     use_cases = AuthUseCases(InMemoryUserRepository([user]))
 
     authenticated = await use_cases.authenticate_user("admin", "secret123")
@@ -63,6 +65,7 @@ async def test_authenticate_user_returns_none_for_wrong_password():
         hashed_password=hash_password("secret123"),
         role="viewer",
         is_active=True,
+        token_version=0,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
@@ -80,6 +83,7 @@ async def test_authenticate_user_returns_none_for_inactive_user():
         hashed_password=hash_password("secret123"),
         role="viewer",
         is_active=False,
+        token_version=0,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )

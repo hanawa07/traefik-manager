@@ -1,5 +1,7 @@
 import apiClient from "@/shared/lib/apiClient";
 
+export type AuthMode = "none" | "authentik" | "token";
+
 export interface Service {
   id: string;
   name: string;
@@ -11,6 +13,8 @@ export interface Service {
   tls_enabled: boolean;
   https_redirect_enabled: boolean;
   auth_enabled: boolean;
+  auth_mode: AuthMode;
+  api_key: string | null;
   allowed_ips: string[];
   blocked_paths: string[];
   rate_limit_enabled: boolean;
@@ -41,7 +45,9 @@ export interface ServiceCreate {
   skip_tls_verify: boolean;
   tls_enabled: boolean;
   https_redirect_enabled: boolean;
-  auth_enabled: boolean;
+  auth_enabled?: boolean;
+  auth_mode: AuthMode;
+  api_key?: string | null;
   basic_auth_enabled: boolean;
   rate_limit_enabled?: boolean;
   allowed_ips: string[];
@@ -63,6 +69,8 @@ export interface ServiceUpdate {
   tls_enabled?: boolean;
   https_redirect_enabled?: boolean;
   auth_enabled?: boolean;
+  auth_mode?: AuthMode;
+  api_key?: string | null;
   basic_auth_enabled?: boolean;
   rate_limit_enabled?: boolean;
   rate_limit_average?: number | null;

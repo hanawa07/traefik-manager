@@ -50,7 +50,8 @@ class ServiceUseCases:
             upstream_host=data.upstream_host,
             upstream_port=data.upstream_port,
             tls_enabled=data.tls_enabled,
-            auth_enabled=data.auth_enabled,
+            auth_mode=data.auth_mode,
+            api_key=data.api_key,
             https_redirect_enabled=data.https_redirect_enabled,
             allowed_ips=data.allowed_ips,
             blocked_paths=data.blocked_paths,
@@ -70,8 +71,8 @@ class ServiceUseCases:
         middleware_templates = await self._resolve_middleware_templates(service.middleware_template_ids)
         self._validate_template_auth_conflict(service, middleware_templates)
 
-        # Authentik 연동 (인증 활성화 시)
-        if service.auth_enabled:
+        # Authentik 연동 (authentik 모드 활성화 시)
+        if service.uses_authentik:
             try:
                 await self._setup_authentik(service)
             except Exception:
@@ -146,7 +147,7 @@ class ServiceUseCases:
             return None
 
         update_payload = data.model_dump(exclude_unset=True)
-        was_auth_enabled = service.auth_enabled
+        old_auth_mode = service.auth_mode
         previous_group_id = service.authentik_group_id
         clear_rate_limit = update_payload.get("rate_limit_enabled") is False
 
@@ -170,7 +171,8 @@ class ServiceUseCases:
             upstream_host=update_payload.get("upstream_host"),
             upstream_port=update_payload.get("upstream_port"),
             tls_enabled=update_payload.get("tls_enabled"),
-            auth_enabled=update_payload.get("auth_enabled"),
+            auth_mode=update_payload.get("auth_mode"),
+            api_key=update_payload.get("api_key"),
             https_redirect_enabled=update_payload.get("https_redirect_enabled"),
             allowed_ips=update_payload.get("allowed_ips"),
             blocked_paths=update_payload.get("blocked_paths"),
@@ -188,12 +190,31 @@ class ServiceUseCases:
 
         if "authentik_group_id" in update_payload:
             service.authentik_group_id = (
-                update_payload.get("authentik_group_id") if service.auth_enabled else None
+                update_payload.get("authentik_group_id") if service.uses_authentik else None
             )
 
-        # 인증 상태 변경 처리
-        if "auth_enabled" in update_payload:
-            if update_payload["auth_enabled"] and not was_auth_enabled:
+        # 인증 모드 변경 처리
+        new_auth_mode = service.auth_mode
+        if old_auth_mode != new_auth_mode:
+            # 1. Authentik teardown (기존이 authentik이었던 경우)
+            if old_auth_mode == "authentik":
+                try:
+                    await self._teardown_authentik(service)
+                except Exception:
+                    logger.warning(
+                        "Authentik 연동 해제 실패",
+                        extra={
+                            "service_id": str(service.id),
+                            "service_name": service.name,
+                            "domain": str(service.domain),
+                        },
+                    )
+                    raise
+                remaining = await self._count_authentik_services(exclude_id=service.id)
+                self.file_writer.delete_authentik_middleware_if_unused(remaining)
+
+            # 2. Authentik setup (새로운 모드가 authentik인 경우)
+            if new_auth_mode == "authentik":
                 try:
                     await self._setup_authentik(service)
                 except Exception:
@@ -207,22 +228,7 @@ class ServiceUseCases:
                     )
                     raise
                 self.file_writer.write_authentik_middleware()
-            elif not update_payload["auth_enabled"] and was_auth_enabled:
-                try:
-                    await self._teardown_authentik(service)
-                except Exception:
-                    logger.warning(
-                        "Authentik 연동 해제 실패",
-                        extra={
-                            "service_id": str(service.id),
-                            "service_name": service.name,
-                            "domain": str(service.domain),
-                        },
-                    )
-                    raise
-                remaining = await self._count_auth_enabled_services(exclude_id=service.id)
-                self.file_writer.delete_authentik_middleware_if_unused(remaining)
-        elif service.auth_enabled and previous_group_id != service.authentik_group_id:
+        elif service.uses_authentik and previous_group_id != service.authentik_group_id:
             try:
                 await self._sync_authentik_group_policy(service)
             except Exception:
@@ -265,7 +271,7 @@ class ServiceUseCases:
         if not service:
             return
 
-        if service.auth_enabled:
+        if service.uses_authentik:
             try:
                 await self._teardown_authentik(service)
             except Exception:
@@ -299,8 +305,11 @@ class ServiceUseCases:
         self.file_writer.delete(service)
         service.delete()
         await self.repository.delete(service_id)
-        remaining = await self._count_auth_enabled_services(exclude_id=service.id)
-        self.file_writer.delete_authentik_middleware_if_unused(remaining)
+        
+        if service.uses_authentik:
+            remaining = await self._count_authentik_services(exclude_id=service.id)
+            self.file_writer.delete_authentik_middleware_if_unused(remaining)
+            
         logger.info("서비스 삭제: id=%s", service_id)
 
     async def list_authentik_groups(self) -> list[dict]:
@@ -430,12 +439,12 @@ class ServiceUseCases:
         if not service.auth_enabled:
             return
         if any(template.type == "basicAuth" for template in templates):
-            raise ValueError("Authentik 인증과 BasicAuth 미들웨어 템플릿은 동시에 사용할 수 없습니다")
+            raise ValueError("인증 모드와 BasicAuth 미들웨어 템플릿은 동시에 사용할 수 없습니다")
 
-    async def _count_auth_enabled_services(self, exclude_id=None) -> int:
-        """auth가 활성화된 서비스 수를 반환한다 (exclude_id 서비스 제외)."""
+    async def _count_authentik_services(self, exclude_id=None) -> int:
+        """Authentik 인증이 활성화된 서비스 수를 반환한다 (exclude_id 서비스 제외)."""
         all_services = await self.repository.find_all()
         return sum(
             1 for s in all_services
-            if s.auth_enabled and (exclude_id is None or s.id.value != exclude_id)
+            if s.uses_authentik and (exclude_id is None or s.id.value != exclude_id)
         )

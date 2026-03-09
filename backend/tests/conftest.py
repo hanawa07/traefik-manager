@@ -24,6 +24,7 @@ def make_service():
         upstream_port=8080,
         tls_enabled=True,
         auth_enabled=False,
+        auth_mode=None,
         https_redirect_enabled=True,
         allowed_ips=None,
         rate_limit_average=None,
@@ -33,13 +34,16 @@ def make_service():
         middleware_template_ids=None,
         authentik_group_id=None,
     ):
+        if auth_mode is None:
+            auth_mode = "authentik" if auth_enabled else "none"
+            
         return Service.create(
             name=name,
             domain=domain,
             upstream_host=upstream_host,
             upstream_port=upstream_port,
             tls_enabled=tls_enabled,
-            auth_enabled=auth_enabled,
+            auth_mode=auth_mode,
             https_redirect_enabled=https_redirect_enabled,
             allowed_ips=allowed_ips,
             rate_limit_average=rate_limit_average,

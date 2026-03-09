@@ -4,6 +4,8 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from uuid import UUID
 from datetime import datetime
 
+AUTH_MODE_VALUES = {"none", "authentik", "token"}
+
 
 class BasicAuthCredential(BaseModel):
     username: str
@@ -40,7 +42,9 @@ class ServiceCreate(BaseModel):
     skip_tls_verify: bool = False
     tls_enabled: bool = True
     https_redirect_enabled: bool = True
-    auth_enabled: bool = False
+    auth_enabled: bool | None = None  # legacy
+    auth_mode: str = "none"
+    api_key: str | None = None
     basic_auth_enabled: bool = False
     allowed_ips: list[str] = Field(default_factory=list)
     blocked_paths: list[str] = Field(default_factory=list)
@@ -50,6 +54,13 @@ class ServiceCreate(BaseModel):
     custom_headers: dict[str, str] = Field(default_factory=dict)
     basic_auth_credentials: list[BasicAuthCredential] = Field(default_factory=list)
     authentik_group_id: str | None = None
+
+    @field_validator("auth_mode")
+    @classmethod
+    def validate_auth_mode(cls, v: str) -> str:
+        if v not in AUTH_MODE_VALUES:
+            raise ValueError(f"auth_mode는 {AUTH_MODE_VALUES} 중 하나여야 합니다")
+        return v
 
     @field_validator("upstream_scheme")
     @classmethod
@@ -150,12 +161,19 @@ class ServiceCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_cross_fields(self):
+        # auth_enabled legacy support
+        if self.auth_mode == "none" and self.auth_enabled is True:
+            self.auth_mode = "authentik"
+        
         if self.https_redirect_enabled and not self.tls_enabled:
             raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
-        if not self.auth_enabled and self.authentik_group_id:
-            raise ValueError("인증이 비활성화된 서비스에는 Authentik 그룹을 설정할 수 없습니다")
-        if self.auth_enabled and self.basic_auth_enabled:
-            raise ValueError("Authentik 인증과 Basic Auth는 동시에 설정할 수 없습니다")
+        
+        if self.auth_mode != "authentik" and self.authentik_group_id:
+            raise ValueError("Authentik 인증 모드에서만 Authentik 그룹을 설정할 수 없습니다")
+            
+        if self.auth_mode != "none" and self.basic_auth_enabled:
+            raise ValueError("인증 모드와 Basic Auth는 동시에 설정할 수 없습니다")
+            
         if self.basic_auth_enabled and not self.basic_auth_credentials:
             raise ValueError("Basic Auth를 활성화하려면 사용자 이름과 비밀번호를 입력해야 합니다")
         if not self.basic_auth_enabled and self.basic_auth_credentials:
@@ -173,7 +191,9 @@ class ServiceUpdate(BaseModel):
     skip_tls_verify: bool | None = None
     tls_enabled: bool | None = None
     https_redirect_enabled: bool | None = None
-    auth_enabled: bool | None = None
+    auth_enabled: bool | None = None  # legacy
+    auth_mode: str | None = None
+    api_key: str | None = None
     basic_auth_enabled: bool | None = None
     allowed_ips: list[str] | None = None
     blocked_paths: list[str] | None = None
@@ -184,6 +204,13 @@ class ServiceUpdate(BaseModel):
     custom_headers: dict[str, str] | None = None
     basic_auth_credentials: list[BasicAuthCredential] | None = None
     authentik_group_id: str | None = None
+
+    @field_validator("auth_mode")
+    @classmethod
+    def validate_auth_mode(cls, v: str | None) -> str | None:
+        if v is not None and v not in AUTH_MODE_VALUES:
+            raise ValueError(f"auth_mode는 {AUTH_MODE_VALUES} 중 하나여야 합니다")
+        return v
 
     @field_validator("upstream_scheme")
     @classmethod
@@ -267,12 +294,23 @@ class ServiceUpdate(BaseModel):
 
     @model_validator(mode="after")
     def validate_cross_fields(self):
+        # auth_enabled legacy support
+        if self.auth_mode is None and self.auth_enabled is not None:
+            self.auth_mode = "authentik" if self.auth_enabled else "none"
+        
         if self.https_redirect_enabled and self.tls_enabled is False:
             raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
-        if self.auth_enabled is False and self.authentik_group_id:
-            raise ValueError("인증이 비활성화된 서비스에는 Authentik 그룹을 설정할 수 없습니다")
-        if self.auth_enabled is True and self.basic_auth_enabled is True:
-            raise ValueError("Authentik 인증과 Basic Auth는 동시에 설정할 수 없습니다")
+        
+        current_auth_mode = self.auth_mode
+        # Note: In update, we might not have all fields. 
+        # But we check what we have.
+        
+        if current_auth_mode is not None:
+            if current_auth_mode != "authentik" and self.authentik_group_id:
+                raise ValueError("Authentik 인증 모드에서만 Authentik 그룹을 설정할 수 없습니다")
+            if current_auth_mode != "none" and self.basic_auth_enabled is True:
+                raise ValueError("인증 모드와 Basic Auth는 동시에 설정할 수 없습니다")
+        
         if self.basic_auth_enabled is False and self.basic_auth_credentials:
             raise ValueError("Basic Auth 비활성화 상태에서는 사용자 정보를 함께 보낼 수 없습니다")
         if self.basic_auth_enabled is True and self.basic_auth_credentials is not None and not self.basic_auth_credentials:
@@ -297,6 +335,8 @@ class ServiceResponse(BaseModel):
     tls_enabled: bool
     https_redirect_enabled: bool
     auth_enabled: bool
+    auth_mode: str
+    api_key: str | None = None
     allowed_ips: list[str]
     blocked_paths: list[str]
     rate_limit_enabled: bool

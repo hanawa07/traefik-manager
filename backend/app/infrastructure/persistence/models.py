@@ -17,6 +17,8 @@ class ServiceModel(Base):
     tls_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     https_redirect_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     auth_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    auth_mode: Mapped[str] = mapped_column(String(20), nullable=False, server_default="none")
+    api_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
     allowed_ips: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     blocked_paths: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     rate_limit_average: Mapped[int | None] = mapped_column(nullable=True)

@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     AUTHENTIK_URL: str
     AUTHENTIK_TOKEN: str
 
+    # ForwardAuth
+    TOKEN_AUTH_FORWARD_AUTH_URL: str = "http://backend:8000/api/v1/auth/verify"
+
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
     ALLOWED_HOSTS: list[str] = ["*"]
 

@@ -1,6 +1,7 @@
 import re
 
 import yaml
+from app.core.config import settings
 from app.domain.proxy.entities.middleware_template import MiddlewareTemplate
 from app.domain.proxy.entities.redirect_host import RedirectHost
 from app.domain.proxy.entities.service import Service
@@ -12,6 +13,7 @@ class TraefikConfigGenerator:
     AUTHENTIK_MIDDLEWARE = "authentik@file"
     AUTHENTIK_OUTPOST_SERVICE = "authentik-outpost@file"
     AUTHENTIK_OUTPOST_PATH_PREFIX = "/outpost.goauthentik.io/"
+    TOKEN_AUTH_MIDDLEWARE_SUFFIX = "token-auth"
 
     def generate(
         self,
@@ -26,6 +28,7 @@ class TraefikConfigGenerator:
         rate_limit_name = f"{router_name}-ratelimit"
         custom_headers_name = f"{router_name}-response-headers"
         basic_auth_name = f"{router_name}-basicauth"
+        token_auth_middleware_name = f"{router_name}-{self.TOKEN_AUTH_MIDDLEWARE_SUFFIX}"
 
         middlewares: dict = {}
         router_middlewares: list[str] = []
@@ -69,7 +72,16 @@ class TraefikConfigGenerator:
             }
             router_middlewares.append(template.shared_name)
 
-        if service.auth_enabled:
+        if service.uses_token_auth:
+            middlewares[token_auth_middleware_name] = {
+                "forwardAuth": {
+                    "address": settings.TOKEN_AUTH_FORWARD_AUTH_URL,
+                    "trustForwardHeader": True,
+                    "authResponseHeaders": ["X-Auth-User", "X-Auth-Role"],
+                }
+            }
+            router_middlewares.append(token_auth_middleware_name)
+        elif service.uses_authentik:
             router_middlewares.append(self.AUTHENTIK_MIDDLEWARE)
 
         routers: dict[str, dict] = {}
@@ -130,7 +142,7 @@ class TraefikConfigGenerator:
                 "middlewares": redirect_middlewares,
             }
 
-        if service.auth_enabled:
+        if service.uses_authentik:
             outpost_router_name = f"{router_name}-authentik-outpost"
             outpost_router: dict = {
                 "rule": f"Host(`{service.domain}`) && PathPrefix(`{self.AUTHENTIK_OUTPOST_PATH_PREFIX}`)",
@@ -158,6 +170,18 @@ class TraefikConfigGenerator:
                 },
             }
         }
+
+        if service.upstream_scheme == "https" and service.skip_tls_verify:
+            transport_name = f"{router_name}-transport"
+            config["http"]["serversTransports"] = {
+                transport_name: {"insecureSkipVerify": True}
+            }
+            traefik_service["loadBalancer"]["serversTransport"] = transport_name
+
+        if middlewares:
+            config["http"]["middlewares"] = middlewares
+
+        return config
 
         if service.upstream_scheme == "https" and service.skip_tls_verify:
             transport_name = f"{router_name}-transport"

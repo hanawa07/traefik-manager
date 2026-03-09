@@ -1,13 +1,15 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.auth.auth_use_cases import AuthUseCases
 from app.core.logging_config import get_client_ip
-from app.core.security import create_access_token
+from app.core.security import create_access_token, decode_token
 from app.infrastructure.persistence.database import get_db
+from app.infrastructure.persistence.models import ServiceModel
 from app.infrastructure.persistence.repositories.sqlite_user_repository import (
     SQLiteUserRepository,
 )
@@ -72,3 +74,62 @@ async def logout(
         user.invalidate_tokens()
         await repository.save(user)
     logger.info("로그아웃: username=%s", current_user["username"])
+
+
+@router.get(
+    "/verify",
+    status_code=200,
+    summary="Traefik forwardAuth 토큰 검증",
+    include_in_schema=False,
+)
+async def verify_token(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Traefik forwardAuth 미들웨어가 호출하는 엔드포인트.
+    1. 서비스 전용 API Key 검증 (우선)
+    2. 관리자 JWT 토큰 검증 (브라우저 접근용)
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return Response(status_code=401)
+
+    token = auth_header[7:]
+
+    # 1. 서비스 전용 API Key 검증 시도
+    forwarded_host = request.headers.get("X-Forwarded-Host")
+    if forwarded_host:
+        result = await db.execute(
+            select(ServiceModel).where(ServiceModel.domain == forwarded_host)
+        )
+        service = result.scalar_one_or_none()
+
+        if service and service.auth_mode == "token" and service.api_key == token:
+            return Response(
+                status_code=200,
+                headers={
+                    "X-Auth-User": f"api-key-{service.name}",
+                    "X-Auth-Role": "api",
+                },
+            )
+
+    # 2. 관리자 JWT 토큰 검증
+    try:
+        payload = decode_token(token)
+        username = payload.get("sub")
+        if username:
+            repository = SQLiteUserRepository(db)
+            user = await repository.find_by_username(username)
+            if user and user.is_active and payload.get("ver", 0) == user.token_version:
+                return Response(
+                    status_code=200,
+                    headers={
+                        "X-Auth-User": user.username,
+                        "X-Auth-Role": user.role,
+                    },
+                )
+    except Exception:
+        pass
+
+    return Response(status_code=401)
