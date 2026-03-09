@@ -23,6 +23,7 @@ export interface Service {
   custom_headers: Record<string, string>;
   basic_auth_enabled: boolean;
   basic_auth_user_count: number;
+  basic_auth_usernames: string[];
   middleware_template_ids: string[];
   authentik_group_id: string | null;
   authentik_group_name: string | null;

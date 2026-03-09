@@ -96,6 +96,7 @@ interface ServiceFormDefaultValues {
   rate_limit_average?: number | null;
   rate_limit_burst?: number | null;
   custom_headers?: Record<string, string>;
+  basic_auth_usernames?: string[];
 }
 
 interface ServiceFormProps {
@@ -144,6 +145,13 @@ export default function ServiceForm({
     value,
   }));
 
+  const initialBasicAuthCredentials = useMemo(() => {
+    if (defaultValues?.basic_auth_usernames && defaultValues.basic_auth_usernames.length > 0) {
+      return defaultValues.basic_auth_usernames.map(username => ({ username, password: "" }));
+    }
+    return [{ username: "", password: "" }];
+  }, [defaultValues?.basic_auth_usernames]);
+
   const {
     register,
     handleSubmit,
@@ -169,7 +177,7 @@ export default function ServiceForm({
       allowed_ips_input: defaultValues?.allowed_ips?.join("\n") || "",
       blocked_paths_input: defaultValues?.blocked_paths?.join("\n") || "",
       authentik_group_id: defaultValues?.authentik_group_id || "",
-      basic_auth_credentials: [{ username: "", password: "" }],
+      basic_auth_credentials: initialBasicAuthCredentials,
       rate_limit_enabled:
         defaultValues?.rate_limit_average != null && defaultValues?.rate_limit_burst != null,
       rate_limit_average: defaultValues?.rate_limit_average ?? undefined,

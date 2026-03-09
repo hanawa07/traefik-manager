@@ -250,6 +250,10 @@ class Service:
     def basic_auth_user_count(self) -> int:
         return len(self.basic_auth_users)
 
+    @property
+    def basic_auth_usernames(self) -> list[str]:
+        return [user.split(":")[0] for user in self.basic_auth_users]
+
     @staticmethod
     def _normalize_allowed_ips(allowed_ips: list[str] | None) -> list[str]:
         if not allowed_ips:

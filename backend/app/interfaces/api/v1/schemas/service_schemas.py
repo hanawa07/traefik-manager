@@ -9,7 +9,7 @@ AUTH_MODE_VALUES = {"none", "authentik", "token"}
 
 class BasicAuthCredential(BaseModel):
     username: str
-    password: str
+    password: str = ""
 
     @field_validator("username")
     @classmethod
@@ -26,9 +26,7 @@ class BasicAuthCredential(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, value: str) -> str:
-        if not value:
-            raise ValueError("Basic Auth 비밀번호를 입력하세요")
-        if "\n" in value or "\r" in value:
+        if value and ("\n" in value or "\r" in value):
             raise ValueError("유효하지 않은 Basic Auth 비밀번호입니다")
         return value
 
@@ -345,6 +343,7 @@ class ServiceResponse(BaseModel):
     custom_headers: dict[str, str]
     basic_auth_enabled: bool
     basic_auth_user_count: int
+    basic_auth_usernames: list[str]
     middleware_template_ids: list[str]
     authentik_group_id: str | None = None
     authentik_group_name: str | None = None

@@ -163,7 +163,8 @@ class ServiceUseCases:
             basic_auth_users = []
         elif "basic_auth_credentials" in update_payload:
             basic_auth_users = self._hash_basic_auth_credentials(
-                update_payload.get("basic_auth_credentials") or []
+                update_payload.get("basic_auth_credentials") or [],
+                existing_users=service.basic_auth_users
             )
 
         service.update(
@@ -387,9 +388,17 @@ class ServiceUseCases:
         service.authentik_app_slug = None
         service.authentik_group_id = None
 
-    def _hash_basic_auth_credentials(self, credentials: list[dict]) -> list[str]:
+    def _hash_basic_auth_credentials(self, credentials: list[dict], existing_users: list[str] | None = None) -> list[str]:
         if not credentials:
             return []
+
+        # 기존 사용자 해시 맵 생성
+        existing_hash_map = {}
+        if existing_users:
+            for user_str in existing_users:
+                if ":" in user_str:
+                    u, h = user_str.split(":", 1)
+                    existing_hash_map[u] = h
 
         users: list[str] = []
         seen_usernames: set[str] = set()
@@ -400,12 +409,23 @@ class ServiceUseCases:
             else:
                 username = str(getattr(item, "username", "")).strip()
                 password = str(getattr(item, "password", ""))
-            if not username or not password:
+            
+            if not username:
                 continue
             if username in seen_usernames:
                 raise ValueError(f"중복된 Basic Auth 사용자 이름입니다: {username}")
+            
             seen_usernames.add(username)
-            users.append(f"{username}:{apr_md5_crypt.hash(password)}")
+            
+            if password:
+                # 새 비밀번호가 입력된 경우 해싱
+                users.append(f"{username}:{apr_md5_crypt.hash(password)}")
+            elif username in existing_hash_map:
+                # 비밀번호가 없고 기존 사용자인 경우 기존 해시 유지
+                users.append(f"{username}:{existing_hash_map[username]}")
+            else:
+                # 새 사용자인데 비밀번호가 없는 경우 에러
+                raise ValueError(f"새 사용자 '{username}'의 비밀번호를 입력해야 합니다")
 
         return users
 
