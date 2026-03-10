@@ -109,7 +109,7 @@ backend/app/
 
 ## 보안
 
-- JWT Bearer 인증 + 토큰 버전 기반 즉시 무효화
+- JWT Bearer 인증 + `token_version`/`jti` 기반 토큰 무효화
 - 로그인 Rate Limiting (Traefik 미들웨어)
 - RBAC: admin(전체) / viewer(읽기 전용)
 - 공통 보안 응답 헤더 전역 적용 (HSTS, nosniff, Referrer-Policy 등)

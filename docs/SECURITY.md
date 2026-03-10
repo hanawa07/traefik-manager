@@ -20,7 +20,7 @@
 | Production docs URL 비활성화 | ✅ 양호 |
 | no-new-privileges:true | ✅ 양호 |
 | **로그인 brute force 방어** | ✅ 적용 (Traefik login rate limit) |
-| **JWT 토큰 무효화** | ⚠️ 부분 적용 (token_version 기반) |
+| **JWT 토큰 무효화** | ✅ 적용 (token_version + jti revoke) |
 | **백업 export 권한** | ✅ 적용 (admin 전용) |
 | **Upstream 호스트 검증** | ⚠️ 보완 필요 |
 | **HTTP redirect 차단 (헬스체크)** | ✅ 적용 |
@@ -45,17 +45,19 @@
 
 ---
 
-### [HIGH-2] JWT 토큰 무효화는 부분 적용
+### [HIGH-2] JWT 토큰 무효화는 적용됨
 
 **파일:** `backend/app/core/security.py`, `backend/app/interfaces/api/dependencies.py`
 
-**현재 상태:** 토큰에 `ver` 클레임을 넣고, 사용자 `token_version`과 비교합니다. 로그아웃/비밀번호 변경 시 `token_version`이 증가하므로 기존 토큰은 무효화됩니다.
+**현재 상태:** 토큰에 `ver`와 `jti` 클레임을 함께 넣습니다.
+- 로그아웃: 현재 토큰의 `jti`를 `revoked_tokens`에 저장해 개별 세션만 무효화
+- 비밀번호 변경/전체 무효화: `token_version` 증가로 해당 사용자의 기존 토큰 전체 무효화
 
 **남은 보완점:**
-- 토큰별 `jti` 기반 블랙리스트 없음
-- 특정 세션만 골라서 강제 만료하는 기능 없음
+- 관리자용 세션 목록/강제 종료 UI 없음
+- 만료된 revoked token 정리 배치 없음
 
-즉 “사용자 단위 전체 토큰 무효화”는 가능하지만, “토큰 단위 정밀 폐기”까지는 아닙니다.
+즉 현재는 “현재 세션 로그아웃”과 “사용자 단위 전체 무효화”를 모두 지원합니다. 남은 건 운영 편의 기능입니다.
 
 ---
 
@@ -116,7 +118,7 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 
 ---
 
-### [LOW-3] 보안 응답 헤더 구조 재설계 필요
+### [LOW-3] 보안 응답 헤더 구조 재설계 적용됨
 
 **위치:** Traefik 엔트리포인트 전역 미들웨어, 서비스별 동적 라우터 미들웨어
 
@@ -160,6 +162,6 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 
 | 순위 | 항목 | 난이도 | 위험도 |
 |------|------|--------|--------|
-| 1 | [HIGH-2] JWT를 `jti` 블랙리스트까지 확장 | 어려움 | 높음 |
-| 2 | [MEDIUM-2] Upstream reserved 주소 정책 추가 보강 | 보통 | 중간 |
+| 1 | [MEDIUM-2] Upstream reserved 주소 정책 추가 보강 | 보통 | 중간 |
+| 2 | 관리자용 세션 관리 UI 또는 revoke 정리 배치 추가 | 보통 | 중간 |
 | 3 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |

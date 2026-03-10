@@ -74,6 +74,15 @@ class UserModel(Base):
     updated_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
+class RevokedTokenModel(Base):
+    __tablename__ = "revoked_tokens"
+
+    jti: Mapped[str] = mapped_column(String(36), primary_key=True)
+    username: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    expires_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
+    revoked_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+
 class AuditLogModel(Base):
     __tablename__ = "audit_logs"
 

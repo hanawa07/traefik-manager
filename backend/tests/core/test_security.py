@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from fastapi import HTTPException
 from jose import jwt
+from uuid import UUID
 
 from app.core.config import settings
 from app.core.security import create_access_token, decode_token
@@ -13,6 +14,8 @@ def test_jwt_create_and_decode():
     decoded = decode_token(token)
     assert decoded["sub"] == "admin"
     assert "exp" in decoded
+    assert "jti" in decoded
+    UUID(decoded["jti"])
 
 def test_jwt_decode_expired_token():
     data = {"sub": "admin", "exp": datetime.now(timezone.utc) - timedelta(minutes=1)}

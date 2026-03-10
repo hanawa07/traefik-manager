@@ -7,13 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.auth.auth_use_cases import AuthUseCases
 from app.core.logging_config import get_client_ip
-from app.core.security import create_access_token, decode_token
+from app.core.security import create_access_token
+from app.domain.auth.entities.revoked_token import RevokedToken
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.models import ServiceModel
+from app.infrastructure.persistence.repositories.sqlite_revoked_token_repository import (
+    SQLiteRevokedTokenRepository,
+)
 from app.infrastructure.persistence.repositories.sqlite_user_repository import (
     SQLiteUserRepository,
 )
-from app.interfaces.api.dependencies import get_current_user
+from app.interfaces.api.dependencies import get_current_user, resolve_authenticated_user
 from app.interfaces.api.v1.schemas.auth_schemas import LoginResponse
 
 router = APIRouter()
@@ -68,11 +72,23 @@ async def logout(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    repository = SQLiteUserRepository(db)
-    user = await repository.find_by_username(current_user["username"])
-    if user:
-        user.invalidate_tokens()
-        await repository.save(user)
+    token_jti = current_user.get("token_jti")
+    token_exp = current_user.get("token_exp")
+    if token_jti and token_exp:
+        repository = SQLiteRevokedTokenRepository(db)
+        await repository.save(
+            RevokedToken.revoke(
+                jti=token_jti,
+                expires_at=token_exp,
+                username=current_user["username"],
+            )
+        )
+    else:
+        repository = SQLiteUserRepository(db)
+        user = await repository.find_by_username(current_user["username"])
+        if user:
+            user.invalidate_tokens()
+            await repository.save(user)
     logger.info("로그아웃: username=%s", current_user["username"])
 
 
@@ -116,20 +132,15 @@ async def verify_token(
 
     # 2. 관리자 JWT 토큰 검증
     try:
-        payload = decode_token(token)
-        username = payload.get("sub")
-        if username:
-            repository = SQLiteUserRepository(db)
-            user = await repository.find_by_username(username)
-            if user and user.is_active and payload.get("ver", 0) == user.token_version:
-                return Response(
-                    status_code=200,
-                    headers={
-                        "X-Auth-User": user.username,
-                        "X-Auth-Role": user.role,
-                    },
-                )
-    except Exception:
+        user, _payload = await resolve_authenticated_user(token=token, db=db)
+        return Response(
+            status_code=200,
+            headers={
+                "X-Auth-User": user.username,
+                "X-Auth-Role": user.role,
+            },
+        )
+    except HTTPException:
         pass
 
     return Response(status_code=401)

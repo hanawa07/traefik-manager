@@ -3,8 +3,11 @@ from fastapi.security import OAuth2PasswordBearer
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import decode_token
+from app.core.security import decode_token, get_token_expiration
 from app.infrastructure.persistence.database import get_db
+from app.infrastructure.persistence.repositories.sqlite_revoked_token_repository import (
+    SQLiteRevokedTokenRepository,
+)
 from app.infrastructure.persistence.repositories.sqlite_user_repository import (
     SQLiteUserRepository,
 )
@@ -12,10 +15,7 @@ from app.infrastructure.persistence.repositories.sqlite_user_repository import (
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
-async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db),
-) -> dict:
+async def resolve_authenticated_user(token: str, db: AsyncSession):
     payload = decode_token(token)
     username = payload.get("sub")
     if not username:
@@ -23,6 +23,16 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="유효하지 않은 토큰입니다",
         )
+
+    jti = payload.get("jti")
+    if jti:
+        revoked_repository = SQLiteRevokedTokenRepository(db)
+        if await revoked_repository.is_revoked(jti):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="로그아웃된 토큰입니다. 다시 로그인해주세요",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     repository = SQLiteUserRepository(db)
     user = await repository.find_by_username(username)
@@ -39,10 +49,21 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    return user, payload
+
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    user, payload = await resolve_authenticated_user(token=token, db=db)
+
     return {
         "id": str(user.id),
         "username": user.username,
         "role": user.role,
+        "token_jti": payload.get("jti"),
+        "token_exp": get_token_expiration(payload),
     }
 
 
