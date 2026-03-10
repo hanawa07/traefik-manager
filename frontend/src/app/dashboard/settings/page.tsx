@@ -13,12 +13,7 @@ import {
   useUpdateTimeDisplaySettings,
 } from "@/features/settings/hooks/useSettings";
 import UserManagementSection from "@/features/users/components/UserManagementSection";
-import {
-  formatDateTime,
-  formatServerDateTime,
-  getDefaultDisplayTimezone,
-  getSupportedTimeZones,
-} from "@/shared/lib/dateTimeFormat";
+import { getDefaultDisplayTimezone, getSupportedTimeZones } from "@/shared/lib/dateTimeFormat";
 
 export default function SettingsPage() {
   const role = useAuthStore((state) => state.role);
@@ -184,7 +179,7 @@ export default function SettingsPage() {
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2 text-sm">
                 <div className="flex justify-between gap-4">
                   <span className="text-gray-500">저장 기준</span>
-                  <span className="font-mono text-gray-700">{timeDisplaySettings?.storage_timezone}</span>
+                  <span className="font-mono text-gray-700">{timeDisplaySettings?.storage_timezone} (고정)</span>
                 </div>
                 <div className="flex justify-between gap-4">
                   <span className="text-gray-500">서버 시간대</span>
@@ -192,6 +187,10 @@ export default function SettingsPage() {
                     {timeDisplaySettings?.server_timezone_label} ({timeDisplaySettings?.server_timezone_offset})
                   </span>
                 </div>
+                <p className="text-xs text-gray-500 pt-1">
+                  저장 데이터와 토큰 시각은 항상 UTC로 유지됩니다. 서버 시간대는 현재 컨테이너의 로컬 시간대로,
+                  `docker compose`의 `TZ` 설정에 따라 달라질 수 있습니다.
+                </p>
               </div>
 
               {timeDisplayErrorMessage && <p className="text-xs text-red-600">{timeDisplayErrorMessage}</p>}
@@ -221,7 +220,7 @@ export default function SettingsPage() {
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-gray-500">저장 기준</span>
-                <span className="font-mono text-gray-700">{timeDisplaySettings?.storage_timezone}</span>
+                <span className="font-mono text-gray-700">{timeDisplaySettings?.storage_timezone} (고정)</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-gray-500">서버 시간대</span>
@@ -229,24 +228,10 @@ export default function SettingsPage() {
                   {timeDisplaySettings?.server_timezone_label} ({timeDisplaySettings?.server_timezone_offset})
                 </span>
               </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">현재 서버 시각</span>
-                <span className="font-mono text-gray-700">
-                  {formatServerDateTime(
-                    timeDisplaySettings?.server_time_iso,
-                    timeDisplaySettings?.server_timezone_name,
-                  )}
-                </span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">현재 표시 예시</span>
-                <span className="font-mono text-gray-700">
-                  {formatDateTime(
-                    timeDisplaySettings?.server_time_iso,
-                    timeDisplaySettings?.display_timezone,
-                  )}
-                </span>
-              </div>
+              <p className="text-xs text-gray-500 pt-1">
+                저장 데이터와 토큰 시각은 항상 UTC로 유지됩니다. 서버 시간대는 현재 컨테이너의 로컬 시간대로,
+                `docker compose`의 `TZ` 설정에 따라 달라질 수 있습니다.
+              </p>
             </div>
           )}
         </div>
