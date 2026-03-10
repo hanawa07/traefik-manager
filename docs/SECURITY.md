@@ -22,7 +22,7 @@
 | **로그인 brute force 방어** | ✅ 적용 (Traefik login rate limit) |
 | **JWT 토큰 무효화** | ✅ 적용 (token_version + jti revoke) |
 | **백업 export 권한** | ✅ 적용 (admin 전용) |
-| **Upstream 호스트 검증** | ⚠️ 보완 필요 |
+| **Upstream 호스트 검증** | ✅ 강화됨 |
 | **HTTP redirect 차단 (헬스체크)** | ✅ 적용 |
 | **보안 응답 헤더** | ✅ 구조 개선 |
 
@@ -71,18 +71,22 @@
 
 ---
 
-### [MEDIUM-2] Upstream 호스트 검증은 보강됐지만 추가 여지 있음
+### [MEDIUM-2] Upstream 호스트 검증은 강화됨
 
 **파일:** `backend/app/domain/proxy/value_objects/upstream.py`
 
-**현재 상태:** 다음은 이미 차단됩니다.
+**현재 상태:** 다음은 차단됩니다.
 - loopback (`127.0.0.1`, `::1`)
 - link-local (`169.254.0.0/16`)
 - unspecified (`0.0.0.0`)
 - unique local IPv6 (`fc00::/7`)
+- multicast (`224.0.0.0/4`, `ff00::/8`)
+- limited broadcast (`255.255.255.255`)
+- reserved IPv4 (`240.0.0.0/4`)
+- documentation/example 대역 (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`, `2001:db8::/32`)
 
 **남은 보완점:**
-- reserved/broadcast 계열 주소 추가 차단 여부 검토
+- DNS 재해석 결과까지 검사하는 strict mode가 필요한지 검토
 - 도메인/호스트 허용 정책을 더 엄격한 allowlist 기반으로 바꿀지 검토
 
 ---
@@ -162,6 +166,6 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 
 | 순위 | 항목 | 난이도 | 위험도 |
 |------|------|--------|--------|
-| 1 | [MEDIUM-2] Upstream reserved 주소 정책 추가 보강 | 보통 | 중간 |
-| 2 | 관리자용 세션 관리 UI 또는 revoke 정리 배치 추가 | 보통 | 중간 |
+| 1 | 관리자용 세션 관리 UI 또는 revoke 정리 배치 추가 | 보통 | 중간 |
+| 2 | Upstream strict mode (DNS 재해석/allowlist) 검토 | 보통 | 중간 |
 | 3 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |

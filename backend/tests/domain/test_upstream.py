@@ -44,6 +44,22 @@ def test_upstream_invalid_unique_local_ipv6():
     with pytest.raises(ValueError, match="고유 로컬 IPv6 주소는 upstream으로 사용할 수 없습니다: fc00::1"):
         Upstream(host="fc00::1", port=80)
 
+
+@pytest.mark.parametrize(
+    ("host", "message"),
+    [
+        ("224.0.0.1", "멀티캐스트 주소는 upstream으로 사용할 수 없습니다: 224.0.0.1"),
+        ("ff02::1", "멀티캐스트 주소는 upstream으로 사용할 수 없습니다: ff02::1"),
+        ("255.255.255.255", "브로드캐스트 주소는 upstream으로 사용할 수 없습니다: 255.255.255.255"),
+        ("240.0.0.1", "예약된 주소는 upstream으로 사용할 수 없습니다: 240.0.0.1"),
+        ("192.0.2.1", "문서 예제 주소는 upstream으로 사용할 수 없습니다: 192.0.2.1"),
+        ("2001:db8::1", "문서 예제 주소는 upstream으로 사용할 수 없습니다: 2001:db8::1"),
+    ],
+)
+def test_upstream_invalid_special_ranges(host: str, message: str):
+    with pytest.raises(ValueError, match=message):
+        Upstream(host=host, port=80)
+
 def test_upstream_invalid_domain_format():
     with pytest.raises(ValueError, match="유효하지 않은 upstream 호스트: invalid@domain"):
         Upstream(host="invalid@domain", port=80)
