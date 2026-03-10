@@ -18,10 +18,14 @@ class Upstream:
     def _validate_host(self, host: str) -> None:
         try:
             addr = ipaddress.ip_address(host)
+            if addr.is_unspecified:
+                raise ValueError(f"미지정 주소는 upstream으로 사용할 수 없습니다: {host}")
             if addr.is_loopback:
                 raise ValueError(f"루프백 주소는 upstream으로 사용할 수 없습니다: {host}")
             if addr.is_link_local:
                 raise ValueError(f"링크-로컬 주소는 upstream으로 사용할 수 없습니다: {host}")
+            if addr.version == 6 and addr.is_private:
+                raise ValueError(f"고유 로컬 IPv6 주소는 upstream으로 사용할 수 없습니다: {host}")
         except ValueError as e:
             if "upstream" in str(e):
                 raise

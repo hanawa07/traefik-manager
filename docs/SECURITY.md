@@ -1,6 +1,7 @@
 # Traefik Manager 보안 점검 보고서
 
-> 점검일: 2026-03-08
+> 최초 점검일: 2026-03-08
+> 업데이트: 2026-03-10
 
 ---
 
@@ -18,103 +19,77 @@
 | Docker 소켓 read-only 마운트 | ✅ 양호 |
 | Production docs URL 비활성화 | ✅ 양호 |
 | no-new-privileges:true | ✅ 양호 |
-| **로그인 brute force 방어** | ❌ 미구현 |
-| **JWT 토큰 무효화** | ❌ 미구현 |
-| **백업 export 권한** | ⚠️ 미흡 |
-| **Upstream 호스트 검증** | ⚠️ 미흡 |
-| **HTTP redirect 차단 (헬스체크)** | ⚠️ 미흡 |
-| **보안 응답 헤더** | ⚠️ 미흡 |
+| **로그인 brute force 방어** | ✅ 적용 (Traefik login rate limit) |
+| **JWT 토큰 무효화** | ⚠️ 부분 적용 (token_version 기반) |
+| **백업 export 권한** | ✅ 적용 (admin 전용) |
+| **Upstream 호스트 검증** | ⚠️ 보완 필요 |
+| **HTTP redirect 차단 (헬스체크)** | ✅ 적용 |
+| **보안 응답 헤더** | ✅ 구조 개선 |
 
 ---
 
 ## 취약점 상세
 
-### [HIGH-1] 로그인 brute force 방어 없음
+### [HIGH-1] 로그인 brute force 방어 적용됨
 
 **파일:** `backend/app/application/auth/auth_use_cases.py`, `backend/app/interfaces/api/v1/routers/auth.py`
 
-**문제:** `/api/v1/auth/login` 엔드포인트에 rate limiting, 계정 잠금, CAPTCHA 등 어떤 brute force 방어도 없음.
+**현재 상태:** `docker-compose.yml`에 `login-ratelimit` Traefik 미들웨어가 적용되어 `/api/v1/auth/login` 요청에 분당 제한이 걸립니다.
 
-**영향:** 공격자가 무제한 password 시도 가능.
+**남은 보완점:**
+- 계정 잠금
+- CAPTCHA
+- 사용자명 기준 이상 징후 감지
 
-**해결 방안:**
-- 옵션 A (권장): Traefik rate limit 미들웨어를 `/api/v1/auth/login`에 적용 (traefik config)
-- 옵션 B: 연속 실패 횟수를 DB/메모리에 기록 후 일정 횟수 초과 시 임시 잠금 (30초~5분)
+즉 무방비 상태는 아니지만, 애플리케이션 레벨 방어는 더 넣을 수 있습니다.
 
 ---
 
-### [HIGH-2] JWT 토큰 무효화 메커니즘 없음
+### [HIGH-2] JWT 토큰 무효화는 부분 적용
 
 **파일:** `backend/app/core/security.py`, `backend/app/interfaces/api/dependencies.py`
 
-**문제:** 비밀번호 변경, 사용자 비활성화, 로그아웃 후에도 기존 발급 JWT가 만료 시간(`JWT_EXPIRE_MINUTES=60`)까지 유효함. 토큰 블랙리스트 없음.
+**현재 상태:** 토큰에 `ver` 클레임을 넣고, 사용자 `token_version`과 비교합니다. 로그아웃/비밀번호 변경 시 `token_version`이 증가하므로 기존 토큰은 무효화됩니다.
 
-**영향:** 탈취된 토큰 또는 권한 변경 후 토큰이 계속 유효.
+**남은 보완점:**
+- 토큰별 `jti` 기반 블랙리스트 없음
+- 특정 세션만 골라서 강제 만료하는 기능 없음
 
-**해결 방안:**
-- SQLite `revoked_tokens` 테이블 (jti claim 기록)
-- 로그아웃/비밀번호 변경 시 해당 jti 블랙리스트 등록
-- `decode_token()` 에서 블랙리스트 조회 추가
-- `create_access_token()`에 `jti` (uuid) claim 추가
+즉 “사용자 단위 전체 토큰 무효화”는 가능하지만, “토큰 단위 정밀 폐기”까지는 아닙니다.
 
 ---
 
-### [MEDIUM-1] 백업 export가 read-only 사용자에게 허용됨
+### [MEDIUM-1] 백업 export 권한 문제는 해결됨
 
 **파일:** `backend/app/interfaces/api/v1/routers/backup.py`, line 35
 
-**문제:**
-```python
-# 현재 (취약)
-_: dict = Depends(get_current_user)
+**현재 상태:** `/export`는 `require_admin`으로 보호됩니다.
 
-# 수정 필요
-_: dict = Depends(require_admin)
-```
-
-**영향:** read-only 계정으로 서비스 도메인, upstream 주소, 미들웨어 설정 등 전체 인프라 정보 탈취 가능.
+**영향:** 이전 지적은 현재 코드에는 해당하지 않습니다.
 
 ---
 
-### [MEDIUM-2] Upstream 호스트 형식 검증 없음
+### [MEDIUM-2] Upstream 호스트 검증은 보강됐지만 추가 여지 있음
 
 **파일:** `backend/app/domain/proxy/value_objects/upstream.py`
 
-**문제:** `Upstream` value object가 호스트가 비어있지 않은지와 포트 범위만 검증. `0.0.0.0`, `169.254.169.254`(AWS 메타데이터), `::1` 등 위험 주소 허용.
+**현재 상태:** 다음은 이미 차단됩니다.
+- loopback (`127.0.0.1`, `::1`)
+- link-local (`169.254.0.0/16`)
+- unspecified (`0.0.0.0`)
+- unique local IPv6 (`fc00::/7`)
 
-**현재 코드:**
-```python
-def __post_init__(self):
-    if not self.host:
-        raise ValueError("업스트림 호스트는 필수입니다")
-    if not (1 <= self.port <= 65535):
-        raise ValueError(f"유효하지 않은 포트: {self.port}")
-```
-
-**해결 방안:**
-- 차단할 IP 대역 검증: `0.0.0.0`, `169.254.0.0/16`, `::1`, `fc00::/7`
-- 또는 호스트가 IP일 경우 `ipaddress` 모듈로 private/loopback 검증
-- 도메인 형식이면 DomainName과 유사한 regex 적용
+**남은 보완점:**
+- reserved/broadcast 계열 주소 추가 차단 여부 검토
+- 도메인/호스트 허용 정책을 더 엄격한 allowlist 기반으로 바꿀지 검토
 
 ---
 
-### [MEDIUM-3] 헬스체크 HTTP redirect 자동 허용
+### [MEDIUM-3] 헬스체크 redirect 차단은 해결됨
 
 **파일:** `backend/app/infrastructure/health/upstream_checker.py`
 
-**문제:** `httpx.AsyncClient()` 기본값이 redirect를 자동으로 따라감. upstream이 내부 서비스로 redirect할 경우 SSRF 우려.
-
-**현재 코드:**
-```python
-async with httpx.AsyncClient(timeout=timeout) as client:
-    response = await client.get(url)
-```
-
-**수정:**
-```python
-async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
-    response = await client.get(url)
-```
+**현재 상태:** `follow_redirects=False`가 적용되어 있습니다.
 
 ---
 
@@ -133,19 +108,11 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 
 ---
 
-### [LOW-2] `datetime.utcnow()` deprecated
+### [LOW-2] 애플리케이션 코드의 `datetime.utcnow()` 정리는 완료
 
-**파일:** `backend/app/core/security.py`, line 21
+**현재 상태:** application/domain/core 레이어의 직접적인 `datetime.utcnow()` 사용은 timezone-aware UTC로 정리되었습니다.
 
-**문제:**
-```python
-# 현재 (deprecated in Python 3.12)
-payload["exp"] = datetime.utcnow() + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
-
-# 수정
-from datetime import datetime, timedelta, timezone
-payload["exp"] = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
-```
+**남은 보완점:** 테스트 경고는 외부 의존성인 `python-jose` 내부 구현에서 발생합니다. 즉 현재 남은 경고는 애플리케이션 코드가 아니라 라이브러리 레벨 이슈입니다.
 
 ---
 
@@ -193,10 +160,6 @@ payload["exp"] = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXP
 
 | 순위 | 항목 | 난이도 | 위험도 |
 |------|------|--------|--------|
-| 1 | [MEDIUM-1] 백업 export admin 전용 | 매우 쉬움 (1줄) | 중간 |
-| 2 | [MEDIUM-3] 헬스체크 redirect 차단 | 쉬움 (1줄) | 중간 |
-| 3 | [LOW-2] datetime.utcnow() 수정 | 쉬움 (2줄) | 낮음 |
-| 4 | [MEDIUM-2] Upstream 호스트 검증 | 보통 | 중간 |
-| 5 | [HIGH-1] 로그인 rate limiting | 보통 (Traefik 설정) | 높음 |
-| 6 | [HIGH-2] JWT 블랙리스트 | 어려움 | 높음 |
-| 7 | [LOW-3] 보안 응답 헤더 | 쉬움 (Traefik 설정) | 낮음 |
+| 1 | [HIGH-2] JWT를 `jti` 블랙리스트까지 확장 | 어려움 | 높음 |
+| 2 | [MEDIUM-2] Upstream reserved 주소 정책 추가 보강 | 보통 | 중간 |
+| 3 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |

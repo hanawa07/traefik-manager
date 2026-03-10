@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from ipaddress import ip_network
 import re
 from typing import Literal
@@ -27,7 +27,7 @@ class MiddlewareTemplate:
         type: MiddlewareTemplateType,
         config: dict,
     ) -> "MiddlewareTemplate":
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return cls(
             id=uuid4(),
             name=cls._normalize_name(name),
@@ -50,7 +50,7 @@ class MiddlewareTemplate:
             self.name = self._normalize_name(name)
         self.type = next_type
         self.config = self._normalize_config(next_type, next_config)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     @property
     def shared_name(self) -> str:

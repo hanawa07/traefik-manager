@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from ipaddress import ip_network
 import re
 import secrets
@@ -104,7 +104,7 @@ class Service:
         elif auth_mode != "token":
             api_key = None
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         service = self(
             id=ServiceId(uuid4()),
             name=name,
@@ -234,7 +234,7 @@ class Service:
         if authentik_group_id is not None:
             self.authentik_group_id = authentik_group_id if self.auth_mode == "authentik" else None
 
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
         self._events.append(ServiceUpdated(service_id=self.id))
 
     def delete(self) -> None:

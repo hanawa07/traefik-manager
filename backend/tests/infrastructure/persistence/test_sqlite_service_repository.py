@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -34,7 +34,7 @@ async def test_save_persists_api_key_on_insert(make_service):
 
 
 def test_to_entity_restores_api_key():
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     api_key = "service_test_key"
     model = ServiceModel(
         id=str(uuid4()),
@@ -70,7 +70,7 @@ def test_to_entity_restores_api_key():
 
 
 def test_to_entity_restores_frame_policy():
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     model = ServiceModel(
         id=str(uuid4()),
         name="cockpit-service",

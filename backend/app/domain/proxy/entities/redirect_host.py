@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
@@ -27,7 +27,7 @@ class RedirectHost:
         permanent: bool = True,
         tls_enabled: bool = True,
     ) -> "RedirectHost":
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return cls(
             id=uuid4(),
             domain=DomainName(domain),
@@ -53,7 +53,7 @@ class RedirectHost:
             self.permanent = permanent
         if tls_enabled is not None:
             self.tls_enabled = tls_enabled
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     @staticmethod
     def _normalize_target_url(target_url: str) -> str:

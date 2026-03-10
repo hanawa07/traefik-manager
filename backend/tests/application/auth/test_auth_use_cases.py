@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -45,8 +45,8 @@ async def test_authenticate_user_returns_user_for_valid_credentials():
         role="admin",
         is_active=True,
         token_version=0,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
     use_cases = AuthUseCases(InMemoryUserRepository([user]))
@@ -66,8 +66,8 @@ async def test_authenticate_user_returns_none_for_wrong_password():
         role="viewer",
         is_active=True,
         token_version=0,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
     use_cases = AuthUseCases(InMemoryUserRepository([user]))
 
@@ -84,8 +84,8 @@ async def test_authenticate_user_returns_none_for_inactive_user():
         role="viewer",
         is_active=False,
         token_version=0,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
     use_cases = AuthUseCases(InMemoryUserRepository([user]))
 

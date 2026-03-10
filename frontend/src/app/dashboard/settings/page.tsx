@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Cloud, Download, Edit2, Save, Settings, Upload, X } from "lucide-react";
+import { Clock3, Cloud, Download, Edit2, Save, Settings, Upload, X } from "lucide-react";
 
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { BackupPayload } from "@/features/settings/api/settingsApi";
@@ -9,8 +9,16 @@ import {
   useUpdateCloudflareSettings,
   useExportBackup,
   useImportBackup,
+  useTimeDisplaySettings,
+  useUpdateTimeDisplaySettings,
 } from "@/features/settings/hooks/useSettings";
 import UserManagementSection from "@/features/users/components/UserManagementSection";
+import {
+  formatDateTime,
+  formatServerDateTime,
+  getDefaultDisplayTimezone,
+  getSupportedTimeZones,
+} from "@/shared/lib/dateTimeFormat";
 
 export default function SettingsPage() {
   const role = useAuthStore((state) => state.role);
@@ -22,11 +30,17 @@ export default function SettingsPage() {
 
   const [isEditingCf, setIsEditingCf] = useState(false);
   const [cfForm, setCfForm] = useState({ api_token: "", zone_id: "", record_target: "", proxied: false });
+  const [isEditingTimeDisplay, setIsEditingTimeDisplay] = useState(false);
+  const [timeDisplayForm, setTimeDisplayForm] = useState(getDefaultDisplayTimezone());
+  const [timeDisplayErrorMessage, setTimeDisplayErrorMessage] = useState("");
 
   const { data: cloudflareStatus, isLoading: isCloudflareLoading } = useCloudflareStatus();
+  const { data: timeDisplaySettings, isLoading: isTimeDisplayLoading } = useTimeDisplaySettings();
   const updateCloudflare = useUpdateCloudflareSettings();
+  const updateTimeDisplay = useUpdateTimeDisplaySettings();
   const exportBackup = useExportBackup();
   const importBackup = useImportBackup();
+  const supportedTimeZones = getSupportedTimeZones();
 
   const handleEditCf = () => {
     setCfForm({
@@ -41,6 +55,30 @@ export default function SettingsPage() {
   const handleSaveCf = async () => {
     await updateCloudflare.mutateAsync(cfForm);
     setIsEditingCf(false);
+  };
+
+  const handleEditTimeDisplay = () => {
+    setTimeDisplayForm(timeDisplaySettings?.display_timezone ?? getDefaultDisplayTimezone());
+    setTimeDisplayErrorMessage("");
+    setIsEditingTimeDisplay(true);
+  };
+
+  const handleSaveTimeDisplay = async () => {
+    setTimeDisplayErrorMessage("");
+    try {
+      await updateTimeDisplay.mutateAsync({ display_timezone: timeDisplayForm.trim() });
+      setIsEditingTimeDisplay(false);
+    } catch (error) {
+      const detail = (error as { response?: { data?: { detail?: string | Array<{ msg?: string }> } } })?.response
+        ?.data?.detail;
+      setTimeDisplayErrorMessage(
+        typeof detail === "string"
+          ? detail
+          : Array.isArray(detail)
+            ? detail[0]?.msg || "표시 시간대 저장에 실패했습니다"
+            : "표시 시간대 저장에 실패했습니다",
+      );
+    }
   };
 
   const handleExport = async () => {
@@ -100,6 +138,119 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <Clock3 className="w-5 h-5 text-emerald-600" />
+              <h2 className="font-semibold text-gray-900">시간 표시 설정</h2>
+            </div>
+            {canManage && !isEditingTimeDisplay && !isTimeDisplayLoading && (
+              <button
+                onClick={handleEditTimeDisplay}
+                className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
+              >
+                <Edit2 className="w-3.5 h-3.5" /> 편집
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-gray-400 mb-4">
+            저장/토큰/감사로그 원본 시각은 UTC로 유지하고, 화면 표시만 선택한 IANA 타임존으로 변환합니다.
+          </p>
+
+          {isTimeDisplayLoading ? (
+            <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+          ) : isEditingTimeDisplay ? (
+            <div className="space-y-3">
+              <div>
+                <label className="label">표시 시간대 (IANA)</label>
+                <input
+                  list="supported-timezones"
+                  className="input"
+                  placeholder="예: Asia/Seoul, UTC, America/New_York"
+                  value={timeDisplayForm}
+                  onChange={(e) => setTimeDisplayForm(e.target.value)}
+                />
+                <datalist id="supported-timezones">
+                  {supportedTimeZones.map((timeZone) => (
+                    <option key={timeZone} value={timeZone} />
+                  ))}
+                </datalist>
+                <p className="text-xs text-gray-400 mt-1">
+                  검색 가능한 전체 IANA 타임존 목록을 지원합니다. 예: `Asia/Seoul`, `UTC`, `Europe/Berlin`,
+                  `America/New_York`
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2 text-sm">
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-500">저장 기준</span>
+                  <span className="font-mono text-gray-700">{timeDisplaySettings?.storage_timezone}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-500">서버 시간대</span>
+                  <span className="font-mono text-gray-700">
+                    {timeDisplaySettings?.server_timezone_label} ({timeDisplaySettings?.server_timezone_offset})
+                  </span>
+                </div>
+              </div>
+
+              {timeDisplayErrorMessage && <p className="text-xs text-red-600">{timeDisplayErrorMessage}</p>}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
+                  onClick={handleSaveTimeDisplay}
+                  disabled={updateTimeDisplay.isPending}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {updateTimeDisplay.isPending ? "저장 중..." : "저장"}
+                </button>
+                <button
+                  className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
+                  onClick={() => setIsEditingTimeDisplay(false)}
+                >
+                  <X className="w-3.5 h-3.5" /> 취소
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">현재 표시 시간대</span>
+                <span className="font-mono text-gray-700">{timeDisplaySettings?.display_timezone || "(미설정)"}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">저장 기준</span>
+                <span className="font-mono text-gray-700">{timeDisplaySettings?.storage_timezone}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">서버 시간대</span>
+                <span className="font-mono text-gray-700">
+                  {timeDisplaySettings?.server_timezone_label} ({timeDisplaySettings?.server_timezone_offset})
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">현재 서버 시각</span>
+                <span className="font-mono text-gray-700">
+                  {formatServerDateTime(
+                    timeDisplaySettings?.server_time_iso,
+                    timeDisplaySettings?.server_timezone_name,
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">현재 표시 예시</span>
+                <span className="font-mono text-gray-700">
+                  {formatDateTime(
+                    timeDisplaySettings?.server_time_iso,
+                    timeDisplaySettings?.display_timezone,
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="card p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">

@@ -1,9 +1,11 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
-from datetime import datetime, timedelta
-from jose import jwt
 from fastapi import HTTPException
-from app.core.security import create_access_token, decode_token
+from jose import jwt
+
 from app.core.config import settings
+from app.core.security import create_access_token, decode_token
 
 def test_jwt_create_and_decode():
     data = {"sub": "admin"}
@@ -13,7 +15,7 @@ def test_jwt_create_and_decode():
     assert "exp" in decoded
 
 def test_jwt_decode_expired_token():
-    data = {"sub": "admin", "exp": datetime.utcnow() - timedelta(minutes=1)}
+    data = {"sub": "admin", "exp": datetime.now(timezone.utc) - timedelta(minutes=1)}
     token = jwt.encode(data, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     
     with pytest.raises(HTTPException) as exc:

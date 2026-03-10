@@ -1,11 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { BackupPayload, CloudflareSettingsInput, settingsApi } from "../api/settingsApi";
+import {
+  BackupPayload,
+  CloudflareSettingsInput,
+  TimeDisplaySettingsInput,
+  settingsApi,
+} from "../api/settingsApi";
 
 export function useCloudflareStatus() {
   return useQuery({
     queryKey: ["settings", "cloudflare"],
     queryFn: settingsApi.getCloudflareStatus,
+    staleTime: 30_000,
+  });
+}
+
+export function useTimeDisplaySettings() {
+  return useQuery({
+    queryKey: ["settings", "time-display"],
+    queryFn: settingsApi.getTimeDisplaySettings,
     staleTime: 30_000,
   });
 }
@@ -16,6 +29,16 @@ export function useUpdateCloudflareSettings() {
     mutationFn: (data: CloudflareSettingsInput) => settingsApi.updateCloudflareSettings(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "cloudflare"] });
+    },
+  });
+}
+
+export function useUpdateTimeDisplaySettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: TimeDisplaySettingsInput) => settingsApi.updateTimeDisplaySettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "time-display"] });
     },
   });
 }

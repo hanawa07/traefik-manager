@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 from uuid import UUID, uuid4
 
@@ -26,7 +26,7 @@ class User:
         role: UserRole,
         is_active: bool = True,
     ) -> "User":
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return cls(
             id=uuid4(),
             username=cls._normalize_username(username),
@@ -54,12 +54,12 @@ class User:
             self.role = self._normalize_role(role)
         if is_active is not None:
             self.is_active = bool(is_active)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def invalidate_tokens(self) -> None:
         """로그아웃 시 기존 발급된 모든 JWT 무효화"""
         self.token_version += 1
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     @staticmethod
     def _normalize_username(username: str) -> str:

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import { useAudit } from "@/features/audit/hooks/useAudit";
 import { 
   History, 
@@ -11,6 +12,7 @@ import {
   Loader2
 } from "lucide-react";
 import { clsx } from "clsx";
+import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 const resourceTypeConfig = {
   service: { icon: Server, label: "서비스", color: "text-blue-200 bg-blue-500/20" },
@@ -27,17 +29,7 @@ const actionConfig = {
 
 export default function AuditLogPage() {
   const { data: logs, isLoading, isError, error } = useAudit({ limit: 50 });
-
-  const formatDate = (dateStr: string) => {
-    return new Intl.DateTimeFormat("ko-KR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(new Date(dateStr));
-  };
+  const { data: timeDisplaySettings } = useTimeDisplaySettings();
 
   if (isLoading) {
     return (
@@ -132,7 +124,7 @@ export default function AuditLogPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm text-slate-100 font-medium">
-                          {formatDate(log.created_at)}
+                          {formatDateTime(log.created_at, timeDisplaySettings?.display_timezone)}
                         </span>
                       </td>
                     </tr>

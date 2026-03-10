@@ -3,13 +3,8 @@ import { AlertTriangle, RefreshCcw, Shield } from "lucide-react";
 
 import StatusBadge from "@/shared/components/StatusBadge";
 import { useCertificates } from "@/features/certificates/hooks/useCertificates";
-
-function formatDateTime(value: string | null): string {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("ko-KR");
-}
+import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
+import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 export default function CertificatesPage() {
   const {
@@ -20,6 +15,7 @@ export default function CertificatesPage() {
     refetch,
     isFetching,
   } = useCertificates();
+  const { data: timeDisplaySettings } = useTimeDisplaySettings();
 
   const warningCount = certificates.filter((item) => item.status === "warning").length;
   const errorCount = certificates.filter((item) => item.status === "error").length;
@@ -99,7 +95,9 @@ export default function CertificatesPage() {
               {certificates.map((certificate) => (
                 <tr key={certificate.domain} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-3 text-sm font-medium text-gray-900">{certificate.domain}</td>
-                  <td className="px-6 py-3 text-sm text-gray-500">{formatDateTime(certificate.expires_at)}</td>
+                  <td className="px-6 py-3 text-sm text-gray-500">
+                    {formatDateTime(certificate.expires_at, timeDisplaySettings?.display_timezone)}
+                  </td>
                   <td className="px-6 py-3 text-sm text-gray-500">
                     {certificate.days_remaining === null
                       ? "-"
