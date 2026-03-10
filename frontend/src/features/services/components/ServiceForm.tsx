@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AuthMode, ServiceCreate } from "../api/serviceApi";
+import { AuthMode, FramePolicy, ServiceCreate } from "../api/serviceApi";
 import { useAuthentikGroups } from "../hooks/useServices";
 import { Database, Plus, Trash2, Shield, Key, Lock, Copy, Check, RefreshCw } from "lucide-react";
 import Modal from "@/shared/components/Modal";
@@ -44,6 +44,7 @@ const schema = z.object({
       value: z.string(),
     })
   ),
+  frame_policy: z.enum(["deny", "sameorigin", "off"]),
 }).superRefine((value, ctx) => {
   if (value.https_redirect_enabled && !value.tls_enabled) {
     ctx.addIssue({
@@ -96,6 +97,7 @@ interface ServiceFormDefaultValues {
   rate_limit_average?: number | null;
   rate_limit_burst?: number | null;
   custom_headers?: Record<string, string>;
+  frame_policy?: FramePolicy;
   basic_auth_usernames?: string[];
 }
 
@@ -183,6 +185,7 @@ export default function ServiceForm({
       rate_limit_average: defaultValues?.rate_limit_average ?? undefined,
       rate_limit_burst: defaultValues?.rate_limit_burst ?? undefined,
       custom_headers: headerEntries.length > 0 ? headerEntries : [{ key: "", value: "" }],
+      frame_policy: defaultValues?.frame_policy || "deny",
     },
   });
 
@@ -312,6 +315,7 @@ export default function ServiceForm({
       rate_limit_average: data.rate_limit_enabled ? data.rate_limit_average ?? null : null,
       rate_limit_burst: data.rate_limit_enabled ? data.rate_limit_burst ?? null : null,
       custom_headers: customHeaders,
+      frame_policy: data.frame_policy,
       basic_auth_credentials: data.basic_auth_enabled ? basicAuthCredentials : [],
       authentik_group_id: data.auth_mode === "authentik" ? data.authentik_group_id || null : null,
     });
@@ -422,6 +426,18 @@ export default function ServiceForm({
                   </div>
                 </label>
               )}
+            </div>
+
+            <div className="pt-2">
+              <label className="label">프레임 정책</label>
+              <select className="input" {...register("frame_policy")}>
+                <option value="deny">DENY (기본 권장)</option>
+                <option value="sameorigin">SAMEORIGIN (Cockpit/iframe 기반 앱)</option>
+                <option value="off">OFF (특수한 임베드 환경만)</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                전역 보안 헤더와 별도로 이 서비스가 어떤 X-Frame-Options 정책을 가질지 결정합니다.
+              </p>
             </div>
           </div>
         </div>

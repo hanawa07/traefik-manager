@@ -67,6 +67,7 @@ class ServiceUseCases:
             authentik_group_id=data.authentik_group_id,
             upstream_scheme=data.upstream_scheme,
             skip_tls_verify=data.skip_tls_verify,
+            frame_policy=data.frame_policy,
         )
         middleware_templates = await self._resolve_middleware_templates(service.middleware_template_ids)
         self._validate_template_auth_conflict(service, middleware_templates)
@@ -185,6 +186,7 @@ class ServiceUseCases:
             clear_rate_limit=clear_rate_limit,
             upstream_scheme=update_payload.get("upstream_scheme"),
             skip_tls_verify=update_payload.get("skip_tls_verify"),
+            frame_policy=update_payload.get("frame_policy"),
         )
         middleware_templates = await self._resolve_middleware_templates(service.middleware_template_ids)
         self._validate_template_auth_conflict(service, middleware_templates)

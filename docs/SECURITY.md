@@ -149,17 +149,43 @@ payload["exp"] = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXP
 
 ---
 
-### [LOW-3] 보안 응답 헤더 없음
+### [LOW-3] 보안 응답 헤더 구조 재설계 필요
 
-**위치:** Traefik 미들웨어 또는 FastAPI 미들웨어
+**위치:** Traefik 엔트리포인트 전역 미들웨어, 서비스별 동적 라우터 미들웨어
 
-**누락된 헤더:**
+**배경:** 2026-03-10 운영 진단에서 `cockpit.lizstudio.co.kr`가 공용 도메인 경유 시 깨졌고, 브라우저 콘솔에 `X-Frame-Options: DENY`로 인한 iframe 차단이 확인됐다. 원인은 엔트리포인트 전역 `security-headers@file`가 모든 서비스에 동일한 frame 정책을 강제한 구조였다.
+
+**문제:**
+- `X-Frame-Options: DENY`는 대부분 서비스에는 안전한 기본값이다.
+- 하지만 Cockpit처럼 내부 iframe shell을 사용하는 앱은 `DENY`에서 정상 동작하지 않는다.
+- 반대로 전역값을 `SAMEORIGIN`으로 낮추면 다른 서비스의 클릭재킹 방어 수준이 낮아진다.
+
+**설계 원칙:**
+- 전역 보안 헤더에는 서비스 공통값만 둔다.
+- frame 정책은 서비스별로 분리한다.
+- 서비스 기본값은 `deny`로 유지한다.
+- iframe 기반 예외 서비스만 `sameorigin` 또는 `off`를 선택한다.
+
+**전역 유지 대상:**
 - `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: DENY`
+- `Strict-Transport-Security`
 - `Referrer-Policy: strict-origin-when-cross-origin`
-- `Permissions-Policy: geolocation=(), microphone=()`
+- `Permissions-Policy`
+- `Server`, `X-Powered-By` 제거
 
-**해결 방안:** Traefik `customResponseHeaders` 미들웨어로 전역 적용 권장.
+**서비스별 정책:**
+- `deny`: `frameDeny: true`
+- `sameorigin`: `customFrameOptionsValue: "SAMEORIGIN"`
+- `off`: frame 관련 응답 헤더 미생성
+
+**운영 규칙:**
+- 엔트리포인트 전역 `security-headers@file`에서는 frame 정책을 넣지 않는다.
+- 서비스 생성기가 각 라우터에 frame policy middleware를 생성한다.
+- Cockpit, iframe 기반 백오피스, 임베드형 SPA shell은 `sameorigin` 후보로 검토한다.
+
+**권장 사항:**
+- 새 서비스 기본값은 계속 `deny`.
+- 예외는 문서화된 근거 없이 `off`로 열지 않는다.
 
 ---
 

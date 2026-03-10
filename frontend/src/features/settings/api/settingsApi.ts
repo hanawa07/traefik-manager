@@ -21,6 +21,7 @@ export interface BackupServiceItem {
   rate_limit_average: number | null;
   rate_limit_burst: number | null;
   custom_headers: Record<string, string>;
+  frame_policy: "deny" | "sameorigin" | "off";
   basic_auth_users: string[];
   middleware_template_ids: string[];
   authentik_provider_id?: string | null;

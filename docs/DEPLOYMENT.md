@@ -45,16 +45,42 @@ providers:
     watch: true
 ```
 
+## 보안 헤더 배포 원칙
+
+이 프로젝트는 `security-headers@file`를 전역 보안 미들웨어로 사용합니다. 다만 `X-Frame-Options`는 더 이상 전역에서 강제하면 안 됩니다.
+
+이유:
+- 대부분 서비스는 `DENY`가 맞다.
+- 하지만 Cockpit처럼 iframe 기반 셸을 쓰는 앱은 `DENY`에서 깨진다.
+- 전역값을 `SAMEORIGIN`으로 바꾸면 기존 서비스 전체 보안 기준이 낮아진다.
+
+배포 규칙:
+1. `traefik-config/dynamic/security-headers.yml`에는 공통 헤더만 둡니다.
+2. `frameDeny` 또는 `customFrameOptionsValue`는 전역 미들웨어에 넣지 않습니다.
+3. 서비스 라우터가 `frame_policy`에 따라 개별 frame middleware를 생성합니다.
+4. 기본값은 `deny`이며, Cockpit 같은 예외 서비스만 `sameorigin`을 선택합니다.
+5. 백엔드 startup 시 기존 서비스 YAML도 다시 생성해 기본값 `deny`가 즉시 재적용되도록 합니다.
+
+운영 예시:
+- 일반 SaaS/대시보드: `deny`
+- Cockpit, iframe 기반 관리 UI: `sameorigin`
+- 외부 임베드가 정말 필요한 서비스: `off` 검토
+
+주의:
+- 기존 정적 Traefik 설정이 `security-headers@file`를 엔트리포인트 전체에 붙이고 있어도 괜찮습니다.
+- 대신 그 전역 미들웨어 안에는 frame 정책이 없어야 합니다.
+
 ## 배포 순서
 
 1. `cp .env.example .env` 후 도메인, 시크릿, 관리자 비밀번호를 실제 값으로 바꿉니다.
 2. 기존 Traefik compose 또는 `traefik.yml`에 file provider mount/watch를 추가합니다.
 3. 외부 네트워크가 없으면 `docker network create proxy-network`와 `docker network create proxy_net`를 1회씩 실행합니다. 이미 사용 중인 Traefik 네트워크명이 다르면 compose의 외부 네트워크 이름도 함께 맞춰야 합니다.
 4. `mkdir -p traefik-config/dynamic`로 디렉토리를 만들고, 리눅스라면 필요 시 `sudo chown -R 10001:10001 traefik-config`를 적용합니다.
-5. `docker compose config`로 변수 치환, 라벨, 네트워크 구성을 확인합니다.
-6. `docker compose up --build -d`로 배포합니다.
-7. `docker compose logs -f backend`로 시작 로그와 `/traefik-config/dynamic` 권한 오류 여부를 확인합니다.
-8. `curl -Ik https://<FRONTEND_DOMAIN>` 또는 브라우저로 로그인 페이지 노출을 확인합니다.
+5. `security-headers.yml`에 frame 정책이 남아 있지 않은지 확인합니다.
+6. `docker compose config`로 변수 치환, 라벨, 네트워크 구성을 확인합니다.
+7. `docker compose up --build -d`로 배포합니다.
+8. `docker compose logs -f backend`로 시작 로그와 `/traefik-config/dynamic` 권한 오류 여부를 확인합니다.
+9. `curl -Ik https://<FRONTEND_DOMAIN>` 또는 브라우저로 로그인 페이지 노출을 확인합니다.
 
 ## 검증 체크리스트
 

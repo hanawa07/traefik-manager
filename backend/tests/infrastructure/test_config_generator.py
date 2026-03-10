@@ -80,3 +80,37 @@ def test_generate_token_auth(generator, make_service):
     assert "backend:8000/api/v1/auth/verify" in forward_auth["address"]
     assert forward_auth["trustForwardHeader"] is True
     assert "X-Auth-User" in forward_auth["authResponseHeaders"]
+
+
+def test_generate_default_frame_policy_denies_frames(generator, make_service):
+    service = make_service(domain="frames.example.com")
+    config = generator.generate(service)
+
+    router_name = "frames-example-com"
+    middleware_name = f"{router_name}-frame-policy"
+
+    assert middleware_name in config["http"]["middlewares"]
+    assert middleware_name in config["http"]["routers"][router_name]["middlewares"]
+    assert config["http"]["middlewares"][middleware_name]["headers"]["frameDeny"] is True
+
+
+def test_generate_sameorigin_frame_policy(generator, make_service):
+    service = make_service(domain="cockpit.example.com", frame_policy="sameorigin")
+    config = generator.generate(service)
+
+    router_name = "cockpit-example-com"
+    middleware_name = f"{router_name}-frame-policy"
+
+    assert middleware_name in config["http"]["middlewares"]
+    assert config["http"]["middlewares"][middleware_name]["headers"]["customFrameOptionsValue"] == "SAMEORIGIN"
+
+
+def test_generate_frame_policy_off_skips_frame_headers(generator, make_service):
+    service = make_service(domain="embed.example.com", frame_policy="off")
+    config = generator.generate(service)
+
+    router_name = "embed-example-com"
+    middleware_name = f"{router_name}-frame-policy"
+
+    assert middleware_name not in config["http"].get("middlewares", {})
+    assert middleware_name not in config["http"]["routers"][router_name].get("middlewares", [])

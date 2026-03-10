@@ -93,6 +93,7 @@ export default function EditServicePage() {
             rate_limit_average: service.rate_limit_average,
             rate_limit_burst: service.rate_limit_burst,
             custom_headers: service.custom_headers,
+            frame_policy: service.frame_policy,
             authentik_group_id: service.authentik_group_id,
             basic_auth_usernames: service.basic_auth_usernames,
           }}

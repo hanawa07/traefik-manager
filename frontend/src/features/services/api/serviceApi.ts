@@ -1,6 +1,7 @@
 import apiClient from "@/shared/lib/apiClient";
 
 export type AuthMode = "none" | "authentik" | "token";
+export type FramePolicy = "deny" | "sameorigin" | "off";
 
 export interface Service {
   id: string;
@@ -21,6 +22,7 @@ export interface Service {
   rate_limit_average: number | null;
   rate_limit_burst: number | null;
   custom_headers: Record<string, string>;
+  frame_policy: FramePolicy;
   basic_auth_enabled: boolean;
   basic_auth_user_count: number;
   basic_auth_usernames: string[];
@@ -56,6 +58,7 @@ export interface ServiceCreate {
   rate_limit_average: number | null;
   rate_limit_burst: number | null;
   custom_headers: Record<string, string>;
+  frame_policy: FramePolicy;
   basic_auth_credentials?: BasicAuthCredential[];
   middleware_template_ids: string[];
   authentik_group_id?: string | null;
@@ -77,6 +80,7 @@ export interface ServiceUpdate {
   rate_limit_average?: number | null;
   rate_limit_burst?: number | null;
   custom_headers?: Record<string, string>;
+  frame_policy?: FramePolicy;
   allowed_ips?: string[];
   blocked_paths?: string[];
   basic_auth_credentials?: BasicAuthCredential[];

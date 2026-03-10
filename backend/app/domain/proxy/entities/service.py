@@ -11,6 +11,9 @@ from ..events.service_created import ServiceCreated
 from ..events.service_updated import ServiceUpdated
 from ..events.service_deleted import ServiceDeleted
 
+FRAME_POLICY_VALUES = {"deny", "sameorigin", "off"}
+AUTH_MODE_VALUES = {"none", "authentik", "token"}
+
 
 @dataclass
 class Service:
@@ -43,6 +46,7 @@ class Service:
     cloudflare_record_id: str | None = None
     upstream_scheme: str = "http"
     skip_tls_verify: bool = False
+    frame_policy: str = "deny"
     _events: list = field(default_factory=list, repr=False)
 
     @property
@@ -61,6 +65,7 @@ class Service:
         upstream_host: str,
         upstream_port: int,
         tls_enabled: bool = True,
+        auth_enabled: bool | None = None,
         auth_mode: str = "none",
         api_key: str | None = None,
         https_redirect_enabled: bool = True,
@@ -74,10 +79,12 @@ class Service:
         authentik_group_id: str | None = None,
         upstream_scheme: str = "http",
         skip_tls_verify: bool = False,
+        frame_policy: str = "deny",
     ) -> "Service":
         if https_redirect_enabled and not tls_enabled:
             raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
-        
+
+        auth_mode = self._normalize_auth_mode(auth_mode=auth_mode, auth_enabled=auth_enabled)
         auth_enabled = auth_mode != "none"
         if auth_mode == "authentik" and basic_auth_users:
             raise ValueError("Authentik 인증과 Basic Auth는 동시에 활성화할 수 없습니다")
@@ -120,6 +127,7 @@ class Service:
             authentik_group_id=authentik_group_id if auth_mode == "authentik" else None,
             upstream_scheme=upstream_scheme,
             skip_tls_verify=skip_tls_verify if upstream_scheme == "https" else False,
+            frame_policy=self._normalize_frame_policy(frame_policy),
         )
         service._events.append(ServiceCreated(service_id=service.id, name=name, domain=domain))
         return service
@@ -130,6 +138,7 @@ class Service:
         upstream_host: str | None = None,
         upstream_port: int | None = None,
         tls_enabled: bool | None = None,
+        auth_enabled: bool | None = None,
         auth_mode: str | None = None,
         api_key: str | None = None,
         https_redirect_enabled: bool | None = None,
@@ -144,6 +153,7 @@ class Service:
         clear_rate_limit: bool = False,
         upstream_scheme: str | None = None,
         skip_tls_verify: bool | None = None,
+        frame_policy: str | None = None,
     ) -> None:
         if name is not None:
             self.name = name
@@ -163,8 +173,11 @@ class Service:
             self.tls_enabled = tls_enabled
             if not tls_enabled:
                 self.https_redirect_enabled = False
-        
+
+        if auth_mode is None and auth_enabled is not None:
+            auth_mode = "authentik" if auth_enabled else "none"
         if auth_mode is not None:
+            auth_mode = self._normalize_auth_mode(auth_mode=auth_mode)
             if auth_mode == "token":
                 if api_key:
                     self.api_key = api_key
@@ -207,6 +220,8 @@ class Service:
             self.rate_limit_burst = normalized_burst
         if custom_headers is not None:
             self.custom_headers = self._normalize_custom_headers(custom_headers)
+        if frame_policy is not None:
+            self.frame_policy = self._normalize_frame_policy(frame_policy)
         
         if basic_auth_users is not None:
             normalized_basic_auth_users = self._normalize_basic_auth_users(basic_auth_users)
@@ -253,6 +268,22 @@ class Service:
     @property
     def basic_auth_usernames(self) -> list[str]:
         return [user.split(":")[0] for user in self.basic_auth_users]
+
+    @staticmethod
+    def _normalize_auth_mode(auth_mode: str, auth_enabled: bool | None = None) -> str:
+        normalized = auth_mode
+        if auth_enabled is not None and auth_mode == "none":
+            normalized = "authentik" if auth_enabled else "none"
+        if normalized not in AUTH_MODE_VALUES:
+            raise ValueError("인증 모드는 none, authentik, token 중 하나여야 합니다")
+        return normalized
+
+    @staticmethod
+    def _normalize_frame_policy(frame_policy: str) -> str:
+        normalized = frame_policy.strip().lower()
+        if normalized not in FRAME_POLICY_VALUES:
+            raise ValueError("frame_policy는 deny, sameorigin, off 중 하나여야 합니다")
+        return normalized
 
     @staticmethod
     def _normalize_allowed_ips(allowed_ips: list[str] | None) -> list[str]:

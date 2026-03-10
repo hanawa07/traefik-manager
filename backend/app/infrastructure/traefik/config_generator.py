@@ -27,6 +27,7 @@ class TraefikConfigGenerator:
         redirect_middleware_name = f"{router_name}-redirectscheme"
         rate_limit_name = f"{router_name}-ratelimit"
         custom_headers_name = f"{router_name}-response-headers"
+        frame_policy_name = f"{router_name}-frame-policy"
         basic_auth_name = f"{router_name}-basicauth"
         token_auth_middleware_name = f"{router_name}-{self.TOKEN_AUTH_MIDDLEWARE_SUFFIX}"
 
@@ -57,6 +58,12 @@ class TraefikConfigGenerator:
                 }
             }
             router_middlewares.append(custom_headers_name)
+
+        if service.frame_policy != "off":
+            middlewares[frame_policy_name] = {
+                "headers": self._build_frame_policy_headers(service.frame_policy),
+            }
+            router_middlewares.append(frame_policy_name)
 
         if service.basic_auth_users:
             middlewares[basic_auth_name] = {
@@ -183,18 +190,6 @@ class TraefikConfigGenerator:
 
         return config
 
-        if service.upstream_scheme == "https" and service.skip_tls_verify:
-            transport_name = f"{router_name}-transport"
-            config["http"]["serversTransports"] = {
-                transport_name: {"insecureSkipVerify": True}
-            }
-            traefik_service["loadBalancer"]["serversTransport"] = transport_name
-
-        if middlewares:
-            config["http"]["middlewares"] = middlewares
-
-        return config
-
     def to_yaml(
         self,
         service: Service,
@@ -260,6 +255,14 @@ class TraefikConfigGenerator:
                 "middlewares": middlewares,
             }
         }
+
+    @staticmethod
+    def _build_frame_policy_headers(frame_policy: str) -> dict:
+        if frame_policy == "deny":
+            return {"frameDeny": True}
+        if frame_policy == "sameorigin":
+            return {"customFrameOptionsValue": "SAMEORIGIN"}
+        raise ValueError(f"지원하지 않는 frame_policy입니다: {frame_policy}")
 
     def to_yaml_redirect_host(self, redirect_host: RedirectHost) -> str:
         return yaml.dump(

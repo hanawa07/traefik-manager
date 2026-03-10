@@ -37,8 +37,31 @@ request_logger = logging.getLogger("app.request")
 async def lifespan(app: FastAPI):
     setup_logging()
     await init_db()
+    await _ensure_service_route_files()
     await _ensure_authentik_middleware_file()
     yield
+
+
+async def _ensure_service_route_files() -> None:
+    from app.infrastructure.persistence.repositories.sqlite_middleware_template_repository import (
+        SQLiteMiddlewareTemplateRepository,
+    )
+    from app.infrastructure.persistence.repositories.sqlite_service_repository import (
+        SQLiteServiceRepository,
+    )
+    from app.infrastructure.traefik.startup_sync import sync_existing_service_configs
+
+    try:
+        async with AsyncSessionLocal() as session:
+            rewritten = await sync_existing_service_configs(
+                service_repository=SQLiteServiceRepository(session),
+                middleware_template_repository=SQLiteMiddlewareTemplateRepository(session),
+                file_writer=FileProviderWriter(),
+            )
+            if rewritten > 0:
+                logger.info("서비스 라우트 파일 재생성 완료 (서비스 %d개)", rewritten)
+    except Exception:
+        logger.warning("서비스 라우트 파일 startup 재생성 실패 (무시)", exc_info=True)
 
 
 async def _ensure_authentik_middleware_file() -> None:

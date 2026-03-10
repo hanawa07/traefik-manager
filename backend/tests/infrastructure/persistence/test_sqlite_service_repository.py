@@ -67,3 +67,36 @@ def test_to_entity_restores_api_key():
     assert service.api_key == api_key
     assert service.upstream_scheme == "https"
     assert service.skip_tls_verify is True
+
+
+def test_to_entity_restores_frame_policy():
+    now = datetime.utcnow()
+    model = ServiceModel(
+        id=str(uuid4()),
+        name="cockpit-service",
+        domain="cockpit.example.com",
+        upstream_host="10.0.0.1",
+        upstream_port=9090,
+        upstream_scheme="http",
+        skip_tls_verify=False,
+        tls_enabled=True,
+        https_redirect_enabled=True,
+        auth_enabled=False,
+        auth_mode="none",
+        api_key=None,
+        allowed_ips=[],
+        blocked_paths=[],
+        rate_limit_average=None,
+        rate_limit_burst=None,
+        custom_headers={},
+        basic_auth_users=[],
+        middleware_template_ids=[],
+        frame_policy="sameorigin",
+        created_at=now,
+        updated_at=now,
+    )
+
+    repository = SQLiteServiceRepository(None)
+    service = repository._to_entity(model)
+
+    assert service.frame_policy == "sameorigin"

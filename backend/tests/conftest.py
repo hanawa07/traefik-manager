@@ -33,6 +33,7 @@ def make_service():
         basic_auth_users=None,
         middleware_template_ids=None,
         authentik_group_id=None,
+        frame_policy="deny",
     ):
         if auth_mode is None:
             auth_mode = "authentik" if auth_enabled else "none"
@@ -52,5 +53,6 @@ def make_service():
             basic_auth_users=basic_auth_users,
             middleware_template_ids=middleware_template_ids,
             authentik_group_id=authentik_group_id,
+            frame_policy=frame_policy,
         )
     return _make_service

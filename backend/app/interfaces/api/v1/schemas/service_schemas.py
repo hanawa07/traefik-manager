@@ -5,6 +5,7 @@ from uuid import UUID
 from datetime import datetime
 
 AUTH_MODE_VALUES = {"none", "authentik", "token"}
+FRAME_POLICY_VALUES = {"deny", "sameorigin", "off"}
 
 
 class BasicAuthCredential(BaseModel):
@@ -50,6 +51,7 @@ class ServiceCreate(BaseModel):
     rate_limit_average: int | None = None
     rate_limit_burst: int | None = None
     custom_headers: dict[str, str] = Field(default_factory=dict)
+    frame_policy: str = "deny"
     basic_auth_credentials: list[BasicAuthCredential] = Field(default_factory=list)
     authentik_group_id: str | None = None
 
@@ -65,6 +67,13 @@ class ServiceCreate(BaseModel):
     def validate_upstream_scheme(cls, v: str) -> str:
         if v not in ["http", "https"]:
             raise ValueError("업스트림 스킴은 http 또는 https여야 합니다")
+        return v
+
+    @field_validator("frame_policy")
+    @classmethod
+    def validate_frame_policy(cls, v: str) -> str:
+        if v not in FRAME_POLICY_VALUES:
+            raise ValueError(f"frame_policy는 {FRAME_POLICY_VALUES} 중 하나여야 합니다")
         return v
 
     @field_validator("domain")
@@ -200,6 +209,7 @@ class ServiceUpdate(BaseModel):
     rate_limit_average: int | None = None
     rate_limit_burst: int | None = None
     custom_headers: dict[str, str] | None = None
+    frame_policy: str | None = None
     basic_auth_credentials: list[BasicAuthCredential] | None = None
     authentik_group_id: str | None = None
 
@@ -215,6 +225,13 @@ class ServiceUpdate(BaseModel):
     def validate_upstream_scheme(cls, v: str | None) -> str | None:
         if v is not None and v not in ["http", "https"]:
             raise ValueError("업스트림 스킴은 http 또는 https여야 합니다")
+        return v
+
+    @field_validator("frame_policy")
+    @classmethod
+    def validate_frame_policy(cls, v: str | None) -> str | None:
+        if v is not None and v not in FRAME_POLICY_VALUES:
+            raise ValueError(f"frame_policy는 {FRAME_POLICY_VALUES} 중 하나여야 합니다")
         return v
 
     @field_validator("allowed_ips")
@@ -341,6 +358,7 @@ class ServiceResponse(BaseModel):
     rate_limit_average: int | None = None
     rate_limit_burst: int | None = None
     custom_headers: dict[str, str]
+    frame_policy: str
     basic_auth_enabled: bool
     basic_auth_user_count: int
     basic_auth_usernames: list[str]

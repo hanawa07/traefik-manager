@@ -33,6 +33,7 @@ class ServiceModel(Base):
     authentik_policy_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     authentik_policy_binding_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     cloudflare_record_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    frame_policy: Mapped[str] = mapped_column(String(20), nullable=False, server_default="deny")
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

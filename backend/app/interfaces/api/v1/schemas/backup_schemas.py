@@ -18,6 +18,7 @@ class BackupServiceItem(BaseModel):
     rate_limit_average: int | None = None
     rate_limit_burst: int | None = None
     custom_headers: dict[str, str] = Field(default_factory=dict)
+    frame_policy: str = "deny"
     basic_auth_users: list[str] = Field(default_factory=list)
     middleware_template_ids: list[str] = Field(default_factory=list)
     authentik_provider_id: str | None = None

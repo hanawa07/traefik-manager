@@ -42,6 +42,7 @@ class SQLiteServiceRepository(ServiceRepository):
             existing.authentik_policy_id = service.authentik_policy_id
             existing.authentik_policy_binding_id = service.authentik_policy_binding_id
             existing.cloudflare_record_id = service.cloudflare_record_id
+            existing.frame_policy = service.frame_policy
         else:
             model = ServiceModel(
                 id=str(service.id),
@@ -70,6 +71,7 @@ class SQLiteServiceRepository(ServiceRepository):
                 authentik_policy_id=service.authentik_policy_id,
                 authentik_policy_binding_id=service.authentik_policy_binding_id,
                 cloudflare_record_id=service.cloudflare_record_id,
+                frame_policy=service.frame_policy,
             )
             self.db.add(model)
 
@@ -123,5 +125,6 @@ class SQLiteServiceRepository(ServiceRepository):
             cloudflare_record_id=model.cloudflare_record_id,
             upstream_scheme=model.upstream_scheme or "http",
             skip_tls_verify=model.skip_tls_verify or False,
+            frame_policy=model.frame_policy or "deny",
         )
         return service
