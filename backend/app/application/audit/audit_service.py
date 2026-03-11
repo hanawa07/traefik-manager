@@ -1,7 +1,10 @@
 import logging
 from typing import Any
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.infrastructure.persistence.models import AuditLogModel
+from app.infrastructure.notifications import security_alert_notifier
 
 logger = logging.getLogger(__name__)
 
@@ -26,5 +29,6 @@ async def record(
         )
         db.add(audit_log)
         await db.flush()  # 호출한 곳에서 세션을 커밋할 것이므로 flush만 수행
+        await security_alert_notifier.notify_if_needed(db, audit_log)
     except Exception as e:
         logger.error(f"Failed to record audit log: {e}", exc_info=True)

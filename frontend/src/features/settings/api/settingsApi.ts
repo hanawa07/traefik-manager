@@ -124,6 +124,18 @@ export interface LoginDefenseSettingsInput {
   suspicious_trusted_networks: string[];
 }
 
+export interface SecurityAlertSettingsStatus {
+  enabled: boolean;
+  webhook_url: string | null;
+  timeout_seconds: number;
+  alert_events: string[];
+}
+
+export interface SecurityAlertSettingsInput {
+  enabled: boolean;
+  webhook_url: string;
+}
+
 export const settingsApi = {
   getCloudflareStatus: async (): Promise<CloudflareSettingsStatus> => {
     const res = await apiClient.get<CloudflareSettingsStatus>("/settings/cloudflare");
@@ -142,6 +154,11 @@ export const settingsApi = {
 
   getLoginDefenseSettings: async (): Promise<LoginDefenseSettingsStatus> => {
     const res = await apiClient.get<LoginDefenseSettingsStatus>("/settings/login-defense");
+    return res.data;
+  },
+
+  getSecurityAlertSettings: async (): Promise<SecurityAlertSettingsStatus> => {
+    const res = await apiClient.get<SecurityAlertSettingsStatus>("/settings/security-alerts");
     return res.data;
   },
 
@@ -164,6 +181,13 @@ export const settingsApi = {
 
   updateLoginDefenseSettings: async (payload: LoginDefenseSettingsInput): Promise<LoginDefenseSettingsStatus> => {
     const res = await apiClient.put<LoginDefenseSettingsStatus>("/settings/login-defense", payload);
+    return res.data;
+  },
+
+  updateSecurityAlertSettings: async (
+    payload: SecurityAlertSettingsInput,
+  ): Promise<SecurityAlertSettingsStatus> => {
+    const res = await apiClient.put<SecurityAlertSettingsStatus>("/settings/security-alerts", payload);
     return res.data;
   },
 

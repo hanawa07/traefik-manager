@@ -90,6 +90,8 @@ traefik-manager/
 │       │   │   └── upstream_dns_guard.py
 │       │   ├── auth/
 │       │   │   └── session_cleanup.py
+│       │   ├── notifications/
+│       │   │   └── security_alert_notifier.py
 │       │   └── authentik/
 │       │       └── client.py        # Authentik REST API 클라이언트
 │       │
@@ -183,6 +185,13 @@ traefik-manager/
     → GET /api/v1/audit/security-summary 또는 GET /api/v1/audit?security_only=true
       → AuditLogModel 조회
         → 최근 잠금 / 이상 징후 / IP 차단 이벤트 요약 및 필터링 결과 반환
+
+보안 웹훅 알림:
+  보안 이벤트 기록
+    → audit_service.record()
+      → security_alert_notifier.notify_if_needed()
+        → system_settings에서 webhook 설정 조회
+          → `login_locked`, `login_suspicious`, `login_blocked_ip`만 외부 webhook으로 JSON POST
 ```
 
 ---
@@ -194,6 +203,7 @@ traefik-manager/
 - 로그인 방어는 Traefik rate limit + 앱 레벨 계정 잠금 + 이상 징후/IP 차단의 2단계 구조입니다.
 - 이상 징후 IP 자동 차단은 설정에서 끄거나, 신뢰 네트워크(CIDR/IP) 예외를 둘 수 있습니다.
 - 보안 이벤트는 감사 로그에 기록되고, 대시보드/감사 로그 화면에서 별도 요약과 필터로 바로 볼 수 있습니다.
+- 선택적으로 보안 이벤트를 외부 webhook으로 전송할 수 있으며, 전송 실패는 원래 로그인 방어 흐름을 막지 않습니다.
 - 컨테이너 비루트 사용자 실행
 - `no-new-privileges` 보안 옵션
 - 프론트엔드-백엔드 내부 네트워크 격리 (`traefik-manager-internal`)

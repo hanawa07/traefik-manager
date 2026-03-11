@@ -1,6 +1,6 @@
 from ipaddress import ip_network
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AnyHttpUrl, BaseModel, Field, field_validator
 
 from app.core.time_display import get_available_timezones
 from app.domain.proxy.value_objects.upstream import normalize_domain_suffixes
@@ -114,3 +114,23 @@ class LoginDefenseSettingsUpdateRequest(BaseModel):
     @classmethod
     def validate_suspicious_trusted_networks(cls, value: list[str]) -> list[str]:
         return normalize_trusted_networks(value)
+
+
+class SecurityAlertSettingsResponse(BaseModel):
+    enabled: bool
+    webhook_url: str | None = None
+    timeout_seconds: float
+    alert_events: list[str] = Field(default_factory=list)
+
+
+class SecurityAlertSettingsUpdateRequest(BaseModel):
+    enabled: bool = False
+    webhook_url: str = ""
+
+    @field_validator("webhook_url")
+    @classmethod
+    def validate_webhook_url(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            return ""
+        return str(AnyHttpUrl(normalized))

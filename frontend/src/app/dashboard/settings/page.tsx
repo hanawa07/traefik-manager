@@ -20,6 +20,7 @@ import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import {
   BackupPayload,
   LoginDefenseSettingsInput,
+  SecurityAlertSettingsInput,
   UpstreamSecurityPreset,
   UpstreamSecuritySettingsInput,
 } from "@/features/settings/api/settingsApi";
@@ -29,8 +30,10 @@ import {
   useExportBackup,
   useImportBackup,
   useLoginDefenseSettings,
+  useSecurityAlertSettings,
   useTimeDisplaySettings,
   useUpstreamSecuritySettings,
+  useUpdateSecurityAlertSettings,
   useUpdateTimeDisplaySettings,
   useUpdateLoginDefenseSettings,
   useUpdateUpstreamSecuritySettings,
@@ -54,6 +57,13 @@ function createDefaultLoginDefenseForm(): LoginDefenseSettingsInput & { suspicio
     suspicious_block_enabled: true,
     suspicious_trusted_networks: [],
     suspicious_trusted_networks_text: "",
+  };
+}
+
+function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
+  return {
+    enabled: false,
+    webhook_url: "",
   };
 }
 
@@ -111,16 +121,21 @@ export default function SettingsPage() {
   const [isEditingLoginDefense, setIsEditingLoginDefense] = useState(false);
   const [loginDefenseForm, setLoginDefenseForm] = useState(createDefaultLoginDefenseForm());
   const [loginDefenseErrorMessage, setLoginDefenseErrorMessage] = useState("");
+  const [isEditingSecurityAlert, setIsEditingSecurityAlert] = useState(false);
+  const [securityAlertForm, setSecurityAlertForm] = useState(createDefaultSecurityAlertForm());
+  const [securityAlertErrorMessage, setSecurityAlertErrorMessage] = useState("");
 
   const { data: cloudflareStatus, isLoading: isCloudflareLoading } = useCloudflareStatus();
   const { data: timeDisplaySettings, isLoading: isTimeDisplayLoading } = useTimeDisplaySettings();
   const { data: upstreamSecuritySettings, isLoading: isUpstreamSecurityLoading } = useUpstreamSecuritySettings();
   const { data: loginDefenseSettings, isLoading: isLoginDefenseLoading } = useLoginDefenseSettings();
+  const { data: securityAlertSettings, isLoading: isSecurityAlertLoading } = useSecurityAlertSettings();
   const { data: sessionData, isLoading: isSessionsLoading } = useSessions();
   const updateCloudflare = useUpdateCloudflareSettings();
   const updateTimeDisplay = useUpdateTimeDisplaySettings();
   const updateUpstreamSecurity = useUpdateUpstreamSecuritySettings();
   const updateLoginDefense = useUpdateLoginDefenseSettings();
+  const updateSecurityAlert = useUpdateSecurityAlertSettings();
   const logoutAllSessions = useLogoutAllSessions();
   const revokeSession = useRevokeSession();
   const exportBackup = useExportBackup();
@@ -218,6 +233,36 @@ export default function SettingsPage() {
           : Array.isArray(detail)
             ? detail[0]?.msg || "로그인 방어 설정 저장에 실패했습니다"
             : "로그인 방어 설정 저장에 실패했습니다",
+      );
+    }
+  };
+
+  const handleEditSecurityAlert = () => {
+    setSecurityAlertForm({
+      enabled: securityAlertSettings?.enabled ?? false,
+      webhook_url: securityAlertSettings?.webhook_url ?? "",
+    });
+    setSecurityAlertErrorMessage("");
+    setIsEditingSecurityAlert(true);
+  };
+
+  const handleSaveSecurityAlert = async () => {
+    setSecurityAlertErrorMessage("");
+    try {
+      await updateSecurityAlert.mutateAsync({
+        enabled: securityAlertForm.enabled,
+        webhook_url: securityAlertForm.webhook_url.trim(),
+      });
+      setIsEditingSecurityAlert(false);
+    } catch (error) {
+      const detail = (error as { response?: { data?: { detail?: string | Array<{ msg?: string }> } } })?.response
+        ?.data?.detail;
+      setSecurityAlertErrorMessage(
+        typeof detail === "string"
+          ? detail
+          : Array.isArray(detail)
+            ? detail[0]?.msg || "보안 알림 설정 저장에 실패했습니다"
+            : "보안 알림 설정 저장에 실패했습니다",
       );
     }
   };
@@ -784,6 +829,122 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-500">
                 신뢰 네트워크 예외는 내부 NAT, VPN, 사내망처럼 반복 실패가 운영 노이즈로 잡힐 수 있는 경로에만 제한적으로
                 사용하세요.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="card p-6 xl:col-span-2">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <Cloud className="w-5 h-5 text-sky-600" />
+              <h2 className="font-semibold text-gray-900">보안 알림</h2>
+            </div>
+            {canManage && !isEditingSecurityAlert && !isSecurityAlertLoading && (
+              <button
+                onClick={handleEditSecurityAlert}
+                className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
+              >
+                <Edit2 className="w-3.5 h-3.5" /> 편집
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-gray-400 mb-4">
+            계정 잠금, 이상 징후 로그인, IP 자동 차단 이벤트를 외부 webhook으로 전달합니다.
+          </p>
+
+          {isSecurityAlertLoading ? (
+            <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+          ) : isEditingSecurityAlert ? (
+            <div className="space-y-4">
+              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded accent-sky-600"
+                  checked={securityAlertForm.enabled}
+                  onChange={(e) =>
+                    setSecurityAlertForm((current) => ({
+                      ...current,
+                      enabled: e.target.checked,
+                    }))
+                  }
+                />
+                <span>
+                  <span className="block font-medium text-gray-900">보안 웹훅 알림 활성화</span>
+                  <span className="block text-xs text-gray-500 mt-1">
+                    보안 경고 이벤트가 발생하면 JSON payload를 webhook endpoint로 전송합니다.
+                  </span>
+                </span>
+              </label>
+
+              <div>
+                <label className="label">Webhook URL</label>
+                <input
+                  type="url"
+                  className="input"
+                  placeholder="https://hooks.example.com/security-alerts"
+                  value={securityAlertForm.webhook_url}
+                  onChange={(e) =>
+                    setSecurityAlertForm((current) => ({
+                      ...current,
+                      webhook_url: e.target.value,
+                    }))
+                  }
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Slack/Discord/사내 알림 게이트웨이처럼 JSON POST를 받을 수 있는 HTTPS endpoint를 입력합니다.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
+                <p>전송 이벤트: {(securityAlertSettings?.alert_events ?? []).join(", ")}</p>
+                <p>전송 타임아웃: {securityAlertSettings?.timeout_seconds ?? 5}초</p>
+                <p>알림 실패는 로그인/차단 동작을 막지 않고 서버 로그에만 남습니다.</p>
+              </div>
+
+              {securityAlertErrorMessage && <p className="text-xs text-red-600">{securityAlertErrorMessage}</p>}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
+                  onClick={handleSaveSecurityAlert}
+                  disabled={updateSecurityAlert.isPending}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {updateSecurityAlert.isPending ? "저장 중..." : "저장"}
+                </button>
+                <button
+                  className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
+                  onClick={() => setIsEditingSecurityAlert(false)}
+                >
+                  <X className="w-3.5 h-3.5" /> 취소
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">상태</span>
+                <span className="text-gray-700">{securityAlertSettings?.enabled ? "활성화" : "비활성화"}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">Webhook URL</span>
+                <span className="font-mono text-right text-gray-700">
+                  {securityAlertSettings?.webhook_url || "(미설정)"}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">전송 이벤트</span>
+                <span className="text-right text-gray-700">
+                  {(securityAlertSettings?.alert_events ?? []).join(", ")}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">타임아웃</span>
+                <span className="text-gray-700">{securityAlertSettings?.timeout_seconds ?? 5}초</span>
+              </div>
+              <p className="text-xs text-gray-500">
+                알림 실패는 운영 가시성에만 영향을 주고, 로그인 차단/잠금 로직 자체는 중단하지 않습니다.
               </p>
             </div>
           )}

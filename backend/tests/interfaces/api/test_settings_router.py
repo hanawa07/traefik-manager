@@ -4,6 +4,7 @@ from pydantic import ValidationError
 from app.interfaces.api.v1.routers import settings as settings_router
 from app.interfaces.api.v1.schemas.settings_schemas import (
     LoginDefenseSettingsUpdateRequest,
+    SecurityAlertSettingsUpdateRequest,
     TimeDisplaySettingsUpdateRequest,
     UpstreamSecuritySettingsUpdateRequest,
 )
@@ -161,6 +162,39 @@ async def test_update_login_defense_settings_persists_values(monkeypatch):
     assert response.suspicious_trusted_networks == ["10.0.0.0/8", "203.0.113.10/32"]
 
 
+@pytest.mark.asyncio
+async def test_get_security_alert_settings_returns_defaults(monkeypatch):
+    StubSettingsRepository.store = {}
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    response = await settings_router.get_security_alert_settings(db=object(), _={"role": "admin"})
+
+    assert response.enabled is False
+    assert response.webhook_url is None
+    assert response.timeout_seconds == 5.0
+    assert response.alert_events == ["login_locked", "login_suspicious", "login_blocked_ip"]
+
+
+@pytest.mark.asyncio
+async def test_update_security_alert_settings_persists_values(monkeypatch):
+    StubSettingsRepository.store = {}
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    response = await settings_router.update_security_alert_settings(
+        request=SecurityAlertSettingsUpdateRequest(
+            enabled=True,
+            webhook_url=" https://hooks.example.com/security-alerts ",
+        ),
+        db=object(),
+        _={"role": "admin"},
+    )
+
+    assert StubSettingsRepository.store["security_alerts_enabled"] == "true"
+    assert StubSettingsRepository.store["security_alert_webhook_url"] == "https://hooks.example.com/security-alerts"
+    assert response.enabled is True
+    assert response.webhook_url == "https://hooks.example.com/security-alerts"
+
+
 def test_time_display_settings_update_request_rejects_invalid_value():
     with pytest.raises(ValidationError):
         TimeDisplaySettingsUpdateRequest(display_timezone="Mars/Base")
@@ -203,4 +237,12 @@ def test_login_defense_settings_update_request_rejects_invalid_trusted_network()
         LoginDefenseSettingsUpdateRequest(
             suspicious_block_enabled=True,
             suspicious_trusted_networks=["bad-network"],
+        )
+
+
+def test_security_alert_settings_update_request_rejects_invalid_webhook_url():
+    with pytest.raises(ValidationError):
+        SecurityAlertSettingsUpdateRequest(
+            enabled=True,
+            webhook_url="ftp://bad.example.com/hook",
         )

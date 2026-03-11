@@ -4,6 +4,7 @@ import {
   BackupPayload,
   CloudflareSettingsInput,
   LoginDefenseSettingsInput,
+  SecurityAlertSettingsInput,
   TimeDisplaySettingsInput,
   UpstreamSecuritySettingsInput,
   settingsApi,
@@ -37,6 +38,14 @@ export function useLoginDefenseSettings() {
   return useQuery({
     queryKey: ["settings", "login-defense"],
     queryFn: settingsApi.getLoginDefenseSettings,
+    staleTime: 30_000,
+  });
+}
+
+export function useSecurityAlertSettings() {
+  return useQuery({
+    queryKey: ["settings", "security-alerts"],
+    queryFn: settingsApi.getSecurityAlertSettings,
     staleTime: 30_000,
   });
 }
@@ -77,6 +86,16 @@ export function useUpdateLoginDefenseSettings() {
     mutationFn: (data: LoginDefenseSettingsInput) => settingsApi.updateLoginDefenseSettings(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "login-defense"] });
+    },
+  });
+}
+
+export function useUpdateSecurityAlertSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: SecurityAlertSettingsInput) => settingsApi.updateSecurityAlertSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "security-alerts"] });
     },
   });
 }

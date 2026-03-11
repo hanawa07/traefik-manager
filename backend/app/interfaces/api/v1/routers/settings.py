@@ -23,6 +23,8 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
     CloudflareSettingsUpdateRequest,
     LoginDefenseSettingsResponse,
     LoginDefenseSettingsUpdateRequest,
+    SecurityAlertSettingsResponse,
+    SecurityAlertSettingsUpdateRequest,
     TimeDisplaySettingsResponse,
     TimeDisplaySettingsUpdateRequest,
     UpstreamSecuritySettingsResponse,
@@ -32,6 +34,7 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
 )
 
 router = APIRouter()
+SECURITY_ALERT_EVENTS = ["login_locked", "login_suspicious", "login_blocked_ip"]
 
 
 async def get_cloudflare_client(db: AsyncSession = Depends(get_db)) -> CloudflareClient:
@@ -159,6 +162,33 @@ async def update_login_defense_settings(
     return await _build_login_defense_response(repo)
 
 
+@router.get("/security-alerts", response_model=SecurityAlertSettingsResponse, summary="보안 알림 설정 조회")
+async def get_security_alert_settings(
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    repo = SQLiteSystemSettingsRepository(db)
+    return await _build_security_alert_response(repo)
+
+
+@router.put("/security-alerts", response_model=SecurityAlertSettingsResponse, summary="보안 알림 설정 저장")
+async def update_security_alert_settings(
+    request: SecurityAlertSettingsUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_admin),
+):
+    repo = SQLiteSystemSettingsRepository(db)
+    await repo.set(
+        "security_alerts_enabled",
+        "true" if request.enabled else "false",
+    )
+    await repo.set(
+        "security_alert_webhook_url",
+        request.webhook_url or None,
+    )
+    return await _build_security_alert_response(repo)
+
+
 def _build_time_display_response(display_timezone: str | None) -> TimeDisplaySettingsResponse:
     normalized_timezone = normalize_display_timezone(display_timezone)
     server_context = get_server_time_context()
@@ -241,6 +271,21 @@ async def _build_login_defense_response(
         suspicious_trusted_networks=normalize_trusted_networks(
             _split_networks(await repo.get("login_suspicious_trusted_networks"))
         ),
+    )
+
+
+async def _build_security_alert_response(
+    repo: SQLiteSystemSettingsRepository,
+) -> SecurityAlertSettingsResponse:
+    return SecurityAlertSettingsResponse(
+        enabled=await _get_bool_setting(
+            repo,
+            "security_alerts_enabled",
+            default=False,
+        ),
+        webhook_url=await repo.get("security_alert_webhook_url"),
+        timeout_seconds=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS,
+        alert_events=SECURITY_ALERT_EVENTS,
     )
 
 
