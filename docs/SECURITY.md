@@ -62,8 +62,8 @@
 - Telegram은 bot token과 chat id를 사용하고, PagerDuty는 routing key를 사용하며, Generic/Slack/Discord/Teams는 webhook URL을 사용합니다. Email은 SMTP host/port/security/from/recipients를 사용합니다.
 - 웹훅 전송 실패는 서버 로그에만 남고, 로그인 차단/잠금 동작 자체는 중단하지 않습니다.
 
-**남은 보완점:**
-- passlib/bcrypt 관련 Python 3.13 전 경고 정리
+**추가 보완됨:**
+- `passlib` 의존을 제거하고 `bcrypt` 기반 자체 호환 구현으로 Python 3.13 전 `crypt` 경고를 정리했습니다.
 
 ---
 

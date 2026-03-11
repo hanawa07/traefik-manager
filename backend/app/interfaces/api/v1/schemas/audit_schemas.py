@@ -1,9 +1,11 @@
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Any
 
 class AuditLogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     actor: str
     action: str
@@ -13,10 +15,6 @@ class AuditLogResponse(BaseModel):
     detail: dict[str, Any] | None = None
     event: str | None = None
     created_at: datetime
-
-    class Config:
-        from_attributes = True
-
 
 class AuditSecurityEventResponse(BaseModel):
     id: UUID

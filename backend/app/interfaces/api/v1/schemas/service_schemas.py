@@ -1,6 +1,6 @@
 from ipaddress import ip_network
 import re
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from uuid import UUID
 from datetime import datetime
 
@@ -410,6 +410,8 @@ class ServiceUpdate(BaseModel):
 
 
 class ServiceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     name: str
     domain: str
@@ -460,10 +462,6 @@ class ServiceResponse(BaseModel):
         if isinstance(inner_value, str):
             return inner_value
         return value
-
-    class Config:
-        from_attributes = True
-
 
 class AuthentikGroupResponse(BaseModel):
     id: str

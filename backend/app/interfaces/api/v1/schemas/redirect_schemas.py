@@ -3,7 +3,7 @@ from datetime import datetime
 from urllib.parse import urlparse
 from uuid import UUID
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class RedirectHostCreate(BaseModel):
@@ -63,6 +63,8 @@ class RedirectHostUpdate(BaseModel):
 
 
 class RedirectHostResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     domain: str
     target_url: str
@@ -78,6 +80,3 @@ class RedirectHostResponse(BaseModel):
         if isinstance(inner_value, str):
             return inner_value
         return value
-
-    class Config:
-        from_attributes = True

@@ -114,3 +114,26 @@ async def test_create_service_propagates_dns_guard_failure():
 
     with pytest.raises(ValueError, match="strict rejected: example.com"):
         await use_cases.create_service(make_payload())
+
+
+@pytest.mark.asyncio
+async def test_create_service_hashes_basic_auth_users_with_bcrypt_htpasswd():
+    use_cases = ServiceUseCases(
+        repository=StubServiceRepository(),
+        middleware_template_repository=StubMiddlewareTemplateRepository(),
+        file_writer=StubFileWriter(),
+        authentik_client=StubAuthentikClient(),
+        cloudflare_client=StubCloudflareClient(),
+    )
+
+    service = await use_cases.create_service(
+        make_payload(
+            basic_auth_enabled=True,
+            basic_auth_credentials=[{"username": "alice", "password": "secret123"}],
+        )
+    )
+
+    assert len(service.basic_auth_users) == 1
+    username, hashed_password = service.basic_auth_users[0].split(":", 1)
+    assert username == "alice"
+    assert hashed_password.startswith("$2")

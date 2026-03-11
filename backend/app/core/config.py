@@ -1,7 +1,9 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
     APP_ENV: str = "development"
     LOG_LEVEL: str = "INFO"
     APP_SECRET_KEY: str
@@ -60,9 +62,4 @@ class Settings(BaseSettings):
 
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str
-
-    class Config:
-        env_file = ".env"
-
-
 settings = Settings()

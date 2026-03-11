@@ -1,8 +1,7 @@
 import logging
 from uuid import UUID
 
-from passlib.hash import apr_md5_crypt
-
+from app.core.security import hash_basic_auth_password
 from app.domain.proxy.entities.middleware_template import MiddlewareTemplate
 from app.domain.proxy.entities.service import Service
 from app.domain.proxy.repositories.middleware_template_repository import (
@@ -437,7 +436,7 @@ class ServiceUseCases:
             
             if password:
                 # 새 비밀번호가 입력된 경우 해싱
-                users.append(f"{username}:{apr_md5_crypt.hash(password)}")
+                users.append(f"{username}:{hash_basic_auth_password(password)}")
             elif username in existing_hash_map:
                 # 비밀번호가 없고 기존 사용자인 경우 기존 해시 유지
                 users.append(f"{username}:{existing_hash_map[username]}")

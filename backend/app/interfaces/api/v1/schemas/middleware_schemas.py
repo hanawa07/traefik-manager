@@ -4,7 +4,7 @@ import re
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 MiddlewareTemplateType = Literal["ipAllowList", "rateLimit", "basicAuth", "headers"]
@@ -52,6 +52,8 @@ class MiddlewareTemplateUpdate(BaseModel):
 
 
 class MiddlewareTemplateResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     name: str
     type: MiddlewareTemplateType
@@ -59,10 +61,6 @@ class MiddlewareTemplateResponse(BaseModel):
     shared_name: str
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
 
 def _validate_template_config(template_type: MiddlewareTemplateType, config: dict) -> None:
     if not isinstance(config, dict):
