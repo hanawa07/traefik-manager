@@ -5,6 +5,7 @@ import { Pencil, Plus, Trash2, Users } from "lucide-react";
 
 import Modal from "@/shared/components/Modal";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
+import { SettingsCardHeader } from "@/features/settings/components/SettingsCardPrimitives";
 import { User } from "../api/userApi";
 import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from "../hooks/useUsers";
 import UserForm, { UserFormValue } from "./UserForm";
@@ -21,19 +22,17 @@ export default function UserManagementSection() {
 
   return (
     <div className="card p-6 h-full">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Users className="h-5 w-5 text-emerald-600" />
-          <div>
-            <h2 className="font-semibold text-gray-900">사용자 관리</h2>
-            <p className="text-sm text-gray-500">관리자와 뷰어 계정을 관리합니다</p>
-          </div>
-        </div>
-        <button className="btn-primary inline-flex items-center gap-2" onClick={() => setIsCreateOpen(true)}>
-          <Plus className="h-4 w-4" />
-          사용자 추가
-        </button>
-      </div>
+      <SettingsCardHeader
+        icon={<Users className="h-5 w-5 text-emerald-600" />}
+        title="사용자 관리"
+        description="관리자와 뷰어 계정을 생성, 수정, 비활성화합니다."
+        action={
+          <button className="btn-primary inline-flex items-center gap-2 py-1.5 text-xs" onClick={() => setIsCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            사용자 추가
+          </button>
+        }
+      />
 
       {isLoading ? (
         <div className="space-y-3">

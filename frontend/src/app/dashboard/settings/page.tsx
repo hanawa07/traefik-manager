@@ -5,7 +5,6 @@ import {
   Clock3,
   Cloud,
   Download,
-  Edit2,
   Laptop,
   LogOut,
   Save,
@@ -24,6 +23,12 @@ import {
   UpstreamSecurityPreset,
   UpstreamSecuritySettingsInput,
 } from "@/features/settings/api/settingsApi";
+import {
+  SettingsActionRow,
+  SettingsCardHeader,
+  SettingsSummary,
+  SettingsSummaryRow,
+} from "@/features/settings/components/SettingsCardPrimitives";
 import {
   useCloudflareStatus,
   useUpdateCloudflareSettings,
@@ -129,62 +134,6 @@ const SECURITY_ALERT_PROVIDER_OPTIONS = [
     placeholder: "",
   },
 ] as const;
-
-function SettingsCardHeader({
-  icon,
-  title,
-  description,
-  canEdit,
-  onEdit,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  canEdit?: boolean;
-  onEdit?: () => void;
-}) {
-  return (
-    <>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
-          {icon}
-          <h2 className="font-semibold text-gray-900">{title}</h2>
-        </div>
-        {canEdit && onEdit ? (
-          <button onClick={onEdit} className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs">
-            <Edit2 className="w-3.5 h-3.5" /> 편집
-          </button>
-        ) : null}
-      </div>
-      <p className="text-xs text-gray-400 mb-4">{description}</p>
-    </>
-  );
-}
-
-function SettingsSummary({ children }: { children: React.ReactNode }) {
-  return <div className="space-y-2 text-sm">{children}</div>;
-}
-
-function SettingsSummaryRow({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string;
-  value: React.ReactNode;
-  mono?: boolean;
-}) {
-  return (
-    <div className="flex justify-between gap-4">
-      <span className="text-gray-500">{label}</span>
-      <span className={`${mono ? "font-mono " : ""}text-right text-gray-700`}>{value}</span>
-    </div>
-  );
-}
-
-function SettingsActionRow({ children }: { children: React.ReactNode }) {
-  return <div className="flex gap-2 pt-2">{children}</div>;
-}
 
 function parseMultivalueText(value: string): string[] {
   return value
@@ -1054,42 +1003,34 @@ export default function SettingsPage() {
             </div>
           ) : (
             <SettingsSummary>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">계정 잠금 정책</span>
-                <span className="text-right text-gray-700">
-                  {loginDefenseSettings?.failure_window_minutes}분 / {loginDefenseSettings?.max_failed_attempts}회
-                  실패 시 {loginDefenseSettings?.lockout_minutes}분 잠금
-                </span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">이상 징후 감지</span>
-                <span className="text-right text-gray-700">
-                  {loginDefenseSettings?.suspicious_window_minutes}분 / {loginDefenseSettings?.suspicious_failure_count}
-                  회 실패 / 사용자명 {loginDefenseSettings?.suspicious_username_count}개
-                </span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">자동 차단</span>
-                <span className="text-gray-700">
-                  {loginDefenseSettings?.suspicious_block_enabled
+              <SettingsSummaryRow
+                label="계정 잠금 정책"
+                value={`${loginDefenseSettings?.failure_window_minutes}분 / ${loginDefenseSettings?.max_failed_attempts}회 실패 시 ${loginDefenseSettings?.lockout_minutes}분 잠금`}
+              />
+              <SettingsSummaryRow
+                label="이상 징후 감지"
+                value={`${loginDefenseSettings?.suspicious_window_minutes}분 / ${loginDefenseSettings?.suspicious_failure_count}회 실패 / 사용자명 ${loginDefenseSettings?.suspicious_username_count}개`}
+              />
+              <SettingsSummaryRow
+                label="자동 차단"
+                value={
+                  loginDefenseSettings?.suspicious_block_enabled
                     ? `${loginDefenseSettings.suspicious_block_minutes}분 활성화`
-                    : "비활성화"}
-                </span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">반복 차단 상승</span>
-                <span className="text-right text-gray-700">
-                  {loginDefenseSettings?.suspicious_block_escalation_enabled
+                    : "비활성화"
+                }
+              />
+              <SettingsSummaryRow
+                label="반복 차단 상승"
+                value={
+                  loginDefenseSettings?.suspicious_block_escalation_enabled
                     ? `${loginDefenseSettings.suspicious_block_escalation_window_minutes}분 창 / x${loginDefenseSettings.suspicious_block_escalation_multiplier} / 최대 ${loginDefenseSettings.suspicious_block_max_minutes}분`
-                    : "비활성화"}
-                </span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">추가 로그인 검증</span>
-                <span className="text-right text-gray-700">
-                  {getTurnstileModeLabel(loginDefenseSettings?.turnstile_mode ?? "off")}
-                </span>
-              </div>
+                    : "비활성화"
+                }
+              />
+              <SettingsSummaryRow
+                label="추가 로그인 검증"
+                value={getTurnstileModeLabel(loginDefenseSettings?.turnstile_mode ?? "off")}
+              />
               {loginDefenseSettings?.turnstile_mode !== "off" ? (
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
                   <p>모드: {getTurnstileModeLabel(loginDefenseSettings?.turnstile_mode ?? "off")}</p>
@@ -1418,99 +1359,77 @@ export default function SettingsPage() {
             </div>
           ) : (
             <SettingsSummary>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">상태</span>
-                <span className="text-gray-700">{securityAlertSettings?.enabled ? "활성화" : "비활성화"}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">채널</span>
-                <span className="text-right text-gray-700">{currentSecurityAlertProvider.label}</span>
-              </div>
+              <SettingsSummaryRow
+                label="상태"
+                value={securityAlertSettings?.enabled ? "활성화" : "비활성화"}
+              />
+              <SettingsSummaryRow label="채널" value={currentSecurityAlertProvider.label} />
               {securityAlertSettings?.provider === "telegram" ? (
                 <>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">Bot Token</span>
-                    <span className="text-right text-gray-700">
-                      {securityAlertSettings.telegram_bot_token_configured ? "설정됨" : "(미설정)"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">Chat ID</span>
-                    <span className="font-mono text-right text-gray-700">
-                      {securityAlertSettings.telegram_chat_id || "(미설정)"}
-                    </span>
-                  </div>
+                  <SettingsSummaryRow
+                    label="Bot Token"
+                    value={securityAlertSettings.telegram_bot_token_configured ? "설정됨" : "(미설정)"}
+                  />
+                  <SettingsSummaryRow
+                    label="Chat ID"
+                    value={securityAlertSettings.telegram_chat_id || "(미설정)"}
+                    mono
+                  />
                 </>
               ) : securityAlertSettings?.provider === "email" ? (
                 <>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">SMTP</span>
-                    <span className="font-mono text-right text-gray-700">
-                      {securityAlertSettings.email_host
+                  <SettingsSummaryRow
+                    label="SMTP"
+                    value={
+                      securityAlertSettings.email_host
                         ? `${securityAlertSettings.email_host}:${securityAlertSettings.email_port}`
-                        : "(미설정)"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">보안</span>
-                    <span className="text-right text-gray-700">{securityAlertSettings.email_security}</span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">SMTP 계정</span>
-                    <span className="font-mono text-right text-gray-700">
-                      {securityAlertSettings.email_username || "(미설정)"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">비밀번호</span>
-                    <span className="text-right text-gray-700">
-                      {securityAlertSettings.email_password_configured ? "설정됨" : "(미설정)"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">From</span>
-                    <span className="font-mono text-right text-gray-700">
-                      {securityAlertSettings.email_from || "(미설정)"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">Recipients</span>
-                    <span className="font-mono text-right text-gray-700">
-                      {securityAlertSettings.email_recipients.length > 0
+                        : "(미설정)"
+                    }
+                    mono
+                  />
+                  <SettingsSummaryRow label="보안" value={securityAlertSettings.email_security} />
+                  <SettingsSummaryRow
+                    label="SMTP 계정"
+                    value={securityAlertSettings.email_username || "(미설정)"}
+                    mono
+                  />
+                  <SettingsSummaryRow
+                    label="비밀번호"
+                    value={securityAlertSettings.email_password_configured ? "설정됨" : "(미설정)"}
+                  />
+                  <SettingsSummaryRow
+                    label="From"
+                    value={securityAlertSettings.email_from || "(미설정)"}
+                    mono
+                  />
+                  <SettingsSummaryRow
+                    label="Recipients"
+                    value={
+                      securityAlertSettings.email_recipients.length > 0
                         ? securityAlertSettings.email_recipients.join(", ")
-                        : "(미설정)"}
-                    </span>
-                  </div>
+                        : "(미설정)"
+                    }
+                    mono
+                  />
                 </>
               ) : securityAlertSettings?.provider === "pagerduty" ? (
-                <div className="flex justify-between gap-4">
-                  <span className="text-gray-500">Routing Key</span>
-                  <span className="text-right text-gray-700">
-                    {securityAlertSettings.pagerduty_routing_key_configured ? "설정됨" : "(미설정)"}
-                  </span>
-                </div>
+                <SettingsSummaryRow
+                  label="Routing Key"
+                  value={securityAlertSettings.pagerduty_routing_key_configured ? "설정됨" : "(미설정)"}
+                />
               ) : (
-                <div className="flex justify-between gap-4">
-                  <span className="text-gray-500">Webhook URL</span>
-                  <span className="font-mono text-right text-gray-700">
-                    {securityAlertSettings?.webhook_url || "(미설정)"}
-                  </span>
-                </div>
+                <SettingsSummaryRow
+                  label="Webhook URL"
+                  value={securityAlertSettings?.webhook_url || "(미설정)"}
+                  mono
+                />
               )}
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">포맷</span>
-                <span className="text-right text-gray-700">{currentSecurityAlertProvider.description}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">전송 이벤트</span>
-                <span className="text-right text-gray-700">
-                  {(securityAlertSettings?.alert_events ?? []).join(", ")}
-                </span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">타임아웃</span>
-                <span className="text-gray-700">{securityAlertSettings?.timeout_seconds ?? 5}초</span>
-              </div>
+              <SettingsSummaryRow label="포맷" value={currentSecurityAlertProvider.description} />
+              <SettingsSummaryRow
+                label="전송 이벤트"
+                value={(securityAlertSettings?.alert_events ?? []).join(", ")}
+              />
+              <SettingsSummaryRow label="타임아웃" value={`${securityAlertSettings?.timeout_seconds ?? 5}초`} />
               <p className="text-xs text-gray-500">
                 알림 실패는 운영 가시성에만 영향을 주고, 로그인 차단/잠금 로직 자체는 중단하지 않습니다.
               </p>
@@ -1519,26 +1438,22 @@ export default function SettingsPage() {
         </div>
 
         <div className="card p-6 h-full">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-5 h-5 text-amber-600" />
-              <div>
-                <h2 className="font-semibold text-gray-900">세션 관리</h2>
-                <p className="text-xs text-gray-400 mt-1">
-                  현재 로그인된 브라우저 세션을 확인하고, 필요하면 개별 종료 또는 전체 로그아웃할 수 있습니다.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="btn-secondary inline-flex items-center gap-2 text-xs py-1.5"
-              onClick={handleLogoutAllSessions}
-              disabled={logoutAllSessions.isPending || isSessionsLoading || !sessionData?.sessions?.length}
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              {logoutAllSessions.isPending ? "로그아웃 중..." : "모든 세션 로그아웃"}
-            </button>
-          </div>
+          <SettingsCardHeader
+            icon={<ShieldCheck className="w-5 h-5 text-amber-600" />}
+            title="세션 관리"
+            description="현재 로그인된 브라우저 세션을 확인하고, 필요하면 개별 종료 또는 전체 로그아웃할 수 있습니다."
+            action={
+              <button
+                type="button"
+                className="btn-secondary inline-flex items-center gap-2 py-1.5 text-xs"
+                onClick={handleLogoutAllSessions}
+                disabled={logoutAllSessions.isPending || isSessionsLoading || !sessionData?.sessions?.length}
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                {logoutAllSessions.isPending ? "로그아웃 중..." : "모든 세션 로그아웃"}
+              </button>
+            }
+          />
 
           {isSessionsLoading ? (
             <div className="space-y-3">
@@ -1572,38 +1487,24 @@ export default function SettingsPage() {
                         ) : null}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-600">
-                        <div className="flex justify-between gap-4">
-                          <span className="text-gray-500">세션 ID</span>
-                          <span className="font-mono text-gray-700">{session.session_id}</span>
-                        </div>
-                        <div className="flex justify-between gap-4">
-                          <span className="text-gray-500">IP</span>
-                          <span className="font-mono text-gray-700">{session.ip_address || "-"}</span>
-                        </div>
-                        <div className="flex justify-between gap-4">
-                          <span className="text-gray-500">발급 시각</span>
-                          <span className="text-gray-700">
-                            {formatDateTime(session.issued_at, timeDisplaySettings?.display_timezone)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between gap-4">
-                          <span className="text-gray-500">최근 활동</span>
-                          <span className="text-gray-700">
-                            {formatDateTime(session.last_seen_at, timeDisplaySettings?.display_timezone)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between gap-4">
-                          <span className="text-gray-500">절대 만료</span>
-                          <span className="text-gray-700">
-                            {formatDateTime(session.expires_at, timeDisplaySettings?.display_timezone)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between gap-4">
-                          <span className="text-gray-500">유휴 만료</span>
-                          <span className="text-gray-700">
-                            {formatDateTime(session.idle_expires_at, timeDisplaySettings?.display_timezone)}
-                          </span>
-                        </div>
+                        <SettingsSummaryRow label="세션 ID" value={session.session_id} mono />
+                        <SettingsSummaryRow label="IP" value={session.ip_address || "-"} mono />
+                        <SettingsSummaryRow
+                          label="발급 시각"
+                          value={formatDateTime(session.issued_at, timeDisplaySettings?.display_timezone)}
+                        />
+                        <SettingsSummaryRow
+                          label="최근 활동"
+                          value={formatDateTime(session.last_seen_at, timeDisplaySettings?.display_timezone)}
+                        />
+                        <SettingsSummaryRow
+                          label="절대 만료"
+                          value={formatDateTime(session.expires_at, timeDisplaySettings?.display_timezone)}
+                        />
+                        <SettingsSummaryRow
+                          label="유휴 만료"
+                          value={formatDateTime(session.idle_expires_at, timeDisplaySettings?.display_timezone)}
+                        />
                       </div>
                     </div>
 
@@ -1722,10 +1623,11 @@ export default function SettingsPage() {
         </div>
 
         <div className="card p-6 h-full">
-          <div className="flex items-center gap-3 mb-4">
-            <Settings className="w-5 h-5 text-indigo-600" />
-            <h2 className="font-semibold text-gray-900">백업 / 복원</h2>
-          </div>
+          <SettingsCardHeader
+            icon={<Settings className="w-5 h-5 text-indigo-600" />}
+            title="백업 / 복원"
+            description="현재 설정을 JSON으로 내보내거나, 백업 파일을 병합 또는 덮어쓰기 방식으로 복원합니다."
+          />
 
           <div className="space-y-4">
             <button
