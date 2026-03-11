@@ -203,3 +203,84 @@ async def test_enforce_suspicious_ip_block_ignores_old_suspicious_event(monkeypa
 
     assert result is False
     assert recorded == []
+
+
+@pytest.mark.asyncio
+async def test_record_suspicious_event_skips_trusted_client_ip(monkeypatch):
+    now = datetime(2026, 3, 11, 15, 0, tzinfo=timezone.utc)
+    logs = [
+        make_log(created_at=now - timedelta(minutes=2), event="login_failure", client_ip="10.20.30.40", resource_name="alice"),
+        make_log(created_at=now - timedelta(minutes=3), event="login_failure", client_ip="10.20.30.40", resource_name="bob"),
+        make_log(created_at=now - timedelta(minutes=4), event="login_failure", client_ip="10.20.30.40", resource_name="charlie"),
+        make_log(created_at=now - timedelta(minutes=5), event="login_locked", client_ip="10.20.30.40", resource_name="alice"),
+        make_log(created_at=now - timedelta(minutes=6), event="login_failure", client_ip="10.20.30.40", resource_name="dana"),
+    ]
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(login_anomaly_service.audit_service, "record", fake_record, raising=False)
+
+    result = await login_anomaly_service.record_suspicious_login_activity_if_needed(
+        db=StubDbSession(logs),
+        client_ip="10.20.30.40",
+        now=now,
+        window=timedelta(minutes=15),
+        min_failures=5,
+        min_unique_usernames=3,
+        trusted_networks=["10.0.0.0/8"],
+    )
+
+    assert result is False
+    assert recorded == []
+
+
+@pytest.mark.asyncio
+async def test_enforce_suspicious_ip_block_skips_trusted_client_ip(monkeypatch):
+    now = datetime(2026, 3, 11, 15, 0, tzinfo=timezone.utc)
+    logs = [
+        make_log(created_at=now - timedelta(minutes=2), event="login_suspicious", client_ip="10.20.30.40", resource_name="10.20.30.40"),
+    ]
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(login_anomaly_service.audit_service, "record", fake_record, raising=False)
+
+    result = await login_anomaly_service.enforce_suspicious_ip_block_if_needed(
+        db=StubDbSession(logs),
+        client_ip="10.20.30.40",
+        now=now,
+        block_window=timedelta(minutes=30),
+        trusted_networks=["10.0.0.0/8"],
+    )
+
+    assert result is False
+    assert recorded == []
+
+
+@pytest.mark.asyncio
+async def test_enforce_suspicious_ip_block_respects_disabled_policy(monkeypatch):
+    now = datetime(2026, 3, 11, 15, 0, tzinfo=timezone.utc)
+    logs = [
+        make_log(created_at=now - timedelta(minutes=2), event="login_suspicious", client_ip="1.2.3.4", resource_name="1.2.3.4"),
+    ]
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(login_anomaly_service.audit_service, "record", fake_record, raising=False)
+
+    result = await login_anomaly_service.enforce_suspicious_ip_block_if_needed(
+        db=StubDbSession(logs),
+        client_ip="1.2.3.4",
+        now=now,
+        block_window=timedelta(minutes=30),
+        block_enabled=False,
+    )
+
+    assert result is False
+    assert recorded == []

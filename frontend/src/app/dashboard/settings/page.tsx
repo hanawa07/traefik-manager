@@ -19,6 +19,7 @@ import { useLogoutAllSessions, useRevokeSession, useSessions } from "@/features/
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import {
   BackupPayload,
+  LoginDefenseSettingsInput,
   UpstreamSecurityPreset,
   UpstreamSecuritySettingsInput,
 } from "@/features/settings/api/settingsApi";
@@ -27,9 +28,11 @@ import {
   useUpdateCloudflareSettings,
   useExportBackup,
   useImportBackup,
+  useLoginDefenseSettings,
   useTimeDisplaySettings,
   useUpstreamSecuritySettings,
   useUpdateTimeDisplaySettings,
+  useUpdateLoginDefenseSettings,
   useUpdateUpstreamSecuritySettings,
 } from "@/features/settings/hooks/useSettings";
 import UserManagementSection from "@/features/users/components/UserManagementSection";
@@ -46,7 +49,15 @@ function createDefaultUpstreamSecurityForm(): UpstreamSecuritySettingsInput & { 
   };
 }
 
-function parseDomainSuffixText(value: string): string[] {
+function createDefaultLoginDefenseForm(): LoginDefenseSettingsInput & { suspicious_trusted_networks_text: string } {
+  return {
+    suspicious_block_enabled: true,
+    suspicious_trusted_networks: [],
+    suspicious_trusted_networks_text: "",
+  };
+}
+
+function parseMultivalueText(value: string): string[] {
   return value
     .split(/\r?\n|,/)
     .map((item) => item.trim())
@@ -97,14 +108,19 @@ export default function SettingsPage() {
   const [timeDisplayErrorMessage, setTimeDisplayErrorMessage] = useState("");
   const [isEditingUpstreamSecurity, setIsEditingUpstreamSecurity] = useState(false);
   const [upstreamSecurityForm, setUpstreamSecurityForm] = useState(createDefaultUpstreamSecurityForm());
+  const [isEditingLoginDefense, setIsEditingLoginDefense] = useState(false);
+  const [loginDefenseForm, setLoginDefenseForm] = useState(createDefaultLoginDefenseForm());
+  const [loginDefenseErrorMessage, setLoginDefenseErrorMessage] = useState("");
 
   const { data: cloudflareStatus, isLoading: isCloudflareLoading } = useCloudflareStatus();
   const { data: timeDisplaySettings, isLoading: isTimeDisplayLoading } = useTimeDisplaySettings();
   const { data: upstreamSecuritySettings, isLoading: isUpstreamSecurityLoading } = useUpstreamSecuritySettings();
+  const { data: loginDefenseSettings, isLoading: isLoginDefenseLoading } = useLoginDefenseSettings();
   const { data: sessionData, isLoading: isSessionsLoading } = useSessions();
   const updateCloudflare = useUpdateCloudflareSettings();
   const updateTimeDisplay = useUpdateTimeDisplaySettings();
   const updateUpstreamSecurity = useUpdateUpstreamSecuritySettings();
+  const updateLoginDefense = useUpdateLoginDefenseSettings();
   const logoutAllSessions = useLogoutAllSessions();
   const revokeSession = useRevokeSession();
   const exportBackup = useExportBackup();
@@ -168,11 +184,42 @@ export default function SettingsPage() {
     await updateUpstreamSecurity.mutateAsync({
       dns_strict_mode: upstreamSecurityForm.dns_strict_mode,
       allowlist_enabled: upstreamSecurityForm.allowlist_enabled,
-      allowed_domain_suffixes: parseDomainSuffixText(upstreamSecurityForm.allowed_domain_suffixes_text),
+      allowed_domain_suffixes: parseMultivalueText(upstreamSecurityForm.allowed_domain_suffixes_text),
       allow_docker_service_names: upstreamSecurityForm.allow_docker_service_names,
       allow_private_networks: upstreamSecurityForm.allow_private_networks,
     });
     setIsEditingUpstreamSecurity(false);
+  };
+
+  const handleEditLoginDefense = () => {
+    setLoginDefenseForm({
+      suspicious_block_enabled: loginDefenseSettings?.suspicious_block_enabled ?? true,
+      suspicious_trusted_networks: loginDefenseSettings?.suspicious_trusted_networks ?? [],
+      suspicious_trusted_networks_text: (loginDefenseSettings?.suspicious_trusted_networks ?? []).join("\n"),
+    });
+    setLoginDefenseErrorMessage("");
+    setIsEditingLoginDefense(true);
+  };
+
+  const handleSaveLoginDefense = async () => {
+    setLoginDefenseErrorMessage("");
+    try {
+      await updateLoginDefense.mutateAsync({
+        suspicious_block_enabled: loginDefenseForm.suspicious_block_enabled,
+        suspicious_trusted_networks: parseMultivalueText(loginDefenseForm.suspicious_trusted_networks_text),
+      });
+      setIsEditingLoginDefense(false);
+    } catch (error) {
+      const detail = (error as { response?: { data?: { detail?: string | Array<{ msg?: string }> } } })?.response
+        ?.data?.detail;
+      setLoginDefenseErrorMessage(
+        typeof detail === "string"
+          ? detail
+          : Array.isArray(detail)
+            ? detail[0]?.msg || "로그인 방어 설정 저장에 실패했습니다"
+            : "로그인 방어 설정 저장에 실패했습니다",
+      );
+    }
   };
 
   const handleExport = async () => {
@@ -593,6 +640,150 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-500 pt-1">
                 allowlist는 저장 시점에 외부 FQDN, Docker 서비스명, IP 리터럴을 정책대로 제한합니다. strict mode는
                 도메인 업스트림을 DNS 재해석해서 금지 주소 여부를 추가로 검사합니다.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="card p-6 xl:col-span-2">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="w-5 h-5 text-amber-600" />
+              <h2 className="font-semibold text-gray-900">로그인 방어</h2>
+            </div>
+            {canManage && !isEditingLoginDefense && !isLoginDefenseLoading && (
+              <button
+                onClick={handleEditLoginDefense}
+                className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
+              >
+                <Edit2 className="w-3.5 h-3.5" /> 편집
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-gray-400 mb-4">
+            사용자별 계정 잠금은 항상 유지하고, 반복 실패 IP에 대한 자동 차단과 신뢰 네트워크 예외만 별도로 조정합니다.
+          </p>
+
+          {isLoginDefenseLoading ? (
+            <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+          ) : isEditingLoginDefense ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
+                <p>
+                  계정 잠금 정책: {loginDefenseSettings?.failure_window_minutes}분 동안 {loginDefenseSettings?.max_failed_attempts}
+                  회 실패 시 {loginDefenseSettings?.lockout_minutes}분 잠금
+                </p>
+                <p>
+                  이상 징후 기준: {loginDefenseSettings?.suspicious_window_minutes}분 동안 {loginDefenseSettings?.suspicious_failure_count}
+                  회 실패 + 서로 다른 사용자명 {loginDefenseSettings?.suspicious_username_count}개 이상
+                </p>
+                <p>
+                  자동 차단 기간: {loginDefenseSettings?.suspicious_block_minutes}분
+                </p>
+              </div>
+
+              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded accent-amber-600"
+                  checked={loginDefenseForm.suspicious_block_enabled}
+                  onChange={(e) =>
+                    setLoginDefenseForm((current) => ({
+                      ...current,
+                      suspicious_block_enabled: e.target.checked,
+                    }))
+                  }
+                />
+                <span>
+                  <span className="block font-medium text-gray-900">이상 징후 IP 자동 차단 활성화</span>
+                  <span className="block text-xs text-gray-500 mt-1">
+                    `login_suspicious`가 기록된 IP는 일정 시간 로그인 단계에서 바로 차단합니다.
+                  </span>
+                </span>
+              </label>
+
+              <div>
+                <label className="label">신뢰 네트워크 예외 (CIDR / IP)</label>
+                <textarea
+                  className="input min-h-28 py-3 font-mono text-sm"
+                  placeholder={"예:\n10.0.0.0/8\n192.168.0.0/16\n203.0.113.10"}
+                  value={loginDefenseForm.suspicious_trusted_networks_text}
+                  onChange={(e) =>
+                    setLoginDefenseForm((current) => ({
+                      ...current,
+                      suspicious_trusted_networks_text: e.target.value,
+                    }))
+                  }
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  줄바꿈 또는 쉼표로 구분합니다. 여기에 포함된 IP는 이상 징후 기록과 자동 차단에서 제외됩니다. 사용자별
+                  계정 잠금은 그대로 적용됩니다.
+                </p>
+              </div>
+
+              {loginDefenseErrorMessage && <p className="text-xs text-red-600">{loginDefenseErrorMessage}</p>}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
+                  onClick={handleSaveLoginDefense}
+                  disabled={updateLoginDefense.isPending}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {updateLoginDefense.isPending ? "저장 중..." : "저장"}
+                </button>
+                <button
+                  className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
+                  onClick={() => setIsEditingLoginDefense(false)}
+                >
+                  <X className="w-3.5 h-3.5" /> 취소
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">계정 잠금 정책</span>
+                <span className="text-right text-gray-700">
+                  {loginDefenseSettings?.failure_window_minutes}분 / {loginDefenseSettings?.max_failed_attempts}회
+                  실패 시 {loginDefenseSettings?.lockout_minutes}분 잠금
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">이상 징후 감지</span>
+                <span className="text-right text-gray-700">
+                  {loginDefenseSettings?.suspicious_window_minutes}분 / {loginDefenseSettings?.suspicious_failure_count}
+                  회 실패 / 사용자명 {loginDefenseSettings?.suspicious_username_count}개
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">자동 차단</span>
+                <span className="text-gray-700">
+                  {loginDefenseSettings?.suspicious_block_enabled
+                    ? `${loginDefenseSettings.suspicious_block_minutes}분 활성화`
+                    : "비활성화"}
+                </span>
+              </div>
+              {loginDefenseSettings?.suspicious_trusted_networks?.length ? (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-2 text-xs font-medium text-gray-600">신뢰 네트워크 예외</p>
+                  <div className="flex flex-wrap gap-2">
+                    {loginDefenseSettings.suspicious_trusted_networks.map((network) => (
+                      <span
+                        key={network}
+                        className="rounded-full border border-gray-200 bg-white px-2.5 py-1 font-mono text-[11px] text-gray-700"
+                      >
+                        {network}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">등록된 신뢰 네트워크 예외가 없습니다.</p>
+              )}
+              <p className="text-xs text-gray-500">
+                신뢰 네트워크 예외는 내부 NAT, VPN, 사내망처럼 반복 실패가 운영 노이즈로 잡힐 수 있는 경로에만 제한적으로
+                사용하세요.
               </p>
             </div>
           )}

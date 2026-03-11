@@ -4,6 +4,9 @@ import { Server, Lock, Shield, AlertTriangle, Activity } from "lucide-react";
 import Link from "next/link";
 import { useTraefikHealth, useTraefikRouterStatus } from "@/features/traefik/hooks/useTraefik";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
+import { useAuditSecuritySummary } from "@/features/audit/hooks/useAudit";
+import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
+import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 function StatCard({
   icon: Icon,
@@ -38,6 +41,8 @@ export default function DashboardPage() {
   const { data: healthData = {} } = useAllServicesHealth();
   const { data: traefikHealth } = useTraefikHealth();
   const { data: routerStatus } = useTraefikRouterStatus();
+  const { data: securitySummary } = useAuditSecuritySummary({ recent_limit: 3 });
+  const { data: timeDisplaySettings } = useTimeDisplaySettings();
 
   const totalServices = services.length;
   const authEnabled = services.filter((s) => s.auth_mode !== "none" || s.basic_auth_enabled).length;
@@ -66,6 +71,64 @@ export default function DashboardPage() {
           {traefikHealth?.message || "Traefik 상태를 확인하는 중입니다"}
           {traefikHealth?.version ? ` · 버전 ${traefikHealth.version}` : ""}
         </p>
+      </div>
+
+      <div className="card mb-6 p-5">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">보안 경고 요약</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              최근 {securitySummary?.window_minutes ?? 1440}분 기준 로그인 방어 이벤트 요약입니다.
+            </p>
+          </div>
+          <Link href="/dashboard/audit" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+            감사 로그 보기
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard icon={AlertTriangle} label="로그인 실패" value={securitySummary?.failed_login_count ?? 0} color="bg-slate-500" />
+          <StatCard icon={Lock} label="계정 잠금" value={securitySummary?.locked_login_count ?? 0} color="bg-amber-500" />
+          <StatCard icon={Shield} label="이상 징후" value={securitySummary?.suspicious_ip_count ?? 0} color="bg-orange-500" />
+          <StatCard icon={Server} label="IP 차단" value={securitySummary?.blocked_ip_count ?? 0} color="bg-rose-500" />
+        </div>
+
+        <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <div className="mb-2 flex items-center justify-between gap-4">
+            <h3 className="text-sm font-semibold text-gray-900">최근 보안 이벤트</h3>
+            <span className="text-xs text-gray-500">잠금/이상 징후/IP 차단만 표시</span>
+          </div>
+          {!securitySummary?.recent_events?.length ? (
+            <p className="text-sm text-gray-500">최근 보안 경고가 없습니다.</p>
+          ) : (
+            <div className="space-y-2">
+              {securitySummary.recent_events.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 md:flex-row md:items-center md:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900">
+                      {event.event === "login_blocked_ip"
+                        ? "IP 차단"
+                        : event.event === "login_suspicious"
+                          ? "이상 징후"
+                          : "계정 잠금"}
+                      <span className="ml-2 font-normal text-gray-600">{event.resource_name}</span>
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      actor {event.actor}
+                      {event.client_ip ? ` · IP ${event.client_ip}` : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-gray-500">
+                    {formatDateTime(event.created_at, timeDisplaySettings?.display_timezone)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 통계 카드 */}

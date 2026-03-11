@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.time_display import (
     get_display_timezone_label,
     get_display_timezone_name,
@@ -20,11 +21,14 @@ from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.schemas.settings_schemas import (
     CloudflareSettingsStatusResponse,
     CloudflareSettingsUpdateRequest,
+    LoginDefenseSettingsResponse,
+    LoginDefenseSettingsUpdateRequest,
     TimeDisplaySettingsResponse,
     TimeDisplaySettingsUpdateRequest,
     UpstreamSecuritySettingsResponse,
     UpstreamSecuritySettingsUpdateRequest,
     UpstreamSecurityPresetResponse,
+    normalize_trusted_networks,
 )
 
 router = APIRouter()
@@ -128,6 +132,33 @@ async def update_upstream_security_settings(
     return await _build_upstream_security_response(repo)
 
 
+@router.get("/login-defense", response_model=LoginDefenseSettingsResponse, summary="로그인 방어 설정 조회")
+async def get_login_defense_settings(
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    repo = SQLiteSystemSettingsRepository(db)
+    return await _build_login_defense_response(repo)
+
+
+@router.put("/login-defense", response_model=LoginDefenseSettingsResponse, summary="로그인 방어 설정 저장")
+async def update_login_defense_settings(
+    request: LoginDefenseSettingsUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_admin),
+):
+    repo = SQLiteSystemSettingsRepository(db)
+    await repo.set(
+        "login_suspicious_block_enabled",
+        "true" if request.suspicious_block_enabled else "false",
+    )
+    await repo.set(
+        "login_suspicious_trusted_networks",
+        "\n".join(request.suspicious_trusted_networks) or None,
+    )
+    return await _build_login_defense_response(repo)
+
+
 def _build_time_display_response(display_timezone: str | None) -> TimeDisplaySettingsResponse:
     normalized_timezone = normalize_display_timezone(display_timezone)
     server_context = get_server_time_context()
@@ -191,6 +222,28 @@ async def _build_upstream_security_response(
     )
 
 
+async def _build_login_defense_response(
+    repo: SQLiteSystemSettingsRepository,
+) -> LoginDefenseSettingsResponse:
+    return LoginDefenseSettingsResponse(
+        max_failed_attempts=settings.LOGIN_MAX_FAILED_ATTEMPTS,
+        failure_window_minutes=settings.LOGIN_FAILURE_WINDOW_MINUTES,
+        lockout_minutes=settings.LOGIN_LOCKOUT_MINUTES,
+        suspicious_window_minutes=settings.LOGIN_SUSPICIOUS_WINDOW_MINUTES,
+        suspicious_failure_count=settings.LOGIN_SUSPICIOUS_FAILURE_COUNT,
+        suspicious_username_count=settings.LOGIN_SUSPICIOUS_USERNAME_COUNT,
+        suspicious_block_minutes=settings.LOGIN_SUSPICIOUS_BLOCK_MINUTES,
+        suspicious_block_enabled=await _get_bool_setting(
+            repo,
+            "login_suspicious_block_enabled",
+            default=True,
+        ),
+        suspicious_trusted_networks=normalize_trusted_networks(
+            _split_networks(await repo.get("login_suspicious_trusted_networks"))
+        ),
+    )
+
+
 async def _get_bool_setting(
     repo: SQLiteSystemSettingsRepository,
     key: str,
@@ -204,6 +257,12 @@ async def _get_bool_setting(
 
 
 def _split_domain_suffixes(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.replace(",", "\n").splitlines() if item.strip()]
+
+
+def _split_networks(value: str | None) -> list[str]:
     if not value:
         return []
     return [item.strip() for item in value.replace(",", "\n").splitlines() if item.strip()]

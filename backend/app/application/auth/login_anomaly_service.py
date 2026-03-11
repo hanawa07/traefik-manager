@@ -1,3 +1,4 @@
+from ipaddress import ip_address, ip_network
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
@@ -13,8 +14,10 @@ async def enforce_suspicious_ip_block_if_needed(
     client_ip: str | None,
     now: datetime,
     block_window: timedelta,
+    block_enabled: bool = True,
+    trusted_networks: list[str] | None = None,
 ) -> bool:
-    if not client_ip:
+    if not client_ip or not block_enabled or _is_trusted_client_ip(client_ip, trusted_networks):
         return False
 
     logs = await _load_recent_ip_logs(
@@ -61,8 +64,9 @@ async def record_suspicious_login_activity_if_needed(
     window: timedelta,
     min_failures: int,
     min_unique_usernames: int,
+    trusted_networks: list[str] | None = None,
 ) -> bool:
-    if not client_ip:
+    if not client_ip or _is_trusted_client_ip(client_ip, trusted_networks):
         return False
 
     logs = await _load_recent_ip_logs(
@@ -120,3 +124,20 @@ async def _load_recent_ip_logs(
         for log in logs
         if (log.detail or {}).get("client_ip") == client_ip and log.created_at >= cutoff
     ]
+
+
+def _is_trusted_client_ip(client_ip: str, trusted_networks: list[str] | None) -> bool:
+    if not trusted_networks:
+        return False
+    try:
+        address = ip_address(client_ip)
+    except ValueError:
+        return False
+
+    for trusted_network in trusted_networks:
+        try:
+            if address in ip_network(trusted_network, strict=False):
+                return True
+        except ValueError:
+            continue
+    return False

@@ -18,9 +18,13 @@ from app.infrastructure.persistence.models import ServiceModel
 from app.infrastructure.persistence.repositories.sqlite_auth_session_repository import (
     SQLiteAuthSessionRepository,
 )
+from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
+    SQLiteSystemSettingsRepository,
+)
 from app.infrastructure.persistence.repositories.sqlite_user_repository import (
     SQLiteUserRepository,
 )
+from app.interfaces.api.v1.schemas.settings_schemas import normalize_trusted_networks
 from app.interfaces.api.dependencies import get_current_user, resolve_authenticated_user
 from app.interfaces.api.v1.schemas.auth_schemas import (
     CurrentSessionResponse,
@@ -97,11 +101,22 @@ async def login(
 ):
     current = datetime.now(timezone.utc)
     client_ip = get_client_ip(request)
+    system_settings_repo = SQLiteSystemSettingsRepository(db)
+    suspicious_block_enabled = await _get_bool_system_setting(
+        system_settings_repo,
+        "login_suspicious_block_enabled",
+        default=True,
+    )
+    trusted_networks = normalize_trusted_networks(
+        _split_multivalue_setting(await system_settings_repo.get("login_suspicious_trusted_networks"))
+    )
     if await login_anomaly_service.enforce_suspicious_ip_block_if_needed(
         db=db,
         client_ip=client_ip,
         now=current,
         block_window=timedelta(minutes=settings.LOGIN_SUSPICIOUS_BLOCK_MINUTES),
+        block_enabled=suspicious_block_enabled,
+        trusted_networks=trusted_networks,
     ):
         logger.warning(
             "로그인 차단: ip=%s reason=%s",
@@ -149,6 +164,7 @@ async def login(
             window=timedelta(minutes=settings.LOGIN_SUSPICIOUS_WINDOW_MINUTES),
             min_failures=settings.LOGIN_SUSPICIOUS_FAILURE_COUNT,
             min_unique_usernames=settings.LOGIN_SUSPICIOUS_USERNAME_COUNT,
+            trusted_networks=trusted_networks,
         )
         logger.warning(
             "로그인 실패: username=%s reason=%s",
@@ -196,6 +212,24 @@ async def login(
         "username": user.username,
         "role": user.role,
     }
+
+
+async def _get_bool_system_setting(
+    repo: SQLiteSystemSettingsRepository,
+    key: str,
+    *,
+    default: bool,
+) -> bool:
+    value = await repo.get(key)
+    if value is None:
+        return default
+    return value.strip().lower() == "true"
+
+
+def _split_multivalue_setting(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.replace(",", "\n").splitlines() if item.strip()]
 
 
 @router.get("/me", response_model=CurrentSessionResponse, summary="현재 로그인 세션")

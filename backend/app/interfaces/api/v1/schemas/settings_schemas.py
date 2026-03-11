@@ -1,3 +1,5 @@
+from ipaddress import ip_network
+
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.time_display import get_available_timezones
@@ -43,6 +45,20 @@ class TimeDisplaySettingsUpdateRequest(BaseModel):
         return normalized
 
 
+def normalize_trusted_networks(value: list[str]) -> list[str]:
+    normalized_networks: list[str] = []
+    for item in value:
+        normalized = item.strip()
+        if not normalized:
+            continue
+        try:
+            network = ip_network(normalized, strict=False)
+        except ValueError as exc:
+            raise ValueError("유효한 IP 또는 CIDR 대역만 입력할 수 있습니다") from exc
+        normalized_networks.append(str(network))
+    return normalized_networks
+
+
 class UpstreamSecuritySettingsResponse(BaseModel):
     preset_key: str
     preset_name: str
@@ -76,3 +92,25 @@ class UpstreamSecuritySettingsUpdateRequest(BaseModel):
     @classmethod
     def validate_allowed_domain_suffixes(cls, value: list[str]) -> list[str]:
         return normalize_domain_suffixes(value)
+
+
+class LoginDefenseSettingsResponse(BaseModel):
+    max_failed_attempts: int
+    failure_window_minutes: int
+    lockout_minutes: int
+    suspicious_window_minutes: int
+    suspicious_failure_count: int
+    suspicious_username_count: int
+    suspicious_block_minutes: int
+    suspicious_block_enabled: bool
+    suspicious_trusted_networks: list[str] = Field(default_factory=list)
+
+
+class LoginDefenseSettingsUpdateRequest(BaseModel):
+    suspicious_block_enabled: bool = True
+    suspicious_trusted_networks: list[str] = Field(default_factory=list)
+
+    @field_validator("suspicious_trusted_networks")
+    @classmethod
+    def validate_suspicious_trusted_networks(cls, value: list[str]) -> list[str]:
+        return normalize_trusted_networks(value)

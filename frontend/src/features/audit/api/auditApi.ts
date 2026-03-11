@@ -8,7 +8,26 @@ export interface AuditLogItem {
   resource_id: string;
   resource_name: string;
   detail: Record<string, unknown> | null;
+  event?: string | null;
   created_at: string;
+}
+
+export interface AuditSecurityEventItem {
+  id: string;
+  event: string;
+  actor: string;
+  resource_name: string;
+  client_ip: string | null;
+  created_at: string;
+}
+
+export interface AuditSecuritySummary {
+  window_minutes: number;
+  failed_login_count: number;
+  locked_login_count: number;
+  suspicious_ip_count: number;
+  blocked_ip_count: number;
+  recent_events: AuditSecurityEventItem[];
 }
 
 export const auditApi = {
@@ -16,8 +35,18 @@ export const auditApi = {
     limit?: number;
     offset?: number;
     resource_type?: string;
+    event?: string;
+    security_only?: boolean;
   }): Promise<AuditLogItem[]> => {
     const res = await apiClient.get<AuditLogItem[]>("/audit", { params });
+    return res.data;
+  },
+
+  getSecuritySummary: async (params?: {
+    window_minutes?: number;
+    recent_limit?: number;
+  }): Promise<AuditSecuritySummary> => {
+    const res = await apiClient.get<AuditSecuritySummary>("/audit/security-summary", { params });
     return res.data;
   },
 };

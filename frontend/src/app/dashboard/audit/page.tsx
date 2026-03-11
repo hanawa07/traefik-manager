@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import { useAudit } from "@/features/audit/hooks/useAudit";
 import { 
@@ -27,8 +29,31 @@ const actionConfig = {
   delete: { label: "삭제", color: "bg-red-600/20 text-red-300 border-red-500/30" },
 };
 
+const securityEventConfig = {
+  login_failure: { label: "로그인 실패", color: "bg-slate-700 text-slate-100 border-slate-600" },
+  login_locked: { label: "계정 잠금", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
+  login_suspicious: { label: "이상 징후", color: "bg-orange-600/20 text-orange-200 border-orange-500/30" },
+  login_blocked_ip: { label: "IP 차단", color: "bg-red-600/20 text-red-200 border-red-500/30" },
+};
+
+const auditFilters = [
+  { key: "all", label: "전체" },
+  { key: "security", label: "보안 이벤트" },
+  { key: "login_locked", label: "계정 잠금" },
+  { key: "login_suspicious", label: "이상 징후" },
+  { key: "login_blocked_ip", label: "IP 차단" },
+  { key: "login_failure", label: "로그인 실패" },
+] as const;
+
 export default function AuditLogPage() {
-  const { data: logs, isLoading, isError, error } = useAudit({ limit: 50 });
+  const [selectedFilter, setSelectedFilter] = useState<(typeof auditFilters)[number]["key"]>("all");
+  const auditQuery =
+    selectedFilter === "all"
+      ? { limit: 50 }
+      : selectedFilter === "security"
+        ? { limit: 50, security_only: true }
+        : { limit: 50, event: selectedFilter };
+  const { data: logs, isLoading, isError, error } = useAudit(auditQuery);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
 
   if (isLoading) {
@@ -64,12 +89,34 @@ export default function AuditLogPage() {
         </div>
       </div>
 
+      <div className="mb-4 flex flex-wrap gap-2">
+        {auditFilters.map((filter) => {
+          const active = selectedFilter === filter.key;
+          return (
+            <button
+              key={filter.key}
+              type="button"
+              onClick={() => setSelectedFilter(filter.key)}
+              className={clsx(
+                "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                active
+                  ? "border-blue-400 bg-blue-500/20 text-blue-100"
+                  : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500",
+              )}
+            >
+              {filter.label}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="bg-slate-950 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-700 bg-slate-900">
                 <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider">사용자</th>
+                <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider">이벤트</th>
                 <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider">작업</th>
                 <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider">대상 타입</th>
                 <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider">대상 이름</th>
@@ -79,7 +126,7 @@ export default function AuditLogPage() {
             <tbody className="divide-y divide-slate-800">
               {!logs || logs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-20 text-center text-slate-300">
+                  <td colSpan={6} className="px-6 py-20 text-center text-slate-300">
                     기록된 감사 로그가 없습니다.
                   </td>
                 </tr>
@@ -87,6 +134,7 @@ export default function AuditLogPage() {
                 logs.map((log) => {
                   const resource = resourceTypeConfig[log.resource_type as keyof typeof resourceTypeConfig];
                   const action = actionConfig[log.action as keyof typeof actionConfig];
+                  const event = log.event ? securityEventConfig[log.event as keyof typeof securityEventConfig] : null;
                   const ResourceIcon = resource?.icon || Server;
 
                   return (
@@ -100,6 +148,20 @@ export default function AuditLogPage() {
                           </div>
                           <span className="text-sm text-white font-semibold">{log.actor}</span>
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {event ? (
+                          <span
+                            className={clsx(
+                              "px-2.5 py-1 rounded-md text-[11px] font-black border",
+                              event.color,
+                            )}
+                          >
+                            {event.label}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-500">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className={clsx(

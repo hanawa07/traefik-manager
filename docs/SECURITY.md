@@ -47,11 +47,15 @@
 - 동일 IP가 같은 시간 창 안에서 여러 사용자명에 대해 반복 실패하면 `login_suspicious` 감사 이벤트를 추가로 기록합니다.
 - 최근 `login_suspicious`가 찍힌 IP는 `LOGIN_SUSPICIOUS_BLOCK_MINUTES` 동안 로그인 자체를 차단하고 `login_blocked_ip` 감사 이벤트를 남깁니다.
 - 이상 징후 기준은 `LOGIN_SUSPICIOUS_WINDOW_MINUTES`, `LOGIN_SUSPICIOUS_FAILURE_COUNT`, `LOGIN_SUSPICIOUS_USERNAME_COUNT`, `LOGIN_SUSPICIOUS_BLOCK_MINUTES`로 조정합니다.
+- 설정 화면에서 `login_suspicious` 기반 자동 차단을 켜고 끌 수 있습니다.
+- 설정 화면의 `신뢰 네트워크 예외(CIDR/IP)`에 포함된 클라이언트 IP는 이상 징후 기록과 IP 자동 차단에서 제외됩니다.
+- 신뢰 네트워크 예외는 운영 노이즈를 줄이기 위한 것이며, 사용자별 실패 누적/계정 잠금에는 영향을 주지 않습니다.
+- 대시보드에는 최근 보안 경고 요약(잠금/이상 징후/IP 차단)이 표시되고, 감사 로그 화면에는 보안 이벤트 전용 필터가 제공됩니다.
 
 **남은 보완점:**
 - CAPTCHA
 - 관리자 알림/알람 연동
-- 차단 정책 예외/allowlist 및 관리자 알림 고도화
+- 차단 이벤트 알림/대응 자동화 고도화
 
 ---
 
@@ -194,5 +198,5 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 | 순위 | 항목 | 난이도 | 위험도 |
 |------|------|--------|--------|
 | 1 | 관리자 알림/차단 정책 예외 고도화 | 보통 | 낮음 |
-| 2 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |
-| 3 | CAPTCHA 또는 추가 로그인 검증 장치 검토 | 보통 | 낮음 |
+| 2 | CAPTCHA 또는 추가 로그인 검증 장치 검토 | 보통 | 낮음 |
+| 3 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |

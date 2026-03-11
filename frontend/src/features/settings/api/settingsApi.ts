@@ -107,6 +107,23 @@ export interface UpstreamSecuritySettingsInput {
   allow_private_networks: boolean;
 }
 
+export interface LoginDefenseSettingsStatus {
+  max_failed_attempts: number;
+  failure_window_minutes: number;
+  lockout_minutes: number;
+  suspicious_window_minutes: number;
+  suspicious_failure_count: number;
+  suspicious_username_count: number;
+  suspicious_block_minutes: number;
+  suspicious_block_enabled: boolean;
+  suspicious_trusted_networks: string[];
+}
+
+export interface LoginDefenseSettingsInput {
+  suspicious_block_enabled: boolean;
+  suspicious_trusted_networks: string[];
+}
+
 export const settingsApi = {
   getCloudflareStatus: async (): Promise<CloudflareSettingsStatus> => {
     const res = await apiClient.get<CloudflareSettingsStatus>("/settings/cloudflare");
@@ -120,6 +137,11 @@ export const settingsApi = {
 
   getUpstreamSecuritySettings: async (): Promise<UpstreamSecuritySettingsStatus> => {
     const res = await apiClient.get<UpstreamSecuritySettingsStatus>("/settings/upstream-security");
+    return res.data;
+  },
+
+  getLoginDefenseSettings: async (): Promise<LoginDefenseSettingsStatus> => {
+    const res = await apiClient.get<LoginDefenseSettingsStatus>("/settings/login-defense");
     return res.data;
   },
 
@@ -137,6 +159,11 @@ export const settingsApi = {
     payload: UpstreamSecuritySettingsInput,
   ): Promise<UpstreamSecuritySettingsStatus> => {
     const res = await apiClient.put<UpstreamSecuritySettingsStatus>("/settings/upstream-security", payload);
+    return res.data;
+  },
+
+  updateLoginDefenseSettings: async (payload: LoginDefenseSettingsInput): Promise<LoginDefenseSettingsStatus> => {
+    const res = await apiClient.put<LoginDefenseSettingsStatus>("/settings/login-defense", payload);
     return res.data;
   },
 

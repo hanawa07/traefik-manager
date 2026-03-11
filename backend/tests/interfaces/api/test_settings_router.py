@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from app.interfaces.api.v1.routers import settings as settings_router
 from app.interfaces.api.v1.schemas.settings_schemas import (
+    LoginDefenseSettingsUpdateRequest,
     TimeDisplaySettingsUpdateRequest,
     UpstreamSecuritySettingsUpdateRequest,
 )
@@ -127,6 +128,39 @@ async def test_update_upstream_security_settings_persists_value(monkeypatch):
     assert response.preset_name == "외부 승인 도메인 전용"
 
 
+@pytest.mark.asyncio
+async def test_get_login_defense_settings_returns_defaults(monkeypatch):
+    StubSettingsRepository.store = {}
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    response = await settings_router.get_login_defense_settings(db=object(), _={"role": "admin"})
+
+    assert response.suspicious_block_enabled is True
+    assert response.suspicious_trusted_networks == []
+    assert response.suspicious_block_minutes == 30
+    assert response.failure_window_minutes == 15
+
+
+@pytest.mark.asyncio
+async def test_update_login_defense_settings_persists_values(monkeypatch):
+    StubSettingsRepository.store = {}
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    response = await settings_router.update_login_defense_settings(
+        request=LoginDefenseSettingsUpdateRequest(
+            suspicious_block_enabled=False,
+            suspicious_trusted_networks=["10.0.0.0/8", "203.0.113.10/32"],
+        ),
+        db=object(),
+        _={"role": "admin"},
+    )
+
+    assert StubSettingsRepository.store["login_suspicious_block_enabled"] == "false"
+    assert StubSettingsRepository.store["login_suspicious_trusted_networks"] == "10.0.0.0/8\n203.0.113.10/32"
+    assert response.suspicious_block_enabled is False
+    assert response.suspicious_trusted_networks == ["10.0.0.0/8", "203.0.113.10/32"]
+
+
 def test_time_display_settings_update_request_rejects_invalid_value():
     with pytest.raises(ValidationError):
         TimeDisplaySettingsUpdateRequest(display_timezone="Mars/Base")
@@ -152,4 +186,21 @@ def test_upstream_security_settings_update_request_rejects_invalid_domain_suffix
             allowed_domain_suffixes=["bad suffix!"],
             allow_docker_service_names=True,
             allow_private_networks=True,
+        )
+
+
+def test_login_defense_settings_update_request_normalizes_trusted_networks():
+    request = LoginDefenseSettingsUpdateRequest(
+        suspicious_block_enabled=True,
+        suspicious_trusted_networks=[" 10.0.0.0/8 ", "203.0.113.10", "2001:db8::/64"],
+    )
+
+    assert request.suspicious_trusted_networks == ["10.0.0.0/8", "203.0.113.10/32", "2001:db8::/64"]
+
+
+def test_login_defense_settings_update_request_rejects_invalid_trusted_network():
+    with pytest.raises(ValidationError):
+        LoginDefenseSettingsUpdateRequest(
+            suspicious_block_enabled=True,
+            suspicious_trusted_networks=["bad-network"],
         )

@@ -55,6 +55,26 @@ class StubAuthSessionRepository:
         self.saved_sessions.append(session)
 
 
+class StubSystemSettingsRepository:
+    values: dict[str, str] = {}
+
+    def __init__(self, _session):
+        self.values = StubSystemSettingsRepository.values
+
+    async def get(self, key: str) -> str | None:
+        return self.values.get(key)
+
+
+def stub_default_system_settings(monkeypatch, values: dict[str, str] | None = None) -> None:
+    StubSystemSettingsRepository.values = values or {}
+    monkeypatch.setattr(
+        auth_router,
+        "SQLiteSystemSettingsRepository",
+        StubSystemSettingsRepository,
+        raising=False,
+    )
+
+
 def stub_no_suspicious_ip_block(monkeypatch) -> None:
     async def fake_blocker(**_kwargs):
         return False
@@ -95,6 +115,7 @@ async def test_login_sets_session_and_csrf_cookies(monkeypatch):
         raising=False,
     )
     monkeypatch.setattr(auth_router, "issue_csrf_token", lambda: "csrf-token-1", raising=False)
+    stub_default_system_settings(monkeypatch)
     stub_no_suspicious_ip_block(monkeypatch)
 
     result = await auth_router.login(
@@ -140,6 +161,7 @@ async def test_login_failure_returns_generic_401_and_records_audit(monkeypatch):
         fake_detector,
         raising=False,
     )
+    stub_default_system_settings(monkeypatch)
     stub_no_suspicious_ip_block(monkeypatch)
 
     with pytest.raises(HTTPException) as exc_info:
@@ -193,6 +215,7 @@ async def test_login_locked_user_returns_generic_401_and_records_lock(monkeypatc
         fake_detector,
         raising=False,
     )
+    stub_default_system_settings(monkeypatch)
     stub_no_suspicious_ip_block(monkeypatch)
 
     with pytest.raises(HTTPException) as exc_info:
@@ -235,6 +258,7 @@ async def test_login_failure_invokes_suspicious_login_detector(monkeypatch):
         fake_detector,
         raising=False,
     )
+    stub_default_system_settings(monkeypatch)
     stub_no_suspicious_ip_block(monkeypatch)
 
     with pytest.raises(HTTPException):
@@ -277,6 +301,7 @@ async def test_login_blocks_suspicious_ip_before_authentication(monkeypatch):
         fake_blocker,
         raising=False,
     )
+    stub_default_system_settings(monkeypatch)
 
     with pytest.raises(HTTPException) as exc_info:
         await auth_router.login(
@@ -290,6 +315,70 @@ async def test_login_blocks_suspicious_ip_before_authentication(monkeypatch):
     assert exc_info.value.status_code == 401
     assert exc_info.value.detail == "아이디 또는 비밀번호가 올바르지 않습니다"
     assert use_cases.calls == []
+
+
+@pytest.mark.asyncio
+async def test_login_passes_trusted_network_policy_to_suspicious_blocker(monkeypatch):
+    user = User(
+        id=uuid4(),
+        username="admin",
+        hashed_password="hashed",
+        role="admin",
+        is_active=True,
+        token_version=4,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    repository = StubAuthSessionRepository()
+    response = Response()
+    blocker_calls = []
+
+    async def fake_blocker(**kwargs):
+        blocker_calls.append(kwargs)
+        return False
+
+    StubSystemSettingsRepository.values = {
+        "login_suspicious_block_enabled": "false",
+        "login_suspicious_trusted_networks": "10.0.0.0/8\n203.0.113.10/32",
+    }
+    monkeypatch.setattr(auth_router, "SQLiteAuthSessionRepository", lambda _db: repository, raising=False)
+    stub_default_system_settings(monkeypatch, StubSystemSettingsRepository.values)
+    monkeypatch.setattr(
+        auth_router,
+        "issue_session_credentials",
+        lambda: SimpleNamespace(
+            session_id="session-1",
+            secret="secret-1",
+            secret_hash="hash-1",
+            cookie_value="session-1.secret-1",
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(auth_router, "issue_csrf_token", lambda: "csrf-token-1", raising=False)
+    monkeypatch.setattr(
+        auth_router.login_anomaly_service,
+        "enforce_suspicious_ip_block_if_needed",
+        fake_blocker,
+        raising=False,
+    )
+
+    await auth_router.login(
+        request=make_request(headers={"user-agent": "pytest-browser/1.0"}),
+        response=response,
+        form=SimpleNamespace(username="admin", password="correct-password"),
+        use_cases=StubAuthUseCases(
+            SimpleNamespace(
+                authenticated_user=user,
+                subject_user=user,
+                failure_reason=None,
+                locked_until=None,
+            )
+        ),
+        db=object(),
+    )
+
+    assert blocker_calls[0]["block_enabled"] is False
+    assert blocker_calls[0]["trusted_networks"] == ["10.0.0.0/8", "203.0.113.10/32"]
 
 
 class StubSessionRepository:

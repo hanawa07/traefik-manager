@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BackupPayload,
   CloudflareSettingsInput,
+  LoginDefenseSettingsInput,
   TimeDisplaySettingsInput,
   UpstreamSecuritySettingsInput,
   settingsApi,
@@ -28,6 +29,14 @@ export function useUpstreamSecuritySettings() {
   return useQuery({
     queryKey: ["settings", "upstream-security"],
     queryFn: settingsApi.getUpstreamSecuritySettings,
+    staleTime: 30_000,
+  });
+}
+
+export function useLoginDefenseSettings() {
+  return useQuery({
+    queryKey: ["settings", "login-defense"],
+    queryFn: settingsApi.getLoginDefenseSettings,
     staleTime: 30_000,
   });
 }
@@ -58,6 +67,16 @@ export function useUpdateUpstreamSecuritySettings() {
     mutationFn: (data: UpstreamSecuritySettingsInput) => settingsApi.updateUpstreamSecuritySettings(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "upstream-security"] });
+    },
+  });
+}
+
+export function useUpdateLoginDefenseSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: LoginDefenseSettingsInput) => settingsApi.updateLoginDefenseSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "login-defense"] });
     },
   });
 }
