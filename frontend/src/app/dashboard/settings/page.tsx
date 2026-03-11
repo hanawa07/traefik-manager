@@ -130,11 +130,42 @@ const SECURITY_ALERT_PROVIDER_OPTIONS = [
   },
 ] as const;
 
-function SettingsSummaryGrid({ children }: { children: React.ReactNode }) {
-  return <div className="grid grid-cols-1 gap-y-3 md:grid-cols-[160px_minmax(0,1fr)] md:gap-x-6">{children}</div>;
+function SettingsCardHeader({
+  icon,
+  title,
+  description,
+  canEdit,
+  onEdit,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  canEdit?: boolean;
+  onEdit?: () => void;
+}) {
+  return (
+    <>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-3">
+          {icon}
+          <h2 className="font-semibold text-gray-900">{title}</h2>
+        </div>
+        {canEdit && onEdit ? (
+          <button onClick={onEdit} className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs">
+            <Edit2 className="w-3.5 h-3.5" /> 편집
+          </button>
+        ) : null}
+      </div>
+      <p className="text-xs text-gray-400 mb-4">{description}</p>
+    </>
+  );
 }
 
-function SettingsSummaryItem({
+function SettingsSummary({ children }: { children: React.ReactNode }) {
+  return <div className="space-y-2 text-sm">{children}</div>;
+}
+
+function SettingsSummaryRow({
   label,
   value,
   mono = false,
@@ -144,11 +175,15 @@ function SettingsSummaryItem({
   mono?: boolean;
 }) {
   return (
-    <>
-      <span className="text-sm text-gray-500">{label}</span>
-      <div className={`text-sm text-gray-700 md:text-right ${mono ? "font-mono" : ""}`}>{value}</div>
-    </>
+    <div className="flex justify-between gap-4">
+      <span className="text-gray-500">{label}</span>
+      <span className={`${mono ? "font-mono " : ""}text-right text-gray-700`}>{value}</span>
+    </div>
   );
+}
+
+function SettingsActionRow({ children }: { children: React.ReactNode }) {
+  return <div className="flex gap-2 pt-2">{children}</div>;
 }
 
 function parseMultivalueText(value: string): string[] {
@@ -477,23 +512,13 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="card p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <Clock3 className="w-5 h-5 text-emerald-600" />
-              <h2 className="font-semibold text-gray-900">시간 표시 설정</h2>
-            </div>
-            {canManage && !isEditingTimeDisplay && !isTimeDisplayLoading && (
-              <button
-                onClick={handleEditTimeDisplay}
-                className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
-              >
-                <Edit2 className="w-3.5 h-3.5" /> 편집
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-gray-400 mb-4">
-            저장/토큰/감사로그 원본 시각은 UTC로 유지하고, 화면 표시만 선택한 IANA 타임존으로 변환합니다.
-          </p>
+          <SettingsCardHeader
+            icon={<Clock3 className="w-5 h-5 text-emerald-600" />}
+            title="시간 표시 설정"
+            description="저장/토큰/감사로그 원본 시각은 UTC로 유지하고, 화면 표시만 선택한 IANA 타임존으로 변환합니다."
+            canEdit={canManage && !isEditingTimeDisplay && !isTimeDisplayLoading}
+            onEdit={handleEditTimeDisplay}
+          />
 
           {isTimeDisplayLoading ? (
             <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
@@ -520,19 +545,17 @@ export default function SettingsPage() {
               </div>
 
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2 text-sm">
-                <SettingsSummaryGrid>
-                  <SettingsSummaryItem
-                    label="저장 기준"
-                    value={`${timeDisplaySettings?.storage_timezone} (고정)`}
-                    mono
-                  />
-                  <SettingsSummaryItem
-                    label="서버 시간대"
-                    value={`${timeDisplaySettings?.server_timezone_label} (${timeDisplaySettings?.server_timezone_offset})`}
-                    mono
-                  />
-                </SettingsSummaryGrid>
-                <p className="border-t border-gray-200 pt-3 text-xs leading-5 text-gray-500">
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-500">저장 기준</span>
+                  <span className="font-mono text-gray-700">{timeDisplaySettings?.storage_timezone} (고정)</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-500">서버 시간대</span>
+                  <span className="font-mono text-gray-700">
+                    {timeDisplaySettings?.server_timezone_label} ({timeDisplaySettings?.server_timezone_offset})
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 pt-1">
                   저장 데이터와 토큰 시각은 항상 UTC로 유지됩니다. 서버 시간대는 현재 컨테이너의 로컬 시간대로,
                   `docker compose`의 `TZ` 설정에 따라 달라질 수 있습니다.
                 </p>
@@ -540,7 +563,7 @@ export default function SettingsPage() {
 
               {timeDisplayErrorMessage && <p className="text-xs text-red-600">{timeDisplayErrorMessage}</p>}
 
-              <div className="flex gap-2 pt-2">
+              <SettingsActionRow>
                 <button
                   className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
                   onClick={handleSaveTimeDisplay}
@@ -555,56 +578,37 @@ export default function SettingsPage() {
                 >
                   <X className="w-3.5 h-3.5" /> 취소
                 </button>
-              </div>
+              </SettingsActionRow>
             </div>
           ) : (
-            <div className="space-y-4">
-              <SettingsSummaryGrid>
-                <SettingsSummaryItem
-                  label="현재 표시 시간대"
-                  value={timeDisplaySettings?.display_timezone || "(미설정)"}
-                  mono
-                />
-                <SettingsSummaryItem
-                  label="저장 기준"
-                  value={`${timeDisplaySettings?.storage_timezone} (고정)`}
-                  mono
-                />
-                <SettingsSummaryItem
-                  label="서버 시간대"
-                  value={`${timeDisplaySettings?.server_timezone_label} (${timeDisplaySettings?.server_timezone_offset})`}
-                  mono
-                />
-              </SettingsSummaryGrid>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="text-xs leading-5 text-gray-500">
-                  저장 데이터와 토큰 시각은 항상 UTC로 유지됩니다. 서버 시간대는 현재 컨테이너의 로컬 시간대로,
-                  `docker compose`의 `TZ` 설정에 따라 달라질 수 있습니다.
-                </p>
-              </div>
-            </div>
+            <SettingsSummary>
+              <SettingsSummaryRow
+                label="현재 표시 시간대"
+                value={timeDisplaySettings?.display_timezone || "(미설정)"}
+                mono
+              />
+              <SettingsSummaryRow label="저장 기준" value={`${timeDisplaySettings?.storage_timezone} (고정)`} mono />
+              <SettingsSummaryRow
+                label="서버 시간대"
+                value={`${timeDisplaySettings?.server_timezone_label} (${timeDisplaySettings?.server_timezone_offset})`}
+                mono
+              />
+              <p className="text-xs text-gray-500 pt-1">
+                저장 데이터와 토큰 시각은 항상 UTC로 유지됩니다. 서버 시간대는 현재 컨테이너의 로컬 시간대로,
+                `docker compose`의 `TZ` 설정에 따라 달라질 수 있습니다.
+              </p>
+            </SettingsSummary>
           )}
         </div>
 
         <div className="card p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-5 h-5 text-rose-600" />
-              <h2 className="font-semibold text-gray-900">업스트림 보안</h2>
-            </div>
-            {canManage && !isEditingUpstreamSecurity && !isUpstreamSecurityLoading && (
-              <button
-                onClick={handleEditUpstreamSecurity}
-                className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
-              >
-                <Edit2 className="w-3.5 h-3.5" /> 편집
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-gray-400 mb-4">
-            DNS strict mode와 allowlist를 조합해 업스트림 저장 정책을 명시적으로 제한합니다. 외부 FQDN은 suffix
-            기준으로, 내부 서비스명과 사설 IP는 별도 옵션으로 제어합니다.
-          </p>
+          <SettingsCardHeader
+            icon={<ShieldCheck className="w-5 h-5 text-rose-600" />}
+            title="업스트림 보안"
+            description="DNS strict mode와 allowlist를 조합해 업스트림 저장 정책을 명시적으로 제한합니다. 외부 FQDN은 suffix 기준으로, 내부 서비스명과 사설 IP는 별도 옵션으로 제어합니다."
+            canEdit={canManage && !isEditingUpstreamSecurity && !isUpstreamSecurityLoading}
+            onEdit={handleEditUpstreamSecurity}
+          />
 
           {isUpstreamSecurityLoading ? (
             <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
@@ -756,7 +760,7 @@ export default function SettingsPage() {
                 <p>주의: DNS 조회 실패 시 strict mode가 켜져 있으면 서비스 저장이 차단됩니다.</p>
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <SettingsActionRow>
                 <button
                   className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
                   onClick={handleSaveUpstreamSecurity}
@@ -771,37 +775,35 @@ export default function SettingsPage() {
                 >
                   <X className="w-3.5 h-3.5" /> 취소
                 </button>
-              </div>
+              </SettingsActionRow>
             </div>
           ) : (
-            <div className="space-y-4">
-              <SettingsSummaryGrid>
-                <SettingsSummaryItem label="정책 preset" value={upstreamSecuritySettings?.preset_name ?? "사용자 정의"} />
-                <SettingsSummaryItem
-                  label="DNS strict mode"
-                  value={upstreamSecuritySettings?.dns_strict_mode ? "활성화" : "비활성화"}
-                />
-                <SettingsSummaryItem
-                  label="업스트림 allowlist"
-                  value={upstreamSecuritySettings?.allowlist_enabled ? "활성화" : "비활성화"}
-                />
-                <SettingsSummaryItem
-                  label="허용 suffix"
-                  value={
-                    upstreamSecuritySettings?.allowed_domain_suffixes?.length
-                      ? `${upstreamSecuritySettings.allowed_domain_suffixes.length}개`
-                      : "없음"
-                  }
-                />
-                <SettingsSummaryItem
-                  label="Docker 서비스명"
-                  value={upstreamSecuritySettings?.allow_docker_service_names ? "허용" : "차단"}
-                />
-                <SettingsSummaryItem
-                  label="사설 IPv4 / Tailscale IP"
-                  value={upstreamSecuritySettings?.allow_private_networks ? "허용" : "차단"}
-                />
-              </SettingsSummaryGrid>
+            <SettingsSummary>
+              <SettingsSummaryRow label="정책 preset" value={upstreamSecuritySettings?.preset_name ?? "사용자 정의"} />
+              <SettingsSummaryRow
+                label="DNS strict mode"
+                value={upstreamSecuritySettings?.dns_strict_mode ? "활성화" : "비활성화"}
+              />
+              <SettingsSummaryRow
+                label="업스트림 allowlist"
+                value={upstreamSecuritySettings?.allowlist_enabled ? "활성화" : "비활성화"}
+              />
+              <SettingsSummaryRow
+                label="허용 suffix"
+                value={
+                  upstreamSecuritySettings?.allowed_domain_suffixes?.length
+                    ? `${upstreamSecuritySettings.allowed_domain_suffixes.length}개`
+                    : "없음"
+                }
+              />
+              <SettingsSummaryRow
+                label="Docker 서비스명"
+                value={upstreamSecuritySettings?.allow_docker_service_names ? "허용" : "차단"}
+              />
+              <SettingsSummaryRow
+                label="사설 IPv4 / Tailscale IP"
+                value={upstreamSecuritySettings?.allow_private_networks ? "허용" : "차단"}
+              />
               {upstreamSecuritySettings?.allowed_domain_suffixes?.length ? (
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                   <p className="mb-2 text-xs font-medium text-gray-600">허용 suffix 목록</p>
@@ -817,35 +819,23 @@ export default function SettingsPage() {
                   </div>
                 </div>
               ) : null}
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
-                <p className="text-xs leading-5 text-gray-500">{upstreamSecuritySettings?.preset_description}</p>
-                <p className="text-xs leading-5 text-gray-500">
-                  allowlist는 저장 시점에 외부 FQDN, Docker 서비스명, IP 리터럴을 정책대로 제한합니다. strict mode는
-                  도메인 업스트림을 DNS 재해석해서 금지 주소 여부를 추가로 검사합니다.
-                </p>
-              </div>
-            </div>
+              <p className="text-xs text-gray-500">{upstreamSecuritySettings?.preset_description}</p>
+              <p className="text-xs text-gray-500 pt-1">
+                allowlist는 저장 시점에 외부 FQDN, Docker 서비스명, IP 리터럴을 정책대로 제한합니다. strict mode는
+                도메인 업스트림을 DNS 재해석해서 금지 주소 여부를 추가로 검사합니다.
+              </p>
+            </SettingsSummary>
           )}
         </div>
 
-        <div className="card p-6 xl:col-span-2">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-5 h-5 text-amber-600" />
-              <h2 className="font-semibold text-gray-900">로그인 방어</h2>
-            </div>
-            {canManage && !isEditingLoginDefense && !isLoginDefenseLoading && (
-              <button
-                onClick={handleEditLoginDefense}
-                className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
-              >
-                <Edit2 className="w-3.5 h-3.5" /> 편집
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-gray-400 mb-4">
-            사용자별 계정 잠금은 항상 유지하고, 반복 실패 IP 자동 차단과 선택형 Turnstile 로그인 검증을 함께 조정합니다.
-          </p>
+        <div className="card p-6 h-full">
+          <SettingsCardHeader
+            icon={<ShieldCheck className="w-5 h-5 text-amber-600" />}
+            title="로그인 방어"
+            description="사용자별 계정 잠금은 항상 유지하고, 반복 실패 IP 자동 차단과 선택형 Turnstile 로그인 검증을 함께 조정합니다."
+            canEdit={canManage && !isEditingLoginDefense && !isLoginDefenseLoading}
+            onEdit={handleEditLoginDefense}
+          />
 
           {isLoginDefenseLoading ? (
             <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
@@ -1045,7 +1035,7 @@ export default function SettingsPage() {
 
               {loginDefenseErrorMessage && <p className="text-xs text-red-600">{loginDefenseErrorMessage}</p>}
 
-              <div className="flex gap-2 pt-2">
+              <SettingsActionRow>
                 <button
                   className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
                   onClick={handleSaveLoginDefense}
@@ -1060,10 +1050,10 @@ export default function SettingsPage() {
                 >
                   <X className="w-3.5 h-3.5" /> 취소
                 </button>
-              </div>
+              </SettingsActionRow>
             </div>
           ) : (
-            <div className="space-y-3 text-sm">
+            <SettingsSummary>
               <div className="flex justify-between gap-4">
                 <span className="text-gray-500">계정 잠금 정책</span>
                 <span className="text-right text-gray-700">
@@ -1128,28 +1118,18 @@ export default function SettingsPage() {
                 신뢰 네트워크 예외는 내부 NAT, VPN, 사내망처럼 반복 실패가 운영 노이즈로 잡힐 수 있는 경로에만 제한적으로
                 사용하세요.
               </p>
-            </div>
+            </SettingsSummary>
           )}
         </div>
 
-        <div className="card p-6 xl:col-span-2">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <Cloud className="w-5 h-5 text-sky-600" />
-              <h2 className="font-semibold text-gray-900">보안 알림</h2>
-            </div>
-            {canManage && !isEditingSecurityAlert && !isSecurityAlertLoading && (
-              <button
-                onClick={handleEditSecurityAlert}
-                className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
-              >
-                <Edit2 className="w-3.5 h-3.5" /> 편집
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-gray-400 mb-4">
-            계정 잠금, 이상 징후 로그인, IP 자동 차단 이벤트를 외부 webhook으로 전달합니다.
-          </p>
+        <div className="card p-6 h-full">
+          <SettingsCardHeader
+            icon={<Cloud className="w-5 h-5 text-sky-600" />}
+            title="보안 알림"
+            description="계정 잠금, 이상 징후 로그인, IP 자동 차단 이벤트를 외부 webhook으로 전달합니다."
+            canEdit={canManage && !isEditingSecurityAlert && !isSecurityAlertLoading}
+            onEdit={handleEditSecurityAlert}
+          />
 
           {isSecurityAlertLoading ? (
             <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
@@ -1419,7 +1399,7 @@ export default function SettingsPage() {
 
               {securityAlertErrorMessage && <p className="text-xs text-red-600">{securityAlertErrorMessage}</p>}
 
-              <div className="flex gap-2 pt-2">
+              <SettingsActionRow>
                 <button
                   className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
                   onClick={handleSaveSecurityAlert}
@@ -1434,10 +1414,10 @@ export default function SettingsPage() {
                 >
                   <X className="w-3.5 h-3.5" /> 취소
                 </button>
-              </div>
+              </SettingsActionRow>
             </div>
           ) : (
-            <div className="space-y-3 text-sm">
+            <SettingsSummary>
               <div className="flex justify-between gap-4">
                 <span className="text-gray-500">상태</span>
                 <span className="text-gray-700">{securityAlertSettings?.enabled ? "활성화" : "비활성화"}</span>
@@ -1534,11 +1514,11 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-500">
                 알림 실패는 운영 가시성에만 영향을 주고, 로그인 차단/잠금 로직 자체는 중단하지 않습니다.
               </p>
-            </div>
+            </SettingsSummary>
           )}
         </div>
 
-        <div className="card p-6 xl:col-span-2">
+        <div className="card p-6 h-full">
           <div className="flex items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
               <ShieldCheck className="w-5 h-5 text-amber-600" />
@@ -1643,19 +1623,16 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <Cloud className="w-5 h-5 text-blue-600" />
-              <h2 className="font-semibold text-gray-900">Cloudflare DNS 자동 연동</h2>
-            </div>
-            {canManage && !isEditingCf && !isCloudflareLoading && (
-              <button onClick={handleEditCf} className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs">
-                <Edit2 className="w-3.5 h-3.5" /> 편집
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-gray-400 mb-4">서비스 추가/삭제 시 Cloudflare DNS A 레코드를 자동으로 생성/삭제합니다. 이미 DNS가 수동으로 설정되어 있다면 사용하지 않아도 됩니다.</p>
+        {canManage ? <UserManagementSection /> : null}
+
+        <div className="card p-6 h-full">
+          <SettingsCardHeader
+            icon={<Cloud className="w-5 h-5 text-blue-600" />}
+            title="Cloudflare DNS 자동 연동"
+            description="서비스 추가/삭제 시 Cloudflare DNS A 레코드를 자동으로 생성/삭제합니다. 이미 DNS가 수동으로 설정되어 있다면 사용하지 않아도 됩니다."
+            canEdit={canManage && !isEditingCf && !isCloudflareLoading}
+            onEdit={handleEditCf}
+          />
 
           {isCloudflareLoading ? (
             <div className="h-20 bg-gray-100 rounded-lg animate-pulse" />
@@ -1705,7 +1682,7 @@ export default function SettingsPage() {
                 </label>
                 <p className="text-xs text-gray-400 mt-1">활성화 시 트래픽이 Cloudflare를 경유하며 실제 서버 IP가 숨겨집니다 (주황 구름 아이콘). DNS only 모드를 원하면 체크 해제.</p>
               </div>
-              <div className="flex gap-2 pt-2">
+              <SettingsActionRow>
                 <button
                   className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
                   onClick={handleSaveCf}
@@ -1720,33 +1697,31 @@ export default function SettingsPage() {
                 >
                   <X className="w-3.5 h-3.5" /> 취소
                 </button>
-              </div>
+              </SettingsActionRow>
             </div>
           ) : (
-            <>
+            <SettingsSummary>
               <p className={`text-sm font-medium ${cloudflareStatus?.enabled ? "text-green-700" : "text-gray-600"}`}>
                 {cloudflareStatus?.enabled ? "활성화됨" : "비활성화됨"}
               </p>
               <p className="text-xs text-gray-500 mt-1">{cloudflareStatus?.message}</p>
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Zone ID</span>
-                  <span className="font-mono text-gray-700">{cloudflareStatus?.zone_id || "(미설정)"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">기본 대상</span>
-                  <span className="font-mono text-gray-700">{cloudflareStatus?.record_target || "(서비스 업스트림 사용)"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">프록시 모드</span>
-                  <span className="text-gray-700">{cloudflareStatus?.proxied ? "활성" : "비활성"}</span>
-                </div>
+              <div className="pt-1">
+                <SettingsSummaryRow label="Zone ID" value={cloudflareStatus?.zone_id || "(미설정)"} mono />
+                <SettingsSummaryRow
+                  label="기본 대상"
+                  value={cloudflareStatus?.record_target || "(서비스 업스트림 사용)"}
+                  mono
+                />
+                <SettingsSummaryRow
+                  label="프록시 모드"
+                  value={cloudflareStatus?.proxied ? "활성" : "비활성"}
+                />
               </div>
-            </>
+            </SettingsSummary>
           )}
         </div>
 
-        <div className="card p-6">
+        <div className="card p-6 h-full">
           <div className="flex items-center gap-3 mb-4">
             <Settings className="w-5 h-5 text-indigo-600" />
             <h2 className="font-semibold text-gray-900">백업 / 복원</h2>
@@ -1817,8 +1792,6 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
-
-        {canManage ? <UserManagementSection /> : null}
       </div>
     </div>
   );

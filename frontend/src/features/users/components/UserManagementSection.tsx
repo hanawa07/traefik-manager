@@ -20,7 +20,7 @@ export default function UserManagementSection() {
   const updateUser = useUpdateUser(editTarget?.id || "");
 
   return (
-    <div className="card p-6 xl:col-span-2">
+    <div className="card p-6 h-full">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Users className="h-5 w-5 text-emerald-600" />
@@ -42,56 +42,58 @@ export default function UserManagementSection() {
           ))}
         </div>
       ) : (
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-100 text-left text-xs text-gray-400">
-              <th className="px-3 py-3 font-medium">사용자 이름</th>
-              <th className="px-3 py-3 font-medium">역할</th>
-              <th className="px-3 py-3 font-medium">상태</th>
-              <th className="px-3 py-3 font-medium">작업</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td className="px-3 py-3 text-sm font-medium text-gray-900">
-                  {user.username}
-                  {user.username === currentUsername ? (
-                    <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
-                      현재 로그인
-                    </span>
-                  ) : null}
-                </td>
-                <td className="px-3 py-3 text-sm text-gray-600">{user.role}</td>
-                <td className="px-3 py-3">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      user.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    {user.is_active ? "활성" : "비활성"}
-                  </span>
-                </td>
-                <td className="px-3 py-3">
-                  <div className="flex items-center gap-2">
-                    <button
-                      className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
-                      onClick={() => setEditTarget(user)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                      onClick={() => setDeleteTarget(user)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px]">
+            <thead>
+              <tr className="border-b border-gray-100 text-left text-xs text-gray-400">
+                <th className="px-3 py-3 font-medium">사용자 이름</th>
+                <th className="px-3 py-3 font-medium">역할</th>
+                <th className="px-3 py-3 font-medium">상태</th>
+                <th className="px-3 py-3 font-medium">작업</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {users.map((user) => (
+                <tr key={user.id}>
+                  <td className="px-3 py-3 text-sm font-medium text-gray-900">
+                    {user.username}
+                    {user.username === currentUsername ? (
+                      <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
+                        현재 로그인
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-3 text-sm text-gray-600">{user.role}</td>
+                  <td className="px-3 py-3">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        user.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
+                      {user.is_active ? "활성" : "비활성"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                        onClick={() => setEditTarget(user)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                        onClick={() => setDeleteTarget(user)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="사용자 추가">
