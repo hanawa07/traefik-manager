@@ -214,6 +214,13 @@ async def test_get_security_alert_settings_returns_defaults(monkeypatch):
     assert response.telegram_bot_token_configured is False
     assert response.telegram_chat_id is None
     assert response.pagerduty_routing_key_configured is False
+    assert response.email_host is None
+    assert response.email_port == 587
+    assert response.email_security == "starttls"
+    assert response.email_username is None
+    assert response.email_password_configured is False
+    assert response.email_from is None
+    assert response.email_recipients == []
     assert response.timeout_seconds == 5.0
     assert response.alert_events == ["login_locked", "login_suspicious", "login_blocked_ip"]
 
@@ -294,6 +301,45 @@ async def test_update_security_alert_settings_keeps_existing_pagerduty_routing_k
 
 
 @pytest.mark.asyncio
+async def test_update_security_alert_settings_keeps_existing_email_password(monkeypatch):
+    StubSettingsRepository.store = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "email",
+        "security_alert_email_host": "smtp.example.com",
+        "security_alert_email_port": "587",
+        "security_alert_email_security": "starttls",
+        "security_alert_email_username": "alerts@example.com",
+        "security_alert_email_password": "smtp-secret",
+        "security_alert_email_from": "alerts@example.com",
+        "security_alert_email_recipients": "ops@example.com\nadmin@example.com",
+    }
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    response = await settings_router.update_security_alert_settings(
+        request=SecurityAlertSettingsUpdateRequest(
+            enabled=True,
+            provider="email",
+            email_host="smtp.example.com",
+            email_port=465,
+            email_security="ssl",
+            email_username="alerts@example.com",
+            email_password="",
+            email_from="alerts@example.com",
+            email_recipients=["ops@example.com", "admin@example.com"],
+        ),
+        db=object(),
+        _={"role": "admin"},
+    )
+
+    assert StubSettingsRepository.store["security_alert_email_password"] == "smtp-secret"
+    assert StubSettingsRepository.store["security_alert_email_port"] == "465"
+    assert StubSettingsRepository.store["security_alert_email_security"] == "ssl"
+    assert response.provider == "email"
+    assert response.email_password_configured is True
+    assert response.email_recipients == ["ops@example.com", "admin@example.com"]
+
+
+@pytest.mark.asyncio
 async def test_update_security_alert_settings_rejects_enabled_telegram_without_token(monkeypatch):
     StubSettingsRepository.store = {}
     monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
@@ -305,6 +351,29 @@ async def test_update_security_alert_settings_rejects_enabled_telegram_without_t
                 provider="telegram",
                 telegram_bot_token="",
                 telegram_chat_id="123456",
+            ),
+            db=object(),
+            _={"role": "admin"},
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_security_alert_settings_rejects_enabled_email_without_required_fields(monkeypatch):
+    StubSettingsRepository.store = {}
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    with pytest.raises(HTTPException):
+        await settings_router.update_security_alert_settings(
+            request=SecurityAlertSettingsUpdateRequest(
+                enabled=True,
+                provider="email",
+                email_host="",
+                email_port=587,
+                email_security="starttls",
+                email_username="",
+                email_password="",
+                email_from="",
+                email_recipients=[],
             ),
             db=object(),
             _={"role": "admin"},
@@ -385,6 +454,22 @@ def test_security_alert_settings_update_request_rejects_invalid_provider():
     with pytest.raises(ValidationError):
         SecurityAlertSettingsUpdateRequest(
             enabled=True,
-            provider="email",
+            provider="sms",
             webhook_url="https://hooks.example.com/security-alerts",
         )
+
+
+def test_security_alert_settings_update_request_normalizes_email_recipients():
+    request = SecurityAlertSettingsUpdateRequest(
+        enabled=True,
+        provider="email",
+        email_host="smtp.example.com",
+        email_port=587,
+        email_security="starttls",
+        email_username="alerts@example.com",
+        email_password="smtp-secret",
+        email_from="alerts@example.com",
+        email_recipients=[" ops@example.com ", "admin@example.com"],
+    )
+
+    assert request.email_recipients == ["ops@example.com", "admin@example.com"]

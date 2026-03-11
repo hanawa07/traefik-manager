@@ -35,7 +35,7 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
 
 router = APIRouter()
 SECURITY_ALERT_EVENTS = ["login_locked", "login_suspicious", "login_blocked_ip"]
-SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty"}
+SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"}
 
 
 async def get_cloudflare_client(db: AsyncSession = Depends(get_db)) -> CloudflareClient:
@@ -205,6 +205,8 @@ async def update_security_alert_settings(
     effective_telegram_bot_token = request.telegram_bot_token or existing_telegram_bot_token or ""
     existing_pagerduty_routing_key = await repo.get("security_alert_pagerduty_routing_key")
     effective_pagerduty_routing_key = request.pagerduty_routing_key or existing_pagerduty_routing_key or ""
+    existing_email_password = await repo.get("security_alert_email_password")
+    effective_email_password = request.email_password or existing_email_password or ""
 
     if request.enabled:
         if request.provider == "telegram":
@@ -213,6 +215,11 @@ async def update_security_alert_settings(
         elif request.provider == "pagerduty":
             if not effective_pagerduty_routing_key:
                 raise HTTPException(status_code=422, detail="PagerDuty routing key가 필요합니다")
+        elif request.provider == "email":
+            if not request.email_host or not request.email_from or not request.email_recipients:
+                raise HTTPException(status_code=422, detail="SMTP host, 발신자, 수신자 설정이 필요합니다")
+            if request.email_username and not effective_email_password:
+                raise HTTPException(status_code=422, detail="SMTP 비밀번호가 필요합니다")
         elif not request.webhook_url:
             raise HTTPException(status_code=422, detail="Webhook URL이 필요합니다")
 
@@ -236,6 +243,17 @@ async def update_security_alert_settings(
     )
     if request.pagerduty_routing_key:
         await repo.set("security_alert_pagerduty_routing_key", request.pagerduty_routing_key)
+    await repo.set("security_alert_email_host", request.email_host or None)
+    await repo.set("security_alert_email_port", str(request.email_port))
+    await repo.set("security_alert_email_security", request.email_security)
+    await repo.set("security_alert_email_username", request.email_username or None)
+    if request.email_password:
+        await repo.set("security_alert_email_password", request.email_password)
+    await repo.set("security_alert_email_from", request.email_from or None)
+    await repo.set(
+        "security_alert_email_recipients",
+        "\n".join(request.email_recipients) or None,
+    )
     return await _build_security_alert_response(repo)
 
 
@@ -334,6 +352,12 @@ async def _build_security_alert_response(
     provider = await repo.get("security_alert_provider") or "generic"
     telegram_bot_token = await repo.get("security_alert_telegram_bot_token")
     pagerduty_routing_key = await repo.get("security_alert_pagerduty_routing_key")
+    email_password = await repo.get("security_alert_email_password")
+    email_port_value = await repo.get("security_alert_email_port")
+    try:
+        email_port = int(email_port_value) if email_port_value else 587
+    except ValueError:
+        email_port = 587
     return SecurityAlertSettingsResponse(
         enabled=await _get_bool_setting(
             repo,
@@ -345,6 +369,13 @@ async def _build_security_alert_response(
         telegram_bot_token_configured=bool(telegram_bot_token),
         telegram_chat_id=await repo.get("security_alert_telegram_chat_id"),
         pagerduty_routing_key_configured=bool(pagerduty_routing_key),
+        email_host=await repo.get("security_alert_email_host"),
+        email_port=email_port,
+        email_security=((await repo.get("security_alert_email_security")) or "starttls"),
+        email_username=await repo.get("security_alert_email_username"),
+        email_password_configured=bool(email_password),
+        email_from=await repo.get("security_alert_email_from"),
+        email_recipients=_split_networks(await repo.get("security_alert_email_recipients")),
         timeout_seconds=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS,
         alert_events=SECURITY_ALERT_EVENTS,
     )

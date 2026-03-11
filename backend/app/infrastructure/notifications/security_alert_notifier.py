@@ -1,4 +1,8 @@
+import asyncio
 import logging
+import smtplib
+import ssl
+from email.message import EmailMessage
 from typing import Any
 
 import httpx
@@ -13,7 +17,7 @@ from app.infrastructure.persistence.repositories.sqlite_system_settings_reposito
 logger = logging.getLogger(__name__)
 
 SECURITY_ALERT_EVENTS = {"login_locked", "login_suspicious", "login_blocked_ip"}
-SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty"}
+SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"}
 PAGERDUTY_EVENTS_API_URL = "https://events.pagerduty.com/v2/enqueue"
 
 
@@ -31,6 +35,9 @@ async def notify_if_needed(db: AsyncSession, audit_log: AuditLogModel) -> bool:
     if not enabled:
         return False
 
+    if provider == "email":
+        return await _send_email_alert(repo, audit_log, event)
+
     request = await _build_request(repo, audit_log, event, provider)
     if request is None:
         return False
@@ -42,6 +49,23 @@ async def notify_if_needed(db: AsyncSession, audit_log: AuditLogModel) -> bool:
         return True
     except httpx.HTTPError as exc:
         logger.warning("보안 웹훅 알림 전송 실패: %s", exc, exc_info=True)
+        return False
+
+
+async def _send_email_alert(
+    repo: SQLiteSystemSettingsRepository,
+    audit_log: AuditLogModel,
+    event: str,
+) -> bool:
+    email_settings = await _build_email_settings(repo)
+    if email_settings is None:
+        return False
+
+    try:
+        await asyncio.to_thread(_send_email_sync, email_settings, audit_log, event)
+        return True
+    except OSError as exc:
+        logger.warning("보안 이메일 알림 전송 실패: %s", exc, exc_info=True)
         return False
 
 
@@ -77,6 +101,34 @@ def _build_payload(audit_log: AuditLogModel, event: str) -> dict[str, Any]:
         "created_at": audit_log.created_at.isoformat(),
         "detail": detail,
         "message": _build_message(event, audit_log.resource_name, detail.get("client_ip")),
+    }
+
+
+async def _build_email_settings(repo: SQLiteSystemSettingsRepository) -> dict[str, Any] | None:
+    host = ((await repo.get("security_alert_email_host")) or "").strip()
+    from_email = ((await repo.get("security_alert_email_from")) or "").strip()
+    recipients_raw = ((await repo.get("security_alert_email_recipients")) or "").strip()
+    if not host or not from_email or not recipients_raw:
+        return None
+
+    port_value = ((await repo.get("security_alert_email_port")) or "587").strip()
+    security = ((await repo.get("security_alert_email_security")) or "starttls").strip().lower()
+    username = ((await repo.get("security_alert_email_username")) or "").strip()
+    password = ((await repo.get("security_alert_email_password")) or "").strip()
+    recipients = [item.strip() for item in recipients_raw.replace(",", "\n").splitlines() if item.strip()]
+    try:
+        port = int(port_value)
+    except ValueError:
+        port = 587
+
+    return {
+        "host": host,
+        "port": port,
+        "security": security if security in {"none", "starttls", "ssl"} else "starttls",
+        "username": username,
+        "password": password,
+        "from_email": from_email,
+        "recipients": recipients,
     }
 
 
@@ -123,6 +175,38 @@ def _build_message(event: str, resource_name: str, client_ip: Any) -> str:
     if event == "login_suspicious":
         return f"이상 징후 로그인 감지: {client_ip or resource_name}"
     return f"이상 징후 IP 차단: {client_ip or resource_name}"
+
+
+def _send_email_sync(email_settings: dict[str, Any], audit_log: AuditLogModel, event: str) -> None:
+    message = EmailMessage()
+    detail = audit_log.detail or {}
+    message["Subject"] = f"[Traefik Manager] {_build_message(event, audit_log.resource_name, detail.get('client_ip'))}"
+    message["From"] = email_settings["from_email"]
+    message["To"] = ", ".join(email_settings["recipients"])
+    message.set_content(_build_multiline_message(audit_log, event))
+
+    timeout = settings.SECURITY_ALERT_EMAIL_TIMEOUT_SECONDS
+    security = email_settings["security"]
+    if security == "ssl":
+        client: smtplib.SMTP = smtplib.SMTP_SSL(
+            email_settings["host"],
+            email_settings["port"],
+            timeout=timeout,
+            context=ssl.create_default_context(),
+        )
+    else:
+        client = smtplib.SMTP(
+            email_settings["host"],
+            email_settings["port"],
+            timeout=timeout,
+        )
+
+    with client:
+        if security == "starttls":
+            client.starttls(context=ssl.create_default_context())
+        if email_settings["username"] and email_settings["password"]:
+            client.login(email_settings["username"], email_settings["password"])
+        client.send_message(message)
 
 
 def _build_slack_payload(audit_log: AuditLogModel, event: str) -> dict[str, Any]:

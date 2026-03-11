@@ -55,13 +55,13 @@
 - 활성화되면 로그인 페이지는 공개 site key로 위젯을 표시하고, 백엔드는 secret key로 토큰을 검증합니다.
 - Turnstile 검증이 없거나 실패하면 로그인은 진행되지 않습니다.
 - 대시보드에는 최근 보안 경고 요약(잠금/이상 징후/IP 차단)이 표시되고, 감사 로그 화면에는 보안 이벤트 전용 필터가 제공됩니다.
-- 설정 화면에서 보안 알림 채널을 `generic/slack/discord/telegram/teams/pagerduty` preset으로 선택할 수 있습니다.
+- 설정 화면에서 보안 알림 채널을 `generic/slack/discord/telegram/teams/pagerduty/email` preset으로 선택할 수 있습니다.
 - `login_locked`, `login_suspicious`, `login_blocked_ip` 이벤트는 채널별 포맷으로 전송됩니다.
-- Telegram은 bot token과 chat id를 사용하고, PagerDuty는 routing key를 사용하며, Generic/Slack/Discord/Teams는 webhook URL을 사용합니다.
+- Telegram은 bot token과 chat id를 사용하고, PagerDuty는 routing key를 사용하며, Generic/Slack/Discord/Teams는 webhook URL을 사용합니다. Email은 SMTP host/port/security/from/recipients를 사용합니다.
 - 웹훅 전송 실패는 서버 로그에만 남고, 로그인 차단/잠금 동작 자체는 중단하지 않습니다.
 
 **남은 보완점:**
-- 차단 이벤트 알림 채널 확장(Email 등)
+- Turnstile 위험 기반 적용 모드
 - 차단 이벤트 대응 자동화 고도화
 
 ---

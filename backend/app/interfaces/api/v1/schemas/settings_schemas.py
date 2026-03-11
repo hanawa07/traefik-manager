@@ -1,3 +1,4 @@
+from email.utils import parseaddr
 from ipaddress import ip_network
 from typing import Literal
 
@@ -58,6 +59,29 @@ def normalize_trusted_networks(value: list[str]) -> list[str]:
             raise ValueError("유효한 IP 또는 CIDR 대역만 입력할 수 있습니다") from exc
         normalized_networks.append(str(network))
     return normalized_networks
+
+
+def normalize_email_recipients(value: list[str]) -> list[str]:
+    normalized_recipients: list[str] = []
+    for item in value:
+        normalized = item.strip()
+        if not normalized:
+            continue
+        _, address = parseaddr(normalized)
+        if not address or "@" not in address:
+            raise ValueError("유효한 이메일 주소만 입력할 수 있습니다")
+        normalized_recipients.append(address)
+    return normalized_recipients
+
+
+def normalize_email_address(value: str) -> str:
+    normalized = value.strip()
+    if not normalized:
+        return ""
+    _, address = parseaddr(normalized)
+    if not address or "@" not in address:
+        raise ValueError("유효한 이메일 주소를 입력해야 합니다")
+    return address
 
 
 class UpstreamSecuritySettingsResponse(BaseModel):
@@ -130,22 +154,36 @@ class LoginDefenseSettingsUpdateRequest(BaseModel):
 
 class SecurityAlertSettingsResponse(BaseModel):
     enabled: bool
-    provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty"]
+    provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"]
     webhook_url: str | None = None
     telegram_bot_token_configured: bool = False
     telegram_chat_id: str | None = None
     pagerduty_routing_key_configured: bool = False
+    email_host: str | None = None
+    email_port: int = 587
+    email_security: Literal["none", "starttls", "ssl"] = "starttls"
+    email_username: str | None = None
+    email_password_configured: bool = False
+    email_from: str | None = None
+    email_recipients: list[str] = Field(default_factory=list)
     timeout_seconds: float
     alert_events: list[str] = Field(default_factory=list)
 
 
 class SecurityAlertSettingsUpdateRequest(BaseModel):
     enabled: bool = False
-    provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty"] = "generic"
+    provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"] = "generic"
     webhook_url: str = ""
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
     pagerduty_routing_key: str = ""
+    email_host: str = ""
+    email_port: int = Field(default=587, ge=1, le=65535)
+    email_security: Literal["none", "starttls", "ssl"] = "starttls"
+    email_username: str = ""
+    email_password: str = ""
+    email_from: str = ""
+    email_recipients: list[str] = Field(default_factory=list)
 
     @field_validator("webhook_url")
     @classmethod
@@ -155,7 +193,17 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
             return ""
         return str(AnyHttpUrl(normalized))
 
-    @field_validator("telegram_bot_token", "telegram_chat_id", "pagerduty_routing_key")
+    @field_validator("telegram_bot_token", "telegram_chat_id", "pagerduty_routing_key", "email_host")
     @classmethod
     def normalize_string_fields(cls, value: str) -> str:
         return value.strip()
+
+    @field_validator("email_from")
+    @classmethod
+    def normalize_email_from(cls, value: str) -> str:
+        return normalize_email_address(value)
+
+    @field_validator("email_recipients")
+    @classmethod
+    def validate_email_recipients(cls, value: list[str]) -> list[str]:
+        return normalize_email_recipients(value)

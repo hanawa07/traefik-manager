@@ -71,6 +71,13 @@ function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
     telegram_bot_token: "",
     telegram_chat_id: "",
     pagerduty_routing_key: "",
+    email_host: "",
+    email_port: 587,
+    email_security: "starttls",
+    email_username: "",
+    email_password: "",
+    email_from: "",
+    email_recipients: [],
   };
 }
 
@@ -109,6 +116,12 @@ const SECURITY_ALERT_PROVIDER_OPTIONS = [
     value: "pagerduty",
     label: "PagerDuty",
     description: "PagerDuty Events API v2 trigger 이벤트로 전송합니다.",
+    placeholder: "",
+  },
+  {
+    value: "email",
+    label: "Email",
+    description: "SMTP를 통해 이메일 경고를 전송합니다.",
     placeholder: "",
   },
 ] as const;
@@ -297,6 +310,13 @@ export default function SettingsPage() {
       telegram_bot_token: "",
       telegram_chat_id: securityAlertSettings?.telegram_chat_id ?? "",
       pagerduty_routing_key: "",
+      email_host: securityAlertSettings?.email_host ?? "",
+      email_port: securityAlertSettings?.email_port ?? 587,
+      email_security: securityAlertSettings?.email_security ?? "starttls",
+      email_username: securityAlertSettings?.email_username ?? "",
+      email_password: "",
+      email_from: securityAlertSettings?.email_from ?? "",
+      email_recipients: securityAlertSettings?.email_recipients ?? [],
     });
     setSecurityAlertErrorMessage("");
     setIsEditingSecurityAlert(true);
@@ -312,6 +332,13 @@ export default function SettingsPage() {
         telegram_bot_token: securityAlertForm.telegram_bot_token.trim(),
         telegram_chat_id: securityAlertForm.telegram_chat_id.trim(),
         pagerduty_routing_key: securityAlertForm.pagerduty_routing_key.trim(),
+        email_host: securityAlertForm.email_host.trim(),
+        email_port: securityAlertForm.email_port,
+        email_security: securityAlertForm.email_security,
+        email_username: securityAlertForm.email_username.trim(),
+        email_password: securityAlertForm.email_password.trim(),
+        email_from: securityAlertForm.email_from.trim(),
+        email_recipients: securityAlertForm.email_recipients,
       });
       setIsEditingSecurityAlert(false);
     } catch (error) {
@@ -1088,6 +1115,130 @@ export default function SettingsPage() {
                     <p className="mt-1 text-xs text-gray-500">알림을 받을 개인/그룹 chat id를 입력합니다.</p>
                   </div>
                 </div>
+              ) : securityAlertForm.provider === "email" ? (
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="md:col-span-2">
+                      <label className="label">SMTP Host</label>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="smtp.example.com"
+                        value={securityAlertForm.email_host}
+                        onChange={(e) =>
+                          setSecurityAlertForm((current) => ({
+                            ...current,
+                            email_host: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Port</label>
+                      <input
+                        type="number"
+                        className="input"
+                        min={1}
+                        max={65535}
+                        value={securityAlertForm.email_port}
+                        onChange={(e) =>
+                          setSecurityAlertForm((current) => ({
+                            ...current,
+                            email_port: Number(e.target.value) || 587,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div>
+                      <label className="label">보안 모드</label>
+                      <select
+                        className="input"
+                        value={securityAlertForm.email_security}
+                        onChange={(e) =>
+                          setSecurityAlertForm((current) => ({
+                            ...current,
+                            email_security: e.target.value as "none" | "starttls" | "ssl",
+                          }))
+                        }
+                      >
+                        <option value="starttls">STARTTLS</option>
+                        <option value="ssl">SSL/TLS</option>
+                        <option value="none">없음</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label">SMTP Username</label>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="alerts@example.com"
+                        value={securityAlertForm.email_username}
+                        onChange={(e) =>
+                          setSecurityAlertForm((current) => ({
+                            ...current,
+                            email_username: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="label">SMTP Password</label>
+                      <input
+                        type="password"
+                        className="input"
+                        placeholder="앱 비밀번호 또는 SMTP 비밀번호"
+                        value={securityAlertForm.email_password}
+                        onChange={(e) =>
+                          setSecurityAlertForm((current) => ({
+                            ...current,
+                            email_password: e.target.value,
+                          }))
+                        }
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        {securityAlertSettings?.email_password_configured
+                          ? "비워두면 기존 SMTP 비밀번호를 유지합니다."
+                          : "SMTP 인증이 필요하다면 비밀번호를 입력합니다."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="label">From</label>
+                      <input
+                        type="email"
+                        className="input"
+                        placeholder="alerts@example.com"
+                        value={securityAlertForm.email_from}
+                        onChange={(e) =>
+                          setSecurityAlertForm((current) => ({
+                            ...current,
+                            email_from: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Recipients</label>
+                      <textarea
+                        className="input min-h-[88px]"
+                        placeholder={"ops@example.com\nadmin@example.com"}
+                        value={securityAlertForm.email_recipients.join("\n")}
+                        onChange={(e) =>
+                          setSecurityAlertForm((current) => ({
+                            ...current,
+                            email_recipients: parseMultivalueText(e.target.value),
+                          }))
+                        }
+                      />
+                      <p className="mt-1 text-xs text-gray-500">줄바꿈 또는 쉼표로 여러 수신자를 구분할 수 있습니다.</p>
+                    </div>
+                  </div>
+                </div>
               ) : securityAlertForm.provider === "pagerduty" ? (
                 <div>
                   <label className="label">Routing Key</label>
@@ -1177,6 +1328,47 @@ export default function SettingsPage() {
                     <span className="text-gray-500">Chat ID</span>
                     <span className="font-mono text-right text-gray-700">
                       {securityAlertSettings.telegram_chat_id || "(미설정)"}
+                    </span>
+                  </div>
+                </>
+              ) : securityAlertSettings?.provider === "email" ? (
+                <>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">SMTP</span>
+                    <span className="font-mono text-right text-gray-700">
+                      {securityAlertSettings.email_host
+                        ? `${securityAlertSettings.email_host}:${securityAlertSettings.email_port}`
+                        : "(미설정)"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">보안</span>
+                    <span className="text-right text-gray-700">{securityAlertSettings.email_security}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">SMTP 계정</span>
+                    <span className="font-mono text-right text-gray-700">
+                      {securityAlertSettings.email_username || "(미설정)"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">비밀번호</span>
+                    <span className="text-right text-gray-700">
+                      {securityAlertSettings.email_password_configured ? "설정됨" : "(미설정)"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">From</span>
+                    <span className="font-mono text-right text-gray-700">
+                      {securityAlertSettings.email_from || "(미설정)"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">Recipients</span>
+                    <span className="font-mono text-right text-gray-700">
+                      {securityAlertSettings.email_recipients.length > 0
+                        ? securityAlertSettings.email_recipients.join(", ")
+                        : "(미설정)"}
                     </span>
                   </div>
                 </>

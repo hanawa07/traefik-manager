@@ -207,6 +207,32 @@ async def test_notify_if_needed_formats_pagerduty_payload(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_notify_if_needed_sends_email_alert(monkeypatch):
+    sent = []
+
+    async def stub_send_email_alert(repo, audit_log, event):
+        sent.append((repo, audit_log, event))
+        return True
+
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "email",
+        "security_alert_email_host": "smtp.example.com",
+        "security_alert_email_port": "587",
+        "security_alert_email_security": "starttls",
+        "security_alert_email_from": "alerts@example.com",
+        "security_alert_email_recipients": "ops@example.com",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(security_alert_notifier, "_send_email_alert", stub_send_email_alert)
+
+    result = await security_alert_notifier.notify_if_needed(object(), make_audit_log("login_suspicious"))
+
+    assert result is True
+    assert sent[0][2] == "login_suspicious"
+
+
+@pytest.mark.asyncio
 async def test_notify_if_needed_formats_telegram_payload(monkeypatch):
     posted = []
 
