@@ -104,7 +104,12 @@ async def list_services_health(
     
     # 병렬 헬스 체크 실행
     tasks = [
-        upstream_checker.check_upstream(s.upstream_host, s.upstream_port)
+        upstream_checker.check_upstream(
+            s.upstream_host,
+            s.upstream_port,
+            s.upstream_scheme,
+            s.skip_tls_verify,
+        )
         for s in services
     ]
     health_results = await asyncio.gather(*tasks)
@@ -129,7 +134,12 @@ async def get_service_health(
     if not service:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="서비스를 찾을 수 없습니다")
     
-    result = await upstream_checker.check_upstream(service.upstream_host, service.upstream_port)
+    result = await upstream_checker.check_upstream(
+        service.upstream_host,
+        service.upstream_port,
+        service.upstream_scheme,
+        service.skip_tls_verify,
+    )
     
     return UpstreamHealthResponse(
         service_id=service.id.value,

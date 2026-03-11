@@ -9,7 +9,7 @@ import { Server, Plus, Search, ArrowUpDown } from "lucide-react";
 import { useTraefikRouterStatus } from "@/features/traefik/hooks/useTraefik";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 
-type SortKey = "name" | "domain" | "auth" | "router" | "created_at";
+type SortKey = "name" | "domain" | "auth" | "router" | "health" | "created_at";
 type SortDir = "asc" | "desc";
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
@@ -17,6 +17,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "domain", label: "도메인" },
   { value: "auth", label: "인증 여부" },
   { value: "router", label: "라우터 상태" },
+  { value: "health", label: "업스트림 상태" },
   { value: "created_at", label: "생성일" },
 ];
 
@@ -64,12 +65,20 @@ export default function ServicesPage() {
         const ra = routerStatus?.domains?.[a.domain]?.active;
         const rb = routerStatus?.domains?.[b.domain]?.active;
         cmp = Number(rb ?? false) - Number(ra ?? false);
+      } else if (sortKey === "health") {
+        const getWeight = (service: Service) => {
+          const status = healthMap?.[service.id]?.status;
+          if (status === "down") return 2;
+          if (status === "unknown" || status === undefined) return 1;
+          return 0;
+        };
+        cmp = getWeight(b) - getWeight(a);
       } else if (sortKey === "created_at")
         cmp = a.created_at > b.created_at ? 1 : -1;
       return sortDir === "asc" ? cmp : -cmp;
     });
     return result;
-  }, [services, search, sortKey, sortDir, routerStatus]);
+  }, [services, search, sortKey, sortDir, routerStatus, healthMap]);
 
   return (
     <div className="p-8">

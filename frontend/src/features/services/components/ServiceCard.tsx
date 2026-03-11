@@ -154,8 +154,13 @@ export default function ServiceCard({
             "DOWN"
           )}
           </span>
-          </div>
-          </div>
-          );
-          }
+      </div>
 
+      {upstreamHealth?.status === "down" && upstreamHealth.error ? (
+        <p className="mt-2 text-[11px] leading-4 text-rose-700 break-words">
+          원인: {upstreamHealth.error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
