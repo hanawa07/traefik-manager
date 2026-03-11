@@ -66,7 +66,8 @@ traefik-manager/
 │       │   │   ├── commands/        # 상태 변경 커맨드
 │       │   │   ├── queries/         # 조회 쿼리
 │       │   │   └── service_use_cases.py
-│       │   ├── auth/                # 로그인 방어, 세션 관리, 이상 징후 탐지
+│       │   ├── auth/                # 로그인 방어, 세션 관리, 이상 징후 탐지, 자동 차단 예외 정책
+│       │   ├── audit/               # 감사 로그 기록, 보안 이벤트 요약
 │       │   └── certificate/
 │       │
 │       ├── infrastructure/          # 인프라 레이어 (외부 시스템 연동)
@@ -87,6 +88,8 @@ traefik-manager/
 │       │   │   └── upstream_checker.py
 │       │   ├── network/
 │       │   │   └── upstream_dns_guard.py
+│       │   ├── auth/
+│       │   │   └── session_cleanup.py
 │       │   └── authentik/
 │       │       └── client.py        # Authentik REST API 클라이언트
 │       │
@@ -101,13 +104,15 @@ traefik-manager/
 │                   │   ├── middlewares.py
 │                   │   ├── redirects.py
 │                   │   ├── settings.py
-│                   │   ├── audit.py
+│                   │   ├── audit.py         # 감사 로그 조회 + 보안 이벤트 요약
 │                   │   ├── backup.py
 │                   │   ├── docker.py
 │                   │   ├── traefik.py
 │                   │   └── users.py
 │                   └── schemas/
-│                       └── service_schemas.py
+│                       ├── service_schemas.py
+│                       ├── settings_schemas.py
+│                       └── audit_schemas.py
 │
 ├── frontend/
 │   ├── Dockerfile
@@ -156,14 +161,28 @@ traefik-manager/
 ## 데이터 흐름
 
 ```
-UI 폼 입력
-  → POST /api/v1/services (interfaces/api)
-    → ServiceUseCases.create_service() (application)
-      → Service.create() 도메인 검증 (domain)
-        → SQLiteServiceRepository.save() (infrastructure/persistence)
-        → FileProviderWriter.write() → /traefik-config/dynamic/domain.yml
-        → auth_mode=authentik 인 경우 AuthentikClient 동기화
-          → Traefik 자동 감지 및 라우팅 시작
+서비스 생성/수정:
+  UI 폼 입력
+    → POST /api/v1/services (interfaces/api)
+      → ServiceUseCases.create_service() (application)
+        → Service.create() 도메인 검증 (domain)
+          → SQLiteServiceRepository.save() (infrastructure/persistence)
+          → FileProviderWriter.write() → /traefik-config/dynamic/domain.yml
+          → auth_mode=authentik 인 경우 AuthentikClient 동기화
+            → Traefik 자동 감지 및 라우팅 시작
+
+로그인 방어 설정:
+  설정 화면 입력
+    → PUT /api/v1/settings/login-defense
+      → SQLiteSystemSettingsRepository 저장
+        → /api/v1/auth/login 에서 자동 차단 on/off, 신뢰 네트워크 예외 로드
+          → login_anomaly_service가 이상 징후 기록 / IP 차단 여부 결정
+
+보안 경고 가시성:
+  대시보드 / 감사 로그 진입
+    → GET /api/v1/audit/security-summary 또는 GET /api/v1/audit?security_only=true
+      → AuditLogModel 조회
+        → 최근 잠금 / 이상 징후 / IP 차단 이벤트 요약 및 필터링 결과 반환
 ```
 
 ---
@@ -172,6 +191,9 @@ UI 폼 입력
 
 - 브라우저 관리자 API는 서버 세션 쿠키 + CSRF 헤더 검증을 사용합니다.
 - 서비스 보호용 `forwardAuth`는 서비스 API Key 또는 관리자 세션 쿠키를 검사합니다.
+- 로그인 방어는 Traefik rate limit + 앱 레벨 계정 잠금 + 이상 징후/IP 차단의 2단계 구조입니다.
+- 이상 징후 IP 자동 차단은 설정에서 끄거나, 신뢰 네트워크(CIDR/IP) 예외를 둘 수 있습니다.
+- 보안 이벤트는 감사 로그에 기록되고, 대시보드/감사 로그 화면에서 별도 요약과 필터로 바로 볼 수 있습니다.
 - 컨테이너 비루트 사용자 실행
 - `no-new-privileges` 보안 옵션
 - 프론트엔드-백엔드 내부 네트워크 격리 (`traefik-manager-internal`)
