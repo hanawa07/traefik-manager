@@ -558,3 +558,58 @@ def test_security_alert_settings_update_request_normalizes_email_recipients():
     )
 
     assert request.email_recipients == ["ops@example.com", "admin@example.com"]
+
+
+@pytest.mark.asyncio
+async def test_test_cloudflare_connection_returns_success(monkeypatch):
+    class StubCloudflareClient:
+        async def test_connection(self):
+            return {
+                "success": True,
+                "message": "Cloudflare 연결에 성공했습니다",
+                "detail": "example.com 영역에 접근할 수 있습니다",
+            }
+
+    response = await settings_router.test_cloudflare_connection(
+        cloudflare_client=StubCloudflareClient(),
+        _={"role": "admin"},
+    )
+
+    assert response.success is True
+    assert response.message == "Cloudflare 연결에 성공했습니다"
+    assert response.detail == "example.com 영역에 접근할 수 있습니다"
+
+
+@pytest.mark.asyncio
+async def test_test_security_alert_settings_returns_success(monkeypatch):
+    StubSettingsRepository.store = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "slack",
+        "security_alert_webhook_url": "https://hooks.example.com/security-alerts",
+    }
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    called = {}
+
+    async def fake_send_test_alert(db):
+        called["db"] = db
+        return {
+            "success": True,
+            "provider": "slack",
+            "message": "테스트 보안 알림을 전송했습니다",
+            "detail": "Slack webhook으로 테스트 payload를 전송했습니다",
+        }
+
+    monkeypatch.setattr(settings_router.security_alert_notifier, "send_test_alert", fake_send_test_alert)
+
+    db = object()
+
+    response = await settings_router.test_security_alert_settings(
+        db=db,
+        _={"role": "admin"},
+    )
+
+    assert called["db"] is db
+    assert response.success is True
+    assert response.provider == "slack"
+    assert response.message == "테스트 보안 알림을 전송했습니다"

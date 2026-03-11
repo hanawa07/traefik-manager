@@ -17,9 +17,11 @@ import {
 import { useLogoutAllSessions, useRevokeSession, useSessions } from "@/features/auth/hooks/useSessions";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import {
+  BackupValidateResult,
   BackupPayload,
   LoginDefenseSettingsInput,
   SecurityAlertSettingsInput,
+  SettingsActionTestResult,
   UpstreamSecurityPreset,
   UpstreamSecuritySettingsInput,
 } from "@/features/settings/api/settingsApi";
@@ -37,11 +39,14 @@ import {
   useLoginDefenseSettings,
   useSecurityAlertSettings,
   useTimeDisplaySettings,
+  useTestCloudflareConnection,
+  useTestSecurityAlertSettings,
   useUpstreamSecuritySettings,
   useUpdateSecurityAlertSettings,
   useUpdateTimeDisplaySettings,
   useUpdateLoginDefenseSettings,
   useUpdateUpstreamSecuritySettings,
+  useValidateBackup,
 } from "@/features/settings/hooks/useSettings";
 import UserManagementSection from "@/features/users/components/UserManagementSection";
 import { formatDateTime, getDefaultDisplayTimezone, getSupportedTimeZones } from "@/shared/lib/dateTimeFormat";
@@ -142,6 +147,40 @@ function parseMultivalueText(value: string): string[] {
     .filter(Boolean);
 }
 
+function buildActionFailure(message: string, detail?: string): SettingsActionTestResult {
+  return {
+    success: false,
+    message,
+    detail: detail || null,
+    provider: null,
+  };
+}
+
+function getApiErrorDetail(error: unknown, fallback: string): string {
+  const detail = (error as { response?: { data?: { detail?: string | Array<{ msg?: string }> } } })?.response?.data
+    ?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return detail[0]?.msg || fallback;
+  return fallback;
+}
+
+function ActionResultNotice({ result }: { result: SettingsActionTestResult | null }) {
+  if (!result) return null;
+
+  return (
+    <div
+      className={`rounded-lg border p-3 text-sm ${
+        result.success
+          ? "border-green-200 bg-green-50 text-green-800"
+          : "border-red-200 bg-red-50 text-red-700"
+      }`}
+    >
+      <p className="font-medium">{result.message}</p>
+      {result.detail ? <p className="mt-1 text-xs opacity-90">{result.detail}</p> : null}
+    </div>
+  );
+}
+
 function getTurnstileModeLabel(mode: "off" | "always" | "risk_based"): string {
   switch (mode) {
     case "always":
@@ -189,6 +228,9 @@ export default function SettingsPage() {
   const [importMode, setImportMode] = useState<"merge" | "overwrite">("merge");
   const [importResultMessage, setImportResultMessage] = useState<string>("");
   const [exportErrorMessage, setExportErrorMessage] = useState<string>("");
+  const [cloudflareTestResult, setCloudflareTestResult] = useState<SettingsActionTestResult | null>(null);
+  const [securityAlertTestResult, setSecurityAlertTestResult] = useState<SettingsActionTestResult | null>(null);
+  const [backupValidationResult, setBackupValidationResult] = useState<BackupValidateResult | null>(null);
 
   const [isEditingCf, setIsEditingCf] = useState(false);
   const [cfForm, setCfForm] = useState({ api_token: "", zone_id: "", record_target: "", proxied: false });
@@ -211,14 +253,17 @@ export default function SettingsPage() {
   const { data: securityAlertSettings, isLoading: isSecurityAlertLoading } = useSecurityAlertSettings();
   const { data: sessionData, isLoading: isSessionsLoading } = useSessions();
   const updateCloudflare = useUpdateCloudflareSettings();
+  const testCloudflareConnection = useTestCloudflareConnection();
   const updateTimeDisplay = useUpdateTimeDisplaySettings();
   const updateUpstreamSecurity = useUpdateUpstreamSecuritySettings();
   const updateLoginDefense = useUpdateLoginDefenseSettings();
   const updateSecurityAlert = useUpdateSecurityAlertSettings();
+  const testSecurityAlertSettings = useTestSecurityAlertSettings();
   const logoutAllSessions = useLogoutAllSessions();
   const revokeSession = useRevokeSession();
   const exportBackup = useExportBackup();
   const importBackup = useImportBackup();
+  const validateBackup = useValidateBackup();
   const supportedTimeZones = getSupportedTimeZones();
   const upstreamPresets = upstreamSecuritySettings?.available_presets ?? [];
   const selectedUpstreamPresetKey = inferUpstreamPresetKey(upstreamPresets, upstreamSecurityForm);
@@ -235,7 +280,16 @@ export default function SettingsPage() {
 
   const handleSaveCf = async () => {
     await updateCloudflare.mutateAsync(cfForm);
+    setCloudflareTestResult(null);
     setIsEditingCf(false);
+  };
+
+  const handleTestCf = async () => {
+    try {
+      setCloudflareTestResult(await testCloudflareConnection.mutateAsync());
+    } catch (error) {
+      setCloudflareTestResult(buildActionFailure("Cloudflare 연결 테스트에 실패했습니다", getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다")));
+    }
   };
 
   const handleEditTimeDisplay = () => {
@@ -368,6 +422,7 @@ export default function SettingsPage() {
         email_from: securityAlertForm.email_from.trim(),
         email_recipients: securityAlertForm.email_recipients,
       });
+      setSecurityAlertTestResult(null);
       setIsEditingSecurityAlert(false);
     } catch (error) {
       const detail = (error as { response?: { data?: { detail?: string | Array<{ msg?: string }> } } })?.response
@@ -378,6 +433,16 @@ export default function SettingsPage() {
           : Array.isArray(detail)
             ? detail[0]?.msg || "보안 알림 설정 저장에 실패했습니다"
             : "보안 알림 설정 저장에 실패했습니다",
+      );
+    }
+  };
+
+  const handleTestSecurityAlert = async () => {
+    try {
+      setSecurityAlertTestResult(await testSecurityAlertSettings.mutateAsync());
+    } catch (error) {
+      setSecurityAlertTestResult(
+        buildActionFailure("테스트 보안 알림 전송에 실패했습니다", getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다")),
       );
     }
   };
@@ -405,6 +470,7 @@ export default function SettingsPage() {
     if (!canManage) return;
     if (!backupFile) return;
     setImportResultMessage("");
+    setBackupValidationResult(null);
 
     let parsed: BackupPayload;
     try {
@@ -429,6 +495,31 @@ export default function SettingsPage() {
       `가져오기 완료: 서비스 생성 ${result.created_services}개, 서비스 수정 ${result.updated_services}개, 리다이렉트 생성 ${result.created_redirects}개, 리다이렉트 수정 ${result.updated_redirects}개`
     );
     setBackupFile(null);
+  };
+
+  const handleValidateBackup = async () => {
+    if (!backupFile) return;
+    setImportResultMessage("");
+    setBackupValidationResult(null);
+
+    let parsed: BackupPayload;
+    try {
+      const text = await backupFile.text();
+      parsed = JSON.parse(text) as BackupPayload;
+    } catch {
+      setImportResultMessage("유효하지 않은 JSON 파일입니다");
+      return;
+    }
+
+    try {
+      const result = await validateBackup.mutateAsync({
+        mode: importMode,
+        data: parsed,
+      });
+      setBackupValidationResult(result);
+    } catch (error) {
+      setImportResultMessage(getApiErrorDetail(error, "백업 사전 검증에 실패했습니다"));
+    }
   };
 
   const handleLogoutAllSessions = async () => {
@@ -1430,6 +1521,21 @@ export default function SettingsPage() {
                 value={(securityAlertSettings?.alert_events ?? []).join(", ")}
               />
               <SettingsSummaryRow label="타임아웃" value={`${securityAlertSettings?.timeout_seconds ?? 5}초`} />
+              {canManage ? (
+                <SettingsActionRow>
+                  <button
+                    type="button"
+                    className="btn-secondary inline-flex items-center gap-2 py-1.5 text-xs"
+                    onClick={handleTestSecurityAlert}
+                    disabled={testSecurityAlertSettings.isPending}
+                  >
+                    <Cloud className="h-3.5 w-3.5" />
+                    {testSecurityAlertSettings.isPending ? "전송 중..." : "테스트 알림 전송"}
+                  </button>
+                </SettingsActionRow>
+              ) : null}
+              <p className="text-xs text-gray-500">테스트는 현재 저장된 provider 설정 기준으로 즉시 전송됩니다.</p>
+              <ActionResultNotice result={securityAlertTestResult} />
               <p className="text-xs text-gray-500">
                 알림 실패는 운영 가시성에만 영향을 주고, 로그인 차단/잠금 로직 자체는 중단하지 않습니다.
               </p>
@@ -1618,6 +1724,21 @@ export default function SettingsPage() {
                   value={cloudflareStatus?.proxied ? "활성" : "비활성"}
                 />
               </div>
+              {canManage ? (
+                <SettingsActionRow>
+                  <button
+                    type="button"
+                    className="btn-secondary inline-flex items-center gap-2 py-1.5 text-xs"
+                    onClick={handleTestCf}
+                    disabled={testCloudflareConnection.isPending}
+                  >
+                    <Cloud className="h-3.5 w-3.5" />
+                    {testCloudflareConnection.isPending ? "테스트 중..." : "연결 테스트"}
+                  </button>
+                </SettingsActionRow>
+              ) : null}
+              <p className="text-xs text-gray-500">테스트는 현재 저장된 Cloudflare 설정 기준으로 수행됩니다.</p>
+              <ActionResultNotice result={cloudflareTestResult} />
             </SettingsSummary>
           )}
         </div>
@@ -1647,7 +1768,11 @@ export default function SettingsPage() {
                 type="file"
                 accept="application/json"
                 className="input"
-                onChange={(e) => setBackupFile(e.target.files?.[0] || null)}
+                onChange={(e) => {
+                  setBackupFile(e.target.files?.[0] || null);
+                  setBackupValidationResult(null);
+                  setImportResultMessage("");
+                }}
               />
 
               <div className="space-y-2">
@@ -1656,7 +1781,10 @@ export default function SettingsPage() {
                     type="radio"
                     className="accent-blue-600"
                     checked={importMode === "merge"}
-                    onChange={() => setImportMode("merge")}
+                    onChange={() => {
+                      setImportMode("merge");
+                      setBackupValidationResult(null);
+                    }}
                   />
                   병합 (기존 데이터 유지)
                 </label>
@@ -1665,11 +1793,40 @@ export default function SettingsPage() {
                     type="radio"
                     className="accent-blue-600"
                     checked={importMode === "overwrite"}
-                    onChange={() => setImportMode("overwrite")}
+                    onChange={() => {
+                      setImportMode("overwrite");
+                      setBackupValidationResult(null);
+                    }}
                   />
                   덮어쓰기 (기존 데이터 삭제 후 복원)
                 </label>
               </div>
+
+              <button
+                type="button"
+                className="btn-secondary w-full inline-flex items-center justify-center gap-2"
+                onClick={handleValidateBackup}
+                disabled={!backupFile || validateBackup.isPending}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                {validateBackup.isPending ? "검증 중..." : "JSON 사전 검증"}
+              </button>
+
+              {backupValidationResult ? (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                  <p className="font-medium">
+                    검증 완료: 서비스 {backupValidationResult.service_count}개, 리다이렉트 {backupValidationResult.redirect_count}개
+                  </p>
+                  <p className="mt-1 text-xs">경고 {backupValidationResult.warning_count}개</p>
+                  {backupValidationResult.warnings.length ? (
+                    <ul className="mt-2 space-y-1 text-xs">
+                      {backupValidationResult.warnings.map((warning) => (
+                        <li key={warning}>- {warning}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
 
               <button
                 type="button"

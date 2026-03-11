@@ -18,6 +18,7 @@ from app.interfaces.api.v1.schemas.backup_schemas import (
     BackupExportResponse,
     BackupImportRequest,
     BackupImportResultResponse,
+    BackupValidateResponse,
 )
 
 router = APIRouter()
@@ -48,6 +49,21 @@ async def import_backup(
 ):
     try:
         return await use_cases.import_all(mode=request.mode, payload=request.data.model_dump())
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post("/validate", response_model=BackupValidateResponse, summary="설정 백업 사전 검증")
+async def validate_backup(
+    request: BackupImportRequest,
+    use_cases: BackupUseCases = Depends(get_use_cases),
+    _: dict = Depends(require_write_access),
+):
+    try:
+        return BackupValidateResponse(**(await use_cases.validate_payload(request.data.model_dump())))
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

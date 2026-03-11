@@ -2,6 +2,7 @@ import asyncio
 import logging
 import smtplib
 import ssl
+from datetime import datetime, timezone
 from email.message import EmailMessage
 from typing import Any
 
@@ -50,6 +51,64 @@ async def notify_if_needed(db: AsyncSession, audit_log: AuditLogModel) -> bool:
     except httpx.HTTPError as exc:
         logger.warning("보안 웹훅 알림 전송 실패: %s", exc, exc_info=True)
         return False
+
+
+async def send_test_alert(db: AsyncSession) -> dict[str, Any]:
+    repo = SQLiteSystemSettingsRepository(db)
+    provider = ((await repo.get("security_alert_provider")) or "generic").strip().lower()
+    if provider not in SECURITY_ALERT_PROVIDERS:
+        provider = "generic"
+
+    audit_log = AuditLogModel(
+        actor="system",
+        action="test",
+        resource_type="settings",
+        resource_id="security-alerts",
+        resource_name="security-alerts",
+        detail={
+            "event": "login_suspicious",
+            "client_ip": "203.0.113.10",
+            "test": True,
+        },
+    )
+    audit_log.created_at = datetime.now(timezone.utc)
+
+    if provider == "email":
+        success = await _send_email_alert(repo, audit_log, "login_suspicious")
+        return {
+            "success": success,
+            "provider": provider,
+            "message": "테스트 보안 알림을 전송했습니다" if success else "테스트 보안 알림 전송에 실패했습니다",
+            "detail": "현재 SMTP 설정으로 테스트 메시지를 전송했습니다" if success else "SMTP 설정을 다시 확인하세요",
+        }
+
+    request = await _build_request(repo, audit_log, "login_suspicious", provider)
+    if request is None:
+        return {
+            "success": False,
+            "provider": provider,
+            "message": "테스트 보안 알림 전송에 실패했습니다",
+            "detail": "현재 provider 설정이 완전하지 않습니다",
+        }
+
+    url, payload = request
+    try:
+        async with httpx.AsyncClient(timeout=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS) as client:
+            await client.post(url, json=payload)
+        return {
+            "success": True,
+            "provider": provider,
+            "message": "테스트 보안 알림을 전송했습니다",
+            "detail": f"{provider} 채널로 테스트 payload를 전송했습니다",
+        }
+    except httpx.HTTPError as exc:
+        logger.warning("테스트 보안 웹훅 알림 전송 실패: %s", exc, exc_info=True)
+        return {
+            "success": False,
+            "provider": provider,
+            "message": "테스트 보안 알림 전송에 실패했습니다",
+            "detail": str(exc),
+        }
 
 
 async def _send_email_alert(

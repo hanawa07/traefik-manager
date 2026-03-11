@@ -17,6 +17,13 @@ class CloudflareSettingsStatusResponse(BaseModel):
     message: str
 
 
+class SettingsTestActionResponse(BaseModel):
+    success: bool
+    message: str
+    detail: str | None = None
+    provider: str | None = None
+
+
 class CloudflareSettingsUpdateRequest(BaseModel):
     api_token: str = ""
     zone_id: str = ""

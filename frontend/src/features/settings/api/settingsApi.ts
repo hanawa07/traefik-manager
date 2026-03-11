@@ -55,6 +55,14 @@ export interface BackupImportResult {
   deleted_redirects: number;
 }
 
+export interface BackupValidateResult {
+  valid: boolean;
+  service_count: number;
+  redirect_count: number;
+  warning_count: number;
+  warnings: string[];
+}
+
 export interface CloudflareSettingsInput {
   api_token: string;
   zone_id: string;
@@ -173,6 +181,13 @@ export interface SecurityAlertSettingsInput {
   email_recipients: string[];
 }
 
+export interface SettingsActionTestResult {
+  success: boolean;
+  message: string;
+  detail: string | null;
+  provider: string | null;
+}
+
 export const settingsApi = {
   getCloudflareStatus: async (): Promise<CloudflareSettingsStatus> => {
     const res = await apiClient.get<CloudflareSettingsStatus>("/settings/cloudflare");
@@ -204,6 +219,11 @@ export const settingsApi = {
     return res.data;
   },
 
+  testCloudflareConnection: async (): Promise<SettingsActionTestResult> => {
+    const res = await apiClient.post<SettingsActionTestResult>("/settings/cloudflare/test");
+    return res.data;
+  },
+
   updateTimeDisplaySettings: async (payload: TimeDisplaySettingsInput): Promise<TimeDisplaySettingsStatus> => {
     const res = await apiClient.put<TimeDisplaySettingsStatus>("/settings/time-display", payload);
     return res.data;
@@ -228,6 +248,11 @@ export const settingsApi = {
     return res.data;
   },
 
+  testSecurityAlertSettings: async (): Promise<SettingsActionTestResult> => {
+    const res = await apiClient.post<SettingsActionTestResult>("/settings/security-alerts/test");
+    return res.data;
+  },
+
   exportBackup: async (): Promise<BackupPayload> => {
     const res = await apiClient.get<BackupPayload>("/backup/export");
     return res.data;
@@ -238,6 +263,14 @@ export const settingsApi = {
     data: BackupPayload
   ): Promise<BackupImportResult> => {
     const res = await apiClient.post<BackupImportResult>("/backup/import", { mode, data });
+    return res.data;
+  },
+
+  validateBackup: async (
+    mode: "merge" | "overwrite",
+    data: BackupPayload
+  ): Promise<BackupValidateResult> => {
+    const res = await apiClient.post<BackupValidateResult>("/backup/validate", { mode, data });
     return res.data;
   },
 };

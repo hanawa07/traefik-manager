@@ -15,6 +15,7 @@ from app.domain.proxy.value_objects.upstream_security_presets import (
     list_upstream_security_presets,
 )
 from app.infrastructure.cloudflare.client import CloudflareClient
+from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.interfaces.api.dependencies import get_current_user, require_admin
@@ -24,6 +25,7 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
     LoginDefenseSettingsResponse,
     LoginDefenseSettingsUpdateRequest,
     SecurityAlertSettingsResponse,
+    SettingsTestActionResponse,
     SecurityAlertSettingsUpdateRequest,
     TimeDisplaySettingsResponse,
     TimeDisplaySettingsUpdateRequest,
@@ -50,6 +52,14 @@ async def get_cloudflare_status(
     _: dict = Depends(get_current_user),
 ):
     return cloudflare_client.get_status()
+
+
+@router.post("/cloudflare/test", response_model=SettingsTestActionResponse, summary="Cloudflare 연결 테스트")
+async def test_cloudflare_connection(
+    cloudflare_client: CloudflareClient = Depends(get_cloudflare_client),
+    _: dict = Depends(require_admin),
+):
+    return SettingsTestActionResponse(**(await cloudflare_client.test_connection()))
 
 
 @router.put("/cloudflare", response_model=CloudflareSettingsStatusResponse, summary="Cloudflare 설정 저장")
@@ -215,6 +225,18 @@ async def get_security_alert_settings(
 ):
     repo = SQLiteSystemSettingsRepository(db)
     return await _build_security_alert_response(repo)
+
+
+@router.post(
+    "/security-alerts/test",
+    response_model=SettingsTestActionResponse,
+    summary="보안 알림 테스트 전송",
+)
+async def test_security_alert_settings(
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_admin),
+):
+    return SettingsTestActionResponse(**(await security_alert_notifier.send_test_alert(db)))
 
 
 @router.put("/security-alerts", response_model=SecurityAlertSettingsResponse, summary="보안 알림 설정 저장")

@@ -2,9 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   BackupPayload,
+  BackupValidateResult,
   CloudflareSettingsInput,
   LoginDefenseSettingsInput,
   SecurityAlertSettingsInput,
+  SettingsActionTestResult,
   TimeDisplaySettingsInput,
   UpstreamSecuritySettingsInput,
   settingsApi,
@@ -60,6 +62,12 @@ export function useUpdateCloudflareSettings() {
   });
 }
 
+export function useTestCloudflareConnection() {
+  return useMutation<SettingsActionTestResult>({
+    mutationFn: () => settingsApi.testCloudflareConnection(),
+  });
+}
+
 export function useUpdateTimeDisplaySettings() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -100,6 +108,12 @@ export function useUpdateSecurityAlertSettings() {
   });
 }
 
+export function useTestSecurityAlertSettings() {
+  return useMutation<SettingsActionTestResult>({
+    mutationFn: () => settingsApi.testSecurityAlertSettings(),
+  });
+}
+
 export function useExportBackup() {
   return useMutation({
     mutationFn: () => settingsApi.exportBackup(),
@@ -120,5 +134,11 @@ export function useImportBackup() {
         queryClient.invalidateQueries({ queryKey: ["traefik-router-status"] }),
       ]);
     },
+  });
+}
+
+export function useValidateBackup() {
+  return useMutation<BackupValidateResult, unknown, { mode: "merge" | "overwrite"; data: BackupPayload }>({
+    mutationFn: (params) => settingsApi.validateBackup(params.mode, params.data),
   });
 }

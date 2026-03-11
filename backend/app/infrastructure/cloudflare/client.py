@@ -57,6 +57,38 @@ class CloudflareClient:
             ),
         }
 
+    async def test_connection(self) -> dict:
+        if not self.enabled:
+            return {
+                "success": False,
+                "message": "Cloudflare 설정이 비활성화되어 있습니다",
+                "detail": "API token과 zone id를 먼저 저장하세요",
+            }
+
+        try:
+            async with self._client() as client:
+                response = await client.get(f"/zones/{self.zone_id}")
+                data = await self._decode_response(response)
+        except CloudflareClientError as exc:
+            return {
+                "success": False,
+                "message": "Cloudflare 연결 테스트에 실패했습니다",
+                "detail": str(exc),
+            }
+
+        result = data.get("result", {})
+        zone_name = result.get("name") if isinstance(result, dict) else None
+        detail = (
+            f"{zone_name} 영역에 접근할 수 있습니다"
+            if zone_name
+            else "설정된 Zone에 접근할 수 있습니다"
+        )
+        return {
+            "success": True,
+            "message": "Cloudflare 연결에 성공했습니다",
+            "detail": detail,
+        }
+
     async def upsert_service_record(self, domain: str, fallback_target: str) -> str | None:
         if not self.enabled:
             return None

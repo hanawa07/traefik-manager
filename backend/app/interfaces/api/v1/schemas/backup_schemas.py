@@ -63,3 +63,11 @@ class BackupImportResultResponse(BaseModel):
     created_redirects: int
     updated_redirects: int
     deleted_redirects: int
+
+
+class BackupValidateResponse(BaseModel):
+    valid: bool
+    service_count: int
+    redirect_count: int
+    warning_count: int
+    warnings: list[str] = Field(default_factory=list)
