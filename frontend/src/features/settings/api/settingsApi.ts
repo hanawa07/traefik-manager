@@ -209,6 +209,20 @@ export interface SettingsActionTestResult {
   provider: string | null;
 }
 
+export interface SettingsTestHistoryItem {
+  last_event: string | null;
+  last_success: boolean | null;
+  last_message: string | null;
+  last_detail: string | null;
+  last_provider: string | null;
+  last_created_at: string | null;
+}
+
+export interface SettingsTestHistoryStatus {
+  cloudflare: SettingsTestHistoryItem;
+  security_alert: SettingsTestHistoryItem;
+}
+
 export const settingsApi = {
   getCloudflareStatus: async (): Promise<CloudflareSettingsStatus> => {
     const res = await apiClient.get<CloudflareSettingsStatus>("/settings/cloudflare");
@@ -232,6 +246,11 @@ export const settingsApi = {
 
   getSecurityAlertSettings: async (): Promise<SecurityAlertSettingsStatus> => {
     const res = await apiClient.get<SecurityAlertSettingsStatus>("/settings/security-alerts");
+    return res.data;
+  },
+
+  getSettingsTestHistory: async (): Promise<SettingsTestHistoryStatus> => {
+    const res = await apiClient.get<SettingsTestHistoryStatus>("/settings/test-history");
     return res.data;
   },
 

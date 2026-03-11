@@ -1,6 +1,8 @@
 import pytest
 from pydantic import ValidationError
 from fastapi import HTTPException
+from types import SimpleNamespace
+from datetime import datetime, timezone
 
 from app.interfaces.api.v1.routers import settings as settings_router
 from app.interfaces.api.v1.schemas.settings_schemas import (
@@ -562,6 +564,8 @@ def test_security_alert_settings_update_request_normalizes_email_recipients():
 
 @pytest.mark.asyncio
 async def test_test_cloudflare_connection_returns_success(monkeypatch):
+    recorded = []
+
     class StubCloudflareClient:
         async def test_connection(self):
             return {
@@ -570,14 +574,27 @@ async def test_test_cloudflare_connection_returns_success(monkeypatch):
                 "detail": "example.com 영역에 접근할 수 있습니다",
             }
 
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(settings_router.audit_service, "record", fake_record, raising=False)
+    monkeypatch.setattr(settings_router, "get_client_ip", lambda _request: "203.0.113.10")
+
     response = await settings_router.test_cloudflare_connection(
+        request=SimpleNamespace(headers={}, client=SimpleNamespace(host="127.0.0.1")),
+        db=object(),
         cloudflare_client=StubCloudflareClient(),
-        _={"role": "admin"},
+        _={"role": "admin", "username": "admin"},
     )
 
     assert response.success is True
     assert response.message == "Cloudflare 연결에 성공했습니다"
     assert response.detail == "example.com 영역에 접근할 수 있습니다"
+    assert recorded[0]["resource_type"] == "settings"
+    assert recorded[0]["resource_name"] == "Cloudflare 연결 테스트"
+    assert recorded[0]["detail"]["event"] == "settings_test_cloudflare"
+    assert recorded[0]["detail"]["success"] is True
+    assert recorded[0]["detail"]["client_ip"] == "203.0.113.10"
 
 
 @pytest.mark.asyncio
@@ -590,6 +607,7 @@ async def test_test_security_alert_settings_returns_success(monkeypatch):
     monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
 
     called = {}
+    recorded = []
 
     async def fake_send_test_alert(db):
         called["db"] = db
@@ -600,16 +618,81 @@ async def test_test_security_alert_settings_returns_success(monkeypatch):
             "detail": "Slack webhook으로 테스트 payload를 전송했습니다",
         }
 
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
     monkeypatch.setattr(settings_router.security_alert_notifier, "send_test_alert", fake_send_test_alert)
+    monkeypatch.setattr(settings_router.audit_service, "record", fake_record, raising=False)
+    monkeypatch.setattr(settings_router, "get_client_ip", lambda _request: "198.51.100.7")
 
     db = object()
 
     response = await settings_router.test_security_alert_settings(
+        request=SimpleNamespace(headers={}, client=SimpleNamespace(host="127.0.0.1")),
         db=db,
-        _={"role": "admin"},
+        _={"role": "admin", "username": "admin"},
     )
 
     assert called["db"] is db
     assert response.success is True
     assert response.provider == "slack"
     assert response.message == "테스트 보안 알림을 전송했습니다"
+    assert recorded[0]["resource_type"] == "settings"
+    assert recorded[0]["resource_name"] == "보안 알림 테스트"
+    assert recorded[0]["detail"]["event"] == "settings_test_security_alert"
+    assert recorded[0]["detail"]["provider"] == "slack"
+    assert recorded[0]["detail"]["client_ip"] == "198.51.100.7"
+
+
+@pytest.mark.asyncio
+async def test_get_settings_test_history_returns_latest_cloudflare_and_security_alert_events(monkeypatch):
+    now = datetime.now(timezone.utc)
+    logs = [
+        SimpleNamespace(
+            id="1",
+            actor="admin",
+            action="test",
+            resource_type="settings",
+            resource_id="settings_test_cloudflare",
+            resource_name="Cloudflare 연결 테스트",
+            detail={"event": "settings_test_cloudflare", "success": True, "message": "성공"},
+            created_at=now,
+        ),
+        SimpleNamespace(
+            id="2",
+            actor="admin",
+            action="test",
+            resource_type="settings",
+            resource_id="settings_test_security_alert",
+            resource_name="보안 알림 테스트",
+            detail={"event": "settings_test_security_alert", "success": False, "message": "실패", "provider": "slack"},
+            created_at=now,
+        ),
+    ]
+
+    class StubScalarResult:
+        def __init__(self, items):
+            self._items = items
+
+        def all(self):
+            return self._items
+
+    class StubExecuteResult:
+        def __init__(self, items):
+            self._items = items
+
+        def scalars(self):
+            return StubScalarResult(self._items)
+
+    class StubDB:
+        async def execute(self, _query):
+            return StubExecuteResult(logs)
+
+    response = await settings_router.get_settings_test_history(db=StubDB(), _={"role": "admin"})
+
+    assert response.cloudflare.last_event == "settings_test_cloudflare"
+    assert response.cloudflare.last_success is True
+    assert response.cloudflare.last_message == "성공"
+    assert response.security_alert.last_event == "settings_test_security_alert"
+    assert response.security_alert.last_success is False
+    assert response.security_alert.last_provider == "slack"

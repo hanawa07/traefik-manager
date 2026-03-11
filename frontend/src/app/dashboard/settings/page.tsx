@@ -24,6 +24,7 @@ import {
   LoginDefenseSettingsInput,
   SecurityAlertSettingsInput,
   SettingsActionTestResult,
+  SettingsTestHistoryItem,
   UpstreamSecurityPreset,
   UpstreamSecuritySettingsInput,
 } from "@/features/settings/api/settingsApi";
@@ -43,6 +44,7 @@ import {
   useTimeDisplaySettings,
   useTestCloudflareConnection,
   useTestSecurityAlertSettings,
+  useSettingsTestHistory,
   useUpstreamSecuritySettings,
   useUpdateSecurityAlertSettings,
   useUpdateTimeDisplaySettings,
@@ -180,6 +182,35 @@ function ActionResultNotice({ result }: { result: SettingsActionTestResult | nul
     >
       <p className="font-medium">{result.message}</p>
       {result.detail ? <p className="mt-1 text-xs opacity-90">{result.detail}</p> : null}
+    </div>
+  );
+}
+
+function SettingsTestHistoryNotice({
+  label,
+  history,
+  timezone,
+}: {
+  label: string;
+  history: SettingsTestHistoryItem | null | undefined;
+  timezone?: string;
+}) {
+  if (!history?.last_event) {
+    return <p className="text-xs text-gray-500">{label}: 아직 기록이 없습니다.</p>;
+  }
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
+      <p>
+        {label}:{" "}
+        <span className={history.last_success ? "font-medium text-green-700" : "font-medium text-red-700"}>
+          {history.last_success ? "성공" : "실패"}
+        </span>
+      </p>
+      <p>시각: {history.last_created_at ? formatDateTime(history.last_created_at, timezone) : "-"}</p>
+      <p>메시지: {history.last_message || "-"}</p>
+      {history.last_provider ? <p>채널: {history.last_provider}</p> : null}
+      {history.last_detail ? <p className="text-gray-500">{history.last_detail}</p> : null}
     </div>
   );
 }
@@ -358,6 +389,7 @@ export default function SettingsPage() {
   const { data: upstreamSecuritySettings, isLoading: isUpstreamSecurityLoading } = useUpstreamSecuritySettings();
   const { data: loginDefenseSettings, isLoading: isLoginDefenseLoading } = useLoginDefenseSettings();
   const { data: securityAlertSettings, isLoading: isSecurityAlertLoading } = useSecurityAlertSettings();
+  const { data: settingsTestHistory, isLoading: isSettingsTestHistoryLoading } = useSettingsTestHistory();
   const { data: sessionData, isLoading: isSessionsLoading } = useSessions();
   const updateCloudflare = useUpdateCloudflareSettings();
   const testCloudflareConnection = useTestCloudflareConnection();
@@ -1670,6 +1702,13 @@ export default function SettingsPage() {
                 </SettingsActionRow>
               ) : null}
               <p className="text-xs text-gray-500">테스트는 현재 저장된 provider 설정 기준으로 즉시 전송됩니다.</p>
+              {!isSettingsTestHistoryLoading ? (
+                <SettingsTestHistoryNotice
+                  label="마지막 테스트 알림"
+                  history={settingsTestHistory?.security_alert}
+                  timezone={timeDisplaySettings?.display_timezone}
+                />
+              ) : null}
               <ActionResultNotice result={securityAlertTestResult} />
               <p className="text-xs text-gray-500">
                 알림 실패는 운영 가시성에만 영향을 주고, 로그인 차단/잠금 로직 자체는 중단하지 않습니다.
@@ -1873,6 +1912,13 @@ export default function SettingsPage() {
                 </SettingsActionRow>
               ) : null}
               <p className="text-xs text-gray-500">테스트는 현재 저장된 Cloudflare 설정 기준으로 수행됩니다.</p>
+              {!isSettingsTestHistoryLoading ? (
+                <SettingsTestHistoryNotice
+                  label="마지막 연결 테스트"
+                  history={settingsTestHistory?.cloudflare}
+                  timezone={timeDisplaySettings?.display_timezone}
+                />
+              ) : null}
               <ActionResultNotice result={cloudflareTestResult} />
             </SettingsSummary>
           )}

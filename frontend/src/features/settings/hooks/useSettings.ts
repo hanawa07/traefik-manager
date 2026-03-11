@@ -53,6 +53,14 @@ export function useSecurityAlertSettings() {
   });
 }
 
+export function useSettingsTestHistory() {
+  return useQuery({
+    queryKey: ["settings", "test-history"],
+    queryFn: settingsApi.getSettingsTestHistory,
+    staleTime: 10_000,
+  });
+}
+
 export function useUpdateCloudflareSettings() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -64,8 +72,12 @@ export function useUpdateCloudflareSettings() {
 }
 
 export function useTestCloudflareConnection() {
+  const queryClient = useQueryClient();
   return useMutation<SettingsActionTestResult>({
     mutationFn: () => settingsApi.testCloudflareConnection(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "test-history"] });
+    },
   });
 }
 
@@ -110,8 +122,12 @@ export function useUpdateSecurityAlertSettings() {
 }
 
 export function useTestSecurityAlertSettings() {
+  const queryClient = useQueryClient();
   return useMutation<SettingsActionTestResult>({
     mutationFn: () => settingsApi.testSecurityAlertSettings(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "test-history"] });
+    },
   });
 }
 

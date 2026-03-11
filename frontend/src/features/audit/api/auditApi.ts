@@ -3,8 +3,8 @@ import apiClient from "@/shared/lib/apiClient";
 export interface AuditLogItem {
   id: string;
   actor: string;
-  action: "create" | "update" | "delete";
-  resource_type: "service" | "redirect" | "middleware" | "user";
+  action: "create" | "update" | "delete" | "test" | string;
+  resource_type: "service" | "redirect" | "middleware" | "user" | "settings" | string;
   resource_id: string;
   resource_name: string;
   detail: Record<string, unknown> | null;

@@ -21,12 +21,14 @@ const resourceTypeConfig = {
   redirect: { icon: ArrowRightLeft, label: "리다이렉트", color: "text-purple-200 bg-purple-500/20" },
   middleware: { icon: SlidersHorizontal, label: "미들웨어", color: "text-orange-200 bg-orange-500/20" },
   user: { icon: User, label: "사용자", color: "text-emerald-200 bg-emerald-500/20" },
+  settings: { icon: SlidersHorizontal, label: "설정", color: "text-cyan-200 bg-cyan-500/20" },
 };
 
 const actionConfig = {
   create: { label: "생성", color: "bg-green-600/20 text-green-300 border-green-500/30" },
   update: { label: "수정", color: "bg-blue-600/20 text-blue-300 border-blue-500/30" },
   delete: { label: "삭제", color: "bg-red-600/20 text-red-300 border-red-500/30" },
+  test: { label: "테스트", color: "bg-cyan-600/20 text-cyan-200 border-cyan-500/30" },
 };
 
 const securityEventConfig = {
@@ -34,6 +36,8 @@ const securityEventConfig = {
   login_locked: { label: "계정 잠금", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
   login_suspicious: { label: "이상 징후", color: "bg-orange-600/20 text-orange-200 border-orange-500/30" },
   login_blocked_ip: { label: "IP 차단", color: "bg-red-600/20 text-red-200 border-red-500/30" },
+  settings_test_cloudflare: { label: "Cloudflare 테스트", color: "bg-cyan-600/20 text-cyan-200 border-cyan-500/30" },
+  settings_test_security_alert: { label: "보안 알림 테스트", color: "bg-sky-600/20 text-sky-200 border-sky-500/30" },
 };
 
 const auditFilters = [

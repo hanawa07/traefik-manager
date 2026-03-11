@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.audit import audit_service
 from app.core.config import settings
+from app.core.logging_config import get_client_ip
 from app.core.time_display import (
     get_display_timezone_label,
     get_display_timezone_name,
@@ -17,6 +20,7 @@ from app.domain.proxy.value_objects.upstream_security_presets import (
 from app.infrastructure.cloudflare.client import CloudflareClient
 from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
+from app.infrastructure.persistence.models import AuditLogModel
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.schemas.settings_schemas import (
@@ -25,6 +29,8 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
     LoginDefenseSettingsResponse,
     LoginDefenseSettingsUpdateRequest,
     SecurityAlertSettingsResponse,
+    SettingsTestHistoryItemResponse,
+    SettingsTestHistoryResponse,
     SettingsTestActionResponse,
     SecurityAlertSettingsUpdateRequest,
     TimeDisplaySettingsResponse,
@@ -38,6 +44,10 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
 router = APIRouter()
 SECURITY_ALERT_EVENTS = ["login_locked", "login_suspicious", "login_blocked_ip"]
 SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"}
+SETTINGS_TEST_EVENTS = {
+    "cloudflare": "settings_test_cloudflare",
+    "security_alert": "settings_test_security_alert",
+}
 
 
 async def get_cloudflare_client(db: AsyncSession = Depends(get_db)) -> CloudflareClient:
@@ -56,10 +66,28 @@ async def get_cloudflare_status(
 
 @router.post("/cloudflare/test", response_model=SettingsTestActionResponse, summary="Cloudflare 연결 테스트")
 async def test_cloudflare_connection(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
     cloudflare_client: CloudflareClient = Depends(get_cloudflare_client),
     _: dict = Depends(require_admin),
 ):
-    return SettingsTestActionResponse(**(await cloudflare_client.test_connection()))
+    result = SettingsTestActionResponse(**(await cloudflare_client.test_connection()))
+    await audit_service.record(
+        db=db,
+        actor=_.get("username", "unknown"),
+        action="test",
+        resource_type="settings",
+        resource_id=SETTINGS_TEST_EVENTS["cloudflare"],
+        resource_name="Cloudflare 연결 테스트",
+        detail={
+            "event": SETTINGS_TEST_EVENTS["cloudflare"],
+            "success": result.success,
+            "message": result.message,
+            "detail": result.detail,
+            "client_ip": get_client_ip(request),
+        },
+    )
+    return result
 
 
 @router.put("/cloudflare", response_model=CloudflareSettingsStatusResponse, summary="Cloudflare 설정 저장")
@@ -233,10 +261,45 @@ async def get_security_alert_settings(
     summary="보안 알림 테스트 전송",
 )
 async def test_security_alert_settings(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
-    return SettingsTestActionResponse(**(await security_alert_notifier.send_test_alert(db)))
+    result = SettingsTestActionResponse(**(await security_alert_notifier.send_test_alert(db)))
+    await audit_service.record(
+        db=db,
+        actor=_.get("username", "unknown"),
+        action="test",
+        resource_type="settings",
+        resource_id=SETTINGS_TEST_EVENTS["security_alert"],
+        resource_name="보안 알림 테스트",
+        detail={
+            "event": SETTINGS_TEST_EVENTS["security_alert"],
+            "success": result.success,
+            "message": result.message,
+            "detail": result.detail,
+            "provider": result.provider,
+            "client_ip": get_client_ip(request),
+        },
+    )
+    return result
+
+
+@router.get("/test-history", response_model=SettingsTestHistoryResponse, summary="설정 테스트 이력 조회")
+async def get_settings_test_history(
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(AuditLogModel)
+        .where(AuditLogModel.resource_type == "settings")
+        .order_by(desc(AuditLogModel.created_at))
+    )
+    logs = result.scalars().all()
+
+    cloudflare = _find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["cloudflare"])
+    security_alert = _find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["security_alert"])
+    return SettingsTestHistoryResponse(cloudflare=cloudflare, security_alert=security_alert)
 
 
 @router.put("/security-alerts", response_model=SecurityAlertSettingsResponse, summary="보안 알림 설정 저장")
@@ -449,6 +512,26 @@ async def _build_security_alert_response(
         timeout_seconds=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS,
         alert_events=SECURITY_ALERT_EVENTS,
     )
+
+
+def _find_latest_settings_test_event(
+    logs: list[AuditLogModel],
+    event_name: str,
+) -> SettingsTestHistoryItemResponse:
+    for log in logs:
+        detail = log.detail or {}
+        if detail.get("event") != event_name:
+            continue
+        success = detail.get("success")
+        return SettingsTestHistoryItemResponse(
+            last_event=event_name,
+            last_success=success if isinstance(success, bool) else None,
+            last_message=detail.get("message") if isinstance(detail.get("message"), str) else None,
+            last_detail=detail.get("detail") if isinstance(detail.get("detail"), str) else None,
+            last_provider=detail.get("provider") if isinstance(detail.get("provider"), str) else None,
+            last_created_at=log.created_at,
+        )
+    return SettingsTestHistoryItemResponse()
 
 
 async def _get_bool_setting(

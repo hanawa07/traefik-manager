@@ -1,6 +1,7 @@
 from email.utils import parseaddr
 from ipaddress import ip_network
 from typing import Literal
+from datetime import datetime
 
 from pydantic import AnyHttpUrl, BaseModel, Field, field_validator
 
@@ -22,6 +23,20 @@ class SettingsTestActionResponse(BaseModel):
     message: str
     detail: str | None = None
     provider: str | None = None
+
+
+class SettingsTestHistoryItemResponse(BaseModel):
+    last_event: str | None = None
+    last_success: bool | None = None
+    last_message: str | None = None
+    last_detail: str | None = None
+    last_provider: str | None = None
+    last_created_at: datetime | None = None
+
+
+class SettingsTestHistoryResponse(BaseModel):
+    cloudflare: SettingsTestHistoryItemResponse
+    security_alert: SettingsTestHistoryItemResponse
 
 
 class CloudflareSettingsUpdateRequest(BaseModel):
