@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 from uuid import UUID, uuid4
 
@@ -17,6 +17,9 @@ class User:
     token_version: int
     created_at: datetime
     updated_at: datetime
+    failed_login_attempts: int = 0
+    last_failed_login_at: datetime | None = None
+    locked_until: datetime | None = None
 
     @classmethod
     def create(
@@ -36,6 +39,9 @@ class User:
             token_version=0,
             created_at=now,
             updated_at=now,
+            failed_login_attempts=0,
+            last_failed_login_at=None,
+            locked_until=None,
         )
 
     def update(
@@ -60,6 +66,49 @@ class User:
         """로그아웃 시 기존 발급된 모든 JWT 무효화"""
         self.token_version += 1
         self.updated_at = datetime.now(timezone.utc)
+
+    def is_login_locked(self, now: datetime | None = None) -> bool:
+        current = now or datetime.now(timezone.utc)
+        return self.locked_until is not None and self.locked_until > current
+
+    def clear_expired_login_lock(self, now: datetime | None = None) -> bool:
+        current = now or datetime.now(timezone.utc)
+        if self.locked_until is None or self.locked_until > current:
+            return False
+        self.failed_login_attempts = 0
+        self.last_failed_login_at = None
+        self.locked_until = None
+        self.updated_at = current
+        return True
+
+    def register_login_failure(
+        self,
+        *,
+        max_failed_attempts: int,
+        failure_window: timedelta,
+        lockout_duration: timedelta,
+        now: datetime | None = None,
+    ) -> None:
+        current = now or datetime.now(timezone.utc)
+        self.clear_expired_login_lock(current)
+        if (
+            self.last_failed_login_at is None
+            or current - self.last_failed_login_at > failure_window
+        ):
+            self.failed_login_attempts = 1
+        else:
+            self.failed_login_attempts += 1
+        self.last_failed_login_at = current
+        if self.failed_login_attempts >= max_failed_attempts:
+            self.locked_until = current + lockout_duration
+        self.updated_at = current
+
+    def register_login_success(self, now: datetime | None = None) -> None:
+        current = now or datetime.now(timezone.utc)
+        self.failed_login_attempts = 0
+        self.last_failed_login_at = None
+        self.locked_until = None
+        self.updated_at = current
 
     @staticmethod
     def _normalize_username(username: str) -> str:

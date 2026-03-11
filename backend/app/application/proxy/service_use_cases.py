@@ -73,6 +73,10 @@ class ServiceUseCases:
             upstream_scheme=data.upstream_scheme,
             skip_tls_verify=data.skip_tls_verify,
             frame_policy=data.frame_policy,
+            healthcheck_enabled=getattr(data, "healthcheck_enabled", True),
+            healthcheck_path=getattr(data, "healthcheck_path", "/"),
+            healthcheck_timeout_ms=getattr(data, "healthcheck_timeout_ms", 3000),
+            healthcheck_expected_statuses=getattr(data, "healthcheck_expected_statuses", []),
         )
         middleware_templates = await self._resolve_middleware_templates(service.middleware_template_ids)
         self._validate_template_auth_conflict(service, middleware_templates)
@@ -195,6 +199,10 @@ class ServiceUseCases:
             upstream_scheme=update_payload.get("upstream_scheme"),
             skip_tls_verify=update_payload.get("skip_tls_verify"),
             frame_policy=update_payload.get("frame_policy"),
+            healthcheck_enabled=update_payload.get("healthcheck_enabled"),
+            healthcheck_path=update_payload.get("healthcheck_path"),
+            healthcheck_timeout_ms=update_payload.get("healthcheck_timeout_ms"),
+            healthcheck_expected_statuses=update_payload.get("healthcheck_expected_statuses"),
         )
         middleware_templates = await self._resolve_middleware_templates(service.middleware_template_ids)
         self._validate_template_auth_conflict(service, middleware_templates)

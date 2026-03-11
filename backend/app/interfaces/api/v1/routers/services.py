@@ -109,6 +109,10 @@ async def list_services_health(
             s.upstream_port,
             s.upstream_scheme,
             s.skip_tls_verify,
+            s.healthcheck_enabled,
+            s.healthcheck_path,
+            s.healthcheck_timeout_ms,
+            s.healthcheck_expected_statuses,
         )
         for s in services
     ]
@@ -139,6 +143,10 @@ async def get_service_health(
         service.upstream_port,
         service.upstream_scheme,
         service.skip_tls_verify,
+        service.healthcheck_enabled,
+        service.healthcheck_path,
+        service.healthcheck_timeout_ms,
+        service.healthcheck_expected_statuses,
     )
     
     return UpstreamHealthResponse(

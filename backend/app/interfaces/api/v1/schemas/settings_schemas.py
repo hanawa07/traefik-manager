@@ -1,6 +1,7 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.time_display import get_available_timezones
+from app.domain.proxy.value_objects.upstream import normalize_domain_suffixes
 
 
 class CloudflareSettingsStatusResponse(BaseModel):
@@ -44,7 +45,20 @@ class TimeDisplaySettingsUpdateRequest(BaseModel):
 
 class UpstreamSecuritySettingsResponse(BaseModel):
     dns_strict_mode: bool
+    allowlist_enabled: bool = False
+    allowed_domain_suffixes: list[str] = Field(default_factory=list)
+    allow_docker_service_names: bool = True
+    allow_private_networks: bool = True
 
 
 class UpstreamSecuritySettingsUpdateRequest(BaseModel):
     dns_strict_mode: bool
+    allowlist_enabled: bool = False
+    allowed_domain_suffixes: list[str] = Field(default_factory=list)
+    allow_docker_service_names: bool = True
+    allow_private_networks: bool = True
+
+    @field_validator("allowed_domain_suffixes")
+    @classmethod
+    def validate_allowed_domain_suffixes(cls, value: list[str]) -> list[str]:
+        return normalize_domain_suffixes(value)

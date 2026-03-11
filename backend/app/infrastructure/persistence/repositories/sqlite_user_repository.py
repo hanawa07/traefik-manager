@@ -20,6 +20,9 @@ class SQLiteUserRepository(UserRepository):
             existing.role = user.role
             existing.is_active = user.is_active
             existing.token_version = user.token_version
+            existing.failed_login_attempts = user.failed_login_attempts
+            existing.last_failed_login_at = user.last_failed_login_at
+            existing.locked_until = user.locked_until
         else:
             self.db.add(
                 UserModel(
@@ -29,6 +32,9 @@ class SQLiteUserRepository(UserRepository):
                     role=user.role,
                     is_active=user.is_active,
                     token_version=user.token_version,
+                    failed_login_attempts=user.failed_login_attempts,
+                    last_failed_login_at=user.last_failed_login_at,
+                    locked_until=user.locked_until,
                 )
             )
 
@@ -71,4 +77,7 @@ class SQLiteUserRepository(UserRepository):
             token_version=model.token_version,
             created_at=model.created_at,
             updated_at=model.updated_at,
+            failed_login_attempts=model.failed_login_attempts,
+            last_failed_login_at=model.last_failed_login_at,
+            locked_until=model.locked_until,
         )

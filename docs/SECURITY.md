@@ -19,7 +19,7 @@
 | Docker 소켓 read-only 마운트 | ✅ 양호 |
 | Production docs URL 비활성화 | ✅ 양호 |
 | no-new-privileges:true | ✅ 양호 |
-| **로그인 brute force 방어** | ✅ 적용 (Traefik login rate limit) |
+| **로그인 brute force 방어** | ✅ 적용 (Traefik rate limit + 앱 레벨 계정 잠금 + 이상 징후 IP 차단) |
 | **브라우저 세션 관리** | ✅ 적용 (`auth_sessions` + cookie revoke) |
 | **백업 export 권한** | ✅ 적용 (admin 전용) |
 | **Upstream 호스트 검증** | ✅ 강화됨 |
@@ -34,14 +34,24 @@
 
 **파일:** `backend/app/application/auth/auth_use_cases.py`, `backend/app/interfaces/api/v1/routers/auth.py`
 
-**현재 상태:** `docker-compose.yml`에 `login-ratelimit` Traefik 미들웨어가 적용되어 `/api/v1/auth/login` 요청에 분당 제한이 걸립니다.
+**현재 상태:** 두 겹으로 적용됩니다.
+- `docker-compose.yml`의 `login-ratelimit` Traefik 미들웨어
+- 애플리케이션 레벨 로그인 실패 누적/잠금
+
+**애플리케이션 레벨 동작:**
+- 동일 사용자 기준으로 실패 횟수를 누적합니다.
+- 실패가 일정 시간 창(`LOGIN_FAILURE_WINDOW_MINUTES`) 안에서 기준(`LOGIN_MAX_FAILED_ATTEMPTS`)을 넘으면 계정을 잠급니다.
+- 잠금 시간은 `LOGIN_LOCKOUT_MINUTES`입니다.
+- 성공 로그인 시 실패 카운터와 잠금 상태는 초기화됩니다.
+- 실패/잠금 이벤트는 감사 로그에 `user/update`로 남고, `detail.event`에 `login_failure` 또는 `login_locked`가 기록됩니다.
+- 동일 IP가 같은 시간 창 안에서 여러 사용자명에 대해 반복 실패하면 `login_suspicious` 감사 이벤트를 추가로 기록합니다.
+- 최근 `login_suspicious`가 찍힌 IP는 `LOGIN_SUSPICIOUS_BLOCK_MINUTES` 동안 로그인 자체를 차단하고 `login_blocked_ip` 감사 이벤트를 남깁니다.
+- 이상 징후 기준은 `LOGIN_SUSPICIOUS_WINDOW_MINUTES`, `LOGIN_SUSPICIOUS_FAILURE_COUNT`, `LOGIN_SUSPICIOUS_USERNAME_COUNT`, `LOGIN_SUSPICIOUS_BLOCK_MINUTES`로 조정합니다.
 
 **남은 보완점:**
-- 계정 잠금
 - CAPTCHA
-- 사용자명 기준 이상 징후 감지
-
-즉 무방비 상태는 아니지만, 애플리케이션 레벨 방어는 더 넣을 수 있습니다.
+- 관리자 알림/알람 연동
+- 차단 정책 예외/allowlist 및 관리자 알림 고도화
 
 ---
 
@@ -98,9 +108,12 @@
 - 해석 결과가 loopback, link-local, unspecified, multicast, reserved, documentation/example, unique local IPv6 대역이면 저장을 거부합니다.
 - DNS 조회 실패도 strict mode에서는 저장 거부로 처리합니다.
 - IP 리터럴 upstream은 기존 값 검증만 수행하며 추가 DNS 조회를 하지 않습니다.
+- 설정의 `upstream_allowlist_enabled`를 켜면 저장 시점에 업스트림 호스트 정책을 함께 검사합니다.
+- 외부 FQDN은 허용된 domain suffix 목록과 일치해야 하고, Docker 서비스명과 사설 IPv4/Tailscale IP는 별도 옵션으로 허용 여부를 제어합니다.
+- strict mode와 allowlist를 같이 켜면 둘 다 통과해야 저장됩니다.
 
 **남은 보완점:**
-- 도메인/호스트 허용 정책을 더 엄격한 allowlist 기반으로 바꿀지 검토
+- 조직별 upstream 정책 템플릿/allowlist preset 도입 검토
 
 ---
 
@@ -179,6 +192,6 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 
 | 순위 | 항목 | 난이도 | 위험도 |
 |------|------|--------|--------|
-| 1 | 도메인 upstream allowlist/정책 기반 제한 검토 | 보통 | 중간 |
-| 2 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |
-| 3 | 계정 잠금/이상 징후 감지 같은 앱 레벨 로그인 방어 | 보통 | 낮음 |
+| 1 | 관리자 알림/차단 정책 예외 고도화 | 보통 | 낮음 |
+| 2 | upstream 정책 preset/조직 템플릿 검토 | 보통 | 낮음 |
+| 3 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |

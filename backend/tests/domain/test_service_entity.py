@@ -46,3 +46,39 @@ def test_allowed_ips_cidr_normalization(make_service):
     assert "192.168.1.1/32" in service.allowed_ips
     assert "10.0.0.0/24" in service.allowed_ips
     assert len(service.allowed_ips) == 2
+
+
+def test_healthcheck_defaults_are_applied(make_service):
+    service = make_service()
+
+    assert service.healthcheck_enabled is True
+    assert service.healthcheck_path == "/"
+    assert service.healthcheck_timeout_ms == 3000
+    assert service.healthcheck_expected_statuses == []
+
+
+def test_healthcheck_path_must_start_with_slash():
+    with pytest.raises(ValueError, match="헬스 체크 경로는 '/'로 시작해야 합니다"):
+        Service.create(
+            name="healthcheck-path-fail",
+            domain="healthcheck-fail.com",
+            upstream_host="10.0.0.1",
+            upstream_port=80,
+            healthcheck_path="health",
+        )
+
+
+def test_healthcheck_update_normalizes_and_stores_policy(make_service):
+    service = make_service()
+
+    service.update(
+        healthcheck_enabled=False,
+        healthcheck_path="/status",
+        healthcheck_timeout_ms=1500,
+        healthcheck_expected_statuses=[204, 200, 204],
+    )
+
+    assert service.healthcheck_enabled is False
+    assert service.healthcheck_path == "/status"
+    assert service.healthcheck_timeout_ms == 1500
+    assert service.healthcheck_expected_statuses == [200, 204]

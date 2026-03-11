@@ -79,10 +79,18 @@ export interface TimeDisplaySettingsInput {
 
 export interface UpstreamSecuritySettingsStatus {
   dns_strict_mode: boolean;
+  allowlist_enabled: boolean;
+  allowed_domain_suffixes: string[];
+  allow_docker_service_names: boolean;
+  allow_private_networks: boolean;
 }
 
 export interface UpstreamSecuritySettingsInput {
   dns_strict_mode: boolean;
+  allowlist_enabled: boolean;
+  allowed_domain_suffixes: string[];
+  allow_docker_service_names: boolean;
+  allow_private_networks: boolean;
 }
 
 export const settingsApi = {

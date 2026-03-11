@@ -34,6 +34,10 @@ class ServiceModel(Base):
     authentik_policy_binding_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     cloudflare_record_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     frame_policy: Mapped[str] = mapped_column(String(20), nullable=False, server_default="deny")
+    healthcheck_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="1")
+    healthcheck_path: Mapped[str] = mapped_column(String(255), nullable=False, server_default="/")
+    healthcheck_timeout_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=3000, server_default="3000")
+    healthcheck_expected_statuses: Mapped[list[int]] = mapped_column(JSON, default=list, nullable=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -70,6 +74,9 @@ class UserModel(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
+    last_failed_login_at: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
+    locked_until: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

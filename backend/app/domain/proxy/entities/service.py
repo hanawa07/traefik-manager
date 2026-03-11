@@ -13,6 +13,8 @@ from ..events.service_deleted import ServiceDeleted
 
 FRAME_POLICY_VALUES = {"deny", "sameorigin", "off"}
 AUTH_MODE_VALUES = {"none", "authentik", "token"}
+DEFAULT_HEALTHCHECK_PATH = "/"
+DEFAULT_HEALTHCHECK_TIMEOUT_MS = 3000
 
 
 @dataclass
@@ -47,6 +49,10 @@ class Service:
     upstream_scheme: str = "http"
     skip_tls_verify: bool = False
     frame_policy: str = "deny"
+    healthcheck_enabled: bool = True
+    healthcheck_path: str = DEFAULT_HEALTHCHECK_PATH
+    healthcheck_timeout_ms: int = DEFAULT_HEALTHCHECK_TIMEOUT_MS
+    healthcheck_expected_statuses: list[int] = field(default_factory=list)
     _events: list = field(default_factory=list, repr=False)
 
     @property
@@ -80,6 +86,10 @@ class Service:
         upstream_scheme: str = "http",
         skip_tls_verify: bool = False,
         frame_policy: str = "deny",
+        healthcheck_enabled: bool = True,
+        healthcheck_path: str = DEFAULT_HEALTHCHECK_PATH,
+        healthcheck_timeout_ms: int = DEFAULT_HEALTHCHECK_TIMEOUT_MS,
+        healthcheck_expected_statuses: list[int] | None = None,
     ) -> "Service":
         if https_redirect_enabled and not tls_enabled:
             raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
@@ -128,6 +138,12 @@ class Service:
             upstream_scheme=upstream_scheme,
             skip_tls_verify=skip_tls_verify if upstream_scheme == "https" else False,
             frame_policy=self._normalize_frame_policy(frame_policy),
+            healthcheck_enabled=healthcheck_enabled,
+            healthcheck_path=self._normalize_healthcheck_path(healthcheck_path),
+            healthcheck_timeout_ms=self._normalize_healthcheck_timeout_ms(healthcheck_timeout_ms),
+            healthcheck_expected_statuses=self._normalize_healthcheck_expected_statuses(
+                healthcheck_expected_statuses
+            ),
         )
         service._events.append(ServiceCreated(service_id=service.id, name=name, domain=domain))
         return service
@@ -154,6 +170,10 @@ class Service:
         upstream_scheme: str | None = None,
         skip_tls_verify: bool | None = None,
         frame_policy: str | None = None,
+        healthcheck_enabled: bool | None = None,
+        healthcheck_path: str | None = None,
+        healthcheck_timeout_ms: int | None = None,
+        healthcheck_expected_statuses: list[int] | None = None,
     ) -> None:
         if name is not None:
             self.name = name
@@ -222,6 +242,16 @@ class Service:
             self.custom_headers = self._normalize_custom_headers(custom_headers)
         if frame_policy is not None:
             self.frame_policy = self._normalize_frame_policy(frame_policy)
+        if healthcheck_enabled is not None:
+            self.healthcheck_enabled = healthcheck_enabled
+        if healthcheck_path is not None:
+            self.healthcheck_path = self._normalize_healthcheck_path(healthcheck_path)
+        if healthcheck_timeout_ms is not None:
+            self.healthcheck_timeout_ms = self._normalize_healthcheck_timeout_ms(healthcheck_timeout_ms)
+        if healthcheck_expected_statuses is not None:
+            self.healthcheck_expected_statuses = self._normalize_healthcheck_expected_statuses(
+                healthcheck_expected_statuses
+            )
         
         if basic_auth_users is not None:
             normalized_basic_auth_users = self._normalize_basic_auth_users(basic_auth_users)
@@ -284,6 +314,36 @@ class Service:
         if normalized not in FRAME_POLICY_VALUES:
             raise ValueError("frame_policy는 deny, sameorigin, off 중 하나여야 합니다")
         return normalized
+
+    @staticmethod
+    def _normalize_healthcheck_path(healthcheck_path: str) -> str:
+        normalized = healthcheck_path.strip() or DEFAULT_HEALTHCHECK_PATH
+        if not normalized.startswith("/"):
+            raise ValueError("헬스 체크 경로는 '/'로 시작해야 합니다")
+        return normalized
+
+    @staticmethod
+    def _normalize_healthcheck_timeout_ms(healthcheck_timeout_ms: int) -> int:
+        if healthcheck_timeout_ms <= 0:
+            raise ValueError("헬스 체크 타임아웃은 1ms 이상의 정수여야 합니다")
+        return healthcheck_timeout_ms
+
+    @staticmethod
+    def _normalize_healthcheck_expected_statuses(
+        healthcheck_expected_statuses: list[int] | None,
+    ) -> list[int]:
+        if not healthcheck_expected_statuses:
+            return []
+
+        normalized: list[int] = []
+        seen: set[int] = set()
+        for status in healthcheck_expected_statuses:
+            if not (100 <= status <= 599):
+                raise ValueError("헬스 체크 기대 상태 코드는 100~599 범위여야 합니다")
+            if status not in seen:
+                seen.add(status)
+                normalized.append(status)
+        return sorted(normalized)
 
     @staticmethod
     def _normalize_allowed_ips(allowed_ips: list[str] | None) -> list[str]:

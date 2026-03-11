@@ -34,6 +34,10 @@ def make_service():
         middleware_template_ids=None,
         authentik_group_id=None,
         frame_policy="deny",
+        healthcheck_enabled=True,
+        healthcheck_path="/",
+        healthcheck_timeout_ms=3000,
+        healthcheck_expected_statuses=None,
     ):
         if auth_mode is None:
             auth_mode = "authentik" if auth_enabled else "none"
@@ -54,5 +58,9 @@ def make_service():
             middleware_template_ids=middleware_template_ids,
             authentik_group_id=authentik_group_id,
             frame_policy=frame_policy,
+            healthcheck_enabled=healthcheck_enabled,
+            healthcheck_path=healthcheck_path,
+            healthcheck_timeout_ms=healthcheck_timeout_ms,
+            healthcheck_expected_statuses=healthcheck_expected_statuses,
         )
     return _make_service

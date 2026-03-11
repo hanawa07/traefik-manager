@@ -10,6 +10,18 @@ import Modal from "@/shared/components/Modal";
 import { useDockerContainers } from "@/features/docker/hooks/useDockerContainers";
 import { useMiddlewareTemplates } from "@/features/middlewares/hooks/useMiddlewares";
 
+function parseHealthcheckExpectedStatuses(input: string | undefined): number[] {
+  if (!input) return [];
+  const normalized = input
+    .split(/\r?\n|,/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => Number(value));
+
+  const uniqueStatuses = Array.from(new Set(normalized));
+  return uniqueStatuses.sort((a, b) => a - b);
+}
+
 const schema = z.object({
   name: z.string().min(1, "서비스 이름을 입력하세요"),
   domain: z.string().regex(
@@ -45,6 +57,10 @@ const schema = z.object({
     })
   ),
   frame_policy: z.enum(["deny", "sameorigin", "off"]),
+  healthcheck_enabled: z.boolean(),
+  healthcheck_path: z.string(),
+  healthcheck_timeout_ms: z.coerce.number().int().positive("1 이상의 정수를 입력하세요"),
+  healthcheck_expected_statuses_input: z.string().optional(),
 }).superRefine((value, ctx) => {
   if (value.https_redirect_enabled && !value.tls_enabled) {
     ctx.addIssue({
@@ -74,6 +90,25 @@ const schema = z.object({
       message: "Rate Limit을 활성화하면 average와 burst를 모두 입력해야 합니다",
     });
   }
+  if (!value.healthcheck_path.trim().startsWith("/")) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["healthcheck_path"],
+      message: "헬스 체크 경로는 '/'로 시작해야 합니다",
+    });
+  }
+  try {
+    const statuses = parseHealthcheckExpectedStatuses(value.healthcheck_expected_statuses_input);
+    if (statuses.some((status) => !Number.isInteger(status) || status < 100 || status > 599)) {
+      throw new Error("invalid");
+    }
+  } catch {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["healthcheck_expected_statuses_input"],
+      message: "기대 상태 코드는 100~599 범위 정수만 입력할 수 있습니다",
+    });
+  }
 });
 
 type FormData = z.infer<typeof schema>;
@@ -98,6 +133,10 @@ interface ServiceFormDefaultValues {
   rate_limit_burst?: number | null;
   custom_headers?: Record<string, string>;
   frame_policy?: FramePolicy;
+  healthcheck_enabled?: boolean;
+  healthcheck_path?: string;
+  healthcheck_timeout_ms?: number;
+  healthcheck_expected_statuses?: number[];
   basic_auth_usernames?: string[];
 }
 
@@ -186,6 +225,10 @@ export default function ServiceForm({
       rate_limit_burst: defaultValues?.rate_limit_burst ?? undefined,
       custom_headers: headerEntries.length > 0 ? headerEntries : [{ key: "", value: "" }],
       frame_policy: defaultValues?.frame_policy || "deny",
+      healthcheck_enabled: defaultValues?.healthcheck_enabled ?? true,
+      healthcheck_path: defaultValues?.healthcheck_path || "/",
+      healthcheck_timeout_ms: defaultValues?.healthcheck_timeout_ms ?? 3000,
+      healthcheck_expected_statuses_input: defaultValues?.healthcheck_expected_statuses?.join(", ") || "",
     },
   });
 
@@ -208,6 +251,7 @@ export default function ServiceForm({
   const basicAuthEnabled = watch("basic_auth_enabled");
   const rateLimitEnabled = watch("rate_limit_enabled");
   const upstreamScheme = watch("upstream_scheme");
+  const healthcheckEnabled = watch("healthcheck_enabled");
   
   const isAuthentikEnabled = authMode === "authentik";
   const isAnyAuthEnabled = authMode !== "none";
@@ -316,6 +360,10 @@ export default function ServiceForm({
       rate_limit_burst: data.rate_limit_enabled ? data.rate_limit_burst ?? null : null,
       custom_headers: customHeaders,
       frame_policy: data.frame_policy,
+      healthcheck_enabled: data.healthcheck_enabled,
+      healthcheck_path: data.healthcheck_path.trim() || "/",
+      healthcheck_timeout_ms: data.healthcheck_timeout_ms,
+      healthcheck_expected_statuses: parseHealthcheckExpectedStatuses(data.healthcheck_expected_statuses_input),
       basic_auth_credentials: data.basic_auth_enabled ? basicAuthCredentials : [],
       authentik_group_id: data.auth_mode === "authentik" ? data.authentik_group_id || null : null,
     });
@@ -654,6 +702,63 @@ export default function ServiceForm({
                 <input type="number" className="input" placeholder="순간 허용" {...register("rate_limit_burst")} />
               </div>
             )}
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50/70 p-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" className="w-4 h-4 rounded accent-blue-600" {...register("healthcheck_enabled")} />
+              <div>
+                <span className="text-sm font-medium text-gray-700">업스트림 헬스 체크 활성화</span>
+                <p className="text-xs text-gray-500">
+                  서비스 목록의 UP/DOWN 상태와 지연시간 측정에 사용합니다
+                </p>
+              </div>
+            </label>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1.5fr_1fr]">
+              <div>
+                <label className="label">헬스 체크 경로</label>
+                <input
+                  className="input"
+                  placeholder="/health"
+                  {...register("healthcheck_path")}
+                />
+                {errors.healthcheck_path && (
+                  <p className="text-xs text-red-500 mt-1">{errors.healthcheck_path.message}</p>
+                )}
+              </div>
+              <div>
+                <label className="label">타임아웃 (ms)</label>
+                <input
+                  type="number"
+                  className="input"
+                  placeholder="3000"
+                  {...register("healthcheck_timeout_ms")}
+                />
+                {errors.healthcheck_timeout_ms && (
+                  <p className="text-xs text-red-500 mt-1">{errors.healthcheck_timeout_ms.message}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="label">기대 상태 코드</label>
+              <input
+                className="input"
+                placeholder="비워두면 모든 HTTP 응답을 정상으로 간주합니다. 예: 200,204"
+                {...register("healthcheck_expected_statuses_input")}
+              />
+              {errors.healthcheck_expected_statuses_input && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.healthcheck_expected_statuses_input.message}
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                {healthcheckEnabled
+                  ? "현재 서비스는 이 설정으로 헬스 체크를 수행합니다."
+                  : "비활성화하면 목록에서 '체크 안 함'으로 표시됩니다."}
+              </p>
+            </div>
           </div>
 
           <div className="space-y-3 pt-2">

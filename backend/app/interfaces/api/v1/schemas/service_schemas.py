@@ -6,6 +6,8 @@ from datetime import datetime
 
 AUTH_MODE_VALUES = {"none", "authentik", "token"}
 FRAME_POLICY_VALUES = {"deny", "sameorigin", "off"}
+DEFAULT_HEALTHCHECK_PATH = "/"
+DEFAULT_HEALTHCHECK_TIMEOUT_MS = 3000
 
 
 class BasicAuthCredential(BaseModel):
@@ -52,6 +54,10 @@ class ServiceCreate(BaseModel):
     rate_limit_burst: int | None = None
     custom_headers: dict[str, str] = Field(default_factory=dict)
     frame_policy: str = "deny"
+    healthcheck_enabled: bool = True
+    healthcheck_path: str = DEFAULT_HEALTHCHECK_PATH
+    healthcheck_timeout_ms: int = DEFAULT_HEALTHCHECK_TIMEOUT_MS
+    healthcheck_expected_statuses: list[int] = Field(default_factory=list)
     basic_auth_credentials: list[BasicAuthCredential] = Field(default_factory=list)
     authentik_group_id: str | None = None
 
@@ -75,6 +81,34 @@ class ServiceCreate(BaseModel):
         if v not in FRAME_POLICY_VALUES:
             raise ValueError(f"frame_policy는 {FRAME_POLICY_VALUES} 중 하나여야 합니다")
         return v
+
+    @field_validator("healthcheck_path")
+    @classmethod
+    def validate_healthcheck_path(cls, v: str) -> str:
+        value = v.strip() or DEFAULT_HEALTHCHECK_PATH
+        if not value.startswith("/"):
+            raise ValueError("헬스 체크 경로는 '/'로 시작해야 합니다")
+        return value
+
+    @field_validator("healthcheck_timeout_ms")
+    @classmethod
+    def validate_healthcheck_timeout_ms(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("헬스 체크 타임아웃은 1ms 이상의 정수여야 합니다")
+        return v
+
+    @field_validator("healthcheck_expected_statuses")
+    @classmethod
+    def validate_healthcheck_expected_statuses(cls, values: list[int]) -> list[int]:
+        normalized: list[int] = []
+        seen: set[int] = set()
+        for value in values:
+            if not (100 <= value <= 599):
+                raise ValueError("헬스 체크 기대 상태 코드는 100~599 범위여야 합니다")
+            if value not in seen:
+                seen.add(value)
+                normalized.append(value)
+        return sorted(normalized)
 
     @field_validator("domain")
     @classmethod
@@ -210,6 +244,10 @@ class ServiceUpdate(BaseModel):
     rate_limit_burst: int | None = None
     custom_headers: dict[str, str] | None = None
     frame_policy: str | None = None
+    healthcheck_enabled: bool | None = None
+    healthcheck_path: str | None = None
+    healthcheck_timeout_ms: int | None = None
+    healthcheck_expected_statuses: list[int] | None = None
     basic_auth_credentials: list[BasicAuthCredential] | None = None
     authentik_group_id: str | None = None
 
@@ -233,6 +271,38 @@ class ServiceUpdate(BaseModel):
         if v is not None and v not in FRAME_POLICY_VALUES:
             raise ValueError(f"frame_policy는 {FRAME_POLICY_VALUES} 중 하나여야 합니다")
         return v
+
+    @field_validator("healthcheck_path")
+    @classmethod
+    def validate_healthcheck_path(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        value = v.strip() or DEFAULT_HEALTHCHECK_PATH
+        if not value.startswith("/"):
+            raise ValueError("헬스 체크 경로는 '/'로 시작해야 합니다")
+        return value
+
+    @field_validator("healthcheck_timeout_ms")
+    @classmethod
+    def validate_healthcheck_timeout_ms(cls, v: int | None) -> int | None:
+        if v is not None and v <= 0:
+            raise ValueError("헬스 체크 타임아웃은 1ms 이상의 정수여야 합니다")
+        return v
+
+    @field_validator("healthcheck_expected_statuses")
+    @classmethod
+    def validate_healthcheck_expected_statuses(cls, values: list[int] | None) -> list[int] | None:
+        if values is None:
+            return None
+        normalized: list[int] = []
+        seen: set[int] = set()
+        for value in values:
+            if not (100 <= value <= 599):
+                raise ValueError("헬스 체크 기대 상태 코드는 100~599 범위여야 합니다")
+            if value not in seen:
+                seen.add(value)
+                normalized.append(value)
+        return sorted(normalized)
 
     @field_validator("allowed_ips")
     @classmethod
@@ -359,6 +429,10 @@ class ServiceResponse(BaseModel):
     rate_limit_burst: int | None = None
     custom_headers: dict[str, str]
     frame_policy: str
+    healthcheck_enabled: bool
+    healthcheck_path: str
+    healthcheck_timeout_ms: int
+    healthcheck_expected_statuses: list[int]
     basic_auth_enabled: bool
     basic_auth_user_count: int
     basic_auth_usernames: list[str]
@@ -403,3 +477,6 @@ class UpstreamHealthResponse(BaseModel):
     status_code: int | None = None
     latency_ms: int | None = None
     error: str | None = None
+    error_kind: str | None = None
+    checked_url: str
+    checked_at: datetime

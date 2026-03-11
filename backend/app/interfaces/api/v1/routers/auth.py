@@ -7,6 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.auth.auth_use_cases import AuthUseCases
+from app.application.audit import audit_service
+from app.application.auth import login_anomaly_service
 from app.core.config import settings
 from app.core.logging_config import get_client_ip
 from app.core.session_security import issue_csrf_token, issue_session_credentials
@@ -93,17 +95,80 @@ async def login(
     use_cases: AuthUseCases = Depends(get_use_cases),
     db: AsyncSession = Depends(get_db),
 ):
-    user = await use_cases.authenticate_user(form.username, form.password)
-    if not user:
+    current = datetime.now(timezone.utc)
+    client_ip = get_client_ip(request)
+    if await login_anomaly_service.enforce_suspicious_ip_block_if_needed(
+        db=db,
+        client_ip=client_ip,
+        now=current,
+        block_window=timedelta(minutes=settings.LOGIN_SUSPICIOUS_BLOCK_MINUTES),
+    ):
         logger.warning(
-            "로그인 실패: username=%s",
-            form.username,
-            extra={"client_ip": get_client_ip(request)},
+            "로그인 차단: ip=%s reason=%s",
+            client_ip,
+            "suspicious_ip",
+            extra={"client_ip": client_ip, "failure_reason": "suspicious_ip"},
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="아이디 또는 비밀번호가 올바르지 않습니다",
         )
+
+    auth_result = await use_cases.authenticate_user(form.username, form.password)
+    if not auth_result.authenticated_user:
+        event = "login_locked" if auth_result.failure_reason == "locked" else "login_failure"
+        await audit_service.record(
+            db=db,
+            actor=form.username.strip() or "anonymous",
+            action="update",
+            resource_type="user",
+            resource_id=(
+                str(auth_result.subject_user.id)
+                if auth_result.subject_user
+                else (form.username.strip() or "unknown")[:36]
+            ),
+            resource_name=(
+                auth_result.subject_user.username
+                if auth_result.subject_user
+                else (form.username.strip() or "unknown")
+            ),
+            detail={
+                "event": event,
+                "client_ip": client_ip,
+                "locked_until": (
+                    auth_result.locked_until.isoformat()
+                    if auth_result.locked_until is not None
+                    else None
+                ),
+            },
+        )
+        await login_anomaly_service.record_suspicious_login_activity_if_needed(
+            db=db,
+            client_ip=client_ip,
+            now=current,
+            window=timedelta(minutes=settings.LOGIN_SUSPICIOUS_WINDOW_MINUTES),
+            min_failures=settings.LOGIN_SUSPICIOUS_FAILURE_COUNT,
+            min_unique_usernames=settings.LOGIN_SUSPICIOUS_USERNAME_COUNT,
+        )
+        logger.warning(
+            "로그인 실패: username=%s reason=%s",
+            form.username,
+            auth_result.failure_reason,
+            extra={
+                "client_ip": client_ip,
+                "failure_reason": auth_result.failure_reason,
+                "locked_until": (
+                    auth_result.locked_until.isoformat()
+                    if auth_result.locked_until is not None
+                    else None
+                ),
+            },
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="아이디 또는 비밀번호가 올바르지 않습니다",
+        )
+    user = auth_result.authenticated_user
 
     credentials = issue_session_credentials()
     csrf_token = issue_csrf_token()

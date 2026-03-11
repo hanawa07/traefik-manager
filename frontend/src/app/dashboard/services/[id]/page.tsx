@@ -94,6 +94,10 @@ export default function EditServicePage() {
             rate_limit_burst: service.rate_limit_burst,
             custom_headers: service.custom_headers,
             frame_policy: service.frame_policy,
+            healthcheck_enabled: service.healthcheck_enabled,
+            healthcheck_path: service.healthcheck_path,
+            healthcheck_timeout_ms: service.healthcheck_timeout_ms,
+            healthcheck_expected_statuses: service.healthcheck_expected_statuses,
             authentik_group_id: service.authentik_group_id,
             basic_auth_usernames: service.basic_auth_usernames,
           }}

@@ -3,6 +3,7 @@ import { Service, UpstreamHealth } from "../api/serviceApi";
 import { Lock, Globe, ExternalLink, Pencil, Trash2, Activity, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { clsx } from "clsx";
+import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 interface ServiceCardProps {
   service: Service;
@@ -10,6 +11,9 @@ interface ServiceCardProps {
   routerActive?: boolean;
   canManage?: boolean;
   upstreamHealth?: UpstreamHealth;
+  displayTimeZone?: string | null;
+  lastSuccessAt?: string | null;
+  lastFailureAt?: string | null;
 }
 
 export default function ServiceCard({
@@ -18,7 +22,33 @@ export default function ServiceCard({
   routerActive,
   canManage = true,
   upstreamHealth,
+  displayTimeZone,
+  lastSuccessAt,
+  lastFailureAt,
 }: ServiceCardProps) {
+  const getHealthErrorKindLabel = (errorKind: string | null | undefined) => {
+    switch (errorKind) {
+      case "dns":
+        return "DNS 실패";
+      case "connection_refused":
+        return "연결 거부";
+      case "connection_timeout":
+        return "연결 타임아웃";
+      case "request_timeout":
+        return "응답 타임아웃";
+      case "unexpected_status":
+        return "상태 코드 불일치";
+      case "disabled":
+        return "체크 비활성화";
+      case "connect":
+        return "연결 실패";
+      case "unexpected_error":
+        return "예상치 못한 오류";
+      default:
+        return null;
+    }
+  };
+
   const getAuthBadge = () => {
     if (service.auth_mode === "authentik") {
       return (
@@ -130,17 +160,28 @@ export default function ServiceCard({
           />
           {routerActive === undefined ? "라우터 확인 중" : routerActive ? "라우터 연결됨" : " 라우터 미연결"}
           </span>
-          <span
+        <span
           className={clsx(
             "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border",
             !upstreamHealth
               ? "bg-slate-50 text-slate-500 border-slate-200"
               : upstreamHealth.status === "up"
                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                : "bg-rose-50 text-rose-700 border-rose-200"
+                : upstreamHealth.status === "unknown"
+                  ? "bg-slate-50 text-slate-600 border-slate-200"
+                  : "bg-rose-50 text-rose-700 border-rose-200"
           )}
           >
-          <Activity className={clsx("w-3 h-3", !upstreamHealth ? "text-slate-400" : upstreamHealth.status === "up" ? "text-emerald-500" : "text-rose-500")} />
+          <Activity className={clsx(
+            "w-3 h-3",
+            !upstreamHealth
+              ? "text-slate-400"
+              : upstreamHealth.status === "up"
+                ? "text-emerald-500"
+                : upstreamHealth.status === "unknown"
+                  ? "text-slate-500"
+                  : "text-rose-500"
+          )} />
           {!upstreamHealth ? (
             "업스트림 확인 중"
           ) : upstreamHealth.status === "up" ? (
@@ -150,6 +191,8 @@ export default function ServiceCard({
                 <span className="opacity-60 text-[10px]">({upstreamHealth.latency_ms}ms)</span>
               )}
             </span>
+          ) : upstreamHealth.status === "unknown" ? (
+            "체크 안 함"
           ) : (
             "DOWN"
           )}
@@ -157,9 +200,46 @@ export default function ServiceCard({
       </div>
 
       {upstreamHealth?.status === "down" && upstreamHealth.error ? (
-        <p className="mt-2 text-[11px] leading-4 text-rose-700 break-words">
-          원인: {upstreamHealth.error}
-        </p>
+        <div className="mt-2 space-y-1 text-[11px] leading-4 break-words">
+          {getHealthErrorKindLabel(upstreamHealth.error_kind) ? (
+            <p className="text-rose-700">유형: {getHealthErrorKindLabel(upstreamHealth.error_kind)}</p>
+          ) : null}
+          <p className="text-rose-700">원인: {upstreamHealth.error}</p>
+          <p className="text-slate-500">
+            확인 시각: {formatDateTime(upstreamHealth.checked_at, displayTimeZone)}
+          </p>
+          {lastSuccessAt ? (
+            <p className="text-slate-500">
+              최근 성공: {formatDateTime(lastSuccessAt, displayTimeZone)}
+            </p>
+          ) : null}
+          <p className="text-slate-400 truncate" title={upstreamHealth.checked_url}>
+            체크 URL: {upstreamHealth.checked_url}
+          </p>
+        </div>
+      ) : upstreamHealth?.status === "unknown" ? (
+        <div className="mt-2 space-y-1 text-[11px] leading-4 break-words">
+          <p className="text-slate-500">
+            상태: {upstreamHealth.error === "Health check disabled" ? "헬스 체크 비활성화" : upstreamHealth.error}
+          </p>
+          <p className="text-slate-500">
+            확인 시각: {formatDateTime(upstreamHealth.checked_at, displayTimeZone)}
+          </p>
+        </div>
+      ) : upstreamHealth?.status === "up" ? (
+        <div className="mt-2 space-y-1 text-[11px] leading-4 break-words">
+          <p className="text-slate-500">
+            확인 시각: {formatDateTime(upstreamHealth.checked_at, displayTimeZone)}
+          </p>
+          {lastFailureAt ? (
+            <p className="text-slate-500">
+              최근 실패: {formatDateTime(lastFailureAt, displayTimeZone)}
+            </p>
+          ) : null}
+          <p className="text-slate-400 truncate" title={upstreamHealth.checked_url}>
+            체크 URL: {upstreamHealth.checked_url}
+          </p>
+        </div>
       ) : null}
     </div>
   );

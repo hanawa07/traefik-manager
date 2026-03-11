@@ -23,6 +23,10 @@ export interface Service {
   rate_limit_burst: number | null;
   custom_headers: Record<string, string>;
   frame_policy: FramePolicy;
+  healthcheck_enabled: boolean;
+  healthcheck_path: string;
+  healthcheck_timeout_ms: number;
+  healthcheck_expected_statuses: number[];
   basic_auth_enabled: boolean;
   basic_auth_user_count: number;
   basic_auth_usernames: string[];
@@ -59,6 +63,10 @@ export interface ServiceCreate {
   rate_limit_burst: number | null;
   custom_headers: Record<string, string>;
   frame_policy: FramePolicy;
+  healthcheck_enabled: boolean;
+  healthcheck_path: string;
+  healthcheck_timeout_ms: number;
+  healthcheck_expected_statuses: number[];
   basic_auth_credentials?: BasicAuthCredential[];
   middleware_template_ids: string[];
   authentik_group_id?: string | null;
@@ -81,6 +89,10 @@ export interface ServiceUpdate {
   rate_limit_burst?: number | null;
   custom_headers?: Record<string, string>;
   frame_policy?: FramePolicy;
+  healthcheck_enabled?: boolean;
+  healthcheck_path?: string;
+  healthcheck_timeout_ms?: number;
+  healthcheck_expected_statuses?: number[];
   allowed_ips?: string[];
   blocked_paths?: string[];
   basic_auth_credentials?: BasicAuthCredential[];
@@ -100,6 +112,9 @@ export interface UpstreamHealth {
   status_code: number | null;
   latency_ms: number | null;
   error: string | null;
+  error_kind: string | null;
+  checked_url: string;
+  checked_at: string;
 }
 
 export const serviceApi = {

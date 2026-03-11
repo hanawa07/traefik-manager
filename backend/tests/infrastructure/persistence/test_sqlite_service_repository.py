@@ -100,3 +100,62 @@ def test_to_entity_restores_frame_policy():
     service = repository._to_entity(model)
 
     assert service.frame_policy == "sameorigin"
+
+
+@pytest.mark.asyncio
+async def test_save_persists_healthcheck_policy_on_insert(make_service):
+    session = StubAsyncSession()
+    repository = SQLiteServiceRepository(session)
+    service = make_service(
+        healthcheck_enabled=False,
+        healthcheck_path="/healthz",
+        healthcheck_timeout_ms=1200,
+        healthcheck_expected_statuses=[200, 204],
+    )
+
+    await repository.save(service)
+
+    assert session.added is not None
+    assert session.added.healthcheck_enabled is False
+    assert session.added.healthcheck_path == "/healthz"
+    assert session.added.healthcheck_timeout_ms == 1200
+    assert session.added.healthcheck_expected_statuses == [200, 204]
+
+
+def test_to_entity_restores_healthcheck_policy():
+    now = datetime.now(timezone.utc)
+    model = ServiceModel(
+        id=str(uuid4()),
+        name="healthcheck-service",
+        domain="healthcheck.example.com",
+        upstream_host="10.0.0.1",
+        upstream_port=8080,
+        upstream_scheme="https",
+        skip_tls_verify=True,
+        tls_enabled=True,
+        https_redirect_enabled=True,
+        auth_enabled=False,
+        auth_mode="none",
+        api_key=None,
+        allowed_ips=[],
+        blocked_paths=[],
+        rate_limit_average=None,
+        rate_limit_burst=None,
+        custom_headers={},
+        basic_auth_users=[],
+        middleware_template_ids=[],
+        healthcheck_enabled=False,
+        healthcheck_path="/ready",
+        healthcheck_timeout_ms=1700,
+        healthcheck_expected_statuses=[200, 204],
+        created_at=now,
+        updated_at=now,
+    )
+
+    repository = SQLiteServiceRepository(None)
+    service = repository._to_entity(model)
+
+    assert service.healthcheck_enabled is False
+    assert service.healthcheck_path == "/ready"
+    assert service.healthcheck_timeout_ms == 1700
+    assert service.healthcheck_expected_statuses == [200, 204]

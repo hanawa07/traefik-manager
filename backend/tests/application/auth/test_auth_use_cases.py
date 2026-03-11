@@ -51,11 +51,12 @@ async def test_authenticate_user_returns_user_for_valid_credentials():
 
     use_cases = AuthUseCases(InMemoryUserRepository([user]))
 
-    authenticated = await use_cases.authenticate_user("admin", "secret123")
+    result = await use_cases.authenticate_user("admin", "secret123")
 
-    assert authenticated is not None
-    assert authenticated.username == "admin"
-    assert authenticated.role == "admin"
+    assert result.authenticated_user is not None
+    assert result.authenticated_user.username == "admin"
+    assert result.authenticated_user.role == "admin"
+    assert result.failure_reason is None
 
 @pytest.mark.asyncio
 async def test_authenticate_user_returns_none_for_wrong_password():
@@ -71,9 +72,11 @@ async def test_authenticate_user_returns_none_for_wrong_password():
     )
     use_cases = AuthUseCases(InMemoryUserRepository([user]))
 
-    authenticated = await use_cases.authenticate_user("viewer", "wrong-password")
+    result = await use_cases.authenticate_user("viewer", "wrong-password")
 
-    assert authenticated is None
+    assert result.authenticated_user is None
+    assert result.failure_reason == "invalid_credentials"
+    assert use_cases.repository.users["viewer"].failed_login_attempts == 1
 
 @pytest.mark.asyncio
 async def test_authenticate_user_returns_none_for_inactive_user():
@@ -89,6 +92,60 @@ async def test_authenticate_user_returns_none_for_inactive_user():
     )
     use_cases = AuthUseCases(InMemoryUserRepository([user]))
 
-    authenticated = await use_cases.authenticate_user("viewer", "secret123")
+    result = await use_cases.authenticate_user("viewer", "secret123")
 
-    assert authenticated is None
+    assert result.authenticated_user is None
+    assert result.failure_reason == "invalid_credentials"
+
+
+@pytest.mark.asyncio
+async def test_authenticate_user_locks_user_after_threshold():
+    user = User(
+        id=uuid4(),
+        username="locked-user",
+        hashed_password=hash_password("secret123"),
+        role="admin",
+        is_active=True,
+        token_version=0,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    use_cases = AuthUseCases(
+        InMemoryUserRepository([user]),
+        max_failed_attempts=3,
+        failure_window_minutes=15,
+        lockout_minutes=10,
+    )
+
+    await use_cases.authenticate_user("locked-user", "wrong-password")
+    await use_cases.authenticate_user("locked-user", "wrong-password")
+    result = await use_cases.authenticate_user("locked-user", "wrong-password")
+
+    assert result.authenticated_user is None
+    assert result.failure_reason == "locked"
+    assert result.locked_until is not None
+    assert use_cases.repository.users["locked-user"].failed_login_attempts == 3
+
+
+@pytest.mark.asyncio
+async def test_authenticate_user_resets_failures_after_success():
+    now = datetime.now(timezone.utc)
+    user = User(
+        id=uuid4(),
+        username="viewer",
+        hashed_password=hash_password("secret123"),
+        role="viewer",
+        is_active=True,
+        token_version=0,
+        created_at=now,
+        updated_at=now,
+        failed_login_attempts=2,
+        last_failed_login_at=now,
+    )
+    use_cases = AuthUseCases(InMemoryUserRepository([user]))
+
+    result = await use_cases.authenticate_user("viewer", "secret123")
+
+    assert result.authenticated_user is not None
+    assert use_cases.repository.users["viewer"].failed_login_attempts == 0
+    assert use_cases.repository.users["viewer"].last_failed_login_at is None

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useServices, useDeleteService, useAllServicesHealth } from "@/features/services/hooks/useServices";
 import ServiceCard from "@/features/services/components/ServiceCard";
@@ -8,9 +8,20 @@ import { Service } from "@/features/services/api/serviceApi";
 import { Server, Plus, Search, ArrowUpDown } from "lucide-react";
 import { useTraefikRouterStatus } from "@/features/traefik/hooks/useTraefik";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
+import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 
 type SortKey = "name" | "domain" | "auth" | "router" | "health" | "created_at";
 type SortDir = "asc" | "desc";
+type HealthFilter =
+  | "all"
+  | "up"
+  | "down"
+  | "unknown"
+  | "dns"
+  | "connection_refused"
+  | "timeout"
+  | "unexpected_status"
+  | "other_error";
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "name", label: "이름" },
@@ -21,17 +32,63 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "created_at", label: "생성일" },
 ];
 
+const HEALTH_FILTER_OPTIONS: { value: HealthFilter; label: string }[] = [
+  { value: "all", label: "전체 상태" },
+  { value: "down", label: "DOWN만" },
+  { value: "up", label: "UP만" },
+  { value: "unknown", label: "체크 안 함" },
+  { value: "dns", label: "DNS 실패" },
+  { value: "connection_refused", label: "연결 거부" },
+  { value: "timeout", label: "타임아웃" },
+  { value: "unexpected_status", label: "상태 코드 불일치" },
+  { value: "other_error", label: "기타 오류" },
+];
+
+type HealthHistoryEntry = {
+  last_up_at?: string;
+  last_down_at?: string;
+  last_unknown_at?: string;
+};
+
 export default function ServicesPage() {
   const role = useAuthStore((state) => state.role);
   const canManage = role === "admin";
   const { data: services = [], isLoading } = useServices();
   const { data: routerStatus } = useTraefikRouterStatus();
   const { data: healthMap } = useAllServicesHealth();
+  const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const deleteService = useDeleteService();
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [healthFilter, setHealthFilter] = useState<HealthFilter>("all");
+  const [healthHistory, setHealthHistory] = useState<Record<string, HealthHistoryEntry>>({});
+
+  useEffect(() => {
+    if (!healthMap) return;
+
+    setHealthHistory((previous) => {
+      let changed = false;
+      const next = { ...previous };
+
+      for (const [serviceId, health] of Object.entries(healthMap)) {
+        const entry = next[serviceId] ?? {};
+        if (health.status === "up" && entry.last_up_at !== health.checked_at) {
+          next[serviceId] = { ...entry, last_up_at: health.checked_at };
+          changed = true;
+        } else if (health.status === "down" && entry.last_down_at !== health.checked_at) {
+          next[serviceId] = { ...entry, last_down_at: health.checked_at };
+          changed = true;
+        } else if (health.status === "unknown" && entry.last_unknown_at !== health.checked_at) {
+          next[serviceId] = { ...entry, last_unknown_at: health.checked_at };
+          changed = true;
+        }
+      }
+
+      return changed ? next : previous;
+    });
+  }, [healthMap]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -41,6 +98,37 @@ export default function ServicesPage() {
 
   const filteredServices = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const matchesHealthFilter = (service: Service) => {
+      const health = healthMap?.[service.id];
+      if (healthFilter === "all") return true;
+      if (!health) return false;
+
+      if (healthFilter === "up" || healthFilter === "down" || healthFilter === "unknown") {
+        return health.status === healthFilter;
+      }
+      if (healthFilter === "dns") {
+        return health.error_kind === "dns";
+      }
+      if (healthFilter === "connection_refused") {
+        return health.error_kind === "connection_refused";
+      }
+      if (healthFilter === "timeout") {
+        return health.error_kind === "connection_timeout" || health.error_kind === "request_timeout";
+      }
+      if (healthFilter === "unexpected_status") {
+        return health.error_kind === "unexpected_status";
+      }
+      if (healthFilter === "other_error") {
+        return (
+          health.status === "down" &&
+          !["dns", "connection_refused", "connection_timeout", "request_timeout", "unexpected_status"].includes(
+            health.error_kind || ""
+          )
+        );
+      }
+      return true;
+    };
+
     const result = q
       ? services.filter(
         (s) =>
@@ -49,7 +137,9 @@ export default function ServicesPage() {
       )
       : [...services];
 
-    result.sort((a, b) => {
+    const filtered = result.filter(matchesHealthFilter);
+
+    filtered.sort((a, b) => {
       let cmp = 0;
       if (sortKey === "name") cmp = a.name.localeCompare(b.name);
       else if (sortKey === "domain") cmp = a.domain.localeCompare(b.domain);
@@ -77,8 +167,8 @@ export default function ServicesPage() {
         cmp = a.created_at > b.created_at ? 1 : -1;
       return sortDir === "asc" ? cmp : -cmp;
     });
-    return result;
-  }, [services, search, sortKey, sortDir, routerStatus, healthMap]);
+    return filtered;
+  }, [services, search, healthFilter, sortKey, sortDir, routerStatus, healthMap]);
 
   return (
     <div className="p-8">
@@ -120,6 +210,17 @@ export default function ServicesPage() {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <ArrowUpDown className="w-4 h-4 text-gray-400" />
+          <select
+            value={healthFilter}
+            onChange={(e) => setHealthFilter(e.target.value as HealthFilter)}
+            className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            {HEALTH_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
           <select
             value={sortKey}
             onChange={(e) => {
@@ -184,6 +285,9 @@ export default function ServicesPage() {
               routerActive={routerStatus?.domains?.[service.domain]?.active}
               canManage={canManage}
               upstreamHealth={healthMap?.[service.id]}
+              displayTimeZone={timeDisplaySettings?.display_timezone}
+              lastSuccessAt={healthHistory[service.id]?.last_up_at}
+              lastFailureAt={healthHistory[service.id]?.last_down_at}
             />
           ))}
         </div>

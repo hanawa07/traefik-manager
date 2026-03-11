@@ -7,6 +7,7 @@ from app.core.time_display import (
     get_server_time_context,
     normalize_display_timezone,
 )
+from app.domain.proxy.value_objects.upstream import normalize_domain_suffixes
 from app.infrastructure.cloudflare.client import CloudflareClient
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
@@ -90,8 +91,7 @@ async def get_upstream_security_settings(
     _: dict = Depends(get_current_user),
 ):
     repo = SQLiteSystemSettingsRepository(db)
-    value = await repo.get("upstream_dns_strict_mode")
-    return UpstreamSecuritySettingsResponse(dns_strict_mode=(value or "").strip().lower() == "true")
+    return await _build_upstream_security_response(repo)
 
 
 @router.put(
@@ -106,7 +106,20 @@ async def update_upstream_security_settings(
 ):
     repo = SQLiteSystemSettingsRepository(db)
     await repo.set("upstream_dns_strict_mode", "true" if request.dns_strict_mode else "false")
-    return UpstreamSecuritySettingsResponse(dns_strict_mode=request.dns_strict_mode)
+    await repo.set("upstream_allowlist_enabled", "true" if request.allowlist_enabled else "false")
+    await repo.set(
+        "upstream_allowed_domain_suffixes",
+        "\n".join(request.allowed_domain_suffixes) or None,
+    )
+    await repo.set(
+        "upstream_allow_docker_service_names",
+        "true" if request.allow_docker_service_names else "false",
+    )
+    await repo.set(
+        "upstream_allow_private_networks",
+        "true" if request.allow_private_networks else "false",
+    )
+    return await _build_upstream_security_response(repo)
 
 
 def _build_time_display_response(display_timezone: str | None) -> TimeDisplaySettingsResponse:
@@ -122,3 +135,43 @@ def _build_time_display_response(display_timezone: str | None) -> TimeDisplaySet
         server_timezone_offset=server_context["server_timezone_offset"],
         server_time_iso=server_context["server_time_iso"],
     )
+
+
+async def _build_upstream_security_response(
+    repo: SQLiteSystemSettingsRepository,
+) -> UpstreamSecuritySettingsResponse:
+    return UpstreamSecuritySettingsResponse(
+        dns_strict_mode=await _get_bool_setting(repo, "upstream_dns_strict_mode", default=False),
+        allowlist_enabled=await _get_bool_setting(repo, "upstream_allowlist_enabled", default=False),
+        allowed_domain_suffixes=normalize_domain_suffixes(
+            _split_domain_suffixes(await repo.get("upstream_allowed_domain_suffixes"))
+        ),
+        allow_docker_service_names=await _get_bool_setting(
+            repo,
+            "upstream_allow_docker_service_names",
+            default=True,
+        ),
+        allow_private_networks=await _get_bool_setting(
+            repo,
+            "upstream_allow_private_networks",
+            default=True,
+        ),
+    )
+
+
+async def _get_bool_setting(
+    repo: SQLiteSystemSettingsRepository,
+    key: str,
+    *,
+    default: bool,
+) -> bool:
+    value = await repo.get(key)
+    if value is None:
+        return default
+    return value.strip().lower() == "true"
+
+
+def _split_domain_suffixes(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.replace(",", "\n").splitlines() if item.strip()]

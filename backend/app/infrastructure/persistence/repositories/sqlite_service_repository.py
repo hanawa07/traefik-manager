@@ -43,6 +43,10 @@ class SQLiteServiceRepository(ServiceRepository):
             existing.authentik_policy_binding_id = service.authentik_policy_binding_id
             existing.cloudflare_record_id = service.cloudflare_record_id
             existing.frame_policy = service.frame_policy
+            existing.healthcheck_enabled = service.healthcheck_enabled
+            existing.healthcheck_path = service.healthcheck_path
+            existing.healthcheck_timeout_ms = service.healthcheck_timeout_ms
+            existing.healthcheck_expected_statuses = service.healthcheck_expected_statuses
         else:
             model = ServiceModel(
                 id=str(service.id),
@@ -72,6 +76,10 @@ class SQLiteServiceRepository(ServiceRepository):
                 authentik_policy_binding_id=service.authentik_policy_binding_id,
                 cloudflare_record_id=service.cloudflare_record_id,
                 frame_policy=service.frame_policy,
+                healthcheck_enabled=service.healthcheck_enabled,
+                healthcheck_path=service.healthcheck_path,
+                healthcheck_timeout_ms=service.healthcheck_timeout_ms,
+                healthcheck_expected_statuses=service.healthcheck_expected_statuses,
             )
             self.db.add(model)
 
@@ -126,5 +134,9 @@ class SQLiteServiceRepository(ServiceRepository):
             upstream_scheme=model.upstream_scheme or "http",
             skip_tls_verify=model.skip_tls_verify or False,
             frame_policy=model.frame_policy or "deny",
+            healthcheck_enabled=model.healthcheck_enabled,
+            healthcheck_path=model.healthcheck_path or "/",
+            healthcheck_timeout_ms=model.healthcheck_timeout_ms or 3000,
+            healthcheck_expected_statuses=model.healthcheck_expected_statuses or [],
         )
         return service

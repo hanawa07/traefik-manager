@@ -19,6 +19,10 @@ class BackupServiceItem(BaseModel):
     rate_limit_burst: int | None = None
     custom_headers: dict[str, str] = Field(default_factory=dict)
     frame_policy: str = "deny"
+    healthcheck_enabled: bool = True
+    healthcheck_path: str = "/"
+    healthcheck_timeout_ms: int = 3000
+    healthcheck_expected_statuses: list[int] = Field(default_factory=list)
     basic_auth_users: list[str] = Field(default_factory=list)
     middleware_template_ids: list[str] = Field(default_factory=list)
     authentik_provider_id: str | None = None

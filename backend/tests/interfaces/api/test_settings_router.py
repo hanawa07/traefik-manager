@@ -83,6 +83,10 @@ async def test_get_upstream_security_settings_returns_default(monkeypatch):
     response = await settings_router.get_upstream_security_settings(db=object(), _={"role": "admin"})
 
     assert response.dns_strict_mode is False
+    assert response.allowlist_enabled is False
+    assert response.allowed_domain_suffixes == []
+    assert response.allow_docker_service_names is True
+    assert response.allow_private_networks is True
 
 
 @pytest.mark.asyncio
@@ -91,15 +95,52 @@ async def test_update_upstream_security_settings_persists_value(monkeypatch):
     monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
 
     response = await settings_router.update_upstream_security_settings(
-        request=UpstreamSecuritySettingsUpdateRequest(dns_strict_mode=True),
+        request=UpstreamSecuritySettingsUpdateRequest(
+            dns_strict_mode=True,
+            allowlist_enabled=True,
+            allowed_domain_suffixes=["Example.com", " api.example.org "],
+            allow_docker_service_names=False,
+            allow_private_networks=False,
+        ),
         db=object(),
         _={"role": "admin"},
     )
 
     assert StubSettingsRepository.store["upstream_dns_strict_mode"] == "true"
+    assert StubSettingsRepository.store["upstream_allowlist_enabled"] == "true"
+    assert StubSettingsRepository.store["upstream_allowed_domain_suffixes"] == "example.com\napi.example.org"
+    assert StubSettingsRepository.store["upstream_allow_docker_service_names"] == "false"
+    assert StubSettingsRepository.store["upstream_allow_private_networks"] == "false"
     assert response.dns_strict_mode is True
+    assert response.allowlist_enabled is True
+    assert response.allowed_domain_suffixes == ["example.com", "api.example.org"]
+    assert response.allow_docker_service_names is False
+    assert response.allow_private_networks is False
 
 
 def test_time_display_settings_update_request_rejects_invalid_value():
     with pytest.raises(ValidationError):
         TimeDisplaySettingsUpdateRequest(display_timezone="Mars/Base")
+
+
+def test_upstream_security_settings_update_request_normalizes_domain_suffixes():
+    request = UpstreamSecuritySettingsUpdateRequest(
+        dns_strict_mode=False,
+        allowlist_enabled=True,
+        allowed_domain_suffixes=[" Example.com ", "*.api.example.org", ".deep.example.net"],
+        allow_docker_service_names=True,
+        allow_private_networks=True,
+    )
+
+    assert request.allowed_domain_suffixes == ["example.com", "api.example.org", "deep.example.net"]
+
+
+def test_upstream_security_settings_update_request_rejects_invalid_domain_suffix():
+    with pytest.raises(ValidationError):
+        UpstreamSecuritySettingsUpdateRequest(
+            dns_strict_mode=False,
+            allowlist_enabled=True,
+            allowed_domain_suffixes=["bad suffix!"],
+            allow_docker_service_names=True,
+            allow_private_networks=True,
+        )
