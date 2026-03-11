@@ -152,11 +152,9 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 
 ---
 
-### [LOW-2] 애플리케이션 코드의 `datetime.utcnow()` 정리는 완료
+### [LOW-2] 애플리케이션 코드와 JWT 경로의 `datetime.utcnow()` 경고 정리는 완료
 
-**현재 상태:** application/domain/core 레이어의 직접적인 `datetime.utcnow()` 사용은 timezone-aware UTC로 정리되었습니다.
-
-**남은 보완점:** 테스트 경고는 외부 의존성인 `python-jose` 내부 구현에서 발생합니다. 즉 현재 남은 경고는 애플리케이션 코드가 아니라 라이브러리 레벨 이슈입니다.
+**현재 상태:** application/domain/core 레이어의 직접적인 `datetime.utcnow()` 사용은 timezone-aware UTC로 정리되었고, JWT 유틸도 `python-jose`에서 `PyJWT`로 전환해 남아 있던 라이브러리 레벨 경고를 제거했습니다.
 
 ---
 
@@ -206,4 +204,4 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 |------|------|--------|--------|
 | 1 | 관리자 알림/차단 정책 예외 고도화 | 보통 | 낮음 |
 | 2 | CAPTCHA 또는 추가 로그인 검증 장치 검토 | 보통 | 낮음 |
-| 3 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |
+| 3 | 로그인 보안 채널(Teams/Email/PagerDuty) 확장 | 쉬움 | 낮음 |
