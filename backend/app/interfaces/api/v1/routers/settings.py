@@ -8,6 +8,11 @@ from app.core.time_display import (
     normalize_display_timezone,
 )
 from app.domain.proxy.value_objects.upstream import normalize_domain_suffixes
+from app.domain.proxy.value_objects.upstream_security_presets import (
+    get_upstream_security_preset,
+    infer_upstream_security_preset_key,
+    list_upstream_security_presets,
+)
 from app.infrastructure.cloudflare.client import CloudflareClient
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
@@ -19,6 +24,7 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
     TimeDisplaySettingsUpdateRequest,
     UpstreamSecuritySettingsResponse,
     UpstreamSecuritySettingsUpdateRequest,
+    UpstreamSecurityPresetResponse,
 )
 
 router = APIRouter()
@@ -140,22 +146,48 @@ def _build_time_display_response(display_timezone: str | None) -> TimeDisplaySet
 async def _build_upstream_security_response(
     repo: SQLiteSystemSettingsRepository,
 ) -> UpstreamSecuritySettingsResponse:
+    dns_strict_mode = await _get_bool_setting(repo, "upstream_dns_strict_mode", default=False)
+    allowlist_enabled = await _get_bool_setting(repo, "upstream_allowlist_enabled", default=False)
+    allow_docker_service_names = await _get_bool_setting(
+        repo,
+        "upstream_allow_docker_service_names",
+        default=True,
+    )
+    allow_private_networks = await _get_bool_setting(
+        repo,
+        "upstream_allow_private_networks",
+        default=True,
+    )
+    preset_key = infer_upstream_security_preset_key(
+        dns_strict_mode=dns_strict_mode,
+        allowlist_enabled=allowlist_enabled,
+        allow_docker_service_names=allow_docker_service_names,
+        allow_private_networks=allow_private_networks,
+    )
+    preset = get_upstream_security_preset(preset_key)
     return UpstreamSecuritySettingsResponse(
-        dns_strict_mode=await _get_bool_setting(repo, "upstream_dns_strict_mode", default=False),
-        allowlist_enabled=await _get_bool_setting(repo, "upstream_allowlist_enabled", default=False),
+        preset_key=preset.key,
+        preset_name=preset.name,
+        preset_description=preset.description,
+        available_presets=[
+            UpstreamSecurityPresetResponse(
+                key=item.key,
+                name=item.name,
+                description=item.description,
+                dns_strict_mode=item.dns_strict_mode,
+                allowlist_enabled=item.allowlist_enabled,
+                allow_docker_service_names=item.allow_docker_service_names,
+                allow_private_networks=item.allow_private_networks,
+            )
+            for item in list_upstream_security_presets()
+        ],
+        dns_strict_mode=dns_strict_mode,
+        allowlist_enabled=allowlist_enabled,
         allowed_domain_suffixes=normalize_domain_suffixes(
             _split_domain_suffixes(await repo.get("upstream_allowed_domain_suffixes"))
         ),
-        allow_docker_service_names=await _get_bool_setting(
-            repo,
-            "upstream_allow_docker_service_names",
-            default=True,
-        ),
-        allow_private_networks=await _get_bool_setting(
-            repo,
-            "upstream_allow_private_networks",
-            default=True,
-        ),
+        allow_docker_service_names=allow_docker_service_names,
+        allow_private_networks=allow_private_networks,
     )
 
 

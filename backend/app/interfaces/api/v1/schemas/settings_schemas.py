@@ -44,11 +44,25 @@ class TimeDisplaySettingsUpdateRequest(BaseModel):
 
 
 class UpstreamSecuritySettingsResponse(BaseModel):
+    preset_key: str
+    preset_name: str
+    preset_description: str
+    available_presets: list["UpstreamSecurityPresetResponse"] = Field(default_factory=list)
     dns_strict_mode: bool
     allowlist_enabled: bool = False
     allowed_domain_suffixes: list[str] = Field(default_factory=list)
     allow_docker_service_names: bool = True
     allow_private_networks: bool = True
+
+
+class UpstreamSecurityPresetResponse(BaseModel):
+    key: str
+    name: str
+    description: str
+    dns_strict_mode: bool
+    allowlist_enabled: bool
+    allow_docker_service_names: bool
+    allow_private_networks: bool
 
 
 class UpstreamSecuritySettingsUpdateRequest(BaseModel):

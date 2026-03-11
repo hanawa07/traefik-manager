@@ -87,6 +87,13 @@ async def test_get_upstream_security_settings_returns_default(monkeypatch):
     assert response.allowed_domain_suffixes == []
     assert response.allow_docker_service_names is True
     assert response.allow_private_networks is True
+    assert response.preset_key == "disabled"
+    assert response.preset_name == "정책 비활성화"
+    assert [preset.key for preset in response.available_presets] == [
+        "disabled",
+        "internal-first",
+        "external-only",
+    ]
 
 
 @pytest.mark.asyncio
@@ -116,6 +123,8 @@ async def test_update_upstream_security_settings_persists_value(monkeypatch):
     assert response.allowed_domain_suffixes == ["example.com", "api.example.org"]
     assert response.allow_docker_service_names is False
     assert response.allow_private_networks is False
+    assert response.preset_key == "external-only"
+    assert response.preset_name == "외부 승인 도메인 전용"
 
 
 def test_time_display_settings_update_request_rejects_invalid_value():

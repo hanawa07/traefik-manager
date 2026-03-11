@@ -17,7 +17,11 @@ import {
 
 import { useLogoutAllSessions, useRevokeSession, useSessions } from "@/features/auth/hooks/useSessions";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
-import { BackupPayload, UpstreamSecuritySettingsInput } from "@/features/settings/api/settingsApi";
+import {
+  BackupPayload,
+  UpstreamSecurityPreset,
+  UpstreamSecuritySettingsInput,
+} from "@/features/settings/api/settingsApi";
 import {
   useCloudflareStatus,
   useUpdateCloudflareSettings,
@@ -47,6 +51,33 @@ function parseDomainSuffixText(value: string): string[] {
     .split(/\r?\n|,/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function inferUpstreamPresetKey(
+  presets: UpstreamSecurityPreset[],
+  form: UpstreamSecuritySettingsInput,
+): string {
+  const matched = presets.find(
+    (preset) =>
+      preset.dns_strict_mode === form.dns_strict_mode &&
+      preset.allowlist_enabled === form.allowlist_enabled &&
+      preset.allow_docker_service_names === form.allow_docker_service_names &&
+      preset.allow_private_networks === form.allow_private_networks,
+  );
+  return matched?.key ?? "custom";
+}
+
+function applyUpstreamPreset(
+  current: UpstreamSecuritySettingsInput & { allowed_domain_suffixes_text: string },
+  preset: UpstreamSecurityPreset,
+): UpstreamSecuritySettingsInput & { allowed_domain_suffixes_text: string } {
+  return {
+    ...current,
+    dns_strict_mode: preset.dns_strict_mode,
+    allowlist_enabled: preset.allowlist_enabled,
+    allow_docker_service_names: preset.allow_docker_service_names,
+    allow_private_networks: preset.allow_private_networks,
+  };
 }
 
 export default function SettingsPage() {
@@ -79,6 +110,8 @@ export default function SettingsPage() {
   const exportBackup = useExportBackup();
   const importBackup = useImportBackup();
   const supportedTimeZones = getSupportedTimeZones();
+  const upstreamPresets = upstreamSecuritySettings?.available_presets ?? [];
+  const selectedUpstreamPresetKey = inferUpstreamPresetKey(upstreamPresets, upstreamSecurityForm);
 
   const handleEditCf = () => {
     setCfForm({
@@ -340,6 +373,48 @@ export default function SettingsPage() {
             <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
           ) : isEditingUpstreamSecurity ? (
             <div className="space-y-4">
+              <div>
+                <label className="label">정책 preset</label>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                  {upstreamPresets.map((preset) => {
+                    const isSelected = selectedUpstreamPresetKey === preset.key;
+                    return (
+                      <button
+                        key={preset.key}
+                        type="button"
+                        className={`rounded-xl border p-3 text-left transition ${
+                          isSelected
+                            ? "border-rose-300 bg-rose-50 shadow-sm"
+                            : "border-gray-200 bg-white hover:border-gray-300"
+                        }`}
+                        onClick={() =>
+                          setUpstreamSecurityForm((current) => applyUpstreamPreset(current, preset))
+                        }
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-semibold text-gray-900">{preset.name}</span>
+                          {isSelected ? (
+                            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-medium text-rose-700">
+                              현재 조합
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-gray-500">{preset.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  preset을 누르면 권장 조합이 바로 적용됩니다. 이후 세부 옵션을 직접 바꾸면 조합은 자동으로 `사용자 정의`
+                  상태가 됩니다.
+                </p>
+                {selectedUpstreamPresetKey === "custom" ? (
+                  <p className="mt-1 text-xs font-medium text-amber-700">
+                    현재 조합은 preset과 다르게 직접 조정된 사용자 정의 상태입니다.
+                  </p>
+                ) : null}
+              </div>
+
               <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
                 <input
                   type="checkbox"
@@ -464,6 +539,10 @@ export default function SettingsPage() {
           ) : (
             <div className="space-y-2 text-sm">
               <div className="flex justify-between gap-4">
+                <span className="text-gray-500">정책 preset</span>
+                <span className="text-right text-gray-700">{upstreamSecuritySettings?.preset_name ?? "사용자 정의"}</span>
+              </div>
+              <div className="flex justify-between gap-4">
                 <span className="text-gray-500">DNS strict mode</span>
                 <span className="text-gray-700">
                   {upstreamSecuritySettings?.dns_strict_mode ? "활성화" : "비활성화"}
@@ -510,6 +589,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
               ) : null}
+              <p className="text-xs text-gray-500">{upstreamSecuritySettings?.preset_description}</p>
               <p className="text-xs text-gray-500 pt-1">
                 allowlist는 저장 시점에 외부 FQDN, Docker 서비스명, IP 리터럴을 정책대로 제한합니다. strict mode는
                 도메인 업스트림을 DNS 재해석해서 금지 주소 여부를 추가로 검사합니다.

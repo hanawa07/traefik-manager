@@ -112,8 +112,9 @@
 - 외부 FQDN은 허용된 domain suffix 목록과 일치해야 하고, Docker 서비스명과 사설 IPv4/Tailscale IP는 별도 옵션으로 허용 여부를 제어합니다.
 - strict mode와 allowlist를 같이 켜면 둘 다 통과해야 저장됩니다.
 
-**남은 보완점:**
-- 조직별 upstream 정책 템플릿/allowlist preset 도입 검토
+**추가 적용됨:**
+- 설정 화면에서 upstream 보안 preset(`정책 비활성화`, `내부 우선`, `외부 승인 도메인 전용`)을 빠르게 적용할 수 있습니다.
+- preset은 권장 조합 템플릿이고, 세부 옵션을 직접 바꾸면 자동으로 `사용자 정의` 상태로 표시됩니다.
 
 ---
 
@@ -193,5 +194,5 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 | 순위 | 항목 | 난이도 | 위험도 |
 |------|------|--------|--------|
 | 1 | 관리자 알림/차단 정책 예외 고도화 | 보통 | 낮음 |
-| 2 | upstream 정책 preset/조직 템플릿 검토 | 보통 | 낮음 |
-| 3 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |
+| 2 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |
+| 3 | CAPTCHA 또는 추가 로그인 검증 장치 검토 | 보통 | 낮음 |
