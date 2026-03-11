@@ -93,8 +93,13 @@
 - reserved IPv4 (`240.0.0.0/4`)
 - documentation/example 대역 (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`, `2001:db8::/32`)
 
+**추가 적용됨:**
+- 설정의 `upstream_dns_strict_mode`를 켜면 도메인 업스트림 저장 시 DNS를 다시 조회합니다.
+- 해석 결과가 loopback, link-local, unspecified, multicast, reserved, documentation/example, unique local IPv6 대역이면 저장을 거부합니다.
+- DNS 조회 실패도 strict mode에서는 저장 거부로 처리합니다.
+- IP 리터럴 upstream은 기존 값 검증만 수행하며 추가 DNS 조회를 하지 않습니다.
+
 **남은 보완점:**
-- DNS 재해석 결과까지 검사하는 strict mode가 필요한지 검토
 - 도메인/호스트 허용 정책을 더 엄격한 allowlist 기반으로 바꿀지 검토
 
 ---
@@ -174,6 +179,6 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 
 | 순위 | 항목 | 난이도 | 위험도 |
 |------|------|--------|--------|
-| 1 | Upstream strict mode (DNS 재해석/allowlist) 검토 | 보통 | 중간 |
+| 1 | 도메인 upstream allowlist/정책 기반 제한 검토 | 보통 | 중간 |
 | 2 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |
 | 3 | 계정 잠금/이상 징후 감지 같은 앱 레벨 로그인 방어 | 보통 | 낮음 |

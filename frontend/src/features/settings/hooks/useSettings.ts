@@ -4,6 +4,7 @@ import {
   BackupPayload,
   CloudflareSettingsInput,
   TimeDisplaySettingsInput,
+  UpstreamSecuritySettingsInput,
   settingsApi,
 } from "../api/settingsApi";
 
@@ -19,6 +20,14 @@ export function useTimeDisplaySettings() {
   return useQuery({
     queryKey: ["settings", "time-display"],
     queryFn: settingsApi.getTimeDisplaySettings,
+    staleTime: 30_000,
+  });
+}
+
+export function useUpstreamSecuritySettings() {
+  return useQuery({
+    queryKey: ["settings", "upstream-security"],
+    queryFn: settingsApi.getUpstreamSecuritySettings,
     staleTime: 30_000,
   });
 }
@@ -39,6 +48,16 @@ export function useUpdateTimeDisplaySettings() {
     mutationFn: (data: TimeDisplaySettingsInput) => settingsApi.updateTimeDisplaySettings(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "time-display"] });
+    },
+  });
+}
+
+export function useUpdateUpstreamSecuritySettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: UpstreamSecuritySettingsInput) => settingsApi.updateUpstreamSecuritySettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "upstream-security"] });
     },
   });
 }

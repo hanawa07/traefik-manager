@@ -16,6 +16,8 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
     CloudflareSettingsUpdateRequest,
     TimeDisplaySettingsResponse,
     TimeDisplaySettingsUpdateRequest,
+    UpstreamSecuritySettingsResponse,
+    UpstreamSecuritySettingsUpdateRequest,
 )
 
 router = APIRouter()
@@ -76,6 +78,35 @@ async def update_time_display_settings(
     repo = SQLiteSystemSettingsRepository(db)
     await repo.set("display_timezone", request.display_timezone)
     return _build_time_display_response(request.display_timezone)
+
+
+@router.get(
+    "/upstream-security",
+    response_model=UpstreamSecuritySettingsResponse,
+    summary="업스트림 보안 설정 조회",
+)
+async def get_upstream_security_settings(
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    repo = SQLiteSystemSettingsRepository(db)
+    value = await repo.get("upstream_dns_strict_mode")
+    return UpstreamSecuritySettingsResponse(dns_strict_mode=(value or "").strip().lower() == "true")
+
+
+@router.put(
+    "/upstream-security",
+    response_model=UpstreamSecuritySettingsResponse,
+    summary="업스트림 보안 설정 저장",
+)
+async def update_upstream_security_settings(
+    request: UpstreamSecuritySettingsUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_admin),
+):
+    repo = SQLiteSystemSettingsRepository(db)
+    await repo.set("upstream_dns_strict_mode", "true" if request.dns_strict_mode else "false")
+    return UpstreamSecuritySettingsResponse(dns_strict_mode=request.dns_strict_mode)
 
 
 def _build_time_display_response(display_timezone: str | None) -> TimeDisplaySettingsResponse:

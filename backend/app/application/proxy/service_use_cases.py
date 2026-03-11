@@ -25,12 +25,14 @@ class ServiceUseCases:
         file_writer: FileProviderWriter,
         authentik_client: AuthentikClient,
         cloudflare_client: CloudflareClient,
+        upstream_guard=None,
     ):
         self.repository = repository
         self.middleware_template_repository = middleware_template_repository
         self.file_writer = file_writer
         self.authentik_client = authentik_client
         self.cloudflare_client = cloudflare_client
+        self.upstream_guard = upstream_guard
 
     async def list_services(self) -> list[Service]:
         return await self.repository.find_all()
@@ -43,6 +45,9 @@ class ServiceUseCases:
         existing = await self.repository.find_by_domain(data.domain)
         if existing:
             raise ValueError(f"이미 등록된 도메인입니다: {data.domain}")
+
+        if self.upstream_guard is not None:
+            await self.upstream_guard.ensure_safe(data.upstream_host)
 
         service = Service.create(
             name=data.name,
@@ -167,6 +172,9 @@ class ServiceUseCases:
                 update_payload.get("basic_auth_credentials") or [],
                 existing_users=service.basic_auth_users
             )
+
+        if self.upstream_guard is not None and "upstream_host" in update_payload:
+            await self.upstream_guard.ensure_safe(update_payload["upstream_host"])
 
         service.update(
             name=update_payload.get("name"),

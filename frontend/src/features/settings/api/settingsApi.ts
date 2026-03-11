@@ -77,6 +77,14 @@ export interface TimeDisplaySettingsInput {
   display_timezone: string;
 }
 
+export interface UpstreamSecuritySettingsStatus {
+  dns_strict_mode: boolean;
+}
+
+export interface UpstreamSecuritySettingsInput {
+  dns_strict_mode: boolean;
+}
+
 export const settingsApi = {
   getCloudflareStatus: async (): Promise<CloudflareSettingsStatus> => {
     const res = await apiClient.get<CloudflareSettingsStatus>("/settings/cloudflare");
@@ -88,6 +96,11 @@ export const settingsApi = {
     return res.data;
   },
 
+  getUpstreamSecuritySettings: async (): Promise<UpstreamSecuritySettingsStatus> => {
+    const res = await apiClient.get<UpstreamSecuritySettingsStatus>("/settings/upstream-security");
+    return res.data;
+  },
+
   updateCloudflareSettings: async (payload: CloudflareSettingsInput): Promise<CloudflareSettingsStatus> => {
     const res = await apiClient.put<CloudflareSettingsStatus>("/settings/cloudflare", payload);
     return res.data;
@@ -95,6 +108,13 @@ export const settingsApi = {
 
   updateTimeDisplaySettings: async (payload: TimeDisplaySettingsInput): Promise<TimeDisplaySettingsStatus> => {
     const res = await apiClient.put<TimeDisplaySettingsStatus>("/settings/time-display", payload);
+    return res.data;
+  },
+
+  updateUpstreamSecuritySettings: async (
+    payload: UpstreamSecuritySettingsInput,
+  ): Promise<UpstreamSecuritySettingsStatus> => {
+    const res = await apiClient.put<UpstreamSecuritySettingsStatus>("/settings/upstream-security", payload);
     return res.data;
   },
 

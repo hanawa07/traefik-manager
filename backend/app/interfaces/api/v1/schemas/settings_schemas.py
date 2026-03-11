@@ -40,3 +40,11 @@ class TimeDisplaySettingsUpdateRequest(BaseModel):
         if normalized not in get_available_timezones():
             raise ValueError("지원하지 않는 IANA 타임존입니다")
         return normalized
+
+
+class UpstreamSecuritySettingsResponse(BaseModel):
+    dns_strict_mode: bool
+
+
+class UpstreamSecuritySettingsUpdateRequest(BaseModel):
+    dns_strict_mode: bool

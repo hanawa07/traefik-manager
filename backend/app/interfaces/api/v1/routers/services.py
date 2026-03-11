@@ -20,6 +20,8 @@ from app.infrastructure.persistence.repositories.sqlite_middleware_template_repo
     SQLiteMiddlewareTemplateRepository,
 )
 from app.infrastructure.persistence.repositories.sqlite_service_repository import SQLiteServiceRepository
+from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
+from app.infrastructure.network import UpstreamDnsGuard
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.infrastructure.authentik.client import AuthentikClient
 from app.application.audit import audit_service
@@ -34,6 +36,7 @@ def get_use_cases(db: AsyncSession = Depends(get_db)) -> ServiceUseCases:
         file_writer=FileProviderWriter(),
         authentik_client=AuthentikClient(),
         cloudflare_client=CloudflareClient(),
+        upstream_guard=UpstreamDnsGuard(SQLiteSystemSettingsRepository(db)),
     )
 
 

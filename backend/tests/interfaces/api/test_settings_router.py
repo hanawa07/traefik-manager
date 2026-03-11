@@ -2,7 +2,10 @@ import pytest
 from pydantic import ValidationError
 
 from app.interfaces.api.v1.routers import settings as settings_router
-from app.interfaces.api.v1.schemas.settings_schemas import TimeDisplaySettingsUpdateRequest
+from app.interfaces.api.v1.schemas.settings_schemas import (
+    TimeDisplaySettingsUpdateRequest,
+    UpstreamSecuritySettingsUpdateRequest,
+)
 
 
 class StubSettingsRepository:
@@ -70,6 +73,31 @@ async def test_update_time_display_settings_persists_value(monkeypatch):
     assert StubSettingsRepository.store["display_timezone"] == "America/New_York"
     assert response.display_timezone == "America/New_York"
     assert response.display_timezone_name == "America/New_York"
+
+
+@pytest.mark.asyncio
+async def test_get_upstream_security_settings_returns_default(monkeypatch):
+    StubSettingsRepository.store = {}
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    response = await settings_router.get_upstream_security_settings(db=object(), _={"role": "admin"})
+
+    assert response.dns_strict_mode is False
+
+
+@pytest.mark.asyncio
+async def test_update_upstream_security_settings_persists_value(monkeypatch):
+    StubSettingsRepository.store = {}
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    response = await settings_router.update_upstream_security_settings(
+        request=UpstreamSecuritySettingsUpdateRequest(dns_strict_mode=True),
+        db=object(),
+        _={"role": "admin"},
+    )
+
+    assert StubSettingsRepository.store["upstream_dns_strict_mode"] == "true"
+    assert response.dns_strict_mode is True
 
 
 def test_time_display_settings_update_request_rejects_invalid_value():

@@ -24,7 +24,9 @@ import {
   useExportBackup,
   useImportBackup,
   useTimeDisplaySettings,
+  useUpstreamSecuritySettings,
   useUpdateTimeDisplaySettings,
+  useUpdateUpstreamSecuritySettings,
 } from "@/features/settings/hooks/useSettings";
 import UserManagementSection from "@/features/users/components/UserManagementSection";
 import { formatDateTime, getDefaultDisplayTimezone, getSupportedTimeZones } from "@/shared/lib/dateTimeFormat";
@@ -44,12 +46,16 @@ export default function SettingsPage() {
   const [isEditingTimeDisplay, setIsEditingTimeDisplay] = useState(false);
   const [timeDisplayForm, setTimeDisplayForm] = useState(getDefaultDisplayTimezone());
   const [timeDisplayErrorMessage, setTimeDisplayErrorMessage] = useState("");
+  const [isEditingUpstreamSecurity, setIsEditingUpstreamSecurity] = useState(false);
+  const [upstreamSecurityForm, setUpstreamSecurityForm] = useState(false);
 
   const { data: cloudflareStatus, isLoading: isCloudflareLoading } = useCloudflareStatus();
   const { data: timeDisplaySettings, isLoading: isTimeDisplayLoading } = useTimeDisplaySettings();
+  const { data: upstreamSecuritySettings, isLoading: isUpstreamSecurityLoading } = useUpstreamSecuritySettings();
   const { data: sessionData, isLoading: isSessionsLoading } = useSessions();
   const updateCloudflare = useUpdateCloudflareSettings();
   const updateTimeDisplay = useUpdateTimeDisplaySettings();
+  const updateUpstreamSecurity = useUpdateUpstreamSecuritySettings();
   const logoutAllSessions = useLogoutAllSessions();
   const revokeSession = useRevokeSession();
   const exportBackup = useExportBackup();
@@ -93,6 +99,16 @@ export default function SettingsPage() {
             : "표시 시간대 저장에 실패했습니다",
       );
     }
+  };
+
+  const handleEditUpstreamSecurity = () => {
+    setUpstreamSecurityForm(upstreamSecuritySettings?.dns_strict_mode ?? false);
+    setIsEditingUpstreamSecurity(true);
+  };
+
+  const handleSaveUpstreamSecurity = async () => {
+    await updateUpstreamSecurity.mutateAsync({ dns_strict_mode: upstreamSecurityForm });
+    setIsEditingUpstreamSecurity(false);
   };
 
   const handleExport = async () => {
@@ -264,6 +280,84 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-500 pt-1">
                 저장 데이터와 토큰 시각은 항상 UTC로 유지됩니다. 서버 시간대는 현재 컨테이너의 로컬 시간대로,
                 `docker compose`의 `TZ` 설정에 따라 달라질 수 있습니다.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="w-5 h-5 text-rose-600" />
+              <h2 className="font-semibold text-gray-900">업스트림 보안</h2>
+            </div>
+            {canManage && !isEditingUpstreamSecurity && !isUpstreamSecurityLoading && (
+              <button
+                onClick={handleEditUpstreamSecurity}
+                className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
+              >
+                <Edit2 className="w-3.5 h-3.5" /> 편집
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-gray-400 mb-4">
+            DNS strict mode를 켜면 도메인 업스트림 저장 시 DNS를 다시 조회해서 loopback, link-local, 문서 예제
+            대역 같은 금지 주소로 해석되는지 검사합니다. IP 리터럴 업스트림에는 추가 DNS 조회를 하지 않습니다.
+          </p>
+
+          {isUpstreamSecurityLoading ? (
+            <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+          ) : isEditingUpstreamSecurity ? (
+            <div className="space-y-4">
+              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded accent-rose-600"
+                  checked={upstreamSecurityForm}
+                  onChange={(e) => setUpstreamSecurityForm(e.target.checked)}
+                />
+                <span>
+                  <span className="block font-medium text-gray-900">DNS strict mode 활성화</span>
+                  <span className="block text-xs text-gray-500 mt-1">
+                    내부 Docker/private 도메인은 계속 허용하지만, DNS 결과가 금지 주소로 향하면 저장을 거부합니다.
+                  </span>
+                </span>
+              </label>
+
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500 space-y-1">
+                <p>기본값은 비활성화입니다.</p>
+                <p>권장 사용처: 외부 FQDN을 업스트림으로 자주 등록하는 환경</p>
+                <p>주의: DNS 조회 실패 시 strict mode가 켜져 있으면 서비스 저장이 차단됩니다.</p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
+                  onClick={handleSaveUpstreamSecurity}
+                  disabled={updateUpstreamSecurity.isPending}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {updateUpstreamSecurity.isPending ? "저장 중..." : "저장"}
+                </button>
+                <button
+                  className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
+                  onClick={() => setIsEditingUpstreamSecurity(false)}
+                >
+                  <X className="w-3.5 h-3.5" /> 취소
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">DNS strict mode</span>
+                <span className="text-gray-700">
+                  {upstreamSecuritySettings?.dns_strict_mode ? "활성화" : "비활성화"}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 pt-1">
+                활성화 시 도메인 업스트림은 DNS 재해석 후 안전 대역을 검사합니다. 비활성화 시 현재 입력 형식 검증만
+                수행합니다.
               </p>
             </div>
           )}
