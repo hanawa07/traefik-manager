@@ -136,6 +136,7 @@ backend/app/
 - 같은 시간 창 안에서 동일 IP가 여러 사용자명에 대해 반복 실패하면 `login_suspicious` 감사 이벤트를 남깁니다.
 - 최근 `login_suspicious`가 기록된 IP는 일정 시간 동안 로그인 자체를 거부하고 `login_blocked_ip` 감사 이벤트를 남깁니다.
 - `LOGIN_SUSPICIOUS_WINDOW_MINUTES`, `LOGIN_SUSPICIOUS_FAILURE_COUNT`, `LOGIN_SUSPICIOUS_USERNAME_COUNT`, `LOGIN_SUSPICIOUS_BLOCK_MINUTES`로 조정할 수 있습니다.
+- 설정 화면에서 반복 차단 시간 자동 상승을 켜면 같은 IP가 다시 차단될 때 차단 시간이 배수만큼 늘어나고 최대 시간에서 멈춥니다.
 - 설정 화면에서 `이상 징후 IP 자동 차단`을 끄거나, `신뢰 네트워크 예외(CIDR/IP)`를 등록할 수 있습니다.
 - 설정 화면에서 `Cloudflare Turnstile` 로그인 보호를 `비활성화 / 항상 적용 / 위험 기반 적용`으로 전환할 수 있습니다.
 - `위험 기반 적용`은 최근 실패가 누적된 IP에만 Turnstile을 요구하고, `항상 적용`은 로그인마다 즉시 위젯을 표시합니다.

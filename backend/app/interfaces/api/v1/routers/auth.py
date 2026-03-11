@@ -106,6 +106,21 @@ async def _get_turnstile_mode(repo: SQLiteSystemSettingsRepository) -> str:
     return "always" if legacy_enabled else "off"
 
 
+async def _get_int_system_setting(
+    repo: SQLiteSystemSettingsRepository,
+    key: str,
+    *,
+    default: int,
+) -> int:
+    value = await repo.get(key)
+    if value is None:
+        return default
+    try:
+        return int(value.strip())
+    except ValueError:
+        return default
+
+
 async def _is_turnstile_required(
     *,
     repo: SQLiteSystemSettingsRepository,
@@ -146,6 +161,26 @@ async def login(
         "login_suspicious_block_enabled",
         default=True,
     )
+    suspicious_block_escalation_enabled = await _get_bool_system_setting(
+        system_settings_repo,
+        "login_suspicious_block_escalation_enabled",
+        default=settings.LOGIN_SUSPICIOUS_BLOCK_ESCALATION_ENABLED,
+    )
+    suspicious_block_escalation_window_minutes = await _get_int_system_setting(
+        system_settings_repo,
+        "login_suspicious_block_escalation_window_minutes",
+        default=settings.LOGIN_SUSPICIOUS_BLOCK_ESCALATION_WINDOW_MINUTES,
+    )
+    suspicious_block_escalation_multiplier = await _get_int_system_setting(
+        system_settings_repo,
+        "login_suspicious_block_escalation_multiplier",
+        default=settings.LOGIN_SUSPICIOUS_BLOCK_ESCALATION_MULTIPLIER,
+    )
+    suspicious_block_max_minutes = await _get_int_system_setting(
+        system_settings_repo,
+        "login_suspicious_block_max_minutes",
+        default=settings.LOGIN_SUSPICIOUS_BLOCK_MAX_MINUTES,
+    )
     trusted_networks = normalize_trusted_networks(
         _split_multivalue_setting(await system_settings_repo.get("login_suspicious_trusted_networks"))
     )
@@ -156,6 +191,10 @@ async def login(
         block_window=timedelta(minutes=settings.LOGIN_SUSPICIOUS_BLOCK_MINUTES),
         block_enabled=suspicious_block_enabled,
         trusted_networks=trusted_networks,
+        escalation_enabled=suspicious_block_escalation_enabled,
+        escalation_window=timedelta(minutes=suspicious_block_escalation_window_minutes),
+        escalation_multiplier=suspicious_block_escalation_multiplier,
+        max_block_window=timedelta(minutes=suspicious_block_max_minutes),
     ):
         logger.warning(
             "로그인 차단: ip=%s reason=%s",

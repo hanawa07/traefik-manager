@@ -622,6 +622,10 @@ async def test_login_passes_trusted_network_policy_to_suspicious_blocker(monkeyp
     StubSystemSettingsRepository.values = {
         "login_suspicious_block_enabled": "false",
         "login_suspicious_trusted_networks": "10.0.0.0/8\n203.0.113.10/32",
+        "login_suspicious_block_escalation_enabled": "true",
+        "login_suspicious_block_escalation_window_minutes": "720",
+        "login_suspicious_block_escalation_multiplier": "3",
+        "login_suspicious_block_max_minutes": "2880",
     }
     monkeypatch.setattr(auth_router, "SQLiteAuthSessionRepository", lambda _db: repository, raising=False)
     stub_default_system_settings(monkeypatch, StubSystemSettingsRepository.values)
@@ -661,6 +665,10 @@ async def test_login_passes_trusted_network_policy_to_suspicious_blocker(monkeyp
 
     assert blocker_calls[0]["block_enabled"] is False
     assert blocker_calls[0]["trusted_networks"] == ["10.0.0.0/8", "203.0.113.10/32"]
+    assert blocker_calls[0]["escalation_enabled"] is True
+    assert blocker_calls[0]["escalation_window"] == timedelta(minutes=720)
+    assert blocker_calls[0]["escalation_multiplier"] == 3
+    assert blocker_calls[0]["max_block_window"] == timedelta(minutes=2880)
 
 
 class StubSessionRepository:

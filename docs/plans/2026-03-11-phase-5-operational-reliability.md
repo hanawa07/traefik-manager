@@ -34,6 +34,8 @@
   설정 화면에서 site key/secret key 관리, 로그인 페이지 공개 보호 설정 조회, 서버측 token 검증 반영
 - 완료: Task 6-6 Turnstile 모드 확장
   `off / always / risk_based` 모드, 위험 기반 IP 계산, 로그인 실패 후 동적 위젯 노출 반영
+- 완료: Task 6-7 차단 이벤트 대응 자동화 고도화
+  반복 차단 시간 자동 상승, `block_minutes / blocked_until / repeat_count` 기록, 설정 UI/운영 문서 반영
 - 완료: 문서 마감/운영 가이드 정리
 
 ---

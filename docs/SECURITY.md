@@ -48,6 +48,7 @@
 - 동일 IP가 같은 시간 창 안에서 여러 사용자명에 대해 반복 실패하면 `login_suspicious` 감사 이벤트를 추가로 기록합니다.
 - 최근 `login_suspicious`가 찍힌 IP는 `LOGIN_SUSPICIOUS_BLOCK_MINUTES` 동안 로그인 자체를 차단하고 `login_blocked_ip` 감사 이벤트를 남깁니다.
 - 이상 징후 기준은 `LOGIN_SUSPICIOUS_WINDOW_MINUTES`, `LOGIN_SUSPICIOUS_FAILURE_COUNT`, `LOGIN_SUSPICIOUS_USERNAME_COUNT`, `LOGIN_SUSPICIOUS_BLOCK_MINUTES`로 조정합니다.
+- 반복 차단 상승을 켜면 동일 IP가 다시 차단될 때 `block_minutes`, `blocked_until`, `repeat_count`를 함께 기록하고 차단 시간을 단계적으로 늘립니다.
 - 설정 화면에서 `login_suspicious` 기반 자동 차단을 켜고 끌 수 있습니다.
 - 설정 화면의 `신뢰 네트워크 예외(CIDR/IP)`에 포함된 클라이언트 IP는 이상 징후 기록과 IP 자동 차단에서 제외됩니다.
 - 신뢰 네트워크 예외는 운영 노이즈를 줄이기 위한 것이며, 사용자별 실패 누적/계정 잠금에는 영향을 주지 않습니다.
@@ -62,7 +63,7 @@
 - 웹훅 전송 실패는 서버 로그에만 남고, 로그인 차단/잠금 동작 자체는 중단하지 않습니다.
 
 **남은 보완점:**
-- 차단 이벤트 대응 자동화 고도화
+- passlib/bcrypt 관련 Python 3.13 전 경고 정리
 
 ---
 

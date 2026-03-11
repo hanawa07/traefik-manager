@@ -1,5 +1,5 @@
-from ipaddress import ip_address, ip_network
 from datetime import datetime, timedelta
+from ipaddress import ip_address, ip_network
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,14 +16,22 @@ async def enforce_suspicious_ip_block_if_needed(
     block_window: timedelta,
     block_enabled: bool = True,
     trusted_networks: list[str] | None = None,
+    escalation_enabled: bool = False,
+    escalation_window: timedelta | None = None,
+    escalation_multiplier: int = 2,
+    max_block_window: timedelta | None = None,
 ) -> bool:
     if not client_ip or not block_enabled or _is_trusted_client_ip(client_ip, trusted_networks):
         return False
 
+    effective_lookup_window = block_window
+    if escalation_enabled and escalation_window is not None and escalation_window > effective_lookup_window:
+        effective_lookup_window = escalation_window
+
     logs = await _load_recent_ip_logs(
         db=db,
         client_ip=client_ip,
-        cutoff=now - block_window,
+        cutoff=now - effective_lookup_window,
     )
     suspicious_logs = [
         log for log in logs
@@ -33,11 +41,34 @@ async def enforce_suspicious_ip_block_if_needed(
         return False
 
     latest_suspicious_at = max(log.created_at for log in suspicious_logs)
-    if any(
-        (log.detail or {}).get("event") == "login_blocked_ip" and log.created_at >= latest_suspicious_at
-        for log in logs
-    ):
-        return True
+    blocked_logs = sorted(
+        [
+            log
+            for log in logs
+            if (log.detail or {}).get("event") == "login_blocked_ip"
+        ],
+        key=lambda log: log.created_at,
+    )
+    latest_block_log = blocked_logs[-1] if blocked_logs else None
+    if latest_block_log is not None:
+        blocked_until = _get_blocked_until(latest_block_log, default_window=block_window)
+        if blocked_until > now:
+            return True
+        if latest_suspicious_at <= latest_block_log.created_at:
+            return False
+
+    base_block_minutes = max(1, int(block_window.total_seconds() // 60))
+    block_minutes = base_block_minutes
+    repeat_count = 1
+    if escalation_enabled:
+        previous_block_count = len(blocked_logs)
+        repeat_count = previous_block_count + 1
+        block_minutes = base_block_minutes * (escalation_multiplier ** previous_block_count)
+        if max_block_window is not None:
+            max_block_minutes = max(1, int(max_block_window.total_seconds() // 60))
+            block_minutes = min(block_minutes, max_block_minutes)
+
+    blocked_until = now + timedelta(minutes=block_minutes)
 
     await audit_service.record(
         db=db,
@@ -51,6 +82,10 @@ async def enforce_suspicious_ip_block_if_needed(
             "client_ip": client_ip,
             "source_event": "login_suspicious",
             "source_created_at": latest_suspicious_at.isoformat(),
+            "block_minutes": block_minutes,
+            "blocked_until": blocked_until.isoformat(),
+            "repeat_count": repeat_count,
+            "escalated": block_minutes > base_block_minutes,
         },
     )
     return True
@@ -171,3 +206,25 @@ def _is_trusted_client_ip(client_ip: str, trusted_networks: list[str] | None) ->
         except ValueError:
             continue
     return False
+
+
+def _get_blocked_until(log: AuditLogModel, *, default_window: timedelta) -> datetime:
+    detail = log.detail or {}
+    raw_blocked_until = detail.get("blocked_until")
+    if isinstance(raw_blocked_until, str):
+        try:
+            parsed = datetime.fromisoformat(raw_blocked_until)
+            if parsed.tzinfo is not None:
+                return parsed
+        except ValueError:
+            pass
+
+    raw_block_minutes = detail.get("block_minutes")
+    try:
+        block_minutes = int(raw_block_minutes)
+        if block_minutes > 0:
+            return log.created_at + timedelta(minutes=block_minutes)
+    except (TypeError, ValueError):
+        pass
+
+    return log.created_at + default_window

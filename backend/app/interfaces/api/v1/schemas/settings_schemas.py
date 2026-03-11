@@ -129,6 +129,10 @@ class LoginDefenseSettingsResponse(BaseModel):
     suspicious_block_minutes: int
     suspicious_block_enabled: bool
     suspicious_trusted_networks: list[str] = Field(default_factory=list)
+    suspicious_block_escalation_enabled: bool = False
+    suspicious_block_escalation_window_minutes: int
+    suspicious_block_escalation_multiplier: int
+    suspicious_block_max_minutes: int
     turnstile_mode: Literal["off", "always", "risk_based"] = "off"
     turnstile_enabled: bool = False
     turnstile_site_key: str | None = None
@@ -138,6 +142,10 @@ class LoginDefenseSettingsResponse(BaseModel):
 class LoginDefenseSettingsUpdateRequest(BaseModel):
     suspicious_block_enabled: bool = True
     suspicious_trusted_networks: list[str] = Field(default_factory=list)
+    suspicious_block_escalation_enabled: bool = False
+    suspicious_block_escalation_window_minutes: int = Field(default=1440, ge=1, le=10080)
+    suspicious_block_escalation_multiplier: int = Field(default=2, ge=2, le=10)
+    suspicious_block_max_minutes: int = Field(default=1440, ge=1, le=10080)
     turnstile_mode: Literal["off", "always", "risk_based"] = "off"
     turnstile_site_key: str = ""
     turnstile_secret_key: str = ""

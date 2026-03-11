@@ -181,6 +181,7 @@ traefik-manager/
       → SQLiteSystemSettingsRepository 저장
         → /api/v1/auth/login 에서 자동 차단 on/off, 신뢰 네트워크 예외, Turnstile mode 로드
           → login_anomaly_service가 이상 징후 기록 / IP 차단 여부 결정
+          → 반복 차단 상승이 켜져 있으면 이전 차단 이력으로 block_minutes / blocked_until 계산
           → risk_based 모드면 최근 실패 IP 여부를 추가 계산
           → turnstile_verifier가 필요한 시점에만 추가 검증 수행
 

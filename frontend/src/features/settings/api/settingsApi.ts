@@ -117,6 +117,10 @@ export interface LoginDefenseSettingsStatus {
   suspicious_block_minutes: number;
   suspicious_block_enabled: boolean;
   suspicious_trusted_networks: string[];
+  suspicious_block_escalation_enabled: boolean;
+  suspicious_block_escalation_window_minutes: number;
+  suspicious_block_escalation_multiplier: number;
+  suspicious_block_max_minutes: number;
   turnstile_mode: "off" | "always" | "risk_based";
   turnstile_enabled: boolean;
   turnstile_site_key: string | null;
@@ -126,6 +130,10 @@ export interface LoginDefenseSettingsStatus {
 export interface LoginDefenseSettingsInput {
   suspicious_block_enabled: boolean;
   suspicious_trusted_networks: string[];
+  suspicious_block_escalation_enabled: boolean;
+  suspicious_block_escalation_window_minutes: number;
+  suspicious_block_escalation_multiplier: number;
+  suspicious_block_max_minutes: number;
   turnstile_mode: "off" | "always" | "risk_based";
   turnstile_site_key: string;
   turnstile_secret_key: string;

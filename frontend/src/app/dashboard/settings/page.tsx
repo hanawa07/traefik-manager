@@ -57,6 +57,10 @@ function createDefaultLoginDefenseForm(): LoginDefenseSettingsInput & { suspicio
     suspicious_block_enabled: true,
     suspicious_trusted_networks: [],
     suspicious_trusted_networks_text: "",
+    suspicious_block_escalation_enabled: false,
+    suspicious_block_escalation_window_minutes: 1440,
+    suspicious_block_escalation_multiplier: 2,
+    suspicious_block_max_minutes: 1440,
     turnstile_mode: "off",
     turnstile_site_key: "",
     turnstile_secret_key: "",
@@ -281,6 +285,10 @@ export default function SettingsPage() {
       suspicious_block_enabled: loginDefenseSettings?.suspicious_block_enabled ?? true,
       suspicious_trusted_networks: loginDefenseSettings?.suspicious_trusted_networks ?? [],
       suspicious_trusted_networks_text: (loginDefenseSettings?.suspicious_trusted_networks ?? []).join("\n"),
+      suspicious_block_escalation_enabled: loginDefenseSettings?.suspicious_block_escalation_enabled ?? false,
+      suspicious_block_escalation_window_minutes: loginDefenseSettings?.suspicious_block_escalation_window_minutes ?? 1440,
+      suspicious_block_escalation_multiplier: loginDefenseSettings?.suspicious_block_escalation_multiplier ?? 2,
+      suspicious_block_max_minutes: loginDefenseSettings?.suspicious_block_max_minutes ?? 1440,
       turnstile_mode: loginDefenseSettings?.turnstile_mode ?? "off",
       turnstile_site_key: loginDefenseSettings?.turnstile_site_key ?? "",
       turnstile_secret_key: "",
@@ -295,6 +303,10 @@ export default function SettingsPage() {
       await updateLoginDefense.mutateAsync({
         suspicious_block_enabled: loginDefenseForm.suspicious_block_enabled,
         suspicious_trusted_networks: parseMultivalueText(loginDefenseForm.suspicious_trusted_networks_text),
+        suspicious_block_escalation_enabled: loginDefenseForm.suspicious_block_escalation_enabled,
+        suspicious_block_escalation_window_minutes: loginDefenseForm.suspicious_block_escalation_window_minutes,
+        suspicious_block_escalation_multiplier: loginDefenseForm.suspicious_block_escalation_multiplier,
+        suspicious_block_max_minutes: loginDefenseForm.suspicious_block_max_minutes,
         turnstile_mode: loginDefenseForm.turnstile_mode,
         turnstile_site_key: loginDefenseForm.turnstile_site_key.trim(),
         turnstile_secret_key: loginDefenseForm.turnstile_secret_key.trim(),
@@ -831,6 +843,11 @@ export default function SettingsPage() {
                   자동 차단 기간: {loginDefenseSettings?.suspicious_block_minutes}분
                 </p>
                 <p>
+                  반복 차단 상승: {loginDefenseSettings?.suspicious_block_escalation_enabled
+                    ? `${loginDefenseSettings?.suspicious_block_escalation_window_minutes}분 창 / x${loginDefenseSettings?.suspicious_block_escalation_multiplier} / 최대 ${loginDefenseSettings?.suspicious_block_max_minutes}분`
+                    : "비활성화"}
+                </p>
+                <p>
                   추가 로그인 검증: {getTurnstileModeLabel(loginDefenseSettings?.turnstile_mode ?? "off")}
                 </p>
               </div>
@@ -873,6 +890,77 @@ export default function SettingsPage() {
                   계정 잠금은 그대로 적용됩니다.
                 </p>
               </div>
+
+              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded accent-amber-600"
+                  checked={loginDefenseForm.suspicious_block_escalation_enabled}
+                  onChange={(e) =>
+                    setLoginDefenseForm((current) => ({
+                      ...current,
+                      suspicious_block_escalation_enabled: e.target.checked,
+                    }))
+                  }
+                />
+                <span>
+                  <span className="block font-medium text-gray-900">반복 차단 시간 자동 상승</span>
+                  <span className="block text-xs text-gray-500 mt-1">
+                    같은 IP가 반복해서 다시 차단되면 차단 시간을 자동으로 늘립니다.
+                  </span>
+                </span>
+              </label>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <label className="label">상승 계산 창 (분)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    className="input"
+                    value={loginDefenseForm.suspicious_block_escalation_window_minutes}
+                    onChange={(e) =>
+                      setLoginDefenseForm((current) => ({
+                        ...current,
+                        suspicious_block_escalation_window_minutes: Number(e.target.value || 1),
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="label">반복 배수</label>
+                  <input
+                    type="number"
+                    min={2}
+                    className="input"
+                    value={loginDefenseForm.suspicious_block_escalation_multiplier}
+                    onChange={(e) =>
+                      setLoginDefenseForm((current) => ({
+                        ...current,
+                        suspicious_block_escalation_multiplier: Number(e.target.value || 2),
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="label">최대 차단 시간 (분)</label>
+                  <input
+                    type="number"
+                    min={loginDefenseSettings?.suspicious_block_minutes ?? 30}
+                    className="input"
+                    value={loginDefenseForm.suspicious_block_max_minutes}
+                    onChange={(e) =>
+                      setLoginDefenseForm((current) => ({
+                        ...current,
+                        suspicious_block_max_minutes: Number(e.target.value || (loginDefenseSettings?.suspicious_block_minutes ?? 30)),
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 -mt-2">
+                기본 차단 시간은 {loginDefenseSettings?.suspicious_block_minutes ?? 30}분이며, 반복 차단 시 배수만큼 늘어나되 최대 시간에서 멈춥니다.
+              </p>
 
               <div>
                 <label className="label">Cloudflare Turnstile 적용 모드</label>
@@ -974,6 +1062,14 @@ export default function SettingsPage() {
                 <span className="text-gray-700">
                   {loginDefenseSettings?.suspicious_block_enabled
                     ? `${loginDefenseSettings.suspicious_block_minutes}분 활성화`
+                    : "비활성화"}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">반복 차단 상승</span>
+                <span className="text-right text-gray-700">
+                  {loginDefenseSettings?.suspicious_block_escalation_enabled
+                    ? `${loginDefenseSettings.suspicious_block_escalation_window_minutes}분 창 / x${loginDefenseSettings.suspicious_block_escalation_multiplier} / 최대 ${loginDefenseSettings.suspicious_block_max_minutes}분`
                     : "비활성화"}
                 </span>
               </div>

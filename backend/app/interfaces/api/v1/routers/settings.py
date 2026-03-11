@@ -158,6 +158,11 @@ async def update_login_defense_settings(
 
     if turnstile_enabled and (not request.turnstile_site_key or not effective_turnstile_secret):
         raise HTTPException(status_code=422, detail="Turnstile site key와 secret key가 필요합니다")
+    if (
+        request.suspicious_block_escalation_enabled
+        and request.suspicious_block_max_minutes < settings.LOGIN_SUSPICIOUS_BLOCK_MINUTES
+    ):
+        raise HTTPException(status_code=422, detail="차단 최대 시간은 기본 차단 시간보다 작을 수 없습니다")
 
     await repo.set(
         "login_suspicious_block_enabled",
@@ -166,6 +171,22 @@ async def update_login_defense_settings(
     await repo.set(
         "login_suspicious_trusted_networks",
         "\n".join(request.suspicious_trusted_networks) or None,
+    )
+    await repo.set(
+        "login_suspicious_block_escalation_enabled",
+        "true" if request.suspicious_block_escalation_enabled else "false",
+    )
+    await repo.set(
+        "login_suspicious_block_escalation_window_minutes",
+        str(request.suspicious_block_escalation_window_minutes),
+    )
+    await repo.set(
+        "login_suspicious_block_escalation_multiplier",
+        str(request.suspicious_block_escalation_multiplier),
+    )
+    await repo.set(
+        "login_suspicious_block_max_minutes",
+        str(request.suspicious_block_max_minutes),
     )
     await repo.set(
         "login_turnstile_mode",
@@ -346,6 +367,26 @@ async def _build_login_defense_response(
         suspicious_trusted_networks=normalize_trusted_networks(
             _split_networks(await repo.get("login_suspicious_trusted_networks"))
         ),
+        suspicious_block_escalation_enabled=await _get_bool_setting(
+            repo,
+            "login_suspicious_block_escalation_enabled",
+            default=settings.LOGIN_SUSPICIOUS_BLOCK_ESCALATION_ENABLED,
+        ),
+        suspicious_block_escalation_window_minutes=await _get_int_setting(
+            repo,
+            "login_suspicious_block_escalation_window_minutes",
+            default=settings.LOGIN_SUSPICIOUS_BLOCK_ESCALATION_WINDOW_MINUTES,
+        ),
+        suspicious_block_escalation_multiplier=await _get_int_setting(
+            repo,
+            "login_suspicious_block_escalation_multiplier",
+            default=settings.LOGIN_SUSPICIOUS_BLOCK_ESCALATION_MULTIPLIER,
+        ),
+        suspicious_block_max_minutes=await _get_int_setting(
+            repo,
+            "login_suspicious_block_max_minutes",
+            default=settings.LOGIN_SUSPICIOUS_BLOCK_MAX_MINUTES,
+        ),
         turnstile_mode=turnstile_mode,
         turnstile_enabled=turnstile_mode != "off",
         turnstile_site_key=await repo.get("login_turnstile_site_key"),
@@ -398,6 +439,21 @@ async def _get_bool_setting(
     if value is None:
         return default
     return value.strip().lower() == "true"
+
+
+async def _get_int_setting(
+    repo: SQLiteSystemSettingsRepository,
+    key: str,
+    *,
+    default: int,
+) -> int:
+    value = await repo.get(key)
+    if value is None:
+        return default
+    try:
+        return int(value.strip())
+    except ValueError:
+        return default
 
 
 async def _get_turnstile_mode(repo: SQLiteSystemSettingsRepository) -> str:

@@ -140,6 +140,10 @@ async def test_get_login_defense_settings_returns_defaults(monkeypatch):
     assert response.suspicious_block_enabled is True
     assert response.suspicious_trusted_networks == []
     assert response.suspicious_block_minutes == 30
+    assert response.suspicious_block_escalation_enabled is False
+    assert response.suspicious_block_escalation_window_minutes == 1440
+    assert response.suspicious_block_escalation_multiplier == 2
+    assert response.suspicious_block_max_minutes == 1440
     assert response.failure_window_minutes == 15
     assert response.turnstile_mode == "off"
     assert response.turnstile_enabled is False
@@ -156,6 +160,10 @@ async def test_update_login_defense_settings_persists_values(monkeypatch):
         request=LoginDefenseSettingsUpdateRequest(
             suspicious_block_enabled=False,
             suspicious_trusted_networks=["10.0.0.0/8", "203.0.113.10/32"],
+            suspicious_block_escalation_enabled=True,
+            suspicious_block_escalation_window_minutes=720,
+            suspicious_block_escalation_multiplier=3,
+            suspicious_block_max_minutes=2880,
             turnstile_mode="always",
             turnstile_site_key=" 0x4AAAAA-example-site-key ",
             turnstile_secret_key=" secret-turnstile-key ",
@@ -167,11 +175,19 @@ async def test_update_login_defense_settings_persists_values(monkeypatch):
     assert StubSettingsRepository.store["login_turnstile_mode"] == "always"
     assert StubSettingsRepository.store["login_suspicious_block_enabled"] == "false"
     assert StubSettingsRepository.store["login_suspicious_trusted_networks"] == "10.0.0.0/8\n203.0.113.10/32"
+    assert StubSettingsRepository.store["login_suspicious_block_escalation_enabled"] == "true"
+    assert StubSettingsRepository.store["login_suspicious_block_escalation_window_minutes"] == "720"
+    assert StubSettingsRepository.store["login_suspicious_block_escalation_multiplier"] == "3"
+    assert StubSettingsRepository.store["login_suspicious_block_max_minutes"] == "2880"
     assert StubSettingsRepository.store["login_turnstile_enabled"] == "true"
     assert StubSettingsRepository.store["login_turnstile_site_key"] == "0x4AAAAA-example-site-key"
     assert StubSettingsRepository.store["login_turnstile_secret_key"] == "secret-turnstile-key"
     assert response.suspicious_block_enabled is False
     assert response.suspicious_trusted_networks == ["10.0.0.0/8", "203.0.113.10/32"]
+    assert response.suspicious_block_escalation_enabled is True
+    assert response.suspicious_block_escalation_window_minutes == 720
+    assert response.suspicious_block_escalation_multiplier == 3
+    assert response.suspicious_block_max_minutes == 2880
     assert response.turnstile_mode == "always"
     assert response.turnstile_enabled is True
     assert response.turnstile_site_key == "0x4AAAAA-example-site-key"
@@ -472,6 +488,10 @@ def test_login_defense_settings_update_request_normalizes_trusted_networks():
     request = LoginDefenseSettingsUpdateRequest(
         suspicious_block_enabled=True,
         suspicious_trusted_networks=[" 10.0.0.0/8 ", "203.0.113.10", "2001:db8::/64"],
+        suspicious_block_escalation_enabled=True,
+        suspicious_block_escalation_window_minutes=720,
+        suspicious_block_escalation_multiplier=3,
+        suspicious_block_max_minutes=2880,
         turnstile_mode="risk_based",
     )
 
@@ -492,6 +512,18 @@ def test_login_defense_settings_update_request_rejects_invalid_turnstile_mode():
             suspicious_block_enabled=True,
             suspicious_trusted_networks=[],
             turnstile_mode="sometimes",
+        )
+
+
+def test_login_defense_settings_update_request_rejects_invalid_escalation_multiplier():
+    with pytest.raises(ValidationError):
+        LoginDefenseSettingsUpdateRequest(
+            suspicious_block_enabled=True,
+            suspicious_trusted_networks=[],
+            suspicious_block_escalation_enabled=True,
+            suspicious_block_escalation_window_minutes=720,
+            suspicious_block_escalation_multiplier=1,
+            suspicious_block_max_minutes=1440,
         )
 
 

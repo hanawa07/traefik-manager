@@ -99,12 +99,12 @@ NPM(Nginx Proxy Manager)을 대체하고, Authentik 인증을 UI에서 한 번�
 - [x] 보안 이벤트 외부 웹훅 알림 (login_locked / login_suspicious / login_blocked_ip)
 - [x] 보안 알림 provider preset (generic / slack / discord / telegram / teams / pagerduty / email)
 - [x] 선택형 Cloudflare Turnstile 로그인 보호
+- [x] 차단 이벤트 대응 자동화 고도화
 - [x] 로드맵/아키텍처/보안 문서 최신화
 
 ### 권장 실행 순서
 
-1. 차단 이벤트 대응 자동화 고도화
-2. passlib/bcrypt 관련 Python 3.13 전 경고 정리
+1. passlib/bcrypt 관련 Python 3.13 전 경고 정리
 
 상세 구현 순서는 [docs/plans/2026-03-11-phase-5-operational-reliability.md](./plans/2026-03-11-phase-5-operational-reliability.md)를 따른다.
 

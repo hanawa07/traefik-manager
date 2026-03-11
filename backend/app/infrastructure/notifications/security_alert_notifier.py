@@ -319,12 +319,18 @@ def _build_telegram_message(audit_log: AuditLogModel, event: str) -> str:
 
 def _build_multiline_message(audit_log: AuditLogModel, event: str) -> str:
     detail = audit_log.detail or {}
-    return "\n".join(
-        [
-            _build_message(event, audit_log.resource_name, detail.get("client_ip")),
-            f"이벤트: {event}",
-            f"대상: {audit_log.resource_name or '-'}",
-            f"IP: {detail.get('client_ip') or '-'}",
-            f"시각: {audit_log.created_at.isoformat()}",
-        ]
-    )
+    lines = [
+        _build_message(event, audit_log.resource_name, detail.get("client_ip")),
+        f"이벤트: {event}",
+        f"대상: {audit_log.resource_name or '-'}",
+        f"IP: {detail.get('client_ip') or '-'}",
+        f"시각: {audit_log.created_at.isoformat()}",
+    ]
+    if event == "login_blocked_ip":
+        if detail.get("block_minutes") is not None:
+            lines.append(f"차단 시간: {detail.get('block_minutes')}분")
+        if detail.get("repeat_count") is not None:
+            lines.append(f"반복 차단 횟수: {detail.get('repeat_count')}")
+        if detail.get("blocked_until"):
+            lines.append(f"차단 해제 시각: {detail.get('blocked_until')}")
+    return "\n".join(lines)
