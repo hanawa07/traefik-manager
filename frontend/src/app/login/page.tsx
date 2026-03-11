@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { authApi } from "@/features/auth/api/authApi";
@@ -8,10 +8,26 @@ import { Lock, User } from "lucide-react";
 export default function LoginPage() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
+  const syncSession = useAuthStore((s) => s.syncSession);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const hydrated = useAuthStore((s) => s._hydrated);
+  const initialized = useAuthStore((s) => s._initialized);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (hydrated && !initialized) {
+      void syncSession();
+    }
+  }, [hydrated, initialized, syncSession]);
+
+  useEffect(() => {
+    if (hydrated && initialized && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [hydrated, initialized, isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +35,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const result = await authApi.login(username, password);
-      login(result.access_token, result.username, result.role);
+      login(result.username, result.role);
       router.replace("/dashboard");
     } catch {
       setError("아이디 또는 비밀번호가 올바르지 않습니다");

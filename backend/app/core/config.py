@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60
 
+    SESSION_COOKIE_NAME: str = "tm_session"
+    SESSION_CSRF_COOKIE_NAME: str = "tm_csrf"
+    SESSION_IDLE_MINUTES: int = 480
+    SESSION_ABSOLUTE_MINUTES: int = 10080
+    SESSION_COOKIE_SAMESITE: str = "lax"
+    SESSION_COOKIE_SECURE: bool = True
+
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str
 

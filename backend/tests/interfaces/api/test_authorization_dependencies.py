@@ -3,28 +3,57 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from starlette.requests import Request
 
+from app.domain.auth.entities.auth_session import AuthSession
 from app.domain.proxy.entities.user import User
 from app.interfaces.api import dependencies
 from app.interfaces.api.dependencies import require_admin, require_write_access
+
+
+def make_request(
+    path: str = "/api/v1/auth/me",
+    method: str = "GET",
+    cookies: dict[str, str] | None = None,
+    headers: dict[str, str] | None = None,
+) -> Request:
+    cookie_header = "; ".join(f"{key}={value}" for key, value in (cookies or {}).items())
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": method,
+        "scheme": "https",
+        "path": path,
+        "headers": [
+            (b"host", b"traefik-manager.example.com"),
+            *( [(b"cookie", cookie_header.encode("utf-8"))] if cookie_header else [] ),
+            *[(key.lower().encode("utf-8"), value.encode("utf-8")) for key, value in (headers or {}).items()],
+        ],
+        "query_string": b"",
+        "server": ("testserver", 443),
+        "client": ("127.0.0.1", 12345),
+    }
+    return Request(scope)
 
 
 class StubUserRepository:
     def __init__(self, user: User | None):
         self.user = user
 
-    async def find_by_username(self, username: str):
-        if self.user and self.user.username == username:
-            return self.user
-        return None
+    async def find_by_id(self, _user_id):
+        return self.user
 
 
-class StubRevokedTokenRepository:
-    def __init__(self, revoked_jtis: set[str]):
-        self.revoked_jtis = revoked_jtis
+class StubAuthSessionRepository:
+    def __init__(self, auth_session: AuthSession | None):
+        self.auth_session = auth_session
 
-    async def is_revoked(self, jti: str) -> bool:
-        return jti in self.revoked_jtis
+    async def find_by_id(self, _session_id: str):
+        return self.auth_session
+
+    async def save(self, session: AuthSession) -> None:
+        self.auth_session = session
+
 
 @pytest.mark.asyncio
 async def test_require_write_access_allows_admin():
@@ -34,6 +63,7 @@ async def test_require_write_access_allows_admin():
 
     assert resolved["role"] == "admin"
 
+
 @pytest.mark.asyncio
 async def test_require_write_access_blocks_viewer():
     user = {"username": "viewer", "role": "viewer"}
@@ -42,6 +72,7 @@ async def test_require_write_access_blocks_viewer():
         await require_write_access(user)
 
     assert exc.value.status_code == 403
+
 
 @pytest.mark.asyncio
 async def test_require_admin_blocks_viewer():
@@ -54,41 +85,58 @@ async def test_require_admin_blocks_viewer():
 
 
 @pytest.mark.asyncio
-async def test_get_current_user_blocks_revoked_token(monkeypatch):
-    user = User(
-        id=uuid4(),
-        username="admin",
-        hashed_password="hashed",
-        role="admin",
-        is_active=True,
-        token_version=0,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
-    )
-    payload = {
-        "sub": "admin",
-        "ver": 0,
-        "jti": "revoked-token",
-        "exp": int((datetime.now(timezone.utc) + timedelta(minutes=30)).timestamp()),
-    }
-
-    monkeypatch.setattr(dependencies, "decode_token", lambda _token: payload)
-    monkeypatch.setattr(dependencies, "SQLiteUserRepository", lambda _db: StubUserRepository(user))
-    monkeypatch.setattr(
-        dependencies,
-        "SQLiteRevokedTokenRepository",
-        lambda _db: StubRevokedTokenRepository({"revoked-token"}),
-    )
+async def test_get_current_user_blocks_missing_session_cookie():
+    request = make_request()
 
     with pytest.raises(HTTPException) as exc:
-        await dependencies.get_current_user(token="token", db=object())
+        await dependencies.get_current_user(request=request, db=object())
 
     assert exc.value.status_code == 401
-    assert exc.value.detail == "로그아웃된 토큰입니다. 다시 로그인해주세요"
+    assert exc.value.detail == "로그인이 필요합니다"
 
 
 @pytest.mark.asyncio
-async def test_get_current_user_returns_token_metadata(monkeypatch):
+async def test_get_current_user_returns_session_metadata(monkeypatch):
+    user = User(
+        id=uuid4(),
+        username="admin",
+        hashed_password="hashed",
+        role="admin",
+        is_active=True,
+        token_version=2,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    auth_session = AuthSession.issue(
+        session_id="session-1",
+        session_secret_hash="hash-1",
+        user_id=str(user.id),
+        username="admin",
+        role="admin",
+        token_version=2,
+        absolute_ttl=timedelta(hours=8),
+        idle_ttl=timedelta(hours=1),
+        now=datetime.now(timezone.utc),
+    )
+    request = make_request(cookies={"tm_session": "session-1.secret-1"})
+
+    monkeypatch.setattr(dependencies, "verify_session_secret", lambda secret, expected_hash: secret == "secret-1")
+    monkeypatch.setattr(
+        dependencies,
+        "SQLiteAuthSessionRepository",
+        lambda _db: StubAuthSessionRepository(auth_session),
+    )
+    monkeypatch.setattr(dependencies, "SQLiteUserRepository", lambda _db: StubUserRepository(user))
+
+    current_user = await dependencies.get_current_user(request=request, db=object())
+
+    assert current_user["id"] == str(user.id)
+    assert current_user["username"] == "admin"
+    assert current_user["session_id"] == "session-1"
+
+
+@pytest.mark.asyncio
+async def test_get_current_user_blocks_missing_csrf_for_mutation(monkeypatch):
     user = User(
         id=uuid4(),
         username="admin",
@@ -99,24 +147,33 @@ async def test_get_current_user_returns_token_metadata(monkeypatch):
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
-    payload = {
-        "sub": "admin",
-        "ver": 0,
-        "jti": "active-token",
-        "exp": int(expires_at.timestamp()),
-    }
-
-    monkeypatch.setattr(dependencies, "decode_token", lambda _token: payload)
-    monkeypatch.setattr(dependencies, "SQLiteUserRepository", lambda _db: StubUserRepository(user))
-    monkeypatch.setattr(
-        dependencies,
-        "SQLiteRevokedTokenRepository",
-        lambda _db: StubRevokedTokenRepository(set()),
+    auth_session = AuthSession.issue(
+        session_id="session-1",
+        session_secret_hash="hash-1",
+        user_id=str(user.id),
+        username="admin",
+        role="admin",
+        token_version=0,
+        absolute_ttl=timedelta(hours=8),
+        idle_ttl=timedelta(hours=1),
+        now=datetime.now(timezone.utc),
+    )
+    request = make_request(
+        path="/api/v1/services/",
+        method="POST",
+        cookies={"tm_session": "session-1.secret-1", "tm_csrf": "csrf-cookie"},
     )
 
-    current_user = await dependencies.get_current_user(token="token", db=object())
+    monkeypatch.setattr(dependencies, "verify_session_secret", lambda secret, expected_hash: secret == "secret-1")
+    monkeypatch.setattr(
+        dependencies,
+        "SQLiteAuthSessionRepository",
+        lambda _db: StubAuthSessionRepository(auth_session),
+    )
+    monkeypatch.setattr(dependencies, "SQLiteUserRepository", lambda _db: StubUserRepository(user))
 
-    assert current_user["username"] == "admin"
-    assert current_user["token_jti"] == "active-token"
-    assert int(current_user["token_exp"].timestamp()) == int(expires_at.timestamp())
+    with pytest.raises(HTTPException) as exc:
+        await dependencies.get_current_user(request=request, db=object())
+
+    assert exc.value.status_code == 403
+    assert exc.value.detail == "CSRF 검증에 실패했습니다"

@@ -1,27 +1,41 @@
 import axios from "axios";
 
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const prefix = `${name}=`;
+  const cookie = document.cookie
+    .split("; ")
+    .find((item) => item.startsWith(prefix));
+  return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : null;
+}
+
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "/api/v1",
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
 });
 
-// 요청 인터셉터: JWT 토큰 자동 첨부
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const method = config.method?.toUpperCase();
+  if (method && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+    const csrfToken = readCookie("tm_csrf");
+    if (csrfToken) {
+      config.headers["X-CSRF-Token"] = csrfToken;
+    }
   }
   return config;
 });
 
-// 응답 인터셉터: 401 시 로그인 페이지로
 apiClient.interceptors.response.use(
   (res) => res,
   (error) => {
+    const url = error.config?.url || "";
     if (error.response?.status === 401) {
       localStorage.removeItem("access_token");
       localStorage.removeItem("auth");
-      window.location.href = "/login";
+      if (!url.includes("/auth/login") && !url.includes("/auth/me") && typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }

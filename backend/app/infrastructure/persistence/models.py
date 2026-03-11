@@ -83,6 +83,25 @@ class RevokedTokenModel(Base):
     revoked_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
 
+class AuthSessionModel(Base):
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    username: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    session_secret_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    issued_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
+    last_seen_at: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False, index=True)
+    idle_expires_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
+    revoked_at: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
+    revoked_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+
 class AuditLogModel(Base):
     __tablename__ = "audit_logs"
 

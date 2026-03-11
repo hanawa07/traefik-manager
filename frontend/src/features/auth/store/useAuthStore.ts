@@ -5,27 +5,29 @@ import { authApi } from "../api/authApi";
 export type UserRole = "admin" | "viewer";
 
 interface AuthState {
-  token: string | null;
   username: string | null;
   role: UserRole | null;
   isAuthenticated: boolean;
   _hydrated: boolean;
-  login: (token: string, username: string, role: UserRole) => void;
+  _initialized: boolean;
+  login: (username: string, role: UserRole) => void;
   logout: () => Promise<void>;
+  syncSession: () => Promise<void>;
+  clearSession: () => void;
   setHydrated: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      token: null,
       username: null,
       role: null,
       isAuthenticated: false,
       _hydrated: false,
-      login: (token, username, role) => {
-        localStorage.setItem("access_token", token);
-        set({ token, username, role, isAuthenticated: true });
+      _initialized: false,
+      login: (username, role) => {
+        localStorage.removeItem("access_token");
+        set({ username, role, isAuthenticated: true, _initialized: true });
       },
       logout: async () => {
         try {
@@ -34,13 +36,39 @@ export const useAuthStore = create<AuthState>()(
           // 서버 오류 시에도 로컬 상태는 초기화
         }
         localStorage.removeItem("access_token");
-        set({ token: null, username: null, role: null, isAuthenticated: false });
+        localStorage.removeItem("auth");
+        set({ username: null, role: null, isAuthenticated: false, _initialized: true });
+      },
+      syncSession: async () => {
+        try {
+          const session = await authApi.me();
+          localStorage.removeItem("access_token");
+          set({
+            username: session.username,
+            role: session.role,
+            isAuthenticated: true,
+            _initialized: true,
+          });
+        } catch {
+          localStorage.removeItem("access_token");
+          set({
+            username: null,
+            role: null,
+            isAuthenticated: false,
+            _initialized: true,
+          });
+        }
+      },
+      clearSession: () => {
+        localStorage.removeItem("access_token");
+        set({ username: null, role: null, isAuthenticated: false, _initialized: true });
       },
       setHydrated: () => set({ _hydrated: true }),
     }),
     {
       name: "auth",
       onRehydrateStorage: () => (state) => {
+        localStorage.removeItem("access_token");
         state?.setHydrated();
       },
     }

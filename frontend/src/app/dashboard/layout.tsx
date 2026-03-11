@@ -8,12 +8,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hydrated = useAuthStore((s) => s._hydrated);
+  const initialized = useAuthStore((s) => s._initialized);
+  const syncSession = useAuthStore((s) => s.syncSession);
 
   useEffect(() => {
-    if (hydrated && !isAuthenticated) router.replace("/login");
-  }, [hydrated, isAuthenticated, router]);
+    if (hydrated && !initialized) {
+      void syncSession();
+    }
+  }, [hydrated, initialized, syncSession]);
 
-  if (!hydrated) return null;
+  useEffect(() => {
+    if (hydrated && initialized && !isAuthenticated) router.replace("/login");
+  }, [hydrated, initialized, isAuthenticated, router]);
+
+  if (!hydrated || !initialized) return null;
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">

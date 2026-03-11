@@ -1,69 +1,99 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from datetime import datetime, timezone
+from uuid import UUID
+
+from fastapi import Depends, HTTPException, Request, status
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import decode_token, get_token_expiration
+from app.core.config import settings
+from app.core.session_security import parse_session_cookie, verify_session_secret
 from app.infrastructure.persistence.database import get_db
-from app.infrastructure.persistence.repositories.sqlite_revoked_token_repository import (
-    SQLiteRevokedTokenRepository,
+from app.infrastructure.persistence.repositories.sqlite_auth_session_repository import (
+    SQLiteAuthSessionRepository,
 )
 from app.infrastructure.persistence.repositories.sqlite_user_repository import (
     SQLiteUserRepository,
 )
+MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
+def _validate_csrf(request: Request) -> None:
+    if request.method.upper() not in MUTATING_METHODS:
+        return
 
-async def resolve_authenticated_user(token: str, db: AsyncSession):
-    payload = decode_token(token)
-    username = payload.get("sub")
-    if not username:
+    csrf_cookie = request.cookies.get(settings.SESSION_CSRF_COOKIE_NAME)
+    csrf_header = request.headers.get("x-csrf-token")
+    if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="유효하지 않은 토큰입니다",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="CSRF 검증에 실패했습니다",
         )
 
-    jti = payload.get("jti")
-    if jti:
-        revoked_repository = SQLiteRevokedTokenRepository(db)
-        if await revoked_repository.is_revoked(jti):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="로그아웃된 토큰입니다. 다시 로그인해주세요",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+
+async def resolve_authenticated_user(request: Request, db: AsyncSession):
+    cookie_value = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if not cookie_value:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="로그인이 필요합니다",
+        )
+
+    parsed_cookie = parse_session_cookie(cookie_value)
+    if not parsed_cookie:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="유효하지 않은 세션입니다",
+        )
+
+    session_id, secret = parsed_cookie
+    auth_session_repository = SQLiteAuthSessionRepository(db)
+    auth_session = await auth_session_repository.find_by_id(session_id)
+    if not auth_session or not verify_session_secret(secret, auth_session.session_secret_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="유효하지 않은 세션입니다",
+        )
+
+    now = datetime.now(timezone.utc)
+    if not auth_session.is_active(now):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="만료된 세션입니다. 다시 로그인해주세요",
+        )
 
     repository = SQLiteUserRepository(db)
-    user = await repository.find_by_username(username)
+    user = await repository.find_by_id(UUID(auth_session.user_id))
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="유효하지 않은 토큰입니다",
+            detail="유효하지 않은 세션입니다",
         )
 
-    if payload.get("ver", 0) != user.token_version:
+    if auth_session.token_version != user.token_version:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="만료된 토큰입니다. 다시 로그인해주세요",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="만료된 세션입니다. 다시 로그인해주세요",
         )
 
-    return user, payload
+    _validate_csrf(request)
+
+    auth_session.touch(now=now, idle_ttl=auth_session.idle_expires_at - (auth_session.last_seen_at or auth_session.issued_at))
+    await auth_session_repository.save(auth_session)
+    return user, auth_session
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    user, payload = await resolve_authenticated_user(token=token, db=db)
+    user, auth_session = await resolve_authenticated_user(request=request, db=db)
 
     return {
         "id": str(user.id),
         "username": user.username,
         "role": user.role,
-        "token_jti": payload.get("jti"),
-        "token_exp": get_token_expiration(payload),
+        "session_id": auth_session.id,
+        "session": auth_session,
     }
 
 

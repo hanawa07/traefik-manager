@@ -10,7 +10,7 @@
 | 항목 | 상태 |
 |------|------|
 | 비밀번호 해싱 (bcrypt_sha256) | ✅ 양호 |
-| JWT 인증 전체 엔드포인트 적용 | ✅ 양호 |
+| 브라우저 관리자 세션 쿠키 인증 | ✅ 적용 |
 | RBAC (admin/read-only) | ✅ 양호 |
 | CORS 특정 origin 제한 | ✅ 양호 |
 | TrustedHostMiddleware | ✅ 양호 |
@@ -20,7 +20,7 @@
 | Production docs URL 비활성화 | ✅ 양호 |
 | no-new-privileges:true | ✅ 양호 |
 | **로그인 brute force 방어** | ✅ 적용 (Traefik login rate limit) |
-| **JWT 토큰 무효화** | ✅ 적용 (token_version + jti revoke) |
+| **브라우저 세션 관리** | ✅ 적용 (`auth_sessions` + cookie revoke) |
 | **백업 export 권한** | ✅ 적용 (admin 전용) |
 | **Upstream 호스트 검증** | ✅ 강화됨 |
 | **HTTP redirect 차단 (헬스체크)** | ✅ 적용 |
@@ -45,19 +45,26 @@
 
 ---
 
-### [HIGH-2] JWT 토큰 무효화는 적용됨
+### [HIGH-2] 브라우저 관리자 인증은 세션 쿠키 기반으로 전환됨
 
-**파일:** `backend/app/core/security.py`, `backend/app/interfaces/api/dependencies.py`
+**파일:** `backend/app/interfaces/api/v1/routers/auth.py`, `backend/app/interfaces/api/dependencies.py`, `frontend/src/shared/lib/apiClient.ts`
 
-**현재 상태:** 토큰에 `ver`와 `jti` 클레임을 함께 넣습니다.
-- 로그아웃: 현재 토큰의 `jti`를 `revoked_tokens`에 저장해 개별 세션만 무효화
-- 비밀번호 변경/전체 무효화: `token_version` 증가로 해당 사용자의 기존 토큰 전체 무효화
+**현재 상태:** 브라우저 관리자 인증은 `HttpOnly + Secure + SameSite` 세션 쿠키 기반입니다.
+- 로그인: `auth_sessions`에 서버 상태 저장
+- 브라우저: bearer token 대신 세션 쿠키 사용
+- 로그아웃: 현재 세션 revoke + 쿠키 삭제
+- `forwardAuth`: 서비스 API key 우선, 없으면 브라우저 세션 쿠키 검사
+
+**보완된 점:**
+- `localStorage` access token 제거
+- 브라우저 JS에서 장기 인증정보 직접 접근 제거
+- 상태 변경 요청에 CSRF 헤더 검증 추가
 
 **남은 보완점:**
 - 관리자용 세션 목록/강제 종료 UI 없음
-- 만료된 revoked token 정리 배치 없음
+- 만료된 세션 cleanup loop 없음
 
-즉 현재는 “현재 세션 로그아웃”과 “사용자 단위 전체 무효화”를 모두 지원합니다. 남은 건 운영 편의 기능입니다.
+즉 현재는 브라우저 관리자 로그인 보안이 개선됐고, 남은 것은 운영성 기능과 cleanup 자동화입니다.
 
 ---
 
@@ -166,6 +173,6 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 
 | 순위 | 항목 | 난이도 | 위험도 |
 |------|------|--------|--------|
-| 1 | 관리자용 세션 관리 UI 또는 revoke 정리 배치 추가 | 보통 | 중간 |
+| 1 | 관리자용 세션 관리 UI 및 session cleanup 자동화 | 보통 | 중간 |
 | 2 | Upstream strict mode (DNS 재해석/allowlist) 검토 | 보통 | 중간 |
 | 3 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |

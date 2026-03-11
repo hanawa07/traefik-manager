@@ -2,10 +2,15 @@ import apiClient from "@/shared/lib/apiClient";
 import { UserRole } from "../store/useAuthStore";
 
 export interface LoginResponse {
-  access_token: string;
-  token_type: string;
   username: string;
   role: UserRole;
+}
+
+export interface CurrentSessionResponse extends LoginResponse {
+  session_id: string;
+  issued_at: string;
+  expires_at: string;
+  idle_expires_at: string;
 }
 
 export const authApi = {
@@ -17,6 +22,11 @@ export const authApi = {
     const res = await apiClient.post<LoginResponse>("/auth/login", form, {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
+    return res.data;
+  },
+
+  me: async (): Promise<CurrentSessionResponse> => {
+    const res = await apiClient.get<CurrentSessionResponse>("/auth/me");
     return res.data;
   },
 
