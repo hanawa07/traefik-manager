@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -35,6 +35,7 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
 
 router = APIRouter()
 SECURITY_ALERT_EVENTS = ["login_locked", "login_suspicious", "login_blocked_ip"]
+SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram"}
 
 
 async def get_cloudflare_client(db: AsyncSession = Depends(get_db)) -> CloudflareClient:
@@ -178,13 +179,36 @@ async def update_security_alert_settings(
     _: dict = Depends(require_admin),
 ):
     repo = SQLiteSystemSettingsRepository(db)
+    if request.provider not in SECURITY_ALERT_PROVIDERS:
+        raise HTTPException(status_code=422, detail="지원하지 않는 보안 알림 provider입니다")
+
+    existing_telegram_bot_token = await repo.get("security_alert_telegram_bot_token")
+    effective_telegram_bot_token = request.telegram_bot_token or existing_telegram_bot_token or ""
+
+    if request.enabled:
+        if request.provider == "telegram":
+            if not effective_telegram_bot_token or not request.telegram_chat_id:
+                raise HTTPException(status_code=422, detail="Telegram bot token과 chat id가 필요합니다")
+        elif not request.webhook_url:
+            raise HTTPException(status_code=422, detail="Webhook URL이 필요합니다")
+
     await repo.set(
         "security_alerts_enabled",
         "true" if request.enabled else "false",
     )
     await repo.set(
+        "security_alert_provider",
+        request.provider,
+    )
+    await repo.set(
         "security_alert_webhook_url",
         request.webhook_url or None,
+    )
+    if request.telegram_bot_token:
+        await repo.set("security_alert_telegram_bot_token", request.telegram_bot_token)
+    await repo.set(
+        "security_alert_telegram_chat_id",
+        request.telegram_chat_id or None,
     )
     return await _build_security_alert_response(repo)
 
@@ -277,13 +301,18 @@ async def _build_login_defense_response(
 async def _build_security_alert_response(
     repo: SQLiteSystemSettingsRepository,
 ) -> SecurityAlertSettingsResponse:
+    provider = await repo.get("security_alert_provider") or "generic"
+    telegram_bot_token = await repo.get("security_alert_telegram_bot_token")
     return SecurityAlertSettingsResponse(
         enabled=await _get_bool_setting(
             repo,
             "security_alerts_enabled",
             default=False,
         ),
+        provider=provider if provider in SECURITY_ALERT_PROVIDERS else "generic",
         webhook_url=await repo.get("security_alert_webhook_url"),
+        telegram_bot_token_configured=bool(telegram_bot_token),
+        telegram_chat_id=await repo.get("security_alert_telegram_chat_id"),
         timeout_seconds=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS,
         alert_events=SECURITY_ALERT_EVENTS,
     )

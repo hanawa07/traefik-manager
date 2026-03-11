@@ -28,6 +28,8 @@
   자동 차단 on/off, 신뢰 네트워크 CIDR/IP 예외, 설정 UI/운영 문서 반영
 - 완료: Task 6-3 보안 이벤트 외부 웹훅 알림
   `login_locked`, `login_suspicious`, `login_blocked_ip`를 외부 webhook으로 전송, 설정 UI 및 운영 문서 반영
+- 완료: Task 6-4 보안 알림 provider preset
+  `generic/slack/discord/telegram` provider 선택, Telegram bot token/chat id, provider별 payload 포맷 반영
 - 완료: 문서 마감/운영 가이드 정리
 
 ---

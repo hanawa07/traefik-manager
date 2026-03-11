@@ -86,6 +86,97 @@ async def test_notify_if_needed_posts_payload_for_supported_security_event(monke
 
 
 @pytest.mark.asyncio
+async def test_notify_if_needed_formats_slack_payload(monkeypatch):
+    posted = []
+
+    class StubClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json):
+            posted.append((url, json))
+
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "slack",
+        "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
+
+    result = await security_alert_notifier.notify_if_needed(object(), make_audit_log("login_locked"))
+
+    assert result is True
+    assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"
+    assert "text" in posted[0][1]
+    assert "blocks" in posted[0][1]
+
+
+@pytest.mark.asyncio
+async def test_notify_if_needed_formats_discord_payload(monkeypatch):
+    posted = []
+
+    class StubClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json):
+            posted.append((url, json))
+
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "discord",
+        "security_alert_webhook_url": "https://discord.com/api/webhooks/123/abc",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
+
+    result = await security_alert_notifier.notify_if_needed(object(), make_audit_log("login_suspicious"))
+
+    assert result is True
+    assert posted[0][0] == "https://discord.com/api/webhooks/123/abc"
+    assert "content" in posted[0][1]
+    assert "embeds" in posted[0][1]
+
+
+@pytest.mark.asyncio
+async def test_notify_if_needed_formats_telegram_payload(monkeypatch):
+    posted = []
+
+    class StubClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json):
+            posted.append((url, json))
+
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "telegram",
+        "security_alert_telegram_bot_token": "telegram-secret",
+        "security_alert_telegram_chat_id": "10001",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
+
+    result = await security_alert_notifier.notify_if_needed(object(), make_audit_log("login_blocked_ip"))
+
+    assert result is True
+    assert posted[0][0] == "https://api.telegram.org/bottelegram-secret/sendMessage"
+    assert posted[0][1]["chat_id"] == "10001"
+    assert "text" in posted[0][1]
+
+
+@pytest.mark.asyncio
 async def test_notify_if_needed_skips_unsupported_event(monkeypatch):
     posted = []
 

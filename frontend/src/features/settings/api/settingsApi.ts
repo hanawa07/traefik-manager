@@ -126,14 +126,20 @@ export interface LoginDefenseSettingsInput {
 
 export interface SecurityAlertSettingsStatus {
   enabled: boolean;
+  provider: "generic" | "slack" | "discord" | "telegram";
   webhook_url: string | null;
+  telegram_bot_token_configured: boolean;
+  telegram_chat_id: string | null;
   timeout_seconds: number;
   alert_events: string[];
 }
 
 export interface SecurityAlertSettingsInput {
   enabled: boolean;
+  provider: "generic" | "slack" | "discord" | "telegram";
   webhook_url: string;
+  telegram_bot_token: string;
+  telegram_chat_id: string;
 }
 
 export const settingsApi = {

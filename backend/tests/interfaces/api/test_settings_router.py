@@ -1,5 +1,6 @@
 import pytest
 from pydantic import ValidationError
+from fastapi import HTTPException
 
 from app.interfaces.api.v1.routers import settings as settings_router
 from app.interfaces.api.v1.schemas.settings_schemas import (
@@ -170,7 +171,10 @@ async def test_get_security_alert_settings_returns_defaults(monkeypatch):
     response = await settings_router.get_security_alert_settings(db=object(), _={"role": "admin"})
 
     assert response.enabled is False
+    assert response.provider == "generic"
     assert response.webhook_url is None
+    assert response.telegram_bot_token_configured is False
+    assert response.telegram_chat_id is None
     assert response.timeout_seconds == 5.0
     assert response.alert_events == ["login_locked", "login_suspicious", "login_blocked_ip"]
 
@@ -183,6 +187,7 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     response = await settings_router.update_security_alert_settings(
         request=SecurityAlertSettingsUpdateRequest(
             enabled=True,
+            provider="discord",
             webhook_url=" https://hooks.example.com/security-alerts ",
         ),
         db=object(),
@@ -190,9 +195,57 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     )
 
     assert StubSettingsRepository.store["security_alerts_enabled"] == "true"
+    assert StubSettingsRepository.store["security_alert_provider"] == "discord"
     assert StubSettingsRepository.store["security_alert_webhook_url"] == "https://hooks.example.com/security-alerts"
     assert response.enabled is True
+    assert response.provider == "discord"
     assert response.webhook_url == "https://hooks.example.com/security-alerts"
+
+
+@pytest.mark.asyncio
+async def test_update_security_alert_settings_keeps_existing_telegram_token(monkeypatch):
+    StubSettingsRepository.store = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "telegram",
+        "security_alert_telegram_bot_token": "secret-token",
+        "security_alert_telegram_chat_id": "123456",
+    }
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    response = await settings_router.update_security_alert_settings(
+        request=SecurityAlertSettingsUpdateRequest(
+            enabled=True,
+            provider="telegram",
+            telegram_bot_token="",
+            telegram_chat_id="654321",
+        ),
+        db=object(),
+        _={"role": "admin"},
+    )
+
+    assert StubSettingsRepository.store["security_alert_telegram_bot_token"] == "secret-token"
+    assert StubSettingsRepository.store["security_alert_telegram_chat_id"] == "654321"
+    assert response.provider == "telegram"
+    assert response.telegram_bot_token_configured is True
+    assert response.telegram_chat_id == "654321"
+
+
+@pytest.mark.asyncio
+async def test_update_security_alert_settings_rejects_enabled_telegram_without_token(monkeypatch):
+    StubSettingsRepository.store = {}
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    with pytest.raises(HTTPException):
+        await settings_router.update_security_alert_settings(
+            request=SecurityAlertSettingsUpdateRequest(
+                enabled=True,
+                provider="telegram",
+                telegram_bot_token="",
+                telegram_chat_id="123456",
+            ),
+            db=object(),
+            _={"role": "admin"},
+        )
 
 
 def test_time_display_settings_update_request_rejects_invalid_value():
@@ -245,4 +298,13 @@ def test_security_alert_settings_update_request_rejects_invalid_webhook_url():
         SecurityAlertSettingsUpdateRequest(
             enabled=True,
             webhook_url="ftp://bad.example.com/hook",
+        )
+
+
+def test_security_alert_settings_update_request_rejects_invalid_provider():
+    with pytest.raises(ValidationError):
+        SecurityAlertSettingsUpdateRequest(
+            enabled=True,
+            provider="teams",
+            webhook_url="https://hooks.example.com/security-alerts",
         )

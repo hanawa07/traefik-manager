@@ -1,4 +1,5 @@
 from ipaddress import ip_network
+from typing import Literal
 
 from pydantic import AnyHttpUrl, BaseModel, Field, field_validator
 
@@ -118,14 +119,20 @@ class LoginDefenseSettingsUpdateRequest(BaseModel):
 
 class SecurityAlertSettingsResponse(BaseModel):
     enabled: bool
+    provider: Literal["generic", "slack", "discord", "telegram"]
     webhook_url: str | None = None
+    telegram_bot_token_configured: bool = False
+    telegram_chat_id: str | None = None
     timeout_seconds: float
     alert_events: list[str] = Field(default_factory=list)
 
 
 class SecurityAlertSettingsUpdateRequest(BaseModel):
     enabled: bool = False
+    provider: Literal["generic", "slack", "discord", "telegram"] = "generic"
     webhook_url: str = ""
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
 
     @field_validator("webhook_url")
     @classmethod
@@ -134,3 +141,8 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
         if not normalized:
             return ""
         return str(AnyHttpUrl(normalized))
+
+    @field_validator("telegram_bot_token", "telegram_chat_id")
+    @classmethod
+    def normalize_string_fields(cls, value: str) -> str:
+        return value.strip()

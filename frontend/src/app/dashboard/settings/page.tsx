@@ -63,9 +63,39 @@ function createDefaultLoginDefenseForm(): LoginDefenseSettingsInput & { suspicio
 function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
   return {
     enabled: false,
+    provider: "generic",
     webhook_url: "",
+    telegram_bot_token: "",
+    telegram_chat_id: "",
   };
 }
+
+const SECURITY_ALERT_PROVIDER_OPTIONS = [
+  {
+    value: "generic",
+    label: "Generic Webhook",
+    description: "임의의 JSON webhook endpoint로 원본 이벤트를 전송합니다.",
+    placeholder: "https://hooks.example.com/security-alerts",
+  },
+  {
+    value: "slack",
+    label: "Slack",
+    description: "Slack Incoming Webhook 형식으로 전송합니다.",
+    placeholder: "https://hooks.slack.com/services/XXX/YYY/ZZZ",
+  },
+  {
+    value: "discord",
+    label: "Discord",
+    description: "Discord webhook embed 형식으로 전송합니다.",
+    placeholder: "https://discord.com/api/webhooks/123/abc",
+  },
+  {
+    value: "telegram",
+    label: "Telegram",
+    description: "Bot API sendMessage로 전송합니다.",
+    placeholder: "",
+  },
+] as const;
 
 function parseMultivalueText(value: string): string[] {
   return value
@@ -240,7 +270,10 @@ export default function SettingsPage() {
   const handleEditSecurityAlert = () => {
     setSecurityAlertForm({
       enabled: securityAlertSettings?.enabled ?? false,
+      provider: securityAlertSettings?.provider ?? "generic",
       webhook_url: securityAlertSettings?.webhook_url ?? "",
+      telegram_bot_token: "",
+      telegram_chat_id: securityAlertSettings?.telegram_chat_id ?? "",
     });
     setSecurityAlertErrorMessage("");
     setIsEditingSecurityAlert(true);
@@ -251,7 +284,10 @@ export default function SettingsPage() {
     try {
       await updateSecurityAlert.mutateAsync({
         enabled: securityAlertForm.enabled,
+        provider: securityAlertForm.provider,
         webhook_url: securityAlertForm.webhook_url.trim(),
+        telegram_bot_token: securityAlertForm.telegram_bot_token.trim(),
+        telegram_chat_id: securityAlertForm.telegram_chat_id.trim(),
       });
       setIsEditingSecurityAlert(false);
     } catch (error) {
@@ -329,6 +365,13 @@ export default function SettingsPage() {
       router.push("/login");
     }
   };
+
+  const selectedSecurityAlertProvider =
+    SECURITY_ALERT_PROVIDER_OPTIONS.find((option) => option.value === securityAlertForm.provider) ??
+    SECURITY_ALERT_PROVIDER_OPTIONS[0];
+  const currentSecurityAlertProvider =
+    SECURITY_ALERT_PROVIDER_OPTIONS.find((option) => option.value === (securityAlertSettings?.provider ?? "generic")) ??
+    SECURITY_ALERT_PROVIDER_OPTIONS[0];
 
   return (
     <div className="p-8">
@@ -878,23 +921,95 @@ export default function SettingsPage() {
               </label>
 
               <div>
-                <label className="label">Webhook URL</label>
-                <input
-                  type="url"
-                  className="input"
-                  placeholder="https://hooks.example.com/security-alerts"
-                  value={securityAlertForm.webhook_url}
-                  onChange={(e) =>
-                    setSecurityAlertForm((current) => ({
-                      ...current,
-                      webhook_url: e.target.value,
-                    }))
-                  }
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Slack/Discord/사내 알림 게이트웨이처럼 JSON POST를 받을 수 있는 HTTPS endpoint를 입력합니다.
-                </p>
+                <label className="label">알림 채널</label>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {SECURITY_ALERT_PROVIDER_OPTIONS.map((option) => (
+                    <label
+                      key={option.value}
+                      className={`rounded-lg border p-3 text-sm cursor-pointer ${
+                        securityAlertForm.provider === option.value
+                          ? "border-sky-500 bg-sky-50 text-sky-900"
+                          : "border-gray-200 bg-white text-gray-700"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        className="sr-only"
+                        name="security-alert-provider"
+                        checked={securityAlertForm.provider === option.value}
+                        onChange={() =>
+                          setSecurityAlertForm((current) => ({
+                            ...current,
+                            provider: option.value,
+                          }))
+                        }
+                      />
+                      <span className="block font-medium">{option.label}</span>
+                      <span className="mt-1 block text-xs text-gray-500">{option.description}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
+
+              {securityAlertForm.provider === "telegram" ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="label">Bot Token</label>
+                    <input
+                      type="password"
+                      className="input"
+                      placeholder="123456:ABCDEF..."
+                      value={securityAlertForm.telegram_bot_token}
+                      onChange={(e) =>
+                        setSecurityAlertForm((current) => ({
+                          ...current,
+                          telegram_bot_token: e.target.value,
+                        }))
+                      }
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      {securityAlertSettings?.telegram_bot_token_configured
+                        ? "비워두면 기존 bot token을 유지합니다."
+                        : "Telegram BotFather에서 발급한 bot token을 입력합니다."}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="label">Chat ID</label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="123456789"
+                      value={securityAlertForm.telegram_chat_id}
+                      onChange={(e) =>
+                        setSecurityAlertForm((current) => ({
+                          ...current,
+                          telegram_chat_id: e.target.value,
+                        }))
+                      }
+                    />
+                    <p className="mt-1 text-xs text-gray-500">알림을 받을 개인/그룹 chat id를 입력합니다.</p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="label">Webhook URL</label>
+                  <input
+                    type="url"
+                    className="input"
+                    placeholder={selectedSecurityAlertProvider.placeholder}
+                    value={securityAlertForm.webhook_url}
+                    onChange={(e) =>
+                      setSecurityAlertForm((current) => ({
+                        ...current,
+                        webhook_url: e.target.value,
+                      }))
+                    }
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    {selectedSecurityAlertProvider.description}
+                  </p>
+                </div>
+              )}
 
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
                 <p>전송 이벤트: {(securityAlertSettings?.alert_events ?? []).join(", ")}</p>
@@ -928,10 +1043,35 @@ export default function SettingsPage() {
                 <span className="text-gray-700">{securityAlertSettings?.enabled ? "활성화" : "비활성화"}</span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-gray-500">Webhook URL</span>
-                <span className="font-mono text-right text-gray-700">
-                  {securityAlertSettings?.webhook_url || "(미설정)"}
-                </span>
+                <span className="text-gray-500">채널</span>
+                <span className="text-right text-gray-700">{currentSecurityAlertProvider.label}</span>
+              </div>
+              {securityAlertSettings?.provider === "telegram" ? (
+                <>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">Bot Token</span>
+                    <span className="text-right text-gray-700">
+                      {securityAlertSettings.telegram_bot_token_configured ? "설정됨" : "(미설정)"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">Chat ID</span>
+                    <span className="font-mono text-right text-gray-700">
+                      {securityAlertSettings.telegram_chat_id || "(미설정)"}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-500">Webhook URL</span>
+                  <span className="font-mono text-right text-gray-700">
+                    {securityAlertSettings?.webhook_url || "(미설정)"}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">포맷</span>
+                <span className="text-right text-gray-700">{currentSecurityAlertProvider.description}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-gray-500">전송 이벤트</span>
