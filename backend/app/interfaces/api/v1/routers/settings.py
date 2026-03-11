@@ -35,7 +35,7 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
 
 router = APIRouter()
 SECURITY_ALERT_EVENTS = ["login_locked", "login_suspicious", "login_blocked_ip"]
-SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram"}
+SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty"}
 
 
 async def get_cloudflare_client(db: AsyncSession = Depends(get_db)) -> CloudflareClient:
@@ -203,11 +203,16 @@ async def update_security_alert_settings(
 
     existing_telegram_bot_token = await repo.get("security_alert_telegram_bot_token")
     effective_telegram_bot_token = request.telegram_bot_token or existing_telegram_bot_token or ""
+    existing_pagerduty_routing_key = await repo.get("security_alert_pagerduty_routing_key")
+    effective_pagerduty_routing_key = request.pagerduty_routing_key or existing_pagerduty_routing_key or ""
 
     if request.enabled:
         if request.provider == "telegram":
             if not effective_telegram_bot_token or not request.telegram_chat_id:
                 raise HTTPException(status_code=422, detail="Telegram bot token과 chat id가 필요합니다")
+        elif request.provider == "pagerduty":
+            if not effective_pagerduty_routing_key:
+                raise HTTPException(status_code=422, detail="PagerDuty routing key가 필요합니다")
         elif not request.webhook_url:
             raise HTTPException(status_code=422, detail="Webhook URL이 필요합니다")
 
@@ -229,6 +234,8 @@ async def update_security_alert_settings(
         "security_alert_telegram_chat_id",
         request.telegram_chat_id or None,
     )
+    if request.pagerduty_routing_key:
+        await repo.set("security_alert_pagerduty_routing_key", request.pagerduty_routing_key)
     return await _build_security_alert_response(repo)
 
 
@@ -326,6 +333,7 @@ async def _build_security_alert_response(
 ) -> SecurityAlertSettingsResponse:
     provider = await repo.get("security_alert_provider") or "generic"
     telegram_bot_token = await repo.get("security_alert_telegram_bot_token")
+    pagerduty_routing_key = await repo.get("security_alert_pagerduty_routing_key")
     return SecurityAlertSettingsResponse(
         enabled=await _get_bool_setting(
             repo,
@@ -336,6 +344,7 @@ async def _build_security_alert_response(
         webhook_url=await repo.get("security_alert_webhook_url"),
         telegram_bot_token_configured=bool(telegram_bot_token),
         telegram_chat_id=await repo.get("security_alert_telegram_chat_id"),
+        pagerduty_routing_key_configured=bool(pagerduty_routing_key),
         timeout_seconds=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS,
         alert_events=SECURITY_ALERT_EVENTS,
     )

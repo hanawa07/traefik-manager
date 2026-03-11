@@ -132,20 +132,22 @@ export interface LoginDefenseSettingsInput {
 
 export interface SecurityAlertSettingsStatus {
   enabled: boolean;
-  provider: "generic" | "slack" | "discord" | "telegram";
+  provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty";
   webhook_url: string | null;
   telegram_bot_token_configured: boolean;
   telegram_chat_id: string | null;
+  pagerduty_routing_key_configured: boolean;
   timeout_seconds: number;
   alert_events: string[];
 }
 
 export interface SecurityAlertSettingsInput {
   enabled: boolean;
-  provider: "generic" | "slack" | "discord" | "telegram";
+  provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty";
   webhook_url: string;
   telegram_bot_token: string;
   telegram_chat_id: string;
+  pagerduty_routing_key: string;
 }
 
 export const settingsApi = {

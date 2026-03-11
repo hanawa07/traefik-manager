@@ -213,6 +213,7 @@ async def test_get_security_alert_settings_returns_defaults(monkeypatch):
     assert response.webhook_url is None
     assert response.telegram_bot_token_configured is False
     assert response.telegram_chat_id is None
+    assert response.pagerduty_routing_key_configured is False
     assert response.timeout_seconds == 5.0
     assert response.alert_events == ["login_locked", "login_suspicious", "login_blocked_ip"]
 
@@ -269,6 +270,30 @@ async def test_update_security_alert_settings_keeps_existing_telegram_token(monk
 
 
 @pytest.mark.asyncio
+async def test_update_security_alert_settings_keeps_existing_pagerduty_routing_key(monkeypatch):
+    StubSettingsRepository.store = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "pagerduty",
+        "security_alert_pagerduty_routing_key": "pd-secret",
+    }
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    response = await settings_router.update_security_alert_settings(
+        request=SecurityAlertSettingsUpdateRequest(
+            enabled=True,
+            provider="pagerduty",
+            pagerduty_routing_key="",
+        ),
+        db=object(),
+        _={"role": "admin"},
+    )
+
+    assert StubSettingsRepository.store["security_alert_pagerduty_routing_key"] == "pd-secret"
+    assert response.provider == "pagerduty"
+    assert response.pagerduty_routing_key_configured is True
+
+
+@pytest.mark.asyncio
 async def test_update_security_alert_settings_rejects_enabled_telegram_without_token(monkeypatch):
     StubSettingsRepository.store = {}
     monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
@@ -280,6 +305,23 @@ async def test_update_security_alert_settings_rejects_enabled_telegram_without_t
                 provider="telegram",
                 telegram_bot_token="",
                 telegram_chat_id="123456",
+            ),
+            db=object(),
+            _={"role": "admin"},
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_security_alert_settings_rejects_enabled_pagerduty_without_routing_key(monkeypatch):
+    StubSettingsRepository.store = {}
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    with pytest.raises(HTTPException):
+        await settings_router.update_security_alert_settings(
+            request=SecurityAlertSettingsUpdateRequest(
+                enabled=True,
+                provider="pagerduty",
+                pagerduty_routing_key="",
             ),
             db=object(),
             _={"role": "admin"},
@@ -343,6 +385,6 @@ def test_security_alert_settings_update_request_rejects_invalid_provider():
     with pytest.raises(ValidationError):
         SecurityAlertSettingsUpdateRequest(
             enabled=True,
-            provider="teams",
+            provider="email",
             webhook_url="https://hooks.example.com/security-alerts",
         )

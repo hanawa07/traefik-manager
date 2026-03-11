@@ -130,20 +130,22 @@ class LoginDefenseSettingsUpdateRequest(BaseModel):
 
 class SecurityAlertSettingsResponse(BaseModel):
     enabled: bool
-    provider: Literal["generic", "slack", "discord", "telegram"]
+    provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty"]
     webhook_url: str | None = None
     telegram_bot_token_configured: bool = False
     telegram_chat_id: str | None = None
+    pagerduty_routing_key_configured: bool = False
     timeout_seconds: float
     alert_events: list[str] = Field(default_factory=list)
 
 
 class SecurityAlertSettingsUpdateRequest(BaseModel):
     enabled: bool = False
-    provider: Literal["generic", "slack", "discord", "telegram"] = "generic"
+    provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty"] = "generic"
     webhook_url: str = ""
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
+    pagerduty_routing_key: str = ""
 
     @field_validator("webhook_url")
     @classmethod
@@ -153,7 +155,7 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
             return ""
         return str(AnyHttpUrl(normalized))
 
-    @field_validator("telegram_bot_token", "telegram_chat_id")
+    @field_validator("telegram_bot_token", "telegram_chat_id", "pagerduty_routing_key")
     @classmethod
     def normalize_string_fields(cls, value: str) -> str:
         return value.strip()

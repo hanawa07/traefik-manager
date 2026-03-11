@@ -146,6 +146,67 @@ async def test_notify_if_needed_formats_discord_payload(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_notify_if_needed_formats_teams_payload(monkeypatch):
+    posted = []
+
+    class StubClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json):
+            posted.append((url, json))
+
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "teams",
+        "security_alert_webhook_url": "https://example.webhook.office.com/webhookb2/abc",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
+
+    result = await security_alert_notifier.notify_if_needed(object(), make_audit_log("login_locked"))
+
+    assert result is True
+    assert posted[0][0] == "https://example.webhook.office.com/webhookb2/abc"
+    assert posted[0][1]["type"] == "message"
+    assert posted[0][1]["attachments"][0]["contentType"] == "application/vnd.microsoft.card.adaptive"
+
+
+@pytest.mark.asyncio
+async def test_notify_if_needed_formats_pagerduty_payload(monkeypatch):
+    posted = []
+
+    class StubClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json):
+            posted.append((url, json))
+
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "pagerduty",
+        "security_alert_pagerduty_routing_key": "pd-secret",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
+
+    result = await security_alert_notifier.notify_if_needed(object(), make_audit_log("login_blocked_ip"))
+
+    assert result is True
+    assert posted[0][0] == "https://events.pagerduty.com/v2/enqueue"
+    assert posted[0][1]["routing_key"] == "pd-secret"
+    assert posted[0][1]["event_action"] == "trigger"
+    assert posted[0][1]["payload"]["severity"] == "critical"
+
+
+@pytest.mark.asyncio
 async def test_notify_if_needed_formats_telegram_payload(monkeypatch):
     posted = []
 

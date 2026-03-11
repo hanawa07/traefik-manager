@@ -29,7 +29,7 @@
 - 완료: Task 6-3 보안 이벤트 외부 웹훅 알림
   `login_locked`, `login_suspicious`, `login_blocked_ip`를 외부 webhook으로 전송, 설정 UI 및 운영 문서 반영
 - 완료: Task 6-4 보안 알림 provider preset
-  `generic/slack/discord/telegram` provider 선택, Telegram bot token/chat id, provider별 payload 포맷 반영
+  `generic/slack/discord/telegram/teams/pagerduty` provider 선택, Telegram bot token/chat id, PagerDuty routing key, provider별 payload 포맷 반영
 - 완료: Task 6-5 선택형 Turnstile 로그인 보호
   설정 화면에서 site key/secret key 관리, 로그인 페이지 공개 보호 설정 조회, 서버측 token 검증 반영
 - 완료: 문서 마감/운영 가이드 정리

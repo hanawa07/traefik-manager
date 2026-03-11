@@ -70,6 +70,7 @@ function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
     webhook_url: "",
     telegram_bot_token: "",
     telegram_chat_id: "",
+    pagerduty_routing_key: "",
   };
 }
 
@@ -96,6 +97,18 @@ const SECURITY_ALERT_PROVIDER_OPTIONS = [
     value: "telegram",
     label: "Telegram",
     description: "Bot API sendMessage로 전송합니다.",
+    placeholder: "",
+  },
+  {
+    value: "teams",
+    label: "Microsoft Teams",
+    description: "Teams Incoming Webhook의 Adaptive Card 형식으로 전송합니다.",
+    placeholder: "https://example.webhook.office.com/webhookb2/...",
+  },
+  {
+    value: "pagerduty",
+    label: "PagerDuty",
+    description: "PagerDuty Events API v2 trigger 이벤트로 전송합니다.",
     placeholder: "",
   },
 ] as const;
@@ -283,6 +296,7 @@ export default function SettingsPage() {
       webhook_url: securityAlertSettings?.webhook_url ?? "",
       telegram_bot_token: "",
       telegram_chat_id: securityAlertSettings?.telegram_chat_id ?? "",
+      pagerduty_routing_key: "",
     });
     setSecurityAlertErrorMessage("");
     setIsEditingSecurityAlert(true);
@@ -297,6 +311,7 @@ export default function SettingsPage() {
         webhook_url: securityAlertForm.webhook_url.trim(),
         telegram_bot_token: securityAlertForm.telegram_bot_token.trim(),
         telegram_chat_id: securityAlertForm.telegram_chat_id.trim(),
+        pagerduty_routing_key: securityAlertForm.pagerduty_routing_key.trim(),
       });
       setIsEditingSecurityAlert(false);
     } catch (error) {
@@ -1073,6 +1088,27 @@ export default function SettingsPage() {
                     <p className="mt-1 text-xs text-gray-500">알림을 받을 개인/그룹 chat id를 입력합니다.</p>
                   </div>
                 </div>
+              ) : securityAlertForm.provider === "pagerduty" ? (
+                <div>
+                  <label className="label">Routing Key</label>
+                  <input
+                    type="password"
+                    className="input"
+                    placeholder="PXXXXXXXXXXXXXXX"
+                    value={securityAlertForm.pagerduty_routing_key}
+                    onChange={(e) =>
+                      setSecurityAlertForm((current) => ({
+                        ...current,
+                        pagerduty_routing_key: e.target.value,
+                      }))
+                    }
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    {securityAlertSettings?.pagerduty_routing_key_configured
+                      ? "비워두면 기존 routing key를 유지합니다."
+                      : "PagerDuty Events API v2 integration key를 입력합니다."}
+                  </p>
+                </div>
               ) : (
                 <div>
                   <label className="label">Webhook URL</label>
@@ -1144,6 +1180,13 @@ export default function SettingsPage() {
                     </span>
                   </div>
                 </>
+              ) : securityAlertSettings?.provider === "pagerduty" ? (
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-500">Routing Key</span>
+                  <span className="text-right text-gray-700">
+                    {securityAlertSettings.pagerduty_routing_key_configured ? "설정됨" : "(미설정)"}
+                  </span>
+                </div>
               ) : (
                 <div className="flex justify-between gap-4">
                   <span className="text-gray-500">Webhook URL</span>

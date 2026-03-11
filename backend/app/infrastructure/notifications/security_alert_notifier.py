@@ -13,7 +13,8 @@ from app.infrastructure.persistence.repositories.sqlite_system_settings_reposito
 logger = logging.getLogger(__name__)
 
 SECURITY_ALERT_EVENTS = {"login_locked", "login_suspicious", "login_blocked_ip"}
-SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram"}
+SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty"}
+PAGERDUTY_EVENTS_API_URL = "https://events.pagerduty.com/v2/enqueue"
 
 
 async def notify_if_needed(db: AsyncSession, audit_log: AuditLogModel) -> bool:
@@ -97,6 +98,11 @@ async def _build_request(
                 "text": _build_telegram_message(audit_log, event),
             },
         )
+    if provider == "pagerduty":
+        routing_key = ((await repo.get("security_alert_pagerduty_routing_key")) or "").strip()
+        if not routing_key:
+            return None
+        return PAGERDUTY_EVENTS_API_URL, _build_pagerduty_payload(audit_log, event, routing_key)
 
     webhook_url = ((await repo.get("security_alert_webhook_url")) or "").strip()
     if not webhook_url:
@@ -106,6 +112,8 @@ async def _build_request(
         return webhook_url, _build_slack_payload(audit_log, event)
     if provider == "discord":
         return webhook_url, _build_discord_payload(audit_log, event)
+    if provider == "teams":
+        return webhook_url, _build_teams_payload(audit_log, event)
     return webhook_url, _build_payload(audit_log, event)
 
 
@@ -153,6 +161,72 @@ def _build_discord_payload(audit_log: AuditLogModel, event: str) -> dict[str, An
             }
         ],
     }
+
+
+def _build_teams_payload(audit_log: AuditLogModel, event: str) -> dict[str, Any]:
+    detail = audit_log.detail or {}
+    return {
+        "type": "message",
+        "attachments": [
+            {
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "contentUrl": None,
+                "content": {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.4",
+                    "body": [
+                        {
+                            "type": "TextBlock",
+                            "size": "Medium",
+                            "weight": "Bolder",
+                            "text": "Traefik Manager 보안 경고",
+                        },
+                        {
+                            "type": "TextBlock",
+                            "wrap": True,
+                            "text": _build_message(event, audit_log.resource_name, detail.get("client_ip")),
+                        },
+                        {
+                            "type": "FactSet",
+                            "facts": [
+                                {"title": "이벤트", "value": event},
+                                {"title": "대상", "value": audit_log.resource_name or "-"},
+                                {"title": "IP", "value": str(detail.get("client_ip") or "-")},
+                                {"title": "시각", "value": audit_log.created_at.isoformat()},
+                            ],
+                        },
+                    ],
+                },
+            }
+        ],
+    }
+
+
+def _build_pagerduty_payload(audit_log: AuditLogModel, event: str, routing_key: str) -> dict[str, Any]:
+    detail = audit_log.detail or {}
+    source = str(detail.get("client_ip") or audit_log.resource_name or "traefik-manager")
+    return {
+        "routing_key": routing_key,
+        "event_action": "trigger",
+        "payload": {
+            "summary": _build_message(event, audit_log.resource_name, detail.get("client_ip")),
+            "source": source,
+            "severity": _build_pagerduty_severity(event),
+            "component": "traefik-manager",
+            "group": "security",
+            "class": event,
+            "custom_details": _build_payload(audit_log, event),
+        },
+    }
+
+
+def _build_pagerduty_severity(event: str) -> str:
+    if event == "login_blocked_ip":
+        return "critical"
+    if event == "login_locked":
+        return "error"
+    return "warning"
 
 
 def _build_telegram_message(audit_log: AuditLogModel, event: str) -> str:

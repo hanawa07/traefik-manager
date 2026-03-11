@@ -93,7 +93,7 @@ traefik-manager/
 │       │   ├── security/
 │       │   │   └── turnstile_verifier.py
 │       │   ├── notifications/
-│       │   │   └── security_alert_notifier.py   # generic/slack/discord/telegram 포맷 전송
+│       │   │   └── security_alert_notifier.py   # generic/slack/discord/telegram/teams/pagerduty 포맷 전송
 │       │   └── authentik/
 │       │       └── client.py        # Authentik REST API 클라이언트
 │       │
@@ -205,6 +205,8 @@ traefik-manager/
             → slack: Incoming Webhook blocks/text
             → discord: webhook embed/content
             → telegram: Bot API sendMessage
+            → teams: Incoming Webhook adaptive card
+            → pagerduty: Events API v2 trigger
 ```
 
 ---
@@ -217,7 +219,7 @@ traefik-manager/
 - 선택적으로 Cloudflare Turnstile을 켜서 로그인 직전에 추가 검증을 요구할 수 있습니다.
 - 이상 징후 IP 자동 차단은 설정에서 끄거나, 신뢰 네트워크(CIDR/IP) 예외를 둘 수 있습니다.
 - 보안 이벤트는 감사 로그에 기록되고, 대시보드/감사 로그 화면에서 별도 요약과 필터로 바로 볼 수 있습니다.
-- 선택적으로 보안 이벤트를 외부 채널(generic/slack/discord/telegram)로 전송할 수 있으며, 전송 실패는 원래 로그인 방어 흐름을 막지 않습니다.
+- 선택적으로 보안 이벤트를 외부 채널(generic/slack/discord/telegram/teams/pagerduty)로 전송할 수 있으며, 전송 실패는 원래 로그인 방어 흐름을 막지 않습니다.
 - 컨테이너 비루트 사용자 실행
 - `no-new-privileges` 보안 옵션
 - 프론트엔드-백엔드 내부 네트워크 격리 (`traefik-manager-internal`)
