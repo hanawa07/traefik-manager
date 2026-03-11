@@ -130,6 +130,27 @@ const SECURITY_ALERT_PROVIDER_OPTIONS = [
   },
 ] as const;
 
+function SettingsSummaryGrid({ children }: { children: React.ReactNode }) {
+  return <div className="grid grid-cols-1 gap-y-3 md:grid-cols-[160px_minmax(0,1fr)] md:gap-x-6">{children}</div>;
+}
+
+function SettingsSummaryItem({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: React.ReactNode;
+  mono?: boolean;
+}) {
+  return (
+    <>
+      <span className="text-sm text-gray-500">{label}</span>
+      <div className={`text-sm text-gray-700 md:text-right ${mono ? "font-mono" : ""}`}>{value}</div>
+    </>
+  );
+}
+
 function parseMultivalueText(value: string): string[] {
   return value
     .split(/\r?\n|,/)
@@ -499,17 +520,19 @@ export default function SettingsPage() {
               </div>
 
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2 text-sm">
-                <div className="flex justify-between gap-4">
-                  <span className="text-gray-500">저장 기준</span>
-                  <span className="font-mono text-gray-700">{timeDisplaySettings?.storage_timezone} (고정)</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-gray-500">서버 시간대</span>
-                  <span className="font-mono text-gray-700">
-                    {timeDisplaySettings?.server_timezone_label} ({timeDisplaySettings?.server_timezone_offset})
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 pt-1">
+                <SettingsSummaryGrid>
+                  <SettingsSummaryItem
+                    label="저장 기준"
+                    value={`${timeDisplaySettings?.storage_timezone} (고정)`}
+                    mono
+                  />
+                  <SettingsSummaryItem
+                    label="서버 시간대"
+                    value={`${timeDisplaySettings?.server_timezone_label} (${timeDisplaySettings?.server_timezone_offset})`}
+                    mono
+                  />
+                </SettingsSummaryGrid>
+                <p className="border-t border-gray-200 pt-3 text-xs leading-5 text-gray-500">
                   저장 데이터와 토큰 시각은 항상 UTC로 유지됩니다. 서버 시간대는 현재 컨테이너의 로컬 시간대로,
                   `docker compose`의 `TZ` 설정에 따라 달라질 수 있습니다.
                 </p>
@@ -535,25 +558,30 @@ export default function SettingsPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">현재 표시 시간대</span>
-                <span className="font-mono text-gray-700">{timeDisplaySettings?.display_timezone || "(미설정)"}</span>
+            <div className="space-y-4">
+              <SettingsSummaryGrid>
+                <SettingsSummaryItem
+                  label="현재 표시 시간대"
+                  value={timeDisplaySettings?.display_timezone || "(미설정)"}
+                  mono
+                />
+                <SettingsSummaryItem
+                  label="저장 기준"
+                  value={`${timeDisplaySettings?.storage_timezone} (고정)`}
+                  mono
+                />
+                <SettingsSummaryItem
+                  label="서버 시간대"
+                  value={`${timeDisplaySettings?.server_timezone_label} (${timeDisplaySettings?.server_timezone_offset})`}
+                  mono
+                />
+              </SettingsSummaryGrid>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="text-xs leading-5 text-gray-500">
+                  저장 데이터와 토큰 시각은 항상 UTC로 유지됩니다. 서버 시간대는 현재 컨테이너의 로컬 시간대로,
+                  `docker compose`의 `TZ` 설정에 따라 달라질 수 있습니다.
+                </p>
               </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">저장 기준</span>
-                <span className="font-mono text-gray-700">{timeDisplaySettings?.storage_timezone} (고정)</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">서버 시간대</span>
-                <span className="font-mono text-gray-700">
-                  {timeDisplaySettings?.server_timezone_label} ({timeDisplaySettings?.server_timezone_offset})
-                </span>
-              </div>
-              <p className="text-xs text-gray-500 pt-1">
-                저장 데이터와 토큰 시각은 항상 UTC로 유지됩니다. 서버 시간대는 현재 컨테이너의 로컬 시간대로,
-                `docker compose`의 `TZ` 설정에 따라 달라질 수 있습니다.
-              </p>
             </div>
           )}
         </div>
@@ -746,43 +774,34 @@ export default function SettingsPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">정책 preset</span>
-                <span className="text-right text-gray-700">{upstreamSecuritySettings?.preset_name ?? "사용자 정의"}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">DNS strict mode</span>
-                <span className="text-gray-700">
-                  {upstreamSecuritySettings?.dns_strict_mode ? "활성화" : "비활성화"}
-                </span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">업스트림 allowlist</span>
-                <span className="text-gray-700">
-                  {upstreamSecuritySettings?.allowlist_enabled ? "활성화" : "비활성화"}
-                </span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">허용 suffix</span>
-                <span className="text-right text-gray-700">
-                  {upstreamSecuritySettings?.allowed_domain_suffixes?.length
-                    ? `${upstreamSecuritySettings.allowed_domain_suffixes.length}개`
-                    : "없음"}
-                </span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">Docker 서비스명</span>
-                <span className="text-gray-700">
-                  {upstreamSecuritySettings?.allow_docker_service_names ? "허용" : "차단"}
-                </span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-500">사설 IPv4 / Tailscale IP</span>
-                <span className="text-gray-700">
-                  {upstreamSecuritySettings?.allow_private_networks ? "허용" : "차단"}
-                </span>
-              </div>
+            <div className="space-y-4">
+              <SettingsSummaryGrid>
+                <SettingsSummaryItem label="정책 preset" value={upstreamSecuritySettings?.preset_name ?? "사용자 정의"} />
+                <SettingsSummaryItem
+                  label="DNS strict mode"
+                  value={upstreamSecuritySettings?.dns_strict_mode ? "활성화" : "비활성화"}
+                />
+                <SettingsSummaryItem
+                  label="업스트림 allowlist"
+                  value={upstreamSecuritySettings?.allowlist_enabled ? "활성화" : "비활성화"}
+                />
+                <SettingsSummaryItem
+                  label="허용 suffix"
+                  value={
+                    upstreamSecuritySettings?.allowed_domain_suffixes?.length
+                      ? `${upstreamSecuritySettings.allowed_domain_suffixes.length}개`
+                      : "없음"
+                  }
+                />
+                <SettingsSummaryItem
+                  label="Docker 서비스명"
+                  value={upstreamSecuritySettings?.allow_docker_service_names ? "허용" : "차단"}
+                />
+                <SettingsSummaryItem
+                  label="사설 IPv4 / Tailscale IP"
+                  value={upstreamSecuritySettings?.allow_private_networks ? "허용" : "차단"}
+                />
+              </SettingsSummaryGrid>
               {upstreamSecuritySettings?.allowed_domain_suffixes?.length ? (
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                   <p className="mb-2 text-xs font-medium text-gray-600">허용 suffix 목록</p>
@@ -798,11 +817,13 @@ export default function SettingsPage() {
                   </div>
                 </div>
               ) : null}
-              <p className="text-xs text-gray-500">{upstreamSecuritySettings?.preset_description}</p>
-              <p className="text-xs text-gray-500 pt-1">
-                allowlist는 저장 시점에 외부 FQDN, Docker 서비스명, IP 리터럴을 정책대로 제한합니다. strict mode는
-                도메인 업스트림을 DNS 재해석해서 금지 주소 여부를 추가로 검사합니다.
-              </p>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+                <p className="text-xs leading-5 text-gray-500">{upstreamSecuritySettings?.preset_description}</p>
+                <p className="text-xs leading-5 text-gray-500">
+                  allowlist는 저장 시점에 외부 FQDN, Docker 서비스명, IP 리터럴을 정책대로 제한합니다. strict mode는
+                  도메인 업스트림을 DNS 재해석해서 금지 주소 여부를 추가로 검사합니다.
+                </p>
+              </div>
             </div>
           )}
         </div>
