@@ -20,6 +20,7 @@
 | Production docs URL 비활성화 | ✅ 양호 |
 | no-new-privileges:true | ✅ 양호 |
 | **로그인 brute force 방어** | ✅ 적용 (Traefik rate limit + 앱 레벨 계정 잠금 + 이상 징후 IP 차단) |
+| **추가 로그인 검증 (Turnstile)** | ✅ 적용 (선택형) |
 | **브라우저 세션 관리** | ✅ 적용 (`auth_sessions` + cookie revoke) |
 | **백업 export 권한** | ✅ 적용 (admin 전용) |
 | **Upstream 호스트 검증** | ✅ 강화됨 |
@@ -50,6 +51,9 @@
 - 설정 화면에서 `login_suspicious` 기반 자동 차단을 켜고 끌 수 있습니다.
 - 설정 화면의 `신뢰 네트워크 예외(CIDR/IP)`에 포함된 클라이언트 IP는 이상 징후 기록과 IP 자동 차단에서 제외됩니다.
 - 신뢰 네트워크 예외는 운영 노이즈를 줄이기 위한 것이며, 사용자별 실패 누적/계정 잠금에는 영향을 주지 않습니다.
+- 설정 화면에서 선택형 `Cloudflare Turnstile` 로그인 보호를 활성화할 수 있습니다.
+- 활성화되면 로그인 페이지는 공개 site key로 위젯을 표시하고, 백엔드는 secret key로 토큰을 검증합니다.
+- Turnstile 검증이 없거나 실패하면 로그인은 진행되지 않습니다.
 - 대시보드에는 최근 보안 경고 요약(잠금/이상 징후/IP 차단)이 표시되고, 감사 로그 화면에는 보안 이벤트 전용 필터가 제공됩니다.
 - 설정 화면에서 보안 알림 채널을 `generic/slack/discord/telegram` preset으로 선택할 수 있습니다.
 - `login_locked`, `login_suspicious`, `login_blocked_ip` 이벤트는 채널별 포맷으로 전송됩니다.
@@ -57,7 +61,6 @@
 - 웹훅 전송 실패는 서버 로그에만 남고, 로그인 차단/잠금 동작 자체는 중단하지 않습니다.
 
 **남은 보완점:**
-- CAPTCHA
 - 차단 이벤트 알림 채널 확장(Microsoft Teams / Email / PagerDuty 등)
 - 차단 이벤트 대응 자동화 고도화
 

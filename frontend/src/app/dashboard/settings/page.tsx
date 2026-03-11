@@ -57,6 +57,9 @@ function createDefaultLoginDefenseForm(): LoginDefenseSettingsInput & { suspicio
     suspicious_block_enabled: true,
     suspicious_trusted_networks: [],
     suspicious_trusted_networks_text: "",
+    turnstile_enabled: false,
+    turnstile_site_key: "",
+    turnstile_secret_key: "",
   };
 }
 
@@ -241,6 +244,9 @@ export default function SettingsPage() {
       suspicious_block_enabled: loginDefenseSettings?.suspicious_block_enabled ?? true,
       suspicious_trusted_networks: loginDefenseSettings?.suspicious_trusted_networks ?? [],
       suspicious_trusted_networks_text: (loginDefenseSettings?.suspicious_trusted_networks ?? []).join("\n"),
+      turnstile_enabled: loginDefenseSettings?.turnstile_enabled ?? false,
+      turnstile_site_key: loginDefenseSettings?.turnstile_site_key ?? "",
+      turnstile_secret_key: "",
     });
     setLoginDefenseErrorMessage("");
     setIsEditingLoginDefense(true);
@@ -252,6 +258,9 @@ export default function SettingsPage() {
       await updateLoginDefense.mutateAsync({
         suspicious_block_enabled: loginDefenseForm.suspicious_block_enabled,
         suspicious_trusted_networks: parseMultivalueText(loginDefenseForm.suspicious_trusted_networks_text),
+        turnstile_enabled: loginDefenseForm.turnstile_enabled,
+        turnstile_site_key: loginDefenseForm.turnstile_site_key.trim(),
+        turnstile_secret_key: loginDefenseForm.turnstile_secret_key.trim(),
       });
       setIsEditingLoginDefense(false);
     } catch (error) {
@@ -749,7 +758,7 @@ export default function SettingsPage() {
             )}
           </div>
           <p className="text-xs text-gray-400 mb-4">
-            사용자별 계정 잠금은 항상 유지하고, 반복 실패 IP에 대한 자동 차단과 신뢰 네트워크 예외만 별도로 조정합니다.
+            사용자별 계정 잠금은 항상 유지하고, 반복 실패 IP 자동 차단과 선택형 Turnstile 로그인 검증을 함께 조정합니다.
           </p>
 
           {isLoginDefenseLoading ? (
@@ -767,6 +776,9 @@ export default function SettingsPage() {
                 </p>
                 <p>
                   자동 차단 기간: {loginDefenseSettings?.suspicious_block_minutes}분
+                </p>
+                <p>
+                  추가 로그인 검증: {loginDefenseSettings?.turnstile_enabled ? "Cloudflare Turnstile 활성화" : "비활성화"}
                 </p>
               </div>
 
@@ -807,6 +819,65 @@ export default function SettingsPage() {
                   줄바꿈 또는 쉼표로 구분합니다. 여기에 포함된 IP는 이상 징후 기록과 자동 차단에서 제외됩니다. 사용자별
                   계정 잠금은 그대로 적용됩니다.
                 </p>
+              </div>
+
+              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded accent-amber-600"
+                  checked={loginDefenseForm.turnstile_enabled}
+                  onChange={(e) =>
+                    setLoginDefenseForm((current) => ({
+                      ...current,
+                      turnstile_enabled: e.target.checked,
+                    }))
+                  }
+                />
+                <span>
+                  <span className="block font-medium text-gray-900">Cloudflare Turnstile 로그인 검증 활성화</span>
+                  <span className="block text-xs text-gray-500 mt-1">
+                    로그인 페이지에 추가 검증 위젯을 띄우고, 서버에서 토큰을 검증합니다.
+                  </span>
+                </span>
+              </label>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="label">Turnstile Site Key</label>
+                  <input
+                    type="text"
+                    className="input font-mono text-sm"
+                    placeholder="0x4AAAAA..."
+                    value={loginDefenseForm.turnstile_site_key}
+                    onChange={(e) =>
+                      setLoginDefenseForm((current) => ({
+                        ...current,
+                        turnstile_site_key: e.target.value,
+                      }))
+                    }
+                  />
+                  <p className="mt-1 text-xs text-gray-500">로그인 페이지에 공개로 노출되는 site key입니다.</p>
+                </div>
+                <div>
+                  <label className="label">Turnstile Secret Key</label>
+                  <input
+                    type="password"
+                    className="input font-mono text-sm"
+                    placeholder={loginDefenseSettings?.turnstile_secret_key_configured ? "기존 secret 유지" : "secret key 입력"}
+                    value={loginDefenseForm.turnstile_secret_key}
+                    onChange={(e) =>
+                      setLoginDefenseForm((current) => ({
+                        ...current,
+                        turnstile_secret_key: e.target.value,
+                      }))
+                    }
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    {loginDefenseSettings?.turnstile_secret_key_configured
+                      ? "비워두면 기존 secret key를 유지합니다."
+                      : "Cloudflare Turnstile secret key를 입력합니다."}
+                  </p>
+                </div>
               </div>
 
               {loginDefenseErrorMessage && <p className="text-xs text-red-600">{loginDefenseErrorMessage}</p>}
@@ -852,6 +923,18 @@ export default function SettingsPage() {
                     : "비활성화"}
                 </span>
               </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">추가 로그인 검증</span>
+                <span className="text-right text-gray-700">
+                  {loginDefenseSettings?.turnstile_enabled ? "Cloudflare Turnstile 활성화" : "비활성화"}
+                </span>
+              </div>
+              {loginDefenseSettings?.turnstile_enabled ? (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
+                  <p>Site Key: {loginDefenseSettings.turnstile_site_key || "(미설정)"}</p>
+                  <p>Secret Key: {loginDefenseSettings.turnstile_secret_key_configured ? "설정됨" : "(미설정)"}</p>
+                </div>
+              ) : null}
               {loginDefenseSettings?.suspicious_trusted_networks?.length ? (
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                   <p className="mb-2 text-xs font-medium text-gray-600">신뢰 네트워크 예외</p>

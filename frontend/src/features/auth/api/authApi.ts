@@ -6,6 +6,11 @@ export interface LoginResponse {
   role: UserRole;
 }
 
+export interface LoginProtectionResponse {
+  turnstile_enabled: boolean;
+  turnstile_site_key: string | null;
+}
+
 export interface CurrentSessionResponse extends LoginResponse {
   session_id: string;
   issued_at: string;
@@ -29,14 +34,22 @@ export interface SessionListResponse {
 }
 
 export const authApi = {
-  login: async (username: string, password: string): Promise<LoginResponse> => {
+  login: async (username: string, password: string, turnstileToken?: string): Promise<LoginResponse> => {
     const form = new URLSearchParams();
     form.append("username", username);
     form.append("password", password);
+    if (turnstileToken) {
+      form.append("cf-turnstile-response", turnstileToken);
+    }
 
     const res = await apiClient.post<LoginResponse>("/auth/login", form, {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
+    return res.data;
+  },
+
+  getLoginProtection: async (): Promise<LoginProtectionResponse> => {
+    const res = await apiClient.get<LoginProtectionResponse>("/auth/login-protection");
     return res.data;
   },
 

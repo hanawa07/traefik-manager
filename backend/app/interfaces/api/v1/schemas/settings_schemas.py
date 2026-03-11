@@ -105,16 +105,27 @@ class LoginDefenseSettingsResponse(BaseModel):
     suspicious_block_minutes: int
     suspicious_block_enabled: bool
     suspicious_trusted_networks: list[str] = Field(default_factory=list)
+    turnstile_enabled: bool = False
+    turnstile_site_key: str | None = None
+    turnstile_secret_key_configured: bool = False
 
 
 class LoginDefenseSettingsUpdateRequest(BaseModel):
     suspicious_block_enabled: bool = True
     suspicious_trusted_networks: list[str] = Field(default_factory=list)
+    turnstile_enabled: bool = False
+    turnstile_site_key: str = ""
+    turnstile_secret_key: str = ""
 
     @field_validator("suspicious_trusted_networks")
     @classmethod
     def validate_suspicious_trusted_networks(cls, value: list[str]) -> list[str]:
         return normalize_trusted_networks(value)
+
+    @field_validator("turnstile_site_key", "turnstile_secret_key")
+    @classmethod
+    def normalize_turnstile_strings(cls, value: str) -> str:
+        return value.strip()
 
 
 class SecurityAlertSettingsResponse(BaseModel):

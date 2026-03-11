@@ -152,6 +152,12 @@ async def update_login_defense_settings(
     _: dict = Depends(require_admin),
 ):
     repo = SQLiteSystemSettingsRepository(db)
+    existing_turnstile_secret = await repo.get("login_turnstile_secret_key")
+    effective_turnstile_secret = request.turnstile_secret_key or existing_turnstile_secret or ""
+
+    if request.turnstile_enabled and (not request.turnstile_site_key or not effective_turnstile_secret):
+        raise HTTPException(status_code=422, detail="Turnstile site key와 secret key가 필요합니다")
+
     await repo.set(
         "login_suspicious_block_enabled",
         "true" if request.suspicious_block_enabled else "false",
@@ -160,6 +166,19 @@ async def update_login_defense_settings(
         "login_suspicious_trusted_networks",
         "\n".join(request.suspicious_trusted_networks) or None,
     )
+    await repo.set(
+        "login_turnstile_enabled",
+        "true" if request.turnstile_enabled else "false",
+    )
+    await repo.set(
+        "login_turnstile_site_key",
+        request.turnstile_site_key or None,
+    )
+    if request.turnstile_secret_key:
+        await repo.set(
+            "login_turnstile_secret_key",
+            request.turnstile_secret_key,
+        )
     return await _build_login_defense_response(repo)
 
 
@@ -279,6 +298,7 @@ async def _build_upstream_security_response(
 async def _build_login_defense_response(
     repo: SQLiteSystemSettingsRepository,
 ) -> LoginDefenseSettingsResponse:
+    turnstile_secret_key = await repo.get("login_turnstile_secret_key")
     return LoginDefenseSettingsResponse(
         max_failed_attempts=settings.LOGIN_MAX_FAILED_ATTEMPTS,
         failure_window_minutes=settings.LOGIN_FAILURE_WINDOW_MINUTES,
@@ -295,6 +315,9 @@ async def _build_login_defense_response(
         suspicious_trusted_networks=normalize_trusted_networks(
             _split_networks(await repo.get("login_suspicious_trusted_networks"))
         ),
+        turnstile_enabled=await _get_bool_setting(repo, "login_turnstile_enabled", default=False),
+        turnstile_site_key=await repo.get("login_turnstile_site_key"),
+        turnstile_secret_key_configured=bool(turnstile_secret_key),
     )
 
 

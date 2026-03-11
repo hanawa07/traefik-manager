@@ -66,7 +66,7 @@ traefik-manager/
 │       │   │   ├── commands/        # 상태 변경 커맨드
 │       │   │   ├── queries/         # 조회 쿼리
 │       │   │   └── service_use_cases.py
-│       │   ├── auth/                # 로그인 방어, 세션 관리, 이상 징후 탐지, 자동 차단 예외 정책
+│       │   ├── auth/                # 로그인 방어, Turnstile 검증, 세션 관리, 이상 징후 탐지, 자동 차단 예외 정책
 │       │   ├── audit/               # 감사 로그 기록, 보안 이벤트 요약
 │       │   └── certificate/
 │       │
@@ -90,6 +90,8 @@ traefik-manager/
 │       │   │   └── upstream_dns_guard.py
 │       │   ├── auth/
 │       │   │   └── session_cleanup.py
+│       │   ├── security/
+│       │   │   └── turnstile_verifier.py
 │       │   ├── notifications/
 │       │   │   └── security_alert_notifier.py   # generic/slack/discord/telegram 포맷 전송
 │       │   └── authentik/
@@ -179,6 +181,13 @@ traefik-manager/
       → SQLiteSystemSettingsRepository 저장
         → /api/v1/auth/login 에서 자동 차단 on/off, 신뢰 네트워크 예외 로드
           → login_anomaly_service가 이상 징후 기록 / IP 차단 여부 결정
+          → turnstile_verifier가 선택형 로그인 추가 검증 수행
+
+로그인 보호 공개 설정:
+  로그인 페이지 진입
+    → GET /api/v1/auth/login-protection
+      → system_settings에서 Turnstile enabled/site key 조회
+        → 프런트가 Turnstile 위젯 렌더링
 
 보안 경고 가시성:
   대시보드 / 감사 로그 진입
@@ -205,6 +214,7 @@ traefik-manager/
 - 브라우저 관리자 API는 서버 세션 쿠키 + CSRF 헤더 검증을 사용합니다.
 - 서비스 보호용 `forwardAuth`는 서비스 API Key 또는 관리자 세션 쿠키를 검사합니다.
 - 로그인 방어는 Traefik rate limit + 앱 레벨 계정 잠금 + 이상 징후/IP 차단의 2단계 구조입니다.
+- 선택적으로 Cloudflare Turnstile을 켜서 로그인 직전에 추가 검증을 요구할 수 있습니다.
 - 이상 징후 IP 자동 차단은 설정에서 끄거나, 신뢰 네트워크(CIDR/IP) 예외를 둘 수 있습니다.
 - 보안 이벤트는 감사 로그에 기록되고, 대시보드/감사 로그 화면에서 별도 요약과 필터로 바로 볼 수 있습니다.
 - 선택적으로 보안 이벤트를 외부 채널(generic/slack/discord/telegram)로 전송할 수 있으며, 전송 실패는 원래 로그인 방어 흐름을 막지 않습니다.

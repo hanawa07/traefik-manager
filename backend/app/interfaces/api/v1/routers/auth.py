@@ -24,11 +24,13 @@ from app.infrastructure.persistence.repositories.sqlite_system_settings_reposito
 from app.infrastructure.persistence.repositories.sqlite_user_repository import (
     SQLiteUserRepository,
 )
+from app.infrastructure.security import turnstile_verifier
 from app.interfaces.api.v1.schemas.settings_schemas import normalize_trusted_networks
 from app.interfaces.api.dependencies import get_current_user, resolve_authenticated_user
 from app.interfaces.api.v1.schemas.auth_schemas import (
     CurrentSessionResponse,
     LoginResponse,
+    LoginProtectionResponse,
     SessionInfoResponse,
     SessionListResponse,
 )
@@ -129,6 +131,32 @@ async def login(
             detail="아이디 또는 비밀번호가 올바르지 않습니다",
         )
 
+    turnstile_enabled = await _get_bool_system_setting(
+        system_settings_repo,
+        "login_turnstile_enabled",
+        default=False,
+    )
+    turnstile_site_key = (await system_settings_repo.get("login_turnstile_site_key")) or ""
+    turnstile_secret_key = (await system_settings_repo.get("login_turnstile_secret_key")) or ""
+    if turnstile_enabled:
+        submitted_form = await request.form()
+        turnstile_token = str(submitted_form.get("cf-turnstile-response") or "").strip()
+        if not turnstile_token or not turnstile_site_key or not turnstile_secret_key:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="추가 로그인 검증에 실패했습니다",
+            )
+        verified = await turnstile_verifier.verify_token(
+            token=turnstile_token,
+            secret_key=turnstile_secret_key,
+            remote_ip=client_ip,
+        )
+        if not verified:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="추가 로그인 검증에 실패했습니다",
+            )
+
     auth_result = await use_cases.authenticate_user(form.username, form.password)
     if not auth_result.authenticated_user:
         event = "login_locked" if auth_result.failure_reason == "locked" else "login_failure"
@@ -212,6 +240,19 @@ async def login(
         "username": user.username,
         "role": user.role,
     }
+
+
+@router.get("/login-protection", response_model=LoginProtectionResponse, summary="로그인 보호 공개 설정")
+async def get_login_protection(db: AsyncSession = Depends(get_db)):
+    repo = SQLiteSystemSettingsRepository(db)
+    return LoginProtectionResponse(
+        turnstile_enabled=await _get_bool_system_setting(
+            repo,
+            "login_turnstile_enabled",
+            default=False,
+        ),
+        turnstile_site_key=await repo.get("login_turnstile_site_key"),
+    )
 
 
 async def _get_bool_system_setting(

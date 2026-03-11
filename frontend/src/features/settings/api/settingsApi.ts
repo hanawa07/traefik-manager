@@ -117,11 +117,17 @@ export interface LoginDefenseSettingsStatus {
   suspicious_block_minutes: number;
   suspicious_block_enabled: boolean;
   suspicious_trusted_networks: string[];
+  turnstile_enabled: boolean;
+  turnstile_site_key: string | null;
+  turnstile_secret_key_configured: boolean;
 }
 
 export interface LoginDefenseSettingsInput {
   suspicious_block_enabled: boolean;
   suspicious_trusted_networks: string[];
+  turnstile_enabled: boolean;
+  turnstile_site_key: string;
+  turnstile_secret_key: string;
 }
 
 export interface SecurityAlertSettingsStatus {

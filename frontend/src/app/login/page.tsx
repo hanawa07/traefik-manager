@@ -1,9 +1,28 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Script from "next/script";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { authApi } from "@/features/auth/api/authApi";
 import { Lock, User } from "lucide-react";
+
+type LoginProtectionState = {
+  turnstile_enabled: boolean;
+  turnstile_site_key: string | null;
+};
+
+type TurnstileApi = {
+  render: (
+    container: HTMLElement,
+    options: {
+      sitekey: string;
+      callback: (token: string) => void;
+      "expired-callback": () => void;
+      "error-callback": () => void;
+    },
+  ) => string | number;
+  reset: (widgetId?: string | number) => void;
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,6 +35,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loginProtection, setLoginProtection] = useState<LoginProtectionState>({
+    turnstile_enabled: false,
+    turnstile_site_key: null,
+  });
+  const [turnstileReady, setTurnstileReady] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
+  const turnstileWidgetIdRef = useRef<string | number | null>(null);
 
   useEffect(() => {
     if (hydrated && !initialized) {
@@ -29,16 +56,74 @@ export default function LoginPage() {
     }
   }, [hydrated, initialized, isAuthenticated, router]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadLoginProtection = async () => {
+      try {
+        const response = await authApi.getLoginProtection();
+        if (!cancelled) {
+          setLoginProtection(response);
+        }
+      } catch {
+        if (!cancelled) {
+          setLoginProtection({
+            turnstile_enabled: false,
+            turnstile_site_key: null,
+          });
+        }
+      }
+    };
+
+    void loadLoginProtection();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      !loginProtection.turnstile_enabled ||
+      !loginProtection.turnstile_site_key ||
+      !turnstileReady ||
+      !turnstileContainerRef.current ||
+      turnstileWidgetIdRef.current !== null
+    ) {
+      return;
+    }
+
+    const turnstile = (window as Window & { turnstile?: TurnstileApi }).turnstile;
+    if (!turnstile) {
+      return;
+    }
+
+    turnstileWidgetIdRef.current = turnstile.render(turnstileContainerRef.current, {
+      sitekey: loginProtection.turnstile_site_key,
+      callback: (token) => setTurnstileToken(token),
+      "expired-callback": () => setTurnstileToken(""),
+      "error-callback": () => setTurnstileToken(""),
+    });
+  }, [loginProtection.turnstile_enabled, loginProtection.turnstile_site_key, turnstileReady]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (loginProtection.turnstile_enabled && !turnstileToken) {
+      setError("추가 로그인 검증을 완료해주세요");
+      return;
+    }
     setLoading(true);
     try {
-      const result = await authApi.login(username, password);
+      const result = await authApi.login(username, password, turnstileToken);
       login(result.username, result.role);
       router.replace("/dashboard");
     } catch {
-      setError("아이디 또는 비밀번호가 올바르지 않습니다");
+      setError(loginProtection.turnstile_enabled ? "아이디/비밀번호 또는 추가 로그인 검증이 올바르지 않습니다" : "아이디 또는 비밀번호가 올바르지 않습니다");
+      const turnstile = (window as Window & { turnstile?: TurnstileApi }).turnstile;
+      if (turnstile && turnstileWidgetIdRef.current !== null) {
+        turnstile.reset(turnstileWidgetIdRef.current);
+        setTurnstileToken("");
+      }
     } finally {
       setLoading(false);
     }
@@ -69,6 +154,13 @@ export default function LoginPage() {
 
         {/* 로그인 폼 */}
         <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10">
+          {loginProtection.turnstile_enabled ? (
+            <Script
+              src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+              strategy="afterInteractive"
+              onLoad={() => setTurnstileReady(true)}
+            />
+          ) : null}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="label text-slate-700">아이디</label>
@@ -104,6 +196,15 @@ export default function LoginPage() {
             {error && (
               <p className="text-sm text-red-600 bg-red-50/80 px-4 py-3 rounded-xl border border-red-100 font-medium">{error}</p>
             )}
+
+            {loginProtection.turnstile_enabled ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="mb-3 text-xs font-medium tracking-wide text-slate-500">
+                  추가 로그인 검증
+                </p>
+                <div ref={turnstileContainerRef} />
+              </div>
+            ) : null}
 
             <button type="submit" className="btn-primary w-full py-4 text-base tracking-wide" disabled={loading}>
               {loading ? "인증 중..." : "로그인"}
