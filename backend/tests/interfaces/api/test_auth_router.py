@@ -101,6 +101,20 @@ def stub_no_suspicious_ip_block(monkeypatch) -> None:
     )
 
 
+def stub_turnstile_risk(monkeypatch, required: bool, calls: list[dict] | None = None) -> None:
+    async def fake_risk(**kwargs):
+        if calls is not None:
+            calls.append(kwargs)
+        return required
+
+    monkeypatch.setattr(
+        auth_router.login_anomaly_service,
+        "should_require_turnstile_for_ip",
+        fake_risk,
+        raising=False,
+    )
+
+
 @pytest.mark.asyncio
 async def test_login_sets_session_and_csrf_cookies(monkeypatch):
     user = User(
@@ -163,16 +177,47 @@ async def test_get_login_protection_returns_turnstile_public_settings(monkeypatc
     stub_default_system_settings(
         monkeypatch,
         {
+            "login_turnstile_mode": "always",
             "login_turnstile_enabled": "true",
             "login_turnstile_site_key": "0x4AAAAA-example-site-key",
             "login_turnstile_secret_key": "turnstile-secret",
         },
     )
 
-    response = await auth_router.get_login_protection(db=object())
+    response = await auth_router.get_login_protection(
+        request=make_request(path="/api/v1/auth/login-protection", method="GET"),
+        db=object(),
+    )
 
+    assert response.turnstile_mode == "always"
     assert response.turnstile_enabled is True
+    assert response.turnstile_required is True
     assert response.turnstile_site_key == "0x4AAAAA-example-site-key"
+
+
+@pytest.mark.asyncio
+async def test_get_login_protection_returns_required_false_for_risk_based_without_recent_failures(monkeypatch):
+    risk_calls = []
+    stub_default_system_settings(
+        monkeypatch,
+        {
+            "login_turnstile_mode": "risk_based",
+            "login_turnstile_enabled": "true",
+            "login_turnstile_site_key": "0x4AAAAA-example-site-key",
+            "login_turnstile_secret_key": "turnstile-secret",
+        },
+    )
+    stub_turnstile_risk(monkeypatch, False, risk_calls)
+
+    response = await auth_router.get_login_protection(
+        request=make_request(path="/api/v1/auth/login-protection", method="GET"),
+        db=object(),
+    )
+
+    assert response.turnstile_mode == "risk_based"
+    assert response.turnstile_enabled is True
+    assert response.turnstile_required is False
+    assert risk_calls[0]["client_ip"] == "127.0.0.1"
 
 
 @pytest.mark.asyncio
@@ -361,6 +406,7 @@ async def test_login_requires_turnstile_token_when_enabled(monkeypatch):
     stub_default_system_settings(
         monkeypatch,
         {
+            "login_turnstile_mode": "always",
             "login_turnstile_enabled": "true",
             "login_turnstile_site_key": "0x4AAAAA-example-site-key",
             "login_turnstile_secret_key": "turnstile-secret",
@@ -414,6 +460,7 @@ async def test_login_verifies_turnstile_token_when_enabled(monkeypatch):
     stub_default_system_settings(
         monkeypatch,
         {
+            "login_turnstile_mode": "always",
             "login_turnstile_enabled": "true",
             "login_turnstile_site_key": "0x4AAAAA-example-site-key",
             "login_turnstile_secret_key": "turnstile-secret",
@@ -451,6 +498,105 @@ async def test_login_verifies_turnstile_token_when_enabled(monkeypatch):
     assert verify_calls[0]["token"] == "turnstile-token-123"
     assert verify_calls[0]["secret_key"] == "turnstile-secret"
     assert verify_calls[0]["remote_ip"] == "127.0.0.1"
+
+
+@pytest.mark.asyncio
+async def test_login_skips_turnstile_when_risk_based_mode_not_required(monkeypatch):
+    user = User(
+        id=uuid4(),
+        username="admin",
+        hashed_password="hashed",
+        role="admin",
+        is_active=True,
+        token_version=4,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    repository = StubAuthSessionRepository()
+    response = Response()
+    risk_calls = []
+    verify_calls = []
+
+    monkeypatch.setattr(auth_router, "SQLiteAuthSessionRepository", lambda _db: repository, raising=False)
+    monkeypatch.setattr(
+        auth_router,
+        "issue_session_credentials",
+        lambda: SimpleNamespace(
+            session_id="session-1",
+            secret="secret-1",
+            secret_hash="hash-1",
+            cookie_value="session-1.secret-1",
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(auth_router, "issue_csrf_token", lambda: "csrf-token-1", raising=False)
+    stub_default_system_settings(
+        monkeypatch,
+        {
+            "login_turnstile_mode": "risk_based",
+            "login_turnstile_enabled": "true",
+            "login_turnstile_site_key": "0x4AAAAA-example-site-key",
+            "login_turnstile_secret_key": "turnstile-secret",
+        },
+    )
+    stub_no_suspicious_ip_block(monkeypatch)
+    stub_turnstile_risk(monkeypatch, False, risk_calls)
+    stub_turnstile_verifier(monkeypatch, True, verify_calls)
+
+    result = await auth_router.login(
+        request=make_request(headers={"user-agent": "pytest-browser/1.0"}),
+        response=response,
+        form=SimpleNamespace(username="admin", password="correct-password"),
+        use_cases=StubAuthUseCases(
+            SimpleNamespace(
+                authenticated_user=user,
+                subject_user=user,
+                failure_reason=None,
+                locked_until=None,
+            )
+        ),
+        db=object(),
+    )
+
+    assert result["username"] == "admin"
+    assert risk_calls[0]["client_ip"] == "127.0.0.1"
+    assert verify_calls == []
+
+
+@pytest.mark.asyncio
+async def test_login_requires_turnstile_when_risk_based_mode_is_required(monkeypatch):
+    use_cases = StubAuthUseCases(
+        SimpleNamespace(
+            authenticated_user=None,
+            subject_user=None,
+            failure_reason="invalid_credentials",
+            locked_until=None,
+        )
+    )
+    stub_default_system_settings(
+        monkeypatch,
+        {
+            "login_turnstile_mode": "risk_based",
+            "login_turnstile_enabled": "true",
+            "login_turnstile_site_key": "0x4AAAAA-example-site-key",
+            "login_turnstile_secret_key": "turnstile-secret",
+        },
+    )
+    stub_no_suspicious_ip_block(monkeypatch)
+    stub_turnstile_risk(monkeypatch, True)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await auth_router.login(
+            request=make_request(headers={"user-agent": "pytest-browser/1.0"}),
+            response=Response(),
+            form=SimpleNamespace(username="admin", password="correct-password"),
+            use_cases=use_cases,
+            db=object(),
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "추가 로그인 검증에 실패했습니다"
+    assert use_cases.calls == []
 
 
 @pytest.mark.asyncio

@@ -7,7 +7,9 @@ import { authApi } from "@/features/auth/api/authApi";
 import { Lock, User } from "lucide-react";
 
 type LoginProtectionState = {
+  turnstile_mode: "off" | "always" | "risk_based";
   turnstile_enabled: boolean;
+  turnstile_required: boolean;
   turnstile_site_key: string | null;
 };
 
@@ -36,13 +38,21 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [loginProtection, setLoginProtection] = useState<LoginProtectionState>({
+    turnstile_mode: "off",
     turnstile_enabled: false,
+    turnstile_required: false,
     turnstile_site_key: null,
   });
   const [turnstileReady, setTurnstileReady] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileWidgetIdRef = useRef<string | number | null>(null);
+
+  const loadLoginProtection = async (): Promise<LoginProtectionState> => {
+    const response = await authApi.getLoginProtection();
+    setLoginProtection(response);
+    return response;
+  };
 
   useEffect(() => {
     if (hydrated && !initialized) {
@@ -59,7 +69,7 @@ export default function LoginPage() {
   useEffect(() => {
     let cancelled = false;
 
-    const loadLoginProtection = async () => {
+    const initializeLoginProtection = async () => {
       try {
         const response = await authApi.getLoginProtection();
         if (!cancelled) {
@@ -68,14 +78,16 @@ export default function LoginPage() {
       } catch {
         if (!cancelled) {
           setLoginProtection({
+            turnstile_mode: "off",
             turnstile_enabled: false,
+            turnstile_required: false,
             turnstile_site_key: null,
           });
         }
       }
     };
 
-    void loadLoginProtection();
+    void initializeLoginProtection();
     return () => {
       cancelled = true;
     };
@@ -83,7 +95,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (
-      !loginProtection.turnstile_enabled ||
+      !loginProtection.turnstile_required ||
       !loginProtection.turnstile_site_key ||
       !turnstileReady ||
       !turnstileContainerRef.current ||
@@ -103,12 +115,20 @@ export default function LoginPage() {
       "expired-callback": () => setTurnstileToken(""),
       "error-callback": () => setTurnstileToken(""),
     });
-  }, [loginProtection.turnstile_enabled, loginProtection.turnstile_site_key, turnstileReady]);
+  }, [loginProtection.turnstile_required, loginProtection.turnstile_site_key, turnstileReady]);
+
+  useEffect(() => {
+    if (loginProtection.turnstile_required && loginProtection.turnstile_site_key) {
+      return;
+    }
+    turnstileWidgetIdRef.current = null;
+    setTurnstileToken("");
+  }, [loginProtection.turnstile_required, loginProtection.turnstile_site_key]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (loginProtection.turnstile_enabled && !turnstileToken) {
+    if (loginProtection.turnstile_required && !turnstileToken) {
       setError("추가 로그인 검증을 완료해주세요");
       return;
     }
@@ -118,11 +138,24 @@ export default function LoginPage() {
       login(result.username, result.role);
       router.replace("/dashboard");
     } catch {
-      setError(loginProtection.turnstile_enabled ? "아이디/비밀번호 또는 추가 로그인 검증이 올바르지 않습니다" : "아이디 또는 비밀번호가 올바르지 않습니다");
       const turnstile = (window as Window & { turnstile?: TurnstileApi }).turnstile;
       if (turnstile && turnstileWidgetIdRef.current !== null) {
         turnstile.reset(turnstileWidgetIdRef.current);
         setTurnstileToken("");
+      }
+      try {
+        const nextProtection = await loadLoginProtection();
+        setError(
+          nextProtection.turnstile_required
+            ? "아이디/비밀번호 또는 추가 로그인 검증이 올바르지 않습니다"
+            : "아이디 또는 비밀번호가 올바르지 않습니다",
+        );
+      } catch {
+        setError(
+          loginProtection.turnstile_required
+            ? "아이디/비밀번호 또는 추가 로그인 검증이 올바르지 않습니다"
+            : "아이디 또는 비밀번호가 올바르지 않습니다",
+        );
       }
     } finally {
       setLoading(false);
@@ -154,7 +187,7 @@ export default function LoginPage() {
 
         {/* 로그인 폼 */}
         <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10">
-          {loginProtection.turnstile_enabled ? (
+          {loginProtection.turnstile_enabled && loginProtection.turnstile_site_key ? (
             <Script
               src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
               strategy="afterInteractive"
@@ -197,12 +230,19 @@ export default function LoginPage() {
               <p className="text-sm text-red-600 bg-red-50/80 px-4 py-3 rounded-xl border border-red-100 font-medium">{error}</p>
             )}
 
-            {loginProtection.turnstile_enabled ? (
+            {loginProtection.turnstile_required ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                 <p className="mb-3 text-xs font-medium tracking-wide text-slate-500">
                   추가 로그인 검증
                 </p>
                 <div ref={turnstileContainerRef} />
+              </div>
+            ) : loginProtection.turnstile_mode === "risk_based" && loginProtection.turnstile_enabled ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="text-xs font-medium tracking-wide text-slate-500">위험 기반 로그인 검증 대기</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  최근 실패가 감지되면 Cloudflare Turnstile 검증이 자동으로 표시됩니다.
+                </p>
               </div>
             ) : null}
 

@@ -57,7 +57,7 @@ function createDefaultLoginDefenseForm(): LoginDefenseSettingsInput & { suspicio
     suspicious_block_enabled: true,
     suspicious_trusted_networks: [],
     suspicious_trusted_networks_text: "",
-    turnstile_enabled: false,
+    turnstile_mode: "off",
     turnstile_site_key: "",
     turnstile_secret_key: "",
   };
@@ -131,6 +131,17 @@ function parseMultivalueText(value: string): string[] {
     .split(/\r?\n|,/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function getTurnstileModeLabel(mode: "off" | "always" | "risk_based"): string {
+  switch (mode) {
+    case "always":
+      return "항상 적용";
+    case "risk_based":
+      return "위험 기반 적용";
+    default:
+      return "비활성화";
+  }
 }
 
 function inferUpstreamPresetKey(
@@ -270,7 +281,7 @@ export default function SettingsPage() {
       suspicious_block_enabled: loginDefenseSettings?.suspicious_block_enabled ?? true,
       suspicious_trusted_networks: loginDefenseSettings?.suspicious_trusted_networks ?? [],
       suspicious_trusted_networks_text: (loginDefenseSettings?.suspicious_trusted_networks ?? []).join("\n"),
-      turnstile_enabled: loginDefenseSettings?.turnstile_enabled ?? false,
+      turnstile_mode: loginDefenseSettings?.turnstile_mode ?? "off",
       turnstile_site_key: loginDefenseSettings?.turnstile_site_key ?? "",
       turnstile_secret_key: "",
     });
@@ -284,7 +295,7 @@ export default function SettingsPage() {
       await updateLoginDefense.mutateAsync({
         suspicious_block_enabled: loginDefenseForm.suspicious_block_enabled,
         suspicious_trusted_networks: parseMultivalueText(loginDefenseForm.suspicious_trusted_networks_text),
-        turnstile_enabled: loginDefenseForm.turnstile_enabled,
+        turnstile_mode: loginDefenseForm.turnstile_mode,
         turnstile_site_key: loginDefenseForm.turnstile_site_key.trim(),
         turnstile_secret_key: loginDefenseForm.turnstile_secret_key.trim(),
       });
@@ -820,7 +831,7 @@ export default function SettingsPage() {
                   자동 차단 기간: {loginDefenseSettings?.suspicious_block_minutes}분
                 </p>
                 <p>
-                  추가 로그인 검증: {loginDefenseSettings?.turnstile_enabled ? "Cloudflare Turnstile 활성화" : "비활성화"}
+                  추가 로그인 검증: {getTurnstileModeLabel(loginDefenseSettings?.turnstile_mode ?? "off")}
                 </p>
               </div>
 
@@ -863,25 +874,26 @@ export default function SettingsPage() {
                 </p>
               </div>
 
-              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded accent-amber-600"
-                  checked={loginDefenseForm.turnstile_enabled}
+              <div>
+                <label className="label">Cloudflare Turnstile 적용 모드</label>
+                <select
+                  className="input"
+                  value={loginDefenseForm.turnstile_mode}
                   onChange={(e) =>
                     setLoginDefenseForm((current) => ({
                       ...current,
-                      turnstile_enabled: e.target.checked,
+                      turnstile_mode: e.target.value as "off" | "always" | "risk_based",
                     }))
                   }
-                />
-                <span>
-                  <span className="block font-medium text-gray-900">Cloudflare Turnstile 로그인 검증 활성화</span>
-                  <span className="block text-xs text-gray-500 mt-1">
-                    로그인 페이지에 추가 검증 위젯을 띄우고, 서버에서 토큰을 검증합니다.
-                  </span>
-                </span>
-              </label>
+                >
+                  <option value="off">비활성화</option>
+                  <option value="always">항상 적용</option>
+                  <option value="risk_based">위험 기반 적용</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  위험 기반 적용은 최근 실패가 누적된 IP에서만 Turnstile 검증을 요구합니다.
+                </p>
+              </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
@@ -968,13 +980,14 @@ export default function SettingsPage() {
               <div className="flex justify-between gap-4">
                 <span className="text-gray-500">추가 로그인 검증</span>
                 <span className="text-right text-gray-700">
-                  {loginDefenseSettings?.turnstile_enabled ? "Cloudflare Turnstile 활성화" : "비활성화"}
+                  {getTurnstileModeLabel(loginDefenseSettings?.turnstile_mode ?? "off")}
                 </span>
               </div>
-              {loginDefenseSettings?.turnstile_enabled ? (
+              {loginDefenseSettings?.turnstile_mode !== "off" ? (
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
-                  <p>Site Key: {loginDefenseSettings.turnstile_site_key || "(미설정)"}</p>
-                  <p>Secret Key: {loginDefenseSettings.turnstile_secret_key_configured ? "설정됨" : "(미설정)"}</p>
+                  <p>모드: {getTurnstileModeLabel(loginDefenseSettings?.turnstile_mode ?? "off")}</p>
+                  <p>Site Key: {loginDefenseSettings?.turnstile_site_key || "(미설정)"}</p>
+                  <p>Secret Key: {loginDefenseSettings?.turnstile_secret_key_configured ? "설정됨" : "(미설정)"}</p>
                 </div>
               ) : null}
               {loginDefenseSettings?.suspicious_trusted_networks?.length ? (

@@ -179,15 +179,17 @@ traefik-manager/
   설정 화면 입력
     → PUT /api/v1/settings/login-defense
       → SQLiteSystemSettingsRepository 저장
-        → /api/v1/auth/login 에서 자동 차단 on/off, 신뢰 네트워크 예외 로드
+        → /api/v1/auth/login 에서 자동 차단 on/off, 신뢰 네트워크 예외, Turnstile mode 로드
           → login_anomaly_service가 이상 징후 기록 / IP 차단 여부 결정
-          → turnstile_verifier가 선택형 로그인 추가 검증 수행
+          → risk_based 모드면 최근 실패 IP 여부를 추가 계산
+          → turnstile_verifier가 필요한 시점에만 추가 검증 수행
 
 로그인 보호 공개 설정:
   로그인 페이지 진입
     → GET /api/v1/auth/login-protection
-      → system_settings에서 Turnstile enabled/site key 조회
-        → 프런트가 Turnstile 위젯 렌더링
+      → system_settings에서 Turnstile mode/site key 조회
+        → risk_based면 최근 실패 IP 여부를 함께 계산
+        → 프런트가 필요한 시점에만 Turnstile 위젯 렌더링
 
 보안 경고 가시성:
   대시보드 / 감사 로그 진입

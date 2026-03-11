@@ -7,7 +7,9 @@ export interface LoginResponse {
 }
 
 export interface LoginProtectionResponse {
+  turnstile_mode: "off" | "always" | "risk_based";
   turnstile_enabled: boolean;
+  turnstile_required: boolean;
   turnstile_site_key: string | null;
 }
 

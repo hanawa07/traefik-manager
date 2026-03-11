@@ -105,6 +105,36 @@ async def record_suspicious_login_activity_if_needed(
     return True
 
 
+async def should_require_turnstile_for_ip(
+    *,
+    db: AsyncSession,
+    client_ip: str | None,
+    now: datetime,
+    window: timedelta,
+    failure_threshold: int,
+    trusted_networks: list[str] | None = None,
+) -> bool:
+    if not client_ip or failure_threshold <= 0 or _is_trusted_client_ip(client_ip, trusted_networks):
+        return False
+
+    logs = await _load_recent_ip_logs(
+        db=db,
+        client_ip=client_ip,
+        cutoff=now - window,
+    )
+
+    failure_count = 0
+    for log in logs:
+        detail = log.detail or {}
+        event = detail.get("event")
+        if event in {"login_suspicious", "login_blocked_ip"}:
+            return True
+        if event in {"login_failure", "login_locked"}:
+            failure_count += 1
+
+    return failure_count >= failure_threshold
+
+
 async def _load_recent_ip_logs(
     *,
     db: AsyncSession,

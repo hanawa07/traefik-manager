@@ -129,6 +129,7 @@ class LoginDefenseSettingsResponse(BaseModel):
     suspicious_block_minutes: int
     suspicious_block_enabled: bool
     suspicious_trusted_networks: list[str] = Field(default_factory=list)
+    turnstile_mode: Literal["off", "always", "risk_based"] = "off"
     turnstile_enabled: bool = False
     turnstile_site_key: str | None = None
     turnstile_secret_key_configured: bool = False
@@ -137,7 +138,7 @@ class LoginDefenseSettingsResponse(BaseModel):
 class LoginDefenseSettingsUpdateRequest(BaseModel):
     suspicious_block_enabled: bool = True
     suspicious_trusted_networks: list[str] = Field(default_factory=list)
-    turnstile_enabled: bool = False
+    turnstile_mode: Literal["off", "always", "risk_based"] = "off"
     turnstile_site_key: str = ""
     turnstile_secret_key: str = ""
 

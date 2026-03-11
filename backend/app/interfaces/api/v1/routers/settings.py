@@ -154,8 +154,9 @@ async def update_login_defense_settings(
     repo = SQLiteSystemSettingsRepository(db)
     existing_turnstile_secret = await repo.get("login_turnstile_secret_key")
     effective_turnstile_secret = request.turnstile_secret_key or existing_turnstile_secret or ""
+    turnstile_enabled = request.turnstile_mode != "off"
 
-    if request.turnstile_enabled and (not request.turnstile_site_key or not effective_turnstile_secret):
+    if turnstile_enabled and (not request.turnstile_site_key or not effective_turnstile_secret):
         raise HTTPException(status_code=422, detail="Turnstile site key와 secret key가 필요합니다")
 
     await repo.set(
@@ -167,8 +168,12 @@ async def update_login_defense_settings(
         "\n".join(request.suspicious_trusted_networks) or None,
     )
     await repo.set(
+        "login_turnstile_mode",
+        request.turnstile_mode,
+    )
+    await repo.set(
         "login_turnstile_enabled",
-        "true" if request.turnstile_enabled else "false",
+        "true" if turnstile_enabled else "false",
     )
     await repo.set(
         "login_turnstile_site_key",
@@ -324,6 +329,7 @@ async def _build_login_defense_response(
     repo: SQLiteSystemSettingsRepository,
 ) -> LoginDefenseSettingsResponse:
     turnstile_secret_key = await repo.get("login_turnstile_secret_key")
+    turnstile_mode = await _get_turnstile_mode(repo)
     return LoginDefenseSettingsResponse(
         max_failed_attempts=settings.LOGIN_MAX_FAILED_ATTEMPTS,
         failure_window_minutes=settings.LOGIN_FAILURE_WINDOW_MINUTES,
@@ -340,7 +346,8 @@ async def _build_login_defense_response(
         suspicious_trusted_networks=normalize_trusted_networks(
             _split_networks(await repo.get("login_suspicious_trusted_networks"))
         ),
-        turnstile_enabled=await _get_bool_setting(repo, "login_turnstile_enabled", default=False),
+        turnstile_mode=turnstile_mode,
+        turnstile_enabled=turnstile_mode != "off",
         turnstile_site_key=await repo.get("login_turnstile_site_key"),
         turnstile_secret_key_configured=bool(turnstile_secret_key),
     )
@@ -391,6 +398,15 @@ async def _get_bool_setting(
     if value is None:
         return default
     return value.strip().lower() == "true"
+
+
+async def _get_turnstile_mode(repo: SQLiteSystemSettingsRepository) -> str:
+    stored_mode = ((await repo.get("login_turnstile_mode")) or "").strip().lower()
+    if stored_mode in {"off", "always", "risk_based"}:
+        return stored_mode
+
+    legacy_enabled = await _get_bool_setting(repo, "login_turnstile_enabled", default=False)
+    return "always" if legacy_enabled else "off"
 
 
 def _split_domain_suffixes(value: str | None) -> list[str]:

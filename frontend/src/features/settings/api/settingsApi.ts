@@ -117,6 +117,7 @@ export interface LoginDefenseSettingsStatus {
   suspicious_block_minutes: number;
   suspicious_block_enabled: boolean;
   suspicious_trusted_networks: string[];
+  turnstile_mode: "off" | "always" | "risk_based";
   turnstile_enabled: boolean;
   turnstile_site_key: string | null;
   turnstile_secret_key_configured: boolean;
@@ -125,7 +126,7 @@ export interface LoginDefenseSettingsStatus {
 export interface LoginDefenseSettingsInput {
   suspicious_block_enabled: boolean;
   suspicious_trusted_networks: string[];
-  turnstile_enabled: boolean;
+  turnstile_mode: "off" | "always" | "risk_based";
   turnstile_site_key: string;
   turnstile_secret_key: string;
 }

@@ -93,6 +93,43 @@ def _to_session_response(session: AuthSession, current_session_id: str) -> Sessi
     )
 
 
+def _turnstile_risk_failure_threshold() -> int:
+    return max(2, settings.LOGIN_MAX_FAILED_ATTEMPTS - 2)
+
+
+async def _get_turnstile_mode(repo: SQLiteSystemSettingsRepository) -> str:
+    stored_mode = ((await repo.get("login_turnstile_mode")) or "").strip().lower()
+    if stored_mode in {"off", "always", "risk_based"}:
+        return stored_mode
+
+    legacy_enabled = await _get_bool_system_setting(repo, "login_turnstile_enabled", default=False)
+    return "always" if legacy_enabled else "off"
+
+
+async def _is_turnstile_required(
+    *,
+    repo: SQLiteSystemSettingsRepository,
+    db: AsyncSession,
+    client_ip: str | None,
+    now: datetime,
+    trusted_networks: list[str],
+) -> tuple[str, bool]:
+    turnstile_mode = await _get_turnstile_mode(repo)
+    if turnstile_mode == "off":
+        return turnstile_mode, False
+    if turnstile_mode == "always":
+        return turnstile_mode, True
+
+    return turnstile_mode, await login_anomaly_service.should_require_turnstile_for_ip(
+        db=db,
+        client_ip=client_ip,
+        now=now,
+        window=timedelta(minutes=settings.LOGIN_FAILURE_WINDOW_MINUTES),
+        failure_threshold=_turnstile_risk_failure_threshold(),
+        trusted_networks=trusted_networks,
+    )
+
+
 @router.post("/login", response_model=LoginResponse, summary="로그인")
 async def login(
     request: Request,
@@ -131,14 +168,16 @@ async def login(
             detail="아이디 또는 비밀번호가 올바르지 않습니다",
         )
 
-    turnstile_enabled = await _get_bool_system_setting(
-        system_settings_repo,
-        "login_turnstile_enabled",
-        default=False,
+    _, turnstile_required = await _is_turnstile_required(
+        repo=system_settings_repo,
+        db=db,
+        client_ip=client_ip,
+        now=current,
+        trusted_networks=trusted_networks,
     )
     turnstile_site_key = (await system_settings_repo.get("login_turnstile_site_key")) or ""
     turnstile_secret_key = (await system_settings_repo.get("login_turnstile_secret_key")) or ""
-    if turnstile_enabled:
+    if turnstile_required:
         submitted_form = await request.form()
         turnstile_token = str(submitted_form.get("cf-turnstile-response") or "").strip()
         if not turnstile_token or not turnstile_site_key or not turnstile_secret_key:
@@ -243,14 +282,26 @@ async def login(
 
 
 @router.get("/login-protection", response_model=LoginProtectionResponse, summary="로그인 보호 공개 설정")
-async def get_login_protection(db: AsyncSession = Depends(get_db)):
+async def get_login_protection(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     repo = SQLiteSystemSettingsRepository(db)
+    current = datetime.now(timezone.utc)
+    trusted_networks = normalize_trusted_networks(
+        _split_multivalue_setting(await repo.get("login_suspicious_trusted_networks"))
+    )
+    turnstile_mode, turnstile_required = await _is_turnstile_required(
+        repo=repo,
+        db=db,
+        client_ip=get_client_ip(request),
+        now=current,
+        trusted_networks=trusted_networks,
+    )
     return LoginProtectionResponse(
-        turnstile_enabled=await _get_bool_system_setting(
-            repo,
-            "login_turnstile_enabled",
-            default=False,
-        ),
+        turnstile_mode=turnstile_mode,
+        turnstile_enabled=turnstile_mode != "off",
+        turnstile_required=turnstile_required,
         turnstile_site_key=await repo.get("login_turnstile_site_key"),
     )
 

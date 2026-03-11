@@ -14,7 +14,9 @@ class LoginResponse(SessionUserResponse):
 
 
 class LoginProtectionResponse(BaseModel):
+    turnstile_mode: Literal["off", "always", "risk_based"] = "off"
     turnstile_enabled: bool
+    turnstile_required: bool = False
     turnstile_site_key: str | None = None
 
 

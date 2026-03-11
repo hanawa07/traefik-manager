@@ -32,6 +32,8 @@
   `generic/slack/discord/telegram/teams/pagerduty/email` provider 선택, Telegram bot token/chat id, PagerDuty routing key, Email SMTP 설정, provider별 payload 포맷 반영
 - 완료: Task 6-5 선택형 Turnstile 로그인 보호
   설정 화면에서 site key/secret key 관리, 로그인 페이지 공개 보호 설정 조회, 서버측 token 검증 반영
+- 완료: Task 6-6 Turnstile 모드 확장
+  `off / always / risk_based` 모드, 위험 기반 IP 계산, 로그인 실패 후 동적 위젯 노출 반영
 - 완료: 문서 마감/운영 가이드 정리
 
 ---
