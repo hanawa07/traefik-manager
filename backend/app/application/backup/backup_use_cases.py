@@ -205,6 +205,75 @@ class BackupUseCases:
             "warnings": warnings,
         }
 
+    async def preview_import(self, mode: str, payload: dict) -> dict:
+        validation = await self.validate_payload(payload)
+        services_payload = payload.get("services") or []
+        redirects_payload = payload.get("redirect_hosts") or []
+
+        existing_services = await self.service_repository.find_all()
+        existing_redirects = await self.redirect_repository.find_all()
+
+        service_items = [self._serialize_preview_service_item(item) for item in services_payload]
+        redirect_items = [self._serialize_preview_redirect_item(item) for item in redirects_payload]
+
+        if mode == "overwrite":
+            return {
+                "mode": mode,
+                "service_count": validation["service_count"],
+                "redirect_count": validation["redirect_count"],
+                "warning_count": validation["warning_count"],
+                "warnings": validation["warnings"],
+                "services": {
+                    "creates": self._sort_preview_items(service_items),
+                    "updates": [],
+                    "deletes": self._sort_preview_items(
+                        [
+                            {"domain": str(service.domain), "name": service.name}
+                            for service in existing_services
+                        ]
+                    ),
+                },
+                "redirect_hosts": {
+                    "creates": self._sort_preview_items(redirect_items),
+                    "updates": [],
+                    "deletes": self._sort_preview_items(
+                        [
+                            {"domain": str(redirect.domain), "name": None}
+                            for redirect in existing_redirects
+                        ]
+                    ),
+                },
+            }
+
+        existing_service_domains = {str(service.domain) for service in existing_services}
+        existing_redirect_domains = {str(redirect.domain) for redirect in existing_redirects}
+
+        return {
+            "mode": mode,
+            "service_count": validation["service_count"],
+            "redirect_count": validation["redirect_count"],
+            "warning_count": validation["warning_count"],
+            "warnings": validation["warnings"],
+            "services": {
+                "creates": self._sort_preview_items(
+                    [item for item in service_items if item["domain"] not in existing_service_domains]
+                ),
+                "updates": self._sort_preview_items(
+                    [item for item in service_items if item["domain"] in existing_service_domains]
+                ),
+                "deletes": [],
+            },
+            "redirect_hosts": {
+                "creates": self._sort_preview_items(
+                    [item for item in redirect_items if item["domain"] not in existing_redirect_domains]
+                ),
+                "updates": self._sort_preview_items(
+                    [item for item in redirect_items if item["domain"] in existing_redirect_domains]
+                ),
+                "deletes": [],
+            },
+        }
+
     def _serialize_service(self, service: Service) -> dict:
         return {
             "name": service.name,
@@ -266,3 +335,18 @@ class BackupUseCases:
                 raise ValueError(f"미들웨어 템플릿을 찾을 수 없습니다: {template_id}")
             resolved.append(template)
         return resolved
+
+    def _serialize_preview_service_item(self, item: dict) -> dict:
+        return {
+            "domain": item["domain"],
+            "name": item.get("name"),
+        }
+
+    def _serialize_preview_redirect_item(self, item: dict) -> dict:
+        return {
+            "domain": item["domain"],
+            "name": None,
+        }
+
+    def _sort_preview_items(self, items: list[dict]) -> list[dict]:
+        return sorted(items, key=lambda item: item["domain"])

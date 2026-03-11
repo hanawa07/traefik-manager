@@ -18,6 +18,7 @@ from app.interfaces.api.v1.schemas.backup_schemas import (
     BackupExportResponse,
     BackupImportRequest,
     BackupImportResultResponse,
+    BackupPreviewResponse,
     BackupValidateResponse,
 )
 
@@ -64,6 +65,21 @@ async def validate_backup(
 ):
     try:
         return BackupValidateResponse(**(await use_cases.validate_payload(request.data.model_dump())))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post("/preview", response_model=BackupPreviewResponse, summary="설정 백업 복원 미리보기")
+async def preview_backup(
+    request: BackupImportRequest,
+    use_cases: BackupUseCases = Depends(get_use_cases),
+    _: dict = Depends(require_write_access),
+):
+    try:
+        return BackupPreviewResponse(**(await use_cases.preview_import(request.mode, request.data.model_dump())))
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

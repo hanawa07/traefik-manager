@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   BackupPayload,
+  BackupPreviewResult,
   BackupValidateResult,
   CloudflareSettingsInput,
   LoginDefenseSettingsInput,
@@ -140,5 +141,11 @@ export function useImportBackup() {
 export function useValidateBackup() {
   return useMutation<BackupValidateResult, unknown, { mode: "merge" | "overwrite"; data: BackupPayload }>({
     mutationFn: (params) => settingsApi.validateBackup(params.mode, params.data),
+  });
+}
+
+export function usePreviewBackup() {
+  return useMutation<BackupPreviewResult, unknown, { mode: "merge" | "overwrite"; data: BackupPayload }>({
+    mutationFn: (params) => settingsApi.previewBackup(params.mode, params.data),
   });
 }

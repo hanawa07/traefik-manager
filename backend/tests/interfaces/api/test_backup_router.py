@@ -49,6 +49,27 @@ class StubBackupUseCases:
             "warnings": [],
         }
 
+    async def preview_import(self, mode: str, payload: dict):
+        assert mode == "merge"
+        assert payload["services"][0]["domain"] == "home.example.com"
+        return {
+            "mode": mode,
+            "service_count": 1,
+            "redirect_count": 0,
+            "warning_count": 0,
+            "warnings": [],
+            "services": {
+                "creates": [],
+                "updates": [{"domain": "home.example.com", "name": "home"}],
+                "deletes": [],
+            },
+            "redirect_hosts": {
+                "creates": [],
+                "updates": [],
+                "deletes": [],
+            },
+        }
+
 
 @pytest.mark.asyncio
 async def test_validate_backup_returns_summary():
@@ -76,3 +97,32 @@ async def test_validate_backup_returns_summary():
     assert response.service_count == 1
     assert response.redirect_count == 0
     assert response.warning_count == 0
+
+
+@pytest.mark.asyncio
+async def test_preview_backup_returns_diff_summary():
+    response = await backup_router.preview_backup(
+        request=BackupImportRequest(
+            mode="merge",
+            data={
+                "services": [
+                    {
+                        "name": "home",
+                        "domain": "home.example.com",
+                        "upstream_host": "homepage",
+                        "upstream_port": 3000,
+                        "auth_enabled": False,
+                    }
+                ],
+                "redirect_hosts": [],
+            },
+        ),
+        use_cases=StubBackupUseCases(),
+        _={"role": "admin"},
+    )
+
+    assert response.mode == "merge"
+    assert response.service_count == 1
+    assert response.services.updates[0].domain == "home.example.com"
+    assert response.services.updates[0].name == "home"
+    assert response.services.creates == []

@@ -19,6 +19,8 @@ import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import {
   BackupValidateResult,
   BackupPayload,
+  BackupPreviewGroup,
+  BackupPreviewResult,
   LoginDefenseSettingsInput,
   SecurityAlertSettingsInput,
   SettingsActionTestResult,
@@ -47,6 +49,7 @@ import {
   useUpdateLoginDefenseSettings,
   useUpdateUpstreamSecuritySettings,
   useValidateBackup,
+  usePreviewBackup,
 } from "@/features/settings/hooks/useSettings";
 import UserManagementSection from "@/features/users/components/UserManagementSection";
 import { formatDateTime, getDefaultDisplayTimezone, getSupportedTimeZones } from "@/shared/lib/dateTimeFormat";
@@ -181,6 +184,109 @@ function ActionResultNotice({ result }: { result: SettingsActionTestResult | nul
   );
 }
 
+function BackupPreviewGroupList({
+  title,
+  colorClass,
+  items,
+}: {
+  title: string;
+  colorClass: string;
+  items: BackupPreviewGroup["creates"];
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-medium text-gray-700">{title}</p>
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${colorClass}`}>{items.length}개</span>
+      </div>
+      {items.length ? (
+        <div className="rounded-lg border border-gray-200 bg-white p-2">
+          <ul className="space-y-1 text-xs text-gray-700">
+            {items.map((item) => (
+              <li key={`${title}-${item.domain}`} className="flex flex-col">
+                <span className="font-medium">{item.name ?? item.domain}</span>
+                {item.name ? <span className="font-mono text-[11px] text-gray-500">{item.domain}</span> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400">없음</p>
+      )}
+    </div>
+  );
+}
+
+function BackupPreviewNotice({ result }: { result: BackupPreviewResult | null }) {
+  if (!result) return null;
+
+  return (
+    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 space-y-4">
+      <div>
+        <p className="font-medium">
+          복원 미리보기: 서비스 {result.service_count}개, 리다이렉트 {result.redirect_count}개
+        </p>
+        <p className="mt-1 text-xs text-blue-800">
+          {result.mode === "overwrite"
+            ? "덮어쓰기 모드라 기존 항목 삭제 후 백업 내용을 새로 생성합니다."
+            : "병합 모드라 기존 항목은 유지하고 같은 도메인만 수정합니다."}
+        </p>
+      </div>
+
+      {result.warning_count ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
+          <p className="text-xs font-medium">사전 경고 {result.warning_count}개</p>
+          <ul className="mt-2 space-y-1 text-xs">
+            {result.warnings.map((warning) => (
+              <li key={warning}>- {warning}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div className="rounded-lg border border-blue-100 bg-blue-100/40 p-3 space-y-3">
+          <p className="text-xs font-semibold text-blue-900">서비스 변경</p>
+          <BackupPreviewGroupList
+            title="생성"
+            colorClass="bg-green-100 text-green-700"
+            items={result.services.creates}
+          />
+          <BackupPreviewGroupList
+            title="수정"
+            colorClass="bg-amber-100 text-amber-700"
+            items={result.services.updates}
+          />
+          <BackupPreviewGroupList
+            title="삭제"
+            colorClass="bg-red-100 text-red-700"
+            items={result.services.deletes}
+          />
+        </div>
+
+        <div className="rounded-lg border border-blue-100 bg-blue-100/40 p-3 space-y-3">
+          <p className="text-xs font-semibold text-blue-900">리다이렉트 변경</p>
+          <BackupPreviewGroupList
+            title="생성"
+            colorClass="bg-green-100 text-green-700"
+            items={result.redirect_hosts.creates}
+          />
+          <BackupPreviewGroupList
+            title="수정"
+            colorClass="bg-amber-100 text-amber-700"
+            items={result.redirect_hosts.updates}
+          />
+          <BackupPreviewGroupList
+            title="삭제"
+            colorClass="bg-red-100 text-red-700"
+            items={result.redirect_hosts.deletes}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getTurnstileModeLabel(mode: "off" | "always" | "risk_based"): string {
   switch (mode) {
     case "always":
@@ -231,6 +337,7 @@ export default function SettingsPage() {
   const [cloudflareTestResult, setCloudflareTestResult] = useState<SettingsActionTestResult | null>(null);
   const [securityAlertTestResult, setSecurityAlertTestResult] = useState<SettingsActionTestResult | null>(null);
   const [backupValidationResult, setBackupValidationResult] = useState<BackupValidateResult | null>(null);
+  const [backupPreviewResult, setBackupPreviewResult] = useState<BackupPreviewResult | null>(null);
 
   const [isEditingCf, setIsEditingCf] = useState(false);
   const [cfForm, setCfForm] = useState({ api_token: "", zone_id: "", record_target: "", proxied: false });
@@ -264,6 +371,7 @@ export default function SettingsPage() {
   const exportBackup = useExportBackup();
   const importBackup = useImportBackup();
   const validateBackup = useValidateBackup();
+  const previewBackup = usePreviewBackup();
   const supportedTimeZones = getSupportedTimeZones();
   const upstreamPresets = upstreamSecuritySettings?.available_presets ?? [];
   const selectedUpstreamPresetKey = inferUpstreamPresetKey(upstreamPresets, upstreamSecurityForm);
@@ -471,6 +579,7 @@ export default function SettingsPage() {
     if (!backupFile) return;
     setImportResultMessage("");
     setBackupValidationResult(null);
+    setBackupPreviewResult(null);
 
     let parsed: BackupPayload;
     try {
@@ -501,6 +610,7 @@ export default function SettingsPage() {
     if (!backupFile) return;
     setImportResultMessage("");
     setBackupValidationResult(null);
+    setBackupPreviewResult(null);
 
     let parsed: BackupPayload;
     try {
@@ -519,6 +629,31 @@ export default function SettingsPage() {
       setBackupValidationResult(result);
     } catch (error) {
       setImportResultMessage(getApiErrorDetail(error, "백업 사전 검증에 실패했습니다"));
+    }
+  };
+
+  const handlePreviewBackup = async () => {
+    if (!backupFile) return;
+    setImportResultMessage("");
+    setBackupPreviewResult(null);
+
+    let parsed: BackupPayload;
+    try {
+      const text = await backupFile.text();
+      parsed = JSON.parse(text) as BackupPayload;
+    } catch {
+      setImportResultMessage("유효하지 않은 JSON 파일입니다");
+      return;
+    }
+
+    try {
+      const result = await previewBackup.mutateAsync({
+        mode: importMode,
+        data: parsed,
+      });
+      setBackupPreviewResult(result);
+    } catch (error) {
+      setImportResultMessage(getApiErrorDetail(error, "복원 미리보기에 실패했습니다"));
     }
   };
 
@@ -1771,6 +1906,7 @@ export default function SettingsPage() {
                 onChange={(e) => {
                   setBackupFile(e.target.files?.[0] || null);
                   setBackupValidationResult(null);
+                  setBackupPreviewResult(null);
                   setImportResultMessage("");
                 }}
               />
@@ -1784,6 +1920,7 @@ export default function SettingsPage() {
                     onChange={() => {
                       setImportMode("merge");
                       setBackupValidationResult(null);
+                      setBackupPreviewResult(null);
                     }}
                   />
                   병합 (기존 데이터 유지)
@@ -1796,6 +1933,7 @@ export default function SettingsPage() {
                     onChange={() => {
                       setImportMode("overwrite");
                       setBackupValidationResult(null);
+                      setBackupPreviewResult(null);
                     }}
                   />
                   덮어쓰기 (기존 데이터 삭제 후 복원)
@@ -1810,6 +1948,16 @@ export default function SettingsPage() {
               >
                 <ShieldCheck className="w-4 h-4" />
                 {validateBackup.isPending ? "검증 중..." : "JSON 사전 검증"}
+              </button>
+
+              <button
+                type="button"
+                className="btn-secondary w-full inline-flex items-center justify-center gap-2"
+                onClick={handlePreviewBackup}
+                disabled={!backupFile || previewBackup.isPending}
+              >
+                <Settings className="w-4 h-4" />
+                {previewBackup.isPending ? "미리보기 계산 중..." : "복원 미리보기"}
               </button>
 
               {backupValidationResult ? (
@@ -1827,6 +1975,8 @@ export default function SettingsPage() {
                   ) : null}
                 </div>
               ) : null}
+
+              <BackupPreviewNotice result={backupPreviewResult} />
 
               <button
                 type="button"

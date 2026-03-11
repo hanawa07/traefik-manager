@@ -63,6 +63,27 @@ export interface BackupValidateResult {
   warnings: string[];
 }
 
+export interface BackupPreviewItem {
+  domain: string;
+  name: string | null;
+}
+
+export interface BackupPreviewGroup {
+  creates: BackupPreviewItem[];
+  updates: BackupPreviewItem[];
+  deletes: BackupPreviewItem[];
+}
+
+export interface BackupPreviewResult {
+  mode: "merge" | "overwrite";
+  service_count: number;
+  redirect_count: number;
+  warning_count: number;
+  warnings: string[];
+  services: BackupPreviewGroup;
+  redirect_hosts: BackupPreviewGroup;
+}
+
 export interface CloudflareSettingsInput {
   api_token: string;
   zone_id: string;
@@ -271,6 +292,14 @@ export const settingsApi = {
     data: BackupPayload
   ): Promise<BackupValidateResult> => {
     const res = await apiClient.post<BackupValidateResult>("/backup/validate", { mode, data });
+    return res.data;
+  },
+
+  previewBackup: async (
+    mode: "merge" | "overwrite",
+    data: BackupPayload
+  ): Promise<BackupPreviewResult> => {
+    const res = await apiClient.post<BackupPreviewResult>("/backup/preview", { mode, data });
     return res.data;
   },
 };

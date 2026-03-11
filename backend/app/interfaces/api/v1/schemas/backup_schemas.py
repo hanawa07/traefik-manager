@@ -71,3 +71,24 @@ class BackupValidateResponse(BaseModel):
     redirect_count: int
     warning_count: int
     warnings: list[str] = Field(default_factory=list)
+
+
+class BackupPreviewItem(BaseModel):
+    domain: str
+    name: str | None = None
+
+
+class BackupPreviewGroup(BaseModel):
+    creates: list[BackupPreviewItem] = Field(default_factory=list)
+    updates: list[BackupPreviewItem] = Field(default_factory=list)
+    deletes: list[BackupPreviewItem] = Field(default_factory=list)
+
+
+class BackupPreviewResponse(BaseModel):
+    mode: Literal["merge", "overwrite"]
+    service_count: int
+    redirect_count: int
+    warning_count: int
+    warnings: list[str] = Field(default_factory=list)
+    services: BackupPreviewGroup
+    redirect_hosts: BackupPreviewGroup
