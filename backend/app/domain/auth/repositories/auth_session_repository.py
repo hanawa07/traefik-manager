@@ -14,6 +14,9 @@ class AuthSessionRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete_expired(self, now: datetime) -> int:
+    async def find_active_by_user_id(self, user_id: str, now: datetime) -> list[AuthSession]:
         pass
 
+    @abstractmethod
+    async def delete_inactive(self, now: datetime) -> int:
+        pass

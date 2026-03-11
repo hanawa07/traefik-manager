@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.auth.entities.auth_session import AuthSession
@@ -50,9 +50,26 @@ class SQLiteAuthSessionRepository(AuthSessionRepository):
         model = await self.db.get(AuthSessionModel, session_id)
         return self._to_entity(model) if model else None
 
-    async def delete_expired(self, now: datetime) -> int:
+    async def find_active_by_user_id(self, user_id: str, now: datetime) -> list[AuthSession]:
         result = await self.db.execute(
-            delete(AuthSessionModel).where(AuthSessionModel.expires_at < now)
+            select(AuthSessionModel)
+            .where(AuthSessionModel.user_id == user_id)
+            .where(AuthSessionModel.revoked_at.is_(None))
+            .where(AuthSessionModel.expires_at > now)
+            .where(AuthSessionModel.idle_expires_at > now)
+            .order_by(AuthSessionModel.last_seen_at.desc(), AuthSessionModel.issued_at.desc())
+        )
+        return [self._to_entity(model) for model in result.scalars().all()]
+
+    async def delete_inactive(self, now: datetime) -> int:
+        result = await self.db.execute(
+            delete(AuthSessionModel).where(
+                or_(
+                    AuthSessionModel.expires_at < now,
+                    AuthSessionModel.idle_expires_at < now,
+                    AuthSessionModel.revoked_at.is_not(None),
+                )
+            )
         )
         return int(result.rowcount or 0)
 
@@ -73,4 +90,3 @@ class SQLiteAuthSessionRepository(AuthSessionRepository):
             ip_address=model.ip_address,
             user_agent=model.user_agent,
         )
-

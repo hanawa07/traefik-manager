@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     SESSION_CSRF_COOKIE_NAME: str = "tm_csrf"
     SESSION_IDLE_MINUTES: int = 480
     SESSION_ABSOLUTE_MINUTES: int = 10080
+    AUTH_SESSION_CLEANUP_INTERVAL_MINUTES: int = 30
     SESSION_COOKIE_SAMESITE: str = "lax"
     SESSION_COOKIE_SECURE: bool = True
 

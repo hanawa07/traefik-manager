@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 from fastapi import FastAPI
@@ -5,7 +6,7 @@ from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from app.core.logging_config import (
     get_client_ip,
@@ -39,7 +40,14 @@ async def lifespan(app: FastAPI):
     await init_db()
     await _ensure_service_route_files()
     await _ensure_authentik_middleware_file()
-    yield
+    await _cleanup_auth_state_once()
+    cleanup_task = asyncio.create_task(_auth_cleanup_loop())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await cleanup_task
 
 
 async def _ensure_service_route_files() -> None:
@@ -78,6 +86,41 @@ async def _ensure_authentik_middleware_file() -> None:
                 logger.info("Authentik 미들웨어 파일 생성 완료 (활성화된 서비스 %d개)", count)
     except Exception:
         logger.warning("Authentik 미들웨어 파일 startup 생성 실패 (무시)", exc_info=True)
+
+
+async def _cleanup_auth_state_once() -> None:
+    from app.infrastructure.auth.session_cleanup import cleanup_auth_state_once
+    from app.infrastructure.persistence.repositories.sqlite_auth_session_repository import (
+        SQLiteAuthSessionRepository,
+    )
+    from app.infrastructure.persistence.repositories.sqlite_revoked_token_repository import (
+        SQLiteRevokedTokenRepository,
+    )
+
+    try:
+        async with AsyncSessionLocal() as session:
+            deleted_sessions, deleted_tokens = await cleanup_auth_state_once(
+                auth_session_repository=SQLiteAuthSessionRepository(session),
+                revoked_token_repository=SQLiteRevokedTokenRepository(session),
+            )
+            await session.commit()
+            if deleted_sessions or deleted_tokens:
+                logger.info(
+                    "인증 상태 cleanup 완료 (세션 %d개, 폐기 토큰 %d개)",
+                    deleted_sessions,
+                    deleted_tokens,
+                )
+    except Exception:
+        logger.warning("인증 상태 cleanup 실패 (무시)", exc_info=True)
+
+
+async def _auth_cleanup_loop() -> None:
+    from app.infrastructure.auth.session_cleanup import run_periodic_auth_cleanup
+
+    await run_periodic_auth_cleanup(
+        interval_seconds=max(60, settings.AUTH_SESSION_CLEANUP_INTERVAL_MINUTES * 60),
+        cleanup_once=_cleanup_auth_state_once,
+    )
 
 
 app = FastAPI(

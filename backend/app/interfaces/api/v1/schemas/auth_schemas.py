@@ -18,3 +18,18 @@ class CurrentSessionResponse(SessionUserResponse):
     issued_at: datetime
     expires_at: datetime
     idle_expires_at: datetime
+
+
+class SessionInfoResponse(BaseModel):
+    session_id: str
+    issued_at: datetime
+    last_seen_at: datetime | None
+    expires_at: datetime
+    idle_expires_at: datetime
+    ip_address: str | None
+    user_agent: str | None
+    is_current: bool
+
+
+class SessionListResponse(BaseModel):
+    sessions: list[SessionInfoResponse]

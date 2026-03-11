@@ -13,6 +13,21 @@ export interface CurrentSessionResponse extends LoginResponse {
   idle_expires_at: string;
 }
 
+export interface SessionInfoResponse {
+  session_id: string;
+  issued_at: string;
+  last_seen_at: string | null;
+  expires_at: string;
+  idle_expires_at: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  is_current: boolean;
+}
+
+export interface SessionListResponse {
+  sessions: SessionInfoResponse[];
+}
+
 export const authApi = {
   login: async (username: string, password: string): Promise<LoginResponse> => {
     const form = new URLSearchParams();
@@ -30,7 +45,20 @@ export const authApi = {
     return res.data;
   },
 
+  listSessions: async (): Promise<SessionListResponse> => {
+    const res = await apiClient.get<SessionListResponse>("/auth/sessions");
+    return res.data;
+  },
+
   logout: async (): Promise<void> => {
     await apiClient.post("/auth/logout");
+  },
+
+  logoutAll: async (): Promise<void> => {
+    await apiClient.post("/auth/logout-all");
+  },
+
+  revokeSession: async (sessionId: string): Promise<void> => {
+    await apiClient.delete(`/auth/sessions/${sessionId}`);
   },
 };

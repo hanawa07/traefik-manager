@@ -1,5 +1,5 @@
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -20,7 +20,12 @@ from app.infrastructure.persistence.repositories.sqlite_user_repository import (
     SQLiteUserRepository,
 )
 from app.interfaces.api.dependencies import get_current_user, resolve_authenticated_user
-from app.interfaces.api.v1.schemas.auth_schemas import CurrentSessionResponse, LoginResponse
+from app.interfaces.api.v1.schemas.auth_schemas import (
+    CurrentSessionResponse,
+    LoginResponse,
+    SessionInfoResponse,
+    SessionListResponse,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -64,6 +69,19 @@ def _clear_auth_cookies(response: Response) -> None:
         path="/",
         secure=settings.SESSION_COOKIE_SECURE,
         samesite=settings.SESSION_COOKIE_SAMESITE,
+    )
+
+
+def _to_session_response(session: AuthSession, current_session_id: str) -> SessionInfoResponse:
+    return SessionInfoResponse(
+        session_id=session.id,
+        issued_at=session.issued_at,
+        last_seen_at=session.last_seen_at,
+        expires_at=session.expires_at,
+        idle_expires_at=session.idle_expires_at,
+        ip_address=session.ip_address,
+        user_agent=session.user_agent,
+        is_current=session.id == current_session_id,
     )
 
 
@@ -128,6 +146,21 @@ async def get_current_session(current_user: dict = Depends(get_current_user)):
     )
 
 
+@router.get("/sessions", response_model=SessionListResponse, summary="내 세션 목록")
+async def list_sessions(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    repository = SQLiteAuthSessionRepository(db)
+    sessions = await repository.find_active_by_user_id(
+        current_user["id"],
+        datetime.now(timezone.utc),
+    )
+    return SessionListResponse(
+        sessions=[_to_session_response(session, current_user["session_id"]) for session in sessions]
+    )
+
+
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="로그아웃")
 async def logout(
     response: Response,
@@ -139,6 +172,41 @@ async def logout(
     await SQLiteAuthSessionRepository(db).save(auth_session)
     _clear_auth_cookies(response)
     logger.info("로그아웃: username=%s", current_user["username"])
+
+
+@router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT, summary="내 모든 세션 로그아웃")
+async def logout_all_sessions(
+    response: Response,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    repository = SQLiteAuthSessionRepository(db)
+    revoked_at = datetime.now(timezone.utc)
+    sessions = await repository.find_active_by_user_id(current_user["id"], revoked_at)
+    for session in sessions:
+        session.revoke("user_logout_all", revoked_at=revoked_at)
+        await repository.save(session)
+    _clear_auth_cookies(response)
+    logger.info("전체 로그아웃: username=%s count=%d", current_user["username"], len(sessions))
+
+
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT, summary="세션 종료")
+async def revoke_session(
+    session_id: str,
+    response: Response,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    repository = SQLiteAuthSessionRepository(db)
+    auth_session = await repository.find_by_id(session_id)
+    if not auth_session or auth_session.user_id != current_user["id"] or auth_session.revoked_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="세션을 찾을 수 없습니다")
+
+    auth_session.revoke("user_logout_session")
+    await repository.save(auth_session)
+    if auth_session.id == current_user["session_id"]:
+        _clear_auth_cookies(response)
+    logger.info("세션 종료: username=%s session_id=%s", current_user["username"], session_id)
 
 
 @router.get(

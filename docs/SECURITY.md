@@ -1,7 +1,7 @@
 # Traefik Manager 보안 점검 보고서
 
 > 최초 점검일: 2026-03-08
-> 업데이트: 2026-03-10
+> 업데이트: 2026-03-11
 
 ---
 
@@ -59,12 +59,13 @@
 - `localStorage` access token 제거
 - 브라우저 JS에서 장기 인증정보 직접 접근 제거
 - 상태 변경 요청에 CSRF 헤더 검증 추가
+- 설정 화면에서 세션 목록, 개별 세션 종료, 전체 로그아웃 지원
 
-**남은 보완점:**
-- 관리자용 세션 목록/강제 종료 UI 없음
-- 만료된 세션 cleanup loop 없음
+**추가 적용됨:**
+- startup 시 `auth_sessions`/`revoked_tokens` 1회 cleanup
+- 백그라운드 periodic cleanup loop
 
-즉 현재는 브라우저 관리자 로그인 보안이 개선됐고, 남은 것은 운영성 기능과 cleanup 자동화입니다.
+즉 현재는 브라우저 관리자 로그인 보안, 세션 운영 기능, cleanup 자동화가 모두 적용됐고, 남은 것은 정책 강화 수준의 후속 과제입니다.
 
 ---
 
@@ -173,6 +174,6 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 
 | 순위 | 항목 | 난이도 | 위험도 |
 |------|------|--------|--------|
-| 1 | 관리자용 세션 관리 UI 및 session cleanup 자동화 | 보통 | 중간 |
-| 2 | Upstream strict mode (DNS 재해석/allowlist) 검토 | 보통 | 중간 |
-| 3 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |
+| 1 | Upstream strict mode (DNS 재해석/allowlist) 검토 | 보통 | 중간 |
+| 2 | `python-jose` 내부 `utcnow` 경고 추적 또는 대체 검토 | 쉬움 | 낮음 |
+| 3 | 계정 잠금/이상 징후 감지 같은 앱 레벨 로그인 방어 | 보통 | 낮음 |

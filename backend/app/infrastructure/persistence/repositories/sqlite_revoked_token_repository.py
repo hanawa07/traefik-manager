@@ -1,3 +1,7 @@
+from datetime import datetime
+
+from sqlalchemy import delete
+
 from app.domain.auth.entities.revoked_token import RevokedToken
 from app.domain.auth.repositories.revoked_token_repository import RevokedTokenRepository
 from app.infrastructure.persistence.models import RevokedTokenModel
@@ -26,3 +30,9 @@ class SQLiteRevokedTokenRepository(RevokedTokenRepository):
     async def is_revoked(self, jti: str) -> bool:
         model = await self.db.get(RevokedTokenModel, jti)
         return model is not None
+
+    async def delete_expired(self, now: datetime) -> int:
+        result = await self.db.execute(
+            delete(RevokedTokenModel).where(RevokedTokenModel.expires_at < now)
+        )
+        return int(result.rowcount or 0)

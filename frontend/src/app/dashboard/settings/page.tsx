@@ -1,7 +1,21 @@
 "use client";
 import { useState } from "react";
-import { Clock3, Cloud, Download, Edit2, Save, Settings, Upload, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  Clock3,
+  Cloud,
+  Download,
+  Edit2,
+  Laptop,
+  LogOut,
+  Save,
+  Settings,
+  ShieldCheck,
+  Upload,
+  X,
+} from "lucide-react";
 
+import { useLogoutAllSessions, useRevokeSession, useSessions } from "@/features/auth/hooks/useSessions";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { BackupPayload } from "@/features/settings/api/settingsApi";
 import {
@@ -13,10 +27,12 @@ import {
   useUpdateTimeDisplaySettings,
 } from "@/features/settings/hooks/useSettings";
 import UserManagementSection from "@/features/users/components/UserManagementSection";
-import { getDefaultDisplayTimezone, getSupportedTimeZones } from "@/shared/lib/dateTimeFormat";
+import { formatDateTime, getDefaultDisplayTimezone, getSupportedTimeZones } from "@/shared/lib/dateTimeFormat";
 
 export default function SettingsPage() {
+  const router = useRouter();
   const role = useAuthStore((state) => state.role);
+  const clearSession = useAuthStore((state) => state.clearSession);
   const canManage = role === "admin";
   const [backupFile, setBackupFile] = useState<File | null>(null);
   const [importMode, setImportMode] = useState<"merge" | "overwrite">("merge");
@@ -31,8 +47,11 @@ export default function SettingsPage() {
 
   const { data: cloudflareStatus, isLoading: isCloudflareLoading } = useCloudflareStatus();
   const { data: timeDisplaySettings, isLoading: isTimeDisplayLoading } = useTimeDisplaySettings();
+  const { data: sessionData, isLoading: isSessionsLoading } = useSessions();
   const updateCloudflare = useUpdateCloudflareSettings();
   const updateTimeDisplay = useUpdateTimeDisplaySettings();
+  const logoutAllSessions = useLogoutAllSessions();
+  const revokeSession = useRevokeSession();
   const exportBackup = useExportBackup();
   const importBackup = useImportBackup();
   const supportedTimeZones = getSupportedTimeZones();
@@ -123,6 +142,20 @@ export default function SettingsPage() {
       `가져오기 완료: 서비스 생성 ${result.created_services}개, 서비스 수정 ${result.updated_services}개, 리다이렉트 생성 ${result.created_redirects}개, 리다이렉트 수정 ${result.updated_redirects}개`
     );
     setBackupFile(null);
+  };
+
+  const handleLogoutAllSessions = async () => {
+    await logoutAllSessions.mutateAsync();
+    clearSession();
+    router.push("/login");
+  };
+
+  const handleRevokeSession = async (sessionId: string, isCurrent: boolean) => {
+    await revokeSession.mutateAsync(sessionId);
+    if (isCurrent) {
+      clearSession();
+      router.push("/login");
+    }
   };
 
   return (
@@ -232,6 +265,111 @@ export default function SettingsPage() {
                 저장 데이터와 토큰 시각은 항상 UTC로 유지됩니다. 서버 시간대는 현재 컨테이너의 로컬 시간대로,
                 `docker compose`의 `TZ` 설정에 따라 달라질 수 있습니다.
               </p>
+            </div>
+          )}
+        </div>
+
+        <div className="card p-6 xl:col-span-2">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="w-5 h-5 text-amber-600" />
+              <div>
+                <h2 className="font-semibold text-gray-900">세션 관리</h2>
+                <p className="text-xs text-gray-400 mt-1">
+                  현재 로그인된 브라우저 세션을 확인하고, 필요하면 개별 종료 또는 전체 로그아웃할 수 있습니다.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn-secondary inline-flex items-center gap-2 text-xs py-1.5"
+              onClick={handleLogoutAllSessions}
+              disabled={logoutAllSessions.isPending || isSessionsLoading || !sessionData?.sessions?.length}
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              {logoutAllSessions.isPending ? "로그아웃 중..." : "모든 세션 로그아웃"}
+            </button>
+          </div>
+
+          {isSessionsLoading ? (
+            <div className="space-y-3">
+              <div className="h-20 bg-gray-100 rounded-lg animate-pulse" />
+              <div className="h-20 bg-gray-100 rounded-lg animate-pulse" />
+            </div>
+          ) : !sessionData?.sessions?.length ? (
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+              활성 세션이 없습니다.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sessionData.sessions.map((session) => (
+                <div
+                  key={session.session_id}
+                  className={`rounded-xl border p-4 ${
+                    session.is_current ? "border-amber-300 bg-amber-50/70" : "border-gray-200 bg-white"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Laptop className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-900 truncate">
+                          {session.user_agent || "알 수 없는 브라우저"}
+                        </span>
+                        {session.is_current ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                            현재 세션
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-600">
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-500">세션 ID</span>
+                          <span className="font-mono text-gray-700">{session.session_id}</span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-500">IP</span>
+                          <span className="font-mono text-gray-700">{session.ip_address || "-"}</span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-500">발급 시각</span>
+                          <span className="text-gray-700">
+                            {formatDateTime(session.issued_at, timeDisplaySettings?.display_timezone)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-500">최근 활동</span>
+                          <span className="text-gray-700">
+                            {formatDateTime(session.last_seen_at, timeDisplaySettings?.display_timezone)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-500">절대 만료</span>
+                          <span className="text-gray-700">
+                            {formatDateTime(session.expires_at, timeDisplaySettings?.display_timezone)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-500">유휴 만료</span>
+                          <span className="text-gray-700">
+                            {formatDateTime(session.idle_expires_at, timeDisplaySettings?.display_timezone)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn-secondary inline-flex items-center gap-2 text-xs py-1.5 shrink-0"
+                      onClick={() => handleRevokeSession(session.session_id, session.is_current)}
+                      disabled={revokeSession.isPending}
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      {session.is_current ? "현재 세션 종료" : "세션 종료"}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
