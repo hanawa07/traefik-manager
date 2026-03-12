@@ -65,6 +65,7 @@
 - 설정 화면에서 보안 알림 기본 채널을 `generic/slack/discord/telegram/teams/pagerduty/email` preset으로 선택할 수 있습니다.
 - `login_locked`, `login_suspicious`, `login_blocked_ip` 이벤트는 기본 채널을 따르거나 `telegram/pagerduty/email/disabled`로 개별 override할 수 있습니다.
 - `settings_update_*`, `service_update`, `redirect_update`, `middleware_update`, `user_update`, 각종 `*_rollback` 이벤트도 `운영 변경 알림` 정책으로 기본 채널 또는 override를 탈 수 있습니다.
+- 인증서 상태 점검은 `certificate_warning`, `certificate_error` 감사 이벤트를 만들고, 같은 인증서가 같은 상태에 머무는 동안에는 중복 알림을 다시 보내지 않습니다.
 - Telegram은 bot token과 chat id를 사용하고, PagerDuty는 routing key를 사용하며, Generic/Slack/Discord/Teams는 webhook URL을 사용합니다. Email은 SMTP host/port/security/from/recipients를 사용합니다.
 - 웹훅 전송 실패는 서버 로그에만 남고, 로그인 차단/잠금 동작 자체는 중단하지 않습니다.
 

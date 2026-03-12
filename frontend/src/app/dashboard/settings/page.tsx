@@ -114,6 +114,7 @@ function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
       redirect_change: "default",
       middleware_change: "default",
       user_change: "default",
+      certificate_change: "default",
       rollback: "default",
     },
   };
@@ -176,6 +177,7 @@ const CHANGE_ALERT_EVENT_OPTIONS: Array<{ key: ChangeAlertRouteEvent; label: str
   { key: "redirect_change", label: "리다이렉트 변경" },
   { key: "middleware_change", label: "미들웨어 변경" },
   { key: "user_change", label: "사용자 변경" },
+  { key: "certificate_change", label: "인증서 경고" },
   { key: "rollback", label: "롤백" },
 ];
 

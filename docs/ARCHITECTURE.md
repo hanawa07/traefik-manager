@@ -226,6 +226,14 @@ traefik-manager/
             → teams: Incoming Webhook adaptive card
             → pagerduty: Events API v2 trigger
             → email: SMTP send_message
+
+인증서 만료 알림:
+  startup + 주기 작업
+    → certificate_alert_monitor.check_certificate_alerts_once()
+      → Traefik API에서 인증서 목록 조회
+      → 이전 상태(system_settings.certificate_alert_state)와 비교
+        → `warning/error` 진입 시에만 `certificate_warning` / `certificate_error` 감사 이벤트 기록
+        → 같은 상태 반복은 중복 전송 억제
 ```
 
 ---

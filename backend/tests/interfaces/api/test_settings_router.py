@@ -339,6 +339,7 @@ async def test_get_security_alert_settings_returns_defaults(monkeypatch):
         "redirect_change": "default",
         "middleware_change": "default",
         "user_change": "default",
+        "certificate_change": "default",
         "rollback": "default",
     }
 
@@ -371,6 +372,7 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
                 "redirect_change": "disabled",
                 "middleware_change": "default",
                 "user_change": "telegram",
+                "certificate_change": "email",
                 "rollback": "pagerduty",
             },
         ),
@@ -388,6 +390,7 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     assert StubSettingsRepository.store["security_alert_change_route_settings_change"] == "email"
     assert StubSettingsRepository.store["security_alert_change_route_redirect_change"] == "disabled"
     assert StubSettingsRepository.store["security_alert_change_route_user_change"] == "telegram"
+    assert StubSettingsRepository.store["security_alert_change_route_certificate_change"] == "email"
     assert StubSettingsRepository.store["security_alert_change_route_rollback"] == "pagerduty"
     assert response.enabled is True
     assert response.provider == "discord"
@@ -397,6 +400,7 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     assert response.change_alerts_enabled is True
     assert response.change_event_routes["settings_change"] == "email"
     assert response.change_event_routes["user_change"] == "telegram"
+    assert response.change_event_routes["certificate_change"] == "email"
     assert response.change_event_routes["rollback"] == "pagerduty"
 
 
@@ -529,6 +533,7 @@ async def test_update_security_alert_settings_records_redacted_audit(monkeypatch
                 "redirect_change": "disabled",
                 "middleware_change": "default",
                 "user_change": "email",
+                "certificate_change": "default",
                 "rollback": "disabled",
             },
         ),
@@ -550,6 +555,7 @@ async def test_update_security_alert_settings_records_redacted_audit(monkeypatch
     assert recorded[0]["detail"]["summary"]["change_alerts_enabled"] is True
     assert recorded[0]["detail"]["summary"]["change_event_routes"]["redirect_change"] == "disabled"
     assert recorded[0]["detail"]["summary"]["change_event_routes"]["user_change"] == "email"
+    assert recorded[0]["detail"]["summary"]["change_event_routes"]["certificate_change"] == "default"
     assert recorded[0]["detail"]["client_ip"] == "198.51.100.7"
 
 

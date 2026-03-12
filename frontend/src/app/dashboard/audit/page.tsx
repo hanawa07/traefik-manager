@@ -11,7 +11,8 @@ import {
   SlidersHorizontal, 
   User, 
   AlertCircle,
-  Loader2
+  Loader2,
+  Shield,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
@@ -22,6 +23,7 @@ const resourceTypeConfig = {
   middleware: { icon: SlidersHorizontal, label: "미들웨어", color: "text-orange-200 bg-orange-500/20" },
   user: { icon: User, label: "사용자", color: "text-emerald-200 bg-emerald-500/20" },
   settings: { icon: SlidersHorizontal, label: "설정", color: "text-cyan-200 bg-cyan-500/20" },
+  certificate: { icon: Shield, label: "인증서", color: "text-amber-200 bg-amber-500/20" },
 };
 
 const actionConfig = {
@@ -29,6 +31,7 @@ const actionConfig = {
   update: { label: "수정", color: "bg-blue-600/20 text-blue-300 border-blue-500/30" },
   delete: { label: "삭제", color: "bg-red-600/20 text-red-300 border-red-500/30" },
   test: { label: "테스트", color: "bg-cyan-600/20 text-cyan-200 border-cyan-500/30" },
+  alert: { label: "경고", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
   rollback: { label: "롤백", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
 };
 
@@ -54,6 +57,8 @@ const securityEventConfig = {
   middleware_rollback: { label: "미들웨어 롤백", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
   user_update: { label: "사용자 변경", color: "bg-emerald-600/20 text-emerald-200 border-emerald-500/30" },
   user_rollback: { label: "사용자 롤백", color: "bg-lime-600/20 text-lime-200 border-lime-500/30" },
+  certificate_warning: { label: "인증서 만료 임박", color: "bg-yellow-600/20 text-yellow-200 border-yellow-500/30" },
+  certificate_error: { label: "인증서 만료", color: "bg-red-600/20 text-red-200 border-red-500/30" },
 };
 
 const auditFilters = [
@@ -66,6 +71,8 @@ const auditFilters = [
   { key: "login_suspicious", label: "이상 징후" },
   { key: "login_blocked_ip", label: "IP 차단" },
   { key: "login_failure", label: "로그인 실패" },
+  { key: "certificate_warning", label: "인증서 만료 임박" },
+  { key: "certificate_error", label: "인증서 만료" },
 ] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -26,6 +26,7 @@ CHANGE_ALERT_GROUPS = {
     "redirect_change",
     "middleware_change",
     "user_change",
+    "certificate_change",
     "rollback",
 }
 PAGERDUTY_EVENTS_API_URL = "https://events.pagerduty.com/v2/enqueue"
@@ -191,6 +192,8 @@ def _get_alert_category_and_group(event: str) -> tuple[str, str] | None:
         return "change", "middleware_change"
     if event == "user_update":
         return "change", "user_change"
+    if event in {"certificate_warning", "certificate_error"}:
+        return "change", "certificate_change"
     if event.endswith("_rollback") or event.startswith("settings_rollback_"):
         return "change", "rollback"
     return None
@@ -302,6 +305,10 @@ def _build_message(event: str, resource_name: str, client_ip: Any, category: str
         return f"미들웨어 변경: {resource_name}"
     if event == "user_update":
         return f"사용자 변경: {resource_name}"
+    if event == "certificate_warning":
+        return f"인증서 만료 임박: {resource_name}"
+    if event == "certificate_error":
+        return f"인증서 만료: {resource_name}"
     return f"롤백 실행: {resource_name}"
 
 
@@ -470,6 +477,10 @@ def _build_multiline_message(audit_log: AuditLogModel, event: str, category: str
         changed_keys = detail.get("changed_keys")
         if isinstance(changed_keys, list) and changed_keys:
             lines.append(f"변경 키: {', '.join(str(item) for item in changed_keys)}")
+        if detail.get("days_remaining") is not None:
+            lines.append(f"남은 기간: {detail.get('days_remaining')}일")
+        if detail.get("expires_at"):
+            lines.append(f"만료 시각: {detail.get('expires_at')}")
         if detail.get("source_audit_id"):
             lines.append(f"원본 변경 로그: {detail.get('source_audit_id')}")
     return "\n".join(lines)

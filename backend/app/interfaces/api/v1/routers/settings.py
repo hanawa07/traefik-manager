@@ -50,6 +50,7 @@ CHANGE_ALERT_EVENTS = [
     "redirect_change",
     "middleware_change",
     "user_change",
+    "certificate_change",
     "rollback",
 ]
 SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"}
