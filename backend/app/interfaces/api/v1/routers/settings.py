@@ -885,6 +885,7 @@ def _find_latest_settings_events(
         if not isinstance(event_name, str) or event_name not in event_names:
             continue
         success = detail.get("success")
+        created_at = _normalize_utc(log.created_at)
         if latest is None:
             latest = SettingsTestHistoryItemResponse(
                 last_event=event_name,
@@ -892,20 +893,20 @@ def _find_latest_settings_events(
                 last_message=detail.get("message") if isinstance(detail.get("message"), str) else None,
                 last_detail=detail.get("detail") if isinstance(detail.get("detail"), str) else None,
                 last_provider=detail.get("provider") if isinstance(detail.get("provider"), str) else None,
-                last_created_at=log.created_at,
+                last_created_at=created_at,
             )
 
         if isinstance(success, bool) and success and last_success_at is None:
-            last_success_at = log.created_at
+            last_success_at = created_at
 
         if isinstance(success, bool) and not success:
             if last_failure_at is None:
-                last_failure_at = log.created_at
+                last_failure_at = created_at
                 last_failure_audit_id = str(log.id)
                 last_failure_message = detail.get("message") if isinstance(detail.get("message"), str) else None
                 last_failure_detail = detail.get("detail") if isinstance(detail.get("detail"), str) else None
                 last_failure_provider = detail.get("provider") if isinstance(detail.get("provider"), str) else None
-            if log.created_at >= failure_cutoff:
+            if created_at >= failure_cutoff:
                 recent_failure_count += 1
 
     if latest is None:
@@ -925,6 +926,12 @@ def _maybe_get_client_ip(http_request: Request | None) -> str | None:
     if http_request is None:
         return None
     return get_client_ip(http_request)
+
+
+def _normalize_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 async def _record_settings_update(
