@@ -1,11 +1,141 @@
 "use client";
-import { AlertTriangle, RefreshCcw, Shield, History } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CircleDashed, History, RefreshCcw, Shield, XCircle } from "lucide-react";
 
 import StatusBadge from "@/shared/components/StatusBadge";
 import { useCertificates, useRunCertificateCheck } from "@/features/certificates/hooks/useCertificates";
+import type { Certificate, CertificateAcmeErrorKind } from "@/features/certificates/api/certificateApi";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { useAuditCertificateSummary } from "@/features/audit/hooks/useAudit";
+
+type ChecklistState = "ok" | "pending" | "fail";
+type CertificateChecklistItem = {
+  label: string;
+  state: ChecklistState;
+  detail: string;
+};
+
+function getAcmeErrorKindLabel(kind: CertificateAcmeErrorKind | null | undefined) {
+  switch (kind) {
+    case "dns":
+      return "DNS 검증";
+    case "rate_limit":
+      return "발급 제한";
+    case "authorization":
+      return "도메인 인증";
+    case "challenge":
+      return "챌린지";
+    case "unknown":
+      return "발급 실패";
+    default:
+      return null;
+  }
+}
+
+function getCertificateChecklist(certificate: Certificate): {
+  action: string;
+  items: CertificateChecklistItem[];
+} {
+  const recentFailureLabel = getAcmeErrorKindLabel(certificate.last_acme_error_kind);
+  const items: CertificateChecklistItem[] = [
+    {
+      label: "라우트 감지",
+      state: certificate.router_names.length > 0 ? "ok" : "fail",
+      detail:
+        certificate.router_names.length > 0
+          ? `${certificate.router_names.length}개 라우터가 도메인을 처리 중입니다`
+          : "이 도메인을 처리하는 Traefik 라우터를 찾지 못했습니다",
+    },
+    {
+      label: "자동 발급 설정",
+      state: certificate.cert_resolvers.length > 0 ? "ok" : "fail",
+      detail:
+        certificate.cert_resolvers.length > 0
+          ? `certResolver ${certificate.cert_resolvers.join(", ")} 사용`
+          : "certResolver가 없어 Let’s Encrypt 자동 발급이 돌지 않습니다",
+    },
+    {
+      label: "ACME 저장소",
+      state: certificate.expires_at ? "ok" : certificate.status === "pending" ? "pending" : "fail",
+      detail: certificate.expires_at
+        ? "인증서가 ACME 저장소에 기록돼 있습니다"
+        : certificate.status === "pending"
+          ? "라우터는 준비됐지만 인증서가 아직 저장되지 않았습니다"
+          : "저장된 인증서가 없어 기본 인증서 또는 미설정 상태일 수 있습니다",
+    },
+    {
+      label: "최근 발급 실패",
+      state: certificate.last_acme_error_message ? "fail" : "ok",
+      detail: certificate.last_acme_error_message
+        ? `${recentFailureLabel ? `${recentFailureLabel} · ` : ""}${certificate.last_acme_error_message}`
+        : "최근 ACME 실패가 기록되지 않았습니다",
+    },
+  ];
+
+  if (certificate.last_acme_error_kind === "dns") {
+    return {
+      action: "권한 DNS 응답과 A/AAAA 조회 결과를 먼저 확인하세요.",
+      items,
+    };
+  }
+
+  if (certificate.last_acme_error_kind === "authorization" || certificate.last_acme_error_kind === "challenge") {
+    return {
+      action: "80/443 공개 상태와 challenge 경로 응답을 먼저 확인하세요.",
+      items,
+    };
+  }
+
+  if (certificate.last_acme_error_kind === "rate_limit") {
+    return {
+      action: "반복 발급을 멈추고 잠시 뒤 다시 검사하세요.",
+      items,
+    };
+  }
+
+  if (certificate.router_names.length === 0) {
+    return {
+      action: "도메인 라우트가 실제로 생성됐는지 먼저 확인하세요.",
+      items,
+    };
+  }
+
+  if (certificate.cert_resolvers.length === 0) {
+    return {
+      action: "TLS 설정과 certResolver 연결부터 확인하세요.",
+      items,
+    };
+  }
+
+  if (certificate.status === "pending") {
+    return {
+      action: "도메인 요청 후 몇 분 뒤 경고 검사를 다시 실행하세요.",
+      items,
+    };
+  }
+
+  if (certificate.status === "inactive") {
+    return {
+      action: "자동 발급을 쓰려면 이 도메인 라우트에 certResolver를 붙여야 합니다.",
+      items,
+    };
+  }
+
+  return {
+    action: "추가 조치 없이 현재 상태만 모니터링하면 됩니다.",
+    items,
+  };
+}
+
+function ChecklistStateIcon({ state }: { state: ChecklistState }) {
+  if (state === "ok") {
+    return <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />;
+  }
+  if (state === "pending") {
+    return <CircleDashed className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-600" />;
+  }
+  return <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-600" />;
+}
 
 export default function CertificatesPage() {
   const {
@@ -24,23 +154,6 @@ export default function CertificatesPage() {
   const errorCount = certificates.filter((item) => item.status === "error").length;
   const pendingCount = certificates.filter((item) => item.status === "pending").length;
   const recentFailureCount = certificates.filter((item) => item.last_acme_error_message).length;
-
-  const getAcmeErrorKindLabel = (kind: string | null | undefined) => {
-    switch (kind) {
-      case "dns":
-        return "DNS 검증";
-      case "rate_limit":
-        return "발급 제한";
-      case "authorization":
-        return "도메인 인증";
-      case "challenge":
-        return "챌린지";
-      case "unknown":
-        return "발급 실패";
-      default:
-        return null;
-    }
-  };
 
   return (
     <div className="p-8">
@@ -106,22 +219,34 @@ export default function CertificatesPage() {
 
       <div className="card mb-6 p-5">
         <div className="mb-4">
-          <h2 className="text-base font-semibold text-gray-900">발급 진단 기준</h2>
+          <h2 className="text-base font-semibold text-gray-900">발급 체크리스트 기준</h2>
           <p className="mt-1 text-xs text-gray-500">
-            각 인증서 행에서 라우터 감지, certResolver 설정, ACME 저장 여부, 최근 실패 사유를 함께 봅니다.
+            각 인증서 행은 같은 4단계 체크리스트로 읽습니다. 초록은 정상, 파랑은 대기, 빨강은 바로 확인해야 할 항목입니다.
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-3 text-sm text-gray-600 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 text-sm text-gray-600 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-            <p className="font-medium text-gray-900">발급 대기</p>
+            <p className="font-medium text-gray-900">1. 라우트 감지</p>
             <p className="mt-1 text-xs leading-5 text-gray-500">
-              certResolver는 있지만 ACME 저장소에 아직 인증서가 없습니다. 최근 실패 사유가 보이면 먼저 그 원인을 봐야 합니다.
+              Traefik이 이 도메인을 처리하는 라우터를 실제로 읽고 있는지 확인합니다.
             </p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-            <p className="font-medium text-gray-900">자동 발급 미설정</p>
+            <p className="font-medium text-gray-900">2. 자동 발급 설정</p>
             <p className="mt-1 text-xs leading-5 text-gray-500">
-              TLS는 켜져 있지만 certResolver가 없습니다. 이 상태에선 Let&apos;s Encrypt 자동 발급이 돌지 않습니다.
+              TLS만 켜져 있어도 충분하지 않습니다. certResolver가 있어야 ACME가 발급을 시도합니다.
+            </p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+            <p className="font-medium text-gray-900">3. ACME 저장소</p>
+            <p className="mt-1 text-xs leading-5 text-gray-500">
+              인증서가 실제로 저장됐는지, 아직 대기 중인지, 아예 없는지를 구분합니다.
+            </p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+            <p className="font-medium text-gray-900">4. 최근 실패 사유</p>
+            <p className="mt-1 text-xs leading-5 text-gray-500">
+              DNS timeout, challenge 실패, rate limit 같은 마지막 ACME 실패 원인을 바로 보여줍니다.
             </p>
           </div>
         </div>
@@ -281,44 +406,38 @@ export default function CertificatesPage() {
                       : "수동/미설정"}
                   </td>
                   <td className="px-6 py-3 text-sm text-gray-500">
-                    <div className="space-y-1.5">
-                      <p className="text-xs text-gray-600">
-                        라우터 감지:{" "}
-                        <span className={certificate.router_names.length > 0 ? "text-emerald-700" : "text-rose-700"}>
-                          {certificate.router_names.length > 0 ? "완료" : "없음"}
-                        </span>
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        certResolver:{" "}
-                        <span className={certificate.cert_resolvers.length > 0 ? "text-emerald-700" : "text-rose-700"}>
-                          {certificate.cert_resolvers.length > 0 ? "설정됨" : "없음"}
-                        </span>
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        ACME 저장:{" "}
-                        <span className={certificate.expires_at ? "text-emerald-700" : "text-amber-700"}>
-                          {certificate.expires_at ? "완료" : "없음"}
-                        </span>
-                      </p>
-                      {certificate.last_acme_error_message ? (
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] leading-5 text-amber-800">
-                          <p className="font-medium">
-                            최근 실패
-                            {getAcmeErrorKindLabel(certificate.last_acme_error_kind)
-                              ? ` · ${getAcmeErrorKindLabel(certificate.last_acme_error_kind)}`
-                              : ""}
-                          </p>
-                          <p className="mt-0.5 break-words">{certificate.last_acme_error_message}</p>
-                          {certificate.last_acme_error_at ? (
-                            <p className="mt-1 text-[10px] text-amber-700">
-                              {formatDateTime(certificate.last_acme_error_at, timeDisplaySettings?.display_timezone)}
-                            </p>
-                          ) : null}
+                    {(() => {
+                      const checklist = getCertificateChecklist(certificate);
+                      return (
+                        <div className="space-y-2">
+                          <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+                            <p className="text-[11px] font-medium text-blue-800">다음 조치</p>
+                            <p className="mt-1 text-[11px] leading-5 text-blue-700">{checklist.action}</p>
+                          </div>
+                          <div className="space-y-1.5">
+                            {checklist.items.map((item) => (
+                              <div
+                                key={item.label}
+                                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-[11px] leading-5"
+                              >
+                                <div className="flex items-start gap-2">
+                                  <ChecklistStateIcon state={item.state} />
+                                  <div className="min-w-0">
+                                    <p className="font-medium text-gray-900">{item.label}</p>
+                                    <p className="mt-0.5 break-words text-gray-600">{item.detail}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                            {certificate.last_acme_error_at ? (
+                              <p className="px-1 text-[10px] text-gray-500">
+                                마지막 실패 {formatDateTime(certificate.last_acme_error_at, timeDisplaySettings?.display_timezone)}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
-                      ) : (
-                        <p className="text-xs text-gray-400">최근 ACME 실패 없음</p>
-                      )}
-                    </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-6 py-3 text-sm text-gray-500">
                     {certificate.router_names.length > 0 ? certificate.router_names.join(", ") : "-"}
