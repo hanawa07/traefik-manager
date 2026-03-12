@@ -2113,6 +2113,18 @@ export default function SettingsPage() {
               <ActionResultNotice result={cloudflareTestResult} />
             </SettingsSummary>
           )}
+
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            <p className="font-medium">추가 권한 안내</p>
+            <p className="mt-1">
+              사용하는 서비스(예: Traefik, Certbot 등)에 따라 Cloudflare API 토큰에{" "}
+              <strong>영역(Zone) - 영역(Zone) - 읽기(Read)</strong> 권한이 추가로 필요할 수 있습니다.
+            </p>
+            <p className="mt-1 text-amber-800">
+              현재 설정으로 오류가 나면 <strong>Zone:DNS:Edit</strong>만이 아니라{" "}
+              <strong>Zone:Zone:Read</strong> 권한도 함께 넣어 토큰을 다시 발급해 보세요.
+            </p>
+          </div>
         </div>
 
         <div className="card p-6 h-full">

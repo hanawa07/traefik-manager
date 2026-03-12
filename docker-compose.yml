@@ -84,6 +84,7 @@ services:
     tmpfs:
       - /tmp:noexec,nosuid,size=64m
       - /var/tmp:noexec,nosuid,size=64m
+      - /app/.next/cache:noexec,nosuid,size=64m,uid=100,gid=101,mode=0755
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
       - "com.centurylinklabs.watchtower.monitor-only=true"
