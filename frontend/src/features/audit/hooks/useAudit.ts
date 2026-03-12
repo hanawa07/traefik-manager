@@ -5,6 +5,7 @@ export const useAudit = (params?: {
   limit?: number;
   offset?: number;
   resource_type?: string;
+  action?: string;
   event?: string;
   security_only?: boolean;
 }) => {

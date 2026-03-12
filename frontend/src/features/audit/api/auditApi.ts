@@ -35,6 +35,7 @@ export const auditApi = {
     limit?: number;
     offset?: number;
     resource_type?: string;
+    action?: string;
     event?: string;
     security_only?: boolean;
   }): Promise<AuditLogItem[]> => {

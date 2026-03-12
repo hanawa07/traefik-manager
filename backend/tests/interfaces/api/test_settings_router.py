@@ -81,6 +81,45 @@ async def test_update_time_display_settings_persists_value(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_update_time_display_settings_records_audit(monkeypatch):
+    StubSettingsRepository.store = {"display_timezone": "Asia/Seoul"}
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(
+        settings_router,
+        "get_server_time_context",
+        lambda: {
+            "storage_timezone": "UTC",
+            "server_timezone_name": "UTC",
+            "server_timezone_label": "UTC",
+            "server_timezone_offset": "+00:00",
+            "server_time_iso": "2026-03-12T00:00:00+00:00",
+        },
+    )
+    monkeypatch.setattr(settings_router, "get_client_ip", lambda _request: "203.0.113.10")
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(settings_router.audit_service, "record", fake_record, raising=False)
+
+    await settings_router.update_time_display_settings(
+        request=TimeDisplaySettingsUpdateRequest(display_timezone="America/New_York"),
+        db=object(),
+        _={"role": "admin", "username": "admin"},
+        http_request=SimpleNamespace(headers={}, client=SimpleNamespace(host="127.0.0.1")),
+    )
+
+    assert recorded[0]["action"] == "update"
+    assert recorded[0]["resource_type"] == "settings"
+    assert recorded[0]["resource_name"] == "시간 표시 설정"
+    assert recorded[0]["detail"]["event"] == "settings_update_time_display"
+    assert recorded[0]["detail"]["changed_keys"] == ["display_timezone"]
+    assert recorded[0]["detail"]["summary"]["display_timezone"] == "America/New_York"
+    assert recorded[0]["detail"]["client_ip"] == "203.0.113.10"
+
+
+@pytest.mark.asyncio
 async def test_get_upstream_security_settings_returns_default(monkeypatch):
     StubSettingsRepository.store = {}
     monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
@@ -398,6 +437,47 @@ async def test_update_security_alert_settings_keeps_existing_email_password(monk
     assert response.provider == "email"
     assert response.email_password_configured is True
     assert response.email_recipients == ["ops@example.com", "admin@example.com"]
+
+
+@pytest.mark.asyncio
+async def test_update_security_alert_settings_records_redacted_audit(monkeypatch):
+    StubSettingsRepository.store = {
+        "security_alerts_enabled": "false",
+        "security_alert_provider": "generic",
+    }
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(settings_router, "get_client_ip", lambda _request: "198.51.100.7")
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(settings_router.audit_service, "record", fake_record, raising=False)
+
+    await settings_router.update_security_alert_settings(
+        request=SecurityAlertSettingsUpdateRequest(
+            enabled=True,
+            provider="email",
+            email_host="smtp.example.com",
+            email_port=587,
+            email_security="starttls",
+            email_username="alerts@example.com",
+            email_password="smtp-secret",
+            email_from="alerts@example.com",
+            email_recipients=["ops@example.com", "admin@example.com"],
+        ),
+        db=object(),
+        _={"role": "admin", "username": "admin"},
+        http_request=SimpleNamespace(headers={}, client=SimpleNamespace(host="127.0.0.1")),
+    )
+
+    assert recorded[0]["resource_name"] == "보안 알림 설정"
+    assert recorded[0]["detail"]["event"] == "settings_update_security_alert"
+    assert "email_password" not in recorded[0]["detail"]["summary"]
+    assert recorded[0]["detail"]["summary"]["provider"] == "email"
+    assert recorded[0]["detail"]["summary"]["enabled"] is True
+    assert recorded[0]["detail"]["summary"]["email_recipients_count"] == 2
+    assert recorded[0]["detail"]["client_ip"] == "198.51.100.7"
 
 
 @pytest.mark.asyncio

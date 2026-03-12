@@ -76,6 +76,7 @@ async def test_list_audit_logs_filters_by_event_and_applies_pagination():
         limit=1,
         offset=1,
         resource_type=None,
+        action=None,
         event="login_locked",
         security_only=False,
         db=db,
@@ -85,6 +86,52 @@ async def test_list_audit_logs_filters_by_event_and_applies_pagination():
     assert len(result) == 1
     assert result[0].event == "login_locked"
     assert result[0].resource_name == "bob"
+
+
+@pytest.mark.asyncio
+async def test_list_audit_logs_filters_by_resource_type_and_action():
+    now = datetime.now(timezone.utc)
+    db = StubAuditDb(
+        [
+            make_log(
+                action="update",
+                resource_type="settings",
+                resource_name="시간 표시 설정",
+                event="settings_update_time_display",
+                created_at=now - timedelta(minutes=1),
+            ),
+            make_log(
+                action="test",
+                resource_type="settings",
+                resource_name="Cloudflare 연결 테스트",
+                event="settings_test_cloudflare",
+                created_at=now - timedelta(minutes=2),
+            ),
+            make_log(
+                action="update",
+                resource_type="service",
+                resource_name="svc",
+                event="service_updated",
+                created_at=now - timedelta(minutes=3),
+            ),
+        ]
+    )
+
+    result = await audit_router.list_audit_logs(
+        limit=10,
+        offset=0,
+        resource_type="settings",
+        action="update",
+        event=None,
+        security_only=False,
+        db=db,
+        _={"username": "admin"},
+    )
+
+    assert len(result) == 1
+    assert result[0].resource_type == "settings"
+    assert result[0].action == "update"
+    assert result[0].event == "settings_update_time_display"
 
 
 @pytest.mark.asyncio

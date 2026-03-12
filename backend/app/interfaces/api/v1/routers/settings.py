@@ -48,6 +48,13 @@ SETTINGS_TEST_EVENTS = {
     "cloudflare": "settings_test_cloudflare",
     "security_alert": "settings_test_security_alert",
 }
+SETTINGS_UPDATE_EVENTS = {
+    "cloudflare": "settings_update_cloudflare",
+    "time_display": "settings_update_time_display",
+    "upstream_security": "settings_update_upstream_security",
+    "login_defense": "settings_update_login_defense",
+    "security_alert": "settings_update_security_alert",
+}
 
 
 async def get_cloudflare_client(db: AsyncSession = Depends(get_db)) -> CloudflareClient:
@@ -93,10 +100,12 @@ async def test_cloudflare_connection(
 @router.put("/cloudflare", response_model=CloudflareSettingsStatusResponse, summary="Cloudflare 설정 저장")
 async def update_cloudflare_settings(
     request: CloudflareSettingsUpdateRequest,
+    http_request: Request = None,
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
     repo = SQLiteSystemSettingsRepository(db)
+    previous_status = CloudflareClient.from_db_settings(await repo.get_all_dict()).get_status()
 
     if not request.api_token:
         # 빈 토큰 = 설정 전체 초기화
@@ -109,7 +118,17 @@ async def update_cloudflare_settings(
         await repo.set("cf_proxied", "true" if request.proxied else "false")
 
     db_settings = await repo.get_all_dict()
-    return CloudflareClient.from_db_settings(db_settings).get_status()
+    current_status = CloudflareClient.from_db_settings(db_settings).get_status()
+    await _record_settings_update(
+        db=db,
+        actor=_.get("username", "unknown"),
+        event=SETTINGS_UPDATE_EVENTS["cloudflare"],
+        resource_name="Cloudflare 설정",
+        before=_cloudflare_summary(previous_status),
+        after=_cloudflare_summary(current_status),
+        client_ip=_maybe_get_client_ip(http_request),
+    )
+    return current_status
 
 
 @router.get("/time-display", response_model=TimeDisplaySettingsResponse, summary="표시 시간대 설정 조회")
@@ -125,12 +144,24 @@ async def get_time_display_settings(
 @router.put("/time-display", response_model=TimeDisplaySettingsResponse, summary="표시 시간대 설정 저장")
 async def update_time_display_settings(
     request: TimeDisplaySettingsUpdateRequest,
+    http_request: Request = None,
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
     repo = SQLiteSystemSettingsRepository(db)
+    previous_value = normalize_display_timezone(await repo.get("display_timezone"))
     await repo.set("display_timezone", request.display_timezone)
-    return _build_time_display_response(request.display_timezone)
+    response = _build_time_display_response(request.display_timezone)
+    await _record_settings_update(
+        db=db,
+        actor=_.get("username", "unknown"),
+        event=SETTINGS_UPDATE_EVENTS["time_display"],
+        resource_name="시간 표시 설정",
+        before={"display_timezone": previous_value},
+        after={"display_timezone": response.display_timezone},
+        client_ip=_maybe_get_client_ip(http_request),
+    )
+    return response
 
 
 @router.get(
@@ -153,10 +184,12 @@ async def get_upstream_security_settings(
 )
 async def update_upstream_security_settings(
     request: UpstreamSecuritySettingsUpdateRequest,
+    http_request: Request = None,
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
     repo = SQLiteSystemSettingsRepository(db)
+    previous_response = await _build_upstream_security_response(repo)
     await repo.set("upstream_dns_strict_mode", "true" if request.dns_strict_mode else "false")
     await repo.set("upstream_allowlist_enabled", "true" if request.allowlist_enabled else "false")
     await repo.set(
@@ -171,7 +204,17 @@ async def update_upstream_security_settings(
         "upstream_allow_private_networks",
         "true" if request.allow_private_networks else "false",
     )
-    return await _build_upstream_security_response(repo)
+    response = await _build_upstream_security_response(repo)
+    await _record_settings_update(
+        db=db,
+        actor=_.get("username", "unknown"),
+        event=SETTINGS_UPDATE_EVENTS["upstream_security"],
+        resource_name="업스트림 보안 설정",
+        before=_upstream_security_summary(previous_response),
+        after=_upstream_security_summary(response),
+        client_ip=_maybe_get_client_ip(http_request),
+    )
+    return response
 
 
 @router.get("/login-defense", response_model=LoginDefenseSettingsResponse, summary="로그인 방어 설정 조회")
@@ -186,10 +229,12 @@ async def get_login_defense_settings(
 @router.put("/login-defense", response_model=LoginDefenseSettingsResponse, summary="로그인 방어 설정 저장")
 async def update_login_defense_settings(
     request: LoginDefenseSettingsUpdateRequest,
+    http_request: Request = None,
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
     repo = SQLiteSystemSettingsRepository(db)
+    previous_response = await _build_login_defense_response(repo)
     existing_turnstile_secret = await repo.get("login_turnstile_secret_key")
     effective_turnstile_secret = request.turnstile_secret_key or existing_turnstile_secret or ""
     turnstile_enabled = request.turnstile_mode != "off"
@@ -243,7 +288,17 @@ async def update_login_defense_settings(
             "login_turnstile_secret_key",
             request.turnstile_secret_key,
         )
-    return await _build_login_defense_response(repo)
+    response = await _build_login_defense_response(repo)
+    await _record_settings_update(
+        db=db,
+        actor=_.get("username", "unknown"),
+        event=SETTINGS_UPDATE_EVENTS["login_defense"],
+        resource_name="로그인 방어 설정",
+        before=_login_defense_summary(previous_response),
+        after=_login_defense_summary(response),
+        client_ip=_maybe_get_client_ip(http_request),
+    )
+    return response
 
 
 @router.get("/security-alerts", response_model=SecurityAlertSettingsResponse, summary="보안 알림 설정 조회")
@@ -305,10 +360,12 @@ async def get_settings_test_history(
 @router.put("/security-alerts", response_model=SecurityAlertSettingsResponse, summary="보안 알림 설정 저장")
 async def update_security_alert_settings(
     request: SecurityAlertSettingsUpdateRequest,
+    http_request: Request = None,
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
     repo = SQLiteSystemSettingsRepository(db)
+    previous_response = await _build_security_alert_response(repo)
     if request.provider not in SECURITY_ALERT_PROVIDERS:
         raise HTTPException(status_code=422, detail="지원하지 않는 보안 알림 provider입니다")
 
@@ -365,7 +422,17 @@ async def update_security_alert_settings(
         "security_alert_email_recipients",
         "\n".join(request.email_recipients) or None,
     )
-    return await _build_security_alert_response(repo)
+    response = await _build_security_alert_response(repo)
+    await _record_settings_update(
+        db=db,
+        actor=_.get("username", "unknown"),
+        event=SETTINGS_UPDATE_EVENTS["security_alert"],
+        resource_name="보안 알림 설정",
+        before=_security_alert_summary(previous_response),
+        after=_security_alert_summary(response),
+        client_ip=_maybe_get_client_ip(http_request),
+    )
+    return response
 
 
 def _build_time_display_response(display_timezone: str | None) -> TimeDisplaySettingsResponse:
@@ -532,6 +599,90 @@ def _find_latest_settings_test_event(
             last_created_at=log.created_at,
         )
     return SettingsTestHistoryItemResponse()
+
+
+def _maybe_get_client_ip(http_request: Request | None) -> str | None:
+    if http_request is None:
+        return None
+    return get_client_ip(http_request)
+
+
+async def _record_settings_update(
+    *,
+    db: AsyncSession,
+    actor: str,
+    event: str,
+    resource_name: str,
+    before: dict[str, object],
+    after: dict[str, object],
+    client_ip: str | None,
+) -> None:
+    changed_keys = sorted([key for key in after.keys() if before.get(key) != after.get(key)])
+    await audit_service.record(
+        db=db,
+        actor=actor,
+        action="update",
+        resource_type="settings",
+        resource_id=event,
+        resource_name=resource_name,
+        detail={
+            "event": event,
+            "changed_keys": changed_keys,
+            "summary": after,
+            "client_ip": client_ip,
+        },
+    )
+
+
+def _cloudflare_summary(status: CloudflareSettingsStatusResponse) -> dict[str, object]:
+    return {
+        "enabled": status.enabled,
+        "configured": status.configured,
+        "zone_id": status.zone_id,
+        "record_target": status.record_target,
+        "proxied": status.proxied,
+    }
+
+
+def _upstream_security_summary(response: UpstreamSecuritySettingsResponse) -> dict[str, object]:
+    return {
+        "preset_key": response.preset_key,
+        "dns_strict_mode": response.dns_strict_mode,
+        "allowlist_enabled": response.allowlist_enabled,
+        "allowed_domain_suffixes_count": len(response.allowed_domain_suffixes),
+        "allow_docker_service_names": response.allow_docker_service_names,
+        "allow_private_networks": response.allow_private_networks,
+    }
+
+
+def _login_defense_summary(response: LoginDefenseSettingsResponse) -> dict[str, object]:
+    return {
+        "suspicious_block_enabled": response.suspicious_block_enabled,
+        "suspicious_trusted_networks_count": len(response.suspicious_trusted_networks),
+        "suspicious_block_escalation_enabled": response.suspicious_block_escalation_enabled,
+        "suspicious_block_escalation_window_minutes": response.suspicious_block_escalation_window_minutes,
+        "suspicious_block_escalation_multiplier": response.suspicious_block_escalation_multiplier,
+        "suspicious_block_max_minutes": response.suspicious_block_max_minutes,
+        "turnstile_mode": response.turnstile_mode,
+        "turnstile_enabled": response.turnstile_enabled,
+        "turnstile_site_key_configured": bool(response.turnstile_site_key),
+    }
+
+
+def _security_alert_summary(response: SecurityAlertSettingsResponse) -> dict[str, object]:
+    return {
+        "enabled": response.enabled,
+        "provider": response.provider,
+        "webhook_configured": bool(response.webhook_url),
+        "telegram_chat_id_configured": bool(response.telegram_chat_id),
+        "pagerduty_routing_key_configured": response.pagerduty_routing_key_configured,
+        "email_host": response.email_host,
+        "email_port": response.email_port,
+        "email_security": response.email_security,
+        "email_username": response.email_username,
+        "email_from": response.email_from,
+        "email_recipients_count": len(response.email_recipients),
+    }
 
 
 async def _get_bool_setting(

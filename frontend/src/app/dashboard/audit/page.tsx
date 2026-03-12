@@ -36,6 +36,11 @@ const securityEventConfig = {
   login_locked: { label: "계정 잠금", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
   login_suspicious: { label: "이상 징후", color: "bg-orange-600/20 text-orange-200 border-orange-500/30" },
   login_blocked_ip: { label: "IP 차단", color: "bg-red-600/20 text-red-200 border-red-500/30" },
+  settings_update_cloudflare: { label: "Cloudflare 설정 변경", color: "bg-cyan-600/20 text-cyan-200 border-cyan-500/30" },
+  settings_update_time_display: { label: "시간 표시 설정 변경", color: "bg-sky-600/20 text-sky-200 border-sky-500/30" },
+  settings_update_upstream_security: { label: "업스트림 보안 설정 변경", color: "bg-indigo-600/20 text-indigo-200 border-indigo-500/30" },
+  settings_update_login_defense: { label: "로그인 방어 설정 변경", color: "bg-violet-600/20 text-violet-200 border-violet-500/30" },
+  settings_update_security_alert: { label: "보안 알림 설정 변경", color: "bg-fuchsia-600/20 text-fuchsia-200 border-fuchsia-500/30" },
   settings_test_cloudflare: { label: "Cloudflare 테스트", color: "bg-cyan-600/20 text-cyan-200 border-cyan-500/30" },
   settings_test_security_alert: { label: "보안 알림 테스트", color: "bg-sky-600/20 text-sky-200 border-sky-500/30" },
 };
@@ -43,6 +48,8 @@ const securityEventConfig = {
 const auditFilters = [
   { key: "all", label: "전체" },
   { key: "security", label: "보안 이벤트" },
+  { key: "settings_update", label: "설정 변경" },
+  { key: "settings_test", label: "설정 테스트" },
   { key: "login_locked", label: "계정 잠금" },
   { key: "login_suspicious", label: "이상 징후" },
   { key: "login_blocked_ip", label: "IP 차단" },
@@ -56,6 +63,10 @@ export default function AuditLogPage() {
       ? { limit: 50 }
       : selectedFilter === "security"
         ? { limit: 50, security_only: true }
+        : selectedFilter === "settings_update"
+          ? { limit: 50, resource_type: "settings", action: "update" }
+          : selectedFilter === "settings_test"
+            ? { limit: 50, resource_type: "settings", action: "test" }
         : { limit: 50, event: selectedFilter };
   const { data: logs, isLoading, isError, error } = useAudit(auditQuery);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();

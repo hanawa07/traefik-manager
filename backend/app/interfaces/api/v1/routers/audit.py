@@ -24,6 +24,7 @@ async def list_audit_logs(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     resource_type: Optional[str] = Query(None),
+    action: Optional[str] = Query(None),
     event: Optional[str] = Query(None),
     security_only: bool = Query(False),
     db: AsyncSession = Depends(get_db),
@@ -40,7 +41,13 @@ async def list_audit_logs(
     result = await db.execute(query)
     logs = result.scalars().all()
 
-    filtered_logs = _filter_logs(logs, event=event, security_only=security_only)
+    filtered_logs = _filter_logs(
+        logs,
+        resource_type=resource_type,
+        action=action,
+        event=event,
+        security_only=security_only,
+    )
     paged_logs = filtered_logs[offset : offset + limit]
     return [_to_audit_log_response(log) for log in paged_logs]
 
@@ -97,12 +104,18 @@ def _get_event(log: AuditLogModel) -> str | None:
 def _filter_logs(
     logs: list[AuditLogModel],
     *,
+    resource_type: str | None,
+    action: str | None,
     event: str | None,
     security_only: bool,
 ) -> list[AuditLogModel]:
     filtered = logs
+    if resource_type:
+        filtered = [log for log in filtered if log.resource_type == resource_type]
     if security_only:
         filtered = [log for log in filtered if _get_event(log) in SECURITY_EVENTS]
+    if action:
+        filtered = [log for log in filtered if log.action == action]
     if event:
         filtered = [log for log in filtered if _get_event(log) == event]
     return filtered
