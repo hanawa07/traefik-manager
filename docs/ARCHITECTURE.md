@@ -238,6 +238,7 @@ traefik-manager/
 - 이상 징후 IP 자동 차단은 설정에서 끄거나, 신뢰 네트워크(CIDR/IP) 예외를 둘 수 있습니다.
 - 보안 이벤트는 감사 로그에 기록되고, 대시보드/감사 로그 화면에서 별도 요약과 필터로 바로 볼 수 있습니다.
 - 운영 설정 저장과 설정 테스트도 같은 감사 로그 파이프라인으로 들어가며, `settings/update`, `settings/test` 흐름으로 추적합니다.
+- 서비스/리다이렉트 수정도 동일한 감사 로그 파이프라인에서 `before/after` diff를 남기고, 안전 롤백 가능 여부를 함께 계산합니다.
 - 안전한 설정(`시간 표시`, `업스트림 보안`)은 audit detail에 롤백 payload를 함께 저장하고, `settings/rollback` 액션으로 복구합니다.
 - 선택적으로 보안 이벤트를 외부 채널(generic/slack/discord/telegram/teams/pagerduty/email)로 전송할 수 있으며, 전송 실패는 원래 로그인 방어 흐름을 막지 않습니다.
 - 컨테이너 비루트 사용자 실행

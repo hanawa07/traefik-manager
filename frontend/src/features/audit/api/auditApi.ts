@@ -50,4 +50,18 @@ export const auditApi = {
     const res = await apiClient.get<AuditSecuritySummary>("/audit/security-summary", { params });
     return res.data;
   },
+
+  rollbackChange: async (
+    resourceType: "settings" | "service" | "redirect",
+    auditLogId: string,
+  ): Promise<Record<string, unknown>> => {
+    const endpoint =
+      resourceType === "settings"
+        ? `/settings/rollback/${auditLogId}`
+        : resourceType === "service"
+          ? `/services/rollback/${auditLogId}`
+          : `/redirects/rollback/${auditLogId}`;
+    const res = await apiClient.post<Record<string, unknown>>(endpoint);
+    return res.data;
+  },
 };

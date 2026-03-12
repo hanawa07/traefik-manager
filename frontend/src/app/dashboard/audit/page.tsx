@@ -3,8 +3,7 @@
 import { Fragment, useState } from "react";
 
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
-import { useRollbackSettingsChange } from "@/features/settings/hooks/useSettings";
-import { useAudit } from "@/features/audit/hooks/useAudit";
+import { useAudit, useAuditRollback } from "@/features/audit/hooks/useAudit";
 import { 
   History, 
   Server, 
@@ -47,6 +46,10 @@ const securityEventConfig = {
   settings_rollback_upstream_security: { label: "업스트림 보안 설정 롤백", color: "bg-orange-600/20 text-orange-200 border-orange-500/30" },
   settings_test_cloudflare: { label: "Cloudflare 테스트", color: "bg-cyan-600/20 text-cyan-200 border-cyan-500/30" },
   settings_test_security_alert: { label: "보안 알림 테스트", color: "bg-sky-600/20 text-sky-200 border-sky-500/30" },
+  service_update: { label: "서비스 변경", color: "bg-blue-600/20 text-blue-200 border-blue-500/30" },
+  service_rollback: { label: "서비스 롤백", color: "bg-indigo-600/20 text-indigo-200 border-indigo-500/30" },
+  redirect_update: { label: "리다이렉트 변경", color: "bg-purple-600/20 text-purple-200 border-purple-500/30" },
+  redirect_rollback: { label: "리다이렉트 롤백", color: "bg-fuchsia-600/20 text-fuchsia-200 border-fuchsia-500/30" },
 };
 
 const auditFilters = [
@@ -74,7 +77,7 @@ function formatAuditValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function getSettingsDiffRows(detail: Record<string, unknown> | null) {
+function getAuditDiffRows(detail: Record<string, unknown> | null) {
   if (!detail) return [];
   const before = isRecord(detail.before) ? detail.before : null;
   const after = isRecord(detail.after) ? detail.after : null;
@@ -110,18 +113,25 @@ export default function AuditLogPage() {
         : { limit: 50, event: selectedFilter };
   const { data: logs, isLoading, isError, error } = useAudit(auditQuery);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
-  const rollbackMutation = useRollbackSettingsChange();
+  const rollbackMutation = useAuditRollback();
 
-  const handleRollback = async (auditLogId: string) => {
+  const handleRollback = async (
+    resourceType: "settings" | "service" | "redirect",
+    auditLogId: string,
+  ) => {
     try {
       setRollbackTargetId(auditLogId);
       setRollbackFeedback(null);
-      const result = await rollbackMutation.mutateAsync(auditLogId);
-      setRollbackFeedback({ type: "success", text: result.message });
+      const result = await rollbackMutation.mutateAsync({ resourceType, auditLogId });
+      const message =
+        typeof result.message === "string"
+          ? result.message
+          : "대상 항목을 이전 상태로 되돌렸습니다.";
+      setRollbackFeedback({ type: "success", text: message });
     } catch (rollbackError) {
       const message =
         (rollbackError as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        "설정 롤백에 실패했습니다.";
+        "롤백에 실패했습니다.";
       setRollbackFeedback({ type: "error", text: message });
     } finally {
       setRollbackTargetId(null);
@@ -222,9 +232,12 @@ export default function AuditLogPage() {
                   const event = log.event ? securityEventConfig[log.event as keyof typeof securityEventConfig] : null;
                   const ResourceIcon = resource?.icon || Server;
                   const detail = isRecord(log.detail) ? log.detail : null;
-                  const diffRows = getSettingsDiffRows(detail);
+                  const diffRows = getAuditDiffRows(detail);
                   const canExpand = diffRows.length > 0;
-                  const rollbackSupported = detail?.rollback_supported === true && log.action === "update";
+                  const rollbackSupported =
+                    detail?.rollback_supported === true &&
+                    log.action === "update" &&
+                    (log.resource_type === "settings" || log.resource_type === "service" || log.resource_type === "redirect");
                   const isExpanded = expandedLogId === log.id;
 
                   return (
@@ -337,11 +350,16 @@ export default function AuditLogPage() {
                               {rollbackSupported ? (
                                 <div className="flex items-center justify-between gap-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
                                   <p className="text-sm text-amber-100">
-                                    이 변경은 안전 롤백을 지원합니다. 저장된 이전 설정으로 되돌립니다.
+                                    이 변경은 안전 롤백을 지원합니다. 저장된 이전 상태로 되돌립니다.
                                   </p>
                                   <button
                                     type="button"
-                                    onClick={() => handleRollback(log.id)}
+                                    onClick={() =>
+                                      handleRollback(
+                                        log.resource_type as "settings" | "service" | "redirect",
+                                        log.id,
+                                      )
+                                    }
                                     disabled={rollbackMutation.isPending}
                                     className="inline-flex items-center gap-2 rounded-lg border border-amber-400/40 bg-amber-500/20 px-3 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60"
                                   >
