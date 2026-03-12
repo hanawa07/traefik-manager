@@ -217,7 +217,8 @@ traefik-manager/
     → audit_service.record()
       → security_alert_notifier.notify_if_needed()
         → system_settings에서 webhook 설정 조회
-          → `login_locked`, `login_suspicious`, `login_blocked_ip`만 provider별 포맷으로 전송
+          → 보안 이벤트(`login_locked`, `login_suspicious`, `login_blocked_ip`)와 운영 변경 이벤트(`settings/service/redirect/middleware/user update`, `*_rollback`)를 분류
+            → 각 그룹별 enabled/route 설정으로 provider 결정
             → generic: 원본 JSON webhook
             → slack: Incoming Webhook blocks/text
             → discord: webhook embed/content

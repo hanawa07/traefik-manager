@@ -171,9 +171,18 @@ export interface LoginDefenseSettingsInput {
 export type SecurityAlertRouteEvent = "login_locked" | "login_suspicious" | "login_blocked_ip";
 export type SecurityAlertRouteTarget = "default" | "disabled" | "telegram" | "pagerduty" | "email";
 export type SecurityAlertEventRoutes = Record<SecurityAlertRouteEvent, SecurityAlertRouteTarget>;
+export type ChangeAlertRouteEvent =
+  | "settings_change"
+  | "service_change"
+  | "redirect_change"
+  | "middleware_change"
+  | "user_change"
+  | "rollback";
+export type ChangeAlertEventRoutes = Record<ChangeAlertRouteEvent, SecurityAlertRouteTarget>;
 
 export interface SecurityAlertSettingsStatus {
   enabled: boolean;
+  change_alerts_enabled: boolean;
   provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty" | "email";
   webhook_url: string | null;
   telegram_bot_token_configured: boolean;
@@ -189,10 +198,12 @@ export interface SecurityAlertSettingsStatus {
   timeout_seconds: number;
   alert_events: string[];
   event_routes: SecurityAlertEventRoutes;
+  change_event_routes: ChangeAlertEventRoutes;
 }
 
 export interface SecurityAlertSettingsInput {
   enabled: boolean;
+  change_alerts_enabled: boolean;
   provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty" | "email";
   webhook_url: string;
   telegram_bot_token: string;
@@ -206,6 +217,7 @@ export interface SecurityAlertSettingsInput {
   email_from: string;
   email_recipients: string[];
   event_routes: SecurityAlertEventRoutes;
+  change_event_routes: ChangeAlertEventRoutes;
 }
 
 export interface SettingsActionTestResult {

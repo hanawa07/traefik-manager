@@ -110,6 +110,7 @@ NPM(Nginx Proxy Manager)을 대체하고, Authentik 인증을 UI에서 한 번�
 - [x] 보안 이벤트 외부 웹훅 알림 (login_locked / login_suspicious / login_blocked_ip)
 - [x] 보안 알림 provider preset (generic / slack / discord / telegram / teams / pagerduty / email)
 - [x] 보안 알림 이벤트별 정책 세분화 (기본 채널 + override)
+- [x] 운영 변경/롤백 알림 확장 (settings / service / redirect / middleware / user / rollback)
 - [x] 선택형 Cloudflare Turnstile 로그인 보호
 - [x] 차단 이벤트 대응 자동화 고도화
 - [x] 로드맵/아키텍처/보안 문서 최신화

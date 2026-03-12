@@ -20,27 +20,33 @@ logger = logging.getLogger(__name__)
 SECURITY_ALERT_EVENTS = {"login_locked", "login_suspicious", "login_blocked_ip"}
 SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"}
 SECURITY_ALERT_ROUTE_TARGETS = {"default", "disabled", "telegram", "pagerduty", "email"}
+CHANGE_ALERT_GROUPS = {
+    "settings_change",
+    "service_change",
+    "redirect_change",
+    "middleware_change",
+    "user_change",
+    "rollback",
+}
 PAGERDUTY_EVENTS_API_URL = "https://events.pagerduty.com/v2/enqueue"
 
 
 async def notify_if_needed(db: AsyncSession, audit_log: AuditLogModel) -> bool:
     event = _get_event(audit_log)
-    if event not in SECURITY_ALERT_EVENTS:
+    if event is None:
         return False
 
     repo = SQLiteSystemSettingsRepository(db)
-    enabled = await _get_bool_setting(repo, "security_alerts_enabled", default=False)
-    if not enabled:
+    alert_context = await _get_alert_context(repo, event)
+    if alert_context is None:
         return False
 
-    provider = await _get_effective_provider(repo, event)
-    if provider is None:
-        return False
+    category, provider = alert_context
 
     if provider == "email":
-        return await _send_email_alert(repo, audit_log, event)
+        return await _send_email_alert(repo, audit_log, event, category)
 
-    request = await _build_request(repo, audit_log, event, provider)
+    request = await _build_request(repo, audit_log, event, provider, category)
     if request is None:
         return False
 
@@ -75,7 +81,7 @@ async def send_test_alert(db: AsyncSession) -> dict[str, Any]:
     audit_log.created_at = datetime.now(timezone.utc)
 
     if provider == "email":
-        success = await _send_email_alert(repo, audit_log, "login_suspicious")
+        success = await _send_email_alert(repo, audit_log, "login_suspicious", "security")
         return {
             "success": success,
             "provider": provider,
@@ -83,7 +89,7 @@ async def send_test_alert(db: AsyncSession) -> dict[str, Any]:
             "detail": "현재 SMTP 설정으로 테스트 메시지를 전송했습니다" if success else "SMTP 설정을 다시 확인하세요",
         }
 
-    request = await _build_request(repo, audit_log, "login_suspicious", provider)
+    request = await _build_request(repo, audit_log, "login_suspicious", provider, "security")
     if request is None:
         return {
             "success": False,
@@ -116,13 +122,14 @@ async def _send_email_alert(
     repo: SQLiteSystemSettingsRepository,
     audit_log: AuditLogModel,
     event: str,
+    category: str,
 ) -> bool:
     email_settings = await _build_email_settings(repo)
     if email_settings is None:
         return False
 
     try:
-        await asyncio.to_thread(_send_email_sync, email_settings, audit_log, event)
+        await asyncio.to_thread(_send_email_sync, email_settings, audit_log, event, category)
         return True
     except OSError as exc:
         logger.warning("보안 이메일 알림 전송 실패: %s", exc, exc_info=True)
@@ -141,19 +148,52 @@ async def _get_bool_setting(
     return value.strip().lower() == "true"
 
 
-async def _get_effective_provider(repo: SQLiteSystemSettingsRepository, event: str) -> str | None:
+async def _get_alert_context(repo: SQLiteSystemSettingsRepository, event: str) -> tuple[str, str] | None:
+    category_and_group = _get_alert_category_and_group(event)
+    if category_and_group is None:
+        return None
+    category, route_group = category_and_group
+
+    enabled_key = "security_alerts_enabled" if category == "security" else "change_alerts_enabled"
+    enabled = await _get_bool_setting(repo, enabled_key, default=False)
+    if not enabled:
+        return None
+
     default_provider = ((await repo.get("security_alert_provider")) or "generic").strip().lower()
     if default_provider not in SECURITY_ALERT_PROVIDERS:
         default_provider = "generic"
 
-    route_target = ((await repo.get(f"security_alert_route_{event}")) or "default").strip().lower()
+    route_key = (
+        f"security_alert_route_{route_group}"
+        if category == "security"
+        else f"security_alert_change_route_{route_group}"
+    )
+    route_target = ((await repo.get(route_key)) or "default").strip().lower()
     if route_target not in SECURITY_ALERT_ROUTE_TARGETS:
         route_target = "default"
     if route_target == "disabled":
         return None
     if route_target == "default":
-        return default_provider
-    return route_target
+        return category, default_provider
+    return category, route_target
+
+
+def _get_alert_category_and_group(event: str) -> tuple[str, str] | None:
+    if event in SECURITY_ALERT_EVENTS:
+        return "security", event
+    if event.startswith("settings_update_"):
+        return "change", "settings_change"
+    if event == "service_update":
+        return "change", "service_change"
+    if event == "redirect_update":
+        return "change", "redirect_change"
+    if event == "middleware_update":
+        return "change", "middleware_change"
+    if event == "user_update":
+        return "change", "user_change"
+    if event.endswith("_rollback") or event.startswith("settings_rollback_"):
+        return "change", "rollback"
+    return None
 
 
 def _get_event(audit_log: AuditLogModel) -> str | None:
@@ -162,11 +202,11 @@ def _get_event(audit_log: AuditLogModel) -> str | None:
     return event if isinstance(event, str) else None
 
 
-def _build_payload(audit_log: AuditLogModel, event: str) -> dict[str, Any]:
+def _build_payload(audit_log: AuditLogModel, event: str, category: str) -> dict[str, Any]:
     detail = audit_log.detail or {}
     return {
         "source": "traefik-manager",
-        "category": "security",
+        "category": category,
         "event": event,
         "actor": audit_log.actor,
         "resource_type": audit_log.resource_type,
@@ -175,7 +215,7 @@ def _build_payload(audit_log: AuditLogModel, event: str) -> dict[str, Any]:
         "client_ip": detail.get("client_ip"),
         "created_at": audit_log.created_at.isoformat(),
         "detail": detail,
-        "message": _build_message(event, audit_log.resource_name, detail.get("client_ip")),
+        "message": _build_message(event, audit_log.resource_name, detail.get("client_ip"), category),
     }
 
 
@@ -212,6 +252,7 @@ async def _build_request(
     audit_log: AuditLogModel,
     event: str,
     provider: str,
+    category: str,
 ) -> tuple[str, dict[str, Any]] | None:
     if provider == "telegram":
         bot_token = ((await repo.get("security_alert_telegram_bot_token")) or "").strip()
@@ -222,43 +263,57 @@ async def _build_request(
             f"https://api.telegram.org/bot{bot_token}/sendMessage",
             {
                 "chat_id": chat_id,
-                "text": _build_telegram_message(audit_log, event),
+                "text": _build_telegram_message(audit_log, event, category),
             },
         )
     if provider == "pagerduty":
         routing_key = ((await repo.get("security_alert_pagerduty_routing_key")) or "").strip()
         if not routing_key:
             return None
-        return PAGERDUTY_EVENTS_API_URL, _build_pagerduty_payload(audit_log, event, routing_key)
+        return PAGERDUTY_EVENTS_API_URL, _build_pagerduty_payload(audit_log, event, routing_key, category)
 
     webhook_url = ((await repo.get("security_alert_webhook_url")) or "").strip()
     if not webhook_url:
         return None
 
     if provider == "slack":
-        return webhook_url, _build_slack_payload(audit_log, event)
+        return webhook_url, _build_slack_payload(audit_log, event, category)
     if provider == "discord":
-        return webhook_url, _build_discord_payload(audit_log, event)
+        return webhook_url, _build_discord_payload(audit_log, event, category)
     if provider == "teams":
-        return webhook_url, _build_teams_payload(audit_log, event)
-    return webhook_url, _build_payload(audit_log, event)
+        return webhook_url, _build_teams_payload(audit_log, event, category)
+    return webhook_url, _build_payload(audit_log, event, category)
 
 
-def _build_message(event: str, resource_name: str, client_ip: Any) -> str:
-    if event == "login_locked":
+def _build_message(event: str, resource_name: str, client_ip: Any, category: str) -> str:
+    if category == "security" and event == "login_locked":
         return f"계정 잠금 감지: {resource_name}"
-    if event == "login_suspicious":
+    if category == "security" and event == "login_suspicious":
         return f"이상 징후 로그인 감지: {client_ip or resource_name}"
-    return f"이상 징후 IP 차단: {client_ip or resource_name}"
+    if category == "security":
+        return f"이상 징후 IP 차단: {client_ip or resource_name}"
+    if event.startswith("settings_update_"):
+        return f"설정 변경: {resource_name}"
+    if event == "service_update":
+        return f"서비스 변경: {resource_name}"
+    if event == "redirect_update":
+        return f"리다이렉트 변경: {resource_name}"
+    if event == "middleware_update":
+        return f"미들웨어 변경: {resource_name}"
+    if event == "user_update":
+        return f"사용자 변경: {resource_name}"
+    return f"롤백 실행: {resource_name}"
 
 
-def _send_email_sync(email_settings: dict[str, Any], audit_log: AuditLogModel, event: str) -> None:
+def _send_email_sync(email_settings: dict[str, Any], audit_log: AuditLogModel, event: str, category: str) -> None:
     message = EmailMessage()
     detail = audit_log.detail or {}
-    message["Subject"] = f"[Traefik Manager] {_build_message(event, audit_log.resource_name, detail.get('client_ip'))}"
+    message["Subject"] = (
+        f"[Traefik Manager] {_build_message(event, audit_log.resource_name, detail.get('client_ip'), category)}"
+    )
     message["From"] = email_settings["from_email"]
     message["To"] = ", ".join(email_settings["recipients"])
-    message.set_content(_build_multiline_message(audit_log, event))
+    message.set_content(_build_multiline_message(audit_log, event, category))
 
     timeout = settings.SECURITY_ALERT_EMAIL_TIMEOUT_SECONDS
     security = email_settings["security"]
@@ -284,34 +339,34 @@ def _send_email_sync(email_settings: dict[str, Any], audit_log: AuditLogModel, e
         client.send_message(message)
 
 
-def _build_slack_payload(audit_log: AuditLogModel, event: str) -> dict[str, Any]:
-    message = _build_message(event, audit_log.resource_name, (audit_log.detail or {}).get("client_ip"))
+def _build_slack_payload(audit_log: AuditLogModel, event: str, category: str) -> dict[str, Any]:
+    message = _build_message(event, audit_log.resource_name, (audit_log.detail or {}).get("client_ip"), category)
     return {
         "text": f"[Traefik Manager] {message}",
         "blocks": [
             {
                 "type": "header",
-                "text": {"type": "plain_text", "text": "Traefik Manager 보안 경고"},
+                "text": {"type": "plain_text", "text": "Traefik Manager 운영 알림" if category == "change" else "Traefik Manager 보안 경고"},
             },
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": _build_multiline_message(audit_log, event),
+                    "text": _build_multiline_message(audit_log, event, category),
                 },
             },
         ],
     }
 
 
-def _build_discord_payload(audit_log: AuditLogModel, event: str) -> dict[str, Any]:
+def _build_discord_payload(audit_log: AuditLogModel, event: str, category: str) -> dict[str, Any]:
     detail = audit_log.detail or {}
     return {
-        "content": f"[Traefik Manager] {_build_message(event, audit_log.resource_name, detail.get('client_ip'))}",
+        "content": f"[Traefik Manager] {_build_message(event, audit_log.resource_name, detail.get('client_ip'), category)}",
         "embeds": [
             {
-                "title": "Traefik Manager 보안 경고",
-                "description": _build_multiline_message(audit_log, event),
+                "title": "Traefik Manager 운영 알림" if category == "change" else "Traefik Manager 보안 경고",
+                "description": _build_multiline_message(audit_log, event, category),
                 "fields": [
                     {"name": "이벤트", "value": event, "inline": True},
                     {"name": "대상", "value": audit_log.resource_name or "-", "inline": True},
@@ -322,7 +377,7 @@ def _build_discord_payload(audit_log: AuditLogModel, event: str) -> dict[str, An
     }
 
 
-def _build_teams_payload(audit_log: AuditLogModel, event: str) -> dict[str, Any]:
+def _build_teams_payload(audit_log: AuditLogModel, event: str, category: str) -> dict[str, Any]:
     detail = audit_log.detail or {}
     return {
         "type": "message",
@@ -339,12 +394,12 @@ def _build_teams_payload(audit_log: AuditLogModel, event: str) -> dict[str, Any]
                             "type": "TextBlock",
                             "size": "Medium",
                             "weight": "Bolder",
-                            "text": "Traefik Manager 보안 경고",
+                            "text": "Traefik Manager 운영 알림" if category == "change" else "Traefik Manager 보안 경고",
                         },
                         {
                             "type": "TextBlock",
                             "wrap": True,
-                            "text": _build_message(event, audit_log.resource_name, detail.get("client_ip")),
+                            "text": _build_message(event, audit_log.resource_name, detail.get("client_ip"), category),
                         },
                         {
                             "type": "FactSet",
@@ -362,25 +417,27 @@ def _build_teams_payload(audit_log: AuditLogModel, event: str) -> dict[str, Any]
     }
 
 
-def _build_pagerduty_payload(audit_log: AuditLogModel, event: str, routing_key: str) -> dict[str, Any]:
+def _build_pagerduty_payload(audit_log: AuditLogModel, event: str, routing_key: str, category: str) -> dict[str, Any]:
     detail = audit_log.detail or {}
     source = str(detail.get("client_ip") or audit_log.resource_name or "traefik-manager")
     return {
         "routing_key": routing_key,
         "event_action": "trigger",
         "payload": {
-            "summary": _build_message(event, audit_log.resource_name, detail.get("client_ip")),
+            "summary": _build_message(event, audit_log.resource_name, detail.get("client_ip"), category),
             "source": source,
-            "severity": _build_pagerduty_severity(event),
+            "severity": _build_pagerduty_severity(event, category),
             "component": "traefik-manager",
-            "group": "security",
+            "group": category,
             "class": event,
-            "custom_details": _build_payload(audit_log, event),
+            "custom_details": _build_payload(audit_log, event, category),
         },
     }
 
 
-def _build_pagerduty_severity(event: str) -> str:
+def _build_pagerduty_severity(event: str, category: str) -> str:
+    if category == "change":
+        return "info"
     if event == "login_blocked_ip":
         return "critical"
     if event == "login_locked":
@@ -388,24 +445,31 @@ def _build_pagerduty_severity(event: str) -> str:
     return "warning"
 
 
-def _build_telegram_message(audit_log: AuditLogModel, event: str) -> str:
-    return _build_multiline_message(audit_log, event).replace("*", "")
+def _build_telegram_message(audit_log: AuditLogModel, event: str, category: str) -> str:
+    return _build_multiline_message(audit_log, event, category).replace("*", "")
 
 
-def _build_multiline_message(audit_log: AuditLogModel, event: str) -> str:
+def _build_multiline_message(audit_log: AuditLogModel, event: str, category: str) -> str:
     detail = audit_log.detail or {}
     lines = [
-        _build_message(event, audit_log.resource_name, detail.get("client_ip")),
+        _build_message(event, audit_log.resource_name, detail.get("client_ip"), category),
         f"이벤트: {event}",
         f"대상: {audit_log.resource_name or '-'}",
+        f"행위자: {audit_log.actor or '-'}",
         f"IP: {detail.get('client_ip') or '-'}",
         f"시각: {audit_log.created_at.isoformat()}",
     ]
-    if event == "login_blocked_ip":
+    if category == "security" and event == "login_blocked_ip":
         if detail.get("block_minutes") is not None:
             lines.append(f"차단 시간: {detail.get('block_minutes')}분")
         if detail.get("repeat_count") is not None:
             lines.append(f"반복 차단 횟수: {detail.get('repeat_count')}")
         if detail.get("blocked_until"):
             lines.append(f"차단 해제 시각: {detail.get('blocked_until')}")
+    if category == "change":
+        changed_keys = detail.get("changed_keys")
+        if isinstance(changed_keys, list) and changed_keys:
+            lines.append(f"변경 키: {', '.join(str(item) for item in changed_keys)}")
+        if detail.get("source_audit_id"):
+            lines.append(f"원본 변경 로그: {detail.get('source_audit_id')}")
     return "\n".join(lines)

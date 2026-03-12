@@ -150,6 +150,7 @@ backend/app/
 - `사용자 수정`도 감사 로그에서 변경 diff를 확인할 수 있고, 비밀번호 변경이 없는 안전한 경우에만 이전 상태로 롤백할 수 있습니다.
 - 설정 화면에서 보안 알림 기본 채널을 `Generic Webhook`, `Slack`, `Discord`, `Telegram`, `Microsoft Teams`, `PagerDuty`, `Email` 중에서 선택할 수 있습니다.
 - `login_locked`, `login_suspicious`, `login_blocked_ip` 이벤트는 기본 채널을 따르거나, `Telegram / PagerDuty / Email / 전송 안 함`으로 개별 override할 수 있습니다.
+- `settings/service/redirect/middleware/user` 변경과 각종 `rollback` 이벤트도 별도 운영 변경 알림 정책으로 기본 채널 또는 override를 탈 수 있습니다.
 - Telegram은 bot token + chat id를 사용하고, PagerDuty는 routing key를 사용하며, Generic/Slack/Discord/Teams는 webhook URL을 사용합니다. Email은 SMTP host/port/security/from/recipients를 사용합니다.
 
 ## 문서

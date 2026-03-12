@@ -21,6 +21,8 @@ import {
   BackupPayload,
   BackupPreviewGroup,
   BackupPreviewResult,
+  ChangeAlertEventRoutes,
+  ChangeAlertRouteEvent,
   LoginDefenseSettingsInput,
   SecurityAlertEventRoutes,
   SecurityAlertRouteEvent,
@@ -88,6 +90,7 @@ function createDefaultLoginDefenseForm(): LoginDefenseSettingsInput & { suspicio
 function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
   return {
     enabled: false,
+    change_alerts_enabled: false,
     provider: "generic",
     webhook_url: "",
     telegram_bot_token: "",
@@ -104,6 +107,14 @@ function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
       login_locked: "default",
       login_suspicious: "default",
       login_blocked_ip: "default",
+    },
+    change_event_routes: {
+      settings_change: "default",
+      service_change: "default",
+      redirect_change: "default",
+      middleware_change: "default",
+      user_change: "default",
+      rollback: "default",
     },
   };
 }
@@ -157,6 +168,15 @@ const SECURITY_ALERT_EVENT_OPTIONS: Array<{ key: SecurityAlertRouteEvent; label:
   { key: "login_locked", label: "계정 잠금" },
   { key: "login_suspicious", label: "이상 징후" },
   { key: "login_blocked_ip", label: "IP 차단" },
+];
+
+const CHANGE_ALERT_EVENT_OPTIONS: Array<{ key: ChangeAlertRouteEvent; label: string }> = [
+  { key: "settings_change", label: "설정 변경" },
+  { key: "service_change", label: "서비스 변경" },
+  { key: "redirect_change", label: "리다이렉트 변경" },
+  { key: "middleware_change", label: "미들웨어 변경" },
+  { key: "user_change", label: "사용자 변경" },
+  { key: "rollback", label: "롤백" },
 ];
 
 const SECURITY_ALERT_ROUTE_OPTIONS: Array<{ value: SecurityAlertRouteTarget; label: string }> = [
@@ -569,6 +589,7 @@ export default function SettingsPage() {
   const handleEditSecurityAlert = () => {
     setSecurityAlertForm({
       enabled: securityAlertSettings?.enabled ?? false,
+      change_alerts_enabled: securityAlertSettings?.change_alerts_enabled ?? false,
       provider: securityAlertSettings?.provider ?? "generic",
       webhook_url: securityAlertSettings?.webhook_url ?? "",
       telegram_bot_token: "",
@@ -582,6 +603,8 @@ export default function SettingsPage() {
       email_from: securityAlertSettings?.email_from ?? "",
       email_recipients: securityAlertSettings?.email_recipients ?? [],
       event_routes: securityAlertSettings?.event_routes ?? createDefaultSecurityAlertForm().event_routes,
+      change_event_routes:
+        securityAlertSettings?.change_event_routes ?? createDefaultSecurityAlertForm().change_event_routes,
     });
     setSecurityAlertErrorMessage("");
     setIsEditingSecurityAlert(true);
@@ -592,6 +615,7 @@ export default function SettingsPage() {
     try {
       await updateSecurityAlert.mutateAsync({
         enabled: securityAlertForm.enabled,
+        change_alerts_enabled: securityAlertForm.change_alerts_enabled,
         provider: securityAlertForm.provider,
         webhook_url: securityAlertForm.webhook_url.trim(),
         telegram_bot_token: securityAlertForm.telegram_bot_token.trim(),
@@ -605,6 +629,7 @@ export default function SettingsPage() {
         email_from: securityAlertForm.email_from.trim(),
         email_recipients: securityAlertForm.email_recipients,
         event_routes: securityAlertForm.event_routes,
+        change_event_routes: securityAlertForm.change_event_routes,
       });
       setSecurityAlertTestResult(null);
       setIsEditingSecurityAlert(false);
@@ -1369,7 +1394,7 @@ export default function SettingsPage() {
           <SettingsCardHeader
             icon={<Cloud className="w-5 h-5 text-sky-600" />}
             title="보안 알림"
-            description="계정 잠금, 이상 징후 로그인, IP 자동 차단 이벤트를 외부 webhook으로 전달합니다."
+            description="보안 이벤트와 운영 변경 이벤트를 외부 채널로 전달합니다."
             canEdit={canManage && !isEditingSecurityAlert && !isSecurityAlertLoading}
             onEdit={handleEditSecurityAlert}
           />
@@ -1394,6 +1419,26 @@ export default function SettingsPage() {
                   <span className="block font-medium text-gray-900">보안 웹훅 알림 활성화</span>
                   <span className="block text-xs text-gray-500 mt-1">
                     보안 경고 이벤트가 발생하면 JSON payload를 webhook endpoint로 전송합니다.
+                  </span>
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded accent-sky-600"
+                  checked={securityAlertForm.change_alerts_enabled}
+                  onChange={(e) =>
+                    setSecurityAlertForm((current) => ({
+                      ...current,
+                      change_alerts_enabled: e.target.checked,
+                    }))
+                  }
+                />
+                <span>
+                  <span className="block font-medium text-gray-900">운영 변경 알림 활성화</span>
+                  <span className="block text-xs text-gray-500 mt-1">
+                    설정, 서비스, 리다이렉트, 미들웨어, 사용자 변경과 롤백 이벤트를 같은 채널 정책으로 전달합니다.
                   </span>
                 </span>
               </label>
@@ -1672,6 +1717,43 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">운영 변경 알림 정책</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    기본 채널은 현재 선택한 provider를 뜻합니다. 운영 변경 알림은 전체 on/off와 이벤트군별 route를 따로 가집니다.
+                  </p>
+                </div>
+                <div className="grid gap-3">
+                  {CHANGE_ALERT_EVENT_OPTIONS.map((eventOption) => (
+                    <div key={eventOption.key} className="grid gap-2 md:grid-cols-[140px_1fr] md:items-center">
+                      <label className="label mb-0">{eventOption.label}</label>
+                      <select
+                        className="input"
+                        value={securityAlertForm.change_event_routes[eventOption.key]}
+                        onChange={(e) =>
+                          setSecurityAlertForm((current) => ({
+                            ...current,
+                            change_event_routes: {
+                              ...current.change_event_routes,
+                              [eventOption.key]: e.target.value as SecurityAlertRouteTarget,
+                            } as ChangeAlertEventRoutes,
+                          }))
+                        }
+                      >
+                        {SECURITY_ALERT_ROUTE_OPTIONS.map((option) => (
+                          <option key={`${eventOption.key}-${option.value}`} value={option.value}>
+                            {option.value === "default"
+                              ? `${option.label} (${selectedSecurityAlertProvider.label})`
+                              : option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
                 <p>전송 이벤트: {(securityAlertSettings?.alert_events ?? []).join(", ")}</p>
                 <p>전송 타임아웃: {securityAlertSettings?.timeout_seconds ?? 5}초</p>
@@ -1703,6 +1785,10 @@ export default function SettingsPage() {
               <SettingsSummaryRow
                 label="상태"
                 value={securityAlertSettings?.enabled ? "활성화" : "비활성화"}
+              />
+              <SettingsSummaryRow
+                label="운영 변경 알림"
+                value={securityAlertSettings?.change_alerts_enabled ? "활성화" : "비활성화"}
               />
               <SettingsSummaryRow label="채널" value={currentSecurityAlertProvider.label} />
               {securityAlertSettings?.provider === "telegram" ? (
@@ -1776,6 +1862,16 @@ export default function SettingsPage() {
                   label={eventOption.label}
                   value={getSecurityAlertRouteLabel(
                     securityAlertSettings?.event_routes?.[eventOption.key] ?? "default",
+                    currentSecurityAlertProvider.label,
+                  )}
+                />
+              ))}
+              {CHANGE_ALERT_EVENT_OPTIONS.map((eventOption) => (
+                <SettingsSummaryRow
+                  key={`summary-change-${eventOption.key}`}
+                  label={eventOption.label}
+                  value={getSecurityAlertRouteLabel(
+                    securityAlertSettings?.change_event_routes?.[eventOption.key] ?? "default",
                     currentSecurityAlertProvider.label,
                   )}
                 />

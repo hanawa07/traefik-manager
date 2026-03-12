@@ -44,6 +44,14 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
 
 router = APIRouter()
 SECURITY_ALERT_EVENTS = ["login_locked", "login_suspicious", "login_blocked_ip"]
+CHANGE_ALERT_EVENTS = [
+    "settings_change",
+    "service_change",
+    "redirect_change",
+    "middleware_change",
+    "user_change",
+    "rollback",
+]
 SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"}
 SECURITY_ALERT_ROUTE_TARGETS = {"default", "disabled", "telegram", "pagerduty", "email"}
 SETTINGS_TEST_EVENTS = {
@@ -383,6 +391,7 @@ async def update_security_alert_settings(
     if request.provider not in SECURITY_ALERT_PROVIDERS:
         raise HTTPException(status_code=422, detail="지원하지 않는 보안 알림 provider입니다")
     normalized_event_routes = _normalize_security_alert_event_routes(request.event_routes)
+    normalized_change_event_routes = _normalize_change_alert_event_routes(request.change_event_routes)
 
     existing_telegram_bot_token = await repo.get("security_alert_telegram_bot_token")
     effective_telegram_bot_token = request.telegram_bot_token or existing_telegram_bot_token or ""
@@ -406,10 +415,29 @@ async def update_security_alert_settings(
                 effective_pagerduty_routing_key=effective_pagerduty_routing_key,
                 effective_email_password=effective_email_password,
             )
+    if request.change_alerts_enabled:
+        for event_name in CHANGE_ALERT_EVENTS:
+            effective_provider = _resolve_security_alert_provider(
+                request.provider,
+                normalized_change_event_routes[event_name],
+            )
+            if effective_provider is None:
+                continue
+            _validate_security_alert_provider_config(
+                provider=effective_provider,
+                request=request,
+                effective_telegram_bot_token=effective_telegram_bot_token,
+                effective_pagerduty_routing_key=effective_pagerduty_routing_key,
+                effective_email_password=effective_email_password,
+            )
 
     await repo.set(
         "security_alerts_enabled",
         "true" if request.enabled else "false",
+    )
+    await repo.set(
+        "change_alerts_enabled",
+        "true" if request.change_alerts_enabled else "false",
     )
     await repo.set(
         "security_alert_provider",
@@ -423,6 +451,11 @@ async def update_security_alert_settings(
         await repo.set(
             f"security_alert_route_{event_name}",
             normalized_event_routes[event_name],
+        )
+    for event_name in CHANGE_ALERT_EVENTS:
+        await repo.set(
+            f"security_alert_change_route_{event_name}",
+            normalized_change_event_routes[event_name],
         )
     if request.telegram_bot_token:
         await repo.set("security_alert_telegram_bot_token", request.telegram_bot_token)
@@ -642,6 +675,11 @@ async def _build_security_alert_response(
             "security_alerts_enabled",
             default=False,
         ),
+        change_alerts_enabled=await _get_bool_setting(
+            repo,
+            "change_alerts_enabled",
+            default=False,
+        ),
         provider=provider if provider in SECURITY_ALERT_PROVIDERS else "generic",
         webhook_url=await repo.get("security_alert_webhook_url"),
         telegram_bot_token_configured=bool(telegram_bot_token),
@@ -657,6 +695,7 @@ async def _build_security_alert_response(
         timeout_seconds=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS,
         alert_events=SECURITY_ALERT_EVENTS,
         event_routes=await _build_security_alert_event_routes(repo),
+        change_event_routes=await _build_change_alert_event_routes(repo),
     )
 
 
@@ -758,8 +797,10 @@ def _login_defense_summary(response: LoginDefenseSettingsResponse) -> dict[str, 
 def _security_alert_summary(response: SecurityAlertSettingsResponse) -> dict[str, object]:
     return {
         "enabled": response.enabled,
+        "change_alerts_enabled": response.change_alerts_enabled,
         "provider": response.provider,
         "event_routes": response.event_routes,
+        "change_event_routes": response.change_event_routes,
         "webhook_configured": bool(response.webhook_url),
         "telegram_chat_id_configured": bool(response.telegram_chat_id),
         "pagerduty_routing_key_configured": response.pagerduty_routing_key_configured,
@@ -782,8 +823,25 @@ async def _build_security_alert_event_routes(
     return routes
 
 
+async def _build_change_alert_event_routes(
+    repo: SQLiteSystemSettingsRepository,
+) -> dict[str, str]:
+    routes: dict[str, str] = {}
+    for event_name in CHANGE_ALERT_EVENTS:
+        stored_route = ((await repo.get(f"security_alert_change_route_{event_name}")) or "default").strip().lower()
+        routes[event_name] = stored_route if stored_route in SECURITY_ALERT_ROUTE_TARGETS else "default"
+    return routes
+
+
 def _normalize_security_alert_event_routes(event_routes: dict[str, str]) -> dict[str, str]:
     normalized = {event_name: "default" for event_name in SECURITY_ALERT_EVENTS}
+    for event_name, route in event_routes.items():
+        normalized[event_name] = route if route in SECURITY_ALERT_ROUTE_TARGETS else "default"
+    return normalized
+
+
+def _normalize_change_alert_event_routes(event_routes: dict[str, str]) -> dict[str, str]:
+    normalized = {event_name: "default" for event_name in CHANGE_ALERT_EVENTS}
     for event_name, route in event_routes.items():
         normalized[event_name] = route if route in SECURITY_ALERT_ROUTE_TARGETS else "default"
     return normalized

@@ -192,6 +192,7 @@ class LoginDefenseSettingsUpdateRequest(BaseModel):
 
 class SecurityAlertSettingsResponse(BaseModel):
     enabled: bool
+    change_alerts_enabled: bool = False
     provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"]
     webhook_url: str | None = None
     telegram_bot_token_configured: bool = False
@@ -209,10 +210,15 @@ class SecurityAlertSettingsResponse(BaseModel):
     event_routes: dict[str, Literal["default", "disabled", "telegram", "pagerduty", "email"]] = Field(
         default_factory=dict
     )
+    change_event_routes: dict[
+        str,
+        Literal["default", "disabled", "telegram", "pagerduty", "email"],
+    ] = Field(default_factory=dict)
 
 
 class SecurityAlertSettingsUpdateRequest(BaseModel):
     enabled: bool = False
+    change_alerts_enabled: bool = False
     provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"] = "generic"
     webhook_url: str = ""
     telegram_bot_token: str = ""
@@ -228,6 +234,10 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
     event_routes: dict[str, Literal["default", "disabled", "telegram", "pagerduty", "email"]] = Field(
         default_factory=dict
     )
+    change_event_routes: dict[
+        str,
+        Literal["default", "disabled", "telegram", "pagerduty", "email"],
+    ] = Field(default_factory=dict)
 
     @field_validator("webhook_url")
     @classmethod
@@ -263,5 +273,26 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
             normalized_key = key.strip()
             if normalized_key not in allowed_events:
                 raise ValueError("지원하지 않는 보안 이벤트 라우팅 키입니다")
+            normalized[normalized_key] = route
+        return normalized
+
+    @field_validator("change_event_routes")
+    @classmethod
+    def validate_change_event_routes(
+        cls, value: dict[str, Literal["default", "disabled", "telegram", "pagerduty", "email"]]
+    ) -> dict[str, Literal["default", "disabled", "telegram", "pagerduty", "email"]]:
+        allowed_events = {
+            "settings_change",
+            "service_change",
+            "redirect_change",
+            "middleware_change",
+            "user_change",
+            "rollback",
+        }
+        normalized: dict[str, Literal["default", "disabled", "telegram", "pagerduty", "email"]] = {}
+        for key, route in value.items():
+            normalized_key = key.strip()
+            if normalized_key not in allowed_events:
+                raise ValueError("지원하지 않는 운영 변경 알림 라우팅 키입니다")
             normalized[normalized_key] = route
         return normalized
