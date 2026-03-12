@@ -29,6 +29,7 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
     LoginDefenseSettingsResponse,
     LoginDefenseSettingsUpdateRequest,
     SecurityAlertSettingsResponse,
+    SettingsRollbackActionResponse,
     SettingsTestHistoryItemResponse,
     SettingsTestHistoryResponse,
     SettingsTestActionResponse,
@@ -54,6 +55,10 @@ SETTINGS_UPDATE_EVENTS = {
     "upstream_security": "settings_update_upstream_security",
     "login_defense": "settings_update_login_defense",
     "security_alert": "settings_update_security_alert",
+}
+SETTINGS_ROLLBACK_EVENTS = {
+    SETTINGS_UPDATE_EVENTS["time_display"]: "settings_rollback_time_display",
+    SETTINGS_UPDATE_EVENTS["upstream_security"]: "settings_rollback_upstream_security",
 }
 
 
@@ -160,6 +165,7 @@ async def update_time_display_settings(
         before={"display_timezone": previous_value},
         after={"display_timezone": response.display_timezone},
         client_ip=_maybe_get_client_ip(http_request),
+        rollback_payload={"display_timezone": previous_value},
     )
     return response
 
@@ -213,6 +219,13 @@ async def update_upstream_security_settings(
         before=_upstream_security_summary(previous_response),
         after=_upstream_security_summary(response),
         client_ip=_maybe_get_client_ip(http_request),
+        rollback_payload={
+            "dns_strict_mode": previous_response.dns_strict_mode,
+            "allowlist_enabled": previous_response.allowlist_enabled,
+            "allowed_domain_suffixes": previous_response.allowed_domain_suffixes,
+            "allow_docker_service_names": previous_response.allow_docker_service_names,
+            "allow_private_networks": previous_response.allow_private_networks,
+        },
     )
     return response
 
@@ -435,6 +448,63 @@ async def update_security_alert_settings(
     return response
 
 
+@router.post(
+    "/rollback/{audit_log_id}",
+    response_model=SettingsRollbackActionResponse,
+    summary="설정 변경 롤백",
+)
+async def rollback_settings_change(
+    audit_log_id: str,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_admin),
+):
+    result = await db.execute(select(AuditLogModel).where(AuditLogModel.id == audit_log_id))
+    audit_log = result.scalar_one_or_none()
+    if audit_log is None:
+        raise HTTPException(status_code=404, detail="대상 설정 변경 로그를 찾을 수 없습니다")
+    if audit_log.resource_type != "settings" or audit_log.action != "update":
+        raise HTTPException(status_code=422, detail="설정 변경 로그만 롤백할 수 있습니다")
+
+    detail = audit_log.detail or {}
+    event = detail.get("event")
+    rollback_supported = detail.get("rollback_supported") is True
+    rollback_payload = detail.get("rollback_payload")
+
+    if not isinstance(event, str) or not rollback_supported or not isinstance(rollback_payload, dict):
+        raise HTTPException(status_code=422, detail="이 설정 변경은 안전 롤백을 지원하지 않습니다")
+
+    repo = SQLiteSystemSettingsRepository(db)
+    before_state = await _get_current_settings_summary_for_event(repo, event)
+    after_state = await _apply_settings_rollback(repo, event, rollback_payload)
+    rollback_event = SETTINGS_ROLLBACK_EVENTS[event]
+
+    changed_keys = sorted([key for key in after_state.keys() if before_state.get(key) != after_state.get(key)])
+    await audit_service.record(
+        db=db,
+        actor=_.get("username", "unknown"),
+        action="rollback",
+        resource_type="settings",
+        resource_id=rollback_event,
+        resource_name=audit_log.resource_name,
+        detail={
+            "event": rollback_event,
+            "source_audit_id": audit_log_id,
+            "changed_keys": changed_keys,
+            "before": before_state,
+            "after": after_state,
+            "summary": after_state,
+            "client_ip": _maybe_get_client_ip(http_request),
+        },
+    )
+    return SettingsRollbackActionResponse(
+        success=True,
+        message=f"{audit_log.resource_name}을(를) 이전 상태로 되돌렸습니다",
+        resource_name=audit_log.resource_name,
+        event=rollback_event,
+    )
+
+
 def _build_time_display_response(display_timezone: str | None) -> TimeDisplaySettingsResponse:
     normalized_timezone = normalize_display_timezone(display_timezone)
     server_context = get_server_time_context()
@@ -616,8 +686,20 @@ async def _record_settings_update(
     before: dict[str, object],
     after: dict[str, object],
     client_ip: str | None,
+    rollback_payload: dict[str, object] | None = None,
 ) -> None:
     changed_keys = sorted([key for key in after.keys() if before.get(key) != after.get(key)])
+    detail = {
+        "event": event,
+        "changed_keys": changed_keys,
+        "before": before,
+        "after": after,
+        "summary": after,
+        "rollback_supported": rollback_payload is not None,
+        "client_ip": client_ip,
+    }
+    if rollback_payload is not None:
+        detail["rollback_payload"] = rollback_payload
     await audit_service.record(
         db=db,
         actor=actor,
@@ -625,12 +707,7 @@ async def _record_settings_update(
         resource_type="settings",
         resource_id=event,
         resource_name=resource_name,
-        detail={
-            "event": event,
-            "changed_keys": changed_keys,
-            "summary": after,
-            "client_ip": client_ip,
-        },
+        detail=detail,
     )
 
 
@@ -683,6 +760,61 @@ def _security_alert_summary(response: SecurityAlertSettingsResponse) -> dict[str
         "email_from": response.email_from,
         "email_recipients_count": len(response.email_recipients),
     }
+
+
+async def _get_current_settings_summary_for_event(
+    repo: SQLiteSystemSettingsRepository,
+    event: str,
+) -> dict[str, object]:
+    if event == SETTINGS_UPDATE_EVENTS["time_display"]:
+        return {"display_timezone": normalize_display_timezone(await repo.get("display_timezone"))}
+    if event == SETTINGS_UPDATE_EVENTS["upstream_security"]:
+        return _upstream_security_summary(await _build_upstream_security_response(repo))
+    raise HTTPException(status_code=422, detail="이 설정 변경은 안전 롤백을 지원하지 않습니다")
+
+
+async def _apply_settings_rollback(
+    repo: SQLiteSystemSettingsRepository,
+    event: str,
+    rollback_payload: dict[str, object],
+) -> dict[str, object]:
+    if event == SETTINGS_UPDATE_EVENTS["time_display"]:
+        display_timezone = rollback_payload.get("display_timezone")
+        if not isinstance(display_timezone, str):
+            raise HTTPException(status_code=422, detail="유효한 표시 시간대 복원 정보가 없습니다")
+        await repo.set("display_timezone", display_timezone)
+        return {"display_timezone": normalize_display_timezone(await repo.get("display_timezone"))}
+
+    if event == SETTINGS_UPDATE_EVENTS["upstream_security"]:
+        allowed_domain_suffixes = rollback_payload.get("allowed_domain_suffixes")
+        if not isinstance(allowed_domain_suffixes, list) or not all(
+            isinstance(item, str) for item in allowed_domain_suffixes
+        ):
+            raise HTTPException(status_code=422, detail="유효한 업스트림 보안 복원 정보가 없습니다")
+
+        await repo.set(
+            "upstream_dns_strict_mode",
+            "true" if rollback_payload.get("dns_strict_mode") else "false",
+        )
+        await repo.set(
+            "upstream_allowlist_enabled",
+            "true" if rollback_payload.get("allowlist_enabled") else "false",
+        )
+        await repo.set(
+            "upstream_allowed_domain_suffixes",
+            "\n".join(allowed_domain_suffixes),
+        )
+        await repo.set(
+            "upstream_allow_docker_service_names",
+            "true" if rollback_payload.get("allow_docker_service_names") else "false",
+        )
+        await repo.set(
+            "upstream_allow_private_networks",
+            "true" if rollback_payload.get("allow_private_networks") else "false",
+        )
+        return _upstream_security_summary(await _build_upstream_security_response(repo))
+
+    raise HTTPException(status_code=422, detail="이 설정 변경은 안전 롤백을 지원하지 않습니다")
 
 
 async def _get_bool_setting(

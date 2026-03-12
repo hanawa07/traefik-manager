@@ -145,6 +145,7 @@ backend/app/
 - 잠금/실패/이상 징후/IP 차단 이벤트는 감사 로그에 함께 남습니다.
 - 대시보드에서 최근 보안 경고 요약을 바로 확인할 수 있고, 감사 로그 화면에서 보안 이벤트만 빠르게 필터링할 수 있습니다.
 - 설정 화면에서 저장하는 주요 운영 설정도 감사 로그에 `settings/update`로 기록되며, 감사 로그 화면에서 `설정 변경`/`설정 테스트` 필터로 바로 확인할 수 있습니다.
+- `시간 표시 설정`, `업스트림 보안 설정`은 감사 로그에서 변경 diff를 확인하고 안전 롤백을 실행할 수 있습니다.
 - 설정 화면에서 보안 알림 채널을 `Generic Webhook`, `Slack`, `Discord`, `Telegram`, `Microsoft Teams`, `PagerDuty`, `Email` 중에서 선택할 수 있습니다.
 - `login_locked`, `login_suspicious`, `login_blocked_ip` 이벤트를 채널별 포맷으로 전송합니다.
 - Telegram은 bot token + chat id를 사용하고, PagerDuty는 routing key를 사용하며, Generic/Slack/Discord/Teams는 webhook URL을 사용합니다. Email은 SMTP host/port/security/from/recipients를 사용합니다.

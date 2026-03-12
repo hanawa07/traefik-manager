@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
+import { useRollbackSettingsChange } from "@/features/settings/hooks/useSettings";
 import { useAudit } from "@/features/audit/hooks/useAudit";
 import { 
   History, 
@@ -29,6 +30,7 @@ const actionConfig = {
   update: { label: "수정", color: "bg-blue-600/20 text-blue-300 border-blue-500/30" },
   delete: { label: "삭제", color: "bg-red-600/20 text-red-300 border-red-500/30" },
   test: { label: "테스트", color: "bg-cyan-600/20 text-cyan-200 border-cyan-500/30" },
+  rollback: { label: "롤백", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
 };
 
 const securityEventConfig = {
@@ -41,6 +43,8 @@ const securityEventConfig = {
   settings_update_upstream_security: { label: "업스트림 보안 설정 변경", color: "bg-indigo-600/20 text-indigo-200 border-indigo-500/30" },
   settings_update_login_defense: { label: "로그인 방어 설정 변경", color: "bg-violet-600/20 text-violet-200 border-violet-500/30" },
   settings_update_security_alert: { label: "보안 알림 설정 변경", color: "bg-fuchsia-600/20 text-fuchsia-200 border-fuchsia-500/30" },
+  settings_rollback_time_display: { label: "시간 표시 설정 롤백", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
+  settings_rollback_upstream_security: { label: "업스트림 보안 설정 롤백", color: "bg-orange-600/20 text-orange-200 border-orange-500/30" },
   settings_test_cloudflare: { label: "Cloudflare 테스트", color: "bg-cyan-600/20 text-cyan-200 border-cyan-500/30" },
   settings_test_security_alert: { label: "보안 알림 테스트", color: "bg-sky-600/20 text-sky-200 border-sky-500/30" },
 };
@@ -50,14 +54,48 @@ const auditFilters = [
   { key: "security", label: "보안 이벤트" },
   { key: "settings_update", label: "설정 변경" },
   { key: "settings_test", label: "설정 테스트" },
+  { key: "settings_rollback", label: "설정 롤백" },
   { key: "login_locked", label: "계정 잠금" },
   { key: "login_suspicious", label: "이상 징후" },
   { key: "login_blocked_ip", label: "IP 차단" },
   { key: "login_failure", label: "로그인 실패" },
 ] as const;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function formatAuditValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "boolean") return value ? "예" : "아니오";
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "없음";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string") return value;
+  return JSON.stringify(value);
+}
+
+function getSettingsDiffRows(detail: Record<string, unknown> | null) {
+  if (!detail) return [];
+  const before = isRecord(detail.before) ? detail.before : null;
+  const after = isRecord(detail.after) ? detail.after : null;
+  if (!before || !after) return [];
+
+  const changedKeys = Array.isArray(detail.changed_keys)
+    ? detail.changed_keys.filter((item): item is string => typeof item === "string")
+    : Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
+
+  return changedKeys.map((key) => ({
+    key,
+    before: before[key],
+    after: after[key],
+  }));
+}
+
 export default function AuditLogPage() {
   const [selectedFilter, setSelectedFilter] = useState<(typeof auditFilters)[number]["key"]>("all");
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [rollbackFeedback, setRollbackFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [rollbackTargetId, setRollbackTargetId] = useState<string | null>(null);
   const auditQuery =
     selectedFilter === "all"
       ? { limit: 50 }
@@ -67,9 +105,28 @@ export default function AuditLogPage() {
           ? { limit: 50, resource_type: "settings", action: "update" }
           : selectedFilter === "settings_test"
             ? { limit: 50, resource_type: "settings", action: "test" }
+            : selectedFilter === "settings_rollback"
+              ? { limit: 50, resource_type: "settings", action: "rollback" }
         : { limit: 50, event: selectedFilter };
   const { data: logs, isLoading, isError, error } = useAudit(auditQuery);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
+  const rollbackMutation = useRollbackSettingsChange();
+
+  const handleRollback = async (auditLogId: string) => {
+    try {
+      setRollbackTargetId(auditLogId);
+      setRollbackFeedback(null);
+      const result = await rollbackMutation.mutateAsync(auditLogId);
+      setRollbackFeedback({ type: "success", text: result.message });
+    } catch (rollbackError) {
+      const message =
+        (rollbackError as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        "설정 롤백에 실패했습니다.";
+      setRollbackFeedback({ type: "error", text: message });
+    } finally {
+      setRollbackTargetId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -125,6 +182,19 @@ export default function AuditLogPage() {
         })}
       </div>
 
+      {rollbackFeedback ? (
+        <div
+          className={clsx(
+            "mb-4 rounded-xl border px-4 py-3 text-sm",
+            rollbackFeedback.type === "success"
+              ? "border-green-500/30 bg-green-500/10 text-green-100"
+              : "border-red-500/30 bg-red-500/10 text-red-100",
+          )}
+        >
+          {rollbackFeedback.text}
+        </div>
+      ) : null}
+
       <div className="bg-slate-950 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -151,60 +221,142 @@ export default function AuditLogPage() {
                   const action = actionConfig[log.action as keyof typeof actionConfig];
                   const event = log.event ? securityEventConfig[log.event as keyof typeof securityEventConfig] : null;
                   const ResourceIcon = resource?.icon || Server;
+                  const detail = isRecord(log.detail) ? log.detail : null;
+                  const diffRows = getSettingsDiffRows(detail);
+                  const canExpand = diffRows.length > 0;
+                  const rollbackSupported = detail?.rollback_supported === true && log.action === "update";
+                  const isExpanded = expandedLogId === log.id;
 
                   return (
-                    <tr key={log.id} className="hover:bg-slate-900 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-600">
-                            <span className="text-xs text-white font-black">
-                              {log.actor.charAt(0).toUpperCase()}
+                    <Fragment key={log.id}>
+                      <tr key={log.id} className="hover:bg-slate-900 transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-600">
+                              <span className="text-xs text-white font-black">
+                                {log.actor.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="text-sm text-white font-semibold">{log.actor}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {event ? (
+                            <span
+                              className={clsx(
+                                "px-2.5 py-1 rounded-md text-[11px] font-black border",
+                                event.color,
+                              )}
+                            >
+                              {event.label}
                             </span>
-                          </div>
-                          <span className="text-sm text-white font-semibold">{log.actor}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {event ? (
-                          <span
-                            className={clsx(
-                              "px-2.5 py-1 rounded-md text-[11px] font-black border",
-                              event.color,
-                            )}
-                          >
-                            {event.label}
+                          ) : (
+                            <span className="text-xs text-slate-500">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={clsx(
+                            "px-2.5 py-1 rounded-md text-[11px] font-black border",
+                            action?.color || "bg-slate-800 text-white border-slate-700"
+                          )}>
+                            {action?.label || log.action}
                           </span>
-                        ) : (
-                          <span className="text-xs text-slate-500">-</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={clsx(
-                          "px-2.5 py-1 rounded-md text-[11px] font-black border",
-                          action?.color || "bg-slate-800 text-white border-slate-700"
-                        )}>
-                          {action?.label || log.action}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className={clsx("p-1.5 rounded-lg", resource?.color)}>
-                            <ResourceIcon className="w-3.5 h-3.5" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className={clsx("p-1.5 rounded-lg", resource?.color)}>
+                              <ResourceIcon className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="text-sm text-white font-medium">{resource?.label || log.resource_type}</span>
                           </div>
-                          <span className="text-sm text-white font-medium">{resource?.label || log.resource_type}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-white font-bold group-hover:text-blue-400 transition-colors">
-                          {log.resource_name}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-slate-100 font-medium">
-                          {formatDateTime(log.created_at, timeDisplaySettings?.display_timezone)}
-                        </span>
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="space-y-2">
+                            <span className="block text-sm text-white font-bold group-hover:text-blue-400 transition-colors">
+                              {log.resource_name}
+                            </span>
+                            {canExpand ? (
+                              <button
+                                type="button"
+                                onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                                className="text-xs font-medium text-blue-300 hover:text-blue-200"
+                              >
+                                {isExpanded ? "변경 상세 숨기기" : "변경 상세 보기"}
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm text-slate-100 font-medium">
+                            {formatDateTime(log.created_at, timeDisplaySettings?.display_timezone)}
+                          </span>
+                        </td>
+                      </tr>
+                      {isExpanded ? (
+                        <tr className="bg-slate-900/60">
+                          <td colSpan={6} className="px-6 py-5">
+                            <div className="space-y-4">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {diffRows.map((row) => (
+                                  <span
+                                    key={`${log.id}-${row.key}`}
+                                    className="rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-[11px] font-medium text-slate-300"
+                                  >
+                                    {row.key}
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="grid gap-4 xl:grid-cols-2">
+                                <div className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
+                                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                    이전 값
+                                  </p>
+                                  <div className="space-y-2">
+                                    {diffRows.map((row) => (
+                                      <div key={`${log.id}-${row.key}-before`} className="grid grid-cols-[160px_1fr] gap-3 text-sm">
+                                        <span className="text-slate-400">{row.key}</span>
+                                        <span className="break-all text-slate-100">{formatAuditValue(row.before)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
+                                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                    이후 값
+                                  </p>
+                                  <div className="space-y-2">
+                                    {diffRows.map((row) => (
+                                      <div key={`${log.id}-${row.key}-after`} className="grid grid-cols-[160px_1fr] gap-3 text-sm">
+                                        <span className="text-slate-400">{row.key}</span>
+                                        <span className="break-all text-slate-100">{formatAuditValue(row.after)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                              {rollbackSupported ? (
+                                <div className="flex items-center justify-between gap-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+                                  <p className="text-sm text-amber-100">
+                                    이 변경은 안전 롤백을 지원합니다. 저장된 이전 설정으로 되돌립니다.
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRollback(log.id)}
+                                    disabled={rollbackMutation.isPending}
+                                    className="inline-flex items-center gap-2 rounded-lg border border-amber-400/40 bg-amber-500/20 px-3 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {rollbackMutation.isPending && rollbackTargetId === log.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : null}
+                                    이전 상태로 롤백
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
                   );
                 })
               )}

@@ -25,6 +25,13 @@ class SettingsTestActionResponse(BaseModel):
     provider: str | None = None
 
 
+class SettingsRollbackActionResponse(BaseModel):
+    success: bool
+    message: str
+    resource_name: str
+    event: str
+
+
 class SettingsTestHistoryItemResponse(BaseModel):
     last_event: str | None = None
     last_success: bool | None = None

@@ -115,6 +115,10 @@ async def test_update_time_display_settings_records_audit(monkeypatch):
     assert recorded[0]["resource_name"] == "시간 표시 설정"
     assert recorded[0]["detail"]["event"] == "settings_update_time_display"
     assert recorded[0]["detail"]["changed_keys"] == ["display_timezone"]
+    assert recorded[0]["detail"]["before"]["display_timezone"] == "Asia/Seoul"
+    assert recorded[0]["detail"]["after"]["display_timezone"] == "America/New_York"
+    assert recorded[0]["detail"]["rollback_supported"] is True
+    assert recorded[0]["detail"]["rollback_payload"] == {"display_timezone": "Asia/Seoul"}
     assert recorded[0]["detail"]["summary"]["display_timezone"] == "America/New_York"
     assert recorded[0]["detail"]["client_ip"] == "203.0.113.10"
 
@@ -474,10 +478,192 @@ async def test_update_security_alert_settings_records_redacted_audit(monkeypatch
     assert recorded[0]["resource_name"] == "보안 알림 설정"
     assert recorded[0]["detail"]["event"] == "settings_update_security_alert"
     assert "email_password" not in recorded[0]["detail"]["summary"]
+    assert "email_password" not in recorded[0]["detail"]["after"]
+    assert recorded[0]["detail"]["rollback_supported"] is False
+    assert "rollback_payload" not in recorded[0]["detail"]
     assert recorded[0]["detail"]["summary"]["provider"] == "email"
     assert recorded[0]["detail"]["summary"]["enabled"] is True
     assert recorded[0]["detail"]["summary"]["email_recipients_count"] == 2
     assert recorded[0]["detail"]["client_ip"] == "198.51.100.7"
+
+
+@pytest.mark.asyncio
+async def test_rollback_settings_change_restores_time_display(monkeypatch):
+    StubSettingsRepository.store = {"display_timezone": "America/New_York"}
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(settings_router, "get_client_ip", lambda _request: "203.0.113.15")
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    class StubScalarResult:
+        def __init__(self, item):
+            self._item = item
+
+        def scalar_one_or_none(self):
+            return self._item
+
+    class StubExecuteResult:
+        def __init__(self, item):
+            self._item = item
+
+        def scalars(self):
+            return self
+
+        def all(self):
+            return [self._item] if self._item else []
+
+        def scalar_one_or_none(self):
+            return self._item
+
+    class StubDB:
+        def __init__(self, item):
+            self.item = item
+
+        async def execute(self, _query):
+            return StubExecuteResult(self.item)
+
+    monkeypatch.setattr(settings_router.audit_service, "record", fake_record, raising=False)
+
+    response = await settings_router.rollback_settings_change(
+        audit_log_id="log-1",
+        http_request=SimpleNamespace(headers={}, client=SimpleNamespace(host="127.0.0.1")),
+        db=StubDB(
+            SimpleNamespace(
+                id="log-1",
+                actor="admin",
+                action="update",
+                resource_type="settings",
+                resource_id="settings_update_time_display",
+                resource_name="시간 표시 설정",
+                detail={
+                    "event": "settings_update_time_display",
+                    "rollback_supported": True,
+                    "rollback_payload": {"display_timezone": "Asia/Seoul"},
+                    "before": {"display_timezone": "Asia/Seoul"},
+                    "after": {"display_timezone": "America/New_York"},
+                },
+                created_at=datetime.now(timezone.utc),
+            )
+        ),
+        _={"role": "admin", "username": "admin"},
+    )
+
+    assert response.success is True
+    assert StubSettingsRepository.store["display_timezone"] == "Asia/Seoul"
+    assert recorded[0]["action"] == "rollback"
+    assert recorded[0]["resource_type"] == "settings"
+    assert recorded[0]["resource_name"] == "시간 표시 설정"
+    assert recorded[0]["detail"]["event"] == "settings_rollback_time_display"
+    assert recorded[0]["detail"]["source_audit_id"] == "log-1"
+    assert recorded[0]["detail"]["before"]["display_timezone"] == "America/New_York"
+    assert recorded[0]["detail"]["after"]["display_timezone"] == "Asia/Seoul"
+    assert recorded[0]["detail"]["client_ip"] == "203.0.113.15"
+
+
+@pytest.mark.asyncio
+async def test_rollback_settings_change_restores_upstream_security(monkeypatch):
+    StubSettingsRepository.store = {
+        "upstream_dns_strict_mode": "true",
+        "upstream_allowlist_enabled": "true",
+        "upstream_allowed_domain_suffixes": "example.com",
+        "upstream_allow_docker_service_names": "false",
+        "upstream_allow_private_networks": "false",
+    }
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    class StubExecuteResult:
+        def __init__(self, item):
+            self._item = item
+
+        def scalar_one_or_none(self):
+            return self._item
+
+    class StubDB:
+        def __init__(self, item):
+            self.item = item
+
+        async def execute(self, _query):
+            return StubExecuteResult(self.item)
+
+    response = await settings_router.rollback_settings_change(
+        audit_log_id="log-2",
+        http_request=SimpleNamespace(headers={}, client=SimpleNamespace(host="127.0.0.1")),
+        db=StubDB(
+            SimpleNamespace(
+                id="log-2",
+                actor="admin",
+                action="update",
+                resource_type="settings",
+                resource_id="settings_update_upstream_security",
+                resource_name="업스트림 보안 설정",
+                detail={
+                    "event": "settings_update_upstream_security",
+                    "rollback_supported": True,
+                    "rollback_payload": {
+                        "dns_strict_mode": False,
+                        "allowlist_enabled": False,
+                        "allowed_domain_suffixes": [],
+                        "allow_docker_service_names": True,
+                        "allow_private_networks": True,
+                    },
+                    "before": {"preset_key": "disabled"},
+                    "after": {"preset_key": "external-only"},
+                },
+                created_at=datetime.now(timezone.utc),
+            )
+        ),
+        _={"role": "admin", "username": "admin"},
+    )
+
+    assert response.success is True
+    assert StubSettingsRepository.store["upstream_dns_strict_mode"] == "false"
+    assert StubSettingsRepository.store["upstream_allowlist_enabled"] == "false"
+    assert StubSettingsRepository.store["upstream_allowed_domain_suffixes"] == ""
+    assert StubSettingsRepository.store["upstream_allow_docker_service_names"] == "true"
+    assert StubSettingsRepository.store["upstream_allow_private_networks"] == "true"
+
+
+@pytest.mark.asyncio
+async def test_rollback_settings_change_rejects_unsupported_event(monkeypatch):
+    class StubExecuteResult:
+        def __init__(self, item):
+            self._item = item
+
+        def scalar_one_or_none(self):
+            return self._item
+
+    class StubDB:
+        def __init__(self, item):
+            self.item = item
+
+        async def execute(self, _query):
+            return StubExecuteResult(self.item)
+
+    with pytest.raises(HTTPException):
+        await settings_router.rollback_settings_change(
+            audit_log_id="log-3",
+            http_request=SimpleNamespace(headers={}, client=SimpleNamespace(host="127.0.0.1")),
+            db=StubDB(
+                SimpleNamespace(
+                    id="log-3",
+                    actor="admin",
+                    action="update",
+                    resource_type="settings",
+                    resource_id="settings_update_security_alert",
+                    resource_name="보안 알림 설정",
+                    detail={
+                        "event": "settings_update_security_alert",
+                        "rollback_supported": False,
+                        "before": {"enabled": False},
+                        "after": {"enabled": True},
+                    },
+                    created_at=datetime.now(timezone.utc),
+                )
+            ),
+            _={"role": "admin", "username": "admin"},
+        )
 
 
 @pytest.mark.asyncio

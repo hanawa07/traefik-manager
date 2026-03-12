@@ -6,6 +6,7 @@ import {
   BackupValidateResult,
   CloudflareSettingsInput,
   LoginDefenseSettingsInput,
+  SettingsRollbackActionResult,
   SecurityAlertSettingsInput,
   SettingsActionTestResult,
   TimeDisplaySettingsInput,
@@ -127,6 +128,23 @@ export function useTestSecurityAlertSettings() {
     mutationFn: () => settingsApi.testSecurityAlertSettings(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "test-history"] });
+    },
+  });
+}
+
+export function useRollbackSettingsChange() {
+  const queryClient = useQueryClient();
+  return useMutation<SettingsRollbackActionResult, unknown, string>({
+    mutationFn: (auditLogId) => settingsApi.rollbackSettingsChange(auditLogId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["audit-logs"] }),
+        queryClient.invalidateQueries({ queryKey: ["settings", "time-display"] }),
+        queryClient.invalidateQueries({ queryKey: ["settings", "upstream-security"] }),
+        queryClient.invalidateQueries({ queryKey: ["settings", "login-defense"] }),
+        queryClient.invalidateQueries({ queryKey: ["settings", "security-alerts"] }),
+        queryClient.invalidateQueries({ queryKey: ["settings", "cloudflare"] }),
+      ]);
     },
   });
 }

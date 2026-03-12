@@ -59,6 +59,7 @@
 - 대시보드에는 최근 보안 경고 요약(잠금/이상 징후/IP 차단)이 표시되고, 감사 로그 화면에는 보안 이벤트 전용 필터가 제공됩니다.
 - 시간 표시, 업스트림 보안, 로그인 방어, 보안 알림, Cloudflare 같은 주요 설정 저장도 감사 로그에 `settings/update`로 기록됩니다.
 - 감사 로그 화면에서는 `설정 변경`과 `설정 테스트`를 분리해 확인할 수 있습니다.
+- `시간 표시`, `업스트림 보안`은 audit detail에 `before/after` diff와 안전 롤백 payload를 남기며, 감사 로그 화면에서 이전 상태로 되돌릴 수 있습니다.
 - 설정 화면에서 보안 알림 채널을 `generic/slack/discord/telegram/teams/pagerduty/email` preset으로 선택할 수 있습니다.
 - `login_locked`, `login_suspicious`, `login_blocked_ip` 이벤트는 채널별 포맷으로 전송됩니다.
 - Telegram은 bot token과 chat id를 사용하고, PagerDuty는 routing key를 사용하며, Generic/Slack/Discord/Teams는 webhook URL을 사용합니다. Email은 SMTP host/port/security/from/recipients를 사용합니다.

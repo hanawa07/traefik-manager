@@ -209,6 +209,13 @@ export interface SettingsActionTestResult {
   provider: string | null;
 }
 
+export interface SettingsRollbackActionResult {
+  success: boolean;
+  message: string;
+  resource_name: string;
+  event: string;
+}
+
 export interface SettingsTestHistoryItem {
   last_event: string | null;
   last_success: boolean | null;
@@ -290,6 +297,11 @@ export const settingsApi = {
 
   testSecurityAlertSettings: async (): Promise<SettingsActionTestResult> => {
     const res = await apiClient.post<SettingsActionTestResult>("/settings/security-alerts/test");
+    return res.data;
+  },
+
+  rollbackSettingsChange: async (auditLogId: string): Promise<SettingsRollbackActionResult> => {
+    const res = await apiClient.post<SettingsRollbackActionResult>(`/settings/rollback/${auditLogId}`);
     return res.data;
   },
 
