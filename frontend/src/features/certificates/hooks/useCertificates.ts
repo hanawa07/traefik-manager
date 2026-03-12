@@ -25,3 +25,9 @@ export function useRunCertificateCheck() {
     },
   });
 }
+
+export function useRunCertificatePreflight() {
+  return useMutation({
+    mutationFn: (domain: string) => certificateApi.preflight(domain),
+  });
+}

@@ -1,12 +1,14 @@
 "use client";
+import { useState } from "react";
 import { AlertTriangle, CheckCircle2, CircleDashed, History, RefreshCcw, Shield, XCircle } from "lucide-react";
 
 import StatusBadge from "@/shared/components/StatusBadge";
-import { useCertificates, useRunCertificateCheck } from "@/features/certificates/hooks/useCertificates";
+import { useCertificates, useRunCertificateCheck, useRunCertificatePreflight } from "@/features/certificates/hooks/useCertificates";
 import type { Certificate, CertificateAcmeErrorKind } from "@/features/certificates/api/certificateApi";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { useAuditCertificateSummary } from "@/features/audit/hooks/useAudit";
+import Modal from "@/shared/components/Modal";
 
 type ChecklistState = "ok" | "pending" | "fail";
 type CertificateChecklistItem = {
@@ -147,13 +149,25 @@ export default function CertificatesPage() {
     isFetching,
   } = useCertificates();
   const runCertificateCheck = useRunCertificateCheck();
+  const runCertificatePreflight = useRunCertificatePreflight();
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const { data: certificateSummary } = useAuditCertificateSummary({ recent_limit: 5 });
+  const [preflightDomain, setPreflightDomain] = useState<string | null>(null);
 
   const warningCount = certificates.filter((item) => item.status === "warning").length;
   const errorCount = certificates.filter((item) => item.status === "error").length;
   const pendingCount = certificates.filter((item) => item.status === "pending").length;
   const recentFailureCount = certificates.filter((item) => item.last_acme_error_message).length;
+
+  const openPreflight = (domain: string) => {
+    setPreflightDomain(domain);
+    runCertificatePreflight.mutate(domain);
+  };
+
+  const closePreflight = () => {
+    setPreflightDomain(null);
+    runCertificatePreflight.reset();
+  };
 
   return (
     <div className="p-8">
@@ -435,6 +449,13 @@ export default function CertificatesPage() {
                               </p>
                             ) : null}
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => openPreflight(certificate.domain)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                          >
+                            사전 진단
+                          </button>
                         </div>
                       );
                     })()}
@@ -449,6 +470,54 @@ export default function CertificatesPage() {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={!!preflightDomain}
+        onClose={closePreflight}
+        title={preflightDomain ? `발급 사전 진단 · ${preflightDomain}` : "발급 사전 진단"}
+      >
+        {runCertificatePreflight.isPending ? (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-gray-900">진단을 실행하는 중입니다</p>
+            <p className="text-xs leading-5 text-gray-500">공개 DNS, HTTP challenge 경로, 현재 제공 인증서를 순서대로 확인합니다.</p>
+          </div>
+        ) : runCertificatePreflight.isError ? (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-red-700">사전 진단을 실행하지 못했습니다</p>
+            <p className="text-xs leading-5 text-red-600">
+              {(runCertificatePreflight.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+                "잠시 후 다시 시도해 주세요"}
+            </p>
+          </div>
+        ) : runCertificatePreflight.data && preflightDomain ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+              <div className="flex items-center gap-2">
+                <StatusBadge status={runCertificatePreflight.data.overall_status === "ok" ? "active" : runCertificatePreflight.data.overall_status === "warning" ? "warning" : "error"} />
+                <p className="text-sm font-medium text-blue-900">다음 조치</p>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-blue-800">{runCertificatePreflight.data.recommendation}</p>
+              <p className="mt-2 text-[11px] text-blue-700">
+                검사 시각 {formatDateTime(runCertificatePreflight.data.checked_at, timeDisplaySettings?.display_timezone)}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {runCertificatePreflight.data.items.map((item) => (
+                <div key={item.key} className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                  <div className="flex items-start gap-2">
+                    <ChecklistStateIcon state={item.status === "ok" ? "ok" : item.status === "warning" ? "pending" : "fail"} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                      <p className="mt-1 text-xs leading-5 text-gray-600">{item.detail}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

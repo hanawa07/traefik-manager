@@ -2,6 +2,7 @@ import apiClient from "@/shared/lib/apiClient";
 
 export type CertificateStatus = "active" | "warning" | "error" | "pending" | "inactive";
 export type CertificateAcmeErrorKind = "dns" | "rate_limit" | "authorization" | "challenge" | "unknown";
+export type CertificatePreflightStatus = "ok" | "warning" | "error";
 
 export interface Certificate {
   domain: string;
@@ -26,6 +27,21 @@ export interface CertificateCheckResult {
   recorded_event_count: number;
 }
 
+export interface CertificatePreflightItem {
+  key: "router_detected" | "cert_resolver" | "dns_public" | "http_challenge" | "https_certificate" | "recent_acme_failure";
+  label: string;
+  status: CertificatePreflightStatus;
+  detail: string;
+}
+
+export interface CertificatePreflightResult {
+  domain: string;
+  checked_at: string;
+  overall_status: CertificatePreflightStatus;
+  recommendation: string;
+  items: CertificatePreflightItem[];
+}
+
 export const certificateApi = {
   list: async (): Promise<Certificate[]> => {
     const res = await apiClient.get<Certificate[]>("/certificates/");
@@ -34,6 +50,11 @@ export const certificateApi = {
 
   check: async (): Promise<CertificateCheckResult> => {
     const res = await apiClient.post<CertificateCheckResult>("/certificates/check");
+    return res.data;
+  },
+
+  preflight: async (domain: string): Promise<CertificatePreflightResult> => {
+    const res = await apiClient.post<CertificatePreflightResult>(`/certificates/preflight/${encodeURIComponent(domain)}`);
     return res.data;
   },
 };

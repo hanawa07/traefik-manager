@@ -25,3 +25,25 @@ class CertificateCheckResponse(BaseModel):
     warning_count: int
     error_count: int
     recorded_event_count: int
+
+
+class CertificatePreflightItemResponse(BaseModel):
+    key: Literal[
+        "router_detected",
+        "cert_resolver",
+        "dns_public",
+        "http_challenge",
+        "https_certificate",
+        "recent_acme_failure",
+    ]
+    label: str
+    status: Literal["ok", "warning", "error"]
+    detail: str
+
+
+class CertificatePreflightResponse(BaseModel):
+    domain: str
+    checked_at: datetime
+    overall_status: Literal["ok", "warning", "error"]
+    recommendation: str
+    items: list[CertificatePreflightItemResponse]

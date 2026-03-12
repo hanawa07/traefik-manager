@@ -10,7 +10,11 @@ from app.infrastructure.persistence.database import get_db
 from app.interfaces.api.dependencies import get_current_user
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.traefik.traefik_api_client import TraefikApiClient, TraefikApiClientError
-from app.interfaces.api.v1.schemas.certificate_schemas import CertificateCheckResponse, CertificateResponse
+from app.interfaces.api.v1.schemas.certificate_schemas import (
+    CertificateCheckResponse,
+    CertificatePreflightResponse,
+    CertificateResponse,
+)
 
 router = APIRouter()
 
@@ -55,6 +59,25 @@ async def check_certificates(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Traefik API에서 인증서 정보를 가져오지 못했습니다",
+        ) from exc
+
+
+@router.post(
+    "/preflight/{domain}",
+    response_model=CertificatePreflightResponse,
+    summary="인증서 발급 사전 진단",
+)
+async def preflight_certificate(
+    domain: str,
+    traefik_client: TraefikApiClient = Depends(get_traefik_client),
+    _: dict = Depends(get_current_user),
+):
+    try:
+        return await traefik_client.get_certificate_preflight(domain)
+    except TraefikApiClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Traefik 인증서 발급 사전 진단을 실행하지 못했습니다",
         ) from exc
 
 

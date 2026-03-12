@@ -65,3 +65,33 @@ async def test_check_certificates_returns_summary(monkeypatch):
     assert result["warning_count"] == 1
     assert result["error_count"] == 1
     assert result["recorded_event_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_preflight_certificate_returns_diagnostics(monkeypatch):
+    class StubTraefikClient:
+        async def get_certificate_preflight(self, domain: str):
+            return {
+                "domain": domain,
+                "checked_at": "2026-03-12T12:00:00+00:00",
+                "overall_status": "warning",
+                "recommendation": "권한 DNS 응답과 A/AAAA 조회 결과를 먼저 확인하세요.",
+                "items": [
+                    {
+                        "key": "dns_public",
+                        "label": "공개 DNS 조회",
+                        "status": "ok",
+                        "detail": "A 1개, AAAA 없음",
+                    }
+                ],
+            }
+
+    result = await certificates_router.preflight_certificate(
+        domain="example.com",
+        traefik_client=StubTraefikClient(),
+        _={"role": "admin"},
+    )
+
+    assert result["domain"] == "example.com"
+    assert result["overall_status"] == "warning"
+    assert result["items"][0]["key"] == "dns_public"
