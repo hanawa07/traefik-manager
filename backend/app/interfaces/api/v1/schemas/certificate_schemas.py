@@ -12,6 +12,8 @@ class CertificateResponse(BaseModel):
     days_remaining: int | None
     status: Literal["active", "warning", "error"]
     status_message: str
+    status_started_at: datetime | None = None
+    alerts_suppressed: bool = False
 
 
 class CertificateCheckResponse(BaseModel):

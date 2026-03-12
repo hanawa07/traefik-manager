@@ -37,6 +37,8 @@ export interface AuditCertificateEventItem {
   resource_name: string;
   days_remaining: number | null;
   expires_at: string | null;
+  previous_status: string | null;
+  checked_at: string | null;
   created_at: string;
 }
 
@@ -44,6 +46,7 @@ export interface AuditCertificateSummary {
   window_minutes: number;
   warning_count: number;
   error_count: number;
+  recovered_count: number;
   recent_events: AuditCertificateEventItem[];
 }
 

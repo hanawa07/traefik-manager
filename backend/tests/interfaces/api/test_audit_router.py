@@ -40,14 +40,17 @@ def make_log(
     event: str | None = None,
     client_ip: str | None = None,
     created_at: datetime,
+    detail_extra: dict | None = None,
 ):
     detail = None
-    if event is not None or client_ip is not None:
+    if event is not None or client_ip is not None or detail_extra:
         detail = {}
         if event is not None:
             detail["event"] = event
         if client_ip is not None:
             detail["client_ip"] = client_ip
+        if detail_extra:
+            detail.update(detail_extra)
     return SimpleNamespace(
         id=uuid4(),
         actor=actor,
@@ -179,7 +182,15 @@ async def test_get_certificate_summary_counts_recent_events():
                 event="certificate_error",
                 resource_type="certificate",
                 resource_name="expired.example.com",
+                detail_extra={"previous_status": "warning", "checked_at": (now - timedelta(minutes=4)).isoformat()},
                 created_at=now - timedelta(minutes=4),
+            ),
+            make_log(
+                event="certificate_recovered",
+                resource_type="certificate",
+                resource_name="restored.example.com",
+                detail_extra={"previous_status": "error", "checked_at": (now - timedelta(minutes=2)).isoformat()},
+                created_at=now - timedelta(minutes=2),
             ),
             make_log(
                 event="certificate_warning",
@@ -206,5 +217,10 @@ async def test_get_certificate_summary_counts_recent_events():
     assert result.window_minutes == 60
     assert result.warning_count == 1
     assert result.error_count == 1
-    assert [item.event for item in result.recent_events] == ["certificate_error", "certificate_warning"]
-    assert result.recent_events[0].resource_name == "expired.example.com"
+    assert result.recovered_count == 1
+    assert [item.event for item in result.recent_events] == [
+        "certificate_recovered",
+        "certificate_error",
+    ]
+    assert result.recent_events[0].resource_name == "restored.example.com"
+    assert result.recent_events[0].previous_status == "error"

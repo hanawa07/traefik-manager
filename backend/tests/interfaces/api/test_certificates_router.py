@@ -4,6 +4,42 @@ from app.interfaces.api.v1.routers import certificates as certificates_router
 
 
 @pytest.mark.asyncio
+async def test_list_certificates_includes_alert_suppression_metadata(monkeypatch):
+    class StubTraefikClient:
+        async def list_certificates(self):
+            return [
+                {
+                    "domain": "example.com",
+                    "router_names": ["example-router"],
+                    "cert_resolvers": ["letsencrypt"],
+                    "expires_at": "2026-03-20T00:00:00+00:00",
+                    "days_remaining": 8,
+                    "status": "warning",
+                    "status_message": "8일 이내 만료 예정",
+                }
+            ]
+
+    async def fake_get_alert_state(_db):
+        return {
+            "example.com": {
+                "status": "warning",
+                "status_started_at": "2026-03-12T00:00:00+00:00",
+            }
+        }
+
+    monkeypatch.setattr(certificates_router, "_get_certificate_alert_state", fake_get_alert_state)
+
+    result = await certificates_router.list_certificates(
+        traefik_client=StubTraefikClient(),
+        db=object(),
+        _={"role": "admin"},
+    )
+
+    assert result[0].alerts_suppressed is True
+    assert result[0].status_started_at.isoformat() == "2026-03-12T00:00:00+00:00"
+
+
+@pytest.mark.asyncio
 async def test_check_certificates_returns_summary(monkeypatch):
     async def fake_check_certificate_alerts_once(**_kwargs):
         return {

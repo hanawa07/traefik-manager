@@ -192,7 +192,7 @@ def _get_alert_category_and_group(event: str) -> tuple[str, str] | None:
         return "change", "middleware_change"
     if event == "user_update":
         return "change", "user_change"
-    if event in {"certificate_warning", "certificate_error"}:
+    if event in {"certificate_warning", "certificate_error", "certificate_recovered"}:
         return "change", "certificate_change"
     if event.endswith("_rollback") or event.startswith("settings_rollback_"):
         return "change", "rollback"
@@ -309,6 +309,8 @@ def _build_message(event: str, resource_name: str, client_ip: Any, category: str
         return f"인증서 만료 임박: {resource_name}"
     if event == "certificate_error":
         return f"인증서 만료: {resource_name}"
+    if event == "certificate_recovered":
+        return f"인증서 복구: {resource_name}"
     return f"롤백 실행: {resource_name}"
 
 

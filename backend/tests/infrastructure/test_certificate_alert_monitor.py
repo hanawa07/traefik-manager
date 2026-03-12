@@ -80,6 +80,7 @@ async def test_check_certificate_alerts_once_records_warning_and_persists_state(
     assert recorded[0]["detail"]["days_remaining"] == 8
     stored_state = json.loads(StubSettingsRepository.store[certificate_alert_monitor.CERTIFICATE_ALERT_STATE_KEY])
     assert stored_state["example.com"]["status"] == "warning"
+    assert stored_state["example.com"]["status_started_at"] == "2026-03-12T00:00:00+00:00"
 
 
 @pytest.mark.asyncio
@@ -195,3 +196,48 @@ async def test_check_certificate_alerts_once_records_error_when_warning_escalate
 
     assert recorded[0]["detail"]["event"] == "certificate_error"
     assert recorded[0]["detail"]["previous_status"] == "warning"
+
+
+@pytest.mark.asyncio
+async def test_check_certificate_alerts_once_records_recovery_when_alerted_certificate_becomes_active(monkeypatch):
+    StubSettingsRepository.store = {
+        certificate_alert_monitor.CERTIFICATE_ALERT_STATE_KEY: json.dumps(
+            {
+                "example.com": {
+                    "status": "error",
+                    "days_remaining": -1,
+                    "expires_at": "2026-03-11T00:00:00+00:00",
+                    "status_started_at": "2026-03-11T00:00:00+00:00",
+                }
+            }
+        )
+    }
+    StubTraefikClient.certificates = [
+        {
+            "domain": "example.com",
+            "expires_at": datetime(2026, 6, 1, tzinfo=timezone.utc),
+            "days_remaining": 81,
+            "status": "active",
+            "status_message": "정상",
+            "router_names": ["example-router"],
+        }
+    ]
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(certificate_alert_monitor, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(certificate_alert_monitor, "TraefikApiClient", StubTraefikClient)
+    monkeypatch.setattr(certificate_alert_monitor.audit_service, "record", fake_record, raising=False)
+
+    await certificate_alert_monitor.check_certificate_alerts_once(
+        session_factory=make_session,
+        now=datetime(2026, 3, 12, tzinfo=timezone.utc),
+    )
+
+    assert recorded[0]["detail"]["event"] == "certificate_recovered"
+    assert recorded[0]["detail"]["previous_status"] == "error"
+    stored_state = json.loads(StubSettingsRepository.store[certificate_alert_monitor.CERTIFICATE_ALERT_STATE_KEY])
+    assert stored_state["example.com"]["status"] == "active"
+    assert stored_state["example.com"]["status_started_at"] == "2026-03-12T00:00:00+00:00"

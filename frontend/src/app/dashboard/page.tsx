@@ -164,7 +164,7 @@ export default function DashboardPage() {
         <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
           <div className="mb-2 flex items-center justify-between gap-4">
             <h3 className="text-sm font-semibold text-gray-900">최근 인증서 경고</h3>
-            <span className="text-xs text-gray-500">만료 임박/만료 전환만 표시</span>
+            <span className="text-xs text-gray-500">만료 임박/만료/복구 전환 표시</span>
           </div>
           {!certificateSummary?.recent_events?.length ? (
             <p className="text-sm text-gray-500">최근 인증서 경고 전환이 없습니다.</p>
@@ -177,7 +177,11 @@ export default function DashboardPage() {
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900">
-                      {event.event === "certificate_error" ? "인증서 만료" : "인증서 만료 임박"}
+                      {event.event === "certificate_error"
+                        ? "인증서 만료"
+                        : event.event === "certificate_recovered"
+                          ? "인증서 복구"
+                          : "인증서 만료 임박"}
                       <span className="ml-2 font-normal text-gray-600">{event.resource_name}</span>
                     </p>
                     <p className="text-xs text-gray-500">

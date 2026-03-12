@@ -10,6 +10,8 @@ export interface Certificate {
   days_remaining: number | null;
   status: CertificateStatus;
   status_message: string;
+  status_started_at: string | null;
+  alerts_suppressed: boolean;
 }
 
 export interface CertificateCheckResult {

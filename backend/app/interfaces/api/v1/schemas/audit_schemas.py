@@ -41,6 +41,8 @@ class AuditCertificateEventResponse(BaseModel):
     resource_name: str
     days_remaining: int | None = None
     expires_at: str | None = None
+    previous_status: str | None = None
+    checked_at: str | None = None
     created_at: datetime
 
 
@@ -48,4 +50,5 @@ class AuditCertificateSummaryResponse(BaseModel):
     window_minutes: int
     warning_count: int
     error_count: int
+    recovered_count: int
     recent_events: list[AuditCertificateEventResponse]

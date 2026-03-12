@@ -19,7 +19,7 @@ from app.interfaces.api.v1.schemas.audit_schemas import (
 router = APIRouter()
 SECURITY_EVENTS = {"login_failure", "login_locked", "login_suspicious", "login_blocked_ip"}
 SECURITY_ALERT_EVENTS = {"login_locked", "login_suspicious", "login_blocked_ip"}
-CERTIFICATE_ALERT_EVENTS = {"certificate_warning", "certificate_error"}
+CERTIFICATE_ALERT_EVENTS = {"certificate_warning", "certificate_error", "certificate_recovered"}
 
 
 @router.get("", response_model=list[AuditLogResponse], summary="감사 로그 조회")
@@ -120,6 +120,7 @@ async def get_certificate_summary(
 
     warning_logs = [log for log in recent_logs if _get_event(log) == "certificate_warning"]
     error_logs = [log for log in recent_logs if _get_event(log) == "certificate_error"]
+    recovered_logs = [log for log in recent_logs if _get_event(log) == "certificate_recovered"]
     recent_events = [
         AuditCertificateEventResponse(
             id=log.id,
@@ -128,6 +129,8 @@ async def get_certificate_summary(
             resource_name=log.resource_name,
             days_remaining=_get_detail_int(log, "days_remaining"),
             expires_at=_get_detail_str(log, "expires_at"),
+            previous_status=_get_detail_str(log, "previous_status"),
+            checked_at=_get_detail_str(log, "checked_at"),
             created_at=log.created_at,
         )
         for log in recent_logs[:recent_limit]
@@ -137,6 +140,7 @@ async def get_certificate_summary(
         window_minutes=window_minutes,
         warning_count=len(warning_logs),
         error_count=len(error_logs),
+        recovered_count=len(recovered_logs),
         recent_events=recent_events,
     )
 

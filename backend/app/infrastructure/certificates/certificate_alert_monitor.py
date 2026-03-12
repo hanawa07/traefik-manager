@@ -47,15 +47,25 @@ def _to_state_entry(certificate: dict[str, Any]) -> dict[str, Any]:
         "status": certificate.get("status"),
         "days_remaining": certificate.get("days_remaining"),
         "expires_at": expires_at.isoformat() if expires_at else None,
+        "status_started_at": certificate.get("status_started_at"),
     }
 
 
-def _to_event_name(status: str) -> str | None:
+def _to_event_name(status: str, previous_status: str | None = None) -> str | None:
+    if status == "active" and previous_status in {"warning", "error"}:
+        return "certificate_recovered"
     if status == "warning":
         return "certificate_warning"
     if status == "error":
         return "certificate_error"
     return None
+
+
+async def get_certificate_alert_state(
+    session,
+) -> dict[str, dict[str, Any]]:
+    repo = SQLiteSystemSettingsRepository(session)
+    return _deserialize_state(await repo.get(CERTIFICATE_ALERT_STATE_KEY))
 
 
 async def check_certificate_alerts_once(
@@ -70,7 +80,7 @@ async def check_certificate_alerts_once(
     client_factory = client_factory or TraefikApiClient
     async with session_factory() as session:
         repo = SQLiteSystemSettingsRepository(session)
-        previous_state = _deserialize_state(await repo.get(CERTIFICATE_ALERT_STATE_KEY))
+        previous_state = await get_certificate_alert_state(session)
 
         client = client_factory()
         try:
@@ -97,13 +107,18 @@ async def check_certificate_alerts_once(
                 continue
 
             state_entry = _to_state_entry(certificate)
+            previous_entry = previous_state.get(domain, {})
+            previous_status = previous_entry.get("status")
+            if previous_status == status:
+                state_entry["status_started_at"] = previous_entry.get("status_started_at") or current_time.isoformat()
+            else:
+                state_entry["status_started_at"] = current_time.isoformat()
             next_state[domain] = state_entry
 
-            event_name = _to_event_name(status)
+            event_name = _to_event_name(status, previous_status)
             if event_name is None:
                 continue
 
-            previous_status = previous_state.get(domain, {}).get("status")
             if previous_status == status:
                 continue
 
@@ -116,6 +131,7 @@ async def check_certificate_alerts_once(
                 "status_message": certificate.get("status_message"),
                 "router_names": certificate.get("router_names") or [],
                 "checked_at": current_time.isoformat(),
+                "status_started_at": state_entry["status_started_at"],
             }
             await audit_service.record(
                 db=session,

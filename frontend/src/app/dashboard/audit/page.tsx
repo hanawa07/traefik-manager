@@ -59,6 +59,7 @@ const securityEventConfig = {
   user_rollback: { label: "사용자 롤백", color: "bg-lime-600/20 text-lime-200 border-lime-500/30" },
   certificate_warning: { label: "인증서 만료 임박", color: "bg-yellow-600/20 text-yellow-200 border-yellow-500/30" },
   certificate_error: { label: "인증서 만료", color: "bg-red-600/20 text-red-200 border-red-500/30" },
+  certificate_recovered: { label: "인증서 복구", color: "bg-emerald-600/20 text-emerald-200 border-emerald-500/30" },
 };
 
 const auditFilters = [
@@ -73,6 +74,7 @@ const auditFilters = [
   { key: "login_failure", label: "로그인 실패" },
   { key: "certificate_warning", label: "인증서 만료 임박" },
   { key: "certificate_error", label: "인증서 만료" },
+  { key: "certificate_recovered", label: "인증서 복구" },
 ] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
