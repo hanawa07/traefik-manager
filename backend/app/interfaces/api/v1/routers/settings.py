@@ -45,6 +45,7 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
 router = APIRouter()
 SECURITY_ALERT_EVENTS = ["login_locked", "login_suspicious", "login_blocked_ip"]
 SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"}
+SECURITY_ALERT_ROUTE_TARGETS = {"default", "disabled", "telegram", "pagerduty", "email"}
 SETTINGS_TEST_EVENTS = {
     "cloudflare": "settings_test_cloudflare",
     "security_alert": "settings_test_security_alert",
@@ -381,6 +382,7 @@ async def update_security_alert_settings(
     previous_response = await _build_security_alert_response(repo)
     if request.provider not in SECURITY_ALERT_PROVIDERS:
         raise HTTPException(status_code=422, detail="지원하지 않는 보안 알림 provider입니다")
+    normalized_event_routes = _normalize_security_alert_event_routes(request.event_routes)
 
     existing_telegram_bot_token = await repo.get("security_alert_telegram_bot_token")
     effective_telegram_bot_token = request.telegram_bot_token or existing_telegram_bot_token or ""
@@ -390,19 +392,20 @@ async def update_security_alert_settings(
     effective_email_password = request.email_password or existing_email_password or ""
 
     if request.enabled:
-        if request.provider == "telegram":
-            if not effective_telegram_bot_token or not request.telegram_chat_id:
-                raise HTTPException(status_code=422, detail="Telegram bot token과 chat id가 필요합니다")
-        elif request.provider == "pagerduty":
-            if not effective_pagerduty_routing_key:
-                raise HTTPException(status_code=422, detail="PagerDuty routing key가 필요합니다")
-        elif request.provider == "email":
-            if not request.email_host or not request.email_from or not request.email_recipients:
-                raise HTTPException(status_code=422, detail="SMTP host, 발신자, 수신자 설정이 필요합니다")
-            if request.email_username and not effective_email_password:
-                raise HTTPException(status_code=422, detail="SMTP 비밀번호가 필요합니다")
-        elif not request.webhook_url:
-            raise HTTPException(status_code=422, detail="Webhook URL이 필요합니다")
+        for event_name in SECURITY_ALERT_EVENTS:
+            effective_provider = _resolve_security_alert_provider(
+                request.provider,
+                normalized_event_routes[event_name],
+            )
+            if effective_provider is None:
+                continue
+            _validate_security_alert_provider_config(
+                provider=effective_provider,
+                request=request,
+                effective_telegram_bot_token=effective_telegram_bot_token,
+                effective_pagerduty_routing_key=effective_pagerduty_routing_key,
+                effective_email_password=effective_email_password,
+            )
 
     await repo.set(
         "security_alerts_enabled",
@@ -416,6 +419,11 @@ async def update_security_alert_settings(
         "security_alert_webhook_url",
         request.webhook_url or None,
     )
+    for event_name in SECURITY_ALERT_EVENTS:
+        await repo.set(
+            f"security_alert_route_{event_name}",
+            normalized_event_routes[event_name],
+        )
     if request.telegram_bot_token:
         await repo.set("security_alert_telegram_bot_token", request.telegram_bot_token)
     await repo.set(
@@ -648,6 +656,7 @@ async def _build_security_alert_response(
         email_recipients=_split_networks(await repo.get("security_alert_email_recipients")),
         timeout_seconds=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS,
         alert_events=SECURITY_ALERT_EVENTS,
+        event_routes=await _build_security_alert_event_routes(repo),
     )
 
 
@@ -750,6 +759,7 @@ def _security_alert_summary(response: SecurityAlertSettingsResponse) -> dict[str
     return {
         "enabled": response.enabled,
         "provider": response.provider,
+        "event_routes": response.event_routes,
         "webhook_configured": bool(response.webhook_url),
         "telegram_chat_id_configured": bool(response.telegram_chat_id),
         "pagerduty_routing_key_configured": response.pagerduty_routing_key_configured,
@@ -760,6 +770,57 @@ def _security_alert_summary(response: SecurityAlertSettingsResponse) -> dict[str
         "email_from": response.email_from,
         "email_recipients_count": len(response.email_recipients),
     }
+
+
+async def _build_security_alert_event_routes(
+    repo: SQLiteSystemSettingsRepository,
+) -> dict[str, str]:
+    routes: dict[str, str] = {}
+    for event_name in SECURITY_ALERT_EVENTS:
+        stored_route = ((await repo.get(f"security_alert_route_{event_name}")) or "default").strip().lower()
+        routes[event_name] = stored_route if stored_route in SECURITY_ALERT_ROUTE_TARGETS else "default"
+    return routes
+
+
+def _normalize_security_alert_event_routes(event_routes: dict[str, str]) -> dict[str, str]:
+    normalized = {event_name: "default" for event_name in SECURITY_ALERT_EVENTS}
+    for event_name, route in event_routes.items():
+        normalized[event_name] = route if route in SECURITY_ALERT_ROUTE_TARGETS else "default"
+    return normalized
+
+
+def _resolve_security_alert_provider(default_provider: str, route_target: str) -> str | None:
+    if route_target == "disabled":
+        return None
+    if route_target == "default":
+        return default_provider
+    return route_target
+
+
+def _validate_security_alert_provider_config(
+    *,
+    provider: str,
+    request: SecurityAlertSettingsUpdateRequest,
+    effective_telegram_bot_token: str,
+    effective_pagerduty_routing_key: str,
+    effective_email_password: str,
+) -> None:
+    if provider == "telegram":
+        if not effective_telegram_bot_token or not request.telegram_chat_id:
+            raise HTTPException(status_code=422, detail="Telegram bot token과 chat id가 필요합니다")
+        return
+    if provider == "pagerduty":
+        if not effective_pagerduty_routing_key:
+            raise HTTPException(status_code=422, detail="PagerDuty routing key가 필요합니다")
+        return
+    if provider == "email":
+        if not request.email_host or not request.email_from or not request.email_recipients:
+            raise HTTPException(status_code=422, detail="SMTP host, 발신자, 수신자 설정이 필요합니다")
+        if request.email_username and not effective_email_password:
+            raise HTTPException(status_code=422, detail="SMTP 비밀번호가 필요합니다")
+        return
+    if not request.webhook_url:
+        raise HTTPException(status_code=422, detail="Webhook URL이 필요합니다")
 
 
 async def _get_current_settings_summary_for_event(

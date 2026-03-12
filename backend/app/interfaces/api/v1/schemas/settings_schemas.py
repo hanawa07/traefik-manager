@@ -206,6 +206,9 @@ class SecurityAlertSettingsResponse(BaseModel):
     email_recipients: list[str] = Field(default_factory=list)
     timeout_seconds: float
     alert_events: list[str] = Field(default_factory=list)
+    event_routes: dict[str, Literal["default", "disabled", "telegram", "pagerduty", "email"]] = Field(
+        default_factory=dict
+    )
 
 
 class SecurityAlertSettingsUpdateRequest(BaseModel):
@@ -222,6 +225,9 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
     email_password: str = ""
     email_from: str = ""
     email_recipients: list[str] = Field(default_factory=list)
+    event_routes: dict[str, Literal["default", "disabled", "telegram", "pagerduty", "email"]] = Field(
+        default_factory=dict
+    )
 
     @field_validator("webhook_url")
     @classmethod
@@ -245,3 +251,17 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
     @classmethod
     def validate_email_recipients(cls, value: list[str]) -> list[str]:
         return normalize_email_recipients(value)
+
+    @field_validator("event_routes")
+    @classmethod
+    def validate_event_routes(
+        cls, value: dict[str, Literal["default", "disabled", "telegram", "pagerduty", "email"]]
+    ) -> dict[str, Literal["default", "disabled", "telegram", "pagerduty", "email"]]:
+        allowed_events = {"login_locked", "login_suspicious", "login_blocked_ip"}
+        normalized: dict[str, Literal["default", "disabled", "telegram", "pagerduty", "email"]] = {}
+        for key, route in value.items():
+            normalized_key = key.strip()
+            if normalized_key not in allowed_events:
+                raise ValueError("지원하지 않는 보안 이벤트 라우팅 키입니다")
+            normalized[normalized_key] = route
+        return normalized

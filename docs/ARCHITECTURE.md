@@ -241,7 +241,7 @@ traefik-manager/
 - 서비스/리다이렉트/미들웨어/사용자 수정도 동일한 감사 로그 파이프라인에서 `before/after` diff를 남기고, 안전 롤백 가능 여부를 함께 계산합니다.
 - 사용자 롤백은 비밀번호 변경이 포함되지 않은 업데이트만 지원해 비밀값 복구를 감사 로그 payload에 싣지 않도록 제한합니다.
 - 안전한 설정(`시간 표시`, `업스트림 보안`)은 audit detail에 롤백 payload를 함께 저장하고, `settings/rollback` 액션으로 복구합니다.
-- 선택적으로 보안 이벤트를 외부 채널(generic/slack/discord/telegram/teams/pagerduty/email)로 전송할 수 있으며, 전송 실패는 원래 로그인 방어 흐름을 막지 않습니다.
+- 선택적으로 보안 이벤트를 외부 채널(generic/slack/discord/telegram/teams/pagerduty/email)로 전송할 수 있으며, 기본 채널 위에 이벤트별 override(telegram/pagerduty/email/disabled)를 둘 수 있습니다. 전송 실패는 원래 로그인 방어 흐름을 막지 않습니다.
 - 컨테이너 비루트 사용자 실행
 - `no-new-privileges` 보안 옵션
 - 프론트엔드-백엔드 내부 네트워크 격리 (`traefik-manager-internal`)

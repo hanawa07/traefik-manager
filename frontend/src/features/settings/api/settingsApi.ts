@@ -168,6 +168,10 @@ export interface LoginDefenseSettingsInput {
   turnstile_secret_key: string;
 }
 
+export type SecurityAlertRouteEvent = "login_locked" | "login_suspicious" | "login_blocked_ip";
+export type SecurityAlertRouteTarget = "default" | "disabled" | "telegram" | "pagerduty" | "email";
+export type SecurityAlertEventRoutes = Record<SecurityAlertRouteEvent, SecurityAlertRouteTarget>;
+
 export interface SecurityAlertSettingsStatus {
   enabled: boolean;
   provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty" | "email";
@@ -184,6 +188,7 @@ export interface SecurityAlertSettingsStatus {
   email_recipients: string[];
   timeout_seconds: number;
   alert_events: string[];
+  event_routes: SecurityAlertEventRoutes;
 }
 
 export interface SecurityAlertSettingsInput {
@@ -200,6 +205,7 @@ export interface SecurityAlertSettingsInput {
   email_password: string;
   email_from: string;
   email_recipients: string[];
+  event_routes: SecurityAlertEventRoutes;
 }
 
 export interface SettingsActionTestResult {

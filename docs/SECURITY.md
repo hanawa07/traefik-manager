@@ -62,8 +62,8 @@
 - `시간 표시`, `업스트림 보안`은 audit detail에 `before/after` diff와 안전 롤백 payload를 남기며, 감사 로그 화면에서 이전 상태로 되돌릴 수 있습니다.
 - `서비스 수정`, `리다이렉트 수정`, `미들웨어 수정`도 audit detail에 `before/after` diff를 남기고, token/basic-auth 같은 비밀값이 얽히지 않은 안전한 경우에만 롤백 payload를 제공합니다.
 - `사용자 수정`도 audit detail에 `before/after` diff를 남기며, 비밀번호 변경이 포함되지 않은 경우에만 안전 롤백 payload를 제공합니다.
-- 설정 화면에서 보안 알림 채널을 `generic/slack/discord/telegram/teams/pagerduty/email` preset으로 선택할 수 있습니다.
-- `login_locked`, `login_suspicious`, `login_blocked_ip` 이벤트는 채널별 포맷으로 전송됩니다.
+- 설정 화면에서 보안 알림 기본 채널을 `generic/slack/discord/telegram/teams/pagerduty/email` preset으로 선택할 수 있습니다.
+- `login_locked`, `login_suspicious`, `login_blocked_ip` 이벤트는 기본 채널을 따르거나 `telegram/pagerduty/email/disabled`로 개별 override할 수 있습니다.
 - Telegram은 bot token과 chat id를 사용하고, PagerDuty는 routing key를 사용하며, Generic/Slack/Discord/Teams는 webhook URL을 사용합니다. Email은 SMTP host/port/security/from/recipients를 사용합니다.
 - 웹훅 전송 실패는 서버 로그에만 남고, 로그인 차단/잠금 동작 자체는 중단하지 않습니다.
 

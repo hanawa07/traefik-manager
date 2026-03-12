@@ -264,6 +264,67 @@ async def test_notify_if_needed_formats_telegram_payload(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_notify_if_needed_routes_event_to_override_provider(monkeypatch):
+    posted = []
+
+    class StubClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json):
+            posted.append((url, json))
+
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "slack",
+        "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+        "security_alert_route_login_blocked_ip": "pagerduty",
+        "security_alert_pagerduty_routing_key": "pd-secret",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
+
+    result = await security_alert_notifier.notify_if_needed(object(), make_audit_log("login_blocked_ip"))
+
+    assert result is True
+    assert posted[0][0] == "https://events.pagerduty.com/v2/enqueue"
+    assert posted[0][1]["routing_key"] == "pd-secret"
+    assert posted[0][1]["payload"]["class"] == "login_blocked_ip"
+
+
+@pytest.mark.asyncio
+async def test_notify_if_needed_skips_disabled_event_route(monkeypatch):
+    posted = []
+
+    class StubClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, *_args, **_kwargs):
+            posted.append(True)
+
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "slack",
+        "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+        "security_alert_route_login_suspicious": "disabled",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
+
+    result = await security_alert_notifier.notify_if_needed(object(), make_audit_log("login_suspicious"))
+
+    assert result is False
+    assert posted == []
+
+
+@pytest.mark.asyncio
 async def test_notify_if_needed_skips_unsupported_event(monkeypatch):
     posted = []
 

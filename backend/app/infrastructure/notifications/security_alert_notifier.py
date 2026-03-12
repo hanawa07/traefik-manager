@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 SECURITY_ALERT_EVENTS = {"login_locked", "login_suspicious", "login_blocked_ip"}
 SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"}
+SECURITY_ALERT_ROUTE_TARGETS = {"default", "disabled", "telegram", "pagerduty", "email"}
 PAGERDUTY_EVENTS_API_URL = "https://events.pagerduty.com/v2/enqueue"
 
 
@@ -29,11 +30,11 @@ async def notify_if_needed(db: AsyncSession, audit_log: AuditLogModel) -> bool:
 
     repo = SQLiteSystemSettingsRepository(db)
     enabled = await _get_bool_setting(repo, "security_alerts_enabled", default=False)
-    provider = ((await repo.get("security_alert_provider")) or "generic").strip().lower()
-    if provider not in SECURITY_ALERT_PROVIDERS:
-        provider = "generic"
-
     if not enabled:
+        return False
+
+    provider = await _get_effective_provider(repo, event)
+    if provider is None:
         return False
 
     if provider == "email":
@@ -138,6 +139,21 @@ async def _get_bool_setting(
     if value is None:
         return default
     return value.strip().lower() == "true"
+
+
+async def _get_effective_provider(repo: SQLiteSystemSettingsRepository, event: str) -> str | None:
+    default_provider = ((await repo.get("security_alert_provider")) or "generic").strip().lower()
+    if default_provider not in SECURITY_ALERT_PROVIDERS:
+        default_provider = "generic"
+
+    route_target = ((await repo.get(f"security_alert_route_{event}")) or "default").strip().lower()
+    if route_target not in SECURITY_ALERT_ROUTE_TARGETS:
+        route_target = "default"
+    if route_target == "disabled":
+        return None
+    if route_target == "default":
+        return default_provider
+    return route_target
 
 
 def _get_event(audit_log: AuditLogModel) -> str | None:

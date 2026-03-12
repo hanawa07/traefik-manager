@@ -327,6 +327,11 @@ async def test_get_security_alert_settings_returns_defaults(monkeypatch):
     assert response.email_recipients == []
     assert response.timeout_seconds == 5.0
     assert response.alert_events == ["login_locked", "login_suspicious", "login_blocked_ip"]
+    assert response.event_routes == {
+        "login_locked": "default",
+        "login_suspicious": "default",
+        "login_blocked_ip": "default",
+    }
 
 
 @pytest.mark.asyncio
@@ -339,6 +344,15 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
             enabled=True,
             provider="discord",
             webhook_url=" https://hooks.example.com/security-alerts ",
+            pagerduty_routing_key="pd-secret",
+            email_host="smtp.example.com",
+            email_from="alerts@example.com",
+            email_recipients=["ops@example.com"],
+            event_routes={
+                "login_locked": "default",
+                "login_suspicious": "email",
+                "login_blocked_ip": "pagerduty",
+            },
         ),
         db=object(),
         _={"role": "admin"},
@@ -347,9 +361,14 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     assert StubSettingsRepository.store["security_alerts_enabled"] == "true"
     assert StubSettingsRepository.store["security_alert_provider"] == "discord"
     assert StubSettingsRepository.store["security_alert_webhook_url"] == "https://hooks.example.com/security-alerts"
+    assert StubSettingsRepository.store["security_alert_route_login_locked"] == "default"
+    assert StubSettingsRepository.store["security_alert_route_login_suspicious"] == "email"
+    assert StubSettingsRepository.store["security_alert_route_login_blocked_ip"] == "pagerduty"
     assert response.enabled is True
     assert response.provider == "discord"
     assert response.webhook_url == "https://hooks.example.com/security-alerts"
+    assert response.event_routes["login_suspicious"] == "email"
+    assert response.event_routes["login_blocked_ip"] == "pagerduty"
 
 
 @pytest.mark.asyncio
@@ -469,6 +488,11 @@ async def test_update_security_alert_settings_records_redacted_audit(monkeypatch
             email_password="smtp-secret",
             email_from="alerts@example.com",
             email_recipients=["ops@example.com", "admin@example.com"],
+            event_routes={
+                "login_locked": "default",
+                "login_suspicious": "email",
+                "login_blocked_ip": "disabled",
+            },
         ),
         db=object(),
         _={"role": "admin", "username": "admin"},
@@ -484,6 +508,7 @@ async def test_update_security_alert_settings_records_redacted_audit(monkeypatch
     assert recorded[0]["detail"]["summary"]["provider"] == "email"
     assert recorded[0]["detail"]["summary"]["enabled"] is True
     assert recorded[0]["detail"]["summary"]["email_recipients_count"] == 2
+    assert recorded[0]["detail"]["summary"]["event_routes"]["login_blocked_ip"] == "disabled"
     assert recorded[0]["detail"]["client_ip"] == "198.51.100.7"
 
 
@@ -718,6 +743,28 @@ async def test_update_security_alert_settings_rejects_enabled_pagerduty_without_
                 enabled=True,
                 provider="pagerduty",
                 pagerduty_routing_key="",
+            ),
+            db=object(),
+            _={"role": "admin"},
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_security_alert_settings_rejects_override_without_required_config(monkeypatch):
+    StubSettingsRepository.store = {}
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    with pytest.raises(HTTPException):
+        await settings_router.update_security_alert_settings(
+            request=SecurityAlertSettingsUpdateRequest(
+                enabled=True,
+                provider="generic",
+                webhook_url="https://hooks.example.com/security-alerts",
+                event_routes={
+                    "login_locked": "default",
+                    "login_suspicious": "default",
+                    "login_blocked_ip": "pagerduty",
+                },
             ),
             db=object(),
             _={"role": "admin"},

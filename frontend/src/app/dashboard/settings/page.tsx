@@ -22,6 +22,9 @@ import {
   BackupPreviewGroup,
   BackupPreviewResult,
   LoginDefenseSettingsInput,
+  SecurityAlertEventRoutes,
+  SecurityAlertRouteEvent,
+  SecurityAlertRouteTarget,
   SecurityAlertSettingsInput,
   SettingsActionTestResult,
   SettingsTestHistoryItem,
@@ -97,6 +100,11 @@ function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
     email_password: "",
     email_from: "",
     email_recipients: [],
+    event_routes: {
+      login_locked: "default",
+      login_suspicious: "default",
+      login_blocked_ip: "default",
+    },
   };
 }
 
@@ -145,6 +153,20 @@ const SECURITY_ALERT_PROVIDER_OPTIONS = [
   },
 ] as const;
 
+const SECURITY_ALERT_EVENT_OPTIONS: Array<{ key: SecurityAlertRouteEvent; label: string }> = [
+  { key: "login_locked", label: "계정 잠금" },
+  { key: "login_suspicious", label: "이상 징후" },
+  { key: "login_blocked_ip", label: "IP 차단" },
+];
+
+const SECURITY_ALERT_ROUTE_OPTIONS: Array<{ value: SecurityAlertRouteTarget; label: string }> = [
+  { value: "default", label: "기본 채널 사용" },
+  { value: "disabled", label: "전송 안 함" },
+  { value: "telegram", label: "Telegram" },
+  { value: "pagerduty", label: "PagerDuty" },
+  { value: "email", label: "Email" },
+];
+
 function parseMultivalueText(value: string): string[] {
   return value
     .split(/\r?\n|,/)
@@ -159,6 +181,26 @@ function buildActionFailure(message: string, detail?: string): SettingsActionTes
     detail: detail || null,
     provider: null,
   };
+}
+
+function getSecurityAlertRouteLabel(
+  route: SecurityAlertRouteTarget,
+  defaultProviderLabel: string,
+): string {
+  switch (route) {
+    case "default":
+      return `기본 채널 (${defaultProviderLabel})`;
+    case "disabled":
+      return "전송 안 함";
+    case "telegram":
+      return "Telegram";
+    case "pagerduty":
+      return "PagerDuty";
+    case "email":
+      return "Email";
+    default:
+      return route;
+  }
 }
 
 function getApiErrorDetail(error: unknown, fallback: string): string {
@@ -539,6 +581,7 @@ export default function SettingsPage() {
       email_password: "",
       email_from: securityAlertSettings?.email_from ?? "",
       email_recipients: securityAlertSettings?.email_recipients ?? [],
+      event_routes: securityAlertSettings?.event_routes ?? createDefaultSecurityAlertForm().event_routes,
     });
     setSecurityAlertErrorMessage("");
     setIsEditingSecurityAlert(true);
@@ -561,6 +604,7 @@ export default function SettingsPage() {
         email_password: securityAlertForm.email_password.trim(),
         email_from: securityAlertForm.email_from.trim(),
         email_recipients: securityAlertForm.email_recipients,
+        event_routes: securityAlertForm.event_routes,
       });
       setSecurityAlertTestResult(null);
       setIsEditingSecurityAlert(false);
@@ -1590,9 +1634,48 @@ export default function SettingsPage() {
                 </div>
               )}
 
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">이벤트별 알림 정책</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    기본 채널은 현재 선택한 provider를 뜻합니다. 독립 설정 채널은 Telegram, PagerDuty, Email만
+                    override로 지정할 수 있습니다.
+                  </p>
+                </div>
+                <div className="grid gap-3">
+                  {SECURITY_ALERT_EVENT_OPTIONS.map((eventOption) => (
+                    <div key={eventOption.key} className="grid gap-2 md:grid-cols-[140px_1fr] md:items-center">
+                      <label className="label mb-0">{eventOption.label}</label>
+                      <select
+                        className="input"
+                        value={securityAlertForm.event_routes[eventOption.key]}
+                        onChange={(e) =>
+                          setSecurityAlertForm((current) => ({
+                            ...current,
+                            event_routes: {
+                              ...current.event_routes,
+                              [eventOption.key]: e.target.value as SecurityAlertRouteTarget,
+                            } as SecurityAlertEventRoutes,
+                          }))
+                        }
+                      >
+                        {SECURITY_ALERT_ROUTE_OPTIONS.map((option) => (
+                          <option key={`${eventOption.key}-${option.value}`} value={option.value}>
+                            {option.value === "default"
+                              ? `${option.label} (${selectedSecurityAlertProvider.label})`
+                              : option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
                 <p>전송 이벤트: {(securityAlertSettings?.alert_events ?? []).join(", ")}</p>
                 <p>전송 타임아웃: {securityAlertSettings?.timeout_seconds ?? 5}초</p>
+                <p>이벤트별 override는 Telegram, PagerDuty, Email 또는 전송 안 함으로만 분기합니다.</p>
                 <p>알림 실패는 로그인/차단 동작을 막지 않고 서버 로그에만 남습니다.</p>
               </div>
 
@@ -1687,6 +1770,16 @@ export default function SettingsPage() {
                 label="전송 이벤트"
                 value={(securityAlertSettings?.alert_events ?? []).join(", ")}
               />
+              {SECURITY_ALERT_EVENT_OPTIONS.map((eventOption) => (
+                <SettingsSummaryRow
+                  key={`summary-${eventOption.key}`}
+                  label={eventOption.label}
+                  value={getSecurityAlertRouteLabel(
+                    securityAlertSettings?.event_routes?.[eventOption.key] ?? "default",
+                    currentSecurityAlertProvider.label,
+                  )}
+                />
+              ))}
               <SettingsSummaryRow label="타임아웃" value={`${securityAlertSettings?.timeout_seconds ?? 5}초`} />
               {canManage ? (
                 <SettingsActionRow>
@@ -1701,7 +1794,7 @@ export default function SettingsPage() {
                   </button>
                 </SettingsActionRow>
               ) : null}
-              <p className="text-xs text-gray-500">테스트는 현재 저장된 provider 설정 기준으로 즉시 전송됩니다.</p>
+              <p className="text-xs text-gray-500">테스트는 현재 저장된 기본 채널 설정 기준으로 즉시 전송됩니다.</p>
               {!isSettingsTestHistoryLoading ? (
                 <SettingsTestHistoryNotice
                   label="마지막 테스트 알림"
