@@ -69,8 +69,8 @@ async def get_security_summary(
     result = await db.execute(select(AuditLogModel).order_by(desc(AuditLogModel.created_at)))
     logs = result.scalars().all()
     recent_logs = sorted(
-        [log for log in logs if log.created_at >= cutoff],
-        key=lambda log: log.created_at,
+        [log for log in logs if _normalize_utc(log.created_at) >= cutoff],
+        key=lambda log: _normalize_utc(log.created_at),
         reverse=True,
     )
 
@@ -85,7 +85,7 @@ async def get_security_summary(
             actor=log.actor,
             resource_name=log.resource_name,
             client_ip=(log.detail or {}).get("client_ip"),
-            created_at=log.created_at,
+            created_at=_normalize_utc(log.created_at),
         )
         for log in recent_logs
         if _get_event(log) in SECURITY_ALERT_EVENTS
@@ -115,9 +115,9 @@ async def get_certificate_summary(
         [
             log
             for log in logs
-            if log.created_at >= cutoff and _get_event(log) in CERTIFICATE_ALERT_EVENTS
+            if _normalize_utc(log.created_at) >= cutoff and _get_event(log) in CERTIFICATE_ALERT_EVENTS
         ],
-        key=lambda log: log.created_at,
+        key=lambda log: _normalize_utc(log.created_at),
         reverse=True,
     )
 
@@ -134,7 +134,7 @@ async def get_certificate_summary(
             expires_at=_get_detail_str(log, "expires_at"),
             previous_status=_get_detail_str(log, "previous_status"),
             checked_at=_get_detail_str(log, "checked_at"),
-            created_at=log.created_at,
+            created_at=_normalize_utc(log.created_at),
         )
         for log in recent_logs[:recent_limit]
     ]
@@ -209,6 +209,12 @@ def _filter_logs(
     return filtered
 
 
+def _normalize_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def _to_audit_log_response(log: AuditLogModel) -> AuditLogResponse:
     return AuditLogResponse(
         id=log.id,
@@ -219,5 +225,5 @@ def _to_audit_log_response(log: AuditLogModel) -> AuditLogResponse:
         resource_name=log.resource_name,
         detail=log.detail,
         event=_get_event(log),
-        created_at=log.created_at,
+        created_at=_normalize_utc(log.created_at),
     )

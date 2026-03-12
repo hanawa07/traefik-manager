@@ -230,6 +230,40 @@ async def test_get_certificate_summary_counts_recent_events():
 
 
 @pytest.mark.asyncio
+async def test_get_certificate_summary_accepts_naive_created_at():
+    now = datetime.now(timezone.utc)
+    db = StubAuditDb(
+        [
+            make_log(
+                event="certificate_warning",
+                resource_type="certificate",
+                resource_name="naive.example.com",
+                created_at=(now - timedelta(minutes=5)).replace(tzinfo=None),
+            ),
+            make_log(
+                event="certificate_error",
+                resource_type="certificate",
+                resource_name="aware.example.com",
+                created_at=now - timedelta(minutes=3),
+            ),
+        ]
+    )
+
+    result = await audit_router.get_certificate_summary(
+        window_minutes=60,
+        recent_limit=5,
+        db=db,
+        _={"username": "admin"},
+    )
+
+    assert result.warning_count == 1
+    assert result.error_count == 1
+    assert result.recent_events[0].resource_name == "aware.example.com"
+    assert result.recent_events[1].resource_name == "naive.example.com"
+    assert result.recent_events[1].created_at.tzinfo is not None
+
+
+@pytest.mark.asyncio
 async def test_retry_delivery_replays_failed_delivery(monkeypatch):
     now = datetime.now(timezone.utc)
     target_log = make_log(
