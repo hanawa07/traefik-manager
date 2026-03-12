@@ -2428,7 +2428,7 @@ export default function SettingsPage() {
 
         {canManage ? <UserManagementSection /> : null}
 
-        <div className="card p-6 h-full xl:col-span-2">
+        <div className="card p-6 h-full">
           <SettingsCardHeader
             icon={<Bug className="w-5 h-5 text-violet-600" />}
             title="Traefik 디버그 대시보드"
