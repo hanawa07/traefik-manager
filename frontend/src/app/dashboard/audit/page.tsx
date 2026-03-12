@@ -42,6 +42,7 @@ const securityEventConfig = {
   login_blocked_ip: { label: "IP 차단", color: "bg-red-600/20 text-red-200 border-red-500/30" },
   settings_update_cloudflare: { label: "Cloudflare 설정 변경", color: "bg-cyan-600/20 text-cyan-200 border-cyan-500/30" },
   settings_update_time_display: { label: "시간 표시 설정 변경", color: "bg-sky-600/20 text-sky-200 border-sky-500/30" },
+  settings_update_certificate_diagnostics: { label: "인증서 진단 설정 변경", color: "bg-violet-600/20 text-violet-200 border-violet-500/30" },
   settings_update_upstream_security: { label: "업스트림 보안 설정 변경", color: "bg-indigo-600/20 text-indigo-200 border-indigo-500/30" },
   settings_update_login_defense: { label: "로그인 방어 설정 변경", color: "bg-violet-600/20 text-violet-200 border-violet-500/30" },
   settings_update_security_alert: { label: "보안 알림 설정 변경", color: "bg-fuchsia-600/20 text-fuchsia-200 border-fuchsia-500/30" },

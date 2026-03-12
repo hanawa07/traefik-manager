@@ -4,6 +4,7 @@ import {
   BackupPayload,
   BackupPreviewResult,
   BackupValidateResult,
+  CertificateDiagnosticsSettingsInput,
   CloudflareSettingsInput,
   LoginDefenseSettingsInput,
   SettingsRollbackActionResult,
@@ -27,6 +28,14 @@ export function useTimeDisplaySettings() {
   return useQuery({
     queryKey: ["settings", "time-display"],
     queryFn: settingsApi.getTimeDisplaySettings,
+    staleTime: 30_000,
+  });
+}
+
+export function useCertificateDiagnosticsSettings() {
+  return useQuery({
+    queryKey: ["settings", "certificate-diagnostics"],
+    queryFn: settingsApi.getCertificateDiagnosticsSettings,
     staleTime: 30_000,
   });
 }
@@ -101,6 +110,17 @@ export function useUpdateTimeDisplaySettings() {
   });
 }
 
+export function useUpdateCertificateDiagnosticsSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CertificateDiagnosticsSettingsInput) =>
+      settingsApi.updateCertificateDiagnosticsSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "certificate-diagnostics"] });
+    },
+  });
+}
+
 export function useUpdateTraefikDashboardSettings() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -159,6 +179,7 @@ export function useRollbackSettingsChange() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["audit-logs"] }),
         queryClient.invalidateQueries({ queryKey: ["settings", "time-display"] }),
+        queryClient.invalidateQueries({ queryKey: ["settings", "certificate-diagnostics"] }),
         queryClient.invalidateQueries({ queryKey: ["settings", "traefik-dashboard"] }),
         queryClient.invalidateQueries({ queryKey: ["settings", "upstream-security"] }),
         queryClient.invalidateQueries({ queryKey: ["settings", "login-defense"] }),

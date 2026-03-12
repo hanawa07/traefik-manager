@@ -129,6 +129,20 @@ class TimeDisplaySettingsUpdateRequest(BaseModel):
         return normalized
 
 
+class CertificateDiagnosticsSettingsResponse(BaseModel):
+    auto_check_interval_minutes: int
+    repeat_alert_threshold: int
+    repeat_alert_window_minutes: int
+    repeat_alert_cooldown_minutes: int
+
+
+class CertificateDiagnosticsSettingsUpdateRequest(BaseModel):
+    auto_check_interval_minutes: int = Field(default=60, ge=5, le=1440)
+    repeat_alert_threshold: int = Field(default=3, ge=2, le=20)
+    repeat_alert_window_minutes: int = Field(default=240, ge=5, le=10080)
+    repeat_alert_cooldown_minutes: int = Field(default=240, ge=5, le=10080)
+
+
 def normalize_trusted_networks(value: list[str]) -> list[str]:
     normalized_networks: list[str] = []
     for item in value:

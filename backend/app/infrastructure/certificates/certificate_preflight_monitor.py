@@ -7,6 +7,8 @@ from app.application.certificate.preflight_service import (
     get_certificate_preflight_state,
     record_certificate_preflight_result,
 )
+from app.core.certificate_diagnostics import build_certificate_diagnostics_settings
+from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.infrastructure.persistence.database import AsyncSessionLocal
 from app.infrastructure.traefik.traefik_api_client import TraefikApiClient, TraefikApiClientError
 
@@ -44,6 +46,7 @@ async def run_certificate_preflight_checks_once(
     client_factory = client_factory or TraefikApiClient
     async with session_factory() as session:
         client = client_factory()
+        diagnostics_settings = await _load_certificate_diagnostics_settings(session)
         try:
             certificates = await client.list_certificates()
         except TraefikApiClientError:
@@ -57,7 +60,7 @@ async def run_certificate_preflight_checks_once(
                 raise
             return _build_summary(current_time, 0, 0, 0)
 
-        preflight_state = await get_certificate_preflight_state(session)
+        preflight_state = await get_certificate_preflight_state(session, config=diagnostics_settings)
         candidates = [
             certificate
             for certificate in certificates
@@ -76,6 +79,7 @@ async def run_certificate_preflight_checks_once(
                 domain=domain,
                 result=result,
                 client_ip=None,
+                config=diagnostics_settings,
             )
             checked_count += 1
             if tracking["repeated_failure_emitted"]:
@@ -107,3 +111,9 @@ def _build_summary(
         "checked_count": checked_count,
         "recorded_event_count": recorded_event_count,
     }
+
+
+async def _load_certificate_diagnostics_settings(session: Any):
+    if not callable(getattr(session, "execute", None)):
+        return build_certificate_diagnostics_settings()
+    return build_certificate_diagnostics_settings(await SQLiteSystemSettingsRepository(session).get_all_dict())

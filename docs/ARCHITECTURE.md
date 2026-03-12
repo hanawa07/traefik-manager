@@ -248,6 +248,7 @@ traefik-manager/
   preflight monitor
     → `warning/error/pending` 또는 최근 ACME 실패가 있는 도메인을 주기적으로 다시 점검
     → 같은 audit snapshot 흐름을 재사용해 반복 실패 streak를 자동 갱신
+    → 반복 실패 임계치, 추적 창, 알림 쿨다운, 자동 재검사 주기는 설정 화면의 `인증서 진단` 설정을 우선 사용
   manual action
     → `/certificates/check` 호출 시 즉시 재검사
     → 현재 warning/error 수와 신규 경고 이벤트 수를 응답

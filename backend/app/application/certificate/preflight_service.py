@@ -4,6 +4,10 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.audit import audit_service
+from app.core.certificate_diagnostics import (
+    CertificateDiagnosticsSettings,
+    build_certificate_diagnostics_settings,
+)
 from app.core.config import settings
 from app.infrastructure.persistence.models import AuditLogModel
 from app.interfaces.api.v1.schemas.certificate_schemas import CertificatePreflightSnapshotResponse
@@ -19,12 +23,14 @@ async def record_certificate_preflight_result(
     domain: str,
     result: dict,
     client_ip: str | None,
+    config: CertificateDiagnosticsSettings | None = None,
 ) -> dict:
+    resolved_config = _resolve_certificate_diagnostics_settings(config)
     previous_results = await list_previous_preflight_results(db, domain)
     previous_alerts = await list_previous_repeated_failure_alerts(db, domain)
     previous_result = previous_results[0] if previous_results else None
-    repeated_failure_streak = calculate_preflight_failure_streak(result, previous_results)
-    repeated_failure_active = repeated_failure_streak >= settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD
+    repeated_failure_streak = calculate_preflight_failure_streak(result, previous_results, config=resolved_config)
+    repeated_failure_active = repeated_failure_streak >= resolved_config.repeat_alert_threshold
 
     await audit_service.record(
         db=db,
@@ -37,8 +43,10 @@ async def record_certificate_preflight_result(
     )
 
     repeated_failure_emitted = False
-    if repeated_failure_streak == settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD and should_emit_repeated_failure_alert(
-        result, previous_alerts
+    if repeated_failure_streak == resolved_config.repeat_alert_threshold and should_emit_repeated_failure_alert(
+        result,
+        previous_alerts,
+        config=resolved_config,
     ):
         await audit_service.record(
             db=db,
@@ -51,6 +59,7 @@ async def record_certificate_preflight_result(
                 result,
                 client_ip=client_ip,
                 consecutive_count=repeated_failure_streak,
+                config=resolved_config,
             ),
         )
         repeated_failure_emitted = True
@@ -63,9 +72,14 @@ async def record_certificate_preflight_result(
     }
 
 
-async def get_certificate_preflight_state(db: AsyncSession) -> dict[str, dict]:
+async def get_certificate_preflight_state(
+    db: AsyncSession,
+    *,
+    config: CertificateDiagnosticsSettings | None = None,
+) -> dict[str, dict]:
     if not callable(getattr(db, "execute", None)):
         return {}
+    resolved_config = _resolve_certificate_diagnostics_settings(config)
     result = await db.execute(
         select(AuditLogModel)
         .where(AuditLogModel.resource_type == "certificate")
@@ -86,10 +100,14 @@ async def get_certificate_preflight_state(db: AsyncSession) -> dict[str, dict]:
     for domain, snapshots in snapshots_by_domain.items():
         if not snapshots:
             continue
-        failure_streak = calculate_preflight_failure_streak(snapshots[0], snapshots[1:])
+        failure_streak = calculate_preflight_failure_streak(
+            snapshots[0],
+            snapshots[1:],
+            config=resolved_config,
+        )
         state[domain] = {
             "failure_streak": failure_streak,
-            "repeated_failure_active": failure_streak >= settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD,
+            "repeated_failure_active": failure_streak >= resolved_config.repeat_alert_threshold,
         }
     return state
 
@@ -153,7 +171,9 @@ def serialize_repeated_failure_detail(
     *,
     client_ip: str | None,
     consecutive_count: int,
+    config: CertificateDiagnosticsSettings | None = None,
 ) -> dict:
+    resolved_config = _resolve_certificate_diagnostics_settings(config)
     checked_at = result.get("checked_at")
     checked_at_iso = checked_at.astimezone(timezone.utc).isoformat() if isinstance(checked_at, datetime) else None
     failure_items = [
@@ -168,8 +188,8 @@ def serialize_repeated_failure_detail(
         "overall_status": result.get("overall_status"),
         "recommendation": result.get("recommendation"),
         "consecutive_count": consecutive_count,
-        "repeat_window_minutes": settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_MINUTES,
-        "cooldown_minutes": settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_COOLDOWN_MINUTES,
+        "repeat_window_minutes": resolved_config.repeat_alert_window_minutes,
+        "cooldown_minutes": resolved_config.repeat_alert_cooldown_minutes,
         "failure_keys": [item.get("key") for item in failure_items if isinstance(item.get("key"), str)],
         "failure_details": [
             {
@@ -233,7 +253,13 @@ def deserialize_repeated_failure_alert(detail: dict | None) -> dict | None:
     }
 
 
-def calculate_preflight_failure_streak(current_result: dict, previous_results: list[dict]) -> int:
+def calculate_preflight_failure_streak(
+    current_result: dict,
+    previous_results: list[dict],
+    *,
+    config: CertificateDiagnosticsSettings | None = None,
+) -> int:
+    resolved_config = _resolve_certificate_diagnostics_settings(config)
     current_signature = get_preflight_failure_signature(current_result)
     current_status = current_result.get("overall_status")
     current_checked_at = extract_preflight_checked_at(current_result)
@@ -241,7 +267,7 @@ def calculate_preflight_failure_streak(current_result: dict, previous_results: l
         return 0
 
     streak = 1
-    window = timedelta(minutes=settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_MINUTES)
+    window = timedelta(minutes=resolved_config.repeat_alert_window_minutes)
     for snapshot in previous_results:
         previous_signature = get_preflight_failure_signature(snapshot)
         previous_status = snapshot.get("overall_status")
@@ -256,13 +282,19 @@ def calculate_preflight_failure_streak(current_result: dict, previous_results: l
     return streak
 
 
-def should_emit_repeated_failure_alert(current_result: dict, previous_alerts: list[dict]) -> bool:
+def should_emit_repeated_failure_alert(
+    current_result: dict,
+    previous_alerts: list[dict],
+    *,
+    config: CertificateDiagnosticsSettings | None = None,
+) -> bool:
+    resolved_config = _resolve_certificate_diagnostics_settings(config)
     current_signature = get_preflight_failure_signature(current_result)
     current_checked_at = extract_preflight_checked_at(current_result)
     if current_signature is None or current_checked_at is None:
         return False
 
-    cooldown = timedelta(minutes=settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_COOLDOWN_MINUTES)
+    cooldown = timedelta(minutes=resolved_config.repeat_alert_cooldown_minutes)
     for alert in previous_alerts:
         previous_signature = get_repeated_failure_alert_signature(alert)
         previous_checked_at = extract_preflight_checked_at(alert)
@@ -270,6 +302,14 @@ def should_emit_repeated_failure_alert(current_result: dict, previous_alerts: li
             continue
         return current_checked_at - previous_checked_at > cooldown
     return True
+
+
+def _resolve_certificate_diagnostics_settings(
+    config: CertificateDiagnosticsSettings | None,
+) -> CertificateDiagnosticsSettings:
+    if config is not None:
+        return config
+    return build_certificate_diagnostics_settings()
 
 
 def get_preflight_failure_signature(result: dict) -> tuple[str, tuple[str, ...]] | None:

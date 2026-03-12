@@ -6,12 +6,14 @@ from app.application.certificate.preflight_service import (
     get_certificate_preflight_state as load_certificate_preflight_state,
     record_certificate_preflight_result,
 )
+from app.core.certificate_diagnostics import build_certificate_diagnostics_settings
 from app.core.logging_config import get_client_ip
 from app.infrastructure.certificates.certificate_alert_monitor import (
     check_certificate_alerts_once,
     get_certificate_alert_state,
 )
 from app.infrastructure.persistence.database import get_db
+from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.interfaces.api.dependencies import get_current_user
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.traefik.traefik_api_client import TraefikApiClient, TraefikApiClientError
@@ -85,12 +87,14 @@ async def preflight_certificate(
 ):
     try:
         result = await traefik_client.get_certificate_preflight(domain)
+        diagnostics_settings = await _load_certificate_diagnostics_settings(db)
         tracking = await record_certificate_preflight_result(
             db=db,
             actor=current_user.get("username", "unknown"),
             domain=domain,
             result=result,
             client_ip=get_client_ip(request),
+            config=diagnostics_settings,
         )
         return {
             **result,
@@ -144,4 +148,13 @@ def _parse_iso_datetime(value: str | None) -> datetime | None:
 
 
 async def _get_certificate_preflight_state(db: AsyncSession) -> dict[str, dict]:
-    return await load_certificate_preflight_state(db)
+    diagnostics_settings = await _load_certificate_diagnostics_settings(db)
+    return await load_certificate_preflight_state(db, config=diagnostics_settings)
+
+
+async def _load_certificate_diagnostics_settings(db: AsyncSession):
+    repo = SQLiteSystemSettingsRepository(db)
+    try:
+        return build_certificate_diagnostics_settings(await repo.get_all_dict())
+    except Exception:
+        return build_certificate_diagnostics_settings()

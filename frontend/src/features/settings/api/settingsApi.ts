@@ -123,6 +123,20 @@ export interface TimeDisplaySettingsInput {
   display_timezone: string;
 }
 
+export interface CertificateDiagnosticsSettingsStatus {
+  auto_check_interval_minutes: number;
+  repeat_alert_threshold: number;
+  repeat_alert_window_minutes: number;
+  repeat_alert_cooldown_minutes: number;
+}
+
+export interface CertificateDiagnosticsSettingsInput {
+  auto_check_interval_minutes: number;
+  repeat_alert_threshold: number;
+  repeat_alert_window_minutes: number;
+  repeat_alert_cooldown_minutes: number;
+}
+
 export interface UpstreamSecuritySettingsStatus {
   preset_key: string;
   preset_name: string;
@@ -286,6 +300,11 @@ export const settingsApi = {
     return res.data;
   },
 
+  getCertificateDiagnosticsSettings: async (): Promise<CertificateDiagnosticsSettingsStatus> => {
+    const res = await apiClient.get<CertificateDiagnosticsSettingsStatus>("/settings/certificate-diagnostics");
+    return res.data;
+  },
+
   getTraefikDashboardSettings: async (): Promise<TraefikDashboardSettingsStatus> => {
     const res = await apiClient.get<TraefikDashboardSettingsStatus>("/settings/traefik-dashboard");
     return res.data;
@@ -323,6 +342,16 @@ export const settingsApi = {
 
   updateTimeDisplaySettings: async (payload: TimeDisplaySettingsInput): Promise<TimeDisplaySettingsStatus> => {
     const res = await apiClient.put<TimeDisplaySettingsStatus>("/settings/time-display", payload);
+    return res.data;
+  },
+
+  updateCertificateDiagnosticsSettings: async (
+    payload: CertificateDiagnosticsSettingsInput,
+  ): Promise<CertificateDiagnosticsSettingsStatus> => {
+    const res = await apiClient.put<CertificateDiagnosticsSettingsStatus>(
+      "/settings/certificate-diagnostics",
+      payload,
+    );
     return res.data;
   },
 

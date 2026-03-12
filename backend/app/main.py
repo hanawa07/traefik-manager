@@ -13,7 +13,9 @@ from app.core.logging_config import (
     is_logging_exempt_path,
     setup_logging,
 )
+from app.core.certificate_diagnostics import build_certificate_diagnostics_settings
 from app.infrastructure.persistence.database import init_db, AsyncSessionLocal
+from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.interfaces.api.v1.routers import (
     services,
@@ -180,12 +182,21 @@ async def _check_certificate_preflight_once() -> None:
 
 
 async def _certificate_preflight_loop() -> None:
-    from app.infrastructure.certificates import run_periodic_certificate_preflight_check
+    while True:
+        await asyncio.sleep(await _load_certificate_preflight_interval_seconds())
+        await _check_certificate_preflight_once()
 
-    await run_periodic_certificate_preflight_check(
-        interval_seconds=max(300, settings.CERTIFICATE_PREFLIGHT_AUTO_CHECK_INTERVAL_MINUTES * 60),
-        check_once=_check_certificate_preflight_once,
-    )
+
+async def _load_certificate_preflight_interval_seconds() -> int:
+    try:
+        async with AsyncSessionLocal() as session:
+            diagnostics_settings = build_certificate_diagnostics_settings(
+                await SQLiteSystemSettingsRepository(session).get_all_dict()
+            )
+            return max(300, diagnostics_settings.auto_check_interval_minutes * 60)
+    except Exception:
+        logger.warning("인증서 프리플라이트 주기 설정 조회 실패, 기본값 사용", exc_info=True)
+        return max(300, settings.CERTIFICATE_PREFLIGHT_AUTO_CHECK_INTERVAL_MINUTES * 60)
 
 
 app = FastAPI(

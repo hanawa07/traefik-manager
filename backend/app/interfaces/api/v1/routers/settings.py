@@ -6,6 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.audit import audit_service
 from app.core.config import settings
+from app.core.certificate_diagnostics import (
+    CERTIFICATE_PREFLIGHT_AUTO_CHECK_INTERVAL_KEY,
+    CERTIFICATE_PREFLIGHT_REPEAT_ALERT_COOLDOWN_KEY,
+    CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD_KEY,
+    CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_KEY,
+    build_certificate_diagnostics_settings,
+)
 from app.core.logging_config import get_client_ip
 from app.core.security import hash_basic_auth_password
 from app.core.time_display import (
@@ -30,6 +37,8 @@ from app.infrastructure.persistence.repositories.sqlite_service_repository impor
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.schemas.settings_schemas import (
+    CertificateDiagnosticsSettingsResponse,
+    CertificateDiagnosticsSettingsUpdateRequest,
     CloudflareSettingsStatusResponse,
     CloudflareSettingsUpdateRequest,
     LoginDefenseSettingsResponse,
@@ -81,6 +90,7 @@ SETTINGS_UPDATE_EVENTS = {
     "cloudflare": "settings_update_cloudflare",
     "traefik_dashboard": "settings_update_traefik_dashboard",
     "time_display": "settings_update_time_display",
+    "certificate_diagnostics": "settings_update_certificate_diagnostics",
     "upstream_security": "settings_update_upstream_security",
     "login_defense": "settings_update_login_defense",
     "security_alert": "settings_update_security_alert",
@@ -294,6 +304,49 @@ async def update_time_display_settings(
         after={"display_timezone": response.display_timezone},
         client_ip=_maybe_get_client_ip(http_request),
         rollback_payload={"display_timezone": previous_value},
+    )
+    return response
+
+
+@router.get(
+    "/certificate-diagnostics",
+    response_model=CertificateDiagnosticsSettingsResponse,
+    summary="인증서 진단 설정 조회",
+)
+async def get_certificate_diagnostics_settings(
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    repo = SQLiteSystemSettingsRepository(db)
+    return await _build_certificate_diagnostics_response(repo)
+
+
+@router.put(
+    "/certificate-diagnostics",
+    response_model=CertificateDiagnosticsSettingsResponse,
+    summary="인증서 진단 설정 저장",
+)
+async def update_certificate_diagnostics_settings(
+    request: CertificateDiagnosticsSettingsUpdateRequest,
+    http_request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_admin),
+):
+    repo = SQLiteSystemSettingsRepository(db)
+    previous_response = await _build_certificate_diagnostics_response(repo)
+    await repo.set(CERTIFICATE_PREFLIGHT_AUTO_CHECK_INTERVAL_KEY, str(request.auto_check_interval_minutes))
+    await repo.set(CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD_KEY, str(request.repeat_alert_threshold))
+    await repo.set(CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_KEY, str(request.repeat_alert_window_minutes))
+    await repo.set(CERTIFICATE_PREFLIGHT_REPEAT_ALERT_COOLDOWN_KEY, str(request.repeat_alert_cooldown_minutes))
+    response = await _build_certificate_diagnostics_response(repo)
+    await _record_settings_update(
+        db=db,
+        actor=_.get("username", "unknown"),
+        event=SETTINGS_UPDATE_EVENTS["certificate_diagnostics"],
+        resource_name="인증서 진단 설정",
+        before=_certificate_diagnostics_summary(previous_response),
+        after=_certificate_diagnostics_summary(response),
+        client_ip=_maybe_get_client_ip(http_request),
     )
     return response
 
@@ -720,6 +773,36 @@ async def _build_traefik_dashboard_response(
     )
 
 
+async def _build_certificate_diagnostics_response(
+    repo: SQLiteSystemSettingsRepository,
+) -> CertificateDiagnosticsSettingsResponse:
+    if callable(getattr(repo, "get_all_dict", None)):
+        diagnostics_settings = build_certificate_diagnostics_settings(await repo.get_all_dict())
+    else:
+        diagnostics_settings = build_certificate_diagnostics_settings(
+            {
+                CERTIFICATE_PREFLIGHT_AUTO_CHECK_INTERVAL_KEY: await repo.get(
+                    CERTIFICATE_PREFLIGHT_AUTO_CHECK_INTERVAL_KEY
+                ),
+                CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD_KEY: await repo.get(
+                    CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD_KEY
+                ),
+                CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_KEY: await repo.get(
+                    CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_KEY
+                ),
+                CERTIFICATE_PREFLIGHT_REPEAT_ALERT_COOLDOWN_KEY: await repo.get(
+                    CERTIFICATE_PREFLIGHT_REPEAT_ALERT_COOLDOWN_KEY
+                ),
+            }
+        )
+    return CertificateDiagnosticsSettingsResponse(
+        auto_check_interval_minutes=diagnostics_settings.auto_check_interval_minutes,
+        repeat_alert_threshold=diagnostics_settings.repeat_alert_threshold,
+        repeat_alert_window_minutes=diagnostics_settings.repeat_alert_window_minutes,
+        repeat_alert_cooldown_minutes=diagnostics_settings.repeat_alert_cooldown_minutes,
+    )
+
+
 async def _build_upstream_security_response(
     repo: SQLiteSystemSettingsRepository,
 ) -> UpstreamSecuritySettingsResponse:
@@ -985,6 +1068,15 @@ def _traefik_dashboard_summary(response: TraefikDashboardSettingsResponse) -> di
         "domain": response.domain,
         "auth_username": response.auth_username,
         "auth_password_configured": response.auth_password_configured,
+    }
+
+
+def _certificate_diagnostics_summary(response: CertificateDiagnosticsSettingsResponse) -> dict[str, object]:
+    return {
+        "auto_check_interval_minutes": response.auto_check_interval_minutes,
+        "repeat_alert_threshold": response.repeat_alert_threshold,
+        "repeat_alert_window_minutes": response.repeat_alert_window_minutes,
+        "repeat_alert_cooldown_minutes": response.repeat_alert_cooldown_minutes,
     }
 
 
