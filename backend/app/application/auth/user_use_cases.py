@@ -12,6 +12,9 @@ class UserUseCases:
     async def list_users(self) -> list[User]:
         return await self.repository.find_all()
 
+    async def get_user(self, user_id: UUID) -> User | None:
+        return await self.repository.find_by_id(user_id)
+
     async def create_user(self, data) -> User:
         existing = await self.repository.find_by_username(data.username)
         if existing:

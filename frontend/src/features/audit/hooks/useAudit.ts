@@ -31,7 +31,7 @@ export const useAuditRollback = () => {
   return useMutation<
     Record<string, unknown>,
     unknown,
-    { resourceType: "settings" | "service" | "redirect"; auditLogId: string }
+    { resourceType: "settings" | "service" | "redirect" | "middleware" | "user"; auditLogId: string }
   >({
     mutationFn: ({ resourceType, auditLogId }) => auditApi.rollbackChange(resourceType, auditLogId),
     onSuccess: async (_result, variables) => {
@@ -39,6 +39,8 @@ export const useAuditRollback = () => {
         queryClient.invalidateQueries({ queryKey: ["audit-logs"] }),
         queryClient.invalidateQueries({ queryKey: ["services"] }),
         queryClient.invalidateQueries({ queryKey: ["redirect-hosts"] }),
+        queryClient.invalidateQueries({ queryKey: ["middleware-templates"] }),
+        queryClient.invalidateQueries({ queryKey: ["users"] }),
         queryClient.invalidateQueries({ queryKey: ["traefik-health"] }),
         queryClient.invalidateQueries({ queryKey: ["traefik-router-status"] }),
         queryClient.invalidateQueries({ queryKey: ["settings", "time-display"] }),

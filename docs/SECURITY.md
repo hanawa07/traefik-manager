@@ -60,7 +60,8 @@
 - 시간 표시, 업스트림 보안, 로그인 방어, 보안 알림, Cloudflare 같은 주요 설정 저장도 감사 로그에 `settings/update`로 기록됩니다.
 - 감사 로그 화면에서는 `설정 변경`과 `설정 테스트`를 분리해 확인할 수 있습니다.
 - `시간 표시`, `업스트림 보안`은 audit detail에 `before/after` diff와 안전 롤백 payload를 남기며, 감사 로그 화면에서 이전 상태로 되돌릴 수 있습니다.
-- `서비스 수정`, `리다이렉트 수정`도 audit detail에 `before/after` diff를 남기고, token/basic-auth 같은 비밀값이 얽히지 않은 안전한 경우에만 롤백 payload를 제공합니다.
+- `서비스 수정`, `리다이렉트 수정`, `미들웨어 수정`도 audit detail에 `before/after` diff를 남기고, token/basic-auth 같은 비밀값이 얽히지 않은 안전한 경우에만 롤백 payload를 제공합니다.
+- `사용자 수정`도 audit detail에 `before/after` diff를 남기며, 비밀번호 변경이 포함되지 않은 경우에만 안전 롤백 payload를 제공합니다.
 - 설정 화면에서 보안 알림 채널을 `generic/slack/discord/telegram/teams/pagerduty/email` preset으로 선택할 수 있습니다.
 - `login_locked`, `login_suspicious`, `login_blocked_ip` 이벤트는 채널별 포맷으로 전송됩니다.
 - Telegram은 bot token과 chat id를 사용하고, PagerDuty는 routing key를 사용하며, Generic/Slack/Discord/Teams는 webhook URL을 사용합니다. Email은 SMTP host/port/security/from/recipients를 사용합니다.

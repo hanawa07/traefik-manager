@@ -52,7 +52,7 @@ export const auditApi = {
   },
 
   rollbackChange: async (
-    resourceType: "settings" | "service" | "redirect",
+    resourceType: "settings" | "service" | "redirect" | "middleware" | "user",
     auditLogId: string,
   ): Promise<Record<string, unknown>> => {
     const endpoint =
@@ -60,7 +60,11 @@ export const auditApi = {
         ? `/settings/rollback/${auditLogId}`
         : resourceType === "service"
           ? `/services/rollback/${auditLogId}`
-          : `/redirects/rollback/${auditLogId}`;
+          : resourceType === "redirect"
+            ? `/redirects/rollback/${auditLogId}`
+            : resourceType === "middleware"
+              ? `/middlewares/rollback/${auditLogId}`
+              : `/users/rollback/${auditLogId}`;
     const res = await apiClient.post<Record<string, unknown>>(endpoint);
     return res.data;
   },

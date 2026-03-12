@@ -50,6 +50,10 @@ const securityEventConfig = {
   service_rollback: { label: "서비스 롤백", color: "bg-indigo-600/20 text-indigo-200 border-indigo-500/30" },
   redirect_update: { label: "리다이렉트 변경", color: "bg-purple-600/20 text-purple-200 border-purple-500/30" },
   redirect_rollback: { label: "리다이렉트 롤백", color: "bg-fuchsia-600/20 text-fuchsia-200 border-fuchsia-500/30" },
+  middleware_update: { label: "미들웨어 변경", color: "bg-orange-600/20 text-orange-200 border-orange-500/30" },
+  middleware_rollback: { label: "미들웨어 롤백", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
+  user_update: { label: "사용자 변경", color: "bg-emerald-600/20 text-emerald-200 border-emerald-500/30" },
+  user_rollback: { label: "사용자 롤백", color: "bg-lime-600/20 text-lime-200 border-lime-500/30" },
 };
 
 const auditFilters = [
@@ -116,7 +120,7 @@ export default function AuditLogPage() {
   const rollbackMutation = useAuditRollback();
 
   const handleRollback = async (
-    resourceType: "settings" | "service" | "redirect",
+    resourceType: "settings" | "service" | "redirect" | "middleware" | "user",
     auditLogId: string,
   ) => {
     try {
@@ -237,7 +241,13 @@ export default function AuditLogPage() {
                   const rollbackSupported =
                     detail?.rollback_supported === true &&
                     log.action === "update" &&
-                    (log.resource_type === "settings" || log.resource_type === "service" || log.resource_type === "redirect");
+                    (
+                      log.resource_type === "settings" ||
+                      log.resource_type === "service" ||
+                      log.resource_type === "redirect" ||
+                      log.resource_type === "middleware" ||
+                      log.resource_type === "user"
+                    );
                   const isExpanded = expandedLogId === log.id;
 
                   return (
@@ -356,7 +366,7 @@ export default function AuditLogPage() {
                                     type="button"
                                     onClick={() =>
                                       handleRollback(
-                                        log.resource_type as "settings" | "service" | "redirect",
+                                        log.resource_type as "settings" | "service" | "redirect" | "middleware" | "user",
                                         log.id,
                                       )
                                     }
