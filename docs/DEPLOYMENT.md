@@ -53,9 +53,9 @@ providers:
 이 프로젝트는 `security-headers@file`를 전역 보안 미들웨어로 사용합니다. 다만 `X-Frame-Options`는 더 이상 전역에서 강제하면 안 됩니다.
 
 이유:
-- 대부분 서비스는 `DENY`가 맞다.
-- 하지만 Cockpit처럼 iframe 기반 셸을 쓰는 앱은 `DENY`에서 깨진다.
-- 전역값을 `SAMEORIGIN`으로 바꾸면 기존 서비스 전체 보안 기준이 낮아진다.
+- 일반적인 서비스에는 `DENY`가 적합합니다.
+- 그러나 Cockpit처럼 iframe 기반 셸을 사용하는 앱은 `DENY` 설정에서 정상 동작하지 않을 수 있습니다.
+- 따라서 전역 값을 `SAMEORIGIN`으로 변경하기보다는, 서비스별 `frame_policy`로 예외를 관리하는 편이 안전합니다.
 
 배포 규칙:
 1. `traefik-config/dynamic/security-headers.yml`에는 공통 헤더만 둡니다.

@@ -19,8 +19,8 @@
 **Step 1: Write the failing test**
 
 테스트에서 다음을 검증한다.
-- 미설정/잘못된 값이면 `Asia/Seoul`로 정규화된다.
-- `UTC`, `Asia/Seoul`, `America/New_York` 같은 유효한 IANA 타임존이 그대로 허용된다.
+- 미설정이거나 잘못된 값이면 `Asia/Seoul`로 정규화됩니다.
+- `UTC`, `Asia/Seoul`, `America/New_York` 같은 유효한 IANA 타임존은 그대로 허용됩니다.
 - 서버 시간 정보는 시간대 이름, 오프셋, timezone-aware ISO 시각을 반환한다.
 
 **Step 2: Run test to verify it fails**
