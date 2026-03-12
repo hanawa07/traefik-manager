@@ -150,6 +150,14 @@ async def reconcile_cloudflare_dns(
     cloudflare_client: CloudflareClient = Depends(get_cloudflare_client),
     _: dict = Depends(require_admin),
 ):
+    total_service_count = 0
+    eligible_service_count = 0
+    skipped_count = 0
+    synced_count = 0
+    failed_count = 0
+    cleaned_count = 0
+    cleanup_failed_count = 0
+
     if not cloudflare_client.enabled:
         result = SettingsTestActionResponse(
             success=False,
@@ -172,15 +180,19 @@ async def reconcile_cloudflare_dns(
         else:
             service_repository = SQLiteServiceRepository(db)
             services = await service_repository.find_all()
+            total_service_count = len(services)
             eligible_services = [
                 service
                 for service in services
                 if str(service.domain) == zone_name or str(service.domain).endswith(f".{zone_name}")
             ]
+            eligible_service_count = len(eligible_services)
 
             synced_count = 0
             failed_count = 0
             skipped_count = len(services) - len(eligible_services)
+            cleaned_count = 0
+            cleanup_failed_count = 0
             failure_messages: list[str] = []
 
             for service in eligible_services:
@@ -197,6 +209,31 @@ async def reconcile_cloudflare_dns(
                     failed_count += 1
                     failure_messages.append(f"{service.domain}: {exc}")
 
+            if eligible_services:
+                current_domains = {str(service.domain) for service in eligible_services}
+                try:
+                    managed_records = await cloudflare_client.list_managed_records()
+                except Exception as exc:
+                    cleanup_failed_count += 1
+                    failure_messages.append(f"관리 레코드 조회 실패: {exc}")
+                else:
+                    orphan_records = [
+                        record
+                        for record in managed_records
+                        if isinstance(record.get("name"), str) and record["name"] not in current_domains
+                    ]
+                    for record in orphan_records:
+                        domain = record.get("name")
+                        record_id = record.get("id")
+                        if not isinstance(domain, str):
+                            continue
+                        try:
+                            await cloudflare_client.delete_service_record(domain=domain, record_id=record_id)
+                            cleaned_count += 1
+                        except Exception as exc:
+                            cleanup_failed_count += 1
+                            failure_messages.append(f"{domain} 정리 실패: {exc}")
+
             if not services:
                 result = SettingsTestActionResponse(
                     success=True,
@@ -211,16 +248,16 @@ async def reconcile_cloudflare_dns(
                     detail=f"{zone_name} 영역에 속한 서비스가 없어 {len(services)}개 서비스를 건너뛰었습니다",
                     provider=None,
                 )
-            elif failed_count == 0:
-                detail = (
-                    f"{zone_name} 영역 서비스 {synced_count}개를 동기화했습니다"
-                    if skipped_count == 0
-                    else f"{zone_name} 영역 서비스 {synced_count}개를 동기화했고, 다른 영역 서비스 {skipped_count}개는 건너뛰었습니다"
-                )
+            elif failed_count == 0 and cleanup_failed_count == 0:
+                detail_parts = [f"{zone_name} 영역 서비스 {synced_count}개를 동기화했습니다"]
+                if cleaned_count:
+                    detail_parts.append(f"고아 레코드 {cleaned_count}개를 정리했습니다")
+                if skipped_count:
+                    detail_parts.append(f"다른 영역 서비스 {skipped_count}개는 건너뛰었습니다")
                 result = SettingsTestActionResponse(
                     success=True,
                     message="Cloudflare DNS 재동기화가 완료되었습니다",
-                    detail=detail,
+                    detail=", ".join(detail_parts),
                     provider=None,
                 )
             else:
@@ -230,11 +267,14 @@ async def reconcile_cloudflare_dns(
                 skipped_detail = (
                     f", 다른 영역 서비스 {skipped_count}개 건너뜀" if skipped_count else ""
                 )
+                cleanup_detail = (
+                    f", 고아 레코드 정리 실패 {cleanup_failed_count}개" if cleanup_failed_count else ""
+                )
                 result = SettingsTestActionResponse(
                     success=False,
                     message=(
                         f"Cloudflare DNS 재동기화 중 일부 실패가 발생했습니다 "
-                        f"(성공 {synced_count}개, 실패 {failed_count}개{skipped_detail})"
+                        f"(성공 {synced_count}개, 실패 {failed_count}개{cleanup_detail}{skipped_detail})"
                     ),
                     detail=failure_preview,
                     provider=None,
@@ -252,6 +292,13 @@ async def reconcile_cloudflare_dns(
             "success": result.success,
             "message": result.message,
             "detail": result.detail,
+            "total_services": total_service_count,
+            "eligible_services": eligible_service_count,
+            "skipped_services": skipped_count,
+            "synced_services": synced_count,
+            "failed_services": failed_count,
+            "cleaned_records": cleaned_count,
+            "cleanup_failed_records": cleanup_failed_count,
             "client_ip": get_client_ip(request),
         },
     )

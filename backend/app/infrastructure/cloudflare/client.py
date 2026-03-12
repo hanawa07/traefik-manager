@@ -152,6 +152,36 @@ class CloudflareClient:
                     continue
                 await self._decode_response(response)
 
+    async def list_managed_records(self) -> list[dict]:
+        if not self.enabled:
+            return []
+
+        managed_records: list[dict] = []
+        page = 1
+
+        async with self._client() as client:
+            while True:
+                response = await client.get(
+                    f"/zones/{self.zone_id}/dns_records",
+                    params={"per_page": 100, "page": page},
+                )
+                data = await self._decode_response(response)
+                results = data.get("result", [])
+                if isinstance(results, list):
+                    managed_records.extend(
+                        item
+                        for item in results
+                        if isinstance(item, dict) and item.get("comment") == "managed-by-traefik-manager"
+                    )
+
+                result_info = data.get("result_info", {})
+                total_pages = result_info.get("total_pages") if isinstance(result_info, dict) else None
+                if not isinstance(total_pages, int) or page >= total_pages:
+                    break
+                page += 1
+
+        return managed_records
+
     async def _find_records(
         self,
         client: httpx.AsyncClient,

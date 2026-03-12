@@ -1403,6 +1403,7 @@ async def test_test_cloudflare_connection_returns_success(monkeypatch):
 async def test_reconcile_cloudflare_dns_syncs_zone_services_and_records_audit(monkeypatch):
     recorded = []
     saved_services = []
+    deleted_records = []
 
     class StubCloudflareClient:
         enabled = True
@@ -1412,6 +1413,15 @@ async def test_reconcile_cloudflare_dns_syncs_zone_services_and_records_audit(mo
 
         async def upsert_service_record(self, domain: str, fallback_target: str):
             return f"cf-{domain}"
+
+        async def list_managed_records(self):
+            return [
+                {"id": "record-1", "name": "app.example.com", "comment": "managed-by-traefik-manager"},
+                {"id": "record-2", "name": "old.example.com", "comment": "managed-by-traefik-manager"},
+            ]
+
+        async def delete_service_record(self, domain: str, record_id: str | None):
+            deleted_records.append((domain, record_id))
 
     class StubServiceRepository:
         def __init__(self, _db):
@@ -1455,14 +1465,18 @@ async def test_reconcile_cloudflare_dns_syncs_zone_services_and_records_audit(mo
 
     assert response.success is True
     assert response.message == "Cloudflare DNS 재동기화가 완료되었습니다"
-    assert response.detail == "example.com 영역 서비스 2개를 동기화했고, 다른 영역 서비스 1개는 건너뛰었습니다"
+    assert response.detail == "example.com 영역 서비스 2개를 동기화했습니다, 고아 레코드 1개를 정리했습니다, 다른 영역 서비스 1개는 건너뛰었습니다"
     assert saved_services == [
         ("app.example.com", "cf-app.example.com"),
         ("api.example.com", "cf-api.example.com"),
     ]
+    assert deleted_records == [("old.example.com", "record-2")]
     assert recorded[0]["resource_name"] == "Cloudflare DNS 재동기화"
     assert recorded[0]["detail"]["event"] == "settings_test_cloudflare_reconcile"
     assert recorded[0]["detail"]["success"] is True
+    assert recorded[0]["detail"]["synced_services"] == 2
+    assert recorded[0]["detail"]["cleaned_records"] == 1
+    assert recorded[0]["detail"]["skipped_services"] == 1
     assert recorded[0]["detail"]["client_ip"] == "203.0.113.20"
 
 
