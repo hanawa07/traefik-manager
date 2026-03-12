@@ -7,6 +7,7 @@ import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { useAuditCertificateSummary, useAuditSecuritySummary } from "@/features/audit/hooks/useAudit";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { formatDurationMinutes } from "@/shared/lib/formatDurationMinutes";
 import { useCertificates } from "@/features/certificates/hooks/useCertificates";
 
 function StatCard({
@@ -83,7 +84,7 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-base font-semibold text-gray-900">보안 경고 요약</h2>
             <p className="mt-1 text-xs text-gray-500">
-              최근 {securitySummary?.window_minutes ?? 1440}분 기준 로그인 방어 이벤트 요약입니다.
+              최근 {formatDurationMinutes(securitySummary?.window_minutes ?? 1440)} 기준 로그인 방어 이벤트 요약입니다.
             </p>
           </div>
           <Link href="/dashboard/audit" className="text-sm font-medium text-blue-600 hover:text-blue-700">
@@ -141,7 +142,7 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-base font-semibold text-gray-900">운영 경고 요약</h2>
             <p className="mt-1 text-xs text-gray-500">
-              현재 인증서 상태와 최근 {certificateSummary?.window_minutes ?? 43200}분 기준 경고 전환입니다.
+              현재 인증서 상태와 최근 {formatDurationMinutes(certificateSummary?.window_minutes ?? 43200)} 기준 경고 전환입니다.
             </p>
           </div>
           <Link href="/dashboard/certificates" className="text-sm font-medium text-blue-600 hover:text-blue-700">

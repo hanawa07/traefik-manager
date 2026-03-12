@@ -72,6 +72,7 @@ import {
 } from "@/features/settings/hooks/useSettings";
 import UserManagementSection from "@/features/users/components/UserManagementSection";
 import { formatDateTime, getDefaultDisplayTimezone, getSupportedTimeZones } from "@/shared/lib/dateTimeFormat";
+import { formatDurationMinutes } from "@/shared/lib/formatDurationMinutes";
 
 function createDefaultUpstreamSecurityForm(): UpstreamSecuritySettingsInput & { allowed_domain_suffixes_text: string } {
   return {
@@ -1364,7 +1365,7 @@ export default function SettingsPage() {
             <SettingsSummary>
               <SettingsSummaryRow
                 label="자동 재검사 주기"
-                value={`${certificateDiagnosticsSettings?.auto_check_interval_minutes ?? 60}분`}
+                value={formatDurationMinutes(certificateDiagnosticsSettings?.auto_check_interval_minutes ?? 60)}
               />
               <SettingsSummaryRow
                 label="반복 실패 감지 기준"
@@ -1372,11 +1373,11 @@ export default function SettingsPage() {
               />
               <SettingsSummaryRow
                 label="반복 실패 추적 창"
-                value={`${certificateDiagnosticsSettings?.repeat_alert_window_minutes ?? 240}분`}
+                value={formatDurationMinutes(certificateDiagnosticsSettings?.repeat_alert_window_minutes ?? 240)}
               />
               <SettingsSummaryRow
                 label="반복 실패 알림 쿨다운"
-                value={`${certificateDiagnosticsSettings?.repeat_alert_cooldown_minutes ?? 240}분`}
+                value={formatDurationMinutes(certificateDiagnosticsSettings?.repeat_alert_cooldown_minutes ?? 240)}
               />
               <p className="text-xs text-gray-500 pt-1">
                 인증서 발급 사전 진단 자동 재검사와 반복 실패 감지 기준을 공통으로 제어합니다.
@@ -1627,19 +1628,19 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
                 <p>
-                  계정 잠금 정책: {loginDefenseSettings?.failure_window_minutes}분 동안 {loginDefenseSettings?.max_failed_attempts}
-                  회 실패 시 {loginDefenseSettings?.lockout_minutes}분 잠금
+                  계정 잠금 정책: {formatDurationMinutes(loginDefenseSettings?.failure_window_minutes)} 동안 {loginDefenseSettings?.max_failed_attempts}
+                  회 실패 시 {formatDurationMinutes(loginDefenseSettings?.lockout_minutes)} 잠금
                 </p>
                 <p>
-                  이상 징후 기준: {loginDefenseSettings?.suspicious_window_minutes}분 동안 {loginDefenseSettings?.suspicious_failure_count}
+                  이상 징후 기준: {formatDurationMinutes(loginDefenseSettings?.suspicious_window_minutes)} 동안 {loginDefenseSettings?.suspicious_failure_count}
                   회 실패 + 서로 다른 사용자명 {loginDefenseSettings?.suspicious_username_count}개 이상
                 </p>
                 <p>
-                  자동 차단 기간: {loginDefenseSettings?.suspicious_block_minutes}분
+                  자동 차단 기간: {formatDurationMinutes(loginDefenseSettings?.suspicious_block_minutes)}
                 </p>
                 <p>
                   반복 차단 상승: {loginDefenseSettings?.suspicious_block_escalation_enabled
-                    ? `${loginDefenseSettings?.suspicious_block_escalation_window_minutes}분 창 / x${loginDefenseSettings?.suspicious_block_escalation_multiplier} / 최대 ${loginDefenseSettings?.suspicious_block_max_minutes}분`
+                    ? `${formatDurationMinutes(loginDefenseSettings?.suspicious_block_escalation_window_minutes)} 창 / x${loginDefenseSettings?.suspicious_block_escalation_multiplier} / 최대 ${formatDurationMinutes(loginDefenseSettings?.suspicious_block_max_minutes)}`
                     : "비활성화"}
                 </p>
                 <p>
@@ -1754,7 +1755,7 @@ export default function SettingsPage() {
                 </div>
               </div>
               <p className="text-xs text-gray-500 -mt-2">
-                기본 차단 시간은 {loginDefenseSettings?.suspicious_block_minutes ?? 30}분이며, 반복 차단 시 배수만큼 늘어나되 최대 시간에서 멈춥니다.
+                기본 차단 시간은 {formatDurationMinutes(loginDefenseSettings?.suspicious_block_minutes ?? 30)}이며, 반복 차단 시 배수만큼 늘어나되 최대 시간에서 멈춥니다.
               </p>
 
               <div>
@@ -1840,17 +1841,17 @@ export default function SettingsPage() {
             <SettingsSummary>
               <SettingsSummaryRow
                 label="계정 잠금 정책"
-                value={`${loginDefenseSettings?.failure_window_minutes}분 / ${loginDefenseSettings?.max_failed_attempts}회 실패 시 ${loginDefenseSettings?.lockout_minutes}분 잠금`}
+                value={`${formatDurationMinutes(loginDefenseSettings?.failure_window_minutes)} / ${loginDefenseSettings?.max_failed_attempts}회 실패 시 ${formatDurationMinutes(loginDefenseSettings?.lockout_minutes)} 잠금`}
               />
               <SettingsSummaryRow
                 label="이상 징후 감지"
-                value={`${loginDefenseSettings?.suspicious_window_minutes}분 / ${loginDefenseSettings?.suspicious_failure_count}회 실패 / 사용자명 ${loginDefenseSettings?.suspicious_username_count}개`}
+                value={`${formatDurationMinutes(loginDefenseSettings?.suspicious_window_minutes)} / ${loginDefenseSettings?.suspicious_failure_count}회 실패 / 사용자명 ${loginDefenseSettings?.suspicious_username_count}개`}
               />
               <SettingsSummaryRow
                 label="자동 차단"
                 value={
                   loginDefenseSettings?.suspicious_block_enabled
-                    ? `${loginDefenseSettings.suspicious_block_minutes}분 활성화`
+                    ? `${formatDurationMinutes(loginDefenseSettings.suspicious_block_minutes)} 활성화`
                     : "비활성화"
                 }
               />
@@ -1858,7 +1859,7 @@ export default function SettingsPage() {
                 label="반복 차단 상승"
                 value={
                   loginDefenseSettings?.suspicious_block_escalation_enabled
-                    ? `${loginDefenseSettings.suspicious_block_escalation_window_minutes}분 창 / x${loginDefenseSettings.suspicious_block_escalation_multiplier} / 최대 ${loginDefenseSettings.suspicious_block_max_minutes}분`
+                    ? `${formatDurationMinutes(loginDefenseSettings.suspicious_block_escalation_window_minutes)} 창 / x${loginDefenseSettings.suspicious_block_escalation_multiplier} / 최대 ${formatDurationMinutes(loginDefenseSettings.suspicious_block_max_minutes)}`
                     : "비활성화"
                 }
               />

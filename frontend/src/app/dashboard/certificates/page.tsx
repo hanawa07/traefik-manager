@@ -22,6 +22,7 @@ import type {
 } from "@/features/certificates/api/certificateApi";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { formatDurationMinutes } from "@/shared/lib/formatDurationMinutes";
 import { useAuditCertificateSummary } from "@/features/audit/hooks/useAudit";
 
 type ChecklistState = "ok" | "pending" | "fail";
@@ -247,16 +248,6 @@ function getFailureSummary(certificate: Certificate) {
   };
 }
 
-function formatWindowMinutes(minutes: number) {
-  if (minutes % (60 * 24) === 0) {
-    return `${minutes / (60 * 24)}일`;
-  }
-  if (minutes % 60 === 0) {
-    return `${minutes / 60}시간`;
-  }
-  return `${minutes}분`;
-}
-
 export default function CertificatesPage() {
   const {
     data: certificates = [],
@@ -399,7 +390,7 @@ export default function CertificatesPage() {
           <div>
             <h2 className="text-base font-semibold text-gray-900">최근 상태 전이</h2>
             <p className="mt-1 text-xs text-gray-500">
-              최근 {formatWindowMinutes(certificateSummary?.window_minutes ?? 43200)} 기준 인증서 경고/복구 이력입니다.
+              최근 {formatDurationMinutes(certificateSummary?.window_minutes ?? 43200)} 기준 인증서 경고/복구 이력입니다.
             </p>
           </div>
           <div className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">
