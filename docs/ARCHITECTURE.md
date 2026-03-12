@@ -244,6 +244,9 @@ traefik-manager/
     → 최근 경고/만료/복구 전이 이력을 함께 표시
     → `사전 진단` 결과는 audit snapshot으로 저장하고 직전 검사와 비교
     → 같은 실패 키/상태가 연속 누적되면 `certificate_preflight_repeated_failure` 이벤트 기록
+  preflight monitor
+    → `warning/error/pending` 또는 최근 ACME 실패가 있는 도메인을 주기적으로 다시 점검
+    → 같은 audit snapshot 흐름을 재사용해 반복 실패 streak를 자동 갱신
   manual action
     → `/certificates/check` 호출 시 즉시 재검사
     → 현재 warning/error 수와 신규 경고 이벤트 수를 응답

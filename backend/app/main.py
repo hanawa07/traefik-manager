@@ -43,17 +43,22 @@ async def lifespan(app: FastAPI):
     await _ensure_traefik_dashboard_public_route()
     await _cleanup_auth_state_once()
     await _check_certificate_alerts_once()
+    await _check_certificate_preflight_once()
     cleanup_task = asyncio.create_task(_auth_cleanup_loop())
     certificate_task = asyncio.create_task(_certificate_alert_loop())
+    certificate_preflight_task = asyncio.create_task(_certificate_preflight_loop())
     try:
         yield
     finally:
         cleanup_task.cancel()
         certificate_task.cancel()
+        certificate_preflight_task.cancel()
         with suppress(asyncio.CancelledError):
             await cleanup_task
         with suppress(asyncio.CancelledError):
             await certificate_task
+        with suppress(asyncio.CancelledError):
+            await certificate_preflight_task
 
 
 async def _ensure_service_route_files() -> None:
@@ -162,6 +167,24 @@ async def _certificate_alert_loop() -> None:
     await run_periodic_certificate_alert_check(
         interval_seconds=max(300, settings.CERTIFICATE_ALERT_CHECK_INTERVAL_MINUTES * 60),
         check_once=_check_certificate_alerts_once,
+    )
+
+
+async def _check_certificate_preflight_once() -> None:
+    from app.infrastructure.certificates import run_certificate_preflight_checks_once
+
+    try:
+        await run_certificate_preflight_checks_once()
+    except Exception:
+        logger.warning("인증서 프리플라이트 자동 점검 실패 (무시)", exc_info=True)
+
+
+async def _certificate_preflight_loop() -> None:
+    from app.infrastructure.certificates import run_periodic_certificate_preflight_check
+
+    await run_periodic_certificate_preflight_check(
+        interval_seconds=max(300, settings.CERTIFICATE_PREFLIGHT_AUTO_CHECK_INTERVAL_MINUTES * 60),
+        check_once=_check_certificate_preflight_once,
     )
 
 

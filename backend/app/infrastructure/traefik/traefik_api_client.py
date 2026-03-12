@@ -408,8 +408,8 @@ class TraefikApiClient:
         result = [self._to_certificate_response(cert) for cert in certificates_by_domain.values()]
         return sorted(result, key=lambda item: (item["days_remaining"] is None, item["days_remaining"] or 99999, item["domain"]))
 
-    async def get_certificate_preflight(self, domain: str) -> dict:
-        certificates = await self.list_certificates()
+    async def get_certificate_preflight(self, domain: str, certificates: list[dict] | None = None) -> dict:
+        certificates = certificates or await self.list_certificates()
         certificate = next((item for item in certificates if item["domain"] == domain), None)
 
         dns_result, http_result, https_result = await asyncio.gather(
