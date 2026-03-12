@@ -761,9 +761,24 @@ async def test_get_security_alert_settings_returns_defaults(monkeypatch):
         "redirect_change": "default",
         "middleware_change": "default",
         "user_change": "default",
-        "certificate_change": "default",
+        "certificate_status_change": "default",
+        "certificate_preflight_failure": "default",
         "rollback": "default",
     }
+
+
+@pytest.mark.asyncio
+async def test_get_security_alert_settings_maps_legacy_certificate_route(monkeypatch):
+    StubSettingsRepository.store = {
+        "change_alerts_enabled": "true",
+        "security_alert_change_route_certificate_change": "email",
+    }
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    response = await settings_router.get_security_alert_settings(db=object(), _={"role": "admin"})
+
+    assert response.change_event_routes["certificate_status_change"] == "email"
+    assert response.change_event_routes["certificate_preflight_failure"] == "email"
 
 
 @pytest.mark.asyncio
@@ -794,7 +809,8 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
                 "redirect_change": "disabled",
                 "middleware_change": "default",
                 "user_change": "telegram",
-                "certificate_change": "email",
+                "certificate_status_change": "email",
+                "certificate_preflight_failure": "pagerduty",
                 "rollback": "pagerduty",
             },
         ),
@@ -812,7 +828,8 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     assert StubSettingsRepository.store["security_alert_change_route_settings_change"] == "email"
     assert StubSettingsRepository.store["security_alert_change_route_redirect_change"] == "disabled"
     assert StubSettingsRepository.store["security_alert_change_route_user_change"] == "telegram"
-    assert StubSettingsRepository.store["security_alert_change_route_certificate_change"] == "email"
+    assert StubSettingsRepository.store["security_alert_change_route_certificate_status_change"] == "email"
+    assert StubSettingsRepository.store["security_alert_change_route_certificate_preflight_failure"] == "pagerduty"
     assert StubSettingsRepository.store["security_alert_change_route_rollback"] == "pagerduty"
     assert response.enabled is True
     assert response.provider == "discord"
@@ -822,7 +839,8 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     assert response.change_alerts_enabled is True
     assert response.change_event_routes["settings_change"] == "email"
     assert response.change_event_routes["user_change"] == "telegram"
-    assert response.change_event_routes["certificate_change"] == "email"
+    assert response.change_event_routes["certificate_status_change"] == "email"
+    assert response.change_event_routes["certificate_preflight_failure"] == "pagerduty"
     assert response.change_event_routes["rollback"] == "pagerduty"
 
 
@@ -955,7 +973,8 @@ async def test_update_security_alert_settings_records_redacted_audit(monkeypatch
                 "redirect_change": "disabled",
                 "middleware_change": "default",
                 "user_change": "email",
-                "certificate_change": "default",
+                "certificate_status_change": "default",
+                "certificate_preflight_failure": "disabled",
                 "rollback": "disabled",
             },
         ),
@@ -977,7 +996,8 @@ async def test_update_security_alert_settings_records_redacted_audit(monkeypatch
     assert recorded[0]["detail"]["summary"]["change_alerts_enabled"] is True
     assert recorded[0]["detail"]["summary"]["change_event_routes"]["redirect_change"] == "disabled"
     assert recorded[0]["detail"]["summary"]["change_event_routes"]["user_change"] == "email"
-    assert recorded[0]["detail"]["summary"]["change_event_routes"]["certificate_change"] == "default"
+    assert recorded[0]["detail"]["summary"]["change_event_routes"]["certificate_status_change"] == "default"
+    assert recorded[0]["detail"]["summary"]["change_event_routes"]["certificate_preflight_failure"] == "disabled"
     assert recorded[0]["detail"]["client_ip"] == "198.51.100.7"
 
 

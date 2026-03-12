@@ -152,6 +152,7 @@ backend/app/
 - 설정 화면에서 보안 알림 기본 채널을 `Generic Webhook`, `Slack`, `Discord`, `Telegram`, `Microsoft Teams`, `PagerDuty`, `Email` 중에서 선택할 수 있습니다.
 - `login_locked`, `login_suspicious`, `login_blocked_ip` 이벤트는 기본 채널을 따르거나, `Telegram / PagerDuty / Email / 전송 안 함`으로 개별 override할 수 있습니다.
 - `settings/service/redirect/middleware/user`의 `create/update/delete`와 각종 `rollback` 이벤트도 별도 운영 변경 알림 정책으로 기본 채널 또는 override를 탈 수 있습니다.
+- 인증서 알림은 `상태 전이(만료 임박/오류/복구)`와 `발급 반복 실패`를 분리해서 채널 override를 다르게 줄 수 있으며, 기존 `certificate_change` 설정이 있으면 두 그룹에 자동 승계됩니다.
 - 감사 로그 화면에서 실패한 알림 전송 행을 펼쳐 `채널 / 원본 이벤트 / 실패 상세`를 보고 즉시 재시도할 수 있습니다.
 - 인증서 상태 체크는 `certificate_warning` / `certificate_error` / `certificate_recovered` 이벤트를 기록하고, 같은 상태의 중복 알림은 억제합니다.
 - 인증서 화면에서는 현재 경고 상태의 `중복 경고 억제 중` 여부와 상태 시작 시각을 함께 표시합니다.

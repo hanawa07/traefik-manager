@@ -354,7 +354,8 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
             "redirect_change",
             "middleware_change",
             "user_change",
-            "certificate_change",
+            "certificate_status_change",
+            "certificate_preflight_failure",
             "rollback",
         }
         normalized: dict[str, Literal["default", "disabled", "telegram", "pagerduty", "email"]] = {}

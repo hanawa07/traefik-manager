@@ -675,7 +675,7 @@ async def test_notify_if_needed_posts_certificate_change_when_enabled(monkeypatc
         "change_alerts_enabled": "true",
         "security_alert_provider": "slack",
         "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
-        "security_alert_change_route_certificate_change": "default",
+        "security_alert_change_route_certificate_status_change": "default",
     }
     monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
     monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
@@ -714,7 +714,7 @@ async def test_notify_if_needed_posts_certificate_recovered_when_enabled(monkeyp
         "change_alerts_enabled": "true",
         "security_alert_provider": "slack",
         "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
-        "security_alert_change_route_certificate_change": "default",
+        "security_alert_change_route_certificate_status_change": "default",
     }
     monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
     monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
@@ -754,7 +754,7 @@ async def test_notify_if_needed_posts_certificate_preflight_repeated_failure_whe
         "change_alerts_enabled": "true",
         "security_alert_provider": "slack",
         "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
-        "security_alert_change_route_certificate_change": "default",
+        "security_alert_change_route_certificate_preflight_failure": "default",
     }
     monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
     monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
@@ -764,3 +764,40 @@ async def test_notify_if_needed_posts_certificate_preflight_repeated_failure_whe
     assert result is True
     assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"
     assert "certificate_preflight_repeated_failure" in str(posted[0][1])
+
+
+@pytest.mark.asyncio
+async def test_notify_if_needed_uses_legacy_certificate_route_for_split_groups(monkeypatch):
+    posted = []
+
+    class StubClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json):
+            posted.append((url, json))
+
+    audit_log = make_audit_log(
+        "certificate_preflight_repeated_failure",
+        resource_type="certificate",
+        resource_id="example.com",
+        resource_name="example.com",
+    )
+
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "change_alerts_enabled": "true",
+        "security_alert_provider": "slack",
+        "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+        "security_alert_change_route_certificate_change": "default",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
+
+    result = await security_alert_notifier.notify_if_needed(object(), audit_log)
+
+    assert result is True
+    assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"

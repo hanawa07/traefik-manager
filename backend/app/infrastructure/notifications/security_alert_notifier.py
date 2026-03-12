@@ -26,7 +26,8 @@ CHANGE_ALERT_GROUPS = {
     "redirect_change",
     "middleware_change",
     "user_change",
-    "certificate_change",
+    "certificate_status_change",
+    "certificate_preflight_failure",
     "rollback",
 }
 PAGERDUTY_EVENTS_API_URL = "https://events.pagerduty.com/v2/enqueue"
@@ -294,12 +295,10 @@ async def _get_alert_context(repo: SQLiteSystemSettingsRepository, event: str) -
     if default_provider not in SECURITY_ALERT_PROVIDERS:
         default_provider = "generic"
 
-    route_key = (
-        f"security_alert_route_{route_group}"
-        if category == "security"
-        else f"security_alert_change_route_{route_group}"
-    )
-    route_target = ((await repo.get(route_key)) or "default").strip().lower()
+    if category == "security":
+        route_target = ((await repo.get(f"security_alert_route_{route_group}")) or "default").strip().lower()
+    else:
+        route_target = await _get_change_route_target(repo, route_group)
     if route_target not in SECURITY_ALERT_ROUTE_TARGETS:
         route_target = "default"
     if route_target == "disabled":
@@ -322,16 +321,24 @@ def _get_alert_category_and_group(event: str) -> tuple[str, str] | None:
         return "change", "middleware_change"
     if event in {"user_create", "user_update", "user_delete"}:
         return "change", "user_change"
-    if event in {
-        "certificate_warning",
-        "certificate_error",
-        "certificate_recovered",
-        "certificate_preflight_repeated_failure",
-    }:
-        return "change", "certificate_change"
+    if event in {"certificate_warning", "certificate_error", "certificate_recovered"}:
+        return "change", "certificate_status_change"
+    if event == "certificate_preflight_repeated_failure":
+        return "change", "certificate_preflight_failure"
     if event.endswith("_rollback") or event.startswith("settings_rollback_"):
         return "change", "rollback"
     return None
+
+
+async def _get_change_route_target(repo: SQLiteSystemSettingsRepository, route_group: str) -> str:
+    stored_route = ((await repo.get(f"security_alert_change_route_{route_group}")) or "").strip().lower()
+    if stored_route:
+        return stored_route
+    if route_group in {"certificate_status_change", "certificate_preflight_failure"}:
+        legacy_route = ((await repo.get("security_alert_change_route_certificate_change")) or "").strip().lower()
+        if legacy_route:
+            return legacy_route
+    return "default"
 
 
 def _get_event(audit_log: AuditLogModel) -> str | None:

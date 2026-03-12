@@ -67,7 +67,8 @@ CHANGE_ALERT_EVENTS = [
     "redirect_change",
     "middleware_change",
     "user_change",
-    "certificate_change",
+    "certificate_status_change",
+    "certificate_preflight_failure",
     "rollback",
 ]
 SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"}
@@ -1139,7 +1140,7 @@ async def _build_change_alert_event_routes(
 ) -> dict[str, str]:
     routes: dict[str, str] = {}
     for event_name in CHANGE_ALERT_EVENTS:
-        stored_route = ((await repo.get(f"security_alert_change_route_{event_name}")) or "default").strip().lower()
+        stored_route = await _get_change_alert_route_value(repo, event_name)
         routes[event_name] = stored_route if stored_route in SECURITY_ALERT_ROUTE_TARGETS else "default"
     return routes
 
@@ -1156,6 +1157,20 @@ def _normalize_change_alert_event_routes(event_routes: dict[str, str]) -> dict[s
     for event_name, route in event_routes.items():
         normalized[event_name] = route if route in SECURITY_ALERT_ROUTE_TARGETS else "default"
     return normalized
+
+
+async def _get_change_alert_route_value(
+    repo: SQLiteSystemSettingsRepository,
+    event_name: str,
+) -> str:
+    stored_route = ((await repo.get(f"security_alert_change_route_{event_name}")) or "").strip().lower()
+    if stored_route:
+        return stored_route
+    if event_name in {"certificate_status_change", "certificate_preflight_failure"}:
+        legacy_route = ((await repo.get("security_alert_change_route_certificate_change")) or "").strip().lower()
+        if legacy_route:
+            return legacy_route
+    return "default"
 
 
 def _resolve_security_alert_provider(default_provider: str, route_target: str) -> str | None:

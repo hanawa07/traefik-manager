@@ -208,7 +208,8 @@ export type ChangeAlertRouteEvent =
   | "redirect_change"
   | "middleware_change"
   | "user_change"
-  | "certificate_change"
+  | "certificate_status_change"
+  | "certificate_preflight_failure"
   | "rollback";
 export type ChangeAlertEventRoutes = Record<ChangeAlertRouteEvent, SecurityAlertRouteTarget>;
 

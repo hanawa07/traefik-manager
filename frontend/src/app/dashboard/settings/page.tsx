@@ -140,7 +140,8 @@ function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
       redirect_change: "default",
       middleware_change: "default",
       user_change: "default",
-      certificate_change: "default",
+      certificate_status_change: "default",
+      certificate_preflight_failure: "default",
       rollback: "default",
     },
   };
@@ -203,7 +204,8 @@ const CHANGE_ALERT_EVENT_OPTIONS: Array<{ key: ChangeAlertRouteEvent; label: str
   { key: "redirect_change", label: "리다이렉트 변경" },
   { key: "middleware_change", label: "미들웨어 변경" },
   { key: "user_change", label: "사용자 변경" },
-  { key: "certificate_change", label: "인증서 경고" },
+  { key: "certificate_status_change", label: "인증서 상태 전이" },
+  { key: "certificate_preflight_failure", label: "인증서 반복 실패" },
   { key: "rollback", label: "롤백" },
 ];
 
