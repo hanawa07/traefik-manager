@@ -2377,13 +2377,13 @@ export default function SettingsPage() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="mb-2 flex min-w-0 items-center gap-2">
                         <Laptop className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm font-medium text-gray-900 truncate">
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
                           {session.user_agent || "알 수 없는 브라우저"}
                         </span>
                         {session.is_current ? (
-                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                          <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
                             현재 세션
                           </span>
                         ) : null}
