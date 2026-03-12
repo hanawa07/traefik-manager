@@ -66,6 +66,8 @@ export const auditApi = {
     action?: string;
     event?: string;
     security_only?: boolean;
+    provider?: string;
+    delivery_success?: boolean;
   }): Promise<AuditLogItem[]> => {
     const res = await apiClient.get<AuditLogItem[]>("/audit", { params });
     return res.data;

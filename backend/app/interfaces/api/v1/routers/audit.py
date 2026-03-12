@@ -33,6 +33,8 @@ async def list_audit_logs(
     action: Optional[str] = Query(None),
     event: Optional[str] = Query(None),
     security_only: bool = Query(False),
+    provider: Optional[str] = Query(None),
+    delivery_success: Optional[bool] = Query(None),
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
@@ -53,6 +55,8 @@ async def list_audit_logs(
         action=action,
         event=event,
         security_only=security_only,
+        provider=provider,
+        delivery_success=delivery_success,
     )
     paged_logs = filtered_logs[offset : offset + limit]
     return [_to_audit_log_response(log) for log in paged_logs]
@@ -189,6 +193,12 @@ def _get_detail_str(log: AuditLogModel, key: str) -> str | None:
     return value if isinstance(value, str) else None
 
 
+def _get_detail_bool(log: AuditLogModel, key: str) -> bool | None:
+    detail = log.detail or {}
+    value = detail.get(key)
+    return value if isinstance(value, bool) else None
+
+
 def _filter_logs(
     logs: list[AuditLogModel],
     *,
@@ -196,6 +206,8 @@ def _filter_logs(
     action: str | None,
     event: str | None,
     security_only: bool,
+    provider: str | None,
+    delivery_success: bool | None,
 ) -> list[AuditLogModel]:
     filtered = logs
     if resource_type:
@@ -206,6 +218,10 @@ def _filter_logs(
         filtered = [log for log in filtered if log.action == action]
     if event:
         filtered = [log for log in filtered if _get_event(log) == event]
+    if provider:
+        filtered = [log for log in filtered if _get_detail_str(log, "provider") == provider]
+    if delivery_success is not None:
+        filtered = [log for log in filtered if _get_detail_bool(log, "success") is delivery_success]
     return filtered
 
 

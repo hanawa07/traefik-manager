@@ -8,6 +8,8 @@ export const useAudit = (params?: {
   action?: string;
   event?: string;
   security_only?: boolean;
+  provider?: string;
+  delivery_success?: boolean;
 }) => {
   return useQuery({
     queryKey: ["audit-logs", params],

@@ -80,6 +80,7 @@ const securityEventConfig = {
 const auditFilters = [
   { key: "all", label: "전체" },
   { key: "security", label: "보안 이벤트" },
+  { key: "alert_delivery", label: "알림 전송" },
   { key: "settings_update", label: "설정 변경" },
   { key: "settings_test", label: "설정 테스트" },
   { key: "settings_rollback", label: "설정 롤백" },
@@ -92,6 +93,23 @@ const auditFilters = [
   { key: "certificate_recovered", label: "인증서 복구" },
   { key: "certificate_preflight", label: "인증서 사전 진단" },
   { key: "certificate_preflight_repeated_failure", label: "인증서 반복 실패" },
+] as const;
+
+const deliveryStatusOptions = [
+  { key: "all", label: "전송 상태 전체" },
+  { key: "success", label: "전송 성공" },
+  { key: "failure", label: "전송 실패" },
+] as const;
+
+const deliveryProviderOptions = [
+  { key: "all", label: "채널 전체" },
+  { key: "generic", label: "Generic" },
+  { key: "slack", label: "Slack" },
+  { key: "discord", label: "Discord" },
+  { key: "telegram", label: "Telegram" },
+  { key: "teams", label: "Teams" },
+  { key: "pagerduty", label: "PagerDuty" },
+  { key: "email", label: "Email" },
 ] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -142,6 +160,8 @@ function getDeliveryDetailRows(detail: Record<string, unknown> | null) {
 
 export default function AuditLogPage() {
   const [selectedFilter, setSelectedFilter] = useState<(typeof auditFilters)[number]["key"]>("all");
+  const [selectedDeliveryStatus, setSelectedDeliveryStatus] = useState<(typeof deliveryStatusOptions)[number]["key"]>("all");
+  const [selectedDeliveryProvider, setSelectedDeliveryProvider] = useState<(typeof deliveryProviderOptions)[number]["key"]>("all");
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [rollbackFeedback, setRollbackFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [deliveryFeedback, setDeliveryFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -152,14 +172,23 @@ export default function AuditLogPage() {
       ? { limit: 50 }
       : selectedFilter === "security"
         ? { limit: 50, security_only: true }
+        : selectedFilter === "alert_delivery"
+          ? { limit: 50, action: "alert" }
         : selectedFilter === "settings_update"
           ? { limit: 50, resource_type: "settings", action: "update" }
           : selectedFilter === "settings_test"
             ? { limit: 50, resource_type: "settings", action: "test" }
             : selectedFilter === "settings_rollback"
               ? { limit: 50, resource_type: "settings", action: "rollback" }
-        : { limit: 50, event: selectedFilter };
-  const { data: logs, isLoading, isError, error } = useAudit(auditQuery);
+              : { limit: 50, event: selectedFilter };
+  const { data: logs, isLoading, isError, error } = useAudit({
+    ...auditQuery,
+    provider: selectedDeliveryProvider === "all" ? undefined : selectedDeliveryProvider,
+    delivery_success:
+      selectedDeliveryStatus === "all"
+        ? undefined
+        : selectedDeliveryStatus === "success",
+  });
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const rollbackMutation = useAuditRollback();
   const retryDeliveryMutation = useAuditRetryDelivery();
@@ -258,6 +287,37 @@ export default function AuditLogPage() {
             </button>
           );
         })}
+      </div>
+
+      <div className="mb-6 flex flex-wrap gap-3">
+        <label className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300">
+          <span className="text-slate-400">전송 상태</span>
+          <select
+            value={selectedDeliveryStatus}
+            onChange={(event) => setSelectedDeliveryStatus(event.target.value as (typeof deliveryStatusOptions)[number]["key"])}
+            className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 outline-none"
+          >
+            {deliveryStatusOptions.map((option) => (
+              <option key={option.key} value={option.key}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300">
+          <span className="text-slate-400">채널</span>
+          <select
+            value={selectedDeliveryProvider}
+            onChange={(event) => setSelectedDeliveryProvider(event.target.value as (typeof deliveryProviderOptions)[number]["key"])}
+            className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 outline-none"
+          >
+            {deliveryProviderOptions.map((option) => (
+              <option key={option.key} value={option.key}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {rollbackFeedback ? (

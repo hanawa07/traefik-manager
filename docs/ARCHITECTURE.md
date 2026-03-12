@@ -267,6 +267,7 @@ traefik-manager/
 - 운영 설정 저장과 설정 테스트도 같은 감사 로그 파이프라인으로 들어가며, `settings/update`, `settings/test` 흐름으로 추적합니다.
 - 실제 보안 알림 전송 결과도 별도 `settings`/`alert` 감사 이벤트로 기록해서 마지막 성공/실패, 최근 실패 수, 실패 원인을 설정 화면에서 재사용합니다.
 - 인증서 알림 라우팅은 `certificate_status_change`와 `certificate_preflight_failure`로 분리되며, 기존 `certificate_change` 설정은 두 그룹에 호환 적용됩니다.
+- 감사 로그 화면은 delivery 이벤트를 `성공/실패`와 `provider` 기준으로 추가 필터링할 수 있어, 특정 채널의 전송 문제를 빠르게 좁혀볼 수 있습니다.
 - 실패한 delivery audit log는 `/api/v1/audit/retry-delivery/{id}`로 현재 채널 설정 기준 재시도할 수 있고, 재시도 결과도 같은 delivery 감사 이벤트로 다시 남깁니다.
 - 서비스/리다이렉트/미들웨어/사용자 수정도 동일한 감사 로그 파이프라인에서 `before/after` diff를 남기고, 안전 롤백 가능 여부를 함께 계산합니다.
 - 사용자 롤백은 비밀번호 변경이 포함되지 않은 업데이트만 지원해 비밀값 복구를 감사 로그 payload에 싣지 않도록 제한합니다.
