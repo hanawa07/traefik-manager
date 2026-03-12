@@ -91,6 +91,23 @@ export interface CloudflareSettingsInput {
   proxied: boolean;
 }
 
+export interface TraefikDashboardSettingsStatus {
+  enabled: boolean;
+  configured: boolean;
+  domain: string | null;
+  public_url: string | null;
+  auth_username: string | null;
+  auth_password_configured: boolean;
+  message: string;
+}
+
+export interface TraefikDashboardSettingsInput {
+  enabled: boolean;
+  domain: string;
+  auth_username: string;
+  auth_password: string;
+}
+
 export interface TimeDisplaySettingsStatus {
   display_timezone: string;
   display_timezone_name: string;
@@ -269,6 +286,11 @@ export const settingsApi = {
     return res.data;
   },
 
+  getTraefikDashboardSettings: async (): Promise<TraefikDashboardSettingsStatus> => {
+    const res = await apiClient.get<TraefikDashboardSettingsStatus>("/settings/traefik-dashboard");
+    return res.data;
+  },
+
   getUpstreamSecuritySettings: async (): Promise<UpstreamSecuritySettingsStatus> => {
     const res = await apiClient.get<UpstreamSecuritySettingsStatus>("/settings/upstream-security");
     return res.data;
@@ -301,6 +323,13 @@ export const settingsApi = {
 
   updateTimeDisplaySettings: async (payload: TimeDisplaySettingsInput): Promise<TimeDisplaySettingsStatus> => {
     const res = await apiClient.put<TimeDisplaySettingsStatus>("/settings/time-display", payload);
+    return res.data;
+  },
+
+  updateTraefikDashboardSettings: async (
+    payload: TraefikDashboardSettingsInput,
+  ): Promise<TraefikDashboardSettingsStatus> => {
+    const res = await apiClient.put<TraefikDashboardSettingsStatus>("/settings/traefik-dashboard", payload);
     return res.data;
   },
 

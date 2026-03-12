@@ -11,6 +11,7 @@ class FileProviderWriter:
     """Traefik File Provider 디렉토리에 YAML 파일 생성/삭제"""
 
     AUTHENTIK_MIDDLEWARE_FILE = "authentik-middleware.yml"
+    TRAEFIK_DASHBOARD_PUBLIC_FILE = "traefik-dashboard-public.yml"
     AUTHENTIK_FORWARD_AUTH_CONFIG = {
         "http": {
             "middlewares": {
@@ -78,6 +79,29 @@ class FileProviderWriter:
 
     def delete_redirect_host_by_domain(self, domain: str) -> None:
         file_path = self._get_redirect_file_path_by_domain(domain)
+        if file_path.exists():
+            file_path.unlink()
+
+    def write_traefik_dashboard_public_route(
+        self,
+        *,
+        domain: str,
+        basic_auth_username: str,
+        basic_auth_password_hash: str,
+    ) -> None:
+        self.config_path.mkdir(parents=True, exist_ok=True)
+        file_path = self.config_path / self.TRAEFIK_DASHBOARD_PUBLIC_FILE
+        file_path.write_text(
+            self.generator.to_yaml_traefik_dashboard_public_route(
+                domain=domain,
+                basic_auth_username=basic_auth_username,
+                basic_auth_password_hash=basic_auth_password_hash,
+            ),
+            encoding="utf-8",
+        )
+
+    def delete_traefik_dashboard_public_route(self) -> None:
+        file_path = self.config_path / self.TRAEFIK_DASHBOARD_PUBLIC_FILE
         if file_path.exists():
             file_path.unlink()
 

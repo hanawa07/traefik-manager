@@ -40,6 +40,7 @@ async def lifespan(app: FastAPI):
     await init_db()
     await _ensure_service_route_files()
     await _ensure_authentik_middleware_file()
+    await _ensure_traefik_dashboard_public_route()
     await _cleanup_auth_state_once()
     await _check_certificate_alerts_once()
     cleanup_task = asyncio.create_task(_auth_cleanup_loop())
@@ -91,6 +92,24 @@ async def _ensure_authentik_middleware_file() -> None:
                 logger.info("Authentik 미들웨어 파일 생성 완료 (활성화된 서비스 %d개)", count)
     except Exception:
         logger.warning("Authentik 미들웨어 파일 startup 생성 실패 (무시)", exc_info=True)
+
+
+async def _ensure_traefik_dashboard_public_route() -> None:
+    from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
+        SQLiteSystemSettingsRepository,
+    )
+    from app.infrastructure.traefik.startup_sync import sync_traefik_dashboard_public_config
+
+    try:
+        async with AsyncSessionLocal() as session:
+            enabled = await sync_traefik_dashboard_public_config(
+                settings_repository=SQLiteSystemSettingsRepository(session),
+                file_writer=FileProviderWriter(),
+            )
+            if enabled:
+                logger.info("Traefik 디버그 대시보드 public 라우트 동기화 완료")
+    except Exception:
+        logger.warning("Traefik 디버그 대시보드 startup 동기화 실패 (무시)", exc_info=True)
 
 
 async def _cleanup_auth_state_once() -> None:

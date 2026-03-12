@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Bug,
   Clock3,
   Cloud,
   Download,
@@ -31,6 +32,7 @@ import {
   SecurityAlertSettingsInput,
   SettingsActionTestResult,
   SettingsTestHistoryItem,
+  TraefikDashboardSettingsInput,
   UpstreamSecurityPreset,
   UpstreamSecuritySettingsInput,
 } from "@/features/settings/api/settingsApi";
@@ -47,10 +49,12 @@ import {
   useImportBackup,
   useLoginDefenseSettings,
   useSecurityAlertSettings,
+  useTraefikDashboardSettings,
   useTimeDisplaySettings,
   useTestCloudflareConnection,
   useTestSecurityAlertSettings,
   useSettingsTestHistory,
+  useUpdateTraefikDashboardSettings,
   useUpstreamSecuritySettings,
   useUpdateSecurityAlertSettings,
   useUpdateTimeDisplaySettings,
@@ -70,6 +74,15 @@ function createDefaultUpstreamSecurityForm(): UpstreamSecuritySettingsInput & { 
     allowed_domain_suffixes_text: "",
     allow_docker_service_names: true,
     allow_private_networks: true,
+  };
+}
+
+function createDefaultTraefikDashboardForm(): TraefikDashboardSettingsInput {
+  return {
+    enabled: false,
+    domain: "",
+    auth_username: "",
+    auth_password: "",
   };
 }
 
@@ -467,6 +480,9 @@ export default function SettingsPage() {
   const [isEditingTimeDisplay, setIsEditingTimeDisplay] = useState(false);
   const [timeDisplayForm, setTimeDisplayForm] = useState(getDefaultDisplayTimezone());
   const [timeDisplayErrorMessage, setTimeDisplayErrorMessage] = useState("");
+  const [isEditingTraefikDashboard, setIsEditingTraefikDashboard] = useState(false);
+  const [traefikDashboardForm, setTraefikDashboardForm] = useState(createDefaultTraefikDashboardForm());
+  const [traefikDashboardErrorMessage, setTraefikDashboardErrorMessage] = useState("");
   const [isEditingUpstreamSecurity, setIsEditingUpstreamSecurity] = useState(false);
   const [upstreamSecurityForm, setUpstreamSecurityForm] = useState(createDefaultUpstreamSecurityForm());
   const [isEditingLoginDefense, setIsEditingLoginDefense] = useState(false);
@@ -478,6 +494,7 @@ export default function SettingsPage() {
 
   const { data: cloudflareStatus, isLoading: isCloudflareLoading } = useCloudflareStatus();
   const { data: timeDisplaySettings, isLoading: isTimeDisplayLoading } = useTimeDisplaySettings();
+  const { data: traefikDashboardSettings, isLoading: isTraefikDashboardLoading } = useTraefikDashboardSettings();
   const { data: upstreamSecuritySettings, isLoading: isUpstreamSecurityLoading } = useUpstreamSecuritySettings();
   const { data: loginDefenseSettings, isLoading: isLoginDefenseLoading } = useLoginDefenseSettings();
   const { data: securityAlertSettings, isLoading: isSecurityAlertLoading } = useSecurityAlertSettings();
@@ -486,6 +503,7 @@ export default function SettingsPage() {
   const updateCloudflare = useUpdateCloudflareSettings();
   const testCloudflareConnection = useTestCloudflareConnection();
   const updateTimeDisplay = useUpdateTimeDisplaySettings();
+  const updateTraefikDashboard = useUpdateTraefikDashboardSettings();
   const updateUpstreamSecurity = useUpdateUpstreamSecuritySettings();
   const updateLoginDefense = useUpdateLoginDefenseSettings();
   const updateSecurityAlert = useUpdateSecurityAlertSettings();
@@ -545,6 +563,40 @@ export default function SettingsPage() {
           : Array.isArray(detail)
             ? detail[0]?.msg || "표시 시간대 저장에 실패했습니다"
             : "표시 시간대 저장에 실패했습니다",
+      );
+    }
+  };
+
+  const handleEditTraefikDashboard = () => {
+    setTraefikDashboardForm({
+      enabled: traefikDashboardSettings?.enabled ?? false,
+      domain: traefikDashboardSettings?.domain ?? "",
+      auth_username: traefikDashboardSettings?.auth_username ?? "",
+      auth_password: "",
+    });
+    setTraefikDashboardErrorMessage("");
+    setIsEditingTraefikDashboard(true);
+  };
+
+  const handleSaveTraefikDashboard = async () => {
+    setTraefikDashboardErrorMessage("");
+    try {
+      await updateTraefikDashboard.mutateAsync({
+        enabled: traefikDashboardForm.enabled,
+        domain: traefikDashboardForm.domain.trim(),
+        auth_username: traefikDashboardForm.auth_username.trim(),
+        auth_password: traefikDashboardForm.auth_password,
+      });
+      setIsEditingTraefikDashboard(false);
+    } catch (error) {
+      const detail = (error as { response?: { data?: { detail?: string | Array<{ msg?: string }> } } })?.response
+        ?.data?.detail;
+      setTraefikDashboardErrorMessage(
+        typeof detail === "string"
+          ? detail
+          : Array.isArray(detail)
+            ? detail[0]?.msg || "Traefik 디버그 대시보드 설정 저장에 실패했습니다"
+            : "Traefik 디버그 대시보드 설정 저장에 실패했습니다",
       );
     }
   };
@@ -2079,6 +2131,152 @@ export default function SettingsPage() {
         </div>
 
         {canManage ? <UserManagementSection /> : null}
+
+        <div className="card p-6 h-full xl:col-span-2">
+          <SettingsCardHeader
+            icon={<Bug className="w-5 h-5 text-violet-600" />}
+            title="Traefik 디버그 대시보드"
+            description="내장 Traefik dashboard를 필요할 때만 공개 도메인으로 노출합니다. 기본적으로는 비공개로 두고, 디버깅이 끝나면 다시 끄는 것을 권장합니다."
+            canEdit={canManage && !isEditingTraefikDashboard && !isTraefikDashboardLoading}
+            onEdit={handleEditTraefikDashboard}
+          />
+
+          {isTraefikDashboardLoading ? (
+            <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+          ) : isEditingTraefikDashboard ? (
+            <div className="space-y-4">
+              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded accent-violet-600"
+                  checked={traefikDashboardForm.enabled}
+                  onChange={(e) =>
+                    setTraefikDashboardForm((current) => ({
+                      ...current,
+                      enabled: e.target.checked,
+                    }))
+                  }
+                />
+                <span>
+                  <span className="block font-medium text-gray-900">공개 라우트 활성화</span>
+                  <span className="block text-xs text-gray-500 mt-1">
+                    `api@internal`을 지정한 공개 도메인으로 연결합니다. 평소에는 끄고, 디버깅할 때만 잠깐 켜는
+                    용도입니다.
+                  </span>
+                </span>
+              </label>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                <div>
+                  <label className="label">공개 도메인</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="예: traefik-debug.lizstudio.co.kr"
+                    value={traefikDashboardForm.domain}
+                    onChange={(e) =>
+                      setTraefikDashboardForm((current) => ({
+                        ...current,
+                        domain: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="label">기본 인증 사용자명</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="예: debug-admin"
+                    value={traefikDashboardForm.auth_username}
+                    onChange={(e) =>
+                      setTraefikDashboardForm((current) => ({
+                        ...current,
+                        auth_username: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">기본 인증 비밀번호</label>
+                <input
+                  type="password"
+                  className="input"
+                  placeholder="처음 활성화 시 필수, 비워두면 기존 비밀번호 유지"
+                  value={traefikDashboardForm.auth_password}
+                  onChange={(e) =>
+                    setTraefikDashboardForm((current) => ({
+                      ...current,
+                      auth_password: e.target.value,
+                    }))
+                  }
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  비밀번호는 해시로만 저장됩니다. 이 설정은 Traefik dashboard 엔진 자체를 켜고 끄는 게 아니라,
+                  public route를 생성하거나 제거합니다.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500 space-y-1">
+                <p>전제 조건: 외부 Traefik 정적 설정에서 `api.dashboard=true`가 켜져 있어야 합니다.</p>
+                <p>보호 방식: 공개 도메인 + HTTPS + Traefik Basic Auth</p>
+                <p>권장 운영: 디버깅 후 즉시 비활성화</p>
+              </div>
+
+              {traefikDashboardErrorMessage ? (
+                <p className="text-xs text-red-600">{traefikDashboardErrorMessage}</p>
+              ) : null}
+
+              <SettingsActionRow>
+                <button
+                  className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
+                  onClick={handleSaveTraefikDashboard}
+                  disabled={updateTraefikDashboard.isPending}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {updateTraefikDashboard.isPending ? "저장 중..." : "저장"}
+                </button>
+                <button
+                  className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
+                  onClick={() => setIsEditingTraefikDashboard(false)}
+                >
+                  <X className="w-3.5 h-3.5" /> 취소
+                </button>
+              </SettingsActionRow>
+            </div>
+          ) : (
+            <SettingsSummary>
+              <SettingsSummaryRow
+                label="상태"
+                value={traefikDashboardSettings?.enabled ? "활성화" : "비활성화"}
+              />
+              <SettingsSummaryRow
+                label="공개 주소"
+                value={traefikDashboardSettings?.public_url || "(미설정)"}
+                mono
+              />
+              <SettingsSummaryRow
+                label="기본 인증 사용자"
+                value={traefikDashboardSettings?.auth_username || "(미설정)"}
+                mono
+              />
+              <SettingsSummaryRow
+                label="비밀번호"
+                value={traefikDashboardSettings?.auth_password_configured ? "설정됨" : "(미설정)"}
+              />
+              <SettingsSummaryRow
+                label="라우트 준비 상태"
+                value={traefikDashboardSettings?.configured ? "완료" : "불완전"}
+              />
+              <p className="text-xs text-gray-500">{traefikDashboardSettings?.message}</p>
+              <p className="text-xs text-gray-500 pt-1">
+                이 설정은 Traefik Manager가 dynamic route 파일을 생성/삭제해서 public 노출만 제어합니다.
+              </p>
+            </SettingsSummary>
+          )}
+        </div>
 
         <div className="card p-6 h-full">
           <SettingsCardHeader

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.audit import audit_service
 from app.core.config import settings
 from app.core.logging_config import get_client_ip
+from app.core.security import hash_basic_auth_password
 from app.core.time_display import (
     get_display_timezone_label,
     get_display_timezone_name,
@@ -24,6 +25,7 @@ from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.models import AuditLogModel
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
+from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.schemas.settings_schemas import (
     CloudflareSettingsStatusResponse,
@@ -36,6 +38,8 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
     SettingsTestHistoryResponse,
     SettingsTestActionResponse,
     SecurityAlertSettingsUpdateRequest,
+    TraefikDashboardSettingsResponse,
+    TraefikDashboardSettingsUpdateRequest,
     TimeDisplaySettingsResponse,
     TimeDisplaySettingsUpdateRequest,
     UpstreamSecuritySettingsResponse,
@@ -73,6 +77,7 @@ SETTINGS_DELIVERY_EVENTS = {
 }
 SETTINGS_UPDATE_EVENTS = {
     "cloudflare": "settings_update_cloudflare",
+    "traefik_dashboard": "settings_update_traefik_dashboard",
     "time_display": "settings_update_time_display",
     "upstream_security": "settings_update_upstream_security",
     "login_defense": "settings_update_login_defense",
@@ -156,6 +161,85 @@ async def update_cloudflare_settings(
         client_ip=_maybe_get_client_ip(http_request),
     )
     return current_status
+
+
+@router.get(
+    "/traefik-dashboard",
+    response_model=TraefikDashboardSettingsResponse,
+    summary="Traefik 디버그 대시보드 공개 설정 조회",
+)
+async def get_traefik_dashboard_settings(
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    repo = SQLiteSystemSettingsRepository(db)
+    return await _build_traefik_dashboard_response(repo)
+
+
+@router.put(
+    "/traefik-dashboard",
+    response_model=TraefikDashboardSettingsResponse,
+    summary="Traefik 디버그 대시보드 공개 설정 저장",
+)
+async def update_traefik_dashboard_settings(
+    request: TraefikDashboardSettingsUpdateRequest,
+    http_request: Request = None,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_admin),
+):
+    repo = SQLiteSystemSettingsRepository(db)
+    previous_response = await _build_traefik_dashboard_response(repo)
+
+    existing_password_hash = await repo.get("traefik_dashboard_public_auth_password_hash")
+    effective_password_hash = existing_password_hash or ""
+    if request.auth_password:
+        effective_password_hash = hash_basic_auth_password(request.auth_password)
+
+    if request.enabled:
+        if not request.domain or not request.auth_username:
+            raise HTTPException(status_code=422, detail="공개 도메인과 기본 인증 사용자명이 필요합니다")
+        if not effective_password_hash:
+            raise HTTPException(status_code=422, detail="처음 활성화할 때는 기본 인증 비밀번호가 필요합니다")
+
+    await repo.set(
+        "traefik_dashboard_public_enabled",
+        "true" if request.enabled else "false",
+    )
+    await repo.set(
+        "traefik_dashboard_public_domain",
+        request.domain or None,
+    )
+    await repo.set(
+        "traefik_dashboard_public_auth_username",
+        request.auth_username or None,
+    )
+    if request.auth_password:
+        await repo.set(
+            "traefik_dashboard_public_auth_password_hash",
+            effective_password_hash,
+        )
+
+    file_writer = FileProviderWriter()
+    if request.enabled and request.domain and request.auth_username and effective_password_hash:
+        file_writer.write_traefik_dashboard_public_route(
+            domain=request.domain,
+            basic_auth_username=request.auth_username,
+            basic_auth_password_hash=effective_password_hash,
+        )
+    else:
+        file_writer.delete_traefik_dashboard_public_route()
+
+    response = await _build_traefik_dashboard_response(repo)
+    await _record_settings_update(
+        db=db,
+        actor=_.get("username", "unknown"),
+        event=SETTINGS_UPDATE_EVENTS["traefik_dashboard"],
+        resource_name="Traefik 디버그 대시보드 공개 설정",
+        before=_traefik_dashboard_summary(previous_response),
+        after=_traefik_dashboard_summary(response),
+        client_ip=_maybe_get_client_ip(http_request),
+    )
+    return response
 
 
 @router.get("/time-display", response_model=TimeDisplaySettingsResponse, summary="표시 시간대 설정 조회")
@@ -583,6 +667,37 @@ def _build_time_display_response(display_timezone: str | None) -> TimeDisplaySet
     )
 
 
+async def _build_traefik_dashboard_response(
+    repo: SQLiteSystemSettingsRepository,
+) -> TraefikDashboardSettingsResponse:
+    enabled = await _get_bool_setting(
+        repo,
+        "traefik_dashboard_public_enabled",
+        default=False,
+    )
+    domain = ((await repo.get("traefik_dashboard_public_domain")) or "").strip().lower() or None
+    auth_username = ((await repo.get("traefik_dashboard_public_auth_username")) or "").strip() or None
+    auth_password_hash = ((await repo.get("traefik_dashboard_public_auth_password_hash")) or "").strip()
+    configured = bool(domain and auth_username and auth_password_hash)
+
+    if enabled and configured:
+        message = "필요할 때만 잠깐 공개하는 디버그 라우트로 사용하세요."
+    elif enabled:
+        message = "활성화되어 있지만 공개 도메인 또는 기본 인증 설정이 불완전합니다."
+    else:
+        message = "기본적으로 비공개입니다. 필요할 때만 임시로 열어두는 것을 권장합니다."
+
+    return TraefikDashboardSettingsResponse(
+        enabled=enabled,
+        configured=configured,
+        domain=domain,
+        public_url=f"https://{domain}" if domain else None,
+        auth_username=auth_username,
+        auth_password_configured=bool(auth_password_hash),
+        message=message,
+    )
+
+
 async def _build_upstream_security_response(
     repo: SQLiteSystemSettingsRepository,
 ) -> UpstreamSecuritySettingsResponse:
@@ -831,6 +946,16 @@ def _cloudflare_summary(status: CloudflareSettingsStatusResponse) -> dict[str, o
         "zone_id": status.zone_id,
         "record_target": status.record_target,
         "proxied": status.proxied,
+    }
+
+
+def _traefik_dashboard_summary(response: TraefikDashboardSettingsResponse) -> dict[str, object]:
+    return {
+        "enabled": response.enabled,
+        "configured": response.configured,
+        "domain": response.domain,
+        "auth_username": response.auth_username,
+        "auth_password_configured": response.auth_password_configured,
     }
 
 

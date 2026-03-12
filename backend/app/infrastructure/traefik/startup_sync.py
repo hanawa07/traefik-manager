@@ -36,6 +36,27 @@ async def sync_existing_service_configs(
     return rewritten
 
 
+async def sync_traefik_dashboard_public_config(
+    settings_repository,
+    file_writer,
+) -> bool:
+    enabled = ((await settings_repository.get("traefik_dashboard_public_enabled")) or "").strip().lower() == "true"
+    domain = ((await settings_repository.get("traefik_dashboard_public_domain")) or "").strip().lower()
+    basic_auth_username = ((await settings_repository.get("traefik_dashboard_public_auth_username")) or "").strip()
+    basic_auth_password_hash = ((await settings_repository.get("traefik_dashboard_public_auth_password_hash")) or "").strip()
+
+    if enabled and domain and basic_auth_username and basic_auth_password_hash:
+        file_writer.write_traefik_dashboard_public_route(
+            domain=domain,
+            basic_auth_username=basic_auth_username,
+            basic_auth_password_hash=basic_auth_password_hash,
+        )
+        return True
+
+    file_writer.delete_traefik_dashboard_public_route()
+    return False
+
+
 async def _resolve_middleware_templates(
     service: Service,
     middleware_template_repository,

@@ -256,6 +256,67 @@ class TraefikConfigGenerator:
             }
         }
 
+    def generate_traefik_dashboard_public_route(
+        self,
+        *,
+        domain: str,
+        basic_auth_username: str,
+        basic_auth_password_hash: str,
+    ) -> dict:
+        router_base_name = "traefik-dashboard-public"
+        redirect_middleware_name = f"{router_base_name}-redirectscheme"
+        basic_auth_middleware_name = f"{router_base_name}-basicauth"
+
+        return {
+            "http": {
+                "routers": {
+                    router_base_name: {
+                        "rule": f"Host(`{domain}`)",
+                        "entryPoints": ["websecure"],
+                        "tls": self._build_tls_config(),
+                        "middlewares": [basic_auth_middleware_name],
+                        "service": "api@internal",
+                    },
+                    f"{router_base_name}-redirect": {
+                        "rule": f"Host(`{domain}`)",
+                        "entryPoints": ["web"],
+                        "middlewares": [redirect_middleware_name],
+                        "service": "noop@internal",
+                    },
+                },
+                "middlewares": {
+                    redirect_middleware_name: {
+                        "redirectScheme": {
+                            "scheme": "https",
+                            "permanent": True,
+                        }
+                    },
+                    basic_auth_middleware_name: {
+                        "basicAuth": {
+                            "users": [f"{basic_auth_username}:{basic_auth_password_hash}"],
+                        }
+                    },
+                },
+            }
+        }
+
+    def to_yaml_traefik_dashboard_public_route(
+        self,
+        *,
+        domain: str,
+        basic_auth_username: str,
+        basic_auth_password_hash: str,
+    ) -> str:
+        return yaml.dump(
+            self.generate_traefik_dashboard_public_route(
+                domain=domain,
+                basic_auth_username=basic_auth_username,
+                basic_auth_password_hash=basic_auth_password_hash,
+            ),
+            default_flow_style=False,
+            allow_unicode=True,
+        )
+
     @staticmethod
     def _build_frame_policy_headers(frame_policy: str) -> dict:
         if frame_policy == "deny":

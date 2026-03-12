@@ -9,6 +9,7 @@ import {
   SettingsRollbackActionResult,
   SecurityAlertSettingsInput,
   SettingsActionTestResult,
+  TraefikDashboardSettingsInput,
   TimeDisplaySettingsInput,
   UpstreamSecuritySettingsInput,
   settingsApi,
@@ -26,6 +27,14 @@ export function useTimeDisplaySettings() {
   return useQuery({
     queryKey: ["settings", "time-display"],
     queryFn: settingsApi.getTimeDisplaySettings,
+    staleTime: 30_000,
+  });
+}
+
+export function useTraefikDashboardSettings() {
+  return useQuery({
+    queryKey: ["settings", "traefik-dashboard"],
+    queryFn: settingsApi.getTraefikDashboardSettings,
     staleTime: 30_000,
   });
 }
@@ -92,6 +101,16 @@ export function useUpdateTimeDisplaySettings() {
   });
 }
 
+export function useUpdateTraefikDashboardSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: TraefikDashboardSettingsInput) => settingsApi.updateTraefikDashboardSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "traefik-dashboard"] });
+    },
+  });
+}
+
 export function useUpdateUpstreamSecuritySettings() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -140,6 +159,7 @@ export function useRollbackSettingsChange() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["audit-logs"] }),
         queryClient.invalidateQueries({ queryKey: ["settings", "time-display"] }),
+        queryClient.invalidateQueries({ queryKey: ["settings", "traefik-dashboard"] }),
         queryClient.invalidateQueries({ queryKey: ["settings", "upstream-security"] }),
         queryClient.invalidateQueries({ queryKey: ["settings", "login-defense"] }),
         queryClient.invalidateQueries({ queryKey: ["settings", "security-alerts"] }),

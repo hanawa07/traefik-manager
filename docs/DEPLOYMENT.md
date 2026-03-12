@@ -4,14 +4,14 @@
 
 - `frontend`는 `https://<FRONTEND_DOMAIN>`로 외부 노출됩니다.
 - `FRONTEND_DOMAIN`은 Traefik 라우팅뿐 아니라 Next.js `metadataBase` 기준 URL로도 사용됩니다. 호스트명만 넣으면 빌드 시 `https://` 기준으로 처리됩니다.
-- `backend`는 기본 권장 구성이면 프론트의 `/api` 리버스 프록시를 통해 접근합니다.
-- 현재 compose에는 `BACKEND_DOMAIN` 라우터도 포함했지만, 운영에서는 직접 API 공개가 꼭 필요하지 않으면 사용하지 않는 편이 안전합니다.
+- `backend`는 기본 권장 구성이면 프론트의 `/api` 리버스 프록시를 통해서만 접근합니다.
 - `NEXT_PUBLIC_API_URL`은 브라우저 번들에 포함되므로 운영 권장값은 고정 상대 경로인 `/api/v1`입니다.
 - 실제 백엔드 업스트림 전환은 `BACKEND_UPSTREAM_URL`로 처리합니다. Next.js가 컨테이너 시작 시 이 값을 읽어 `/api/*`를 백엔드로 프록시합니다.
 - `FRONTEND_DOMAIN`을 바꾸면 프런트 이미지를 다시 빌드해야 메타데이터 절대 URL에도 반영됩니다.
 - 생성되는 HTTPS 라우터는 `TRAEFIK_TLS_CERT_RESOLVER`를 `tls.certResolver`로 사용합니다. 기본값은 `letsencrypt`이며, 빈 값이면 자동 발급을 명시적으로 끕니다.
 - 인증서 만료 모니터는 Traefik API와 ACME 저장소를 함께 읽습니다. backend가 `/acme.json`을 직접 못 읽는 경우에는 Docker socket을 통해 `TRAEFIK_DOCKER_CONTAINER_NAME`의 `TRAEFIK_ACME_STORAGE_PATH`를 fallback으로 읽습니다.
 - Docker socket을 backend에서 읽어야 하는 기능(컨테이너 자동 감지, 인증서 ACME fallback)을 쓰려면 `DOCKER_SOCKET_GID`를 호스트의 `/var/run/docker.sock` 그룹 ID와 맞춰야 합니다. 예: `stat -c '%g' /var/run/docker.sock`
+- `Traefik 디버그 대시보드` public route를 Manager에서 제어하려면 외부 Traefik 정적 설정에 `api.dashboard=true`가 켜져 있어야 합니다. Manager는 dashboard 엔진 자체를 토글하지 않고 `api@internal` 라우터만 생성/삭제합니다.
 
 ## Traefik File Provider 설정
 
