@@ -242,6 +242,13 @@ export interface SettingsTestHistoryItem {
   last_detail: string | null;
   last_provider: string | null;
   last_created_at: string | null;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  last_failure_audit_id: string | null;
+  last_failure_message: string | null;
+  last_failure_detail: string | null;
+  last_failure_provider: string | null;
+  recent_failure_count: number;
 }
 
 export interface SettingsTestHistoryStatus {

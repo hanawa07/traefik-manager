@@ -39,6 +39,13 @@ class SettingsTestHistoryItemResponse(BaseModel):
     last_detail: str | None = None
     last_provider: str | None = None
     last_created_at: datetime | None = None
+    last_success_at: datetime | None = None
+    last_failure_at: datetime | None = None
+    last_failure_audit_id: str | None = None
+    last_failure_message: str | None = None
+    last_failure_detail: str | None = None
+    last_failure_provider: str | None = None
+    recent_failure_count: int = 0
 
 
 class SettingsTestHistoryResponse(BaseModel):

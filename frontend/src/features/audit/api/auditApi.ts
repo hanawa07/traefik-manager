@@ -50,6 +50,14 @@ export interface AuditCertificateSummary {
   recent_events: AuditCertificateEventItem[];
 }
 
+export interface AuditDeliveryRetryResult {
+  success: boolean;
+  message: string;
+  detail: string | null;
+  provider: string | null;
+  source_event: string | null;
+}
+
 export const auditApi = {
   getLogs: async (params?: {
     limit?: number;
@@ -94,6 +102,11 @@ export const auditApi = {
               ? `/middlewares/rollback/${auditLogId}`
               : `/users/rollback/${auditLogId}`;
     const res = await apiClient.post<Record<string, unknown>>(endpoint);
+    return res.data;
+  },
+
+  retryDelivery: async (auditLogId: string): Promise<AuditDeliveryRetryResult> => {
+    const res = await apiClient.post<AuditDeliveryRetryResult>(`/audit/retry-delivery/${auditLogId}`);
     return res.data;
   },
 };

@@ -1,16 +1,19 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.models import AuditLogModel
-from app.interfaces.api.dependencies import get_current_user
+from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.schemas.audit_schemas import (
     AuditCertificateEventResponse,
     AuditCertificateSummaryResponse,
+    AuditDeliveryRetryResponse,
     AuditLogResponse,
     AuditSecurityEventResponse,
     AuditSecuritySummaryResponse,
@@ -143,6 +146,29 @@ async def get_certificate_summary(
         recovered_count=len(recovered_logs),
         recent_events=recent_events,
     )
+
+
+@router.post(
+    "/retry-delivery/{audit_log_id}",
+    response_model=AuditDeliveryRetryResponse,
+    summary="알림 전송 실패 재시도",
+)
+async def retry_delivery(
+    audit_log_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_admin),
+):
+    result = await db.execute(select(AuditLogModel).where(AuditLogModel.id == audit_log_id))
+    audit_log = result.scalars().first()
+    if audit_log is None:
+        raise HTTPException(status_code=404, detail="대상 알림 전송 로그를 찾을 수 없습니다")
+
+    try:
+        retry_result = await security_alert_notifier.retry_delivery(db, audit_log)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return AuditDeliveryRetryResponse(**retry_result)
 
 
 def _get_event(log: AuditLogModel) -> str | None:

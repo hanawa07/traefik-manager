@@ -52,3 +52,11 @@ class AuditCertificateSummaryResponse(BaseModel):
     error_count: int
     recovered_count: int
     recent_events: list[AuditCertificateEventResponse]
+
+
+class AuditDeliveryRetryResponse(BaseModel):
+    success: bool
+    message: str
+    detail: str | None = None
+    provider: str | None = None
+    source_event: str | None = None

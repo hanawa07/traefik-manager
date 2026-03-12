@@ -3,7 +3,7 @@
 import { Fragment, useState } from "react";
 
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
-import { useAudit, useAuditRollback } from "@/features/audit/hooks/useAudit";
+import { useAudit, useAuditRetryDelivery, useAuditRollback } from "@/features/audit/hooks/useAudit";
 import { 
   History, 
   Server, 
@@ -119,11 +119,29 @@ function getAuditDiffRows(detail: Record<string, unknown> | null) {
   }));
 }
 
+function getDeliveryDetailRows(detail: Record<string, unknown> | null) {
+  if (!detail) return [];
+  const rows = [
+    { key: "provider", label: "채널", value: detail.provider },
+    { key: "source_event", label: "원본 이벤트", value: detail.source_event },
+    { key: "source_action", label: "원본 작업", value: detail.source_action },
+    { key: "source_resource_type", label: "원본 타입", value: detail.source_resource_type },
+    { key: "source_resource_name", label: "원본 이름", value: detail.source_resource_name },
+    { key: "client_ip", label: "IP", value: detail.client_ip },
+    { key: "detail", label: "전송 상세", value: detail.detail },
+    { key: "retry_of_audit_id", label: "재시도 원본", value: detail.retry_of_audit_id },
+    { key: "trigger", label: "트리거", value: detail.trigger },
+  ];
+  return rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== "");
+}
+
 export default function AuditLogPage() {
   const [selectedFilter, setSelectedFilter] = useState<(typeof auditFilters)[number]["key"]>("all");
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [rollbackFeedback, setRollbackFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [deliveryFeedback, setDeliveryFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [rollbackTargetId, setRollbackTargetId] = useState<string | null>(null);
+  const [retryTargetId, setRetryTargetId] = useState<string | null>(null);
   const auditQuery =
     selectedFilter === "all"
       ? { limit: 50 }
@@ -139,6 +157,7 @@ export default function AuditLogPage() {
   const { data: logs, isLoading, isError, error } = useAudit(auditQuery);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const rollbackMutation = useAuditRollback();
+  const retryDeliveryMutation = useAuditRetryDelivery();
 
   const handleRollback = async (
     resourceType: "settings" | "service" | "redirect" | "middleware" | "user",
@@ -160,6 +179,25 @@ export default function AuditLogPage() {
       setRollbackFeedback({ type: "error", text: message });
     } finally {
       setRollbackTargetId(null);
+    }
+  };
+
+  const handleRetryDelivery = async (auditLogId: string) => {
+    try {
+      setRetryTargetId(auditLogId);
+      setDeliveryFeedback(null);
+      const result = await retryDeliveryMutation.mutateAsync({ auditLogId });
+      setDeliveryFeedback({
+        type: result.success ? "success" : "error",
+        text: result.detail ? `${result.message} (${result.detail})` : result.message,
+      });
+    } catch (retryError) {
+      const message =
+        (retryError as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        "알림 재시도에 실패했습니다.";
+      setDeliveryFeedback({ type: "error", text: message });
+    } finally {
+      setRetryTargetId(null);
     }
   };
 
@@ -230,6 +268,19 @@ export default function AuditLogPage() {
         </div>
       ) : null}
 
+      {deliveryFeedback ? (
+        <div
+          className={clsx(
+            "mb-4 rounded-xl border px-4 py-3 text-sm",
+            deliveryFeedback.type === "success"
+              ? "border-green-500/30 bg-green-500/10 text-green-100"
+              : "border-red-500/30 bg-red-500/10 text-red-100",
+          )}
+        >
+          {deliveryFeedback.text}
+        </div>
+      ) : null}
+
       <div className="bg-slate-950 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -258,7 +309,9 @@ export default function AuditLogPage() {
                   const ResourceIcon = resource?.icon || Server;
                   const detail = isRecord(log.detail) ? log.detail : null;
                   const diffRows = getAuditDiffRows(detail);
-                  const canExpand = diffRows.length > 0;
+                  const deliveryRows = getDeliveryDetailRows(detail);
+                  const retrySupported = log.event?.endsWith("_delivery_failure") === true;
+                  const canExpand = diffRows.length > 0 || deliveryRows.length > 0;
                   const rollbackSupported =
                     detail?.rollback_supported === true &&
                     log.action === "update" &&
@@ -325,7 +378,7 @@ export default function AuditLogPage() {
                                 onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
                                 className="text-xs font-medium text-blue-300 hover:text-blue-200"
                               >
-                                {isExpanded ? "변경 상세 숨기기" : "변경 상세 보기"}
+                                {isExpanded ? "상세 숨기기" : "상세 보기"}
                               </button>
                             ) : null}
                           </div>
@@ -340,44 +393,63 @@ export default function AuditLogPage() {
                         <tr className="bg-slate-900/60">
                           <td colSpan={6} className="px-6 py-5">
                             <div className="space-y-4">
-                              <div className="flex flex-wrap items-center gap-2">
-                                {diffRows.map((row) => (
-                                  <span
-                                    key={`${log.id}-${row.key}`}
-                                    className="rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-[11px] font-medium text-slate-300"
-                                  >
-                                    {row.key}
-                                  </span>
-                                ))}
-                              </div>
-                              <div className="grid gap-4 xl:grid-cols-2">
+                              {diffRows.length > 0 ? (
+                                <>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {diffRows.map((row) => (
+                                      <span
+                                        key={`${log.id}-${row.key}`}
+                                        className="rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-[11px] font-medium text-slate-300"
+                                      >
+                                        {row.key}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <div className="grid gap-4 xl:grid-cols-2">
+                                    <div className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
+                                      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        이전 값
+                                      </p>
+                                      <div className="space-y-2">
+                                        {diffRows.map((row) => (
+                                          <div key={`${log.id}-${row.key}-before`} className="grid grid-cols-[160px_1fr] gap-3 text-sm">
+                                            <span className="text-slate-400">{row.key}</span>
+                                            <span className="break-all text-slate-100">{formatAuditValue(row.before)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
+                                      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                        이후 값
+                                      </p>
+                                      <div className="space-y-2">
+                                        {diffRows.map((row) => (
+                                          <div key={`${log.id}-${row.key}-after`} className="grid grid-cols-[160px_1fr] gap-3 text-sm">
+                                            <span className="text-slate-400">{row.key}</span>
+                                            <span className="break-all text-slate-100">{formatAuditValue(row.after)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </>
+                              ) : null}
+                              {deliveryRows.length > 0 ? (
                                 <div className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
                                   <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                    이전 값
+                                    전송 상세
                                   </p>
                                   <div className="space-y-2">
-                                    {diffRows.map((row) => (
-                                      <div key={`${log.id}-${row.key}-before`} className="grid grid-cols-[160px_1fr] gap-3 text-sm">
-                                        <span className="text-slate-400">{row.key}</span>
-                                        <span className="break-all text-slate-100">{formatAuditValue(row.before)}</span>
+                                    {deliveryRows.map((row) => (
+                                      <div key={`${log.id}-${row.key}-delivery`} className="grid grid-cols-[160px_1fr] gap-3 text-sm">
+                                        <span className="text-slate-400">{row.label}</span>
+                                        <span className="break-all text-slate-100">{formatAuditValue(row.value)}</span>
                                       </div>
                                     ))}
                                   </div>
                                 </div>
-                                <div className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
-                                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                    이후 값
-                                  </p>
-                                  <div className="space-y-2">
-                                    {diffRows.map((row) => (
-                                      <div key={`${log.id}-${row.key}-after`} className="grid grid-cols-[160px_1fr] gap-3 text-sm">
-                                        <span className="text-slate-400">{row.key}</span>
-                                        <span className="break-all text-slate-100">{formatAuditValue(row.after)}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
+                              ) : null}
                               {rollbackSupported ? (
                                 <div className="flex items-center justify-between gap-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
                                   <p className="text-sm text-amber-100">
@@ -398,6 +470,24 @@ export default function AuditLogPage() {
                                       <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : null}
                                     이전 상태로 롤백
+                                  </button>
+                                </div>
+                              ) : null}
+                              {retrySupported ? (
+                                <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3">
+                                  <p className="text-sm text-rose-100">
+                                    실패한 알림 전송입니다. 현재 채널 설정으로 다시 시도할 수 있습니다.
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRetryDelivery(log.id)}
+                                    disabled={retryDeliveryMutation.isPending}
+                                    className="inline-flex items-center gap-2 rounded-lg border border-rose-400/40 bg-rose-500/20 px-3 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {retryDeliveryMutation.isPending && retryTargetId === log.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : null}
+                                    전송 재시도
                                   </button>
                                 </div>
                               ) : null}

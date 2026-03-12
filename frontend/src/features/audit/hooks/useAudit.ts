@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { auditApi } from "../api/auditApi";
+import { AuditDeliveryRetryResult, auditApi } from "../api/auditApi";
 
 export const useAudit = (params?: {
   limit?: number;
@@ -64,6 +64,19 @@ export const useAuditRollback = () => {
       if (variables.resourceType === "settings") {
         await queryClient.invalidateQueries({ queryKey: ["settings", "test-history"] });
       }
+    },
+  });
+};
+
+export const useAuditRetryDelivery = () => {
+  const queryClient = useQueryClient();
+  return useMutation<AuditDeliveryRetryResult, unknown, { auditLogId: string }>({
+    mutationFn: ({ auditLogId }) => auditApi.retryDelivery(auditLogId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["audit-logs"] }),
+        queryClient.invalidateQueries({ queryKey: ["settings", "test-history"] }),
+      ]);
     },
   });
 };

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { useLogoutAllSessions, useRevokeSession, useSessions } from "@/features/auth/hooks/useSessions";
+import { useAuditRetryDelivery } from "@/features/audit/hooks/useAudit";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import {
   BackupValidateResult,
@@ -254,10 +255,14 @@ function SettingsTestHistoryNotice({
   label,
   history,
   timezone,
+  onRetry,
+  isRetrying = false,
 }: {
   label: string;
   history: SettingsTestHistoryItem | null | undefined;
   timezone?: string;
+  onRetry?: (() => void) | null;
+  isRetrying?: boolean;
 }) {
   if (!history?.last_event) {
     return <p className="text-xs text-gray-500">{label}: 아직 기록이 없습니다.</p>;
@@ -265,15 +270,35 @@ function SettingsTestHistoryNotice({
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
-      <p>
-        {label}:{" "}
-        <span className={history.last_success ? "font-medium text-green-700" : "font-medium text-red-700"}>
-          {history.last_success ? "성공" : "실패"}
-        </span>
-      </p>
-      <p>시각: {history.last_created_at ? formatDateTime(history.last_created_at, timezone) : "-"}</p>
-      <p>메시지: {history.last_message || "-"}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <p>
+            {label}:{" "}
+            <span className={history.last_success ? "font-medium text-green-700" : "font-medium text-red-700"}>
+              {history.last_success ? "성공" : "실패"}
+            </span>
+          </p>
+          <p>시각: {history.last_created_at ? formatDateTime(history.last_created_at, timezone) : "-"}</p>
+          <p>메시지: {history.last_message || "-"}</p>
+        </div>
+        {onRetry && history.last_failure_audit_id ? (
+          <button
+            type="button"
+            onClick={onRetry}
+            disabled={isRetrying}
+            className="rounded-md border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-medium text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isRetrying ? "재시도 중..." : "마지막 실패 재시도"}
+          </button>
+        ) : null}
+      </div>
       {history.last_provider ? <p>채널: {history.last_provider}</p> : null}
+      {history.last_success_at ? <p>최근 성공: {formatDateTime(history.last_success_at, timezone)}</p> : null}
+      {history.last_failure_at ? <p>최근 실패: {formatDateTime(history.last_failure_at, timezone)}</p> : null}
+      {history.recent_failure_count > 0 ? <p>최근 24시간 실패: {history.recent_failure_count}회</p> : null}
+      {history.last_failure_provider ? <p>최근 실패 채널: {history.last_failure_provider}</p> : null}
+      {history.last_failure_message ? <p>최근 실패 메시지: {history.last_failure_message}</p> : null}
+      {history.last_failure_detail ? <p className="text-gray-500">실패 상세: {history.last_failure_detail}</p> : null}
       {history.last_detail ? <p className="text-gray-500">{history.last_detail}</p> : null}
     </div>
   );
@@ -431,8 +456,11 @@ export default function SettingsPage() {
   const [exportErrorMessage, setExportErrorMessage] = useState<string>("");
   const [cloudflareTestResult, setCloudflareTestResult] = useState<SettingsActionTestResult | null>(null);
   const [securityAlertTestResult, setSecurityAlertTestResult] = useState<SettingsActionTestResult | null>(null);
+  const [securityAlertDeliveryRetryResult, setSecurityAlertDeliveryRetryResult] = useState<SettingsActionTestResult | null>(null);
+  const [changeAlertDeliveryRetryResult, setChangeAlertDeliveryRetryResult] = useState<SettingsActionTestResult | null>(null);
   const [backupValidationResult, setBackupValidationResult] = useState<BackupValidateResult | null>(null);
   const [backupPreviewResult, setBackupPreviewResult] = useState<BackupPreviewResult | null>(null);
+  const [retryTargetAuditId, setRetryTargetAuditId] = useState<string | null>(null);
 
   const [isEditingCf, setIsEditingCf] = useState(false);
   const [cfForm, setCfForm] = useState({ api_token: "", zone_id: "", record_target: "", proxied: false });
@@ -462,6 +490,7 @@ export default function SettingsPage() {
   const updateLoginDefense = useUpdateLoginDefenseSettings();
   const updateSecurityAlert = useUpdateSecurityAlertSettings();
   const testSecurityAlertSettings = useTestSecurityAlertSettings();
+  const retryDelivery = useAuditRetryDelivery();
   const logoutAllSessions = useLogoutAllSessions();
   const revokeSession = useRevokeSession();
   const exportBackup = useExportBackup();
@@ -655,6 +684,42 @@ export default function SettingsPage() {
       setSecurityAlertTestResult(
         buildActionFailure("테스트 보안 알림 전송에 실패했습니다", getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다")),
       );
+    }
+  };
+
+  const handleRetryDelivery = async (
+    history: SettingsTestHistoryItem | null | undefined,
+    target: "security" | "change",
+  ) => {
+    const auditLogId = history?.last_failure_audit_id;
+    if (!auditLogId) return;
+
+    try {
+      setRetryTargetAuditId(auditLogId);
+      const result = await retryDelivery.mutateAsync({ auditLogId });
+      const notice = {
+        success: result.success,
+        message: result.message,
+        detail: result.detail,
+        provider: result.provider,
+      };
+      if (target === "security") {
+        setSecurityAlertDeliveryRetryResult(notice);
+      } else {
+        setChangeAlertDeliveryRetryResult(notice);
+      }
+    } catch (error) {
+      const notice = buildActionFailure(
+        "알림 전송 재시도에 실패했습니다",
+        getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다"),
+      );
+      if (target === "security") {
+        setSecurityAlertDeliveryRetryResult(notice);
+      } else {
+        setChangeAlertDeliveryRetryResult(notice);
+      }
+    } finally {
+      setRetryTargetAuditId(null);
     }
   };
 
@@ -1904,15 +1969,21 @@ export default function SettingsPage() {
                     label="최근 보안 이벤트 전송"
                     history={settingsTestHistory?.security_alert_delivery}
                     timezone={timeDisplaySettings?.display_timezone}
+                    onRetry={() => handleRetryDelivery(settingsTestHistory?.security_alert_delivery, "security")}
+                    isRetrying={retryDelivery.isPending && retryTargetAuditId === settingsTestHistory?.security_alert_delivery?.last_failure_audit_id}
                   />
                   <SettingsTestHistoryNotice
                     label="최근 운영 변경 전송"
                     history={settingsTestHistory?.change_alert_delivery}
                     timezone={timeDisplaySettings?.display_timezone}
+                    onRetry={() => handleRetryDelivery(settingsTestHistory?.change_alert_delivery, "change")}
+                    isRetrying={retryDelivery.isPending && retryTargetAuditId === settingsTestHistory?.change_alert_delivery?.last_failure_audit_id}
                   />
                 </div>
               ) : null}
               <ActionResultNotice result={securityAlertTestResult} />
+              <ActionResultNotice result={securityAlertDeliveryRetryResult} />
+              <ActionResultNotice result={changeAlertDeliveryRetryResult} />
               <p className="text-xs text-gray-500">
                 알림 실패는 운영 가시성에만 영향을 주고, 로그인 차단/잠금 로직 자체는 중단하지 않습니다.
               </p>

@@ -43,59 +43,73 @@ async def notify_if_needed(db: AsyncSession, audit_log: AuditLogModel) -> bool:
         return False
 
     category, provider = alert_context
+    success, delivery_detail = await _deliver_alert(repo, audit_log, event, provider, category)
+    await _record_delivery_result(
+        db=db,
+        audit_log=audit_log,
+        event=event,
+        category=category,
+        provider=provider,
+        success=success,
+        delivery_detail=delivery_detail,
+    )
+    return success
 
-    if provider == "email":
-        success, delivery_detail = await _send_email_alert_with_detail(repo, audit_log, event, category)
-        await _record_delivery_result(
-            db=db,
-            audit_log=audit_log,
-            event=event,
-            category=category,
-            provider=provider,
-            success=success,
-            delivery_detail=delivery_detail,
-        )
-        return success
 
-    request = await _build_request(repo, audit_log, event, provider, category)
-    if request is None:
-        await _record_delivery_result(
-            db=db,
-            audit_log=audit_log,
-            event=event,
-            category=category,
-            provider=provider,
-            success=False,
-            delivery_detail=f"{provider} 채널 설정이 완전하지 않습니다",
-        )
-        return False
+async def retry_delivery(db: AsyncSession, delivery_log: AuditLogModel) -> dict[str, Any]:
+    detail = delivery_log.detail or {}
+    delivery_event = _get_event(delivery_log)
+    if delivery_event not in {"security_alert_delivery_failure", "change_alert_delivery_failure"}:
+        raise ValueError("재시도할 수 없는 알림 전송 로그입니다")
 
-    url, payload = request
-    try:
-        async with httpx.AsyncClient(timeout=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS) as client:
-            await client.post(url, json=payload)
-        await _record_delivery_result(
-            db=db,
-            audit_log=audit_log,
-            event=event,
-            category=category,
-            provider=provider,
-            success=True,
-            delivery_detail=f"{provider} 채널로 전송했습니다",
-        )
-        return True
-    except httpx.HTTPError as exc:
-        logger.warning("보안 웹훅 알림 전송 실패: %s", exc, exc_info=True)
-        await _record_delivery_result(
-            db=db,
-            audit_log=audit_log,
-            event=event,
-            category=category,
-            provider=provider,
-            success=False,
-            delivery_detail=str(exc),
-        )
-        return False
+    provider = detail.get("provider")
+    source_event = detail.get("source_event")
+    source_action = detail.get("source_action")
+    source_resource_type = detail.get("source_resource_type")
+    source_resource_id = detail.get("source_resource_id")
+    source_resource_name = detail.get("source_resource_name")
+    if not all(
+        isinstance(value, str) and value
+        for value in (provider, source_event, source_action, source_resource_type, source_resource_id, source_resource_name)
+    ):
+        raise ValueError("재시도에 필요한 원본 알림 정보가 부족합니다")
+
+    category = "security" if delivery_event.startswith("security_") else "change"
+    repo = SQLiteSystemSettingsRepository(db)
+    source_log = AuditLogModel(
+        actor="system",
+        action=source_action,
+        resource_type=source_resource_type,
+        resource_id=source_resource_id,
+        resource_name=source_resource_name,
+        detail={
+            "event": source_event,
+            "client_ip": detail.get("client_ip"),
+        },
+    )
+    source_log.created_at = datetime.now(timezone.utc)
+
+    success, delivery_detail = await _deliver_alert(repo, source_log, source_event, provider, category)
+    await _record_delivery_result(
+        db=db,
+        audit_log=source_log,
+        event=source_event,
+        category=category,
+        provider=provider,
+        success=success,
+        delivery_detail=delivery_detail,
+        extra_detail={
+            "trigger": "manual_retry",
+            "retry_of_audit_id": str(delivery_log.id),
+        },
+    )
+    return {
+        "success": success,
+        "message": "알림 전송을 다시 시도했습니다" if success else "알림 전송 재시도에 실패했습니다",
+        "detail": delivery_detail,
+        "provider": provider,
+        "source_event": source_event,
+    }
 
 
 async def send_test_alert(db: AsyncSession) -> dict[str, Any]:
@@ -193,35 +207,64 @@ async def _record_delivery_result(
     provider: str,
     success: bool,
     delivery_detail: str | None,
+    extra_detail: dict[str, Any] | None = None,
 ) -> None:
     if not callable(getattr(db, "add", None)) or not callable(getattr(db, "flush", None)):
         return
 
     detail = audit_log.detail or {}
     delivery_event = f"{category}_alert_delivery_{'success' if success else 'failure'}"
+    delivery_log_detail = {
+        "event": delivery_event,
+        "success": success,
+        "provider": provider,
+        "message": _build_message(event, audit_log.resource_name, detail.get("client_ip"), category),
+        "detail": delivery_detail,
+        "source_event": event,
+        "source_action": audit_log.action,
+        "source_resource_type": audit_log.resource_type,
+        "source_resource_id": audit_log.resource_id,
+        "source_resource_name": audit_log.resource_name,
+        "client_ip": detail.get("client_ip"),
+    }
+    if extra_detail:
+        delivery_log_detail.update(extra_detail)
+
     delivery_log = AuditLogModel(
         actor="system",
         action="alert",
         resource_type="settings",
         resource_id=f"{category}-alert-delivery",
         resource_name="보안 알림 전송 결과" if category == "security" else "운영 변경 알림 전송 결과",
-        detail={
-            "event": delivery_event,
-            "success": success,
-            "provider": provider,
-            "message": _build_message(event, audit_log.resource_name, detail.get("client_ip"), category),
-            "detail": delivery_detail,
-            "source_event": event,
-            "source_action": audit_log.action,
-            "source_resource_type": audit_log.resource_type,
-            "source_resource_id": audit_log.resource_id,
-            "source_resource_name": audit_log.resource_name,
-            "client_ip": detail.get("client_ip"),
-        },
+        detail=delivery_log_detail,
     )
     delivery_log.created_at = datetime.now(timezone.utc)
     db.add(delivery_log)
     await db.flush()
+
+
+async def _deliver_alert(
+    repo: SQLiteSystemSettingsRepository,
+    audit_log: AuditLogModel,
+    event: str,
+    provider: str,
+    category: str,
+) -> tuple[bool, str]:
+    if provider == "email":
+        return await _send_email_alert_with_detail(repo, audit_log, event, category)
+
+    request = await _build_request(repo, audit_log, event, provider, category)
+    if request is None:
+        return False, f"{provider} 채널 설정이 완전하지 않습니다"
+
+    url, payload = request
+    try:
+        async with httpx.AsyncClient(timeout=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS) as client:
+            await client.post(url, json=payload)
+        return True, f"{provider} 채널로 전송했습니다"
+    except httpx.HTTPError as exc:
+        logger.warning("보안 웹훅 알림 전송 실패: %s", exc, exc_info=True)
+        return False, str(exc)
 
 
 async def _get_bool_setting(

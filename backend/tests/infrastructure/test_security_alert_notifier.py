@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 import httpx
@@ -44,6 +45,33 @@ def make_audit_log(
         resource_name=resource_name,
         detail={"event": event, "client_ip": "1.2.3.4"},
         created_at=datetime(2026, 3, 11, 17, 0, tzinfo=timezone.utc),
+    )
+
+
+def make_delivery_log(
+    event: str,
+    *,
+    provider: str = "slack",
+    source_event: str = "login_locked",
+):
+    return SimpleNamespace(
+        id=uuid4(),
+        actor="system",
+        action="alert",
+        resource_type="settings",
+        resource_id="security-alert-delivery",
+        resource_name="보안 알림 전송 결과",
+        detail={
+            "event": event,
+            "provider": provider,
+            "source_event": source_event,
+            "source_action": "update",
+            "source_resource_type": "user",
+            "source_resource_id": "abc",
+            "source_resource_name": "alice",
+            "client_ip": "1.2.3.4",
+        },
+        created_at=datetime(2026, 3, 12, 9, 0, tzinfo=timezone.utc),
     )
 
 
@@ -179,6 +207,59 @@ async def test_notify_if_needed_records_failed_delivery_audit(monkeypatch):
     assert delivery_log.detail["provider"] == "slack"
     assert delivery_log.detail["success"] is False
     assert "network down" in delivery_log.detail["detail"]
+
+
+@pytest.mark.asyncio
+async def test_retry_delivery_replays_failed_delivery_with_original_provider(monkeypatch):
+    posted = []
+
+    class StubClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json):
+            posted.append((url, json))
+
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "discord",
+        "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
+    db = StubDB()
+    delivery_log = make_delivery_log("security_alert_delivery_failure", provider="slack")
+
+    result = await security_alert_notifier.retry_delivery(db, delivery_log)
+
+    assert result["success"] is True
+    assert result["provider"] == "slack"
+    assert result["source_event"] == "login_locked"
+    assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"
+    assert len(db.added) == 1
+    retry_result_log = db.added[0]
+    assert retry_result_log.detail["event"] == "security_alert_delivery_success"
+    assert retry_result_log.detail["trigger"] == "manual_retry"
+    assert retry_result_log.detail["retry_of_audit_id"] == str(delivery_log.id)
+
+
+@pytest.mark.asyncio
+async def test_retry_delivery_rejects_non_failed_delivery_event(monkeypatch):
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "slack",
+        "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    with pytest.raises(ValueError):
+        await security_alert_notifier.retry_delivery(
+            StubDB(),
+            make_delivery_log("security_alert_delivery_success"),
+        )
 
 
 @pytest.mark.asyncio

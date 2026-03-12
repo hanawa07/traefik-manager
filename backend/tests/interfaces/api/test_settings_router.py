@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 from fastapi import HTTPException
 from types import SimpleNamespace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.interfaces.api.v1.routers import settings as settings_router
 from app.interfaces.api.v1.schemas.settings_schemas import (
@@ -27,6 +27,60 @@ class StubSettingsRepository:
             self.store.pop(key, None)
         else:
             self.store[key] = value
+
+
+class StubScalarResult:
+    def __init__(self, items):
+        self._items = items
+
+    def all(self):
+        return self._items
+
+
+class StubExecuteResult:
+    def __init__(self, items):
+        self._items = items
+
+    def scalars(self):
+        return StubScalarResult(self._items)
+
+
+class StubAuditHistoryDb:
+    def __init__(self, logs):
+        self._logs = logs
+
+    async def execute(self, _query):
+        return StubExecuteResult(self._logs)
+
+
+def make_audit_log(
+    *,
+    event: str,
+    created_at: datetime,
+    success: bool | None = None,
+    message: str | None = None,
+    detail: str | None = None,
+    provider: str | None = None,
+):
+    payload: dict[str, object] = {"event": event}
+    if success is not None:
+        payload["success"] = success
+    if message is not None:
+        payload["message"] = message
+    if detail is not None:
+        payload["detail"] = detail
+    if provider is not None:
+        payload["provider"] = provider
+    return SimpleNamespace(
+        id="audit-log-id",
+        actor="system",
+        action="alert" if "delivery" in event else "test",
+        resource_type="settings",
+        resource_id="settings-audit",
+        resource_name="설정 테스트",
+        detail=payload,
+        created_at=created_at,
+    )
 
 
 @pytest.mark.asyncio
@@ -237,6 +291,53 @@ async def test_update_login_defense_settings_persists_values(monkeypatch):
     assert response.turnstile_enabled is True
     assert response.turnstile_site_key == "0x4AAAAA-example-site-key"
     assert response.turnstile_secret_key_configured is True
+
+
+@pytest.mark.asyncio
+async def test_get_settings_test_history_includes_delivery_summary():
+    now = datetime.now(timezone.utc)
+    db = StubAuditHistoryDb(
+        [
+            make_audit_log(
+                event="security_alert_delivery_failure",
+                success=False,
+                message="전송 실패",
+                detail="network down",
+                provider="slack",
+                created_at=now - timedelta(minutes=5),
+            ),
+            make_audit_log(
+                event="security_alert_delivery_success",
+                success=True,
+                message="전송 성공",
+                detail="slack 채널로 전송했습니다",
+                provider="slack",
+                created_at=now - timedelta(minutes=10),
+            ),
+            make_audit_log(
+                event="security_alert_delivery_failure",
+                success=False,
+                message="이전 실패",
+                detail="timeout",
+                provider="slack",
+                created_at=now - timedelta(hours=2),
+            ),
+        ]
+    )
+
+    response = await settings_router.get_settings_test_history(
+        db=db,
+        _={"role": "admin"},
+    )
+
+    assert response.security_alert_delivery.last_event == "security_alert_delivery_failure"
+    assert response.security_alert_delivery.last_success is False
+    assert response.security_alert_delivery.last_failure_message == "전송 실패"
+    assert response.security_alert_delivery.last_failure_detail == "network down"
+    assert response.security_alert_delivery.last_failure_provider == "slack"
+    assert response.security_alert_delivery.last_success_at == now - timedelta(minutes=10)
+    assert response.security_alert_delivery.last_failure_at == now - timedelta(minutes=5)
+    assert response.security_alert_delivery.recent_failure_count == 2
 
 
 @pytest.mark.asyncio
