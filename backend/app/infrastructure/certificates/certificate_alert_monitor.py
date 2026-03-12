@@ -63,7 +63,8 @@ async def check_certificate_alerts_once(
     session_factory: Callable[[], Any] | None = None,
     client_factory: Callable[[], TraefikApiClient] | None = None,
     now: datetime | None = None,
-) -> None:
+    raise_on_error: bool = False,
+) -> dict[str, Any]:
     current_time = _to_utc(now) or datetime.now(timezone.utc)
     session_factory = session_factory or AsyncSessionLocal
     client_factory = client_factory or TraefikApiClient
@@ -76,12 +77,17 @@ async def check_certificate_alerts_once(
             certificates = await client.list_certificates()
         except TraefikApiClientError:
             logger.warning("인증서 알림 체크 실패 (Traefik API)", exc_info=True)
-            return
+            if raise_on_error:
+                raise
+            return _build_summary([], current_time, 0)
         except Exception:
             logger.warning("인증서 알림 체크 실패", exc_info=True)
-            return
+            if raise_on_error:
+                raise
+            return _build_summary([], current_time, 0)
 
         next_state: dict[str, dict[str, Any]] = {}
+        recorded_event_count = 0
         for certificate in certificates:
             domain = certificate.get("domain")
             status = certificate.get("status")
@@ -120,9 +126,11 @@ async def check_certificate_alerts_once(
                 resource_name=domain,
                 detail=detail,
             )
+            recorded_event_count += 1
 
         await repo.set(CERTIFICATE_ALERT_STATE_KEY, _serialize_state(next_state))
         await session.commit()
+        return _build_summary(certificates, current_time, recorded_event_count)
 
 
 async def run_periodic_certificate_alert_check(
@@ -133,3 +141,17 @@ async def run_periodic_certificate_alert_check(
     while True:
         await asyncio.sleep(interval_seconds)
         await check_once()
+
+
+def _build_summary(
+    certificates: list[dict[str, Any]],
+    current_time: datetime,
+    recorded_event_count: int,
+) -> dict[str, Any]:
+    return {
+        "checked_at": current_time.isoformat(),
+        "total_count": len(certificates),
+        "warning_count": sum(1 for certificate in certificates if certificate.get("status") == "warning"),
+        "error_count": sum(1 for certificate in certificates if certificate.get("status") == "error"),
+        "recorded_event_count": recorded_event_count,
+    }

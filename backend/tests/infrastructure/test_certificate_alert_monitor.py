@@ -65,11 +65,15 @@ async def test_check_certificate_alerts_once_records_warning_and_persists_state(
     monkeypatch.setattr(certificate_alert_monitor, "TraefikApiClient", StubTraefikClient)
     monkeypatch.setattr(certificate_alert_monitor.audit_service, "record", fake_record, raising=False)
 
-    await certificate_alert_monitor.check_certificate_alerts_once(
+    result = await certificate_alert_monitor.check_certificate_alerts_once(
         session_factory=make_session,
         now=datetime(2026, 3, 12, tzinfo=timezone.utc),
     )
 
+    assert result["total_count"] == 1
+    assert result["warning_count"] == 1
+    assert result["error_count"] == 0
+    assert result["recorded_event_count"] == 1
     assert recorded[0]["resource_type"] == "certificate"
     assert recorded[0]["resource_id"] == "example.com"
     assert recorded[0]["detail"]["event"] == "certificate_warning"
@@ -115,6 +119,40 @@ async def test_check_certificate_alerts_once_deduplicates_same_warning_status(mo
         now=datetime(2026, 3, 12, tzinfo=timezone.utc),
     )
 
+    assert recorded == []
+
+
+@pytest.mark.asyncio
+async def test_check_certificate_alerts_once_returns_summary_without_new_alert(monkeypatch):
+    StubSettingsRepository.store = {}
+    StubTraefikClient.certificates = [
+        {
+            "domain": "active.example.com",
+            "expires_at": datetime(2026, 6, 1, tzinfo=timezone.utc),
+            "days_remaining": 81,
+            "status": "active",
+            "status_message": "정상",
+            "router_names": ["active-router"],
+        }
+    ]
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(certificate_alert_monitor, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(certificate_alert_monitor, "TraefikApiClient", StubTraefikClient)
+    monkeypatch.setattr(certificate_alert_monitor.audit_service, "record", fake_record, raising=False)
+
+    result = await certificate_alert_monitor.check_certificate_alerts_once(
+        session_factory=make_session,
+        now=datetime(2026, 3, 12, tzinfo=timezone.utc),
+    )
+
+    assert result["total_count"] == 1
+    assert result["warning_count"] == 0
+    assert result["error_count"] == 0
+    assert result["recorded_event_count"] == 0
     assert recorded == []
 
 

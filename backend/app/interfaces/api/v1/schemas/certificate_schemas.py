@@ -12,3 +12,11 @@ class CertificateResponse(BaseModel):
     days_remaining: int | None
     status: Literal["active", "warning", "error"]
     status_message: str
+
+
+class CertificateCheckResponse(BaseModel):
+    checked_at: datetime
+    total_count: int
+    warning_count: int
+    error_count: int
+    recorded_event_count: int

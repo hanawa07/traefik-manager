@@ -2,7 +2,7 @@
 import { AlertTriangle, RefreshCcw, Shield } from "lucide-react";
 
 import StatusBadge from "@/shared/components/StatusBadge";
-import { useCertificates } from "@/features/certificates/hooks/useCertificates";
+import { useCertificates, useRunCertificateCheck } from "@/features/certificates/hooks/useCertificates";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
@@ -15,6 +15,7 @@ export default function CertificatesPage() {
     refetch,
     isFetching,
   } = useCertificates();
+  const runCertificateCheck = useRunCertificateCheck();
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
 
   const warningCount = certificates.filter((item) => item.status === "warning").length;
@@ -27,16 +28,37 @@ export default function CertificatesPage() {
           <h1 className="text-2xl font-bold text-gray-900">인증서</h1>
           <p className="text-gray-500 text-sm mt-1">Traefik API 기반 TLS 인증서 상태</p>
         </div>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="btn-secondary flex items-center gap-2"
-          disabled={isFetching}
-        >
-          <RefreshCcw className="w-4 h-4" />
-          {isFetching ? "갱신 중..." : "새로고침"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => runCertificateCheck.mutate()}
+            className="btn-primary flex items-center gap-2"
+            disabled={runCertificateCheck.isPending}
+          >
+            <Shield className="w-4 h-4" />
+            {runCertificateCheck.isPending ? "검사 중..." : "경고 검사"}
+          </button>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="btn-secondary flex items-center gap-2"
+            disabled={isFetching}
+          >
+            <RefreshCcw className="w-4 h-4" />
+            {isFetching ? "갱신 중..." : "새로고침"}
+          </button>
+        </div>
       </div>
+
+      {runCertificateCheck.isSuccess && (
+        <div className="card mb-6 border-blue-200 bg-blue-50 p-4">
+          <p className="text-sm font-medium text-blue-700">인증서 경고 재검사를 완료했습니다</p>
+          <p className="mt-1 text-xs text-blue-600">
+            {formatDateTime(runCertificateCheck.data.checked_at, timeDisplaySettings?.display_timezone)}
+            {` · 전체 ${runCertificateCheck.data.total_count}개 · 만료 임박 ${runCertificateCheck.data.warning_count}개 · 만료 ${runCertificateCheck.data.error_count}개 · 신규 경고 ${runCertificateCheck.data.recorded_event_count}건`}
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="card p-5">
@@ -61,6 +83,21 @@ export default function CertificatesPage() {
               <p className="text-sm font-medium text-red-700">인증서 정보를 가져오지 못했습니다</p>
               <p className="text-xs text-red-600 mt-1">
                 {(error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+                  "잠시 후 다시 시도해 주세요"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {runCertificateCheck.isError && (
+        <div className="card p-4 border-red-200 bg-red-50 mb-6">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-red-700">인증서 경고 재검사에 실패했습니다</p>
+              <p className="text-xs text-red-600 mt-1">
+                {(runCertificateCheck.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
                   "잠시 후 다시 시도해 주세요"}
               </p>
             </div>

@@ -238,6 +238,9 @@ traefik-manager/
     → 현재 인증서 상태는 `/certificates` 응답으로 집계
     → 최근 인증서 경고 전환은 `/audit/certificate-summary`로 요약
     → 대시보드 운영 경고 카드에서 두 정보를 함께 노출
+  manual action
+    → `/certificates/check` 호출 시 즉시 재검사
+    → 현재 warning/error 수와 신규 경고 이벤트 수를 응답
 ```
 
 ---
