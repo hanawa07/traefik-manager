@@ -42,6 +42,24 @@ class RecordingDashboardFileWriter:
         self.deleted = True
 
 
+class StubDomainRepository:
+    domain_result = None
+
+    def __init__(self, _session):
+        pass
+
+    async def find_by_domain(self, _domain: str):
+        return self.domain_result
+
+
+class StubNoConflictRepository:
+    def __init__(self, _session):
+        pass
+
+    async def find_by_domain(self, _domain: str):
+        return None
+
+
 class StubScalarResult:
     def __init__(self, items):
         self._items = items
@@ -260,6 +278,8 @@ async def test_get_traefik_dashboard_settings_returns_defaults(monkeypatch):
 async def test_update_traefik_dashboard_settings_persists_and_writes_file(monkeypatch):
     StubSettingsRepository.store = {}
     monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(settings_router, "SQLiteServiceRepository", StubNoConflictRepository)
+    monkeypatch.setattr(settings_router, "SQLiteRedirectHostRepository", StubNoConflictRepository)
     writer = RecordingDashboardFileWriter()
     monkeypatch.setattr(settings_router, "FileProviderWriter", lambda: writer)
     monkeypatch.setattr(settings_router, "get_client_ip", lambda _request: "203.0.113.10")
@@ -311,6 +331,8 @@ async def test_update_traefik_dashboard_settings_keeps_existing_password_when_bl
         "traefik_dashboard_public_auth_password_hash": "$2b$12$abcdefghijklmnopqrstuuE7J8V4ZZ4Jm1t6k8JmH6O4lzM2K0m",
     }
     monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(settings_router, "SQLiteServiceRepository", StubNoConflictRepository)
+    monkeypatch.setattr(settings_router, "SQLiteRedirectHostRepository", StubNoConflictRepository)
     writer = RecordingDashboardFileWriter()
     monkeypatch.setattr(settings_router, "FileProviderWriter", lambda: writer)
 
@@ -333,6 +355,8 @@ async def test_update_traefik_dashboard_settings_keeps_existing_password_when_bl
 async def test_update_traefik_dashboard_settings_requires_password_on_first_enable(monkeypatch):
     StubSettingsRepository.store = {}
     monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(settings_router, "SQLiteServiceRepository", StubNoConflictRepository)
+    monkeypatch.setattr(settings_router, "SQLiteRedirectHostRepository", StubNoConflictRepository)
 
     with pytest.raises(HTTPException) as exc_info:
         await settings_router.update_traefik_dashboard_settings(
@@ -351,6 +375,90 @@ async def test_update_traefik_dashboard_settings_requires_password_on_first_enab
 
 
 @pytest.mark.asyncio
+async def test_update_traefik_dashboard_settings_rejects_url_style_domain():
+    with pytest.raises(ValidationError) as exc_info:
+        TraefikDashboardSettingsUpdateRequest(
+            enabled=True,
+            domain="https://traefik-debug.example.com",
+            auth_username="debug-admin",
+            auth_password="secret",
+        )
+
+    assert "https:// 없이 공개 도메인만 입력해야 합니다" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_update_traefik_dashboard_settings_rejects_service_domain_conflict(monkeypatch):
+    StubSettingsRepository.store = {}
+    StubDomainRepository.domain_result = SimpleNamespace(domain="traefik.example.com")
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(settings_router, "SQLiteServiceRepository", StubDomainRepository)
+
+    class StubRedirectRepository:
+        def __init__(self, _db):
+            pass
+
+        async def find_by_domain(self, _domain: str):
+            return None
+
+    monkeypatch.setattr(settings_router, "SQLiteRedirectHostRepository", StubRedirectRepository)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await settings_router.update_traefik_dashboard_settings(
+            request=TraefikDashboardSettingsUpdateRequest(
+                enabled=True,
+                domain="traefik.example.com",
+                auth_username="debug-admin",
+                auth_password="secret",
+            ),
+            db=object(),
+            _={"role": "admin", "username": "admin"},
+        )
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == "이미 서비스에서 사용 중인 도메인입니다. 다른 공개 도메인을 사용해야 합니다."
+
+
+@pytest.mark.asyncio
+async def test_update_traefik_dashboard_settings_rejects_redirect_domain_conflict(monkeypatch):
+    StubSettingsRepository.store = {}
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+
+    class StubServiceRepository:
+        def __init__(self, _db):
+            pass
+
+        async def find_by_domain(self, _domain: str):
+            return None
+
+    monkeypatch.setattr(settings_router, "SQLiteServiceRepository", StubServiceRepository)
+
+    class StubRedirectRepository:
+        def __init__(self, _session):
+            pass
+
+        async def find_by_domain(self, _domain: str):
+            return SimpleNamespace(domain="traefik.example.com")
+
+    monkeypatch.setattr(settings_router, "SQLiteRedirectHostRepository", StubRedirectRepository)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await settings_router.update_traefik_dashboard_settings(
+            request=TraefikDashboardSettingsUpdateRequest(
+                enabled=True,
+                domain="traefik.example.com",
+                auth_username="debug-admin",
+                auth_password="secret",
+            ),
+            db=object(),
+            _={"role": "admin", "username": "admin"},
+        )
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == "이미 리다이렉트에서 사용 중인 도메인입니다. 다른 공개 도메인을 사용해야 합니다."
+
+
+@pytest.mark.asyncio
 async def test_update_traefik_dashboard_settings_deletes_file_when_disabled(monkeypatch):
     StubSettingsRepository.store = {
         "traefik_dashboard_public_enabled": "true",
@@ -359,6 +467,8 @@ async def test_update_traefik_dashboard_settings_deletes_file_when_disabled(monk
         "traefik_dashboard_public_auth_password_hash": "$2b$12$abcdefghijklmnopqrstuuE7J8V4ZZ4Jm1t6k8JmH6O4lzM2K0m",
     }
     monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(settings_router, "SQLiteServiceRepository", StubNoConflictRepository)
+    monkeypatch.setattr(settings_router, "SQLiteRedirectHostRepository", StubNoConflictRepository)
     writer = RecordingDashboardFileWriter()
     monkeypatch.setattr(settings_router, "FileProviderWriter", lambda: writer)
 

@@ -22,6 +22,7 @@ export default function CertificatesPage() {
 
   const warningCount = certificates.filter((item) => item.status === "warning").length;
   const errorCount = certificates.filter((item) => item.status === "error").length;
+  const pendingCount = certificates.filter((item) => item.status === "pending").length;
 
   return (
     <div className="p-8">
@@ -62,10 +63,14 @@ export default function CertificatesPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="card p-5">
           <p className="text-sm text-gray-500">전체 인증서</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{certificates.length}</p>
+        </div>
+        <div className="card p-5">
+          <p className="text-sm text-gray-500">발급 대기</p>
+          <p className="text-2xl font-bold text-blue-600 mt-1">{pendingCount}</p>
         </div>
         <div className="card p-5">
           <p className="text-sm text-gray-500">30일 이내 만료</p>
@@ -176,6 +181,7 @@ export default function CertificatesPage() {
                 <th className="px-6 py-3 text-left font-medium">만료일</th>
                 <th className="px-6 py-3 text-left font-medium">남은 기간</th>
                 <th className="px-6 py-3 text-left font-medium">상태</th>
+                <th className="px-6 py-3 text-left font-medium">발급 방식</th>
                 <th className="px-6 py-3 text-left font-medium">라우터</th>
               </tr>
             </thead>
@@ -184,11 +190,17 @@ export default function CertificatesPage() {
                 <tr key={certificate.domain} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-3 text-sm font-medium text-gray-900">{certificate.domain}</td>
                   <td className="px-6 py-3 text-sm text-gray-500">
-                    {formatDateTime(certificate.expires_at, timeDisplaySettings?.display_timezone)}
+                    {certificate.expires_at
+                      ? formatDateTime(certificate.expires_at, timeDisplaySettings?.display_timezone)
+                      : "-"}
                   </td>
                   <td className="px-6 py-3 text-sm text-gray-500">
                     {certificate.days_remaining === null
-                      ? "-"
+                      ? certificate.status === "pending"
+                        ? "발급 전"
+                        : certificate.status === "inactive"
+                          ? "자동 발급 안 함"
+                          : "-"
                       : certificate.days_remaining < 0
                         ? "만료됨"
                         : `${certificate.days_remaining}일`}
@@ -215,6 +227,11 @@ export default function CertificatesPage() {
                         </p>
                       ) : null}
                     </div>
+                  </td>
+                  <td className="px-6 py-3 text-sm text-gray-500">
+                    {certificate.cert_resolvers.length > 0
+                      ? `자동 발급 (${certificate.cert_resolvers.join(", ")})`
+                      : "수동/미설정"}
                   </td>
                   <td className="px-6 py-3 text-sm text-gray-500">
                     {certificate.router_names.length > 0 ? certificate.router_names.join(", ") : "-"}

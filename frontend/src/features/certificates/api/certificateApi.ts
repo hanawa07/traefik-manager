@@ -1,6 +1,6 @@
 import apiClient from "@/shared/lib/apiClient";
 
-export type CertificateStatus = "active" | "warning" | "error";
+export type CertificateStatus = "active" | "warning" | "error" | "pending" | "inactive";
 
 export interface Certificate {
   domain: string;

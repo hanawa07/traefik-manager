@@ -10,7 +10,7 @@ class CertificateResponse(BaseModel):
     cert_resolvers: list[str]
     expires_at: datetime | None
     days_remaining: int | None
-    status: Literal["active", "warning", "error"]
+    status: Literal["active", "warning", "error", "pending", "inactive"]
     status_message: str
     status_started_at: datetime | None = None
     alerts_suppressed: bool = False

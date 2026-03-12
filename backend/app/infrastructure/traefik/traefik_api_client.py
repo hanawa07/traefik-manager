@@ -415,6 +415,7 @@ class TraefikApiClient:
     def _to_certificate_response(self, cert: dict) -> dict:
         now = datetime.now(timezone.utc)
         expires_at = cert.get("expires_at")
+        cert_resolvers = sorted(cert["cert_resolvers"])
 
         status = "warning"
         message = "만료일 정보를 확인할 수 없습니다"
@@ -431,11 +432,17 @@ class TraefikApiClient:
             else:
                 status = "active"
                 message = "정상"
+        elif cert_resolvers:
+            status = "pending"
+            message = "정식 인증서 발급 대기 또는 검증 실패"
+        else:
+            status = "inactive"
+            message = "자동 인증서 발급 미설정"
 
         return {
             "domain": cert["domain"],
             "router_names": sorted(cert["router_names"]),
-            "cert_resolvers": sorted(cert["cert_resolvers"]),
+            "cert_resolvers": cert_resolvers,
             "expires_at": expires_at,
             "days_remaining": days_remaining,
             "status": status,

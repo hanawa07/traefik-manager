@@ -25,6 +25,8 @@ from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.models import AuditLogModel
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
+from app.infrastructure.persistence.repositories.sqlite_redirect_host_repository import SQLiteRedirectHostRepository
+from app.infrastructure.persistence.repositories.sqlite_service_repository import SQLiteServiceRepository
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.schemas.settings_schemas import (
@@ -200,6 +202,7 @@ async def update_traefik_dashboard_settings(
             raise HTTPException(status_code=422, detail="공개 도메인과 기본 인증 사용자명이 필요합니다")
         if not effective_password_hash:
             raise HTTPException(status_code=422, detail="처음 활성화할 때는 기본 인증 비밀번호가 필요합니다")
+        await _ensure_dashboard_domain_is_available(db, request.domain)
 
     await repo.set(
         "traefik_dashboard_public_enabled",
@@ -240,6 +243,25 @@ async def update_traefik_dashboard_settings(
         client_ip=_maybe_get_client_ip(http_request),
     )
     return response
+
+
+async def _ensure_dashboard_domain_is_available(db: AsyncSession, domain: str) -> None:
+    service_repository = SQLiteServiceRepository(db)
+    redirect_repository = SQLiteRedirectHostRepository(db)
+
+    service = await service_repository.find_by_domain(domain)
+    if service is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="이미 서비스에서 사용 중인 도메인입니다. 다른 공개 도메인을 사용해야 합니다.",
+        )
+
+    redirect_host = await redirect_repository.find_by_domain(domain)
+    if redirect_host is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="이미 리다이렉트에서 사용 중인 도메인입니다. 다른 공개 도메인을 사용해야 합니다.",
+        )
 
 
 @router.get("/time-display", response_model=TimeDisplaySettingsResponse, summary="표시 시간대 설정 조회")

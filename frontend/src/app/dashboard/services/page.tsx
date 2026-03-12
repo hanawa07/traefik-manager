@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useServices, useDeleteService, useAllServicesHealth } from "@/features/services/hooks/useServices";
 import ServiceCard from "@/features/services/components/ServiceCard";
+import { useCertificates } from "@/features/certificates/hooks/useCertificates";
 import Modal from "@/shared/components/Modal";
 import { Service } from "@/features/services/api/serviceApi";
 import { Server, Plus, Search, ArrowUpDown } from "lucide-react";
@@ -56,6 +57,7 @@ export default function ServicesPage() {
   const { data: services = [], isLoading } = useServices();
   const { data: routerStatus } = useTraefikRouterStatus();
   const { data: healthMap } = useAllServicesHealth();
+  const { data: certificates = [] } = useCertificates();
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const deleteService = useDeleteService();
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
@@ -169,6 +171,11 @@ export default function ServicesPage() {
     });
     return filtered;
   }, [services, search, healthFilter, sortKey, sortDir, routerStatus, healthMap]);
+
+  const certificateMap = useMemo(
+    () => Object.fromEntries(certificates.map((certificate) => [certificate.domain, certificate])),
+    [certificates]
+  );
 
   return (
     <div className="p-8">
@@ -288,6 +295,7 @@ export default function ServicesPage() {
               displayTimeZone={timeDisplaySettings?.display_timezone}
               lastSuccessAt={healthHistory[service.id]?.last_up_at}
               lastFailureAt={healthHistory[service.id]?.last_down_at}
+              certificate={certificateMap[service.domain]}
             />
           ))}
         </div>

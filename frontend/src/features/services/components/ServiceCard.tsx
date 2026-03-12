@@ -1,5 +1,6 @@
 "use client";
 import { Service, UpstreamHealth } from "../api/serviceApi";
+import { Certificate } from "@/features/certificates/api/certificateApi";
 import { Lock, Globe, ExternalLink, Pencil, Trash2, Activity, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { clsx } from "clsx";
@@ -14,6 +15,7 @@ interface ServiceCardProps {
   displayTimeZone?: string | null;
   lastSuccessAt?: string | null;
   lastFailureAt?: string | null;
+  certificate?: Certificate;
 }
 
 export default function ServiceCard({
@@ -25,6 +27,7 @@ export default function ServiceCard({
   displayTimeZone,
   lastSuccessAt,
   lastFailureAt,
+  certificate,
 }: ServiceCardProps) {
   const getHealthErrorKindLabel = (errorKind: string | null | undefined) => {
     switch (errorKind) {
@@ -46,6 +49,32 @@ export default function ServiceCard({
         return "예상치 못한 오류";
       default:
         return null;
+    }
+  };
+
+  const getCertificateBadge = () => {
+    if (!service.tls_enabled) return null;
+    if (!certificate) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+          인증서 미확인
+        </span>
+      );
+    }
+
+    const baseClass = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border";
+    switch (certificate.status) {
+      case "active":
+        return <span className={`${baseClass} bg-green-50 text-green-700 border-green-200`}>인증서 정상</span>;
+      case "warning":
+        return <span className={`${baseClass} bg-yellow-50 text-yellow-700 border-yellow-200`}>인증서 만료 임박</span>;
+      case "error":
+        return <span className={`${baseClass} bg-red-50 text-red-700 border-red-200`}>인증서 만료</span>;
+      case "pending":
+        return <span className={`${baseClass} bg-blue-50 text-blue-700 border-blue-200`}>인증서 발급 대기</span>;
+      case "inactive":
+      default:
+        return <span className={`${baseClass} bg-slate-100 text-slate-600 border-slate-200`}>자동 발급 미설정</span>;
     }
   };
 
@@ -133,8 +162,10 @@ export default function ServiceCard({
           service.tls_enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
         )}>
           <Globe className="w-3 h-3" />
-          {service.tls_enabled ? "HTTPS" : "HTTP"}
+          {service.tls_enabled ? "TLS 설정" : "TLS 없음"}
         </span>
+
+        {getCertificateBadge()}
         
         {getAuthBadge()}
 
@@ -201,6 +232,9 @@ export default function ServiceCard({
 
       {upstreamHealth?.status === "down" && upstreamHealth.error ? (
         <div className="mt-2 space-y-1 text-[11px] leading-4 break-words">
+          {certificate ? (
+            <p className="text-slate-500">인증서 상태: {certificate.status_message}</p>
+          ) : null}
           {getHealthErrorKindLabel(upstreamHealth.error_kind) ? (
             <p className="text-rose-700">유형: {getHealthErrorKindLabel(upstreamHealth.error_kind)}</p>
           ) : null}
@@ -219,6 +253,9 @@ export default function ServiceCard({
         </div>
       ) : upstreamHealth?.status === "unknown" ? (
         <div className="mt-2 space-y-1 text-[11px] leading-4 break-words">
+          {certificate ? (
+            <p className="text-slate-500">인증서 상태: {certificate.status_message}</p>
+          ) : null}
           <p className="text-slate-500">
             상태: {upstreamHealth.error === "Health check disabled" ? "헬스 체크 비활성화" : upstreamHealth.error}
           </p>
@@ -228,6 +265,9 @@ export default function ServiceCard({
         </div>
       ) : upstreamHealth?.status === "up" ? (
         <div className="mt-2 space-y-1 text-[11px] leading-4 break-words">
+          {certificate ? (
+            <p className="text-slate-500">인증서 상태: {certificate.status_message}</p>
+          ) : null}
           <p className="text-slate-500">
             확인 시각: {formatDateTime(upstreamHealth.checked_at, displayTimeZone)}
           </p>

@@ -85,6 +85,8 @@ class TraefikDashboardSettingsUpdateRequest(BaseModel):
         normalized = value.strip().lower()
         if not normalized:
             return ""
+        if "://" in normalized or "/" in normalized:
+            raise ValueError("https:// 없이 공개 도메인만 입력해야 합니다")
         pattern = r"^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
         if not re.match(pattern, normalized):
             raise ValueError("유효한 공개 도메인을 입력해야 합니다")
