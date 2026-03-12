@@ -5,6 +5,7 @@ import {
   BackupPreviewResult,
   BackupValidateResult,
   CertificateDiagnosticsSettingsInput,
+  CloudflareDriftCheckResult,
   CloudflareSettingsInput,
   LoginDefenseSettingsInput,
   SettingsRollbackActionResult,
@@ -94,6 +95,16 @@ export function useTestCloudflareConnection() {
   const queryClient = useQueryClient();
   return useMutation<SettingsActionTestResult>({
     mutationFn: () => settingsApi.testCloudflareConnection(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "test-history"] });
+    },
+  });
+}
+
+export function useDiagnoseCloudflareDnsDrift() {
+  const queryClient = useQueryClient();
+  return useMutation<CloudflareDriftCheckResult>({
+    mutationFn: () => settingsApi.diagnoseCloudflareDnsDrift(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "test-history"] });
     },

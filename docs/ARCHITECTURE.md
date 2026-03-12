@@ -265,7 +265,7 @@ traefik-manager/
 - 이상 징후 IP 자동 차단은 설정에서 끄거나, 신뢰 네트워크(CIDR/IP) 예외를 둘 수 있습니다.
 - 보안 이벤트는 감사 로그에 기록되고, 대시보드/감사 로그 화면에서 별도 요약과 필터로 바로 볼 수 있습니다.
 - 운영 설정 저장과 설정 테스트도 같은 감사 로그 파이프라인으로 들어가며, `settings/update`, `settings/test` 흐름으로 추적합니다.
-- Cloudflare 설정은 연결 테스트와 DNS 일괄 재동기화를 각각 별도 `settings/test` 이벤트로 남기고, 재동기화 시 manager가 만든 고아 DNS 레코드도 함께 정리합니다.
+- Cloudflare 설정은 연결 테스트, DNS 드리프트 진단, DNS 일괄 재동기화를 각각 별도 `settings/test` 이벤트로 남기고, 재동기화 시 manager가 만든 고아 DNS 레코드도 함께 정리합니다.
 - 실제 보안 알림 전송 결과도 별도 `settings`/`alert` 감사 이벤트로 기록해서 마지막 성공/실패, 최근 실패 수, 실패 원인을 설정 화면에서 재사용합니다.
 - 인증서 알림 라우팅은 `certificate_status_change`와 `certificate_preflight_failure`로 분리되며, 기존 `certificate_change` 설정은 두 그룹에 호환 적용됩니다.
 - 감사 로그 화면은 delivery 이벤트를 `성공/실패`와 `provider` 기준으로 추가 필터링할 수 있어, 특정 채널의 전송 문제를 빠르게 좁혀볼 수 있습니다.

@@ -24,6 +24,7 @@ import {
   BackupPreviewGroup,
   BackupPreviewResult,
   CertificateDiagnosticsSettingsInput,
+  CloudflareDriftCheckResult,
   ChangeAlertEventRoutes,
   ChangeAlertRouteEvent,
   LoginDefenseSettingsInput,
@@ -46,6 +47,7 @@ import {
 import {
   useCertificateDiagnosticsSettings,
   useCloudflareStatus,
+  useDiagnoseCloudflareDnsDrift,
   useExportBackup,
   useImportBackup,
   useLoginDefenseSettings,
@@ -279,6 +281,93 @@ function ActionResultNotice({ result }: { result: SettingsActionTestResult | nul
   );
 }
 
+function CloudflareDriftNotice({ result }: { result: CloudflareDriftCheckResult | null }) {
+  if (!result) return null;
+
+  const groups = [
+    {
+      title: "누락",
+      color: "border-amber-200 bg-amber-50 text-amber-900",
+      items: result.missing_records,
+    },
+    {
+      title: "불일치",
+      color: "border-red-200 bg-red-50 text-red-900",
+      items: result.mismatched_records,
+    },
+    {
+      title: "고아",
+      color: "border-violet-200 bg-violet-50 text-violet-900",
+      items: result.orphan_records,
+    },
+  ];
+
+  return (
+    <div
+      className={`rounded-lg border p-3 text-sm space-y-3 ${
+        result.success
+          ? "border-green-200 bg-green-50 text-green-800"
+          : "border-amber-200 bg-amber-50 text-amber-900"
+      }`}
+    >
+      <div>
+        <p className="font-medium">{result.message}</p>
+        {result.detail ? <p className="mt-1 text-xs opacity-90">{result.detail}</p> : null}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4 text-xs">
+        <div className="rounded-md border border-white/60 bg-white/70 p-2">
+          <p className="text-gray-500">대상 서비스</p>
+          <p className="mt-1 font-medium text-gray-900">
+            {result.eligible_services}개
+            {result.skipped_services ? ` / 건너뜀 ${result.skipped_services}개` : ""}
+          </p>
+        </div>
+        <div className="rounded-md border border-white/60 bg-white/70 p-2">
+          <p className="text-gray-500">정상</p>
+          <p className="mt-1 font-medium text-gray-900">{result.healthy_services}개</p>
+        </div>
+        <div className="rounded-md border border-white/60 bg-white/70 p-2">
+          <p className="text-gray-500">드리프트</p>
+          <p className="mt-1 font-medium text-gray-900">
+            {result.missing_records.length + result.mismatched_records.length + result.orphan_records.length}개
+          </p>
+        </div>
+        <div className="rounded-md border border-white/60 bg-white/70 p-2">
+          <p className="text-gray-500">영역</p>
+          <p className="mt-1 font-medium text-gray-900">{result.zone_name || "-"}</p>
+        </div>
+      </div>
+      {!result.success ? (
+        <div className="grid gap-3 xl:grid-cols-3">
+          {groups.map((group) => (
+            <div key={group.title} className={`rounded-lg border p-3 text-xs ${group.color}`}>
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-medium">{group.title}</p>
+                <span className="rounded-full bg-white/70 px-2 py-0.5 font-medium">{group.items.length}개</span>
+              </div>
+              {group.items.length ? (
+                <ul className="mt-2 space-y-2">
+                  {group.items.slice(0, 5).map((item) => (
+                    <li key={`${group.title}-${item.domain}`} className="rounded-md border border-white/60 bg-white/60 p-2">
+                      <p className="font-mono text-[11px] font-medium">{item.domain}</p>
+                      <p className="mt-1 break-all text-[11px] opacity-90">{item.detail}</p>
+                    </li>
+                  ))}
+                  {group.items.length > 5 ? (
+                    <li className="text-[11px] opacity-80">외 {group.items.length - 5}개 더 있음</li>
+                  ) : null}
+                </ul>
+              ) : (
+                <p className="mt-2 opacity-80">없음</p>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function SettingsTestHistoryNotice({
   label,
   history,
@@ -483,6 +572,7 @@ export default function SettingsPage() {
   const [importResultMessage, setImportResultMessage] = useState<string>("");
   const [exportErrorMessage, setExportErrorMessage] = useState<string>("");
   const [cloudflareTestResult, setCloudflareTestResult] = useState<SettingsActionTestResult | null>(null);
+  const [cloudflareDriftResult, setCloudflareDriftResult] = useState<CloudflareDriftCheckResult | null>(null);
   const [cloudflareReconcileResult, setCloudflareReconcileResult] = useState<SettingsActionTestResult | null>(null);
   const [securityAlertTestResult, setSecurityAlertTestResult] = useState<SettingsActionTestResult | null>(null);
   const [securityAlertDeliveryRetryResult, setSecurityAlertDeliveryRetryResult] = useState<SettingsActionTestResult | null>(null);
@@ -524,6 +614,7 @@ export default function SettingsPage() {
   const { data: sessionData, isLoading: isSessionsLoading } = useSessions();
   const updateCloudflare = useUpdateCloudflareSettings();
   const testCloudflareConnection = useTestCloudflareConnection();
+  const diagnoseCloudflareDnsDrift = useDiagnoseCloudflareDnsDrift();
   const reconcileCloudflareDns = useReconcileCloudflareDns();
   const updateTimeDisplay = useUpdateTimeDisplaySettings();
   const updateCertificateDiagnostics = useUpdateCertificateDiagnosticsSettings();
@@ -556,6 +647,7 @@ export default function SettingsPage() {
   const handleSaveCf = async () => {
     await updateCloudflare.mutateAsync(cfForm);
     setCloudflareTestResult(null);
+    setCloudflareDriftResult(null);
     setCloudflareReconcileResult(null);
     setIsEditingCf(false);
   };
@@ -575,6 +667,26 @@ export default function SettingsPage() {
       setCloudflareReconcileResult(
         buildActionFailure("Cloudflare DNS 재동기화에 실패했습니다", getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다")),
       );
+    }
+  };
+
+  const handleDiagnoseCfDrift = async () => {
+    try {
+      setCloudflareDriftResult(await diagnoseCloudflareDnsDrift.mutateAsync());
+    } catch (error) {
+      setCloudflareDriftResult({
+        success: false,
+        message: "Cloudflare DNS 드리프트 진단에 실패했습니다",
+        detail: getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다"),
+        zone_name: null,
+        total_services: 0,
+        eligible_services: 0,
+        skipped_services: 0,
+        healthy_services: 0,
+        missing_records: [],
+        mismatched_records: [],
+        orphan_records: [],
+      });
     }
   };
 
@@ -2582,6 +2694,15 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     className="btn-secondary inline-flex items-center gap-2 py-1.5 text-xs"
+                    onClick={handleDiagnoseCfDrift}
+                    disabled={diagnoseCloudflareDnsDrift.isPending}
+                  >
+                    <Cloud className="h-3.5 w-3.5" />
+                    {diagnoseCloudflareDnsDrift.isPending ? "진단 중..." : "드리프트 진단"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary inline-flex items-center gap-2 py-1.5 text-xs"
                     onClick={handleReconcileCf}
                     disabled={reconcileCloudflareDns.isPending}
                   >
@@ -2602,12 +2723,20 @@ export default function SettingsPage() {
               ) : null}
               {!isSettingsTestHistoryLoading ? (
                 <SettingsTestHistoryNotice
+                  label="마지막 드리프트 진단"
+                  history={settingsTestHistory?.cloudflare_drift}
+                  timezone={timeDisplaySettings?.display_timezone}
+                />
+              ) : null}
+              {!isSettingsTestHistoryLoading ? (
+                <SettingsTestHistoryNotice
                   label="마지막 DNS 재동기화"
                   history={settingsTestHistory?.cloudflare_reconcile}
                   timezone={timeDisplaySettings?.display_timezone}
                 />
               ) : null}
               <ActionResultNotice result={cloudflareTestResult} />
+              <CloudflareDriftNotice result={cloudflareDriftResult} />
               <ActionResultNotice result={cloudflareReconcileResult} />
             </SettingsSummary>
           )}

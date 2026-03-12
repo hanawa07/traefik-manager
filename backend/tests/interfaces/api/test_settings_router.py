@@ -1481,6 +1481,96 @@ async def test_reconcile_cloudflare_dns_syncs_zone_services_and_records_audit(mo
 
 
 @pytest.mark.asyncio
+async def test_diagnose_cloudflare_dns_drift_returns_missing_mismatch_and_orphan(monkeypatch):
+    recorded = []
+
+    class StubCloudflareClient:
+        enabled = True
+
+        async def get_zone_name(self):
+            return "example.com"
+
+        def build_service_record_payload(self, domain: str, fallback_target: str):
+            return {
+                "type": "A",
+                "name": domain,
+                "content": "220.117.211.140",
+                "ttl": 1,
+                "proxied": True,
+                "comment": "managed-by-traefik-manager",
+            }
+
+        async def list_records(self):
+            return [
+                {
+                    "id": "record-app",
+                    "name": "app.example.com",
+                    "type": "A",
+                    "content": "220.117.211.140",
+                    "proxied": True,
+                    "comment": "managed-by-traefik-manager",
+                },
+                {
+                    "id": "record-api",
+                    "name": "api.example.com",
+                    "type": "A",
+                    "content": "203.0.113.55",
+                    "proxied": True,
+                    "comment": "managed-by-traefik-manager",
+                },
+                {
+                    "id": "record-old",
+                    "name": "old.example.com",
+                    "type": "A",
+                    "content": "220.117.211.140",
+                    "proxied": False,
+                    "comment": "managed-by-traefik-manager",
+                },
+            ]
+
+    class StubServiceRepository:
+        def __init__(self, _db):
+            self.services = [
+                SimpleNamespace(domain="app.example.com", upstream=SimpleNamespace(host="220.117.211.140")),
+                SimpleNamespace(domain="api.example.com", upstream=SimpleNamespace(host="220.117.211.140")),
+                SimpleNamespace(domain="missing.example.com", upstream=SimpleNamespace(host="220.117.211.140")),
+                SimpleNamespace(domain="outside.other.kr", upstream=SimpleNamespace(host="220.117.211.140")),
+            ]
+
+        async def find_all(self):
+            return self.services
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(settings_router, "SQLiteServiceRepository", StubServiceRepository)
+    monkeypatch.setattr(settings_router.audit_service, "record", fake_record, raising=False)
+    monkeypatch.setattr(settings_router, "get_client_ip", lambda _request: "203.0.113.21")
+
+    response = await settings_router.diagnose_cloudflare_dns_drift(
+        request=SimpleNamespace(headers={}, client=SimpleNamespace(host="127.0.0.1")),
+        db=object(),
+        cloudflare_client=StubCloudflareClient(),
+        _={"role": "admin", "username": "admin"},
+    )
+
+    assert response.success is False
+    assert response.zone_name == "example.com"
+    assert response.eligible_services == 3
+    assert response.skipped_services == 1
+    assert response.healthy_services == 1
+    assert [item.domain for item in response.missing_records] == ["missing.example.com"]
+    assert [item.domain for item in response.mismatched_records] == ["api.example.com"]
+    assert [item.domain for item in response.orphan_records] == ["old.example.com"]
+    assert recorded[0]["resource_name"] == "Cloudflare DNS 드리프트 진단"
+    assert recorded[0]["detail"]["event"] == "settings_test_cloudflare_drift"
+    assert recorded[0]["detail"]["missing_records"] == 1
+    assert recorded[0]["detail"]["mismatched_records"] == 1
+    assert recorded[0]["detail"]["orphan_records"] == 1
+    assert recorded[0]["detail"]["client_ip"] == "203.0.113.21"
+
+
+@pytest.mark.asyncio
 async def test_test_security_alert_settings_returns_success(monkeypatch):
     StubSettingsRepository.store = {
         "security_alerts_enabled": "true",
@@ -1546,13 +1636,23 @@ async def test_get_settings_test_history_returns_latest_cloudflare_and_security_
             actor="admin",
             action="test",
             resource_type="settings",
+            resource_id="settings_test_cloudflare_drift",
+            resource_name="Cloudflare DNS 드리프트 진단",
+            detail={"event": "settings_test_cloudflare_drift", "success": False, "message": "드리프트 감지"},
+            created_at=now,
+        ),
+        SimpleNamespace(
+            id="3",
+            actor="admin",
+            action="test",
+            resource_type="settings",
             resource_id="settings_test_cloudflare_reconcile",
             resource_name="Cloudflare DNS 재동기화",
             detail={"event": "settings_test_cloudflare_reconcile", "success": True, "message": "재동기화 완료"},
             created_at=now,
         ),
         SimpleNamespace(
-            id="3",
+            id="4",
             actor="admin",
             action="test",
             resource_type="settings",
@@ -1562,7 +1662,7 @@ async def test_get_settings_test_history_returns_latest_cloudflare_and_security_
             created_at=now,
         ),
         SimpleNamespace(
-            id="4",
+            id="5",
             actor="system",
             action="alert",
             resource_type="settings",
@@ -1579,7 +1679,7 @@ async def test_get_settings_test_history_returns_latest_cloudflare_and_security_
             created_at=now,
         ),
         SimpleNamespace(
-            id="5",
+            id="6",
             actor="system",
             action="alert",
             resource_type="settings",
@@ -1620,6 +1720,9 @@ async def test_get_settings_test_history_returns_latest_cloudflare_and_security_
     assert response.cloudflare.last_event == "settings_test_cloudflare"
     assert response.cloudflare.last_success is True
     assert response.cloudflare.last_message == "성공"
+    assert response.cloudflare_drift.last_event == "settings_test_cloudflare_drift"
+    assert response.cloudflare_drift.last_success is False
+    assert response.cloudflare_drift.last_message == "드리프트 감지"
     assert response.cloudflare_reconcile.last_event == "settings_test_cloudflare_reconcile"
     assert response.cloudflare_reconcile.last_success is True
     assert response.cloudflare_reconcile.last_message == "재동기화 완료"
@@ -1695,6 +1798,7 @@ async def test_get_settings_test_history_accepts_naive_created_at():
 
     response = await settings_router.get_settings_test_history(db=StubDB(), _={"role": "admin"})
 
+    assert response.cloudflare_drift.last_event is None
     assert response.cloudflare_reconcile.last_event is None
     assert response.security_alert_delivery.last_event == "security_alert_delivery_failure"
     assert response.security_alert_delivery.last_failure_at is not None

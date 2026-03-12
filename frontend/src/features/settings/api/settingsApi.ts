@@ -91,6 +91,33 @@ export interface CloudflareSettingsInput {
   proxied: boolean;
 }
 
+export interface CloudflareDriftRecord {
+  domain: string;
+  issue: "missing" | "mismatch" | "orphan";
+  detail: string;
+  expected_type: string | null;
+  expected_content: string | null;
+  expected_proxied: boolean | null;
+  actual_type: string | null;
+  actual_content: string | null;
+  actual_proxied: boolean | null;
+  record_id: string | null;
+}
+
+export interface CloudflareDriftCheckResult {
+  success: boolean;
+  message: string;
+  detail: string | null;
+  zone_name: string | null;
+  total_services: number;
+  eligible_services: number;
+  skipped_services: number;
+  healthy_services: number;
+  missing_records: CloudflareDriftRecord[];
+  mismatched_records: CloudflareDriftRecord[];
+  orphan_records: CloudflareDriftRecord[];
+}
+
 export interface TraefikDashboardSettingsStatus {
   enabled: boolean;
   configured: boolean;
@@ -285,6 +312,7 @@ export interface SettingsTestHistoryItem {
 
 export interface SettingsTestHistoryStatus {
   cloudflare: SettingsTestHistoryItem;
+  cloudflare_drift: SettingsTestHistoryItem;
   cloudflare_reconcile: SettingsTestHistoryItem;
   security_alert: SettingsTestHistoryItem;
   security_alert_delivery: SettingsTestHistoryItem;
@@ -339,6 +367,11 @@ export const settingsApi = {
 
   testCloudflareConnection: async (): Promise<SettingsActionTestResult> => {
     const res = await apiClient.post<SettingsActionTestResult>("/settings/cloudflare/test");
+    return res.data;
+  },
+
+  diagnoseCloudflareDnsDrift: async (): Promise<CloudflareDriftCheckResult> => {
+    const res = await apiClient.post<CloudflareDriftCheckResult>("/settings/cloudflare/drift");
     return res.data;
   },
 

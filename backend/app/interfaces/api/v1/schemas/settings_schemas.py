@@ -51,6 +51,7 @@ class SettingsTestHistoryItemResponse(BaseModel):
 
 class SettingsTestHistoryResponse(BaseModel):
     cloudflare: SettingsTestHistoryItemResponse
+    cloudflare_drift: SettingsTestHistoryItemResponse
     cloudflare_reconcile: SettingsTestHistoryItemResponse
     security_alert: SettingsTestHistoryItemResponse
     security_alert_delivery: SettingsTestHistoryItemResponse
@@ -62,6 +63,33 @@ class CloudflareSettingsUpdateRequest(BaseModel):
     zone_id: str = ""
     record_target: str = ""
     proxied: bool = False
+
+
+class CloudflareDriftRecordResponse(BaseModel):
+    domain: str
+    issue: Literal["missing", "mismatch", "orphan"]
+    detail: str
+    expected_type: str | None = None
+    expected_content: str | None = None
+    expected_proxied: bool | None = None
+    actual_type: str | None = None
+    actual_content: str | None = None
+    actual_proxied: bool | None = None
+    record_id: str | None = None
+
+
+class CloudflareDriftCheckResponse(BaseModel):
+    success: bool
+    message: str
+    detail: str | None = None
+    zone_name: str | None = None
+    total_services: int = 0
+    eligible_services: int = 0
+    skipped_services: int = 0
+    healthy_services: int = 0
+    missing_records: list[CloudflareDriftRecordResponse] = Field(default_factory=list)
+    mismatched_records: list[CloudflareDriftRecordResponse] = Field(default_factory=list)
+    orphan_records: list[CloudflareDriftRecordResponse] = Field(default_factory=list)
 
 
 class TraefikDashboardSettingsResponse(BaseModel):

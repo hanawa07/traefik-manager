@@ -103,22 +103,10 @@ class CloudflareClient:
         if not self.enabled:
             return None
 
-        content = (self.record_target or fallback_target).strip()
-        if not content:
-            raise CloudflareClientError("Cloudflare 레코드 대상 값이 없습니다")
-
-        record_type = self._detect_record_type(content)
-        payload = {
-            "type": record_type,
-            "name": domain,
-            "content": content,
-            "ttl": 1,
-            "proxied": self.proxied,
-            "comment": "managed-by-traefik-manager",
-        }
+        payload = self.build_service_record_payload(domain=domain, fallback_target=fallback_target)
 
         async with self._client() as client:
-            existing = await self._find_records(client, domain=domain, record_type=record_type)
+            existing = await self._find_records(client, domain=domain, record_type=payload["type"])
             if existing:
                 record_id = existing[0]["id"]
                 response = await client.put(
@@ -133,6 +121,21 @@ class CloudflareClient:
 
             data = await self._decode_response(response)
             return data["result"]["id"]
+
+    def build_service_record_payload(self, domain: str, fallback_target: str) -> dict[str, object]:
+        content = (self.record_target or fallback_target).strip()
+        if not content:
+            raise CloudflareClientError("Cloudflare 레코드 대상 값이 없습니다")
+
+        record_type = self._detect_record_type(content)
+        return {
+            "type": record_type,
+            "name": domain,
+            "content": content,
+            "ttl": 1,
+            "proxied": self.proxied,
+            "comment": "managed-by-traefik-manager",
+        }
 
     async def delete_service_record(self, domain: str, record_id: str | None) -> None:
         if not self.enabled:
@@ -156,6 +159,17 @@ class CloudflareClient:
         if not self.enabled:
             return []
 
+        all_records = await self.list_records()
+        return [
+            item
+            for item in all_records
+            if isinstance(item, dict) and item.get("comment") == "managed-by-traefik-manager"
+        ]
+
+    async def list_records(self) -> list[dict]:
+        if not self.enabled:
+            return []
+
         managed_records: list[dict] = []
         page = 1
 
@@ -168,11 +182,7 @@ class CloudflareClient:
                 data = await self._decode_response(response)
                 results = data.get("result", [])
                 if isinstance(results, list):
-                    managed_records.extend(
-                        item
-                        for item in results
-                        if isinstance(item, dict) and item.get("comment") == "managed-by-traefik-manager"
-                    )
+                    managed_records.extend(item for item in results if isinstance(item, dict))
 
                 result_info = data.get("result_info", {})
                 total_pages = result_info.get("total_pages") if isinstance(result_info, dict) else None
