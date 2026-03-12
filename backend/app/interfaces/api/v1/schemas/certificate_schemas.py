@@ -41,9 +41,13 @@ class CertificatePreflightItemResponse(BaseModel):
     detail: str
 
 
-class CertificatePreflightResponse(BaseModel):
-    domain: str
+class CertificatePreflightSnapshotResponse(BaseModel):
     checked_at: datetime
     overall_status: Literal["ok", "warning", "error"]
     recommendation: str
     items: list[CertificatePreflightItemResponse]
+
+
+class CertificatePreflightResponse(CertificatePreflightSnapshotResponse):
+    domain: str
+    previous_result: CertificatePreflightSnapshotResponse | None = None

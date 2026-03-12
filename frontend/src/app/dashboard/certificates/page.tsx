@@ -4,7 +4,11 @@ import { AlertTriangle, CheckCircle2, CircleDashed, History, RefreshCcw, Shield,
 
 import StatusBadge from "@/shared/components/StatusBadge";
 import { useCertificates, useRunCertificateCheck, useRunCertificatePreflight } from "@/features/certificates/hooks/useCertificates";
-import type { Certificate, CertificateAcmeErrorKind } from "@/features/certificates/api/certificateApi";
+import type {
+  Certificate,
+  CertificateAcmeErrorKind,
+  CertificatePreflightSnapshot,
+} from "@/features/certificates/api/certificateApi";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { useAuditCertificateSummary } from "@/features/audit/hooks/useAudit";
@@ -137,6 +141,75 @@ function ChecklistStateIcon({ state }: { state: ChecklistState }) {
     return <CircleDashed className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-600" />;
   }
   return <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-600" />;
+}
+
+function getPreflightStatusWeight(status: "ok" | "warning" | "error") {
+  if (status === "error") return 2;
+  if (status === "warning") return 1;
+  return 0;
+}
+
+function getPreflightStatusLabel(status: "ok" | "warning" | "error") {
+  if (status === "error") return "실패";
+  if (status === "warning") return "대기";
+  return "정상";
+}
+
+function getPreflightTrend(
+  current: CertificatePreflightSnapshot,
+  previous: CertificatePreflightSnapshot,
+): { label: string; colorClass: string } {
+  const currentWeight = getPreflightStatusWeight(current.overall_status);
+  const previousWeight = getPreflightStatusWeight(previous.overall_status);
+
+  if (currentWeight < previousWeight) {
+    return {
+      label: "직전 검사보다 개선됨",
+      colorClass: "text-emerald-700 bg-emerald-50 border-emerald-200",
+    };
+  }
+  if (currentWeight > previousWeight) {
+    return {
+      label: "직전 검사보다 악화됨",
+      colorClass: "text-rose-700 bg-rose-50 border-rose-200",
+    };
+  }
+  return {
+    label: "직전 검사와 같은 단계",
+    colorClass: "text-gray-700 bg-gray-50 border-gray-200",
+  };
+}
+
+function getChangedPreflightItems(
+  current: CertificatePreflightSnapshot,
+  previous: CertificatePreflightSnapshot,
+) {
+  const previousItems = new Map(previous.items.map((item) => [item.key, item]));
+  return current.items
+    .map((item) => {
+      const previousItem = previousItems.get(item.key);
+      if (!previousItem) {
+        return {
+          key: item.key,
+          label: item.label,
+          summary: "이 항목이 새로 추가되었습니다.",
+        };
+      }
+      if (previousItem.status === item.status && previousItem.detail === item.detail) {
+        return null;
+      }
+      return {
+        key: item.key,
+        label: item.label,
+        summary:
+          previousItem.status !== item.status
+            ? `${getPreflightStatusLabel(previousItem.status)} -> ${getPreflightStatusLabel(item.status)}`
+            : "상세 메시지가 변경되었습니다.",
+        previousDetail: previousItem.detail,
+        currentDetail: item.detail,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 }
 
 export default function CertificatesPage() {
@@ -501,6 +574,59 @@ export default function CertificatesPage() {
                 검사 시각 {formatDateTime(runCertificatePreflight.data.checked_at, timeDisplaySettings?.display_timezone)}
               </p>
             </div>
+
+            {runCertificatePreflight.data.previous_result ? (
+              (() => {
+                const previousResult = runCertificatePreflight.data.previous_result;
+                const trend = getPreflightTrend(runCertificatePreflight.data, previousResult);
+                const changedItems = getChangedPreflightItems(runCertificatePreflight.data, previousResult);
+                return (
+                  <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-4">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">직전 검사 대비</p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          이전 검사 {formatDateTime(previousResult.checked_at, timeDisplaySettings?.display_timezone)}
+                        </p>
+                      </div>
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-medium ${trend.colorClass}`}>
+                        {trend.label}
+                      </span>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                      <p className="font-medium text-gray-900">이전 권장 조치</p>
+                      <p className="mt-1 leading-5">{previousResult.recommendation}</p>
+                    </div>
+                    {changedItems.length > 0 ? (
+                      <div className="space-y-2">
+                        {changedItems.map((item) => (
+                          <div key={item.key} className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                              <span className="text-[11px] text-gray-500">{item.summary}</span>
+                            </div>
+                            {item.previousDetail ? (
+                              <p className="mt-2 text-[11px] leading-5 text-gray-500">이전: {item.previousDetail}</p>
+                            ) : null}
+                            {"currentDetail" in item ? (
+                              <p className="mt-1 text-[11px] leading-5 text-gray-700">현재: {item.currentDetail}</p>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-xs text-gray-600">
+                        직전 검사와 비교해 상태 변화가 없습니다.
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-xs leading-5 text-gray-500">
+                저장된 이전 사전 진단 결과가 없습니다. 이번 검사부터 이력이 쌓입니다.
+              </div>
+            )}
 
             <div className="space-y-2">
               {runCertificatePreflight.data.items.map((item) => (

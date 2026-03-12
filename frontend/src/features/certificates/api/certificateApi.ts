@@ -34,12 +34,16 @@ export interface CertificatePreflightItem {
   detail: string;
 }
 
-export interface CertificatePreflightResult {
-  domain: string;
+export interface CertificatePreflightSnapshot {
   checked_at: string;
   overall_status: CertificatePreflightStatus;
   recommendation: string;
   items: CertificatePreflightItem[];
+}
+
+export interface CertificatePreflightResult extends CertificatePreflightSnapshot {
+  domain: string;
+  previous_result: CertificatePreflightSnapshot | null;
 }
 
 export const certificateApi = {
