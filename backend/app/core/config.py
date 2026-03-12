@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     TRAEFIK_CONFIG_PATH: str = "/traefik-config/dynamic"
     TRAEFIK_API_URL: str = "http://traefik:8080"
     TRAEFIK_API_TIMEOUT_SECONDS: float = 5.0
+    TRAEFIK_TLS_CERT_RESOLVER: str | None = "letsencrypt"
+    TRAEFIK_DOCKER_CONTAINER_NAME: str = "traefik"
+    TRAEFIK_ACME_STORAGE_PATH: str = "/letsencrypt/acme.json"
 
     DOCKER_SOCKET_PATH: str = "/var/run/docker.sock"
     DOCKER_API_VERSION: str = "v1.41"

@@ -26,6 +26,20 @@ def test_generate_tls_enabled(generator, make_service):
     assert router["entryPoints"] == ["websecure"]
     assert "tls" in router
 
+
+def test_generate_tls_enabled_uses_configured_cert_resolver(generator, make_service, monkeypatch):
+    monkeypatch.setattr(
+        "app.infrastructure.traefik.config_generator.settings.TRAEFIK_TLS_CERT_RESOLVER",
+        "letsencrypt",
+    )
+    service = make_service(domain="secure.com", tls_enabled=True, https_redirect_enabled=False)
+
+    config = generator.generate(service)
+
+    router_name = "secure-com"
+    router = config["http"]["routers"][router_name]
+    assert router["tls"]["certResolver"] == "letsencrypt"
+
 def test_generate_https_redirect(generator, make_service):
     service = make_service(domain="redirect.com", tls_enabled=True, https_redirect_enabled=True)
     config = generator.generate(service)

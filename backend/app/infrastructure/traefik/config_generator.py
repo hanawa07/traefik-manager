@@ -100,7 +100,7 @@ class TraefikConfigGenerator:
 
         if service.tls_enabled:
             secure_router["entryPoints"] = ["websecure"]
-            secure_router["tls"] = {}
+            secure_router["tls"] = self._build_tls_config()
         else:
             secure_router["entryPoints"] = ["web"]
 
@@ -126,7 +126,7 @@ class TraefikConfigGenerator:
                 }
                 if service.tls_enabled:
                     routers[block_router_name]["entryPoints"] = ["websecure"]
-                    routers[block_router_name]["tls"] = {}
+                    routers[block_router_name]["tls"] = self._build_tls_config()
                 else:
                     routers[block_router_name]["entryPoints"] = ["web"]
 
@@ -158,7 +158,7 @@ class TraefikConfigGenerator:
             }
             if service.tls_enabled:
                 outpost_router["entryPoints"] = ["websecure"]
-                outpost_router["tls"] = {}
+                outpost_router["tls"] = self._build_tls_config()
             else:
                 outpost_router["entryPoints"] = ["web"]
             routers[outpost_router_name] = outpost_router
@@ -237,7 +237,7 @@ class TraefikConfigGenerator:
             routers[f"{router_base_name}-websecure"] = {
                 "rule": f"Host(`{redirect_host.domain}`)",
                 "entryPoints": ["websecure"],
-                "tls": {},
+                "tls": self._build_tls_config(),
                 "middlewares": [host_redirect_middleware],
                 "service": "noop@internal",
             }
@@ -277,3 +277,11 @@ class TraefikConfigGenerator:
     def _build_redirect_replacement(self, target_url: str) -> str:
         base = target_url.rstrip("/")
         return f"{base}${{1}}"
+
+    @staticmethod
+    def _build_tls_config() -> dict:
+        tls_config: dict[str, str] = {}
+        cert_resolver = (settings.TRAEFIK_TLS_CERT_RESOLVER or "").strip()
+        if cert_resolver:
+            tls_config["certResolver"] = cert_resolver
+        return tls_config

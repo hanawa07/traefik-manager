@@ -1,7 +1,9 @@
 import asyncio
 import base64
+import io
 import json
 import re
+import tarfile
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -84,47 +86,132 @@ class TraefikApiClient:
             "domains": domain_states,
         }
 
-    def _load_acme_expiry_map(self) -> dict[str, datetime]:
+    async def _load_acme_expiry_map(self) -> dict[str, datetime]:
         """acme.json에서 도메인별 만료일 파싱 (file 라우터 fallback용)"""
-        expiry_map: dict[str, datetime] = {}
+        local_text = self._read_local_acme_json_text()
+        if local_text:
+            expiry_map = self._parse_acme_expiry_map(local_text)
+            if expiry_map:
+                return expiry_map
+
+        docker_text = await self._read_docker_acme_json_text()
+        if docker_text:
+            expiry_map = self._parse_acme_expiry_map(docker_text)
+            if expiry_map:
+                return expiry_map
+
+        return {}
+
+    def _read_local_acme_json_text(self) -> str | None:
         if not ACME_JSON_PATH.exists():
-            return expiry_map
+            return None
         try:
-            data = json.loads(ACME_JSON_PATH.read_text())
-            for resolver_data in data.values():
-                for cert_entry in resolver_data.get("Certificates", []):
-                    cert_b64 = cert_entry.get("certificate", "")
-                    domain_info = cert_entry.get("domain", {})
-                    main = domain_info.get("main", "")
-                    sans = domain_info.get("sans") or []
-                    all_domains = [d for d in [main] + sans if d]
-                    if not cert_b64 or not all_domains:
+            return ACME_JSON_PATH.read_text()
+        except OSError:
+            return None
+
+    async def _read_docker_acme_json_text(self) -> str | None:
+        socket_path = Path(settings.DOCKER_SOCKET_PATH)
+        if not socket_path.exists():
+            return None
+
+        container_name = settings.TRAEFIK_DOCKER_CONTAINER_NAME.strip()
+        acme_storage_path = settings.TRAEFIK_ACME_STORAGE_PATH.strip()
+        if not container_name or not acme_storage_path:
+            return None
+
+        transport = httpx.AsyncHTTPTransport(uds=settings.DOCKER_SOCKET_PATH)
+        path = f"/{settings.DOCKER_API_VERSION.strip('/')}/containers/{container_name}/archive"
+
+        try:
+            async with httpx.AsyncClient(
+                base_url="http://docker",
+                transport=transport,
+                timeout=settings.DOCKER_API_TIMEOUT_SECONDS,
+            ) as client:
+                response = await client.get(path, params={"path": acme_storage_path})
+                response.raise_for_status()
+        except (httpx.HTTPError, OSError):
+            return None
+
+        try:
+            with tarfile.open(fileobj=io.BytesIO(response.content)) as archive:
+                for member in archive.getmembers():
+                    if not member.isfile():
                         continue
-                    try:
-                        cert_der = base64.b64decode(cert_b64)
-                        # openssl로 만료일 추출
-                        import subprocess
-                        result = subprocess.run(
-                            ["openssl", "x509", "-noout", "-enddate"],
-                            input=cert_der, capture_output=True, timeout=5
-                        )
-                        # notAfter=Jun  5 06:15:37 2026 GMT
-                        out = result.stdout.decode().strip()
-                        if out.startswith("notAfter="):
-                            expiry_str = out[len("notAfter="):]
-                            from email.utils import parsedate_to_datetime as _p
-                            dt = _p(expiry_str)
-                            if dt:
-                                dt = dt.astimezone(timezone.utc)
-                                for domain in all_domains:
-                                    existing = expiry_map.get(domain)
-                                    if existing is None or dt < existing:
-                                        expiry_map[domain] = dt
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+                    extracted = archive.extractfile(member)
+                    if extracted is None:
+                        continue
+                    return extracted.read().decode()
+        except (tarfile.TarError, OSError, UnicodeDecodeError):
+            return None
+
+        return None
+
+    def _parse_acme_expiry_map(self, raw_text: str) -> dict[str, datetime]:
+        expiry_map: dict[str, datetime] = {}
+        try:
+            data = json.loads(raw_text)
+        except (TypeError, ValueError):
+            return expiry_map
+
+        if not isinstance(data, dict):
+            return expiry_map
+
+        for resolver_data in data.values():
+            if not isinstance(resolver_data, dict):
+                continue
+
+            for cert_entry in resolver_data.get("Certificates", []):
+                if not isinstance(cert_entry, dict):
+                    continue
+
+                cert_b64 = cert_entry.get("certificate", "")
+                domain_info = cert_entry.get("domain", {})
+                if not isinstance(domain_info, dict):
+                    continue
+
+                main = domain_info.get("main", "")
+                sans = domain_info.get("sans") or []
+                all_domains = [d for d in [main] + sans if isinstance(d, str) and d]
+                if not cert_b64 or not all_domains:
+                    continue
+
+                expires_at = self._extract_acme_certificate_expiry(cert_b64)
+                if expires_at is None:
+                    continue
+
+                for domain in all_domains:
+                    existing = expiry_map.get(domain)
+                    if existing is None or expires_at < existing:
+                        expiry_map[domain] = expires_at
+
         return expiry_map
+
+    def _extract_acme_certificate_expiry(self, cert_b64: str) -> datetime | None:
+        try:
+            import subprocess
+
+            cert_der = base64.b64decode(cert_b64)
+            result = subprocess.run(
+                ["openssl", "x509", "-noout", "-enddate"],
+                input=cert_der,
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+            output = result.stdout.decode().strip()
+            if not output.startswith("notAfter="):
+                return None
+
+            expires_at = parsedate_to_datetime(output[len("notAfter="):])
+            if expires_at is None:
+                return None
+            if expires_at.tzinfo is None:
+                return expires_at.replace(tzinfo=timezone.utc)
+            return expires_at.astimezone(timezone.utc)
+        except Exception:
+            return None
 
     async def list_certificates(self) -> list[dict]:
         overview, routers_payload = await asyncio.gather(
@@ -134,7 +221,7 @@ class TraefikApiClient:
 
         expiry_map = self._extract_expiry_map(overview)
         # acme.json 직접 파싱으로 누락된 도메인 보완 (file 라우터 등)
-        acme_map = self._load_acme_expiry_map()
+        acme_map = await self._load_acme_expiry_map()
         for domain, expires_at in acme_map.items():
             if domain not in expiry_map:
                 expiry_map[domain] = expires_at

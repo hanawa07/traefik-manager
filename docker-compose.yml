@@ -27,7 +27,7 @@ services:
       - proxy-network
       - proxy_net
     group_add:
-      - "1000"
+      - "${DOCKER_SOCKET_GID:-988}"
     security_opt:
       - no-new-privileges:true
     read_only: false
