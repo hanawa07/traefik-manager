@@ -49,6 +49,7 @@ const securityEventConfig = {
   settings_rollback_time_display: { label: "시간 표시 설정 롤백", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
   settings_rollback_upstream_security: { label: "업스트림 보안 설정 롤백", color: "bg-orange-600/20 text-orange-200 border-orange-500/30" },
   settings_test_cloudflare: { label: "Cloudflare 테스트", color: "bg-cyan-600/20 text-cyan-200 border-cyan-500/30" },
+  settings_test_cloudflare_reconcile: { label: "Cloudflare 재동기화", color: "bg-blue-600/20 text-blue-200 border-blue-500/30" },
   settings_test_security_alert: { label: "보안 알림 테스트", color: "bg-sky-600/20 text-sky-200 border-sky-500/30" },
   security_alert_delivery_success: { label: "보안 알림 전송 성공", color: "bg-emerald-600/20 text-emerald-200 border-emerald-500/30" },
   security_alert_delivery_failure: { label: "보안 알림 전송 실패", color: "bg-rose-600/20 text-rose-200 border-rose-500/30" },

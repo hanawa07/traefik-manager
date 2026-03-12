@@ -52,6 +52,7 @@ import {
   useSecurityAlertSettings,
   useTraefikDashboardSettings,
   useTimeDisplaySettings,
+  useReconcileCloudflareDns,
   useTestCloudflareConnection,
   useTestSecurityAlertSettings,
   useSettingsTestHistory,
@@ -482,6 +483,7 @@ export default function SettingsPage() {
   const [importResultMessage, setImportResultMessage] = useState<string>("");
   const [exportErrorMessage, setExportErrorMessage] = useState<string>("");
   const [cloudflareTestResult, setCloudflareTestResult] = useState<SettingsActionTestResult | null>(null);
+  const [cloudflareReconcileResult, setCloudflareReconcileResult] = useState<SettingsActionTestResult | null>(null);
   const [securityAlertTestResult, setSecurityAlertTestResult] = useState<SettingsActionTestResult | null>(null);
   const [securityAlertDeliveryRetryResult, setSecurityAlertDeliveryRetryResult] = useState<SettingsActionTestResult | null>(null);
   const [changeAlertDeliveryRetryResult, setChangeAlertDeliveryRetryResult] = useState<SettingsActionTestResult | null>(null);
@@ -522,6 +524,7 @@ export default function SettingsPage() {
   const { data: sessionData, isLoading: isSessionsLoading } = useSessions();
   const updateCloudflare = useUpdateCloudflareSettings();
   const testCloudflareConnection = useTestCloudflareConnection();
+  const reconcileCloudflareDns = useReconcileCloudflareDns();
   const updateTimeDisplay = useUpdateTimeDisplaySettings();
   const updateCertificateDiagnostics = useUpdateCertificateDiagnosticsSettings();
   const updateTraefikDashboard = useUpdateTraefikDashboardSettings();
@@ -553,6 +556,7 @@ export default function SettingsPage() {
   const handleSaveCf = async () => {
     await updateCloudflare.mutateAsync(cfForm);
     setCloudflareTestResult(null);
+    setCloudflareReconcileResult(null);
     setIsEditingCf(false);
   };
 
@@ -561,6 +565,16 @@ export default function SettingsPage() {
       setCloudflareTestResult(await testCloudflareConnection.mutateAsync());
     } catch (error) {
       setCloudflareTestResult(buildActionFailure("Cloudflare 연결 테스트에 실패했습니다", getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다")));
+    }
+  };
+
+  const handleReconcileCf = async () => {
+    try {
+      setCloudflareReconcileResult(await reconcileCloudflareDns.mutateAsync());
+    } catch (error) {
+      setCloudflareReconcileResult(
+        buildActionFailure("Cloudflare DNS 재동기화에 실패했습니다", getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다")),
+      );
     }
   };
 
@@ -2565,9 +2579,20 @@ export default function SettingsPage() {
                     <Cloud className="h-3.5 w-3.5" />
                     {testCloudflareConnection.isPending ? "테스트 중..." : "연결 테스트"}
                   </button>
+                  <button
+                    type="button"
+                    className="btn-secondary inline-flex items-center gap-2 py-1.5 text-xs"
+                    onClick={handleReconcileCf}
+                    disabled={reconcileCloudflareDns.isPending}
+                  >
+                    <Cloud className="h-3.5 w-3.5" />
+                    {reconcileCloudflareDns.isPending ? "재동기화 중..." : "DNS 재동기화"}
+                  </button>
                 </SettingsActionRow>
               ) : null}
-              <p className="text-xs text-gray-500">테스트는 현재 저장된 Cloudflare 설정 기준으로 수행됩니다.</p>
+              <p className="text-xs text-gray-500">
+                테스트와 재동기화는 현재 저장된 Cloudflare 설정 기준으로 수행됩니다.
+              </p>
               {!isSettingsTestHistoryLoading ? (
                 <SettingsTestHistoryNotice
                   label="마지막 연결 테스트"
@@ -2575,7 +2600,15 @@ export default function SettingsPage() {
                   timezone={timeDisplaySettings?.display_timezone}
                 />
               ) : null}
+              {!isSettingsTestHistoryLoading ? (
+                <SettingsTestHistoryNotice
+                  label="마지막 DNS 재동기화"
+                  history={settingsTestHistory?.cloudflare_reconcile}
+                  timezone={timeDisplaySettings?.display_timezone}
+                />
+              ) : null}
               <ActionResultNotice result={cloudflareTestResult} />
+              <ActionResultNotice result={cloudflareReconcileResult} />
             </SettingsSummary>
           )}
 

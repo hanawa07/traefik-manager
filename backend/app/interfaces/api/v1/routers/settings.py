@@ -27,7 +27,7 @@ from app.domain.proxy.value_objects.upstream_security_presets import (
     infer_upstream_security_preset_key,
     list_upstream_security_presets,
 )
-from app.infrastructure.cloudflare.client import CloudflareClient
+from app.infrastructure.cloudflare.client import CloudflareClient, CloudflareClientError
 from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.models import AuditLogModel
@@ -75,6 +75,7 @@ SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", 
 SECURITY_ALERT_ROUTE_TARGETS = {"default", "disabled", "telegram", "pagerduty", "email"}
 SETTINGS_TEST_EVENTS = {
     "cloudflare": "settings_test_cloudflare",
+    "cloudflare_reconcile": "settings_test_cloudflare_reconcile",
     "security_alert": "settings_test_security_alert",
 }
 SETTINGS_DELIVERY_EVENTS = {
@@ -133,6 +134,121 @@ async def test_cloudflare_connection(
         resource_name="Cloudflare 연결 테스트",
         detail={
             "event": SETTINGS_TEST_EVENTS["cloudflare"],
+            "success": result.success,
+            "message": result.message,
+            "detail": result.detail,
+            "client_ip": get_client_ip(request),
+        },
+    )
+    return result
+
+
+@router.post("/cloudflare/reconcile", response_model=SettingsTestActionResponse, summary="Cloudflare DNS 재동기화")
+async def reconcile_cloudflare_dns(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    cloudflare_client: CloudflareClient = Depends(get_cloudflare_client),
+    _: dict = Depends(require_admin),
+):
+    if not cloudflare_client.enabled:
+        result = SettingsTestActionResponse(
+            success=False,
+            message="Cloudflare DNS 재동기화에 실패했습니다",
+            detail="API token과 zone id를 먼저 저장해야 합니다",
+            provider=None,
+        )
+    else:
+        try:
+            zone_name = await cloudflare_client.get_zone_name()
+            if not zone_name:
+                raise CloudflareClientError("Zone 이름을 확인할 수 없습니다")
+        except CloudflareClientError as exc:
+            result = SettingsTestActionResponse(
+                success=False,
+                message="Cloudflare DNS 재동기화에 실패했습니다",
+                detail=str(exc),
+                provider=None,
+            )
+        else:
+            service_repository = SQLiteServiceRepository(db)
+            services = await service_repository.find_all()
+            eligible_services = [
+                service
+                for service in services
+                if str(service.domain) == zone_name or str(service.domain).endswith(f".{zone_name}")
+            ]
+
+            synced_count = 0
+            failed_count = 0
+            skipped_count = len(services) - len(eligible_services)
+            failure_messages: list[str] = []
+
+            for service in eligible_services:
+                try:
+                    record_id = await cloudflare_client.upsert_service_record(
+                        domain=str(service.domain),
+                        fallback_target=service.upstream.host,
+                    )
+                    if record_id != service.cloudflare_record_id:
+                        service.cloudflare_record_id = record_id
+                        await service_repository.save(service)
+                    synced_count += 1
+                except Exception as exc:
+                    failed_count += 1
+                    failure_messages.append(f"{service.domain}: {exc}")
+
+            if not services:
+                result = SettingsTestActionResponse(
+                    success=True,
+                    message="재동기화할 서비스가 없습니다",
+                    detail=f"{zone_name} 영역에 일치하는 서비스가 없습니다",
+                    provider=None,
+                )
+            elif not eligible_services:
+                result = SettingsTestActionResponse(
+                    success=True,
+                    message="Cloudflare DNS 재동기화 대상이 없습니다",
+                    detail=f"{zone_name} 영역에 속한 서비스가 없어 {len(services)}개 서비스를 건너뛰었습니다",
+                    provider=None,
+                )
+            elif failed_count == 0:
+                detail = (
+                    f"{zone_name} 영역 서비스 {synced_count}개를 동기화했습니다"
+                    if skipped_count == 0
+                    else f"{zone_name} 영역 서비스 {synced_count}개를 동기화했고, 다른 영역 서비스 {skipped_count}개는 건너뛰었습니다"
+                )
+                result = SettingsTestActionResponse(
+                    success=True,
+                    message="Cloudflare DNS 재동기화가 완료되었습니다",
+                    detail=detail,
+                    provider=None,
+                )
+            else:
+                failure_preview = " / ".join(failure_messages[:3])
+                if len(failure_messages) > 3:
+                    failure_preview += f" 외 {len(failure_messages) - 3}건"
+                skipped_detail = (
+                    f", 다른 영역 서비스 {skipped_count}개 건너뜀" if skipped_count else ""
+                )
+                result = SettingsTestActionResponse(
+                    success=False,
+                    message=(
+                        f"Cloudflare DNS 재동기화 중 일부 실패가 발생했습니다 "
+                        f"(성공 {synced_count}개, 실패 {failed_count}개{skipped_detail})"
+                    ),
+                    detail=failure_preview,
+                    provider=None,
+                )
+
+    await audit_service.record(
+        db=db,
+        actor=_.get("username", "unknown"),
+        action="test",
+        resource_type="settings",
+        resource_id=SETTINGS_TEST_EVENTS["cloudflare_reconcile"],
+        resource_name="Cloudflare DNS 재동기화",
+        detail={
+            "event": SETTINGS_TEST_EVENTS["cloudflare_reconcile"],
             "success": result.success,
             "message": result.message,
             "detail": result.detail,
@@ -548,6 +664,7 @@ async def get_settings_test_history(
     logs = result.scalars().all()
 
     cloudflare = _find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["cloudflare"])
+    cloudflare_reconcile = _find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["cloudflare_reconcile"])
     security_alert = _find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["security_alert"])
     security_alert_delivery = _find_latest_settings_events(
         logs, SETTINGS_DELIVERY_EVENTS["security_alert_delivery"]
@@ -555,6 +672,7 @@ async def get_settings_test_history(
     change_alert_delivery = _find_latest_settings_events(logs, SETTINGS_DELIVERY_EVENTS["change_alert_delivery"])
     return SettingsTestHistoryResponse(
         cloudflare=cloudflare,
+        cloudflare_reconcile=cloudflare_reconcile,
         security_alert=security_alert,
         security_alert_delivery=security_alert_delivery,
         change_alert_delivery=change_alert_delivery,

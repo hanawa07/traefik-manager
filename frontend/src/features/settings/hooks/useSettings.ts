@@ -100,6 +100,19 @@ export function useTestCloudflareConnection() {
   });
 }
 
+export function useReconcileCloudflareDns() {
+  const queryClient = useQueryClient();
+  return useMutation<SettingsActionTestResult>({
+    mutationFn: () => settingsApi.reconcileCloudflareDns(),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["settings", "test-history"] }),
+        queryClient.invalidateQueries({ queryKey: ["services"] }),
+      ]);
+    },
+  });
+}
+
 export function useUpdateTimeDisplaySettings() {
   const queryClient = useQueryClient();
   return useMutation({

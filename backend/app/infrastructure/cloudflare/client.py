@@ -57,6 +57,20 @@ class CloudflareClient:
             ),
         }
 
+    async def get_zone_name(self) -> str | None:
+        if not self.enabled:
+            return None
+
+        async with self._client() as client:
+            response = await client.get(f"/zones/{self.zone_id}")
+            data = await self._decode_response(response)
+
+        result = data.get("result", {})
+        if not isinstance(result, dict):
+            return None
+        zone_name = result.get("name")
+        return zone_name.strip().lower() if isinstance(zone_name, str) and zone_name.strip() else None
+
     async def test_connection(self) -> dict:
         if not self.enabled:
             return {
@@ -66,9 +80,7 @@ class CloudflareClient:
             }
 
         try:
-            async with self._client() as client:
-                response = await client.get(f"/zones/{self.zone_id}")
-                data = await self._decode_response(response)
+            zone_name = await self.get_zone_name()
         except CloudflareClientError as exc:
             return {
                 "success": False,
@@ -76,8 +88,6 @@ class CloudflareClient:
                 "detail": str(exc),
             }
 
-        result = data.get("result", {})
-        zone_name = result.get("name") if isinstance(result, dict) else None
         detail = (
             f"{zone_name} 영역에 접근할 수 있습니다"
             if zone_name

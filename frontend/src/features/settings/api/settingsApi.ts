@@ -285,6 +285,7 @@ export interface SettingsTestHistoryItem {
 
 export interface SettingsTestHistoryStatus {
   cloudflare: SettingsTestHistoryItem;
+  cloudflare_reconcile: SettingsTestHistoryItem;
   security_alert: SettingsTestHistoryItem;
   security_alert_delivery: SettingsTestHistoryItem;
   change_alert_delivery: SettingsTestHistoryItem;
@@ -338,6 +339,11 @@ export const settingsApi = {
 
   testCloudflareConnection: async (): Promise<SettingsActionTestResult> => {
     const res = await apiClient.post<SettingsActionTestResult>("/settings/cloudflare/test");
+    return res.data;
+  },
+
+  reconcileCloudflareDns: async (): Promise<SettingsActionTestResult> => {
+    const res = await apiClient.post<SettingsActionTestResult>("/settings/cloudflare/reconcile");
     return res.data;
   },
 

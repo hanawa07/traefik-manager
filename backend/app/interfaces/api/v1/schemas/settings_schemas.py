@@ -51,6 +51,7 @@ class SettingsTestHistoryItemResponse(BaseModel):
 
 class SettingsTestHistoryResponse(BaseModel):
     cloudflare: SettingsTestHistoryItemResponse
+    cloudflare_reconcile: SettingsTestHistoryItemResponse
     security_alert: SettingsTestHistoryItemResponse
     security_alert_delivery: SettingsTestHistoryItemResponse
     change_alert_delivery: SettingsTestHistoryItemResponse
