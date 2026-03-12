@@ -17,6 +17,8 @@ export interface Certificate {
   last_acme_error_at: string | null;
   last_acme_error_message: string | null;
   last_acme_error_kind: CertificateAcmeErrorKind | null;
+  preflight_failure_streak: number;
+  preflight_repeated_failure_active: boolean;
 }
 
 export interface CertificateCheckResult {
@@ -44,6 +46,8 @@ export interface CertificatePreflightSnapshot {
 export interface CertificatePreflightResult extends CertificatePreflightSnapshot {
   domain: string;
   previous_result: CertificatePreflightSnapshot | null;
+  repeated_failure_streak: number;
+  repeated_failure_active: boolean;
 }
 
 export const certificateApi = {

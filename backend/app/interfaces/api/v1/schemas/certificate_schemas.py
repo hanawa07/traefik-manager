@@ -17,6 +17,8 @@ class CertificateResponse(BaseModel):
     last_acme_error_at: datetime | None = None
     last_acme_error_message: str | None = None
     last_acme_error_kind: Literal["dns", "rate_limit", "authorization", "challenge", "unknown"] | None = None
+    preflight_failure_streak: int = 0
+    preflight_repeated_failure_active: bool = False
 
 
 class CertificateCheckResponse(BaseModel):
@@ -51,3 +53,5 @@ class CertificatePreflightSnapshotResponse(BaseModel):
 class CertificatePreflightResponse(CertificatePreflightSnapshotResponse):
     domain: str
     previous_result: CertificatePreflightSnapshotResponse | None = None
+    repeated_failure_streak: int = 0
+    repeated_failure_active: bool = False

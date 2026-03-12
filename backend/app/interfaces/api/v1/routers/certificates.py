@@ -1,8 +1,9 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.application.audit import audit_service
+from app.core.config import settings
 from app.core.logging_config import get_client_ip
 from app.infrastructure.persistence.models import AuditLogModel
 from app.infrastructure.certificates.certificate_alert_monitor import (
@@ -23,6 +24,7 @@ from app.interfaces.api.v1.schemas.certificate_schemas import (
 
 router = APIRouter()
 CERTIFICATE_PREFLIGHT_EVENT = "certificate_preflight"
+CERTIFICATE_PREFLIGHT_REPEATED_FAILURE_EVENT = "certificate_preflight_repeated_failure"
 
 
 def get_traefik_client() -> TraefikApiClient:
@@ -38,9 +40,13 @@ async def list_certificates(
     try:
         certificates = await traefik_client.list_certificates()
         alert_state = await _get_certificate_alert_state(db)
+        preflight_state = await _get_certificate_preflight_state(db)
         return [
             CertificateResponse.model_validate(
-                _apply_alert_metadata(item, alert_state.get(item.get("domain", "")))
+                _apply_preflight_metadata(
+                    _apply_alert_metadata(item, alert_state.get(item.get("domain", ""))),
+                    preflight_state.get(item.get("domain", "")),
+                )
             )
             for item in certificates
         ]
@@ -82,7 +88,10 @@ async def preflight_certificate(
 ):
     try:
         result = await traefik_client.get_certificate_preflight(domain)
-        previous_result = await _get_previous_preflight_result(db, domain)
+        previous_results = await _list_previous_preflight_results(db, domain)
+        previous_result = previous_results[0] if previous_results else None
+        repeated_failure_streak = _calculate_preflight_failure_streak(result, previous_results)
+        repeated_failure_active = repeated_failure_streak >= settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD
         await audit_service.record(
             db=db,
             actor=current_user.get("username", "unknown"),
@@ -92,9 +101,25 @@ async def preflight_certificate(
             resource_name=domain,
             detail=_serialize_preflight_detail(result, get_client_ip(request)),
         )
+        if repeated_failure_streak == settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD:
+            await audit_service.record(
+                db=db,
+                actor=current_user.get("username", "unknown"),
+                action="alert",
+                resource_type="certificate",
+                resource_id=domain[:36],
+                resource_name=domain,
+                detail=_serialize_repeated_failure_detail(
+                    result,
+                    client_ip=get_client_ip(request),
+                    consecutive_count=repeated_failure_streak,
+                ),
+            )
         return {
             **result,
             "previous_result": previous_result,
+            "repeated_failure_streak": repeated_failure_streak,
+            "repeated_failure_active": repeated_failure_active,
         }
     except TraefikApiClientError as exc:
         raise HTTPException(
@@ -118,6 +143,20 @@ def _apply_alert_metadata(certificate: dict, state_entry: dict | None) -> dict:
     }
 
 
+def _apply_preflight_metadata(certificate: dict, preflight_entry: dict | None) -> dict:
+    if not isinstance(preflight_entry, dict):
+        return {
+            **certificate,
+            "preflight_failure_streak": 0,
+            "preflight_repeated_failure_active": False,
+        }
+    return {
+        **certificate,
+        "preflight_failure_streak": int(preflight_entry.get("failure_streak", 0)),
+        "preflight_repeated_failure_active": bool(preflight_entry.get("repeated_failure_active", False)),
+    }
+
+
 def _parse_iso_datetime(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -127,10 +166,41 @@ def _parse_iso_datetime(value: str | None) -> datetime | None:
         return None
 
 
-async def _get_previous_preflight_result(
+async def _get_certificate_preflight_state(db: AsyncSession) -> dict[str, dict]:
+    if not callable(getattr(db, "execute", None)):
+        return {}
+    result = await db.execute(
+        select(AuditLogModel)
+        .where(AuditLogModel.resource_type == "certificate")
+        .order_by(desc(AuditLogModel.created_at))
+    )
+    logs = result.scalars().all()
+    snapshots_by_domain: dict[str, list[dict]] = {}
+    for log in logs:
+        domain = getattr(log, "resource_name", None)
+        if not isinstance(domain, str) or not domain:
+            continue
+        snapshot = _deserialize_preflight_snapshot(log.detail)
+        if snapshot is None:
+            continue
+        snapshots_by_domain.setdefault(domain, []).append(snapshot)
+
+    state: dict[str, dict] = {}
+    for domain, snapshots in snapshots_by_domain.items():
+        if not snapshots:
+            continue
+        failure_streak = _calculate_preflight_failure_streak(snapshots[0], snapshots[1:])
+        state[domain] = {
+            "failure_streak": failure_streak,
+            "repeated_failure_active": failure_streak >= settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD,
+        }
+    return state
+
+
+async def _list_previous_preflight_results(
     db: AsyncSession,
     domain: str,
-) -> dict | None:
+) -> list[dict]:
     result = await db.execute(
         select(AuditLogModel)
         .where(AuditLogModel.resource_type == "certificate")
@@ -138,11 +208,12 @@ async def _get_previous_preflight_result(
         .order_by(desc(AuditLogModel.created_at))
     )
     logs = result.scalars().all()
+    snapshots: list[dict] = []
     for log in logs:
         snapshot = _deserialize_preflight_snapshot(log.detail)
         if snapshot is not None:
-            return snapshot
-    return None
+            snapshots.append(snapshot)
+    return snapshots
 
 
 def _serialize_preflight_detail(result: dict, client_ip: str | None) -> dict:
@@ -163,6 +234,40 @@ def _serialize_preflight_detail(result: dict, client_ip: str | None) -> dict:
             }
             for item in result.get("items", [])
             if isinstance(item, dict)
+        ],
+    }
+
+
+def _serialize_repeated_failure_detail(
+    result: dict,
+    *,
+    client_ip: str | None,
+    consecutive_count: int,
+) -> dict:
+    checked_at = result.get("checked_at")
+    checked_at_iso = checked_at.astimezone(timezone.utc).isoformat() if isinstance(checked_at, datetime) else None
+    failure_items = [
+        item
+        for item in result.get("items", [])
+        if isinstance(item, dict) and item.get("status") in {"warning", "error"}
+    ]
+    return {
+        "event": CERTIFICATE_PREFLIGHT_REPEATED_FAILURE_EVENT,
+        "client_ip": client_ip,
+        "checked_at": checked_at_iso,
+        "overall_status": result.get("overall_status"),
+        "recommendation": result.get("recommendation"),
+        "consecutive_count": consecutive_count,
+        "repeat_window_minutes": settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_MINUTES,
+        "failure_keys": [item.get("key") for item in failure_items if isinstance(item.get("key"), str)],
+        "failure_details": [
+            {
+                "key": item.get("key"),
+                "label": item.get("label"),
+                "status": item.get("status"),
+                "detail": item.get("detail"),
+            }
+            for item in failure_items
         ],
     }
 
@@ -196,3 +301,62 @@ def _deserialize_preflight_snapshot(detail: dict | None) -> dict | None:
         return None
 
     return snapshot.model_dump(mode="json")
+
+
+def _calculate_preflight_failure_streak(current_result: dict, previous_results: list[dict]) -> int:
+    current_signature = _get_preflight_failure_signature(current_result)
+    current_status = current_result.get("overall_status")
+    current_checked_at = _extract_preflight_checked_at(current_result)
+    if current_signature is None or current_status not in {"warning", "error"} or current_checked_at is None:
+        return 0
+
+    streak = 1
+    window = timedelta(minutes=settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_MINUTES)
+    for snapshot in previous_results:
+        previous_signature = _get_preflight_failure_signature(snapshot)
+        previous_status = snapshot.get("overall_status")
+        previous_checked_at = _extract_preflight_checked_at(snapshot)
+        if previous_signature is None or previous_status != current_status or previous_checked_at is None:
+            break
+        if current_checked_at - previous_checked_at > window:
+            break
+        if previous_signature != current_signature:
+            break
+        streak += 1
+    return streak
+
+
+def _get_preflight_failure_signature(result: dict) -> tuple[str, tuple[str, ...]] | None:
+    overall_status = result.get("overall_status")
+    if overall_status not in {"warning", "error"}:
+        return None
+    items = result.get("items")
+    if not isinstance(items, list):
+        return None
+    failing_keys = sorted(
+        item.get("key")
+        for item in items
+        if isinstance(item, dict)
+        and item.get("status") in {"warning", "error"}
+        and isinstance(item.get("key"), str)
+    )
+    if not failing_keys:
+        return None
+    return overall_status, tuple(failing_keys)
+
+
+def _extract_preflight_checked_at(result: dict) -> datetime | None:
+    checked_at = result.get("checked_at")
+    if isinstance(checked_at, datetime):
+        if checked_at.tzinfo is None:
+            return checked_at.replace(tzinfo=timezone.utc)
+        return checked_at.astimezone(timezone.utc)
+    if isinstance(checked_at, str):
+        try:
+            parsed = datetime.fromisoformat(checked_at)
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    return None

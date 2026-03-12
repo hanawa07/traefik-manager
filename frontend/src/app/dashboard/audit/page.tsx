@@ -73,6 +73,7 @@ const securityEventConfig = {
   certificate_error: { label: "인증서 만료", color: "bg-red-600/20 text-red-200 border-red-500/30" },
   certificate_recovered: { label: "인증서 복구", color: "bg-emerald-600/20 text-emerald-200 border-emerald-500/30" },
   certificate_preflight: { label: "인증서 사전 진단", color: "bg-blue-600/20 text-blue-200 border-blue-500/30" },
+  certificate_preflight_repeated_failure: { label: "인증서 반복 실패", color: "bg-rose-600/20 text-rose-200 border-rose-500/30" },
 };
 
 const auditFilters = [
@@ -89,6 +90,7 @@ const auditFilters = [
   { key: "certificate_error", label: "인증서 만료" },
   { key: "certificate_recovered", label: "인증서 복구" },
   { key: "certificate_preflight", label: "인증서 사전 진단" },
+  { key: "certificate_preflight_repeated_failure", label: "인증서 반복 실패" },
 ] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {

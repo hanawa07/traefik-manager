@@ -156,6 +156,7 @@ backend/app/
 - 인증서 상태 체크는 `certificate_warning` / `certificate_error` / `certificate_recovered` 이벤트를 기록하고, 같은 상태의 중복 알림은 억제합니다.
 - 인증서 화면에서는 현재 경고 상태의 `중복 경고 억제 중` 여부와 상태 시작 시각을 함께 표시합니다.
 - 인증서 화면에서 `경고 검사`를 실행하면 즉시 재스캔하고, 새 경고/복구 이벤트가 있었는지까지 바로 확인할 수 있습니다.
+- 인증서 화면의 `사전 진단`은 결과를 audit snapshot으로 저장하고, 같은 실패가 반복되면 `certificate_preflight_repeated_failure` 이벤트를 기록해 기존 인증서 경고 채널로 알릴 수 있습니다.
 - 설정 화면에서 `Traefik 디버그 대시보드` public route를 켜고 끌 수 있습니다. 이 기능은 Traefik 내장 dashboard 엔진을 바꾸는 게 아니라 `api@internal`용 공개 라우트를 생성/삭제하는 방식입니다.
 - Telegram은 bot token + chat id를 사용하고, PagerDuty는 routing key를 사용하며, Generic/Slack/Discord/Teams는 webhook URL을 사용합니다. Email은 SMTP host/port/security/from/recipients를 사용합니다.
 

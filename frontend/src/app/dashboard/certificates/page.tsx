@@ -266,6 +266,7 @@ export default function CertificatesPage() {
   const errorCount = certificates.filter((item) => item.status === "error").length;
   const pendingCount = certificates.filter((item) => item.status === "pending").length;
   const recentFailureCount = certificates.filter((item) => item.last_acme_error_message).length;
+  const repeatedFailureCount = certificates.filter((item) => item.preflight_repeated_failure_active).length;
 
   const selectedCertificate = selectedDomain
     ? certificates.find((item) => item.domain === selectedDomain) ?? null
@@ -344,6 +345,7 @@ export default function CertificatesPage() {
         <div className="card p-5">
           <p className="text-sm text-gray-500">최근 발급 실패</p>
           <p className="text-2xl font-bold text-amber-600 mt-1">{recentFailureCount}</p>
+          <p className="mt-1 text-xs text-gray-400">반복 실패 {repeatedFailureCount}개</p>
         </div>
       </div>
 
@@ -512,6 +514,12 @@ export default function CertificatesPage() {
                             억제 중
                           </span>
                         ) : null}
+                        {certificate.preflight_repeated_failure_active ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700">
+                            <AlertTriangle className="h-3 w-3" />
+                            반복 실패 x{certificate.preflight_failure_streak}
+                          </span>
+                        ) : null}
                       </div>
                       <p className="text-xs text-gray-500">{certificate.status_message}</p>
                     </div>
@@ -537,6 +545,11 @@ export default function CertificatesPage() {
                       {certificate.last_acme_error_at ? (
                         <p className="mt-1 text-[11px] text-gray-400">
                           {formatDateTime(certificate.last_acme_error_at, timeDisplaySettings?.display_timezone)}
+                        </p>
+                      ) : null}
+                      {certificate.preflight_repeated_failure_active ? (
+                        <p className="mt-1 text-[11px] text-rose-600">
+                          같은 실패가 {certificate.preflight_failure_streak}회 연속 반복되었습니다
                         </p>
                       ) : null}
                     </div>
@@ -572,6 +585,12 @@ export default function CertificatesPage() {
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <StatusBadge status={selectedCertificate.status} />
                   <span className="text-sm text-gray-500">{selectedCertificate.status_message}</span>
+                  {selectedCertificate.preflight_repeated_failure_active ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      반복 실패 x{selectedCertificate.preflight_failure_streak}
+                    </span>
+                  ) : null}
                 </div>
               </div>
               <button
@@ -668,6 +687,11 @@ export default function CertificatesPage() {
                       ? formatDateTime(selectedCertificate.last_acme_error_at, timeDisplaySettings?.display_timezone)
                       : "최근 실패 기록이 없습니다"}
                   </p>
+                  {selectedCertificate.preflight_repeated_failure_active ? (
+                    <p className="mt-2 text-xs text-rose-600">
+                      최근 사전 진단에서 같은 실패가 {selectedCertificate.preflight_failure_streak}회 연속 반복됐습니다.
+                    </p>
+                  ) : null}
                 </div>
               </section>
 
@@ -714,6 +738,11 @@ export default function CertificatesPage() {
                       <p className="mt-2 text-[11px] text-blue-700">
                         검사 시각 {formatDateTime(selectedPreflight.checked_at, timeDisplaySettings?.display_timezone)}
                       </p>
+                      {selectedPreflight.repeated_failure_active ? (
+                        <p className="mt-2 text-xs font-medium text-rose-700">
+                          같은 실패가 {selectedPreflight.repeated_failure_streak}회 연속 반복돼 알림 대상으로 기록됐습니다.
+                        </p>
+                      ) : null}
                     </div>
 
                     {selectedPreflight.previous_result ? (

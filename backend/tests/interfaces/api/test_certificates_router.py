@@ -96,7 +96,7 @@ async def test_check_certificates_returns_summary(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_preflight_certificate_returns_diagnostics(monkeypatch):
-    captured_record = {}
+    captured_records = []
 
     class StubTraefikClient:
         async def get_certificate_preflight(self, domain: str):
@@ -116,7 +116,7 @@ async def test_preflight_certificate_returns_diagnostics(monkeypatch):
             }
 
     async def fake_record(**kwargs):
-        captured_record.update(kwargs)
+        captured_records.append(kwargs)
 
     previous_log = SimpleNamespace(
         detail={
@@ -150,8 +150,90 @@ async def test_preflight_certificate_returns_diagnostics(monkeypatch):
     assert result["overall_status"] == "warning"
     assert result["items"][0]["key"] == "dns_public"
     assert result["previous_result"]["overall_status"] == "error"
-    assert captured_record["resource_type"] == "certificate"
-    assert captured_record["resource_name"] == "example.com"
-    assert captured_record["detail"]["event"] == "certificate_preflight"
-    assert captured_record["detail"]["client_ip"] == "127.0.0.1"
-    assert captured_record["detail"]["checked_at"] == "2026-03-12T12:00:00+00:00"
+    assert captured_records[0]["resource_type"] == "certificate"
+    assert captured_records[0]["resource_name"] == "example.com"
+    assert captured_records[0]["detail"]["event"] == "certificate_preflight"
+    assert captured_records[0]["detail"]["client_ip"] == "127.0.0.1"
+    assert captured_records[0]["detail"]["checked_at"] == "2026-03-12T12:00:00+00:00"
+
+
+@pytest.mark.asyncio
+async def test_preflight_certificate_records_repeated_failure_when_streak_hits_threshold(monkeypatch):
+    captured_records = []
+
+    class StubTraefikClient:
+        async def get_certificate_preflight(self, domain: str):
+            return {
+                "domain": domain,
+                "checked_at": datetime(2026, 3, 12, 12, 0, tzinfo=timezone.utc),
+                "overall_status": "warning",
+                "recommendation": "권한 DNS 응답을 먼저 확인하세요.",
+                "items": [
+                    {
+                        "key": "dns_public",
+                        "label": "공개 DNS 조회",
+                        "status": "error",
+                        "detail": "권한 NS 응답이 타임아웃되었습니다.",
+                    }
+                ],
+            }
+
+    async def fake_record(**kwargs):
+        captured_records.append(kwargs)
+
+    repeated_logs = [
+        SimpleNamespace(
+            detail={
+                "event": "certificate_preflight",
+                "checked_at": "2026-03-12T11:55:00+00:00",
+                "overall_status": "warning",
+                "recommendation": "권한 DNS 응답을 먼저 확인하세요.",
+                "items": [
+                    {
+                        "key": "dns_public",
+                        "label": "공개 DNS 조회",
+                        "status": "error",
+                        "detail": "권한 NS 응답이 타임아웃되었습니다.",
+                    }
+                ],
+            },
+            created_at=datetime(2026, 3, 12, 11, 55, tzinfo=timezone.utc),
+        ),
+        SimpleNamespace(
+            detail={
+                "event": "certificate_preflight",
+                "checked_at": "2026-03-12T11:50:00+00:00",
+                "overall_status": "warning",
+                "recommendation": "권한 DNS 응답을 먼저 확인하세요.",
+                "items": [
+                    {
+                        "key": "dns_public",
+                        "label": "공개 DNS 조회",
+                        "status": "error",
+                        "detail": "권한 NS 응답이 타임아웃되었습니다.",
+                    }
+                ],
+            },
+            created_at=datetime(2026, 3, 12, 11, 50, tzinfo=timezone.utc),
+        ),
+    ]
+
+    monkeypatch.setattr(certificates_router.audit_service, "record", fake_record)
+    monkeypatch.setattr(certificates_router.settings, "CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD", 3)
+    monkeypatch.setattr(certificates_router.settings, "CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_MINUTES", 240)
+
+    await certificates_router.preflight_certificate(
+        domain="example.com",
+        request=SimpleNamespace(headers={}, client=SimpleNamespace(host="127.0.0.1")),
+        traefik_client=StubTraefikClient(),
+        db=StubAuditDb(repeated_logs),
+        current_user={"role": "admin", "username": "admin"},
+    )
+
+    assert [record["detail"]["event"] for record in captured_records] == [
+        "certificate_preflight",
+        "certificate_preflight_repeated_failure",
+    ]
+    assert captured_records[1]["action"] == "alert"
+    assert captured_records[1]["detail"]["consecutive_count"] == 3
+    assert captured_records[1]["detail"]["failure_keys"] == ["dns_public"]

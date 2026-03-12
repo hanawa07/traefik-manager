@@ -242,6 +242,8 @@ traefik-manager/
   certificates page
     → 현재 비정상 인증서의 `중복 경고 억제 중` 여부와 `status_started_at` 노출
     → 최근 경고/만료/복구 전이 이력을 함께 표시
+    → `사전 진단` 결과는 audit snapshot으로 저장하고 직전 검사와 비교
+    → 같은 실패 키/상태가 연속 누적되면 `certificate_preflight_repeated_failure` 이벤트 기록
   manual action
     → `/certificates/check` 호출 시 즉시 재검사
     → 현재 warning/error 수와 신규 경고 이벤트 수를 응답
