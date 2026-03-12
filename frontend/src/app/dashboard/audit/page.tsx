@@ -259,7 +259,7 @@ export default function AuditLogPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="mx-auto max-w-[1600px] p-6">
       <div className="flex items-center gap-3 mb-8">
         <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center shadow-lg border border-slate-700">
           <History className="w-5 h-5 text-blue-400" />
@@ -270,7 +270,7 @@ export default function AuditLogPage() {
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
         {auditFilters.map((filter) => {
           const active = selectedFilter === filter.key;
           return (
@@ -279,9 +279,9 @@ export default function AuditLogPage() {
               type="button"
               onClick={() => setSelectedFilter(filter.key)}
               className={clsx(
-                "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition",
                 active
-                  ? "border-blue-400 bg-blue-500/20 text-blue-100"
+                  ? "border-blue-400 bg-blue-300 text-slate-950"
                   : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500",
               )}
             >
