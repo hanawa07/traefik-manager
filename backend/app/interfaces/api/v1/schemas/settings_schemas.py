@@ -44,6 +44,8 @@ class SettingsTestHistoryItemResponse(BaseModel):
 class SettingsTestHistoryResponse(BaseModel):
     cloudflare: SettingsTestHistoryItemResponse
     security_alert: SettingsTestHistoryItemResponse
+    security_alert_delivery: SettingsTestHistoryItemResponse
+    change_alert_delivery: SettingsTestHistoryItemResponse
 
 
 class CloudflareSettingsUpdateRequest(BaseModel):

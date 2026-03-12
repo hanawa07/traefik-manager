@@ -59,6 +59,16 @@ SETTINGS_TEST_EVENTS = {
     "cloudflare": "settings_test_cloudflare",
     "security_alert": "settings_test_security_alert",
 }
+SETTINGS_DELIVERY_EVENTS = {
+    "security_alert_delivery": {
+        "security_alert_delivery_success",
+        "security_alert_delivery_failure",
+    },
+    "change_alert_delivery": {
+        "change_alert_delivery_success",
+        "change_alert_delivery_failure",
+    },
+}
 SETTINGS_UPDATE_EVENTS = {
     "cloudflare": "settings_update_cloudflare",
     "time_display": "settings_update_time_display",
@@ -377,7 +387,16 @@ async def get_settings_test_history(
 
     cloudflare = _find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["cloudflare"])
     security_alert = _find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["security_alert"])
-    return SettingsTestHistoryResponse(cloudflare=cloudflare, security_alert=security_alert)
+    security_alert_delivery = _find_latest_settings_events(
+        logs, SETTINGS_DELIVERY_EVENTS["security_alert_delivery"]
+    )
+    change_alert_delivery = _find_latest_settings_events(logs, SETTINGS_DELIVERY_EVENTS["change_alert_delivery"])
+    return SettingsTestHistoryResponse(
+        cloudflare=cloudflare,
+        security_alert=security_alert,
+        security_alert_delivery=security_alert_delivery,
+        change_alert_delivery=change_alert_delivery,
+    )
 
 
 @router.put("/security-alerts", response_model=SecurityAlertSettingsResponse, summary="보안 알림 설정 저장")
@@ -704,9 +723,17 @@ def _find_latest_settings_test_event(
     logs: list[AuditLogModel],
     event_name: str,
 ) -> SettingsTestHistoryItemResponse:
+    return _find_latest_settings_events(logs, {event_name})
+
+
+def _find_latest_settings_events(
+    logs: list[AuditLogModel],
+    event_names: set[str],
+) -> SettingsTestHistoryItemResponse:
     for log in logs:
         detail = log.detail or {}
-        if detail.get("event") != event_name:
+        event_name = detail.get("event")
+        if not isinstance(event_name, str) or event_name not in event_names:
             continue
         success = detail.get("success")
         return SettingsTestHistoryItemResponse(

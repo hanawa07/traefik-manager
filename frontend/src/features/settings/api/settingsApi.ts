@@ -247,6 +247,8 @@ export interface SettingsTestHistoryItem {
 export interface SettingsTestHistoryStatus {
   cloudflare: SettingsTestHistoryItem;
   security_alert: SettingsTestHistoryItem;
+  security_alert_delivery: SettingsTestHistoryItem;
+  change_alert_delivery: SettingsTestHistoryItem;
 }
 
 export const settingsApi = {

@@ -45,19 +45,56 @@ async def notify_if_needed(db: AsyncSession, audit_log: AuditLogModel) -> bool:
     category, provider = alert_context
 
     if provider == "email":
-        return await _send_email_alert(repo, audit_log, event, category)
+        success, delivery_detail = await _send_email_alert_with_detail(repo, audit_log, event, category)
+        await _record_delivery_result(
+            db=db,
+            audit_log=audit_log,
+            event=event,
+            category=category,
+            provider=provider,
+            success=success,
+            delivery_detail=delivery_detail,
+        )
+        return success
 
     request = await _build_request(repo, audit_log, event, provider, category)
     if request is None:
+        await _record_delivery_result(
+            db=db,
+            audit_log=audit_log,
+            event=event,
+            category=category,
+            provider=provider,
+            success=False,
+            delivery_detail=f"{provider} 채널 설정이 완전하지 않습니다",
+        )
         return False
 
     url, payload = request
     try:
         async with httpx.AsyncClient(timeout=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS) as client:
             await client.post(url, json=payload)
+        await _record_delivery_result(
+            db=db,
+            audit_log=audit_log,
+            event=event,
+            category=category,
+            provider=provider,
+            success=True,
+            delivery_detail=f"{provider} 채널로 전송했습니다",
+        )
         return True
     except httpx.HTTPError as exc:
         logger.warning("보안 웹훅 알림 전송 실패: %s", exc, exc_info=True)
+        await _record_delivery_result(
+            db=db,
+            audit_log=audit_log,
+            event=event,
+            category=category,
+            provider=provider,
+            success=False,
+            delivery_detail=str(exc),
+        )
         return False
 
 
@@ -125,16 +162,66 @@ async def _send_email_alert(
     event: str,
     category: str,
 ) -> bool:
+    success, _detail = await _send_email_alert_with_detail(repo, audit_log, event, category)
+    return success
+
+
+async def _send_email_alert_with_detail(
+    repo: SQLiteSystemSettingsRepository,
+    audit_log: AuditLogModel,
+    event: str,
+    category: str,
+) -> tuple[bool, str]:
     email_settings = await _build_email_settings(repo)
     if email_settings is None:
-        return False
+        return False, "email 채널 설정이 완전하지 않습니다"
 
     try:
         await asyncio.to_thread(_send_email_sync, email_settings, audit_log, event, category)
-        return True
+        return True, "email 채널로 전송했습니다"
     except OSError as exc:
         logger.warning("보안 이메일 알림 전송 실패: %s", exc, exc_info=True)
-        return False
+        return False, str(exc)
+
+
+async def _record_delivery_result(
+    *,
+    db: AsyncSession,
+    audit_log: AuditLogModel,
+    event: str,
+    category: str,
+    provider: str,
+    success: bool,
+    delivery_detail: str | None,
+) -> None:
+    if not callable(getattr(db, "add", None)) or not callable(getattr(db, "flush", None)):
+        return
+
+    detail = audit_log.detail or {}
+    delivery_event = f"{category}_alert_delivery_{'success' if success else 'failure'}"
+    delivery_log = AuditLogModel(
+        actor="system",
+        action="alert",
+        resource_type="settings",
+        resource_id=f"{category}-alert-delivery",
+        resource_name="보안 알림 전송 결과" if category == "security" else "운영 변경 알림 전송 결과",
+        detail={
+            "event": delivery_event,
+            "success": success,
+            "provider": provider,
+            "message": _build_message(event, audit_log.resource_name, detail.get("client_ip"), category),
+            "detail": delivery_detail,
+            "source_event": event,
+            "source_action": audit_log.action,
+            "source_resource_type": audit_log.resource_type,
+            "source_resource_id": audit_log.resource_id,
+            "source_resource_name": audit_log.resource_name,
+            "client_ip": detail.get("client_ip"),
+        },
+    )
+    delivery_log.created_at = datetime.now(timezone.utc)
+    db.add(delivery_log)
+    await db.flush()
 
 
 async def _get_bool_setting(

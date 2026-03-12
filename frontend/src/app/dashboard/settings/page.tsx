@@ -1894,11 +1894,23 @@ export default function SettingsPage() {
               ) : null}
               <p className="text-xs text-gray-500">테스트는 현재 저장된 기본 채널 설정 기준으로 즉시 전송됩니다.</p>
               {!isSettingsTestHistoryLoading ? (
-                <SettingsTestHistoryNotice
-                  label="마지막 테스트 알림"
-                  history={settingsTestHistory?.security_alert}
-                  timezone={timeDisplaySettings?.display_timezone}
-                />
+                <div className="space-y-3">
+                  <SettingsTestHistoryNotice
+                    label="마지막 테스트 알림"
+                    history={settingsTestHistory?.security_alert}
+                    timezone={timeDisplaySettings?.display_timezone}
+                  />
+                  <SettingsTestHistoryNotice
+                    label="최근 보안 이벤트 전송"
+                    history={settingsTestHistory?.security_alert_delivery}
+                    timezone={timeDisplaySettings?.display_timezone}
+                  />
+                  <SettingsTestHistoryNotice
+                    label="최근 운영 변경 전송"
+                    history={settingsTestHistory?.change_alert_delivery}
+                    timezone={timeDisplaySettings?.display_timezone}
+                  />
+                </div>
               ) : null}
               <ActionResultNotice result={securityAlertTestResult} />
               <p className="text-xs text-gray-500">

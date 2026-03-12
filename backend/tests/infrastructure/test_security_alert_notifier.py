@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
+import httpx
 
 from app.infrastructure.notifications import security_alert_notifier
 
@@ -14,6 +15,18 @@ class StubSettingsRepository:
 
     async def get(self, key: str) -> str | None:
         return self.values.get(key)
+
+
+class StubDB:
+    def __init__(self):
+        self.added = []
+        self.flush_calls = 0
+
+    def add(self, item):
+        self.added.append(item)
+
+    async def flush(self):
+        self.flush_calls += 1
 
 
 def make_audit_log(
@@ -89,6 +102,83 @@ async def test_notify_if_needed_posts_payload_for_supported_security_event(monke
     assert posted[0][1]["event"] == "login_blocked_ip"
     assert posted[0][1]["client_ip"] == "1.2.3.4"
     assert posted[0][1]["source"] == "traefik-manager"
+
+
+@pytest.mark.asyncio
+async def test_notify_if_needed_records_successful_delivery_audit(monkeypatch):
+    posted = []
+
+    class StubClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json):
+            posted.append((url, json))
+
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "slack",
+        "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
+    db = StubDB()
+
+    result = await security_alert_notifier.notify_if_needed(db, make_audit_log("login_locked"))
+
+    assert result is True
+    assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"
+    assert len(db.added) == 1
+    assert db.flush_calls == 1
+    delivery_log = db.added[0]
+    assert delivery_log.action == "alert"
+    assert delivery_log.resource_type == "settings"
+    assert delivery_log.resource_name == "보안 알림 전송 결과"
+    assert delivery_log.detail["event"] == "security_alert_delivery_success"
+    assert delivery_log.detail["source_event"] == "login_locked"
+    assert delivery_log.detail["provider"] == "slack"
+    assert delivery_log.detail["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_notify_if_needed_records_failed_delivery_audit(monkeypatch):
+    request = httpx.Request("POST", "https://hooks.slack.com/services/AAA/BBB/CCC")
+
+    class StubClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, _url, json=None):
+            raise httpx.ConnectError("network down", request=request)
+
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "security_alert_provider": "slack",
+        "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
+    db = StubDB()
+
+    result = await security_alert_notifier.notify_if_needed(db, make_audit_log("login_suspicious"))
+
+    assert result is False
+    assert len(db.added) == 1
+    assert db.flush_calls == 1
+    delivery_log = db.added[0]
+    assert delivery_log.action == "alert"
+    assert delivery_log.resource_type == "settings"
+    assert delivery_log.detail["event"] == "security_alert_delivery_failure"
+    assert delivery_log.detail["source_event"] == "login_suspicious"
+    assert delivery_log.detail["provider"] == "slack"
+    assert delivery_log.detail["success"] is False
+    assert "network down" in delivery_log.detail["detail"]
 
 
 @pytest.mark.asyncio
@@ -218,7 +308,7 @@ async def test_notify_if_needed_sends_email_alert(monkeypatch):
 
     async def stub_send_email_alert(repo, audit_log, event, category):
         sent.append((repo, audit_log, event, category))
-        return True
+        return True, "email 채널로 전송했습니다"
 
     StubSettingsRepository.values = {
         "security_alerts_enabled": "true",
@@ -230,7 +320,7 @@ async def test_notify_if_needed_sends_email_alert(monkeypatch):
         "security_alert_email_recipients": "ops@example.com",
     }
     monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
-    monkeypatch.setattr(security_alert_notifier, "_send_email_alert", stub_send_email_alert)
+    monkeypatch.setattr(security_alert_notifier, "_send_email_alert_with_detail", stub_send_email_alert)
 
     result = await security_alert_notifier.notify_if_needed(object(), make_audit_log("login_suspicious"))
 

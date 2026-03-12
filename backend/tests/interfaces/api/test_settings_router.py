@@ -1028,6 +1028,40 @@ async def test_get_settings_test_history_returns_latest_cloudflare_and_security_
             detail={"event": "settings_test_security_alert", "success": False, "message": "실패", "provider": "slack"},
             created_at=now,
         ),
+        SimpleNamespace(
+            id="3",
+            actor="system",
+            action="alert",
+            resource_type="settings",
+            resource_id="security-alert-delivery",
+            resource_name="보안 알림 전송 결과",
+            detail={
+                "event": "security_alert_delivery_failure",
+                "success": False,
+                "message": "이상 징후 로그인 감지: 1.2.3.4",
+                "detail": "network down",
+                "provider": "slack",
+                "source_event": "login_suspicious",
+            },
+            created_at=now,
+        ),
+        SimpleNamespace(
+            id="4",
+            actor="system",
+            action="alert",
+            resource_type="settings",
+            resource_id="change-alert-delivery",
+            resource_name="운영 변경 알림 전송 결과",
+            detail={
+                "event": "change_alert_delivery_success",
+                "success": True,
+                "message": "서비스 변경: svc",
+                "detail": "pagerduty 채널로 전송했습니다",
+                "provider": "pagerduty",
+                "source_event": "service_update",
+            },
+            created_at=now,
+        ),
     ]
 
     class StubScalarResult:
@@ -1056,3 +1090,10 @@ async def test_get_settings_test_history_returns_latest_cloudflare_and_security_
     assert response.security_alert.last_event == "settings_test_security_alert"
     assert response.security_alert.last_success is False
     assert response.security_alert.last_provider == "slack"
+    assert response.security_alert_delivery.last_event == "security_alert_delivery_failure"
+    assert response.security_alert_delivery.last_success is False
+    assert response.security_alert_delivery.last_provider == "slack"
+    assert response.security_alert_delivery.last_detail == "network down"
+    assert response.change_alert_delivery.last_event == "change_alert_delivery_success"
+    assert response.change_alert_delivery.last_success is True
+    assert response.change_alert_delivery.last_provider == "pagerduty"
