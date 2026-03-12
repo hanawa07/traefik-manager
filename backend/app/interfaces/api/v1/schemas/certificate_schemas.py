@@ -14,6 +14,9 @@ class CertificateResponse(BaseModel):
     status_message: str
     status_started_at: datetime | None = None
     alerts_suppressed: bool = False
+    last_acme_error_at: datetime | None = None
+    last_acme_error_message: str | None = None
+    last_acme_error_kind: Literal["dns", "rate_limit", "authorization", "challenge", "unknown"] | None = None
 
 
 class CertificateCheckResponse(BaseModel):

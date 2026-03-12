@@ -23,6 +23,24 @@ export default function CertificatesPage() {
   const warningCount = certificates.filter((item) => item.status === "warning").length;
   const errorCount = certificates.filter((item) => item.status === "error").length;
   const pendingCount = certificates.filter((item) => item.status === "pending").length;
+  const recentFailureCount = certificates.filter((item) => item.last_acme_error_message).length;
+
+  const getAcmeErrorKindLabel = (kind: string | null | undefined) => {
+    switch (kind) {
+      case "dns":
+        return "DNS 검증";
+      case "rate_limit":
+        return "발급 제한";
+      case "authorization":
+        return "도메인 인증";
+      case "challenge":
+        return "챌린지";
+      case "unknown":
+        return "발급 실패";
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="p-8">
@@ -63,7 +81,7 @@ export default function CertificatesPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <div className="card p-5">
           <p className="text-sm text-gray-500">전체 인증서</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{certificates.length}</p>
@@ -79,6 +97,33 @@ export default function CertificatesPage() {
         <div className="card p-5">
           <p className="text-sm text-gray-500">만료됨</p>
           <p className="text-2xl font-bold text-red-600 mt-1">{errorCount}</p>
+        </div>
+        <div className="card p-5">
+          <p className="text-sm text-gray-500">최근 발급 실패</p>
+          <p className="text-2xl font-bold text-amber-600 mt-1">{recentFailureCount}</p>
+        </div>
+      </div>
+
+      <div className="card mb-6 p-5">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-gray-900">발급 진단 기준</h2>
+          <p className="mt-1 text-xs text-gray-500">
+            각 인증서 행에서 라우터 감지, certResolver 설정, ACME 저장 여부, 최근 실패 사유를 함께 봅니다.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-3 text-sm text-gray-600 md:grid-cols-2">
+          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+            <p className="font-medium text-gray-900">발급 대기</p>
+            <p className="mt-1 text-xs leading-5 text-gray-500">
+              certResolver는 있지만 ACME 저장소에 아직 인증서가 없습니다. 최근 실패 사유가 보이면 먼저 그 원인을 봐야 합니다.
+            </p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+            <p className="font-medium text-gray-900">자동 발급 미설정</p>
+            <p className="mt-1 text-xs leading-5 text-gray-500">
+              TLS는 켜져 있지만 certResolver가 없습니다. 이 상태에선 Let&apos;s Encrypt 자동 발급이 돌지 않습니다.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -174,7 +219,8 @@ export default function CertificatesPage() {
             <p className="text-sm">표시할 인증서가 없습니다</p>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[1120px]">
             <thead>
               <tr className="text-xs text-gray-400 border-b border-gray-100">
                 <th className="px-6 py-3 text-left font-medium">도메인</th>
@@ -182,6 +228,7 @@ export default function CertificatesPage() {
                 <th className="px-6 py-3 text-left font-medium">남은 기간</th>
                 <th className="px-6 py-3 text-left font-medium">상태</th>
                 <th className="px-6 py-3 text-left font-medium">발급 방식</th>
+                <th className="px-6 py-3 text-left font-medium">발급 진단</th>
                 <th className="px-6 py-3 text-left font-medium">라우터</th>
               </tr>
             </thead>
@@ -234,12 +281,53 @@ export default function CertificatesPage() {
                       : "수동/미설정"}
                   </td>
                   <td className="px-6 py-3 text-sm text-gray-500">
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-gray-600">
+                        라우터 감지:{" "}
+                        <span className={certificate.router_names.length > 0 ? "text-emerald-700" : "text-rose-700"}>
+                          {certificate.router_names.length > 0 ? "완료" : "없음"}
+                        </span>
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        certResolver:{" "}
+                        <span className={certificate.cert_resolvers.length > 0 ? "text-emerald-700" : "text-rose-700"}>
+                          {certificate.cert_resolvers.length > 0 ? "설정됨" : "없음"}
+                        </span>
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        ACME 저장:{" "}
+                        <span className={certificate.expires_at ? "text-emerald-700" : "text-amber-700"}>
+                          {certificate.expires_at ? "완료" : "없음"}
+                        </span>
+                      </p>
+                      {certificate.last_acme_error_message ? (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] leading-5 text-amber-800">
+                          <p className="font-medium">
+                            최근 실패
+                            {getAcmeErrorKindLabel(certificate.last_acme_error_kind)
+                              ? ` · ${getAcmeErrorKindLabel(certificate.last_acme_error_kind)}`
+                              : ""}
+                          </p>
+                          <p className="mt-0.5 break-words">{certificate.last_acme_error_message}</p>
+                          {certificate.last_acme_error_at ? (
+                            <p className="mt-1 text-[10px] text-amber-700">
+                              {formatDateTime(certificate.last_acme_error_at, timeDisplaySettings?.display_timezone)}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">최근 ACME 실패 없음</p>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-3 text-sm text-gray-500">
                     {certificate.router_names.length > 0 ? certificate.router_names.join(", ") : "-"}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

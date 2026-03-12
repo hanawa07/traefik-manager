@@ -1,6 +1,7 @@
 import apiClient from "@/shared/lib/apiClient";
 
 export type CertificateStatus = "active" | "warning" | "error" | "pending" | "inactive";
+export type CertificateAcmeErrorKind = "dns" | "rate_limit" | "authorization" | "challenge" | "unknown";
 
 export interface Certificate {
   domain: string;
@@ -12,6 +13,9 @@ export interface Certificate {
   status_message: string;
   status_started_at: string | null;
   alerts_suppressed: boolean;
+  last_acme_error_at: string | null;
+  last_acme_error_message: string | null;
+  last_acme_error_kind: CertificateAcmeErrorKind | null;
 }
 
 export interface CertificateCheckResult {

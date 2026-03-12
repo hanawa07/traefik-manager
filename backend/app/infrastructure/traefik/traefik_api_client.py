@@ -13,6 +13,9 @@ import httpx
 from app.core.config import settings
 
 ACME_JSON_PATH = Path("/acme.json")
+DOCKER_LOG_HEADER_LENGTH = 8
+ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+DOMAIN_RE = re.compile(r"\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b")
 
 
 class TraefikApiClientError(Exception):
@@ -102,6 +105,12 @@ class TraefikApiClient:
 
         return {}
 
+    async def _load_recent_acme_failures(self) -> dict[str, dict]:
+        log_text = await self._read_docker_container_logs_text()
+        if not log_text:
+            return {}
+        return self._parse_recent_acme_failures(log_text)
+
     def _read_local_acme_json_text(self) -> str | None:
         if not ACME_JSON_PATH.exists():
             return None
@@ -148,6 +157,39 @@ class TraefikApiClient:
 
         return None
 
+    async def _read_docker_container_logs_text(self) -> str | None:
+        socket_path = Path(settings.DOCKER_SOCKET_PATH)
+        if not socket_path.exists():
+            return None
+
+        container_name = settings.TRAEFIK_DOCKER_CONTAINER_NAME.strip()
+        if not container_name:
+            return None
+
+        transport = httpx.AsyncHTTPTransport(uds=settings.DOCKER_SOCKET_PATH)
+        path = f"/{settings.DOCKER_API_VERSION.strip('/')}/containers/{container_name}/logs"
+
+        try:
+            async with httpx.AsyncClient(
+                base_url="http://docker",
+                transport=transport,
+                timeout=settings.DOCKER_API_TIMEOUT_SECONDS,
+            ) as client:
+                response = await client.get(
+                    path,
+                    params={
+                        "stdout": 1,
+                        "stderr": 1,
+                        "tail": settings.TRAEFIK_LOG_TAIL_LINES,
+                        "timestamps": 1,
+                    },
+                )
+                response.raise_for_status()
+        except (httpx.HTTPError, OSError):
+            return None
+
+        return self._decode_docker_log_stream(response.content)
+
     def _parse_acme_expiry_map(self, raw_text: str) -> dict[str, datetime]:
         expiry_map: dict[str, datetime] = {}
         try:
@@ -188,6 +230,33 @@ class TraefikApiClient:
 
         return expiry_map
 
+    def _parse_recent_acme_failures(self, raw_text: str) -> dict[str, dict]:
+        failures: dict[str, dict] = {}
+        for raw_line in raw_text.splitlines():
+            line = ANSI_ESCAPE_RE.sub("", raw_line).strip()
+            if not line or "Unable to obtain ACME certificate for domains" not in line:
+                continue
+
+            timestamp_raw, message = self._split_log_timestamp(line)
+            occurred_at = self._parse_datetime(timestamp_raw) if timestamp_raw else None
+            error_message = self._extract_acme_error_message(message)
+            error_kind = self._classify_acme_error(error_message)
+            domains = self._extract_acme_error_domains(message)
+
+            for domain in domains:
+                current = failures.get(domain)
+                if current is not None and occurred_at and current.get("occurred_at"):
+                    if current["occurred_at"] >= occurred_at:
+                        continue
+
+                failures[domain] = {
+                    "occurred_at": occurred_at,
+                    "message": error_message,
+                    "kind": error_kind,
+                }
+
+        return failures
+
     def _extract_acme_certificate_expiry(self, cert_b64: str) -> datetime | None:
         try:
             import subprocess
@@ -213,6 +282,75 @@ class TraefikApiClient:
         except Exception:
             return None
 
+    def _decode_docker_log_stream(self, payload: bytes) -> str:
+        if not payload:
+            return ""
+
+        if len(payload) >= DOCKER_LOG_HEADER_LENGTH and payload[1:4] == b"\x00\x00\x00":
+            cursor = 0
+            chunks: list[bytes] = []
+            while cursor + DOCKER_LOG_HEADER_LENGTH <= len(payload):
+                if payload[cursor + 1:cursor + 4] != b"\x00\x00\x00":
+                    chunks.append(payload[cursor:])
+                    break
+                frame_size = int.from_bytes(payload[cursor + 4:cursor + 8], byteorder="big")
+                cursor += DOCKER_LOG_HEADER_LENGTH
+                chunks.append(payload[cursor:cursor + frame_size])
+                cursor += frame_size
+            return b"".join(chunks).decode(errors="ignore")
+
+        return payload.decode(errors="ignore")
+
+    def _split_log_timestamp(self, line: str) -> tuple[str | None, str]:
+        if " " not in line:
+            return None, line
+        first, rest = line.split(" ", 1)
+        if self._parse_datetime(first):
+            return first, rest
+        return None, line
+
+    def _extract_acme_error_message(self, line: str) -> str:
+        if "error=" not in line:
+            return "최근 ACME 실패 원인을 확인하지 못했습니다"
+
+        message = line.split("error=", 1)[1]
+        if " ACME CA=" in message:
+            message = message.split(" ACME CA=", 1)[0]
+
+        message = message.strip().strip('"').replace("\\n", " ").strip()
+        if "DNS problem:" in message:
+            return message[message.index("DNS problem:"):].strip()
+        if "rate limit" in message.lower():
+            return message[message.lower().index("rate limit"):].strip()
+        if "invalid authorization" in message.lower():
+            return "invalid authorization"
+        if "challenge" in message.lower():
+            return message
+        return message
+
+    def _extract_acme_error_domains(self, line: str) -> list[str]:
+        if "domains=" in line:
+            domain_segment = line.split("domains=", 1)[1]
+            if " providerName=" in domain_segment:
+                domain_segment = domain_segment.split(" providerName=", 1)[0]
+            domains = DOMAIN_RE.findall(domain_segment)
+            if domains:
+                return sorted(set(domains))
+
+        return sorted(set(DOMAIN_RE.findall(line)))
+
+    def _classify_acme_error(self, message: str) -> str:
+        lowered = message.lower()
+        if "dns problem" in lowered or "looking up a " in lowered or "looking up aaaa" in lowered or "looking up caa" in lowered:
+            return "dns"
+        if "rate limit" in lowered:
+            return "rate_limit"
+        if "authorization" in lowered or "unauthorized" in lowered:
+            return "authorization"
+        if "challenge" in lowered:
+            return "challenge"
+        return "unknown"
+
     async def list_certificates(self) -> list[dict]:
         overview, routers_payload = await asyncio.gather(
             self._get("/api/overview"),
@@ -220,6 +358,7 @@ class TraefikApiClient:
         )
 
         expiry_map = self._extract_expiry_map(overview)
+        recent_acme_failures = await self._load_recent_acme_failures()
         # acme.json 직접 파싱으로 누락된 도메인 보완 (file 라우터 등)
         acme_map = await self._load_acme_expiry_map()
         for domain, expires_at in acme_map.items():
@@ -250,11 +389,19 @@ class TraefikApiClient:
                         "router_names": set(),
                         "cert_resolvers": set(),
                         "expires_at": self._find_expiry(domain, expiry_map),
+                        "last_acme_error_at": None,
+                        "last_acme_error_message": None,
+                        "last_acme_error_kind": None,
                     },
                 )
                 cert["router_names"].add(router_name)
                 if resolver:
                     cert["cert_resolvers"].add(str(resolver))
+                recent_failure = recent_acme_failures.get(domain)
+                if recent_failure:
+                    cert["last_acme_error_at"] = recent_failure.get("occurred_at")
+                    cert["last_acme_error_message"] = recent_failure.get("message")
+                    cert["last_acme_error_kind"] = recent_failure.get("kind")
 
         result = [self._to_certificate_response(cert) for cert in certificates_by_domain.values()]
         return sorted(result, key=lambda item: (item["days_remaining"] is None, item["days_remaining"] or 99999, item["domain"]))
@@ -447,4 +594,7 @@ class TraefikApiClient:
             "days_remaining": days_remaining,
             "status": status,
             "status_message": message,
+            "last_acme_error_at": cert.get("last_acme_error_at"),
+            "last_acme_error_message": cert.get("last_acme_error_message"),
+            "last_acme_error_kind": cert.get("last_acme_error_kind"),
         }

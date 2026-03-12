@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     TRAEFIK_TLS_CERT_RESOLVER: str | None = "letsencrypt"
     TRAEFIK_DOCKER_CONTAINER_NAME: str = "traefik"
     TRAEFIK_ACME_STORAGE_PATH: str = "/letsencrypt/acme.json"
+    TRAEFIK_LOG_TAIL_LINES: int = 2000
 
     DOCKER_SOCKET_PATH: str = "/var/run/docker.sock"
     DOCKER_API_VERSION: str = "v1.41"

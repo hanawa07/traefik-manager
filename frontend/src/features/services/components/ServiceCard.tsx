@@ -78,6 +78,23 @@ export default function ServiceCard({
     }
   };
 
+  const getAcmeErrorKindLabel = (errorKind: string | null | undefined) => {
+    switch (errorKind) {
+      case "dns":
+        return "DNS 검증 실패";
+      case "rate_limit":
+        return "발급 제한";
+      case "authorization":
+        return "도메인 인증 실패";
+      case "challenge":
+        return "챌린지 실패";
+      case "unknown":
+        return "발급 실패";
+      default:
+        return null;
+    }
+  };
+
   const getAuthBadge = () => {
     if (service.auth_mode === "authentik") {
       return (
@@ -266,7 +283,18 @@ export default function ServiceCard({
       ) : upstreamHealth?.status === "up" ? (
         <div className="mt-2 space-y-1 text-[11px] leading-4 break-words">
           {certificate ? (
-            <p className="text-slate-500">인증서 상태: {certificate.status_message}</p>
+            <>
+              <p className="text-slate-500">인증서 상태: {certificate.status_message}</p>
+              {certificate.last_acme_error_message ? (
+                <p className="text-amber-700">
+                  최근 ACME 실패
+                  {getAcmeErrorKindLabel(certificate.last_acme_error_kind)
+                    ? ` (${getAcmeErrorKindLabel(certificate.last_acme_error_kind)})`
+                    : ""}
+                  : {certificate.last_acme_error_message}
+                </p>
+              ) : null}
+            </>
           ) : null}
           <p className="text-slate-500">
             확인 시각: {formatDateTime(upstreamHealth.checked_at, displayTimeZone)}
