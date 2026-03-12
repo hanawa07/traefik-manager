@@ -30,6 +30,23 @@ export interface AuditSecuritySummary {
   recent_events: AuditSecurityEventItem[];
 }
 
+export interface AuditCertificateEventItem {
+  id: string;
+  event: string;
+  actor: string;
+  resource_name: string;
+  days_remaining: number | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface AuditCertificateSummary {
+  window_minutes: number;
+  warning_count: number;
+  error_count: number;
+  recent_events: AuditCertificateEventItem[];
+}
+
 export const auditApi = {
   getLogs: async (params?: {
     limit?: number;
@@ -48,6 +65,14 @@ export const auditApi = {
     recent_limit?: number;
   }): Promise<AuditSecuritySummary> => {
     const res = await apiClient.get<AuditSecuritySummary>("/audit/security-summary", { params });
+    return res.data;
+  },
+
+  getCertificateSummary: async (params?: {
+    window_minutes?: number;
+    recent_limit?: number;
+  }): Promise<AuditCertificateSummary> => {
+    const res = await apiClient.get<AuditCertificateSummary>("/audit/certificate-summary", { params });
     return res.data;
   },
 

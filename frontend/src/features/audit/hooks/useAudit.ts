@@ -26,6 +26,17 @@ export const useAuditSecuritySummary = (params?: {
   });
 };
 
+export const useAuditCertificateSummary = (params?: {
+  window_minutes?: number;
+  recent_limit?: number;
+}) => {
+  return useQuery({
+    queryKey: ["audit-certificate-summary", params],
+    queryFn: () => auditApi.getCertificateSummary(params),
+    staleTime: 30_000,
+  });
+};
+
 export const useAuditRollback = () => {
   const queryClient = useQueryClient();
   return useMutation<

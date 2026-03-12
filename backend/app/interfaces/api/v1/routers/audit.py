@@ -9,6 +9,8 @@ from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.models import AuditLogModel
 from app.interfaces.api.dependencies import get_current_user
 from app.interfaces.api.v1.schemas.audit_schemas import (
+    AuditCertificateEventResponse,
+    AuditCertificateSummaryResponse,
     AuditLogResponse,
     AuditSecurityEventResponse,
     AuditSecuritySummaryResponse,
@@ -17,6 +19,7 @@ from app.interfaces.api.v1.schemas.audit_schemas import (
 router = APIRouter()
 SECURITY_EVENTS = {"login_failure", "login_locked", "login_suspicious", "login_blocked_ip"}
 SECURITY_ALERT_EVENTS = {"login_locked", "login_suspicious", "login_blocked_ip"}
+CERTIFICATE_ALERT_EVENTS = {"certificate_warning", "certificate_error"}
 
 
 @router.get("", response_model=list[AuditLogResponse], summary="감사 로그 조회")
@@ -95,10 +98,65 @@ async def get_security_summary(
     )
 
 
+@router.get("/certificate-summary", response_model=AuditCertificateSummaryResponse, summary="인증서 경고 요약")
+async def get_certificate_summary(
+    window_minutes: int = Query(43200, ge=1, le=525600),
+    recent_limit: int = Query(5, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+    result = await db.execute(select(AuditLogModel).order_by(desc(AuditLogModel.created_at)))
+    logs = result.scalars().all()
+    recent_logs = sorted(
+        [
+            log
+            for log in logs
+            if log.created_at >= cutoff and _get_event(log) in CERTIFICATE_ALERT_EVENTS
+        ],
+        key=lambda log: log.created_at,
+        reverse=True,
+    )
+
+    warning_logs = [log for log in recent_logs if _get_event(log) == "certificate_warning"]
+    error_logs = [log for log in recent_logs if _get_event(log) == "certificate_error"]
+    recent_events = [
+        AuditCertificateEventResponse(
+            id=log.id,
+            event=_get_event(log) or "unknown",
+            actor=log.actor,
+            resource_name=log.resource_name,
+            days_remaining=_get_detail_int(log, "days_remaining"),
+            expires_at=_get_detail_str(log, "expires_at"),
+            created_at=log.created_at,
+        )
+        for log in recent_logs[:recent_limit]
+    ]
+
+    return AuditCertificateSummaryResponse(
+        window_minutes=window_minutes,
+        warning_count=len(warning_logs),
+        error_count=len(error_logs),
+        recent_events=recent_events,
+    )
+
+
 def _get_event(log: AuditLogModel) -> str | None:
     detail = log.detail or {}
     event = detail.get("event")
     return event if isinstance(event, str) else None
+
+
+def _get_detail_int(log: AuditLogModel, key: str) -> int | None:
+    detail = log.detail or {}
+    value = detail.get(key)
+    return value if isinstance(value, int) else None
+
+
+def _get_detail_str(log: AuditLogModel, key: str) -> str | None:
+    detail = log.detail or {}
+    value = detail.get(key)
+    return value if isinstance(value, str) else None
 
 
 def _filter_logs(

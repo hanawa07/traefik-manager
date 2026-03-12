@@ -32,3 +32,20 @@ class AuditSecuritySummaryResponse(BaseModel):
     suspicious_ip_count: int
     blocked_ip_count: int
     recent_events: list[AuditSecurityEventResponse]
+
+
+class AuditCertificateEventResponse(BaseModel):
+    id: UUID
+    event: str
+    actor: str
+    resource_name: str
+    days_remaining: int | None = None
+    expires_at: str | None = None
+    created_at: datetime
+
+
+class AuditCertificateSummaryResponse(BaseModel):
+    window_minutes: int
+    warning_count: int
+    error_count: int
+    recent_events: list[AuditCertificateEventResponse]

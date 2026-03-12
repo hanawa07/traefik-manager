@@ -234,6 +234,10 @@ traefik-manager/
       → 이전 상태(system_settings.certificate_alert_state)와 비교
         → `warning/error` 진입 시에만 `certificate_warning` / `certificate_error` 감사 이벤트 기록
         → 같은 상태 반복은 중복 전송 억제
+  dashboard
+    → 현재 인증서 상태는 `/certificates` 응답으로 집계
+    → 최근 인증서 경고 전환은 `/audit/certificate-summary`로 요약
+    → 대시보드 운영 경고 카드에서 두 정보를 함께 노출
 ```
 
 ---

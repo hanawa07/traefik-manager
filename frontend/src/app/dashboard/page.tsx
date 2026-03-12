@@ -4,9 +4,10 @@ import { Server, Lock, Shield, AlertTriangle, Activity } from "lucide-react";
 import Link from "next/link";
 import { useTraefikHealth, useTraefikRouterStatus } from "@/features/traefik/hooks/useTraefik";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
-import { useAuditSecuritySummary } from "@/features/audit/hooks/useAudit";
+import { useAuditCertificateSummary, useAuditSecuritySummary } from "@/features/audit/hooks/useAudit";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { useCertificates } from "@/features/certificates/hooks/useCertificates";
 
 function StatCard({
   icon: Icon,
@@ -42,13 +43,17 @@ export default function DashboardPage() {
   const { data: traefikHealth } = useTraefikHealth();
   const { data: routerStatus } = useTraefikRouterStatus();
   const { data: securitySummary } = useAuditSecuritySummary({ recent_limit: 3 });
+  const { data: certificateSummary } = useAuditCertificateSummary({ recent_limit: 3 });
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
+  const { data: certificates = [] } = useCertificates();
 
   const totalServices = services.length;
   const authEnabled = services.filter((s) => s.auth_mode !== "none" || s.basic_auth_enabled).length;
   const tlsEnabled = services.filter((s) => s.tls_enabled).length;
   const noAuth = services.filter((s) => s.auth_mode === "none" && !s.basic_auth_enabled).length;
   const upStreamUpCount = Object.values(healthData).filter((h) => h.status === "up").length;
+  const certificateWarningCount = certificates.filter((item) => item.status === "warning").length;
+  const certificateErrorCount = certificates.filter((item) => item.status === "error").length;
 
   return (
     <div className="p-8">
@@ -119,6 +124,71 @@ export default function DashboardPage() {
                     <p className="text-xs text-gray-500">
                       actor {event.actor}
                       {event.client_ip ? ` · IP ${event.client_ip}` : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-gray-500">
+                    {formatDateTime(event.created_at, timeDisplaySettings?.display_timezone)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card mb-6 p-5">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">운영 경고 요약</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              현재 인증서 상태와 최근 {certificateSummary?.window_minutes ?? 43200}분 기준 경고 전환입니다.
+            </p>
+          </div>
+          <Link href="/dashboard/certificates" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+            인증서 보기
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard icon={Shield} label="전체 인증서" value={certificates.length} color="bg-slate-500" />
+          <StatCard icon={AlertTriangle} label="만료 임박" value={certificateWarningCount} color="bg-amber-500" />
+          <StatCard icon={Shield} label="만료됨" value={certificateErrorCount} color="bg-rose-500" />
+          <StatCard
+            icon={Activity}
+            label="최근 경고 전환"
+            value={certificateSummary?.recent_events.length ?? 0}
+            color="bg-indigo-500"
+          />
+        </div>
+
+        <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <div className="mb-2 flex items-center justify-between gap-4">
+            <h3 className="text-sm font-semibold text-gray-900">최근 인증서 경고</h3>
+            <span className="text-xs text-gray-500">만료 임박/만료 전환만 표시</span>
+          </div>
+          {!certificateSummary?.recent_events?.length ? (
+            <p className="text-sm text-gray-500">최근 인증서 경고 전환이 없습니다.</p>
+          ) : (
+            <div className="space-y-2">
+              {certificateSummary.recent_events.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 md:flex-row md:items-center md:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900">
+                      {event.event === "certificate_error" ? "인증서 만료" : "인증서 만료 임박"}
+                      <span className="ml-2 font-normal text-gray-600">{event.resource_name}</span>
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {event.days_remaining === null
+                        ? "남은 기간 정보 없음"
+                        : event.days_remaining < 0
+                          ? "이미 만료됨"
+                          : `${event.days_remaining}일 남음`}
+                      {event.expires_at
+                        ? ` · 만료 ${formatDateTime(event.expires_at, timeDisplaySettings?.display_timezone)}`
+                        : ""}
                     </p>
                   </div>
                   <span className="shrink-0 text-xs text-gray-500">

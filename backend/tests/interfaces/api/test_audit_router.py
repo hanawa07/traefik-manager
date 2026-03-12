@@ -162,3 +162,49 @@ async def test_get_security_summary_counts_recent_events():
     assert result.blocked_ip_count == 1
     assert [item.event for item in result.recent_events] == ["login_blocked_ip", "login_suspicious"]
     assert result.recent_events[0].client_ip == "1.1.1.1"
+
+
+@pytest.mark.asyncio
+async def test_get_certificate_summary_counts_recent_events():
+    now = datetime.now(timezone.utc)
+    db = StubAuditDb(
+        [
+            make_log(
+                event="certificate_warning",
+                resource_type="certificate",
+                resource_name="example.com",
+                created_at=now - timedelta(minutes=5),
+            ),
+            make_log(
+                event="certificate_error",
+                resource_type="certificate",
+                resource_name="expired.example.com",
+                created_at=now - timedelta(minutes=4),
+            ),
+            make_log(
+                event="certificate_warning",
+                resource_type="certificate",
+                resource_name="old.example.com",
+                created_at=now - timedelta(days=2),
+            ),
+            make_log(
+                event="service_updated",
+                resource_type="service",
+                resource_name="svc",
+                created_at=now - timedelta(minutes=3),
+            ),
+        ]
+    )
+
+    result = await audit_router.get_certificate_summary(
+        window_minutes=60,
+        recent_limit=2,
+        db=db,
+        _={"username": "admin"},
+    )
+
+    assert result.window_minutes == 60
+    assert result.warning_count == 1
+    assert result.error_count == 1
+    assert [item.event for item in result.recent_events] == ["certificate_error", "certificate_warning"]
+    assert result.recent_events[0].resource_name == "expired.example.com"
