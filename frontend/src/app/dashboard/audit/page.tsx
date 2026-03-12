@@ -18,65 +18,65 @@ import { clsx } from "clsx";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 const resourceTypeConfig = {
-  service: { icon: Server, label: "서비스", color: "text-blue-200 bg-blue-500/20" },
-  redirect: { icon: ArrowRightLeft, label: "리다이렉트", color: "text-purple-200 bg-purple-500/20" },
-  middleware: { icon: SlidersHorizontal, label: "미들웨어", color: "text-orange-200 bg-orange-500/20" },
-  user: { icon: User, label: "사용자", color: "text-emerald-200 bg-emerald-500/20" },
-  settings: { icon: SlidersHorizontal, label: "설정", color: "text-cyan-200 bg-cyan-500/20" },
-  certificate: { icon: Shield, label: "인증서", color: "text-amber-200 bg-amber-500/20" },
+  service: { icon: Server, label: "서비스", color: "border border-blue-200 bg-blue-50 text-blue-700" },
+  redirect: { icon: ArrowRightLeft, label: "리다이렉트", color: "border border-purple-200 bg-purple-50 text-purple-700" },
+  middleware: { icon: SlidersHorizontal, label: "미들웨어", color: "border border-orange-200 bg-orange-50 text-orange-700" },
+  user: { icon: User, label: "사용자", color: "border border-emerald-200 bg-emerald-50 text-emerald-700" },
+  settings: { icon: SlidersHorizontal, label: "설정", color: "border border-cyan-200 bg-cyan-50 text-cyan-700" },
+  certificate: { icon: Shield, label: "인증서", color: "border border-amber-200 bg-amber-50 text-amber-700" },
 };
 
 const actionConfig = {
-  create: { label: "생성", color: "bg-green-600/20 text-green-300 border-green-500/30" },
-  update: { label: "수정", color: "bg-blue-600/20 text-blue-300 border-blue-500/30" },
-  delete: { label: "삭제", color: "bg-red-600/20 text-red-300 border-red-500/30" },
-  test: { label: "테스트", color: "bg-cyan-600/20 text-cyan-200 border-cyan-500/30" },
-  alert: { label: "경고", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
-  rollback: { label: "롤백", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
+  create: { label: "생성", color: "bg-green-50 text-green-700 border-green-200" },
+  update: { label: "수정", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  delete: { label: "삭제", color: "bg-red-50 text-red-700 border-red-200" },
+  test: { label: "테스트", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
+  alert: { label: "경고", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  rollback: { label: "롤백", color: "bg-amber-50 text-amber-700 border-amber-200" },
 };
 
 const securityEventConfig = {
-  login_failure: { label: "로그인 실패", color: "bg-slate-700 text-slate-100 border-slate-600" },
-  login_locked: { label: "계정 잠금", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
-  login_suspicious: { label: "이상 징후", color: "bg-orange-600/20 text-orange-200 border-orange-500/30" },
-  login_blocked_ip: { label: "IP 차단", color: "bg-red-600/20 text-red-200 border-red-500/30" },
-  settings_update_cloudflare: { label: "Cloudflare 설정 변경", color: "bg-cyan-600/20 text-cyan-200 border-cyan-500/30" },
-  settings_update_time_display: { label: "시간 표시 설정 변경", color: "bg-sky-600/20 text-sky-200 border-sky-500/30" },
-  settings_update_certificate_diagnostics: { label: "인증서 진단 설정 변경", color: "bg-violet-600/20 text-violet-200 border-violet-500/30" },
-  settings_update_upstream_security: { label: "업스트림 보안 설정 변경", color: "bg-indigo-600/20 text-indigo-200 border-indigo-500/30" },
-  settings_update_login_defense: { label: "로그인 방어 설정 변경", color: "bg-violet-600/20 text-violet-200 border-violet-500/30" },
-  settings_update_security_alert: { label: "보안 알림 설정 변경", color: "bg-fuchsia-600/20 text-fuchsia-200 border-fuchsia-500/30" },
-  settings_rollback_time_display: { label: "시간 표시 설정 롤백", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
-  settings_rollback_upstream_security: { label: "업스트림 보안 설정 롤백", color: "bg-orange-600/20 text-orange-200 border-orange-500/30" },
-  settings_test_cloudflare: { label: "Cloudflare 테스트", color: "bg-cyan-600/20 text-cyan-200 border-cyan-500/30" },
-  settings_test_cloudflare_drift: { label: "Cloudflare 드리프트 진단", color: "bg-sky-600/20 text-sky-200 border-sky-500/30" },
-  settings_test_cloudflare_reconcile: { label: "Cloudflare 재동기화", color: "bg-blue-600/20 text-blue-200 border-blue-500/30" },
-  settings_test_security_alert: { label: "보안 알림 테스트", color: "bg-sky-600/20 text-sky-200 border-sky-500/30" },
-  security_alert_delivery_success: { label: "보안 알림 전송 성공", color: "bg-emerald-600/20 text-emerald-200 border-emerald-500/30" },
-  security_alert_delivery_failure: { label: "보안 알림 전송 실패", color: "bg-rose-600/20 text-rose-200 border-rose-500/30" },
-  change_alert_delivery_success: { label: "운영 변경 알림 전송 성공", color: "bg-teal-600/20 text-teal-200 border-teal-500/30" },
-  change_alert_delivery_failure: { label: "운영 변경 알림 전송 실패", color: "bg-red-600/20 text-red-200 border-red-500/30" },
-  service_create: { label: "서비스 생성", color: "bg-sky-600/20 text-sky-200 border-sky-500/30" },
-  service_update: { label: "서비스 변경", color: "bg-blue-600/20 text-blue-200 border-blue-500/30" },
-  service_delete: { label: "서비스 삭제", color: "bg-red-600/20 text-red-200 border-red-500/30" },
-  service_rollback: { label: "서비스 롤백", color: "bg-indigo-600/20 text-indigo-200 border-indigo-500/30" },
-  redirect_create: { label: "리다이렉트 생성", color: "bg-violet-600/20 text-violet-200 border-violet-500/30" },
-  redirect_update: { label: "리다이렉트 변경", color: "bg-purple-600/20 text-purple-200 border-purple-500/30" },
-  redirect_delete: { label: "리다이렉트 삭제", color: "bg-pink-600/20 text-pink-200 border-pink-500/30" },
-  redirect_rollback: { label: "리다이렉트 롤백", color: "bg-fuchsia-600/20 text-fuchsia-200 border-fuchsia-500/30" },
-  middleware_create: { label: "미들웨어 생성", color: "bg-orange-500/20 text-orange-200 border-orange-400/30" },
-  middleware_update: { label: "미들웨어 변경", color: "bg-orange-600/20 text-orange-200 border-orange-500/30" },
-  middleware_delete: { label: "미들웨어 삭제", color: "bg-red-600/20 text-red-200 border-red-500/30" },
-  middleware_rollback: { label: "미들웨어 롤백", color: "bg-amber-600/20 text-amber-200 border-amber-500/30" },
-  user_create: { label: "사용자 생성", color: "bg-emerald-500/20 text-emerald-200 border-emerald-400/30" },
-  user_update: { label: "사용자 변경", color: "bg-emerald-600/20 text-emerald-200 border-emerald-500/30" },
-  user_delete: { label: "사용자 삭제", color: "bg-rose-600/20 text-rose-200 border-rose-500/30" },
-  user_rollback: { label: "사용자 롤백", color: "bg-lime-600/20 text-lime-200 border-lime-500/30" },
-  certificate_warning: { label: "인증서 만료 임박", color: "bg-yellow-600/20 text-yellow-200 border-yellow-500/30" },
-  certificate_error: { label: "인증서 만료", color: "bg-red-600/20 text-red-200 border-red-500/30" },
-  certificate_recovered: { label: "인증서 복구", color: "bg-emerald-600/20 text-emerald-200 border-emerald-500/30" },
-  certificate_preflight: { label: "인증서 사전 진단", color: "bg-blue-600/20 text-blue-200 border-blue-500/30" },
-  certificate_preflight_repeated_failure: { label: "인증서 반복 실패", color: "bg-rose-600/20 text-rose-200 border-rose-500/30" },
+  login_failure: { label: "로그인 실패", color: "bg-slate-100 text-slate-700 border-slate-200" },
+  login_locked: { label: "계정 잠금", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  login_suspicious: { label: "이상 징후", color: "bg-orange-50 text-orange-700 border-orange-200" },
+  login_blocked_ip: { label: "IP 차단", color: "bg-red-50 text-red-700 border-red-200" },
+  settings_update_cloudflare: { label: "Cloudflare 설정 변경", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
+  settings_update_time_display: { label: "시간 표시 설정 변경", color: "bg-sky-50 text-sky-700 border-sky-200" },
+  settings_update_certificate_diagnostics: { label: "인증서 진단 설정 변경", color: "bg-violet-50 text-violet-700 border-violet-200" },
+  settings_update_upstream_security: { label: "업스트림 보안 설정 변경", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  settings_update_login_defense: { label: "로그인 방어 설정 변경", color: "bg-violet-50 text-violet-700 border-violet-200" },
+  settings_update_security_alert: { label: "보안 알림 설정 변경", color: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" },
+  settings_rollback_time_display: { label: "시간 표시 설정 롤백", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  settings_rollback_upstream_security: { label: "업스트림 보안 설정 롤백", color: "bg-orange-50 text-orange-700 border-orange-200" },
+  settings_test_cloudflare: { label: "Cloudflare 테스트", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
+  settings_test_cloudflare_drift: { label: "Cloudflare 드리프트 진단", color: "bg-sky-50 text-sky-700 border-sky-200" },
+  settings_test_cloudflare_reconcile: { label: "Cloudflare 재동기화", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  settings_test_security_alert: { label: "보안 알림 테스트", color: "bg-sky-50 text-sky-700 border-sky-200" },
+  security_alert_delivery_success: { label: "보안 알림 전송 성공", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  security_alert_delivery_failure: { label: "보안 알림 전송 실패", color: "bg-rose-50 text-rose-700 border-rose-200" },
+  change_alert_delivery_success: { label: "운영 변경 알림 전송 성공", color: "bg-teal-50 text-teal-700 border-teal-200" },
+  change_alert_delivery_failure: { label: "운영 변경 알림 전송 실패", color: "bg-red-50 text-red-700 border-red-200" },
+  service_create: { label: "서비스 생성", color: "bg-sky-50 text-sky-700 border-sky-200" },
+  service_update: { label: "서비스 변경", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  service_delete: { label: "서비스 삭제", color: "bg-red-50 text-red-700 border-red-200" },
+  service_rollback: { label: "서비스 롤백", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  redirect_create: { label: "리다이렉트 생성", color: "bg-violet-50 text-violet-700 border-violet-200" },
+  redirect_update: { label: "리다이렉트 변경", color: "bg-purple-50 text-purple-700 border-purple-200" },
+  redirect_delete: { label: "리다이렉트 삭제", color: "bg-pink-50 text-pink-700 border-pink-200" },
+  redirect_rollback: { label: "리다이렉트 롤백", color: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" },
+  middleware_create: { label: "미들웨어 생성", color: "bg-orange-50 text-orange-700 border-orange-200" },
+  middleware_update: { label: "미들웨어 변경", color: "bg-orange-50 text-orange-700 border-orange-200" },
+  middleware_delete: { label: "미들웨어 삭제", color: "bg-red-50 text-red-700 border-red-200" },
+  middleware_rollback: { label: "미들웨어 롤백", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  user_create: { label: "사용자 생성", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  user_update: { label: "사용자 변경", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  user_delete: { label: "사용자 삭제", color: "bg-rose-50 text-rose-700 border-rose-200" },
+  user_rollback: { label: "사용자 롤백", color: "bg-lime-50 text-lime-700 border-lime-200" },
+  certificate_warning: { label: "인증서 만료 임박", color: "bg-yellow-50 text-yellow-700 border-yellow-200" },
+  certificate_error: { label: "인증서 만료", color: "bg-red-50 text-red-700 border-red-200" },
+  certificate_recovered: { label: "인증서 복구", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  certificate_preflight: { label: "인증서 사전 진단", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  certificate_preflight_repeated_failure: { label: "인증서 반복 실패", color: "bg-rose-50 text-rose-700 border-rose-200" },
 };
 
 const auditFilters = [
@@ -261,12 +261,12 @@ export default function AuditLogPage() {
   return (
     <div className="mx-auto max-w-[1600px] p-6">
       <div className="flex items-center gap-3 mb-8">
-        <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center shadow-lg border border-slate-700">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm">
           <History className="w-5 h-5 text-blue-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">감사 로그</h1>
-          <p className="text-slate-400 text-sm">시스템의 모든 변경 사항을 추적합니다.</p>
+          <h1 className="text-2xl font-bold text-slate-950 tracking-tight">감사 로그</h1>
+          <p className="text-sm text-slate-500">시스템의 모든 변경 사항을 추적합니다.</p>
         </div>
       </div>
 
@@ -281,8 +281,8 @@ export default function AuditLogPage() {
               className={clsx(
                 "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition",
                 active
-                  ? "border-blue-400 bg-blue-300 text-slate-950"
-                  : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500",
+                  ? "border-blue-300 bg-blue-100 text-slate-950"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
               )}
             >
               {filter.label}
@@ -292,12 +292,12 @@ export default function AuditLogPage() {
       </div>
 
       <div className="mb-6 flex flex-wrap gap-3">
-        <label className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300">
-          <span className="text-slate-400">전송 상태</span>
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm">
+          <span className="text-slate-500">전송 상태</span>
           <select
             value={selectedDeliveryStatus}
             onChange={(event) => setSelectedDeliveryStatus(event.target.value as (typeof deliveryStatusOptions)[number]["key"])}
-            className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 outline-none"
+            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none"
           >
             {deliveryStatusOptions.map((option) => (
               <option key={option.key} value={option.key}>
@@ -306,12 +306,12 @@ export default function AuditLogPage() {
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300">
-          <span className="text-slate-400">채널</span>
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm">
+          <span className="text-slate-500">채널</span>
           <select
             value={selectedDeliveryProvider}
             onChange={(event) => setSelectedDeliveryProvider(event.target.value as (typeof deliveryProviderOptions)[number]["key"])}
-            className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 outline-none"
+            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none"
           >
             {deliveryProviderOptions.map((option) => (
               <option key={option.key} value={option.key}>
@@ -327,8 +327,8 @@ export default function AuditLogPage() {
           className={clsx(
             "mb-4 rounded-xl border px-4 py-3 text-sm",
             rollbackFeedback.type === "success"
-              ? "border-green-500/30 bg-green-500/10 text-green-100"
-              : "border-red-500/30 bg-red-500/10 text-red-100",
+              ? "border-green-200 bg-green-50 text-green-700"
+              : "border-red-200 bg-red-50 text-red-700",
           )}
         >
           {rollbackFeedback.text}
@@ -340,31 +340,31 @@ export default function AuditLogPage() {
           className={clsx(
             "mb-4 rounded-xl border px-4 py-3 text-sm",
             deliveryFeedback.type === "success"
-              ? "border-green-500/30 bg-green-500/10 text-green-100"
-              : "border-red-500/30 bg-red-500/10 text-red-100",
+              ? "border-green-200 bg-green-50 text-green-700"
+              : "border-red-200 bg-red-50 text-red-700",
           )}
         >
           {deliveryFeedback.text}
         </div>
       ) : null}
 
-      <div className="bg-slate-950 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-700 bg-slate-900">
-                <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider">사용자</th>
-                <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider">이벤트</th>
-                <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider">작업</th>
-                <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider">대상 타입</th>
-                <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider">대상 이름</th>
-                <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider">발생 시각</th>
+              <tr className="border-b border-slate-200 bg-slate-50">
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">사용자</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">이벤트</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">작업</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">대상 타입</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">대상 이름</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">발생 시각</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-200">
               {!logs || logs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-20 text-center text-slate-300">
+                  <td colSpan={6} className="px-6 py-20 text-center text-slate-500">
                     기록된 감사 로그가 없습니다.
                   </td>
                 </tr>
@@ -393,15 +393,15 @@ export default function AuditLogPage() {
 
                   return (
                     <Fragment key={log.id}>
-                      <tr key={log.id} className="hover:bg-slate-900 transition-colors group">
+                      <tr key={log.id} className="group transition-colors hover:bg-slate-50">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-600">
-                              <span className="text-xs text-white font-black">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-slate-100">
+                              <span className="text-xs font-black text-slate-700">
                                 {log.actor.charAt(0).toUpperCase()}
                               </span>
                             </div>
-                            <span className="text-sm text-white font-semibold">{log.actor}</span>
+                            <span className="text-sm font-semibold text-slate-900">{log.actor}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -421,7 +421,7 @@ export default function AuditLogPage() {
                         <td className="px-6 py-4">
                           <span className={clsx(
                             "px-2.5 py-1 rounded-md text-[11px] font-black border",
-                            action?.color || "bg-slate-800 text-white border-slate-700"
+                            action?.color || "bg-slate-100 text-slate-700 border-slate-200"
                           )}>
                             {action?.label || log.action}
                           </span>
@@ -431,19 +431,19 @@ export default function AuditLogPage() {
                             <div className={clsx("p-1.5 rounded-lg", resource?.color)}>
                               <ResourceIcon className="w-3.5 h-3.5" />
                             </div>
-                            <span className="text-sm text-white font-medium">{resource?.label || log.resource_type}</span>
+                            <span className="text-sm font-medium text-slate-900">{resource?.label || log.resource_type}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="space-y-2">
-                            <span className="block text-sm text-white font-bold group-hover:text-blue-400 transition-colors">
+                            <span className="block text-sm font-bold text-slate-900 transition-colors group-hover:text-blue-600">
                               {log.resource_name}
                             </span>
                             {canExpand ? (
                               <button
                                 type="button"
                                 onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                                className="text-xs font-medium text-blue-300 hover:text-blue-200"
+                                className="text-xs font-medium text-blue-600 hover:text-blue-700"
                               >
                                 {isExpanded ? "상세 숨기기" : "상세 보기"}
                               </button>
@@ -451,13 +451,13 @@ export default function AuditLogPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm text-slate-100 font-medium">
+                          <span className="text-sm font-medium text-slate-700">
                             {formatDateTime(log.created_at, timeDisplaySettings?.display_timezone)}
                           </span>
                         </td>
                       </tr>
                       {isExpanded ? (
-                        <tr className="bg-slate-900/60">
+                        <tr className="bg-slate-50/80">
                           <td colSpan={6} className="px-6 py-5">
                             <div className="space-y-4">
                               {diffRows.length > 0 ? (
@@ -466,35 +466,35 @@ export default function AuditLogPage() {
                                     {diffRows.map((row) => (
                                       <span
                                         key={`${log.id}-${row.key}`}
-                                        className="rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-[11px] font-medium text-slate-300"
+                                        className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600"
                                       >
                                         {row.key}
                                       </span>
                                     ))}
                                   </div>
                                   <div className="grid gap-4 xl:grid-cols-2">
-                                    <div className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
-                                      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
                                         이전 값
                                       </p>
                                       <div className="space-y-2">
                                         {diffRows.map((row) => (
                                           <div key={`${log.id}-${row.key}-before`} className="grid grid-cols-[160px_1fr] gap-3 text-sm">
-                                            <span className="text-slate-400">{row.key}</span>
-                                            <span className="break-all text-slate-100">{formatAuditValue(row.before)}</span>
+                                            <span className="text-slate-500">{row.key}</span>
+                                            <span className="break-all text-slate-900">{formatAuditValue(row.before)}</span>
                                           </div>
                                         ))}
                                       </div>
                                     </div>
-                                    <div className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
-                                      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
                                         이후 값
                                       </p>
                                       <div className="space-y-2">
                                         {diffRows.map((row) => (
                                           <div key={`${log.id}-${row.key}-after`} className="grid grid-cols-[160px_1fr] gap-3 text-sm">
-                                            <span className="text-slate-400">{row.key}</span>
-                                            <span className="break-all text-slate-100">{formatAuditValue(row.after)}</span>
+                                            <span className="text-slate-500">{row.key}</span>
+                                            <span className="break-all text-slate-900">{formatAuditValue(row.after)}</span>
                                           </div>
                                         ))}
                                       </div>
@@ -503,23 +503,23 @@ export default function AuditLogPage() {
                                 </>
                               ) : null}
                               {deliveryRows.length > 0 ? (
-                                <div className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
-                                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
                                     전송 상세
                                   </p>
                                   <div className="space-y-2">
                                     {deliveryRows.map((row) => (
                                       <div key={`${log.id}-${row.key}-delivery`} className="grid grid-cols-[160px_1fr] gap-3 text-sm">
-                                        <span className="text-slate-400">{row.label}</span>
-                                        <span className="break-all text-slate-100">{formatAuditValue(row.value)}</span>
+                                        <span className="text-slate-500">{row.label}</span>
+                                        <span className="break-all text-slate-900">{formatAuditValue(row.value)}</span>
                                       </div>
                                     ))}
                                   </div>
                                 </div>
                               ) : null}
                               {rollbackSupported ? (
-                                <div className="flex items-center justify-between gap-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
-                                  <p className="text-sm text-amber-100">
+                                <div className="flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                                  <p className="text-sm text-amber-800">
                                     이 변경은 안전 롤백을 지원합니다. 저장된 이전 상태로 되돌립니다.
                                   </p>
                                   <button
@@ -531,7 +531,7 @@ export default function AuditLogPage() {
                                       )
                                     }
                                     disabled={rollbackMutation.isPending}
-                                    className="inline-flex items-center gap-2 rounded-lg border border-amber-400/40 bg-amber-500/20 px-3 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
                                   >
                                     {rollbackMutation.isPending && rollbackTargetId === log.id ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -541,15 +541,15 @@ export default function AuditLogPage() {
                                 </div>
                               ) : null}
                               {retrySupported ? (
-                                <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3">
-                                  <p className="text-sm text-rose-100">
+                                <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+                                  <p className="text-sm text-rose-800">
                                     실패한 알림 전송입니다. 현재 채널 설정으로 다시 시도할 수 있습니다.
                                   </p>
                                   <button
                                     type="button"
                                     onClick={() => handleRetryDelivery(log.id)}
                                     disabled={retryDeliveryMutation.isPending}
-                                    className="inline-flex items-center gap-2 rounded-lg border border-rose-400/40 bg-rose-500/20 px-3 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="inline-flex items-center gap-2 rounded-lg border border-rose-300 bg-rose-100 px-3 py-2 text-sm font-semibold text-rose-900 transition hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
                                   >
                                     {retryDeliveryMutation.isPending && retryTargetId === log.id ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />

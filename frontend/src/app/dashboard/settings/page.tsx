@@ -1161,7 +1161,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="card p-6">
+        <div className="card p-6 order-1">
           <SettingsCardHeader
             icon={<Clock3 className="w-5 h-5 text-emerald-600" />}
             title="시간 표시 설정"
@@ -1251,7 +1251,7 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <div className="card p-6">
+        <div className="card p-6 order-2">
           <SettingsCardHeader
             icon={<Bug className="w-5 h-5 text-violet-600" />}
             title="인증서 진단"
@@ -1385,7 +1385,7 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <div className="card p-6">
+        <div className="card p-6 order-3">
           <SettingsCardHeader
             icon={<ShieldCheck className="w-5 h-5 text-rose-600" />}
             title="업스트림 보안"
@@ -1612,7 +1612,7 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <div className="card p-6 h-full">
+        <div className="card p-6 h-full order-4">
           <SettingsCardHeader
             icon={<ShieldCheck className="w-5 h-5 text-amber-600" />}
             title="로그인 방어"
@@ -1898,7 +1898,7 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <div className="card p-6 h-full">
+        <div className="card p-6 h-full order-9">
           <SettingsCardHeader
             icon={<Cloud className="w-5 h-5 text-sky-600" />}
             title="보안 알림"
@@ -2432,7 +2432,7 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <div className="card p-6 h-full">
+        <div className="card p-6 h-full order-5">
           <SettingsCardHeader
             icon={<ShieldCheck className="w-5 h-5 text-amber-600" />}
             title="세션 관리"
@@ -2519,9 +2519,9 @@ export default function SettingsPage() {
           )}
         </div>
 
-        {canManage ? <UserManagementSection /> : null}
+        {canManage ? <UserManagementSection className="order-6" /> : null}
 
-        <div className="card p-6 h-full">
+        <div className="card p-6 h-full order-7">
           <SettingsCardHeader
             icon={<Bug className="w-5 h-5 text-violet-600" />}
             title="Traefik 디버그 대시보드"
@@ -2681,7 +2681,7 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <div className="card p-6 h-full">
+        <div className="card p-6 h-full order-10">
           <SettingsCardHeader
             icon={<Cloud className="w-5 h-5 text-blue-600" />}
             title="Cloudflare DNS 자동 연동"
@@ -2923,7 +2923,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="card p-6 h-full">
+        <div className="card p-6 h-full order-8">
           <SettingsCardHeader
             icon={<Settings className="w-5 h-5 text-indigo-600" />}
             title="백업 / 복원"

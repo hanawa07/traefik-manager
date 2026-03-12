@@ -10,7 +10,7 @@ import { User } from "../api/userApi";
 import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from "../hooks/useUsers";
 import UserForm, { UserFormValue } from "./UserForm";
 
-export default function UserManagementSection() {
+export default function UserManagementSection({ className = "" }: { className?: string }) {
   const currentUsername = useAuthStore((state) => state.username);
   const { data: users = [], isLoading } = useUsers();
   const createUser = useCreateUser();
@@ -21,7 +21,7 @@ export default function UserManagementSection() {
   const updateUser = useUpdateUser(editTarget?.id || "");
 
   return (
-    <div className="card p-6 h-full">
+    <div className={`card p-6 h-full ${className}`.trim()}>
       <SettingsCardHeader
         icon={<Users className="h-5 w-5 text-emerald-600" />}
         title="사용자 관리"
