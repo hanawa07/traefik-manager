@@ -1571,6 +1571,54 @@ async def test_diagnose_cloudflare_dns_drift_returns_missing_mismatch_and_orphan
 
 
 @pytest.mark.asyncio
+async def test_diagnose_cloudflare_dns_drift_returns_failure_response_when_cloudflare_errors(monkeypatch):
+    recorded = []
+
+    class StubCloudflareClient:
+        enabled = True
+
+        async def get_zone_name(self):
+            return "example.com"
+
+        async def list_records(self):
+            raise settings_router.CloudflareClientError("Cloudflare API 오류 (403): Actor requires permission com.cloudflare.api.account.zone.list")
+
+    class StubServiceRepository:
+        def __init__(self, _db):
+            self.services = [
+                SimpleNamespace(domain="app.example.com", upstream=SimpleNamespace(host="220.117.211.140")),
+            ]
+
+        async def find_all(self):
+            return self.services
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(settings_router, "SQLiteServiceRepository", StubServiceRepository)
+    monkeypatch.setattr(settings_router.audit_service, "record", fake_record, raising=False)
+    monkeypatch.setattr(settings_router, "get_client_ip", lambda _request: "203.0.113.22")
+
+    response = await settings_router.diagnose_cloudflare_dns_drift(
+        request=SimpleNamespace(headers={}, client=SimpleNamespace(host="127.0.0.1")),
+        db=object(),
+        cloudflare_client=StubCloudflareClient(),
+        _={"role": "admin", "username": "admin"},
+    )
+
+    assert response.success is False
+    assert response.message == "Cloudflare DNS 드리프트 진단에 실패했습니다"
+    assert "403" in (response.detail or "")
+    assert response.zone_name == "example.com"
+    assert response.total_services == 1
+    assert response.eligible_services == 1
+    assert recorded[0]["detail"]["event"] == "settings_test_cloudflare_drift"
+    assert recorded[0]["detail"]["success"] is False
+    assert "403" in recorded[0]["detail"]["detail"]
+    assert recorded[0]["detail"]["client_ip"] == "203.0.113.22"
+
+
+@pytest.mark.asyncio
 async def test_test_security_alert_settings_returns_success(monkeypatch):
     StubSettingsRepository.store = {
         "security_alerts_enabled": "true",

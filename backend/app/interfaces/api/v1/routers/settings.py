@@ -180,178 +180,190 @@ async def diagnose_cloudflare_dns_drift(
                 detail=str(exc),
             )
         else:
-            service_repository = SQLiteServiceRepository(db)
-            services = await service_repository.find_all()
-            total_service_count = len(services)
-            eligible_services = [
-                service
-                for service in services
-                if str(service.domain) == zone_name or str(service.domain).endswith(f".{zone_name}")
-            ]
-            eligible_service_count = len(eligible_services)
-            skipped_count = len(services) - len(eligible_services)
+            try:
+                service_repository = SQLiteServiceRepository(db)
+                services = await service_repository.find_all()
+                total_service_count = len(services)
+                eligible_services = [
+                    service
+                    for service in services
+                    if str(service.domain) == zone_name or str(service.domain).endswith(f".{zone_name}")
+                ]
+                eligible_service_count = len(eligible_services)
+                skipped_count = len(services) - len(eligible_services)
 
-            if not services:
-                result = CloudflareDriftCheckResponse(
-                    success=True,
-                    message="진단할 서비스가 없습니다",
-                    detail=f"{zone_name} 영역에 일치하는 서비스가 없습니다",
-                    zone_name=zone_name,
-                    total_services=0,
-                )
-            elif not eligible_services:
-                result = CloudflareDriftCheckResponse(
-                    success=True,
-                    message="Cloudflare DNS 진단 대상이 없습니다",
-                    detail=f"{zone_name} 영역에 속한 서비스가 없어 {len(services)}개 서비스를 건너뛰었습니다",
-                    zone_name=zone_name,
-                    total_services=total_service_count,
-                    skipped_services=skipped_count,
-                )
-            else:
-                all_records = await cloudflare_client.list_records()
-                records_by_name: dict[str, list[dict]] = {}
-                for record in all_records:
-                    record_name = record.get("name")
-                    if isinstance(record_name, str):
-                        records_by_name.setdefault(record_name, []).append(record)
-
-                current_domains = {str(service.domain) for service in eligible_services}
-
-                for service in eligible_services:
-                    domain = str(service.domain)
-                    expected_payload = cloudflare_client.build_service_record_payload(
-                        domain=domain,
-                        fallback_target=service.upstream.host,
-                    )
-                    expected_type = str(expected_payload["type"])
-                    expected_content = str(expected_payload["content"])
-                    expected_proxied = bool(expected_payload["proxied"])
-                    domain_records = records_by_name.get(domain, [])
-
-                    if not domain_records:
-                        missing_records.append(
-                            CloudflareDriftRecordResponse(
-                                domain=domain,
-                                issue="missing",
-                                detail="기대하는 DNS 레코드가 존재하지 않습니다",
-                                expected_type=expected_type,
-                                expected_content=expected_content,
-                                expected_proxied=expected_proxied,
-                            )
-                        )
-                        continue
-
-                    matching_record = next(
-                        (record for record in domain_records if record.get("type") == expected_type),
-                        None,
-                    )
-
-                    if matching_record is None:
-                        first_record = domain_records[0]
-                        mismatched_records.append(
-                            CloudflareDriftRecordResponse(
-                                domain=domain,
-                                issue="mismatch",
-                                detail=f"기대 타입 {expected_type} 레코드가 없고 현재 다른 타입 레코드가 존재합니다",
-                                expected_type=expected_type,
-                                expected_content=expected_content,
-                                expected_proxied=expected_proxied,
-                                actual_type=first_record.get("type") if isinstance(first_record.get("type"), str) else None,
-                                actual_content=first_record.get("content") if isinstance(first_record.get("content"), str) else None,
-                                actual_proxied=first_record.get("proxied") if isinstance(first_record.get("proxied"), bool) else None,
-                                record_id=first_record.get("id") if isinstance(first_record.get("id"), str) else None,
-                            )
-                        )
-                        continue
-
-                    actual_content = (
-                        matching_record.get("content")
-                        if isinstance(matching_record.get("content"), str)
-                        else None
-                    )
-                    actual_proxied = (
-                        matching_record.get("proxied")
-                        if isinstance(matching_record.get("proxied"), bool)
-                        else None
-                    )
-                    mismatch_reasons: list[str] = []
-                    if actual_content != expected_content:
-                        mismatch_reasons.append(f"content 현재값={actual_content or '-'} 기대값={expected_content}")
-                    if actual_proxied is not None and actual_proxied != expected_proxied:
-                        mismatch_reasons.append(
-                            f"proxied 현재값={'활성' if actual_proxied else '비활성'} 기대값={'활성' if expected_proxied else '비활성'}"
-                        )
-
-                    if mismatch_reasons:
-                        mismatched_records.append(
-                            CloudflareDriftRecordResponse(
-                                domain=domain,
-                                issue="mismatch",
-                                detail=", ".join(mismatch_reasons),
-                                expected_type=expected_type,
-                                expected_content=expected_content,
-                                expected_proxied=expected_proxied,
-                                actual_type=matching_record.get("type") if isinstance(matching_record.get("type"), str) else None,
-                                actual_content=actual_content,
-                                actual_proxied=actual_proxied,
-                                record_id=matching_record.get("id") if isinstance(matching_record.get("id"), str) else None,
-                            )
-                        )
-                    else:
-                        healthy_count += 1
-
-                for record in all_records:
-                    record_name = record.get("name")
-                    if not isinstance(record_name, str):
-                        continue
-                    if record.get("comment") != "managed-by-traefik-manager":
-                        continue
-                    if record_name in current_domains:
-                        continue
-                    orphan_records.append(
-                        CloudflareDriftRecordResponse(
-                            domain=record_name,
-                            issue="orphan",
-                            detail="현재 관리 대상 서비스와 연결되지 않은 manager 레코드입니다",
-                            actual_type=record.get("type") if isinstance(record.get("type"), str) else None,
-                            actual_content=record.get("content") if isinstance(record.get("content"), str) else None,
-                            actual_proxied=record.get("proxied") if isinstance(record.get("proxied"), bool) else None,
-                            record_id=record.get("id") if isinstance(record.get("id"), str) else None,
-                        )
-                    )
-
-                if not missing_records and not mismatched_records and not orphan_records:
+                if not services:
                     result = CloudflareDriftCheckResponse(
                         success=True,
-                        message="Cloudflare DNS 드리프트가 없습니다",
-                        detail=f"{zone_name} 영역 서비스 {healthy_count}개가 목표 상태와 일치합니다",
+                        message="진단할 서비스가 없습니다",
+                        detail=f"{zone_name} 영역에 일치하는 서비스가 없습니다",
+                        zone_name=zone_name,
+                        total_services=0,
+                    )
+                elif not eligible_services:
+                    result = CloudflareDriftCheckResponse(
+                        success=True,
+                        message="Cloudflare DNS 진단 대상이 없습니다",
+                        detail=f"{zone_name} 영역에 속한 서비스가 없어 {len(services)}개 서비스를 건너뛰었습니다",
                         zone_name=zone_name,
                         total_services=total_service_count,
-                        eligible_services=eligible_service_count,
                         skipped_services=skipped_count,
-                        healthy_services=healthy_count,
                     )
                 else:
-                    result = CloudflareDriftCheckResponse(
-                        success=False,
-                        message=(
-                            "Cloudflare DNS 드리프트가 감지되었습니다 "
-                            f"(누락 {len(missing_records)}개, 불일치 {len(mismatched_records)}개, 고아 {len(orphan_records)}개)"
-                        ),
-                        detail=(
-                            f"정상 {healthy_count}개"
-                            + (f", 다른 영역 서비스 {skipped_count}개 건너뜀" if skipped_count else "")
-                        ),
-                        zone_name=zone_name,
-                        total_services=total_service_count,
-                        eligible_services=eligible_service_count,
-                        skipped_services=skipped_count,
-                        healthy_services=healthy_count,
-                        missing_records=missing_records,
-                        mismatched_records=mismatched_records,
-                        orphan_records=orphan_records,
-                    )
+                    all_records = await cloudflare_client.list_records()
+                    records_by_name: dict[str, list[dict]] = {}
+                    for record in all_records:
+                        record_name = record.get("name")
+                        if isinstance(record_name, str):
+                            records_by_name.setdefault(record_name, []).append(record)
+
+                    current_domains = {str(service.domain) for service in eligible_services}
+
+                    for service in eligible_services:
+                        domain = str(service.domain)
+                        expected_payload = cloudflare_client.build_service_record_payload(
+                            domain=domain,
+                            fallback_target=service.upstream.host,
+                        )
+                        expected_type = str(expected_payload["type"])
+                        expected_content = str(expected_payload["content"])
+                        expected_proxied = bool(expected_payload["proxied"])
+                        domain_records = records_by_name.get(domain, [])
+
+                        if not domain_records:
+                            missing_records.append(
+                                CloudflareDriftRecordResponse(
+                                    domain=domain,
+                                    issue="missing",
+                                    detail="기대하는 DNS 레코드가 존재하지 않습니다",
+                                    expected_type=expected_type,
+                                    expected_content=expected_content,
+                                    expected_proxied=expected_proxied,
+                                )
+                            )
+                            continue
+
+                        matching_record = next(
+                            (record for record in domain_records if record.get("type") == expected_type),
+                            None,
+                        )
+
+                        if matching_record is None:
+                            first_record = domain_records[0]
+                            mismatched_records.append(
+                                CloudflareDriftRecordResponse(
+                                    domain=domain,
+                                    issue="mismatch",
+                                    detail=f"기대 타입 {expected_type} 레코드가 없고 현재 다른 타입 레코드가 존재합니다",
+                                    expected_type=expected_type,
+                                    expected_content=expected_content,
+                                    expected_proxied=expected_proxied,
+                                    actual_type=first_record.get("type") if isinstance(first_record.get("type"), str) else None,
+                                    actual_content=first_record.get("content") if isinstance(first_record.get("content"), str) else None,
+                                    actual_proxied=first_record.get("proxied") if isinstance(first_record.get("proxied"), bool) else None,
+                                    record_id=first_record.get("id") if isinstance(first_record.get("id"), str) else None,
+                                )
+                            )
+                            continue
+
+                        actual_content = (
+                            matching_record.get("content")
+                            if isinstance(matching_record.get("content"), str)
+                            else None
+                        )
+                        actual_proxied = (
+                            matching_record.get("proxied")
+                            if isinstance(matching_record.get("proxied"), bool)
+                            else None
+                        )
+                        mismatch_reasons: list[str] = []
+                        if actual_content != expected_content:
+                            mismatch_reasons.append(f"content 현재값={actual_content or '-'} 기대값={expected_content}")
+                        if actual_proxied is not None and actual_proxied != expected_proxied:
+                            mismatch_reasons.append(
+                                f"proxied 현재값={'활성' if actual_proxied else '비활성'} 기대값={'활성' if expected_proxied else '비활성'}"
+                            )
+
+                        if mismatch_reasons:
+                            mismatched_records.append(
+                                CloudflareDriftRecordResponse(
+                                    domain=domain,
+                                    issue="mismatch",
+                                    detail=", ".join(mismatch_reasons),
+                                    expected_type=expected_type,
+                                    expected_content=expected_content,
+                                    expected_proxied=expected_proxied,
+                                    actual_type=matching_record.get("type") if isinstance(matching_record.get("type"), str) else None,
+                                    actual_content=actual_content,
+                                    actual_proxied=actual_proxied,
+                                    record_id=matching_record.get("id") if isinstance(matching_record.get("id"), str) else None,
+                                )
+                            )
+                        else:
+                            healthy_count += 1
+
+                    for record in all_records:
+                        record_name = record.get("name")
+                        if not isinstance(record_name, str):
+                            continue
+                        if record.get("comment") != "managed-by-traefik-manager":
+                            continue
+                        if record_name in current_domains:
+                            continue
+                        orphan_records.append(
+                            CloudflareDriftRecordResponse(
+                                domain=record_name,
+                                issue="orphan",
+                                detail="현재 관리 대상 서비스와 연결되지 않은 manager 레코드입니다",
+                                actual_type=record.get("type") if isinstance(record.get("type"), str) else None,
+                                actual_content=record.get("content") if isinstance(record.get("content"), str) else None,
+                                actual_proxied=record.get("proxied") if isinstance(record.get("proxied"), bool) else None,
+                                record_id=record.get("id") if isinstance(record.get("id"), str) else None,
+                            )
+                        )
+
+                    if not missing_records and not mismatched_records and not orphan_records:
+                        result = CloudflareDriftCheckResponse(
+                            success=True,
+                            message="Cloudflare DNS 드리프트가 없습니다",
+                            detail=f"{zone_name} 영역 서비스 {healthy_count}개가 목표 상태와 일치합니다",
+                            zone_name=zone_name,
+                            total_services=total_service_count,
+                            eligible_services=eligible_service_count,
+                            skipped_services=skipped_count,
+                            healthy_services=healthy_count,
+                        )
+                    else:
+                        result = CloudflareDriftCheckResponse(
+                            success=False,
+                            message=(
+                                "Cloudflare DNS 드리프트가 감지되었습니다 "
+                                f"(누락 {len(missing_records)}개, 불일치 {len(mismatched_records)}개, 고아 {len(orphan_records)}개)"
+                            ),
+                            detail=(
+                                f"정상 {healthy_count}개"
+                                + (f", 다른 영역 서비스 {skipped_count}개 건너뜀" if skipped_count else "")
+                            ),
+                            zone_name=zone_name,
+                            total_services=total_service_count,
+                            eligible_services=eligible_service_count,
+                            skipped_services=skipped_count,
+                            healthy_services=healthy_count,
+                            missing_records=missing_records,
+                            mismatched_records=mismatched_records,
+                            orphan_records=orphan_records,
+                        )
+            except CloudflareClientError as exc:
+                result = CloudflareDriftCheckResponse(
+                    success=False,
+                    message="Cloudflare DNS 드리프트 진단에 실패했습니다",
+                    detail=str(exc),
+                    zone_name=zone_name,
+                    total_services=total_service_count,
+                    eligible_services=eligible_service_count,
+                    skipped_services=skipped_count,
+                    healthy_services=healthy_count,
+                )
 
     await audit_service.record(
         db=db,
