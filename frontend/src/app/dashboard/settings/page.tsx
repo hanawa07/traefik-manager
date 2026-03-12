@@ -2255,7 +2255,20 @@ export default function SettingsPage() {
               />
               <SettingsSummaryRow
                 label="공개 주소"
-                value={traefikDashboardSettings?.public_url || "(미설정)"}
+                value={
+                  traefikDashboardSettings?.public_url ? (
+                    <a
+                      href={traefikDashboardSettings.public_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      {traefikDashboardSettings.public_url}
+                    </a>
+                  ) : (
+                    "(미설정)"
+                  )
+                }
                 mono
               />
               <SettingsSummaryRow
