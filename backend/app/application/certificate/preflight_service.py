@@ -21,6 +21,7 @@ async def record_certificate_preflight_result(
     client_ip: str | None,
 ) -> dict:
     previous_results = await list_previous_preflight_results(db, domain)
+    previous_alerts = await list_previous_repeated_failure_alerts(db, domain)
     previous_result = previous_results[0] if previous_results else None
     repeated_failure_streak = calculate_preflight_failure_streak(result, previous_results)
     repeated_failure_active = repeated_failure_streak >= settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD
@@ -36,7 +37,9 @@ async def record_certificate_preflight_result(
     )
 
     repeated_failure_emitted = False
-    if repeated_failure_streak == settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD:
+    if repeated_failure_streak == settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD and should_emit_repeated_failure_alert(
+        result, previous_alerts
+    ):
         await audit_service.record(
             db=db,
             actor=actor,
@@ -107,6 +110,22 @@ async def list_previous_preflight_results(db: AsyncSession, domain: str) -> list
     return snapshots
 
 
+async def list_previous_repeated_failure_alerts(db: AsyncSession, domain: str) -> list[dict]:
+    result = await db.execute(
+        select(AuditLogModel)
+        .where(AuditLogModel.resource_type == "certificate")
+        .where(AuditLogModel.resource_name == domain)
+        .order_by(desc(AuditLogModel.created_at))
+    )
+    logs = result.scalars().all()
+    alerts: list[dict] = []
+    for log in logs:
+        alert = deserialize_repeated_failure_alert(log.detail)
+        if alert is not None:
+            alerts.append(alert)
+    return alerts
+
+
 def serialize_preflight_detail(result: dict, client_ip: str | None) -> dict:
     checked_at = result.get("checked_at")
     checked_at_iso = checked_at.astimezone(timezone.utc).isoformat() if isinstance(checked_at, datetime) else None
@@ -150,6 +169,7 @@ def serialize_repeated_failure_detail(
         "recommendation": result.get("recommendation"),
         "consecutive_count": consecutive_count,
         "repeat_window_minutes": settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_MINUTES,
+        "cooldown_minutes": settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_COOLDOWN_MINUTES,
         "failure_keys": [item.get("key") for item in failure_items if isinstance(item.get("key"), str)],
         "failure_details": [
             {
@@ -194,6 +214,25 @@ def deserialize_preflight_snapshot(detail: dict | None) -> dict | None:
     return snapshot.model_dump(mode="json")
 
 
+def deserialize_repeated_failure_alert(detail: dict | None) -> dict | None:
+    if not isinstance(detail, dict):
+        return None
+    if detail.get("event") != CERTIFICATE_PREFLIGHT_REPEATED_FAILURE_EVENT:
+        return None
+    checked_at = detail.get("checked_at")
+    overall_status = detail.get("overall_status")
+    failure_keys = detail.get("failure_keys")
+    if not isinstance(checked_at, str) or overall_status not in {"warning", "error"}:
+        return None
+    if not isinstance(failure_keys, list) or not all(isinstance(item, str) for item in failure_keys):
+        return None
+    return {
+        "checked_at": checked_at,
+        "overall_status": overall_status,
+        "failure_keys": failure_keys,
+    }
+
+
 def calculate_preflight_failure_streak(current_result: dict, previous_results: list[dict]) -> int:
     current_signature = get_preflight_failure_signature(current_result)
     current_status = current_result.get("overall_status")
@@ -217,6 +256,22 @@ def calculate_preflight_failure_streak(current_result: dict, previous_results: l
     return streak
 
 
+def should_emit_repeated_failure_alert(current_result: dict, previous_alerts: list[dict]) -> bool:
+    current_signature = get_preflight_failure_signature(current_result)
+    current_checked_at = extract_preflight_checked_at(current_result)
+    if current_signature is None or current_checked_at is None:
+        return False
+
+    cooldown = timedelta(minutes=settings.CERTIFICATE_PREFLIGHT_REPEAT_ALERT_COOLDOWN_MINUTES)
+    for alert in previous_alerts:
+        previous_signature = get_repeated_failure_alert_signature(alert)
+        previous_checked_at = extract_preflight_checked_at(alert)
+        if previous_signature != current_signature or previous_checked_at is None:
+            continue
+        return current_checked_at - previous_checked_at > cooldown
+    return True
+
+
 def get_preflight_failure_signature(result: dict) -> tuple[str, tuple[str, ...]] | None:
     overall_status = result.get("overall_status")
     if overall_status not in {"warning", "error"}:
@@ -234,6 +289,17 @@ def get_preflight_failure_signature(result: dict) -> tuple[str, tuple[str, ...]]
     if not failing_keys:
         return None
     return overall_status, tuple(failing_keys)
+
+
+def get_repeated_failure_alert_signature(detail: dict) -> tuple[str, tuple[str, ...]] | None:
+    overall_status = detail.get("overall_status")
+    failure_keys = detail.get("failure_keys")
+    if overall_status not in {"warning", "error"} or not isinstance(failure_keys, list):
+        return None
+    normalized = sorted(item for item in failure_keys if isinstance(item, str))
+    if not normalized:
+        return None
+    return overall_status, tuple(normalized)
 
 
 def extract_preflight_checked_at(result: dict) -> datetime | None:
