@@ -26,11 +26,17 @@ class StubSettingsRepository:
     async def get(self, key: str) -> str | None:
         return self.store.get(key)
 
+    async def get_all_dict(self) -> dict[str, str]:
+        return dict(self.store)
+
     async def set(self, key: str, value: str | None) -> None:
         if value is None:
             self.store.pop(key, None)
         else:
             self.store[key] = value
+
+    async def delete(self, key: str) -> None:
+        self.store.pop(key, None)
 
 
 class RecordingDashboardFileWriter:
@@ -322,6 +328,69 @@ async def test_update_upstream_security_settings_persists_value(monkeypatch):
     assert response.allow_private_networks is False
     assert response.preset_key == "external-only"
     assert response.preset_name == "외부 승인 도메인 전용"
+
+
+@pytest.mark.asyncio
+async def test_update_cloudflare_settings_persists_multi_zone_and_records_audit(monkeypatch):
+    StubSettingsRepository.store = {
+        "cf_api_token": "legacy-token",
+        "cf_zone_id": "legacy-zone",
+        "cf_record_target": "220.117.211.140",
+        "cf_proxied": "true",
+    }
+    monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(settings_router, "get_client_ip", lambda _request: "203.0.113.21")
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    async def fake_get_zone_name(self, zone_config):
+        mapping = {
+            "zone-1": "hanastay.co.kr",
+            "zone-2": "lizstudio.co.kr",
+        }
+        zone_name = mapping[zone_config.zone_id]
+        zone_config.zone_name = zone_name
+        return zone_name
+
+    monkeypatch.setattr(settings_router.audit_service, "record", fake_record, raising=False)
+    monkeypatch.setattr(settings_router.CloudflareClient, "get_zone_name", fake_get_zone_name)
+
+    response = await settings_router.update_cloudflare_settings(
+        request=CloudflareSettingsUpdateRequest(
+            zones=[
+                {
+                    "api_token": "token-1",
+                    "zone_id": "zone-1",
+                    "record_target": "220.117.211.140",
+                    "proxied": True,
+                },
+                {
+                    "api_token": "token-2",
+                    "zone_id": "zone-2",
+                    "record_target": "220.117.211.140",
+                    "proxied": False,
+                },
+            ]
+        ),
+        db=object(),
+        _={"role": "admin", "username": "admin"},
+        http_request=SimpleNamespace(headers={}, client=SimpleNamespace(host="127.0.0.1")),
+    )
+
+    assert response["enabled"] is True
+    assert response["zone_count"] == 2
+    assert "cf_api_token" not in StubSettingsRepository.store
+    assert "cf_zone_id" not in StubSettingsRepository.store
+    assert "cf_record_target" not in StubSettingsRepository.store
+    assert "cf_proxied" not in StubSettingsRepository.store
+    assert settings_router.CF_ZONE_CONFIGS_KEY in StubSettingsRepository.store
+    assert recorded[0]["detail"]["event"] == "settings_update_cloudflare"
+    assert recorded[0]["detail"]["after"]["zone_count"] == 2
+    assert recorded[0]["detail"]["after"]["zones"][0]["zone_name"] == "hanastay.co.kr"
+    assert recorded[0]["detail"]["after"]["zones"][1]["zone_name"] == "lizstudio.co.kr"
+    assert recorded[0]["detail"]["client_ip"] == "203.0.113.21"
 
 
 @pytest.mark.asyncio

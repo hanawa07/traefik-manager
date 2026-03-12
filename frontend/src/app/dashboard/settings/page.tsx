@@ -634,6 +634,7 @@ export default function SettingsPage() {
   const [importMode, setImportMode] = useState<"merge" | "overwrite">("merge");
   const [importResultMessage, setImportResultMessage] = useState<string>("");
   const [exportErrorMessage, setExportErrorMessage] = useState<string>("");
+  const [cloudflareErrorMessage, setCloudflareErrorMessage] = useState("");
   const [cloudflareTestResult, setCloudflareTestResult] = useState<SettingsActionTestResult | null>(null);
   const [cloudflareDriftResult, setCloudflareDriftResult] = useState<CloudflareDriftCheckResult | null>(null);
   const [cloudflareReconcileResult, setCloudflareReconcileResult] = useState<SettingsActionTestResult | null>(null);
@@ -708,6 +709,7 @@ export default function SettingsPage() {
           }))
         : [createDefaultCloudflareZoneForm()],
     );
+    setCloudflareErrorMessage("");
     setIsEditingCf(true);
   };
 
@@ -729,11 +731,16 @@ export default function SettingsPage() {
   };
 
   const handleSaveCf = async () => {
-    await updateCloudflare.mutateAsync({ zones: cfForm });
-    setCloudflareTestResult(null);
-    setCloudflareDriftResult(null);
-    setCloudflareReconcileResult(null);
-    setIsEditingCf(false);
+    setCloudflareErrorMessage("");
+    try {
+      await updateCloudflare.mutateAsync({ zones: cfForm });
+      setCloudflareTestResult(null);
+      setCloudflareDriftResult(null);
+      setCloudflareReconcileResult(null);
+      setIsEditingCf(false);
+    } catch (error) {
+      setCloudflareErrorMessage(getApiErrorDetail(error, "Cloudflare 설정 저장에 실패했습니다"));
+    }
   };
 
   const handleTestCf = async () => {
@@ -2777,6 +2784,12 @@ export default function SettingsPage() {
                 <p>비Cloudflare 도메인: 저장/드리프트/재동기화 대상에서 자동 제외되며, 진단 결과에 제외 사유가 표시됩니다.</p>
                 <p>모든 영역을 비우고 저장하면 Cloudflare 자동 연동 설정이 완전히 초기화됩니다.</p>
               </div>
+
+              {cloudflareErrorMessage ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {cloudflareErrorMessage}
+                </div>
+              ) : null}
 
               <SettingsActionRow>
                 <button

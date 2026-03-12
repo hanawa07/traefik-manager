@@ -1519,7 +1519,10 @@ async def _record_settings_update(
     )
 
 
-def _cloudflare_summary(status: CloudflareSettingsStatusResponse) -> dict[str, object]:
+def _cloudflare_summary(status: CloudflareSettingsStatusResponse | dict[str, object]) -> dict[str, object]:
+    if isinstance(status, dict):
+        status = CloudflareSettingsStatusResponse.model_validate(status)
+
     return {
         "enabled": status.enabled,
         "configured": status.configured,
