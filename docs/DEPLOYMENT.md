@@ -14,6 +14,12 @@
 - `Traefik 디버그 대시보드` public route를 Manager에서 제어하려면 외부 Traefik 정적 설정에 `api.dashboard=true`가 켜져 있어야 합니다. Manager는 dashboard 엔진 자체를 토글하지 않고 `api@internal` 라우터만 생성/삭제합니다.
 - Cloudflare DNS 자동 연동은 여러 zone을 저장할 수 있습니다. 각 서비스 도메인은 suffix가 가장 구체적으로 일치하는 zone과만 매칭되며, 다른 DNS 제공자를 사용하는 도메인은 자동 제외됩니다.
 - Cloudflare를 사용하지 않는 도메인이 섞여 있어도 서비스 라우팅과 인증서 발급에는 영향이 없습니다. 다만 드리프트 진단과 재동기화는 Cloudflare 관리 대상 zone에 속한 도메인만 검사합니다.
+- Cloudflare 연결 테스트는 zone 접근만 확인합니다. 반면 드리프트 진단은 `dns_records` 목록 조회까지 수행하므로 `Zone:DNS:Read`(또는 `Zone:DNS:Edit`)와 `Zone:Zone:Read` 권한이 모두 필요합니다.
+- 드리프트 진단 결과가 `드리프트 0개`이면 오류가 아니라 정상 상태입니다. 이는 Cloudflare 관리 대상 도메인의 DNS 레코드가 Manager가 기대하는 값과 일치한다는 뜻입니다.
+- 권장 토큰 권한 구성 예시:
+  - 리소스: `Zone` / 권한: `DNS Settings:Edit`
+  - 리소스: `Zone` / 권한: `Zone:Read`
+  - 리소스: `Zone` / 권한: `DNS:Read`
 
 ## Traefik File Provider 설정
 
