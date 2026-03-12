@@ -36,14 +36,16 @@ SERVICE_DELETE_EVENT = "service_delete"
 SERVICE_ROLLBACK_EVENT = "service_rollback"
 
 
-def get_use_cases(db: AsyncSession = Depends(get_db)) -> ServiceUseCases:
+async def get_use_cases(db: AsyncSession = Depends(get_db)) -> ServiceUseCases:
+    settings_repository = SQLiteSystemSettingsRepository(db)
+    db_settings = await settings_repository.get_all_dict()
     return ServiceUseCases(
         repository=SQLiteServiceRepository(db),
         middleware_template_repository=SQLiteMiddlewareTemplateRepository(db),
         file_writer=FileProviderWriter(),
         authentik_client=AuthentikClient(),
-        cloudflare_client=CloudflareClient(),
-        upstream_guard=UpstreamDnsGuard(SQLiteSystemSettingsRepository(db)),
+        cloudflare_client=CloudflareClient.from_db_settings(db_settings),
+        upstream_guard=UpstreamDnsGuard(settings_repository),
     )
 
 

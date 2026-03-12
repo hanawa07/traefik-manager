@@ -4,9 +4,11 @@ from fastapi import HTTPException
 from types import SimpleNamespace
 from datetime import datetime, timedelta, timezone
 
+from app.infrastructure.cloudflare.client import CloudflareZoneConfig
 from app.interfaces.api.v1.routers import settings as settings_router
 from app.interfaces.api.v1.schemas.settings_schemas import (
     CertificateDiagnosticsSettingsUpdateRequest,
+    CloudflareSettingsUpdateRequest,
     LoginDefenseSettingsUpdateRequest,
     TraefikDashboardSettingsUpdateRequest,
     SecurityAlertSettingsUpdateRequest,
@@ -1407,14 +1409,27 @@ async def test_reconcile_cloudflare_dns_syncs_zone_services_and_records_audit(mo
 
     class StubCloudflareClient:
         enabled = True
+        zone_configs = [
+            CloudflareZoneConfig(
+                api_token="token-example",
+                zone_id="zone-example",
+                zone_name="example.com",
+                record_target="220.117.211.140",
+                proxied=True,
+            )
+        ]
 
-        async def get_zone_name(self):
-            return "example.com"
+        async def ensure_zone_names(self):
+            return None
+
+        async def get_matching_zone(self, domain: str):
+            zone = self.zone_configs[0]
+            return zone if zone.matches_domain(domain) else None
 
         async def upsert_service_record(self, domain: str, fallback_target: str):
             return f"cf-{domain}"
 
-        async def list_managed_records(self):
+        async def list_managed_records(self, _zone_config):
             return [
                 {"id": "record-1", "name": "app.example.com", "comment": "managed-by-traefik-manager"},
                 {"id": "record-2", "name": "old.example.com", "comment": "managed-by-traefik-manager"},
@@ -1465,7 +1480,7 @@ async def test_reconcile_cloudflare_dns_syncs_zone_services_and_records_audit(mo
 
     assert response.success is True
     assert response.message == "Cloudflare DNS 재동기화가 완료되었습니다"
-    assert response.detail == "example.com 영역 서비스 2개를 동기화했습니다, 고아 레코드 1개를 정리했습니다, 다른 영역 서비스 1개는 건너뛰었습니다"
+    assert response.detail == "Cloudflare 관리 대상 서비스 2개를 동기화했습니다, 고아 레코드 1개를 정리했습니다, 비Cloudflare 도메인 1개는 제외했습니다"
     assert saved_services == [
         ("app.example.com", "cf-app.example.com"),
         ("api.example.com", "cf-api.example.com"),
@@ -1486,11 +1501,24 @@ async def test_diagnose_cloudflare_dns_drift_returns_missing_mismatch_and_orphan
 
     class StubCloudflareClient:
         enabled = True
+        zone_configs = [
+            CloudflareZoneConfig(
+                api_token="token-example",
+                zone_id="zone-example",
+                zone_name="example.com",
+                record_target="220.117.211.140",
+                proxied=True,
+            )
+        ]
 
-        async def get_zone_name(self):
-            return "example.com"
+        async def ensure_zone_names(self):
+            return None
 
-        def build_service_record_payload(self, domain: str, fallback_target: str):
+        async def get_matching_zone(self, domain: str):
+            zone = self.zone_configs[0]
+            return zone if zone.matches_domain(domain) else None
+
+        def build_service_record_payload(self, domain: str, fallback_target: str, zone_config=None):
             return {
                 "type": "A",
                 "name": domain,
@@ -1500,7 +1528,7 @@ async def test_diagnose_cloudflare_dns_drift_returns_missing_mismatch_and_orphan
                 "comment": "managed-by-traefik-manager",
             }
 
-        async def list_records(self):
+        async def list_records(self, _zone_config):
             return [
                 {
                     "id": "record-app",
@@ -1555,13 +1583,16 @@ async def test_diagnose_cloudflare_dns_drift_returns_missing_mismatch_and_orphan
     )
 
     assert response.success is False
-    assert response.zone_name == "example.com"
+    assert response.zone_count == 1
     assert response.eligible_services == 3
     assert response.skipped_services == 1
     assert response.healthy_services == 1
+    assert response.detail == "정상 1개, 비Cloudflare 도메인 1개 제외"
+    assert response.zones[0].zone_name == "example.com"
     assert [item.domain for item in response.missing_records] == ["missing.example.com"]
     assert [item.domain for item in response.mismatched_records] == ["api.example.com"]
     assert [item.domain for item in response.orphan_records] == ["old.example.com"]
+    assert [item.domain for item in response.excluded_services] == ["outside.other.kr"]
     assert recorded[0]["resource_name"] == "Cloudflare DNS 드리프트 진단"
     assert recorded[0]["detail"]["event"] == "settings_test_cloudflare_drift"
     assert recorded[0]["detail"]["missing_records"] == 1
@@ -1576,11 +1607,24 @@ async def test_diagnose_cloudflare_dns_drift_returns_failure_response_when_cloud
 
     class StubCloudflareClient:
         enabled = True
+        zone_configs = [
+            CloudflareZoneConfig(
+                api_token="token-example",
+                zone_id="zone-example",
+                zone_name="example.com",
+                record_target="220.117.211.140",
+                proxied=True,
+            )
+        ]
 
-        async def get_zone_name(self):
-            return "example.com"
+        async def ensure_zone_names(self):
+            return None
 
-        async def list_records(self):
+        async def get_matching_zone(self, domain: str):
+            zone = self.zone_configs[0]
+            return zone if zone.matches_domain(domain) else None
+
+        async def list_records(self, _zone_config):
             raise settings_router.CloudflareClientError("Cloudflare API 오류 (403): Actor requires permission com.cloudflare.api.account.zone.list")
 
     class StubServiceRepository:
@@ -1609,13 +1653,44 @@ async def test_diagnose_cloudflare_dns_drift_returns_failure_response_when_cloud
     assert response.success is False
     assert response.message == "Cloudflare DNS 드리프트 진단에 실패했습니다"
     assert "403" in (response.detail or "")
-    assert response.zone_name == "example.com"
+    assert response.zone_count == 1
     assert response.total_services == 1
     assert response.eligible_services == 1
     assert recorded[0]["detail"]["event"] == "settings_test_cloudflare_drift"
     assert recorded[0]["detail"]["success"] is False
     assert "403" in recorded[0]["detail"]["detail"]
     assert recorded[0]["detail"]["client_ip"] == "203.0.113.22"
+
+
+def test_cloudflare_settings_update_request_normalizes_multiple_zones_and_skips_empty_rows():
+    request = CloudflareSettingsUpdateRequest(
+        zones=[
+            {
+                "api_token": " token-a ",
+                "zone_id": " zone-a ",
+                "record_target": " 220.117.211.140 ",
+                "proxied": True,
+            },
+            {
+                "api_token": "",
+                "zone_id": "",
+                "record_target": "",
+                "proxied": False,
+            },
+            {
+                "api_token": "token-b",
+                "zone_id": "zone-b",
+                "record_target": "",
+                "proxied": False,
+            },
+        ]
+    )
+
+    assert len(request.zones) == 2
+    assert request.zones[0].api_token == "token-a"
+    assert request.zones[0].zone_id == "zone-a"
+    assert request.zones[0].record_target == "220.117.211.140"
+    assert request.zones[1].zone_id == "zone-b"
 
 
 @pytest.mark.asyncio

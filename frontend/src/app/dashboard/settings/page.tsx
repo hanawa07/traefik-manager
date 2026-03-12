@@ -25,6 +25,7 @@ import {
   BackupPreviewResult,
   CertificateDiagnosticsSettingsInput,
   CloudflareDriftCheckResult,
+  CloudflareZoneInput,
   ChangeAlertEventRoutes,
   ChangeAlertRouteEvent,
   LoginDefenseSettingsInput,
@@ -80,6 +81,15 @@ function createDefaultUpstreamSecurityForm(): UpstreamSecuritySettingsInput & { 
     allowed_domain_suffixes_text: "",
     allow_docker_service_names: true,
     allow_private_networks: true,
+  };
+}
+
+function createDefaultCloudflareZoneForm(): CloudflareZoneInput {
+  return {
+    api_token: "",
+    zone_id: "",
+    record_target: "",
+    proxied: false,
   };
 }
 
@@ -334,9 +344,62 @@ function CloudflareDriftNotice({ result }: { result: CloudflareDriftCheckResult 
         </div>
         <div className="rounded-md border border-white/60 bg-white/70 p-2">
           <p className="text-gray-500">영역</p>
-          <p className="mt-1 font-medium text-gray-900">{result.zone_name || "-"}</p>
+          <p className="mt-1 font-medium text-gray-900">{result.zone_count}개</p>
         </div>
       </div>
+      {result.zones.length ? (
+        <div className="grid gap-3 xl:grid-cols-2">
+          {result.zones.map((zone) => (
+            <div key={zone.zone_name} className="rounded-lg border border-white/60 bg-white/70 p-3 text-xs text-gray-700">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-medium text-gray-900">{zone.zone_name}</p>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">
+                  대상 {zone.eligible_services}개
+                </span>
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-4">
+                <div className="rounded-md border border-gray-200 bg-white p-2">
+                  <p className="text-gray-500">정상</p>
+                  <p className="mt-1 font-medium text-gray-900">{zone.healthy_services}개</p>
+                </div>
+                <div className="rounded-md border border-gray-200 bg-white p-2">
+                  <p className="text-gray-500">누락</p>
+                  <p className="mt-1 font-medium text-gray-900">{zone.missing_records.length}개</p>
+                </div>
+                <div className="rounded-md border border-gray-200 bg-white p-2">
+                  <p className="text-gray-500">불일치</p>
+                  <p className="mt-1 font-medium text-gray-900">{zone.mismatched_records.length}개</p>
+                </div>
+                <div className="rounded-md border border-gray-200 bg-white p-2">
+                  <p className="text-gray-500">고아</p>
+                  <p className="mt-1 font-medium text-gray-900">{zone.orphan_records.length}개</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {result.excluded_services.length ? (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700 space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-medium text-slate-900">비Cloudflare 도메인 제외</p>
+            <span className="rounded-full bg-white px-2 py-0.5 font-medium text-slate-700">
+              {result.excluded_services.length}개
+            </span>
+          </div>
+          <ul className="space-y-2">
+            {result.excluded_services.slice(0, 5).map((item) => (
+              <li key={item.domain} className="rounded-md border border-slate-200 bg-white p-2">
+                <p className="font-mono text-[11px] font-medium text-slate-900">{item.domain}</p>
+                <p className="mt-1 text-[11px] text-slate-600">{item.reason}</p>
+              </li>
+            ))}
+            {result.excluded_services.length > 5 ? (
+              <li className="text-[11px] text-slate-500">외 {result.excluded_services.length - 5}개 더 있음</li>
+            ) : null}
+          </ul>
+        </div>
+      ) : null}
       {!result.success ? (
         <div className="grid gap-3 xl:grid-cols-3">
           {groups.map((group) => (
@@ -582,7 +645,7 @@ export default function SettingsPage() {
   const [retryTargetAuditId, setRetryTargetAuditId] = useState<string | null>(null);
 
   const [isEditingCf, setIsEditingCf] = useState(false);
-  const [cfForm, setCfForm] = useState({ api_token: "", zone_id: "", record_target: "", proxied: false });
+  const [cfForm, setCfForm] = useState<CloudflareZoneInput[]>([createDefaultCloudflareZoneForm()]);
   const [isEditingTimeDisplay, setIsEditingTimeDisplay] = useState(false);
   const [timeDisplayForm, setTimeDisplayForm] = useState(getDefaultDisplayTimezone());
   const [timeDisplayErrorMessage, setTimeDisplayErrorMessage] = useState("");
@@ -635,17 +698,38 @@ export default function SettingsPage() {
   const selectedUpstreamPresetKey = inferUpstreamPresetKey(upstreamPresets, upstreamSecurityForm);
 
   const handleEditCf = () => {
-    setCfForm({
-      api_token: "",
-      zone_id: cloudflareStatus?.zone_id ?? "",
-      record_target: cloudflareStatus?.record_target ?? "",
-      proxied: cloudflareStatus?.proxied ?? false,
-    });
+    setCfForm(
+      cloudflareStatus?.zones?.length
+        ? cloudflareStatus.zones.map((zone) => ({
+            api_token: "",
+            zone_id: zone.zone_id,
+            record_target: zone.record_target ?? "",
+            proxied: zone.proxied,
+          }))
+        : [createDefaultCloudflareZoneForm()],
+    );
     setIsEditingCf(true);
   };
 
+  const updateCfZone = (index: number, patch: Partial<CloudflareZoneInput>) => {
+    setCfForm((current) => current.map((zone, currentIndex) => (currentIndex === index ? { ...zone, ...patch } : zone)));
+  };
+
+  const addCfZone = () => {
+    setCfForm((current) => [...current, createDefaultCloudflareZoneForm()]);
+  };
+
+  const removeCfZone = (index: number) => {
+    setCfForm((current) => {
+      if (current.length === 1) {
+        return [createDefaultCloudflareZoneForm()];
+      }
+      return current.filter((_, currentIndex) => currentIndex !== index);
+    });
+  };
+
   const handleSaveCf = async () => {
-    await updateCloudflare.mutateAsync(cfForm);
+    await updateCloudflare.mutateAsync({ zones: cfForm });
     setCloudflareTestResult(null);
     setCloudflareDriftResult(null);
     setCloudflareReconcileResult(null);
@@ -678,11 +762,13 @@ export default function SettingsPage() {
         success: false,
         message: "Cloudflare DNS 드리프트 진단에 실패했습니다",
         detail: getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다"),
-        zone_name: null,
+        zone_count: 0,
         total_services: 0,
         eligible_services: 0,
         skipped_services: 0,
         healthy_services: 0,
+        zones: [],
+        excluded_services: [],
         missing_records: [],
         mismatched_records: [],
         orphan_records: [],
@@ -2600,51 +2686,98 @@ export default function SettingsPage() {
           {isCloudflareLoading ? (
             <div className="h-20 bg-gray-100 rounded-lg animate-pulse" />
           ) : isEditingCf ? (
-            <div className="space-y-3">
-              <div>
-                <label className="label">API Token</label>
-                <input
-                  type="password"
-                  className="input"
-                  placeholder="새 토큰 입력 (빈칸으로 저장 시 설정 초기화)"
-                  value={cfForm.api_token}
-                  onChange={(e) => setCfForm({ ...cfForm, api_token: e.target.value })}
-                />
-                <p className="text-xs text-gray-400 mt-1">Cloudflare → My Profile → API Tokens → Create Token → <strong>Zone:DNS:Edit</strong> 권한으로 생성. 빈칸 저장 시 모든 CF 설정이 초기화됩니다.</p>
+            <div className="space-y-4">
+              {cfForm.map((zone, index) => (
+                <div key={`cf-zone-${index}`} className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Cloudflare 영역 {index + 1}</p>
+                      <p className="text-xs text-gray-500">한 zone과 그 하위 도메인만 자동 연동 대상으로 포함됩니다.</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-secondary py-1.5 text-xs"
+                      onClick={() => removeCfZone(index)}
+                      disabled={cfForm.length === 1}
+                    >
+                      영역 제거
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="label">API Token</label>
+                    <input
+                      type="password"
+                      className="input"
+                      placeholder="새 토큰 입력 (비워두면 기존 값 유지가 아니라 이 영역 저장 자체가 비활성화됩니다)"
+                      value={zone.api_token}
+                      onChange={(e) => updateCfZone(index, { api_token: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Cloudflare → My Profile → API Tokens → Create Token → <strong>Zone:DNS:Edit</strong>,{" "}
+                      <strong>Zone:Zone:Read</strong> 권한이 필요합니다.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="label">Zone ID</label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={zone.zone_id}
+                      onChange={(e) => updateCfZone(index, { zone_id: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Cloudflare 도메인 대시보드 우측 하단 `Zone ID`. 이 zone에 속한 도메인만 자동 DNS 등록과
+                      드리프트 진단 대상이 됩니다.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="label">
+                      Record Target <span className="text-gray-400 font-normal">(선택)</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="예: 1.2.3.4 (비워두면 서비스 업스트림 호스트 사용)"
+                      value={zone.record_target}
+                      onChange={(e) => updateCfZone(index, { record_target: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      DNS A/CNAME 레코드가 가리킬 대상입니다. 비워두면 서비스 upstream_host를 사용하지만, upstream이
+                      내부 IP인 경우 공인 IP나 외부 hostname을 직접 입력해야 합니다.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="accent-blue-600"
+                        checked={zone.proxied}
+                        onChange={(e) => updateCfZone(index, { proxied: e.target.checked })}
+                      />
+                      Cloudflare Proxy (Proxied) 사용
+                    </label>
+                    <p className="text-xs text-gray-400 mt-1">
+                      활성화 시 트래픽이 Cloudflare를 경유하며 실제 서버 IP가 숨겨집니다. DNS only가 필요하면 체크를
+                      해제하세요.
+                    </p>
+                  </div>
+                </div>
+              ))}
+
+              <button type="button" className="btn-secondary py-1.5 text-xs" onClick={addCfZone}>
+                영역 추가
+              </button>
+
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700 space-y-1">
+                <p>멀티존 지원: 여러 Cloudflare zone을 나란히 저장할 수 있습니다.</p>
+                <p>비Cloudflare 도메인: 저장/드리프트/재동기화 대상에서 자동 제외되며, 진단 결과에 제외 사유가 표시됩니다.</p>
+                <p>모든 영역을 비우고 저장하면 Cloudflare 자동 연동 설정이 완전히 초기화됩니다.</p>
               </div>
-              <div>
-                <label className="label">Zone ID</label>
-                <input
-                  type="text"
-                  className="input"
-                  value={cfForm.zone_id}
-                  onChange={(e) => setCfForm({ ...cfForm, zone_id: e.target.value })}
-                />
-                <p className="text-xs text-gray-400 mt-1">Cloudflare 도메인 대시보드 우측 하단 &apos;Zone ID&apos;. 이 Zone에 속한 도메인만 자동 DNS 등록됩니다.</p>
-              </div>
-              <div>
-                <label className="label">Record Target <span className="text-gray-400 font-normal">(선택)</span></label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="예: 1.2.3.4 (비워두면 업스트림 자동 사용)"
-                  value={cfForm.record_target}
-                  onChange={(e) => setCfForm({ ...cfForm, record_target: e.target.value })}
-                />
-                <p className="text-xs text-gray-400 mt-1">DNS A 레코드가 가리킬 서버 공인 IP. 비워두면 서비스 upstream_host를 사용하지만, upstream이 내부 IP인 경우 반드시 공인 IP를 입력하세요.</p>
-              </div>
-              <div>
-                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="accent-blue-600"
-                    checked={cfForm.proxied}
-                    onChange={(e) => setCfForm({ ...cfForm, proxied: e.target.checked })}
-                  />
-                  Cloudflare Proxy (Proxied) 사용
-                </label>
-                <p className="text-xs text-gray-400 mt-1">활성화 시 트래픽이 Cloudflare를 경유하며 실제 서버 IP가 숨겨집니다 (주황 구름 아이콘). DNS only 모드를 원하면 체크 해제.</p>
-              </div>
+
               <SettingsActionRow>
                 <button
                   className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
@@ -2669,17 +2802,31 @@ export default function SettingsPage() {
               </p>
               <p className="text-xs text-gray-500 mt-1">{cloudflareStatus?.message}</p>
               <div className="pt-1">
-                <SettingsSummaryRow label="Zone ID" value={cloudflareStatus?.zone_id || "(미설정)"} mono />
-                <SettingsSummaryRow
-                  label="기본 대상"
-                  value={cloudflareStatus?.record_target || "(서비스 업스트림 사용)"}
-                  mono
-                />
-                <SettingsSummaryRow
-                  label="프록시 모드"
-                  value={cloudflareStatus?.proxied ? "활성" : "비활성"}
-                />
+                <SettingsSummaryRow label="설정된 영역 수" value={`${cloudflareStatus?.zone_count ?? 0}개`} />
+                <SettingsSummaryRow label="적용 범위" value="Cloudflare zone과 일치하는 도메인만 자동 연동" />
+                <SettingsSummaryRow label="비Cloudflare 도메인" value="자동 제외 후 진단 결과에 표시" />
               </div>
+              {cloudflareStatus?.zones?.length ? (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+                  <p className="text-xs font-medium text-gray-700">설정된 영역 목록</p>
+                  <div className="space-y-2">
+                    {cloudflareStatus.zones.map((zone) => (
+                      <div key={zone.zone_id} className="rounded-md border border-gray-200 bg-white p-3 text-xs text-gray-700">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="font-medium text-gray-900">{zone.zone_name || "(영역 이름 미확인)"}</p>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">
+                            {zone.proxied ? "프록시 활성" : "DNS only"}
+                          </span>
+                        </div>
+                        <p className="mt-1 font-mono text-[11px] text-gray-500">{zone.zone_id}</p>
+                        <p className="mt-2 text-[11px] text-gray-600">
+                          대상: <span className="font-mono text-gray-700">{zone.record_target || "(서비스 업스트림 사용)"}</span>
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               {canManage ? (
                 <SettingsActionRow>
                   <button
@@ -2712,7 +2859,7 @@ export default function SettingsPage() {
                 </SettingsActionRow>
               ) : null}
               <p className="text-xs text-gray-500">
-                테스트와 재동기화는 현재 저장된 Cloudflare 설정 기준으로 수행됩니다.
+                테스트, 드리프트 진단, 재동기화는 현재 저장된 Cloudflare zone 목록 기준으로 수행됩니다.
               </p>
               {!isSettingsTestHistoryLoading ? (
                 <SettingsTestHistoryNotice

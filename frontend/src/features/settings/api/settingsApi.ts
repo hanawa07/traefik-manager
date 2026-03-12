@@ -3,10 +3,16 @@ import apiClient from "@/shared/lib/apiClient";
 export interface CloudflareSettingsStatus {
   enabled: boolean;
   configured: boolean;
-  zone_id: string | null;
+  zone_count: number;
+  zones: CloudflareZoneStatus[];
+  message: string;
+}
+
+export interface CloudflareZoneStatus {
+  zone_id: string;
+  zone_name: string | null;
   record_target: string | null;
   proxied: boolean;
-  message: string;
 }
 
 export interface BackupServiceItem {
@@ -85,6 +91,10 @@ export interface BackupPreviewResult {
 }
 
 export interface CloudflareSettingsInput {
+  zones: CloudflareZoneInput[];
+}
+
+export interface CloudflareZoneInput {
   api_token: string;
   zone_id: string;
   record_target: string;
@@ -108,14 +118,30 @@ export interface CloudflareDriftCheckResult {
   success: boolean;
   message: string;
   detail: string | null;
-  zone_name: string | null;
+  zone_count: number;
   total_services: number;
   eligible_services: number;
   skipped_services: number;
   healthy_services: number;
+  zones: CloudflareDriftZone[];
+  excluded_services: CloudflareExcludedService[];
   missing_records: CloudflareDriftRecord[];
   mismatched_records: CloudflareDriftRecord[];
   orphan_records: CloudflareDriftRecord[];
+}
+
+export interface CloudflareDriftZone {
+  zone_name: string;
+  eligible_services: number;
+  healthy_services: number;
+  missing_records: CloudflareDriftRecord[];
+  mismatched_records: CloudflareDriftRecord[];
+  orphan_records: CloudflareDriftRecord[];
+}
+
+export interface CloudflareExcludedService {
+  domain: string;
+  reason: string;
 }
 
 export interface TraefikDashboardSettingsStatus {

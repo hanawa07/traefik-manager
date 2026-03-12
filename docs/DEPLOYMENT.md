@@ -12,6 +12,8 @@
 - 인증서 만료 모니터는 Traefik API와 ACME 저장소를 함께 읽습니다. backend가 `/acme.json`을 직접 못 읽는 경우에는 Docker socket을 통해 `TRAEFIK_DOCKER_CONTAINER_NAME`의 `TRAEFIK_ACME_STORAGE_PATH`를 fallback으로 읽습니다.
 - Docker socket을 backend에서 읽어야 하는 기능(컨테이너 자동 감지, 인증서 ACME fallback)을 쓰려면 `DOCKER_SOCKET_GID`를 호스트의 `/var/run/docker.sock` 그룹 ID와 맞춰야 합니다. 예: `stat -c '%g' /var/run/docker.sock`
 - `Traefik 디버그 대시보드` public route를 Manager에서 제어하려면 외부 Traefik 정적 설정에 `api.dashboard=true`가 켜져 있어야 합니다. Manager는 dashboard 엔진 자체를 토글하지 않고 `api@internal` 라우터만 생성/삭제합니다.
+- Cloudflare DNS 자동 연동은 여러 zone을 저장할 수 있습니다. 각 서비스 도메인은 suffix가 가장 구체적으로 일치하는 zone과만 매칭되며, 다른 DNS 제공자를 사용하는 도메인은 자동 제외됩니다.
+- Cloudflare를 사용하지 않는 도메인이 섞여 있어도 서비스 라우팅과 인증서 발급에는 영향이 없습니다. 다만 드리프트 진단과 재동기화는 Cloudflare 관리 대상 zone에 속한 도메인만 검사합니다.
 
 ## Traefik File Provider 설정
 

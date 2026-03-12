@@ -27,7 +27,12 @@ from app.domain.proxy.value_objects.upstream_security_presets import (
     infer_upstream_security_preset_key,
     list_upstream_security_presets,
 )
-from app.infrastructure.cloudflare.client import CloudflareClient, CloudflareClientError
+from app.infrastructure.cloudflare.client import (
+    CF_ZONE_CONFIGS_KEY,
+    CloudflareClient,
+    CloudflareClientError,
+    CloudflareZoneConfig,
+)
 from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.models import AuditLogModel
@@ -40,6 +45,8 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
     CertificateDiagnosticsSettingsResponse,
     CertificateDiagnosticsSettingsUpdateRequest,
     CloudflareDriftCheckResponse,
+    CloudflareDriftZoneResponse,
+    CloudflareExcludedServiceResponse,
     CloudflareDriftRecordResponse,
     CloudflareSettingsStatusResponse,
     CloudflareSettingsUpdateRequest,
@@ -157,73 +164,86 @@ async def diagnose_cloudflare_dns_drift(
     eligible_service_count = 0
     skipped_count = 0
     healthy_count = 0
+    zone_count = 0
     missing_records: list[CloudflareDriftRecordResponse] = []
     mismatched_records: list[CloudflareDriftRecordResponse] = []
     orphan_records: list[CloudflareDriftRecordResponse] = []
-    zone_name: str | None = None
+    zone_results: list[CloudflareDriftZoneResponse] = []
+    excluded_services: list[CloudflareExcludedServiceResponse] = []
 
     if not cloudflare_client.enabled:
         result = CloudflareDriftCheckResponse(
             success=False,
             message="Cloudflare DNS 드리프트 진단에 실패했습니다",
-            detail="API token과 zone id를 먼저 저장해야 합니다",
+            detail="Cloudflare 영역 설정을 먼저 저장해야 합니다",
         )
     else:
         try:
-            zone_name = await cloudflare_client.get_zone_name()
-            if not zone_name:
+            await cloudflare_client.ensure_zone_names()
+            zone_count = len(cloudflare_client.zone_configs)
+            if zone_count == 0:
                 raise CloudflareClientError("Zone 이름을 확인할 수 없습니다")
-        except CloudflareClientError as exc:
-            result = CloudflareDriftCheckResponse(
-                success=False,
-                message="Cloudflare DNS 드리프트 진단에 실패했습니다",
-                detail=str(exc),
-            )
-        else:
-            try:
-                service_repository = SQLiteServiceRepository(db)
-                services = await service_repository.find_all()
-                total_service_count = len(services)
-                eligible_services = [
-                    service
-                    for service in services
-                    if str(service.domain) == zone_name or str(service.domain).endswith(f".{zone_name}")
-                ]
-                eligible_service_count = len(eligible_services)
-                skipped_count = len(services) - len(eligible_services)
 
-                if not services:
-                    result = CloudflareDriftCheckResponse(
-                        success=True,
-                        message="진단할 서비스가 없습니다",
-                        detail=f"{zone_name} 영역에 일치하는 서비스가 없습니다",
-                        zone_name=zone_name,
-                        total_services=0,
+            service_repository = SQLiteServiceRepository(db)
+            services = await service_repository.find_all()
+            total_service_count = len(services)
+
+            services_by_zone: dict[str, list] = {config.zone_id: [] for config in cloudflare_client.zone_configs}
+            for service in services:
+                matched_zone = await cloudflare_client.get_matching_zone(str(service.domain))
+                if matched_zone is None:
+                    excluded_services.append(
+                        CloudflareExcludedServiceResponse(
+                            domain=str(service.domain),
+                            reason="Cloudflare 관리 대상 zone이 아니므로 진단에서 제외됩니다",
+                        )
                     )
-                elif not eligible_services:
-                    result = CloudflareDriftCheckResponse(
-                        success=True,
-                        message="Cloudflare DNS 진단 대상이 없습니다",
-                        detail=f"{zone_name} 영역에 속한 서비스가 없어 {len(services)}개 서비스를 건너뛰었습니다",
-                        zone_name=zone_name,
-                        total_services=total_service_count,
-                        skipped_services=skipped_count,
-                    )
-                else:
-                    all_records = await cloudflare_client.list_records()
+                    continue
+                services_by_zone.setdefault(matched_zone.zone_id, []).append(service)
+
+            eligible_service_count = sum(len(zone_services) for zone_services in services_by_zone.values())
+            skipped_count = len(excluded_services)
+
+            if not services:
+                result = CloudflareDriftCheckResponse(
+                    success=True,
+                    message="진단할 서비스가 없습니다",
+                    detail="등록된 서비스가 없어 Cloudflare DNS 드리프트를 검사하지 않았습니다",
+                    zone_count=zone_count,
+                )
+            elif eligible_service_count == 0:
+                result = CloudflareDriftCheckResponse(
+                    success=True,
+                    message="Cloudflare DNS 진단 대상이 없습니다",
+                    detail=f"현재 서비스 {total_service_count}개가 모두 Cloudflare 관리 대상 zone 밖에 있습니다",
+                    zone_count=zone_count,
+                    total_services=total_service_count,
+                    skipped_services=skipped_count,
+                    excluded_services=excluded_services,
+                )
+            else:
+                for zone_config in cloudflare_client.zone_configs:
+                    zone_services = services_by_zone.get(zone_config.zone_id, [])
+                    zone_missing_records: list[CloudflareDriftRecordResponse] = []
+                    zone_mismatched_records: list[CloudflareDriftRecordResponse] = []
+                    zone_orphan_records: list[CloudflareDriftRecordResponse] = []
+                    zone_healthy_count = 0
+
+                    all_records = await cloudflare_client.list_records(zone_config)
                     records_by_name: dict[str, list[dict]] = {}
                     for record in all_records:
                         record_name = record.get("name")
                         if isinstance(record_name, str):
                             records_by_name.setdefault(record_name, []).append(record)
 
-                    current_domains = {str(service.domain) for service in eligible_services}
+                    current_domains = {str(service.domain) for service in zone_services}
 
-                    for service in eligible_services:
+                    for service in zone_services:
                         domain = str(service.domain)
                         expected_payload = cloudflare_client.build_service_record_payload(
                             domain=domain,
                             fallback_target=service.upstream.host,
+                            zone_config=zone_config,
                         )
                         expected_type = str(expected_payload["type"])
                         expected_content = str(expected_payload["content"])
@@ -231,51 +251,42 @@ async def diagnose_cloudflare_dns_drift(
                         domain_records = records_by_name.get(domain, [])
 
                         if not domain_records:
-                            missing_records.append(
-                                CloudflareDriftRecordResponse(
-                                    domain=domain,
-                                    issue="missing",
-                                    detail="기대하는 DNS 레코드가 존재하지 않습니다",
-                                    expected_type=expected_type,
-                                    expected_content=expected_content,
-                                    expected_proxied=expected_proxied,
-                                )
+                            issue = CloudflareDriftRecordResponse(
+                                domain=domain,
+                                issue="missing",
+                                detail="기대하는 DNS 레코드가 존재하지 않습니다",
+                                expected_type=expected_type,
+                                expected_content=expected_content,
+                                expected_proxied=expected_proxied,
                             )
+                            zone_missing_records.append(issue)
+                            missing_records.append(issue)
                             continue
 
                         matching_record = next(
                             (record for record in domain_records if record.get("type") == expected_type),
                             None,
                         )
-
                         if matching_record is None:
                             first_record = domain_records[0]
-                            mismatched_records.append(
-                                CloudflareDriftRecordResponse(
-                                    domain=domain,
-                                    issue="mismatch",
-                                    detail=f"기대 타입 {expected_type} 레코드가 없고 현재 다른 타입 레코드가 존재합니다",
-                                    expected_type=expected_type,
-                                    expected_content=expected_content,
-                                    expected_proxied=expected_proxied,
-                                    actual_type=first_record.get("type") if isinstance(first_record.get("type"), str) else None,
-                                    actual_content=first_record.get("content") if isinstance(first_record.get("content"), str) else None,
-                                    actual_proxied=first_record.get("proxied") if isinstance(first_record.get("proxied"), bool) else None,
-                                    record_id=first_record.get("id") if isinstance(first_record.get("id"), str) else None,
-                                )
+                            issue = CloudflareDriftRecordResponse(
+                                domain=domain,
+                                issue="mismatch",
+                                detail=f"기대 타입 {expected_type} 레코드가 없고 현재 다른 타입 레코드가 존재합니다",
+                                expected_type=expected_type,
+                                expected_content=expected_content,
+                                expected_proxied=expected_proxied,
+                                actual_type=first_record.get("type") if isinstance(first_record.get("type"), str) else None,
+                                actual_content=first_record.get("content") if isinstance(first_record.get("content"), str) else None,
+                                actual_proxied=first_record.get("proxied") if isinstance(first_record.get("proxied"), bool) else None,
+                                record_id=first_record.get("id") if isinstance(first_record.get("id"), str) else None,
                             )
+                            zone_mismatched_records.append(issue)
+                            mismatched_records.append(issue)
                             continue
 
-                        actual_content = (
-                            matching_record.get("content")
-                            if isinstance(matching_record.get("content"), str)
-                            else None
-                        )
-                        actual_proxied = (
-                            matching_record.get("proxied")
-                            if isinstance(matching_record.get("proxied"), bool)
-                            else None
-                        )
+                        actual_content = matching_record.get("content") if isinstance(matching_record.get("content"), str) else None
+                        actual_proxied = matching_record.get("proxied") if isinstance(matching_record.get("proxied"), bool) else None
                         mismatch_reasons: list[str] = []
                         if actual_content != expected_content:
                             mismatch_reasons.append(f"content 현재값={actual_content or '-'} 기대값={expected_content}")
@@ -285,21 +296,22 @@ async def diagnose_cloudflare_dns_drift(
                             )
 
                         if mismatch_reasons:
-                            mismatched_records.append(
-                                CloudflareDriftRecordResponse(
-                                    domain=domain,
-                                    issue="mismatch",
-                                    detail=", ".join(mismatch_reasons),
-                                    expected_type=expected_type,
-                                    expected_content=expected_content,
-                                    expected_proxied=expected_proxied,
-                                    actual_type=matching_record.get("type") if isinstance(matching_record.get("type"), str) else None,
-                                    actual_content=actual_content,
-                                    actual_proxied=actual_proxied,
-                                    record_id=matching_record.get("id") if isinstance(matching_record.get("id"), str) else None,
-                                )
+                            issue = CloudflareDriftRecordResponse(
+                                domain=domain,
+                                issue="mismatch",
+                                detail=", ".join(mismatch_reasons),
+                                expected_type=expected_type,
+                                expected_content=expected_content,
+                                expected_proxied=expected_proxied,
+                                actual_type=matching_record.get("type") if isinstance(matching_record.get("type"), str) else None,
+                                actual_content=actual_content,
+                                actual_proxied=actual_proxied,
+                                record_id=matching_record.get("id") if isinstance(matching_record.get("id"), str) else None,
                             )
+                            zone_mismatched_records.append(issue)
+                            mismatched_records.append(issue)
                         else:
+                            zone_healthy_count += 1
                             healthy_count += 1
 
                     for record in all_records:
@@ -310,60 +322,80 @@ async def diagnose_cloudflare_dns_drift(
                             continue
                         if record_name in current_domains:
                             continue
-                        orphan_records.append(
-                            CloudflareDriftRecordResponse(
-                                domain=record_name,
-                                issue="orphan",
-                                detail="현재 관리 대상 서비스와 연결되지 않은 manager 레코드입니다",
-                                actual_type=record.get("type") if isinstance(record.get("type"), str) else None,
-                                actual_content=record.get("content") if isinstance(record.get("content"), str) else None,
-                                actual_proxied=record.get("proxied") if isinstance(record.get("proxied"), bool) else None,
-                                record_id=record.get("id") if isinstance(record.get("id"), str) else None,
-                            )
+                        issue = CloudflareDriftRecordResponse(
+                            domain=record_name,
+                            issue="orphan",
+                            detail="현재 관리 대상 서비스와 연결되지 않은 manager 레코드입니다",
+                            actual_type=record.get("type") if isinstance(record.get("type"), str) else None,
+                            actual_content=record.get("content") if isinstance(record.get("content"), str) else None,
+                            actual_proxied=record.get("proxied") if isinstance(record.get("proxied"), bool) else None,
+                            record_id=record.get("id") if isinstance(record.get("id"), str) else None,
                         )
+                        zone_orphan_records.append(issue)
+                        orphan_records.append(issue)
 
-                    if not missing_records and not mismatched_records and not orphan_records:
-                        result = CloudflareDriftCheckResponse(
-                            success=True,
-                            message="Cloudflare DNS 드리프트가 없습니다",
-                            detail=f"{zone_name} 영역 서비스 {healthy_count}개가 목표 상태와 일치합니다",
-                            zone_name=zone_name,
-                            total_services=total_service_count,
-                            eligible_services=eligible_service_count,
-                            skipped_services=skipped_count,
-                            healthy_services=healthy_count,
+                    zone_results.append(
+                        CloudflareDriftZoneResponse(
+                            zone_name=zone_config.zone_name or zone_config.zone_id,
+                            eligible_services=len(zone_services),
+                            healthy_services=zone_healthy_count,
+                            missing_records=zone_missing_records,
+                            mismatched_records=zone_mismatched_records,
+                            orphan_records=zone_orphan_records,
                         )
-                    else:
-                        result = CloudflareDriftCheckResponse(
-                            success=False,
-                            message=(
-                                "Cloudflare DNS 드리프트가 감지되었습니다 "
-                                f"(누락 {len(missing_records)}개, 불일치 {len(mismatched_records)}개, 고아 {len(orphan_records)}개)"
-                            ),
-                            detail=(
-                                f"정상 {healthy_count}개"
-                                + (f", 다른 영역 서비스 {skipped_count}개 건너뜀" if skipped_count else "")
-                            ),
-                            zone_name=zone_name,
-                            total_services=total_service_count,
-                            eligible_services=eligible_service_count,
-                            skipped_services=skipped_count,
-                            healthy_services=healthy_count,
-                            missing_records=missing_records,
-                            mismatched_records=mismatched_records,
-                            orphan_records=orphan_records,
-                        )
-            except CloudflareClientError as exc:
-                result = CloudflareDriftCheckResponse(
-                    success=False,
-                    message="Cloudflare DNS 드리프트 진단에 실패했습니다",
-                    detail=str(exc),
-                    zone_name=zone_name,
-                    total_services=total_service_count,
-                    eligible_services=eligible_service_count,
-                    skipped_services=skipped_count,
-                    healthy_services=healthy_count,
-                )
+                    )
+
+                if not missing_records and not mismatched_records and not orphan_records:
+                    detail_parts = [f"Cloudflare 관리 대상 서비스 {healthy_count}개가 목표 상태와 일치합니다"]
+                    if skipped_count:
+                        detail_parts.append(f"비Cloudflare 도메인 {skipped_count}개는 제외되었습니다")
+                    result = CloudflareDriftCheckResponse(
+                        success=True,
+                        message="Cloudflare DNS 드리프트가 없습니다",
+                        detail=", ".join(detail_parts),
+                        zone_count=zone_count,
+                        total_services=total_service_count,
+                        eligible_services=eligible_service_count,
+                        skipped_services=skipped_count,
+                        healthy_services=healthy_count,
+                        zones=zone_results,
+                        excluded_services=excluded_services,
+                    )
+                else:
+                    detail_parts = [f"정상 {healthy_count}개"]
+                    if skipped_count:
+                        detail_parts.append(f"비Cloudflare 도메인 {skipped_count}개 제외")
+                    result = CloudflareDriftCheckResponse(
+                        success=False,
+                        message=(
+                            "Cloudflare DNS 드리프트가 감지되었습니다 "
+                            f"(누락 {len(missing_records)}개, 불일치 {len(mismatched_records)}개, 고아 {len(orphan_records)}개)"
+                        ),
+                        detail=", ".join(detail_parts),
+                        zone_count=zone_count,
+                        total_services=total_service_count,
+                        eligible_services=eligible_service_count,
+                        skipped_services=skipped_count,
+                        healthy_services=healthy_count,
+                        zones=zone_results,
+                        excluded_services=excluded_services,
+                        missing_records=missing_records,
+                        mismatched_records=mismatched_records,
+                        orphan_records=orphan_records,
+                    )
+        except CloudflareClientError as exc:
+            result = CloudflareDriftCheckResponse(
+                success=False,
+                message="Cloudflare DNS 드리프트 진단에 실패했습니다",
+                detail=str(exc),
+                zone_count=zone_count,
+                total_services=total_service_count,
+                eligible_services=eligible_service_count,
+                skipped_services=skipped_count,
+                healthy_services=healthy_count,
+                zones=zone_results,
+                excluded_services=excluded_services,
+            )
 
     await audit_service.record(
         db=db,
@@ -377,7 +409,7 @@ async def diagnose_cloudflare_dns_drift(
             "success": result.success,
             "message": result.message,
             "detail": result.detail,
-            "zone_name": result.zone_name,
+            "zone_count": zone_count,
             "total_services": total_service_count,
             "eligible_services": eligible_service_count,
             "skipped_services": skipped_count,
@@ -385,9 +417,11 @@ async def diagnose_cloudflare_dns_drift(
             "missing_records": len(missing_records),
             "mismatched_records": len(mismatched_records),
             "orphan_records": len(orphan_records),
+            "excluded_services": len(excluded_services),
             "sample_missing_domains": [item.domain for item in missing_records[:5]],
             "sample_mismatched_domains": [item.domain for item in mismatched_records[:5]],
             "sample_orphan_domains": [item.domain for item in orphan_records[:5]],
+            "sample_excluded_domains": [item.domain for item in excluded_services[:5]],
             "client_ip": get_client_ip(request),
         },
     )
@@ -408,103 +442,101 @@ async def reconcile_cloudflare_dns(
     failed_count = 0
     cleaned_count = 0
     cleanup_failed_count = 0
+    zone_count = 0
 
     if not cloudflare_client.enabled:
         result = SettingsTestActionResponse(
             success=False,
             message="Cloudflare DNS 재동기화에 실패했습니다",
-            detail="API token과 zone id를 먼저 저장해야 합니다",
+            detail="Cloudflare 영역 설정을 먼저 저장해야 합니다",
             provider=None,
         )
     else:
         try:
-            zone_name = await cloudflare_client.get_zone_name()
-            if not zone_name:
+            await cloudflare_client.ensure_zone_names()
+            zone_count = len(cloudflare_client.zone_configs)
+            if zone_count == 0:
                 raise CloudflareClientError("Zone 이름을 확인할 수 없습니다")
-        except CloudflareClientError as exc:
-            result = SettingsTestActionResponse(
-                success=False,
-                message="Cloudflare DNS 재동기화에 실패했습니다",
-                detail=str(exc),
-                provider=None,
-            )
-        else:
+
             service_repository = SQLiteServiceRepository(db)
             services = await service_repository.find_all()
             total_service_count = len(services)
-            eligible_services = [
-                service
-                for service in services
-                if str(service.domain) == zone_name or str(service.domain).endswith(f".{zone_name}")
-            ]
-            eligible_service_count = len(eligible_services)
+            services_by_zone: dict[str, list] = {config.zone_id: [] for config in cloudflare_client.zone_configs}
+            for service in services:
+                matched_zone = await cloudflare_client.get_matching_zone(str(service.domain))
+                if matched_zone is None:
+                    skipped_count += 1
+                    continue
+                services_by_zone.setdefault(matched_zone.zone_id, []).append(service)
 
-            synced_count = 0
-            failed_count = 0
-            skipped_count = len(services) - len(eligible_services)
-            cleaned_count = 0
-            cleanup_failed_count = 0
+            eligible_service_count = sum(len(zone_services) for zone_services in services_by_zone.values())
             failure_messages: list[str] = []
 
-            for service in eligible_services:
-                try:
-                    record_id = await cloudflare_client.upsert_service_record(
-                        domain=str(service.domain),
-                        fallback_target=service.upstream.host,
-                    )
-                    if record_id != service.cloudflare_record_id:
-                        service.cloudflare_record_id = record_id
-                        await service_repository.save(service)
-                    synced_count += 1
-                except Exception as exc:
-                    failed_count += 1
-                    failure_messages.append(f"{service.domain}: {exc}")
+            for zone_config in cloudflare_client.zone_configs:
+                zone_services = services_by_zone.get(zone_config.zone_id, [])
+                current_domains = {str(service.domain) for service in zone_services}
 
-            if eligible_services:
-                current_domains = {str(service.domain) for service in eligible_services}
+                for service in zone_services:
+                    try:
+                        record_id = await cloudflare_client.upsert_service_record(
+                            domain=str(service.domain),
+                            fallback_target=service.upstream.host,
+                        )
+                        if record_id != service.cloudflare_record_id:
+                            service.cloudflare_record_id = record_id
+                            await service_repository.save(service)
+                        synced_count += 1
+                    except Exception as exc:
+                        failed_count += 1
+                        failure_messages.append(f"{service.domain}: {exc}")
+
+                if not zone_services:
+                    continue
+
                 try:
-                    managed_records = await cloudflare_client.list_managed_records()
+                    managed_records = await cloudflare_client.list_managed_records(zone_config)
                 except Exception as exc:
                     cleanup_failed_count += 1
-                    failure_messages.append(f"관리 레코드 조회 실패: {exc}")
-                else:
-                    orphan_records = [
-                        record
-                        for record in managed_records
-                        if isinstance(record.get("name"), str) and record["name"] not in current_domains
-                    ]
-                    for record in orphan_records:
-                        domain = record.get("name")
-                        record_id = record.get("id")
-                        if not isinstance(domain, str):
-                            continue
-                        try:
-                            await cloudflare_client.delete_service_record(domain=domain, record_id=record_id)
-                            cleaned_count += 1
-                        except Exception as exc:
-                            cleanup_failed_count += 1
-                            failure_messages.append(f"{domain} 정리 실패: {exc}")
+                    failure_messages.append(f"{zone_config.zone_name or zone_config.zone_id} 관리 레코드 조회 실패: {exc}")
+                    continue
+
+                orphan_records = [
+                    record
+                    for record in managed_records
+                    if isinstance(record.get("name"), str) and record["name"] not in current_domains
+                ]
+                for record in orphan_records:
+                    domain = record.get("name")
+                    record_id = record.get("id")
+                    if not isinstance(domain, str):
+                        continue
+                    try:
+                        await cloudflare_client.delete_service_record(domain=domain, record_id=record_id)
+                        cleaned_count += 1
+                    except Exception as exc:
+                        cleanup_failed_count += 1
+                        failure_messages.append(f"{domain} 정리 실패: {exc}")
 
             if not services:
                 result = SettingsTestActionResponse(
                     success=True,
                     message="재동기화할 서비스가 없습니다",
-                    detail=f"{zone_name} 영역에 일치하는 서비스가 없습니다",
+                    detail="등록된 서비스가 없어 Cloudflare DNS 재동기화를 수행하지 않았습니다",
                     provider=None,
                 )
-            elif not eligible_services:
+            elif eligible_service_count == 0:
                 result = SettingsTestActionResponse(
                     success=True,
                     message="Cloudflare DNS 재동기화 대상이 없습니다",
-                    detail=f"{zone_name} 영역에 속한 서비스가 없어 {len(services)}개 서비스를 건너뛰었습니다",
+                    detail=f"현재 서비스 {total_service_count}개가 모두 Cloudflare 관리 대상 zone 밖에 있습니다",
                     provider=None,
                 )
             elif failed_count == 0 and cleanup_failed_count == 0:
-                detail_parts = [f"{zone_name} 영역 서비스 {synced_count}개를 동기화했습니다"]
+                detail_parts = [f"Cloudflare 관리 대상 서비스 {synced_count}개를 동기화했습니다"]
                 if cleaned_count:
                     detail_parts.append(f"고아 레코드 {cleaned_count}개를 정리했습니다")
                 if skipped_count:
-                    detail_parts.append(f"다른 영역 서비스 {skipped_count}개는 건너뛰었습니다")
+                    detail_parts.append(f"비Cloudflare 도메인 {skipped_count}개는 제외했습니다")
                 result = SettingsTestActionResponse(
                     success=True,
                     message="Cloudflare DNS 재동기화가 완료되었습니다",
@@ -515,21 +547,24 @@ async def reconcile_cloudflare_dns(
                 failure_preview = " / ".join(failure_messages[:3])
                 if len(failure_messages) > 3:
                     failure_preview += f" 외 {len(failure_messages) - 3}건"
-                skipped_detail = (
-                    f", 다른 영역 서비스 {skipped_count}개 건너뜀" if skipped_count else ""
-                )
-                cleanup_detail = (
-                    f", 고아 레코드 정리 실패 {cleanup_failed_count}개" if cleanup_failed_count else ""
-                )
+                skipped_detail = f", 비Cloudflare 도메인 {skipped_count}개 제외" if skipped_count else ""
+                cleanup_detail = f", 고아 레코드 정리 실패 {cleanup_failed_count}개" if cleanup_failed_count else ""
                 result = SettingsTestActionResponse(
                     success=False,
                     message=(
-                        f"Cloudflare DNS 재동기화 중 일부 실패가 발생했습니다 "
+                        "Cloudflare DNS 재동기화 중 일부 실패가 발생했습니다 "
                         f"(성공 {synced_count}개, 실패 {failed_count}개{cleanup_detail}{skipped_detail})"
                     ),
                     detail=failure_preview,
                     provider=None,
                 )
+        except CloudflareClientError as exc:
+            result = SettingsTestActionResponse(
+                success=False,
+                message="Cloudflare DNS 재동기화에 실패했습니다",
+                detail=str(exc),
+                provider=None,
+            )
 
     await audit_service.record(
         db=db,
@@ -550,6 +585,7 @@ async def reconcile_cloudflare_dns(
             "failed_services": failed_count,
             "cleaned_records": cleaned_count,
             "cleanup_failed_records": cleanup_failed_count,
+            "zone_count": zone_count,
             "client_ip": get_client_ip(request),
         },
     )
@@ -566,15 +602,28 @@ async def update_cloudflare_settings(
     repo = SQLiteSystemSettingsRepository(db)
     previous_status = CloudflareClient.from_db_settings(await repo.get_all_dict()).get_status()
 
-    if not request.api_token:
-        # 빈 토큰 = 설정 전체 초기화
-        for key in ("cf_api_token", "cf_zone_id", "cf_record_target", "cf_proxied"):
+    if not request.zones:
+        for key in ("cf_api_token", "cf_zone_id", "cf_record_target", "cf_proxied", CF_ZONE_CONFIGS_KEY):
             await repo.delete(key)
     else:
-        await repo.set("cf_api_token", request.api_token)
-        await repo.set("cf_zone_id", request.zone_id)
-        await repo.set("cf_record_target", request.record_target or None)
-        await repo.set("cf_proxied", "true" if request.proxied else "false")
+        zone_configs = [
+            CloudflareZoneConfig(
+                api_token=item.api_token,
+                zone_id=item.zone_id,
+                record_target=item.record_target or None,
+                proxied=item.proxied,
+            )
+            for item in request.zones
+        ]
+        validation_client = CloudflareClient(zone_configs=zone_configs)
+        for config in zone_configs:
+            zone_name = await validation_client.get_zone_name(config)
+            if not zone_name:
+                raise HTTPException(status_code=422, detail=f"Zone ID {config.zone_id}의 영역 이름을 확인할 수 없습니다")
+
+        await repo.set(CF_ZONE_CONFIGS_KEY, CloudflareClient.serialize_zone_configs(zone_configs))
+        for key in ("cf_api_token", "cf_zone_id", "cf_record_target", "cf_proxied"):
+            await repo.delete(key)
 
     db_settings = await repo.get_all_dict()
     current_status = CloudflareClient.from_db_settings(db_settings).get_status()
@@ -1474,9 +1523,16 @@ def _cloudflare_summary(status: CloudflareSettingsStatusResponse) -> dict[str, o
     return {
         "enabled": status.enabled,
         "configured": status.configured,
-        "zone_id": status.zone_id,
-        "record_target": status.record_target,
-        "proxied": status.proxied,
+        "zone_count": status.zone_count,
+        "zones": [
+            {
+                "zone_id": zone.zone_id,
+                "zone_name": zone.zone_name,
+                "record_target": zone.record_target,
+                "proxied": zone.proxied,
+            }
+            for zone in status.zones
+        ],
     }
 
 
