@@ -24,7 +24,9 @@ from app.interfaces.api.v1.schemas.redirect_schemas import (
 )
 
 router = APIRouter()
+REDIRECT_CREATE_EVENT = "redirect_create"
 REDIRECT_UPDATE_EVENT = "redirect_update"
+REDIRECT_DELETE_EVENT = "redirect_delete"
 REDIRECT_ROLLBACK_EVENT = "redirect_rollback"
 
 
@@ -60,7 +62,10 @@ async def create_redirect_host(
             resource_type="redirect",
             resource_id=str(redirect_host.id),
             resource_name=redirect_host.domain,
-            detail={"target_url": redirect_host.target_url},
+            detail={
+                "event": REDIRECT_CREATE_EVENT,
+                "target_url": redirect_host.target_url,
+            },
         )
         return redirect_host
     except ValueError as exc:
@@ -211,6 +216,10 @@ async def delete_redirect_host(
         resource_type="redirect",
         resource_id=str(redirect_id),
         resource_name=redirect_host.domain,
+        detail={
+            "event": REDIRECT_DELETE_EVENT,
+            "target_url": redirect_host.target_url,
+        },
     )
 
 

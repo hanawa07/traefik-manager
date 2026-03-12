@@ -12,6 +12,8 @@ class StubMiddlewareUseCases:
         self.before_template = before_template
         self.after_template = after_template
         self.updated_payload = None
+        self.created_payload = None
+        self.deleted_template_id = None
 
     async def get_template(self, template_id):
         if self.before_template and str(getattr(self.before_template, "id")) == str(template_id):
@@ -20,9 +22,16 @@ class StubMiddlewareUseCases:
             return self.after_template
         return self.before_template
 
+    async def create_template(self, data):
+        self.created_payload = data.model_dump()
+        return self.after_template
+
     async def update_template(self, template_id, data):
         self.updated_payload = data.model_dump(exclude_unset=True)
         return self.after_template
+
+    async def delete_template(self, template_id):
+        self.deleted_template_id = template_id
 
 
 def make_template(**overrides):
@@ -36,6 +45,36 @@ def make_template(**overrides):
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
+
+
+@pytest.mark.asyncio
+async def test_create_template_records_create_event(monkeypatch):
+    template_id = uuid4()
+    template = make_template(id=template_id)
+    use_cases = StubMiddlewareUseCases(after_template=template)
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(middlewares_router.audit_service, "record", fake_record, raising=False)
+
+    response = await middlewares_router.create_template(
+        data=middlewares_router.MiddlewareTemplateCreate(
+            name="allow-office",
+            type="ipAllowList",
+            config={"sourceRange": ["192.168.0.0/24"]},
+        ),
+        use_cases=use_cases,
+        db=object(),
+        current_user={"username": "admin"},
+    )
+
+    assert response.name == "allow-office"
+    assert recorded[0]["action"] == "create"
+    assert recorded[0]["resource_type"] == "middleware"
+    assert recorded[0]["detail"]["event"] == "middleware_create"
+    assert recorded[0]["detail"]["type"] == "ipAllowList"
 
 
 @pytest.mark.asyncio
@@ -175,3 +214,29 @@ async def test_rollback_template_change_rejects_unsupported_log():
             ),
             current_user={"username": "admin"},
         )
+
+
+@pytest.mark.asyncio
+async def test_delete_template_records_delete_event(monkeypatch):
+    template_id = uuid4()
+    template = make_template(id=template_id)
+    use_cases = StubMiddlewareUseCases(before_template=template)
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(middlewares_router.audit_service, "record", fake_record, raising=False)
+
+    await middlewares_router.delete_template(
+        template_id=template_id,
+        use_cases=use_cases,
+        db=object(),
+        current_user={"username": "admin"},
+    )
+
+    assert use_cases.deleted_template_id == template_id
+    assert recorded[0]["action"] == "delete"
+    assert recorded[0]["resource_type"] == "middleware"
+    assert recorded[0]["detail"]["event"] == "middleware_delete"
+    assert recorded[0]["detail"]["type"] == "ipAllowList"

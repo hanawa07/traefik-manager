@@ -393,6 +393,58 @@ async def test_notify_if_needed_posts_operational_change_when_enabled(monkeypatc
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("event", "resource_type", "route_key"),
+    [
+        ("service_create", "service", "security_alert_change_route_service_change"),
+        ("service_delete", "service", "security_alert_change_route_service_change"),
+        ("redirect_create", "redirect", "security_alert_change_route_redirect_change"),
+        ("redirect_delete", "redirect", "security_alert_change_route_redirect_change"),
+        ("middleware_create", "middleware", "security_alert_change_route_middleware_change"),
+        ("middleware_delete", "middleware", "security_alert_change_route_middleware_change"),
+        ("user_create", "user", "security_alert_change_route_user_change"),
+        ("user_delete", "user", "security_alert_change_route_user_change"),
+    ],
+)
+async def test_notify_if_needed_posts_operational_create_delete_when_enabled(
+    monkeypatch,
+    event,
+    resource_type,
+    route_key,
+):
+    posted = []
+
+    class StubClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json):
+            posted.append((url, json))
+
+    StubSettingsRepository.values = {
+        "security_alerts_enabled": "true",
+        "change_alerts_enabled": "true",
+        "security_alert_provider": "slack",
+        "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+        route_key: "default",
+    }
+    monkeypatch.setattr(security_alert_notifier, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(security_alert_notifier.httpx, "AsyncClient", lambda **_kwargs: StubClient())
+
+    result = await security_alert_notifier.notify_if_needed(
+        object(),
+        make_audit_log(event, resource_type=resource_type, resource_id=f"{resource_type}-1", resource_name=resource_type),
+    )
+
+    assert result is True
+    assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"
+    assert event in str(posted[0][1])
+
+
+@pytest.mark.asyncio
 async def test_notify_if_needed_skips_disabled_operational_change_route(monkeypatch):
     posted = []
 

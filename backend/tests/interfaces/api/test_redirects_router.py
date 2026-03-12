@@ -12,6 +12,8 @@ class StubRedirectUseCases:
         self.before_redirect = before_redirect
         self.after_redirect = after_redirect
         self.updated_payload = None
+        self.created_payload = None
+        self.deleted_redirect_id = None
 
     async def get_redirect_host(self, redirect_id):
         if self.before_redirect and str(getattr(self.before_redirect, "id")) == str(redirect_id):
@@ -20,9 +22,16 @@ class StubRedirectUseCases:
             return self.after_redirect
         return self.before_redirect
 
+    async def create_redirect_host(self, data):
+        self.created_payload = data.model_dump()
+        return self.after_redirect
+
     async def update_redirect_host(self, redirect_id, data):
         self.updated_payload = data.model_dump(exclude_unset=True)
         return self.after_redirect
+
+    async def delete_redirect_host(self, redirect_id):
+        self.deleted_redirect_id = redirect_id
 
 
 def make_redirect(**overrides):
@@ -36,6 +45,32 @@ def make_redirect(**overrides):
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
+
+
+@pytest.mark.asyncio
+async def test_create_redirect_records_create_event(monkeypatch):
+    redirect_id = uuid4()
+    redirect = make_redirect(id=redirect_id, domain="old.example.com", target_url="https://target.example.com")
+    use_cases = StubRedirectUseCases(after_redirect=redirect)
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(redirects_router.audit_service, "record", fake_record, raising=False)
+
+    response = await redirects_router.create_redirect_host(
+        data=redirects_router.RedirectHostCreate(domain="old.example.com", target_url="https://target.example.com"),
+        use_cases=use_cases,
+        db=object(),
+        current_user={"username": "admin"},
+    )
+
+    assert response.domain == "old.example.com"
+    assert recorded[0]["action"] == "create"
+    assert recorded[0]["resource_type"] == "redirect"
+    assert recorded[0]["detail"]["event"] == "redirect_create"
+    assert recorded[0]["detail"]["target_url"] == "https://target.example.com"
 
 
 @pytest.mark.asyncio
@@ -172,3 +207,29 @@ async def test_rollback_redirect_change_rejects_unsupported_log():
             ),
             current_user={"username": "admin"},
         )
+
+
+@pytest.mark.asyncio
+async def test_delete_redirect_records_delete_event(monkeypatch):
+    redirect_id = uuid4()
+    redirect = make_redirect(id=redirect_id, domain="old.example.com", target_url="https://target.example.com")
+    use_cases = StubRedirectUseCases(before_redirect=redirect)
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(redirects_router.audit_service, "record", fake_record, raising=False)
+
+    await redirects_router.delete_redirect_host(
+        redirect_id=redirect_id,
+        use_cases=use_cases,
+        db=object(),
+        current_user={"username": "admin"},
+    )
+
+    assert use_cases.deleted_redirect_id == redirect_id
+    assert recorded[0]["action"] == "delete"
+    assert recorded[0]["resource_type"] == "redirect"
+    assert recorded[0]["detail"]["event"] == "redirect_delete"
+    assert recorded[0]["detail"]["target_url"] == "https://target.example.com"

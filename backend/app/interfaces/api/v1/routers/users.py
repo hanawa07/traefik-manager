@@ -21,7 +21,9 @@ from app.interfaces.api.v1.schemas.user_schemas import (
 )
 
 router = APIRouter()
+USER_CREATE_EVENT = "user_create"
 USER_UPDATE_EVENT = "user_update"
+USER_DELETE_EVENT = "user_delete"
 USER_ROLLBACK_EVENT = "user_rollback"
 
 
@@ -53,7 +55,10 @@ async def create_user(
             resource_type="user",
             resource_id=str(user.id),
             resource_name=user.username,
-            detail={"role": user.role},
+            detail={
+                "event": USER_CREATE_EVENT,
+                "role": user.role,
+            },
         )
         return user
     except ValueError as exc:
@@ -192,6 +197,10 @@ async def delete_user(
             resource_type="user",
             resource_id=str(user_id),
             resource_name=user.username,
+            detail={
+                "event": USER_DELETE_EVENT,
+                "role": user.role,
+            },
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

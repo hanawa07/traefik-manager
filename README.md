@@ -150,7 +150,7 @@ backend/app/
 - `사용자 수정`도 감사 로그에서 변경 diff를 확인할 수 있고, 비밀번호 변경이 없는 안전한 경우에만 이전 상태로 롤백할 수 있습니다.
 - 설정 화면에서 보안 알림 기본 채널을 `Generic Webhook`, `Slack`, `Discord`, `Telegram`, `Microsoft Teams`, `PagerDuty`, `Email` 중에서 선택할 수 있습니다.
 - `login_locked`, `login_suspicious`, `login_blocked_ip` 이벤트는 기본 채널을 따르거나, `Telegram / PagerDuty / Email / 전송 안 함`으로 개별 override할 수 있습니다.
-- `settings/service/redirect/middleware/user` 변경과 각종 `rollback` 이벤트도 별도 운영 변경 알림 정책으로 기본 채널 또는 override를 탈 수 있습니다.
+- `settings/service/redirect/middleware/user`의 `create/update/delete`와 각종 `rollback` 이벤트도 별도 운영 변경 알림 정책으로 기본 채널 또는 override를 탈 수 있습니다.
 - 인증서 상태 체크는 `certificate_warning` / `certificate_error` / `certificate_recovered` 이벤트를 기록하고, 같은 상태의 중복 알림은 억제합니다.
 - 인증서 화면에서는 현재 경고 상태의 `중복 경고 억제 중` 여부와 상태 시작 시각을 함께 표시합니다.
 - 인증서 화면에서 `경고 검사`를 실행하면 즉시 재스캔하고, 새 경고/복구 이벤트가 있었는지까지 바로 확인할 수 있습니다.

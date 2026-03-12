@@ -23,7 +23,9 @@ from app.interfaces.api.v1.schemas.middleware_schemas import (
 )
 
 router = APIRouter()
+MIDDLEWARE_CREATE_EVENT = "middleware_create"
 MIDDLEWARE_UPDATE_EVENT = "middleware_update"
+MIDDLEWARE_DELETE_EVENT = "middleware_delete"
 MIDDLEWARE_ROLLBACK_EVENT = "middleware_rollback"
 
 
@@ -58,7 +60,10 @@ async def create_template(
             resource_type="middleware",
             resource_id=str(template.id),
             resource_name=template.name,
-            detail={"type": template.type},
+            detail={
+                "event": MIDDLEWARE_CREATE_EVENT,
+                "type": template.type,
+            },
         )
         return template
     except ValueError as exc:
@@ -207,7 +212,10 @@ async def delete_template(
             resource_type="middleware",
             resource_id=str(template_id),
             resource_name=template.name,
-            detail={"type": template.type},
+            detail={
+                "event": MIDDLEWARE_DELETE_EVENT,
+                "type": template.type,
+            },
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

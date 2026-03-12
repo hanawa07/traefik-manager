@@ -12,6 +12,8 @@ class StubUserUseCases:
         self.before_user = before_user
         self.after_user = after_user
         self.updated_payload = None
+        self.created_payload = None
+        self.deleted_user_id = None
         self.repository = SimpleNamespace(find_by_id=self.get_user)
 
     async def get_user(self, user_id):
@@ -21,9 +23,16 @@ class StubUserUseCases:
             return self.after_user
         return self.before_user
 
+    async def create_user(self, data):
+        self.created_payload = data.model_dump()
+        return self.after_user
+
     async def update_user(self, user_id, data):
         self.updated_payload = data.model_dump(exclude_unset=True)
         return self.after_user
+
+    async def delete_user(self, user_id):
+        self.deleted_user_id = user_id
 
 
 def make_user(**overrides):
@@ -36,6 +45,32 @@ def make_user(**overrides):
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
+
+
+@pytest.mark.asyncio
+async def test_create_user_records_create_event(monkeypatch):
+    user_id = uuid4()
+    user = make_user(id=user_id, username="viewer", role="viewer", is_active=True)
+    use_cases = StubUserUseCases(after_user=user)
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(users_router.audit_service, "record", fake_record, raising=False)
+
+    response = await users_router.create_user(
+        data=users_router.UserCreate(username="viewer", password="secret123", role="viewer", is_active=True),
+        use_cases=use_cases,
+        db=object(),
+        current_user={"username": "admin"},
+    )
+
+    assert response.username == "viewer"
+    assert recorded[0]["action"] == "create"
+    assert recorded[0]["resource_type"] == "user"
+    assert recorded[0]["detail"]["event"] == "user_create"
+    assert recorded[0]["detail"]["role"] == "viewer"
 
 
 @pytest.mark.asyncio
@@ -189,3 +224,28 @@ async def test_rollback_user_change_rejects_unsupported_log():
             ),
             current_user={"username": "admin"},
         )
+
+
+@pytest.mark.asyncio
+async def test_delete_user_records_delete_event(monkeypatch):
+    user_id = uuid4()
+    user = make_user(id=user_id, username="viewer", role="viewer", is_active=True)
+    use_cases = StubUserUseCases(before_user=user)
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(users_router.audit_service, "record", fake_record, raising=False)
+
+    await users_router.delete_user(
+        user_id=user_id,
+        use_cases=use_cases,
+        db=object(),
+        current_user={"username": "admin"},
+    )
+
+    assert use_cases.deleted_user_id == user_id
+    assert recorded[0]["action"] == "delete"
+    assert recorded[0]["resource_type"] == "user"
+    assert recorded[0]["detail"]["event"] == "user_delete"

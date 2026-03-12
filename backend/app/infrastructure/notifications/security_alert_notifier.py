@@ -184,13 +184,13 @@ def _get_alert_category_and_group(event: str) -> tuple[str, str] | None:
         return "security", event
     if event.startswith("settings_update_"):
         return "change", "settings_change"
-    if event == "service_update":
+    if event in {"service_create", "service_update", "service_delete"}:
         return "change", "service_change"
-    if event == "redirect_update":
+    if event in {"redirect_create", "redirect_update", "redirect_delete"}:
         return "change", "redirect_change"
-    if event == "middleware_update":
+    if event in {"middleware_create", "middleware_update", "middleware_delete"}:
         return "change", "middleware_change"
-    if event == "user_update":
+    if event in {"user_create", "user_update", "user_delete"}:
         return "change", "user_change"
     if event in {"certificate_warning", "certificate_error", "certificate_recovered"}:
         return "change", "certificate_change"
@@ -297,14 +297,30 @@ def _build_message(event: str, resource_name: str, client_ip: Any, category: str
         return f"이상 징후 IP 차단: {client_ip or resource_name}"
     if event.startswith("settings_update_"):
         return f"설정 변경: {resource_name}"
+    if event == "service_create":
+        return f"서비스 생성: {resource_name}"
     if event == "service_update":
         return f"서비스 변경: {resource_name}"
+    if event == "service_delete":
+        return f"서비스 삭제: {resource_name}"
+    if event == "redirect_create":
+        return f"리다이렉트 생성: {resource_name}"
     if event == "redirect_update":
         return f"리다이렉트 변경: {resource_name}"
+    if event == "redirect_delete":
+        return f"리다이렉트 삭제: {resource_name}"
+    if event == "middleware_create":
+        return f"미들웨어 생성: {resource_name}"
     if event == "middleware_update":
         return f"미들웨어 변경: {resource_name}"
+    if event == "middleware_delete":
+        return f"미들웨어 삭제: {resource_name}"
+    if event == "user_create":
+        return f"사용자 생성: {resource_name}"
     if event == "user_update":
         return f"사용자 변경: {resource_name}"
+    if event == "user_delete":
+        return f"사용자 삭제: {resource_name}"
     if event == "certificate_warning":
         return f"인증서 만료 임박: {resource_name}"
     if event == "certificate_error":

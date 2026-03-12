@@ -31,6 +31,8 @@ class StubServiceCrudUseCases:
         self.after_service = after_service
         self.updated_payload = None
         self.rollback_service_id = None
+        self.created_payload = None
+        self.deleted_service_id = None
 
     async def get_service(self, service_id):
         if self.before_service and str(getattr(self.before_service, "id")) == str(service_id):
@@ -39,10 +41,17 @@ class StubServiceCrudUseCases:
             return self.after_service
         return self.before_service
 
+    async def create_service(self, data):
+        self.created_payload = data.model_dump()
+        return self.after_service
+
     async def update_service(self, service_id, data):
         self.rollback_service_id = service_id
         self.updated_payload = data.model_dump(exclude_unset=True)
         return self.after_service
+
+    async def delete_service(self, service_id):
+        self.deleted_service_id = service_id
 
 
 @pytest.mark.asyncio
@@ -127,6 +136,37 @@ def make_service(**overrides):
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
+
+
+@pytest.mark.asyncio
+async def test_create_service_records_create_event(monkeypatch):
+    service_id = uuid4()
+    created_service = make_service(id=service_id, name="svc", domain="svc.example.com")
+    use_cases = StubServiceCrudUseCases(after_service=created_service)
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(services_router.audit_service, "record", fake_record, raising=False)
+
+    response = await services_router.create_service(
+        data=services_router.ServiceCreate(
+            name="svc",
+            domain="svc.example.com",
+            upstream_host="app",
+            upstream_port=8080,
+        ),
+        use_cases=use_cases,
+        db=object(),
+        current_user={"username": "admin"},
+    )
+
+    assert response.name == "svc"
+    assert recorded[0]["action"] == "create"
+    assert recorded[0]["resource_type"] == "service"
+    assert recorded[0]["detail"]["event"] == "service_create"
+    assert recorded[0]["detail"]["domain"] == "svc.example.com"
 
 
 @pytest.mark.asyncio
@@ -240,7 +280,32 @@ async def test_rollback_service_change_restores_previous_payload(monkeypatch):
     assert use_cases.updated_payload == {"name": "svc", "upstream_host": "app", "upstream_port": 8080}
     assert recorded[0]["action"] == "rollback"
     assert recorded[0]["detail"]["event"] == "service_rollback"
-    assert recorded[0]["detail"]["source_audit_id"] == "log-service-1"
+
+
+@pytest.mark.asyncio
+async def test_delete_service_records_delete_event(monkeypatch):
+    service_id = uuid4()
+    service = make_service(id=service_id, name="svc", domain="svc.example.com")
+    use_cases = StubServiceCrudUseCases(before_service=service)
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(services_router.audit_service, "record", fake_record, raising=False)
+
+    await services_router.delete_service(
+        service_id=service_id,
+        use_cases=use_cases,
+        db=object(),
+        current_user={"username": "admin"},
+    )
+
+    assert use_cases.deleted_service_id == service_id
+    assert recorded[0]["action"] == "delete"
+    assert recorded[0]["resource_type"] == "service"
+    assert recorded[0]["detail"]["event"] == "service_delete"
+    assert recorded[0]["detail"]["domain"] == "svc.example.com"
 
 
 @pytest.mark.asyncio

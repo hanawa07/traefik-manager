@@ -30,7 +30,9 @@ from app.infrastructure.authentik.client import AuthentikClient
 from app.application.audit import audit_service
 
 router = APIRouter()
+SERVICE_CREATE_EVENT = "service_create"
 SERVICE_UPDATE_EVENT = "service_update"
+SERVICE_DELETE_EVENT = "service_delete"
 SERVICE_ROLLBACK_EVENT = "service_rollback"
 
 
@@ -83,7 +85,10 @@ async def create_service(
             resource_type="service",
             resource_id=str(service.id),
             resource_name=service.name,
-            detail={"domain": str(service.domain)},
+            detail={
+                "event": SERVICE_CREATE_EVENT,
+                "domain": str(service.domain),
+            },
         )
         return service
     except ValueError as exc:
@@ -312,7 +317,10 @@ async def delete_service(
             resource_type="service",
             resource_id=str(service_id),
             resource_name=service.name,
-            detail={"domain": str(service.domain)},
+            detail={
+                "event": SERVICE_DELETE_EVENT,
+                "domain": str(service.domain),
+            },
         )
     except httpx.HTTPError as exc:
         raise HTTPException(

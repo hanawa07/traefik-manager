@@ -110,7 +110,7 @@ NPM(Nginx Proxy Manager)을 대체하고, Authentik 인증을 UI에서 한 번�
 - [x] 보안 이벤트 외부 웹훅 알림 (login_locked / login_suspicious / login_blocked_ip)
 - [x] 보안 알림 provider preset (generic / slack / discord / telegram / teams / pagerduty / email)
 - [x] 보안 알림 이벤트별 정책 세분화 (기본 채널 + override)
-- [x] 운영 변경/롤백 알림 확장 (settings / service / redirect / middleware / user / rollback)
+- [x] 운영 변경/롤백 알림 확장 (settings / service / redirect / middleware / user create/update/delete / rollback)
 - [x] 인증서 만료/만료 임박 알림 + 중복 억제
 - [x] 대시보드 운영 경고 요약 (현재 인증서 상태 + 최근 인증서 경고 전환)
 - [x] 인증서 경고 수동 재검사 액션
