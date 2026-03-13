@@ -172,6 +172,7 @@ backend/app/
 - [로드맵](docs/ROADMAP.md)
 - [보안](docs/SECURITY.md)
 - [배포](docs/DEPLOYMENT.md)
+- [릴리즈 노트 가이드](docs/RELEASE_NOTES.md)
 
 ## 라이선스
 
