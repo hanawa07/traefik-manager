@@ -11,7 +11,7 @@ def test_settings_ignores_unknown_environment_variables(monkeypatch):
     monkeypatch.setenv("FRONTEND_DOMAIN", "traefik-manager.lizstudio.co.kr")
     monkeypatch.setenv("BACKEND_DOMAIN", "traefik-manager-api.lizstudio.co.kr")
     monkeypatch.setenv("NEXT_PUBLIC_API_URL", "/api/v1")
-    monkeypatch.setenv("BACKEND_UPSTREAM_URL", "http://backend:8000")
+    monkeypatch.setenv("BACKEND_UPSTREAM_URL", "http://traefik-manager-backend:8000")
 
     from app.core.config import Settings
 

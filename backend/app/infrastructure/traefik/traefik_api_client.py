@@ -91,6 +91,44 @@ class TraefikApiClient:
             "domains": domain_states,
         }
 
+    async def list_middlewares(self) -> dict:
+        try:
+            payload = await self._get("/api/http/middlewares")
+        except TraefikApiClientError:
+            return {
+                "connected": False,
+                "message": "Traefik 미들웨어 정보를 가져오지 못했습니다",
+                "middlewares": [],
+            }
+
+        middlewares = []
+        for item in self._normalize_middlewares(payload):
+            middlewares.append(
+                {
+                    "name": str(item.get("name") or ""),
+                    "provider": item.get("provider"),
+                    "status": str(item.get("status") or "unknown"),
+                    "type": str(item.get("type") or "unknown"),
+                    "used_by": [
+                        str(value)
+                        for value in item.get("usedBy", [])
+                        if isinstance(value, str)
+                    ],
+                    "config": {
+                        key: value
+                        for key, value in item.items()
+                        if key not in {"name", "provider", "status", "type", "usedBy"}
+                    },
+                }
+            )
+
+        middlewares.sort(key=lambda item: item["name"])
+        return {
+            "connected": True,
+            "message": "Traefik 미들웨어 상태를 조회했습니다",
+            "middlewares": middlewares,
+        }
+
     async def _load_acme_expiry_map(self) -> dict[str, datetime]:
         """acme.json에서 도메인별 만료일 파싱 (file 라우터 fallback용)"""
         local_text = self._read_local_acme_json_text()
@@ -453,6 +491,28 @@ class TraefikApiClient:
                     router = value.copy()
                     router.setdefault("name", name)
                     normalized.append(router)
+                return normalized
+
+        return []
+
+    def _normalize_middlewares(self, payload: dict | list) -> list[dict]:
+        if isinstance(payload, list):
+            return [middleware for middleware in payload if isinstance(middleware, dict)]
+
+        if isinstance(payload, dict):
+            if "middlewares" in payload and isinstance(payload["middlewares"], list):
+                return [
+                    middleware
+                    for middleware in payload["middlewares"]
+                    if isinstance(middleware, dict)
+                ]
+
+            if all(isinstance(value, dict) for value in payload.values()):
+                normalized = []
+                for name, value in payload.items():
+                    middleware = value.copy()
+                    middleware.setdefault("name", name)
+                    normalized.append(middleware)
                 return normalized
 
         return []

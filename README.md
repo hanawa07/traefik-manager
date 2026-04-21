@@ -57,7 +57,7 @@ BACKEND_DOMAIN=traefik-manager-api.example.com
 
 # 프론트엔드/백엔드 연결
 NEXT_PUBLIC_API_URL=/api/v1
-BACKEND_UPSTREAM_URL=http://backend:8000
+BACKEND_UPSTREAM_URL=http://traefik-manager-backend:8000
 
 # 관리자 계정
 ADMIN_USERNAME=admin
@@ -71,6 +71,7 @@ AUTHENTIK_TOKEN=
 - `FRONTEND_DOMAIN`은 프런트 공개 도메인이며 Next.js `metadataBase` 기준 URL로도 사용됩니다. 스킴을 생략하면 `https://`를 기준으로 처리합니다.
 - `NEXT_PUBLIC_API_URL`의 운영 권장값은 상대 경로 `/api/v1`입니다.
 - `BACKEND_UPSTREAM_URL`은 프런트 컨테이너가 내부적으로 백엔드 API를 프록시할 때 사용하는 업스트림 주소입니다.
+  공유 Docker 네트워크를 쓰는 경우 `backend` 같은 범용 호스트명 대신 `traefik-manager-backend`처럼 충돌 없는 이름을 권장합니다.
 
 ### 실행
 

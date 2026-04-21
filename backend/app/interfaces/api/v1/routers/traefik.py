@@ -4,6 +4,7 @@ from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
 from app.interfaces.api.dependencies import get_current_user
 from app.interfaces.api.v1.schemas.traefik_schemas import (
     TraefikHealthResponse,
+    TraefikMiddlewareListResponse,
     TraefikRouterStatusResponse,
 )
 
@@ -28,3 +29,11 @@ async def get_traefik_router_status(
     _: dict = Depends(get_current_user),
 ):
     return await traefik_client.get_router_status()
+
+
+@router.get("/middlewares", response_model=TraefikMiddlewareListResponse, summary="Traefik 미들웨어 상태")
+async def get_traefik_middlewares(
+    traefik_client: TraefikApiClient = Depends(get_traefik_client),
+    _: dict = Depends(get_current_user),
+):
+    return await traefik_client.list_middlewares()

@@ -154,7 +154,7 @@
 
 **문제:**
 ```
-ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.co.kr","localhost","127.0.0.1","backend","backend:8000"]
+ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.co.kr","localhost","127.0.0.1","traefik-manager-backend"]
 ```
 
 `localhost`, `127.0.0.1`은 내부 컨테이너 간 통신에서만 필요하면 별도 관리 권장.

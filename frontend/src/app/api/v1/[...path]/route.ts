@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const backendUpstream = process.env.BACKEND_UPSTREAM_URL || "http://backend:8000";
+const backendUpstream =
+  process.env.BACKEND_UPSTREAM_URL || "http://traefik-manager-backend:8000";
 
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",

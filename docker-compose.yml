@@ -51,7 +51,7 @@ services:
     env_file: ${APP_ENV_FILE:-.env}
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
-      BACKEND_UPSTREAM_URL: ${BACKEND_UPSTREAM_URL:-http://backend:8000}
+      BACKEND_UPSTREAM_URL: ${BACKEND_UPSTREAM_URL:-http://traefik-manager-backend:8000}
     depends_on:
       - backend
     networks:

@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     AUTHENTIK_TOKEN: str
 
     # ForwardAuth
-    TOKEN_AUTH_FORWARD_AUTH_URL: str = "http://backend:8000/api/v1/auth/verify"
+    TOKEN_AUTH_FORWARD_AUTH_URL: str = "http://traefik-manager-backend:8000/api/v1/auth/verify"
 
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
     ALLOWED_HOSTS: list[str] = ["*"]

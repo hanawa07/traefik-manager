@@ -22,3 +22,18 @@ class TraefikRouterStatusResponse(BaseModel):
     connected: bool
     message: str
     domains: dict[str, TraefikDomainRouterStatusResponse] = Field(default_factory=dict)
+
+
+class TraefikMiddlewareItemResponse(BaseModel):
+    name: str
+    provider: str | None = None
+    status: str
+    type: str
+    used_by: list[str] = Field(default_factory=list)
+    config: dict = Field(default_factory=dict)
+
+
+class TraefikMiddlewareListResponse(BaseModel):
+    connected: bool
+    message: str
+    middlewares: list[TraefikMiddlewareItemResponse] = Field(default_factory=list)

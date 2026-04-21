@@ -34,6 +34,13 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 request_logger = logging.getLogger("app.request")
+internal_allowed_hosts = [
+    "backend",
+    "backend:8000",
+    "traefik-manager-backend",
+    "traefik-manager-backend:8000",
+]
+allowed_hosts = list(dict.fromkeys([*settings.ALLOWED_HOSTS, *internal_allowed_hosts]))
 
 
 @asynccontextmanager
@@ -213,7 +220,7 @@ app = FastAPI(
 # 보안 미들웨어
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=settings.ALLOWED_HOSTS,
+    allowed_hosts=allowed_hosts,
 )
 
 app.add_middleware(

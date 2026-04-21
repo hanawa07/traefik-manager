@@ -23,6 +23,21 @@ export interface TraefikRouterStatus {
   domains: Record<string, TraefikDomainStatus>;
 }
 
+export interface TraefikMiddlewareItem {
+  name: string;
+  provider: string | null;
+  status: string;
+  type: string;
+  used_by: string[];
+  config: Record<string, unknown>;
+}
+
+export interface TraefikMiddlewareList {
+  connected: boolean;
+  message: string;
+  middlewares: TraefikMiddlewareItem[];
+}
+
 export const traefikApi = {
   health: async (): Promise<TraefikHealth> => {
     const res = await apiClient.get<TraefikHealth>("/traefik/health");
@@ -31,6 +46,11 @@ export const traefikApi = {
 
   routerStatus: async (): Promise<TraefikRouterStatus> => {
     const res = await apiClient.get<TraefikRouterStatus>("/traefik/routers");
+    return res.data;
+  },
+
+  middlewares: async (): Promise<TraefikMiddlewareList> => {
+    const res = await apiClient.get<TraefikMiddlewareList>("/traefik/middlewares");
     return res.data;
   },
 };

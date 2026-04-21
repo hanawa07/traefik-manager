@@ -119,7 +119,7 @@ export interface UpstreamHealth {
 
 export const serviceApi = {
   list: async (): Promise<Service[]> => {
-    const res = await apiClient.get<Service[]>("/services/");
+    const res = await apiClient.get<Service[]>("/services");
     return res.data;
   },
 
@@ -129,7 +129,7 @@ export const serviceApi = {
   },
 
   create: async (data: ServiceCreate): Promise<Service> => {
-    const res = await apiClient.post<Service>("/services/", data);
+    const res = await apiClient.post<Service>("/services", data);
     return res.data;
   },
 

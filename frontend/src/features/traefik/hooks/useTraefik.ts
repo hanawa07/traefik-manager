@@ -17,3 +17,11 @@ export function useTraefikRouterStatus() {
     refetchInterval: 10_000,
   });
 }
+
+export function useTraefikMiddlewares() {
+  return useQuery({
+    queryKey: ["traefik-runtime-middlewares"],
+    queryFn: traefikApi.middlewares,
+    refetchInterval: 10_000,
+  });
+}

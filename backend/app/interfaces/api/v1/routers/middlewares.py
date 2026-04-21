@@ -14,6 +14,7 @@ from app.infrastructure.persistence.repositories.sqlite_middleware_template_repo
 from app.infrastructure.persistence.repositories.sqlite_service_repository import (
     SQLiteServiceRepository,
 )
+from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.interfaces.api.dependencies import get_current_user, require_write_access
 from app.application.audit import audit_service
 from app.interfaces.api.v1.schemas.middleware_schemas import (
@@ -33,6 +34,7 @@ def get_use_cases(db: AsyncSession = Depends(get_db)) -> MiddlewareTemplateUseCa
     return MiddlewareTemplateUseCases(
         repository=SQLiteMiddlewareTemplateRepository(db),
         service_repository=SQLiteServiceRepository(db),
+        file_writer=FileProviderWriter(),
     )
 
 

@@ -26,12 +26,12 @@ export interface RedirectHostUpdate {
 
 export const redirectApi = {
   list: async (): Promise<RedirectHost[]> => {
-    const res = await apiClient.get<RedirectHost[]>("/redirects/");
+    const res = await apiClient.get<RedirectHost[]>("/redirects");
     return res.data;
   },
 
   create: async (data: RedirectHostCreate): Promise<RedirectHost> => {
-    const res = await apiClient.post<RedirectHost>("/redirects/", data);
+    const res = await apiClient.post<RedirectHost>("/redirects", data);
     return res.data;
   },
 

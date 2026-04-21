@@ -26,7 +26,7 @@ export interface MiddlewareTemplateUpdate {
 
 export const middlewareApi = {
   list: async (): Promise<MiddlewareTemplate[]> => {
-    const res = await apiClient.get<MiddlewareTemplate[]>("/middlewares/");
+    const res = await apiClient.get<MiddlewareTemplate[]>("/middlewares");
     return res.data;
   },
 
@@ -36,7 +36,7 @@ export const middlewareApi = {
   },
 
   create: async (data: MiddlewareTemplateCreate): Promise<MiddlewareTemplate> => {
-    const res = await apiClient.post<MiddlewareTemplate>("/middlewares/", data);
+    const res = await apiClient.post<MiddlewareTemplate>("/middlewares", data);
     return res.data;
   },
 

@@ -52,7 +52,7 @@ export interface CertificatePreflightResult extends CertificatePreflightSnapshot
 
 export const certificateApi = {
   list: async (): Promise<Certificate[]> => {
-    const res = await apiClient.get<Certificate[]>("/certificates/");
+    const res = await apiClient.get<Certificate[]>("/certificates");
     return res.data;
   },
 
