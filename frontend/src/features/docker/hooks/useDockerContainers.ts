@@ -9,6 +9,8 @@ export function useDockerContainers(enabled = false) {
     queryKey: QUERY_KEY,
     queryFn: dockerApi.listContainers,
     enabled,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
   });
 }

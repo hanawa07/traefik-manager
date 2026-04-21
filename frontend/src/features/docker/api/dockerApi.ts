@@ -1,6 +1,12 @@
 import apiClient from "@/shared/lib/apiClient";
 
-export interface DockerContainerCandidate {
+export interface DockerContainerPort {
+  private_port: number;
+  public_port: number | null;
+  type: string | null;
+}
+
+export interface DockerTraefikCandidate {
   router_name: string;
   domain: string;
   upstream_host: string;
@@ -14,7 +20,9 @@ export interface DockerContainer {
   image: string | null;
   state: string | null;
   status: string | null;
-  candidates: DockerContainerCandidate[];
+  ports: DockerContainerPort[];
+  networks: string[];
+  traefik_candidates: DockerTraefikCandidate[];
 }
 
 export interface DockerContainerListResponse {

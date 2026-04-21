@@ -1,7 +1,13 @@
 from pydantic import BaseModel
 
 
-class DockerContainerCandidateResponse(BaseModel):
+class DockerContainerPortResponse(BaseModel):
+    private_port: int
+    public_port: int | None = None
+    type: str | None = None
+
+
+class DockerTraefikCandidateResponse(BaseModel):
     router_name: str
     domain: str
     upstream_host: str
@@ -15,7 +21,9 @@ class DockerContainerResponse(BaseModel):
     image: str | None = None
     state: str | None = None
     status: str | None = None
-    candidates: list[DockerContainerCandidateResponse]
+    ports: list[DockerContainerPortResponse]
+    networks: list[str]
+    traefik_candidates: list[DockerTraefikCandidateResponse]
 
 
 class DockerContainerListResponse(BaseModel):

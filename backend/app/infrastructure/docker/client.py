@@ -42,7 +42,9 @@ class DockerClient:
             if not isinstance(labels, dict):
                 labels = {}
 
-            candidates = self._extract_candidates(item, labels)
+            ports = self._extract_ports(item)
+            networks = self._extract_networks(item)
+            traefik_candidates = self._extract_traefik_candidates(item, labels)
             containers.append(
                 {
                     "id": item.get("Id"),
@@ -50,7 +52,9 @@ class DockerClient:
                     "image": item.get("Image"),
                     "state": item.get("State"),
                     "status": item.get("Status"),
-                    "candidates": candidates,
+                    "ports": ports,
+                    "networks": networks,
+                    "traefik_candidates": traefik_candidates,
                 }
             )
 
@@ -78,7 +82,7 @@ class DockerClient:
         except (httpx.HTTPError, ValueError, OSError) as exc:
             raise DockerClientError("Docker 컨테이너 목록 조회에 실패했습니다") from exc
 
-    def _extract_candidates(self, container: dict, labels: dict) -> list[dict]:
+    def _extract_traefik_candidates(self, container: dict, labels: dict) -> list[dict]:
         candidates: list[dict] = []
         router_rule_map: dict[str, str] = {}
 
@@ -117,6 +121,64 @@ class DockerClient:
                 )
 
         return candidates
+
+    def _extract_ports(self, container: dict) -> list[dict]:
+        ports = container.get("Ports") or []
+        if not isinstance(ports, list):
+            return []
+
+        extracted: list[dict] = []
+        seen: set[tuple[int, int | None, str | None]] = set()
+
+        for item in ports:
+            if not isinstance(item, dict):
+                continue
+
+            private_port = item.get("PrivatePort")
+            if not isinstance(private_port, int):
+                continue
+
+            public_port = item.get("PublicPort")
+            if not isinstance(public_port, int):
+                public_port = None
+
+            port_type = item.get("Type")
+            if not isinstance(port_type, str):
+                port_type = None
+
+            key = (private_port, public_port, port_type)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            extracted.append(
+                {
+                    "private_port": private_port,
+                    "public_port": public_port,
+                    "type": port_type,
+                }
+            )
+
+        return sorted(
+            extracted,
+            key=lambda item: (
+                item["private_port"],
+                item["public_port"] if item["public_port"] is not None else -1,
+                item["type"] or "",
+            ),
+        )
+
+    def _extract_networks(self, container: dict) -> list[str]:
+        network_settings = container.get("NetworkSettings") or {}
+        if not isinstance(network_settings, dict):
+            return []
+
+        networks = network_settings.get("Networks") or {}
+        if not isinstance(networks, dict):
+            return []
+
+        extracted = [name for name in networks.keys() if isinstance(name, str) and name.strip()]
+        return sorted(extracted)
 
     def _extract_domains(self, rule: str) -> list[str]:
         domains: set[str] = set()

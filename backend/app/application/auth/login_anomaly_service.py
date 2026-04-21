@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from ipaddress import ip_address, ip_network
 
 from sqlalchemy import select
@@ -21,6 +21,8 @@ async def enforce_suspicious_ip_block_if_needed(
     escalation_multiplier: int = 2,
     max_block_window: timedelta | None = None,
 ) -> bool:
+    now = _normalize_utc(now)
+
     if not client_ip or not block_enabled or _is_trusted_client_ip(client_ip, trusted_networks):
         return False
 
@@ -40,21 +42,22 @@ async def enforce_suspicious_ip_block_if_needed(
     if not suspicious_logs:
         return False
 
-    latest_suspicious_at = max(log.created_at for log in suspicious_logs)
+    latest_suspicious_at = max(_get_log_created_at(log) for log in suspicious_logs)
     blocked_logs = sorted(
         [
             log
             for log in logs
             if (log.detail or {}).get("event") == "login_blocked_ip"
         ],
-        key=lambda log: log.created_at,
+        key=_get_log_created_at,
     )
     latest_block_log = blocked_logs[-1] if blocked_logs else None
     if latest_block_log is not None:
+        latest_blocked_at = _get_log_created_at(latest_block_log)
         blocked_until = _get_blocked_until(latest_block_log, default_window=block_window)
         if blocked_until > now:
             return True
-        if latest_suspicious_at <= latest_block_log.created_at:
+        if latest_suspicious_at <= latest_blocked_at:
             return False
 
     base_block_minutes = max(1, int(block_window.total_seconds() // 60))
@@ -101,6 +104,8 @@ async def record_suspicious_login_activity_if_needed(
     min_unique_usernames: int,
     trusted_networks: list[str] | None = None,
 ) -> bool:
+    now = _normalize_utc(now)
+
     if not client_ip or _is_trusted_client_ip(client_ip, trusted_networks):
         return False
 
@@ -149,6 +154,8 @@ async def should_require_turnstile_for_ip(
     failure_threshold: int,
     trusted_networks: list[str] | None = None,
 ) -> bool:
+    now = _normalize_utc(now)
+
     if not client_ip or failure_threshold <= 0 or _is_trusted_client_ip(client_ip, trusted_networks):
         return False
 
@@ -176,6 +183,7 @@ async def _load_recent_ip_logs(
     client_ip: str,
     cutoff: datetime,
 ) -> list[AuditLogModel]:
+    normalized_cutoff = _normalize_utc(cutoff)
     result = await db.execute(
         select(AuditLogModel).where(
             AuditLogModel.resource_type == "user",
@@ -187,7 +195,8 @@ async def _load_recent_ip_logs(
     return [
         log
         for log in logs
-        if (log.detail or {}).get("client_ip") == client_ip and log.created_at >= cutoff
+        if (log.detail or {}).get("client_ip") == client_ip
+        and _get_log_created_at(log) >= normalized_cutoff
     ]
 
 
@@ -213,9 +222,7 @@ def _get_blocked_until(log: AuditLogModel, *, default_window: timedelta) -> date
     raw_blocked_until = detail.get("blocked_until")
     if isinstance(raw_blocked_until, str):
         try:
-            parsed = datetime.fromisoformat(raw_blocked_until)
-            if parsed.tzinfo is not None:
-                return parsed
+            return _normalize_utc(datetime.fromisoformat(raw_blocked_until))
         except ValueError:
             pass
 
@@ -223,8 +230,18 @@ def _get_blocked_until(log: AuditLogModel, *, default_window: timedelta) -> date
     try:
         block_minutes = int(raw_block_minutes)
         if block_minutes > 0:
-            return log.created_at + timedelta(minutes=block_minutes)
+            return _get_log_created_at(log) + timedelta(minutes=block_minutes)
     except (TypeError, ValueError):
         pass
 
-    return log.created_at + default_window
+    return _get_log_created_at(log) + default_window
+
+
+def _get_log_created_at(log: AuditLogModel) -> datetime:
+    return _normalize_utc(log.created_at)
+
+
+def _normalize_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)

@@ -139,6 +139,62 @@ async def test_does_not_record_duplicate_suspicious_event_within_window(monkeypa
 
 
 @pytest.mark.asyncio
+async def test_records_suspicious_event_with_naive_created_at(monkeypatch):
+    now = datetime(2026, 3, 11, 15, 0, tzinfo=timezone.utc)
+    logs = [
+        make_log(
+            created_at=(now - timedelta(minutes=2)).replace(tzinfo=None),
+            event="login_failure",
+            client_ip="1.2.3.4",
+            resource_name="alice",
+        ),
+        make_log(
+            created_at=(now - timedelta(minutes=3)).replace(tzinfo=None),
+            event="login_failure",
+            client_ip="1.2.3.4",
+            resource_name="bob",
+        ),
+        make_log(
+            created_at=(now - timedelta(minutes=4)).replace(tzinfo=None),
+            event="login_failure",
+            client_ip="1.2.3.4",
+            resource_name="charlie",
+        ),
+        make_log(
+            created_at=(now - timedelta(minutes=5)).replace(tzinfo=None),
+            event="login_locked",
+            client_ip="1.2.3.4",
+            resource_name="alice",
+        ),
+        make_log(
+            created_at=(now - timedelta(minutes=6)).replace(tzinfo=None),
+            event="login_failure",
+            client_ip="1.2.3.4",
+            resource_name="dana",
+        ),
+    ]
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(login_anomaly_service.audit_service, "record", fake_record, raising=False)
+
+    result = await login_anomaly_service.record_suspicious_login_activity_if_needed(
+        db=StubDbSession(logs),
+        client_ip="1.2.3.4",
+        now=now,
+        window=timedelta(minutes=15),
+        min_failures=5,
+        min_unique_usernames=3,
+    )
+
+    assert result is True
+    assert recorded[0]["detail"]["event"] == "login_suspicious"
+    assert recorded[0]["detail"]["client_ip"] == "1.2.3.4"
+
+
+@pytest.mark.asyncio
 async def test_enforce_suspicious_ip_block_records_block_event_once(monkeypatch):
     now = datetime(2026, 3, 11, 15, 0, tzinfo=timezone.utc)
     logs = [

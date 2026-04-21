@@ -24,7 +24,6 @@ services:
       - /home/lizstudio/docker/traefik/letsencrypt/acme.json:/acme.json:ro
     networks:
       - traefik-manager-internal
-      - proxy-network
       - proxy_net
     group_add:
       - "${DOCKER_SOCKET_GID:-988}"
@@ -37,7 +36,7 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
       - "com.centurylinklabs.watchtower.monitor-only=true"
       - traefik.enable=true
-      - traefik.docker.network=proxy-network
+      - traefik.docker.network=proxy_net
       - traefik.http.services.traefik-manager-backend.loadbalancer.server.port=8000
 
   frontend:
@@ -56,7 +55,7 @@ services:
     depends_on:
       - backend
     networks:
-      - proxy-network
+      - proxy_net
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -68,7 +67,7 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
       - "com.centurylinklabs.watchtower.monitor-only=true"
       - traefik.enable=true
-      - traefik.docker.network=proxy-network
+      - traefik.docker.network=proxy_net
       - traefik.http.routers.traefik-manager-frontend.rule=Host(`${FRONTEND_DOMAIN}`)
       - traefik.http.routers.traefik-manager-frontend.entrypoints=websecure
       - traefik.http.routers.traefik-manager-frontend.tls=true
@@ -86,7 +85,5 @@ volumes:
 networks:
   traefik-manager-internal:
     internal: true
-  proxy-network:
-    external: true
   proxy_net:
     external: true
