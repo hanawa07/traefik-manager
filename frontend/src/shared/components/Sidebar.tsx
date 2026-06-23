@@ -80,7 +80,7 @@ export default function Sidebar() {
 
       {/* 사이드바 메인: #E7E7E7 배경 적용 */}
       <aside className={clsx(
-        "fixed lg:static inset-y-0 left-0 w-64 min-h-screen bg-sidebar dark:bg-[#111827] flex flex-col border-r border-sidebar-border/50 dark:border-slate-800 shadow-2xl transition-all duration-300 z-[60]",
+        "fixed lg:sticky lg:top-0 lg:self-start inset-y-0 left-0 w-64 min-h-screen lg:h-screen bg-sidebar dark:bg-[#111827] flex flex-col border-r border-sidebar-border/50 dark:border-slate-800 shadow-2xl transition-all duration-300 z-[60]",
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         {/* 브랜드 영역: 박스를 제거하고 아이콘 크기를 극대화(w-40) */}
@@ -154,7 +154,7 @@ export default function Sidebar() {
               isDark ? "bg-brand-primary" : "bg-slate-300"
             )}>
               <div className={clsx(
-                "absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform duration-300",
+                "absolute top-0.5 w-3 h-3 !bg-white rounded-full transition-transform duration-300",
                 isDark ? "translate-x-4.5" : "translate-x-0.5"
               )} />
             </div>
