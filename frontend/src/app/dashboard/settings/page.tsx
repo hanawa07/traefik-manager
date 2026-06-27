@@ -24,9 +24,6 @@ import {
   BackupPreviewResult,
   CloudflareDriftCheckResult,
   CloudflareZoneInput,
-  ChangeAlertEventRoutes,
-  SecurityAlertEventRoutes,
-  SecurityAlertRouteTarget,
   SettingsActionTestResult,
   SettingsTestHistoryItem,
 } from "@/features/settings/api/settingsApi";
@@ -44,6 +41,7 @@ import {
   SettingsTestHistoryNotice,
 } from "@/features/settings/components/SettingsNotices";
 import { LoginDefenseSettingsCard } from "@/features/settings/components/LoginDefenseSettingsCard";
+import { SecurityAlertSettingsCard } from "@/features/settings/components/SecurityAlertSettingsCard";
 import { TimeDisplaySettingsCard } from "@/features/settings/components/TimeDisplaySettingsCard";
 import { UpstreamSecuritySettingsCard } from "@/features/settings/components/UpstreamSecuritySettingsCard";
 import {
@@ -72,10 +70,6 @@ import {
   usePreviewBackup,
 } from "@/features/settings/hooks/useSettings";
 import {
-  CHANGE_ALERT_EVENT_OPTIONS,
-  SECURITY_ALERT_EVENT_OPTIONS,
-  SECURITY_ALERT_PROVIDER_OPTIONS,
-  SECURITY_ALERT_ROUTE_OPTIONS,
   createDefaultCertificateDiagnosticsForm,
   createDefaultCloudflareZoneForm,
   createDefaultLoginDefenseForm,
@@ -84,7 +78,6 @@ import {
   createDefaultUpstreamSecurityForm,
 } from "@/features/settings/lib/settingsDefaults";
 import {
-  getSecurityAlertRouteLabel,
   parseMultivalueText,
 } from "@/features/settings/lib/settingsFormHelpers";
 import UserManagementSection from "@/features/users/components/UserManagementSection";
@@ -625,13 +618,6 @@ export default function SettingsPage() {
     }
   };
 
-  const selectedSecurityAlertProvider =
-    SECURITY_ALERT_PROVIDER_OPTIONS.find((option) => option.value === securityAlertForm.provider) ??
-    SECURITY_ALERT_PROVIDER_OPTIONS[0];
-  const currentSecurityAlertProvider =
-    SECURITY_ALERT_PROVIDER_OPTIONS.find((option) => option.value === (securityAlertSettings?.provider ?? "generic")) ??
-    SECURITY_ALERT_PROVIDER_OPTIONS[0];
-
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -694,539 +680,43 @@ export default function SettingsPage() {
           onFormChange={setLoginDefenseForm}
         />
 
-        <div className="card p-6 h-full order-9">
-          <SettingsCardHeader
-            icon={<Cloud className="w-5 h-5 text-sky-600" />}
-            title="보안 알림"
-            description="보안 이벤트와 운영 변경 이벤트를 외부 채널로 전달합니다."
-            canEdit={canManage && !isEditingSecurityAlert && !isSecurityAlertLoading}
-            onEdit={handleEditSecurityAlert}
-          />
-
-          {isSecurityAlertLoading ? (
-            <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
-          ) : isEditingSecurityAlert ? (
-            <div className="space-y-4">
-              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded accent-sky-600"
-                  checked={securityAlertForm.enabled}
-                  onChange={(e) =>
-                    setSecurityAlertForm((current) => ({
-                      ...current,
-                      enabled: e.target.checked,
-                    }))
-                  }
-                />
-                <span>
-                  <span className="block font-medium text-gray-900">보안 웹훅 알림 활성화</span>
-                  <span className="block text-xs text-gray-500 mt-1">
-                    보안 경고 이벤트가 발생하면 JSON payload를 webhook endpoint로 전송합니다.
-                  </span>
-                </span>
-              </label>
-
-              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded accent-sky-600"
-                  checked={securityAlertForm.change_alerts_enabled}
-                  onChange={(e) =>
-                    setSecurityAlertForm((current) => ({
-                      ...current,
-                      change_alerts_enabled: e.target.checked,
-                    }))
-                  }
-                />
-                <span>
-                  <span className="block font-medium text-gray-900">운영 변경 알림 활성화</span>
-                  <span className="block text-xs text-gray-500 mt-1">
-                    설정, 서비스, 리다이렉트, 미들웨어, 사용자 변경과 롤백 이벤트를 같은 채널 정책으로 전달합니다.
-                  </span>
-                </span>
-              </label>
-
-              <div>
-                <label className="label">알림 채널</label>
-                <div className="grid gap-2 md:grid-cols-2">
-                  {SECURITY_ALERT_PROVIDER_OPTIONS.map((option) => (
-                    <label
-                      key={option.value}
-                      className={`rounded-lg border p-3 text-sm cursor-pointer ${
-                        securityAlertForm.provider === option.value
-                          ? "border-sky-500 bg-sky-50 text-sky-900"
-                          : "border-gray-200 bg-white text-gray-700"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        className="sr-only"
-                        name="security-alert-provider"
-                        checked={securityAlertForm.provider === option.value}
-                        onChange={() =>
-                          setSecurityAlertForm((current) => ({
-                            ...current,
-                            provider: option.value,
-                          }))
-                        }
-                      />
-                      <span className="block font-medium">{option.label}</span>
-                      <span className="mt-1 block text-xs text-gray-500">{option.description}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {securityAlertForm.provider === "telegram" ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="label">Bot Token</label>
-                    <input
-                      type="password"
-                      className="input"
-                      placeholder="123456:ABCDEF..."
-                      value={securityAlertForm.telegram_bot_token}
-                      onChange={(e) =>
-                        setSecurityAlertForm((current) => ({
-                          ...current,
-                          telegram_bot_token: e.target.value,
-                        }))
-                      }
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      {securityAlertSettings?.telegram_bot_token_configured
-                        ? "비워두면 기존 bot token을 유지합니다."
-                        : "Telegram BotFather에서 발급한 bot token을 입력합니다."}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="label">Chat ID</label>
-                    <input
-                      type="text"
-                      className="input"
-                      placeholder="123456789"
-                      value={securityAlertForm.telegram_chat_id}
-                      onChange={(e) =>
-                        setSecurityAlertForm((current) => ({
-                          ...current,
-                          telegram_chat_id: e.target.value,
-                        }))
-                      }
-                    />
-                    <p className="mt-1 text-xs text-gray-500">알림을 받을 개인/그룹 chat id를 입력합니다.</p>
-                  </div>
-                </div>
-              ) : securityAlertForm.provider === "email" ? (
-                <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="md:col-span-2">
-                      <label className="label">SMTP Host</label>
-                      <input
-                        type="text"
-                        className="input"
-                        placeholder="smtp.example.com"
-                        value={securityAlertForm.email_host}
-                        onChange={(e) =>
-                          setSecurityAlertForm((current) => ({
-                            ...current,
-                            email_host: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="label">Port</label>
-                      <input
-                        type="number"
-                        className="input"
-                        min={1}
-                        max={65535}
-                        value={securityAlertForm.email_port}
-                        onChange={(e) =>
-                          setSecurityAlertForm((current) => ({
-                            ...current,
-                            email_port: Number(e.target.value) || 587,
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div>
-                      <label className="label">보안 모드</label>
-                      <select
-                        className="input"
-                        value={securityAlertForm.email_security}
-                        onChange={(e) =>
-                          setSecurityAlertForm((current) => ({
-                            ...current,
-                            email_security: e.target.value as "none" | "starttls" | "ssl",
-                          }))
-                        }
-                      >
-                        <option value="starttls">STARTTLS</option>
-                        <option value="ssl">SSL/TLS</option>
-                        <option value="none">없음</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="label">SMTP Username</label>
-                      <input
-                        type="text"
-                        className="input"
-                        placeholder="alerts@example.com"
-                        value={securityAlertForm.email_username}
-                        onChange={(e) =>
-                          setSecurityAlertForm((current) => ({
-                            ...current,
-                            email_username: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="label">SMTP Password</label>
-                      <input
-                        type="password"
-                        className="input"
-                        placeholder="앱 비밀번호 또는 SMTP 비밀번호"
-                        value={securityAlertForm.email_password}
-                        onChange={(e) =>
-                          setSecurityAlertForm((current) => ({
-                            ...current,
-                            email_password: e.target.value,
-                          }))
-                        }
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        {securityAlertSettings?.email_password_configured
-                          ? "비워두면 기존 SMTP 비밀번호를 유지합니다."
-                          : "SMTP 인증이 필요하다면 비밀번호를 입력합니다."}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <label className="label">From</label>
-                      <input
-                        type="email"
-                        className="input"
-                        placeholder="alerts@example.com"
-                        value={securityAlertForm.email_from}
-                        onChange={(e) =>
-                          setSecurityAlertForm((current) => ({
-                            ...current,
-                            email_from: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="label">Recipients</label>
-                      <textarea
-                        className="input min-h-[88px]"
-                        placeholder={"ops@example.com\nadmin@example.com"}
-                        value={securityAlertForm.email_recipients.join("\n")}
-                        onChange={(e) =>
-                          setSecurityAlertForm((current) => ({
-                            ...current,
-                            email_recipients: parseMultivalueText(e.target.value),
-                          }))
-                        }
-                      />
-                      <p className="mt-1 text-xs text-gray-500">줄바꿈 또는 쉼표로 여러 수신자를 구분할 수 있습니다.</p>
-                    </div>
-                  </div>
-                </div>
-              ) : securityAlertForm.provider === "pagerduty" ? (
-                <div>
-                  <label className="label">Routing Key</label>
-                  <input
-                    type="password"
-                    className="input"
-                    placeholder="PXXXXXXXXXXXXXXX"
-                    value={securityAlertForm.pagerduty_routing_key}
-                    onChange={(e) =>
-                      setSecurityAlertForm((current) => ({
-                        ...current,
-                        pagerduty_routing_key: e.target.value,
-                      }))
-                    }
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    {securityAlertSettings?.pagerduty_routing_key_configured
-                      ? "비워두면 기존 routing key를 유지합니다."
-                      : "PagerDuty Events API v2 integration key를 입력합니다."}
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <label className="label">Webhook URL</label>
-                  <input
-                    type="url"
-                    className="input"
-                    placeholder={selectedSecurityAlertProvider.placeholder}
-                    value={securityAlertForm.webhook_url}
-                    onChange={(e) =>
-                      setSecurityAlertForm((current) => ({
-                        ...current,
-                        webhook_url: e.target.value,
-                      }))
-                    }
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    {selectedSecurityAlertProvider.description}
-                  </p>
-                </div>
-              )}
-
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">이벤트별 알림 정책</p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    기본 채널은 현재 선택한 provider를 뜻합니다. 독립 설정 채널은 Telegram, PagerDuty, Email만
-                    override로 지정할 수 있습니다.
-                  </p>
-                </div>
-                <div className="grid gap-3">
-                  {SECURITY_ALERT_EVENT_OPTIONS.map((eventOption) => (
-                    <div key={eventOption.key} className="grid gap-2 md:grid-cols-[140px_1fr] md:items-center">
-                      <label className="label mb-0">{eventOption.label}</label>
-                      <select
-                        className="input"
-                        value={securityAlertForm.event_routes[eventOption.key]}
-                        onChange={(e) =>
-                          setSecurityAlertForm((current) => ({
-                            ...current,
-                            event_routes: {
-                              ...current.event_routes,
-                              [eventOption.key]: e.target.value as SecurityAlertRouteTarget,
-                            } as SecurityAlertEventRoutes,
-                          }))
-                        }
-                      >
-                        {SECURITY_ALERT_ROUTE_OPTIONS.map((option) => (
-                          <option key={`${eventOption.key}-${option.value}`} value={option.value}>
-                            {option.value === "default"
-                              ? `${option.label} (${selectedSecurityAlertProvider.label})`
-                              : option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">운영 변경 알림 정책</p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    기본 채널은 현재 선택한 provider를 뜻합니다. 운영 변경 알림은 전체 on/off와 이벤트군별 route를 따로 가집니다.
-                  </p>
-                </div>
-                <div className="grid gap-3">
-                  {CHANGE_ALERT_EVENT_OPTIONS.map((eventOption) => (
-                    <div key={eventOption.key} className="grid gap-2 md:grid-cols-[140px_1fr] md:items-center">
-                      <label className="label mb-0">{eventOption.label}</label>
-                      <select
-                        className="input"
-                        value={securityAlertForm.change_event_routes[eventOption.key]}
-                        onChange={(e) =>
-                          setSecurityAlertForm((current) => ({
-                            ...current,
-                            change_event_routes: {
-                              ...current.change_event_routes,
-                              [eventOption.key]: e.target.value as SecurityAlertRouteTarget,
-                            } as ChangeAlertEventRoutes,
-                          }))
-                        }
-                      >
-                        {SECURITY_ALERT_ROUTE_OPTIONS.map((option) => (
-                          <option key={`${eventOption.key}-${option.value}`} value={option.value}>
-                            {option.value === "default"
-                              ? `${option.label} (${selectedSecurityAlertProvider.label})`
-                              : option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
-                <p>전송 이벤트: {(securityAlertSettings?.alert_events ?? []).join(", ")}</p>
-                <p>전송 타임아웃: {securityAlertSettings?.timeout_seconds ?? 5}초</p>
-                <p>이벤트별 override는 Telegram, PagerDuty, Email 또는 전송 안 함으로만 분기합니다.</p>
-                <p>알림 실패는 로그인/차단 동작을 막지 않고 서버 로그에만 남습니다.</p>
-              </div>
-
-              {securityAlertErrorMessage && <p className="text-xs text-red-600">{securityAlertErrorMessage}</p>}
-
-              <SettingsActionRow>
-                <button
-                  className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
-                  onClick={handleSaveSecurityAlert}
-                  disabled={updateSecurityAlert.isPending}
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  {updateSecurityAlert.isPending ? "저장 중..." : "저장"}
-                </button>
-                <button
-                  className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
-                  onClick={() => setIsEditingSecurityAlert(false)}
-                >
-                  <X className="w-3.5 h-3.5" /> 취소
-                </button>
-              </SettingsActionRow>
-            </div>
-          ) : (
-            <SettingsSummary>
-              <SettingsSummaryRow
-                label="상태"
-                value={securityAlertSettings?.enabled ? "활성화" : "비활성화"}
-              />
-              <SettingsSummaryRow
-                label="운영 변경 알림"
-                value={securityAlertSettings?.change_alerts_enabled ? "활성화" : "비활성화"}
-              />
-              <SettingsSummaryRow label="채널" value={currentSecurityAlertProvider.label} />
-              {securityAlertSettings?.provider === "telegram" ? (
-                <>
-                  <SettingsSummaryRow
-                    label="Bot Token"
-                    value={securityAlertSettings.telegram_bot_token_configured ? "설정됨" : "(미설정)"}
-                  />
-                  <SettingsSummaryRow
-                    label="Chat ID"
-                    value={securityAlertSettings.telegram_chat_id || "(미설정)"}
-                    mono
-                  />
-                </>
-              ) : securityAlertSettings?.provider === "email" ? (
-                <>
-                  <SettingsSummaryRow
-                    label="SMTP"
-                    value={
-                      securityAlertSettings.email_host
-                        ? `${securityAlertSettings.email_host}:${securityAlertSettings.email_port}`
-                        : "(미설정)"
-                    }
-                    mono
-                  />
-                  <SettingsSummaryRow label="보안" value={securityAlertSettings.email_security} />
-                  <SettingsSummaryRow
-                    label="SMTP 계정"
-                    value={securityAlertSettings.email_username || "(미설정)"}
-                    mono
-                  />
-                  <SettingsSummaryRow
-                    label="비밀번호"
-                    value={securityAlertSettings.email_password_configured ? "설정됨" : "(미설정)"}
-                  />
-                  <SettingsSummaryRow
-                    label="From"
-                    value={securityAlertSettings.email_from || "(미설정)"}
-                    mono
-                  />
-                  <SettingsSummaryRow
-                    label="Recipients"
-                    value={
-                      securityAlertSettings.email_recipients.length > 0
-                        ? securityAlertSettings.email_recipients.join(", ")
-                        : "(미설정)"
-                    }
-                    mono
-                  />
-                </>
-              ) : securityAlertSettings?.provider === "pagerduty" ? (
-                <SettingsSummaryRow
-                  label="Routing Key"
-                  value={securityAlertSettings.pagerduty_routing_key_configured ? "설정됨" : "(미설정)"}
-                />
-              ) : (
-                <SettingsSummaryRow
-                  label="Webhook URL"
-                  value={securityAlertSettings?.webhook_url || "(미설정)"}
-                  mono
-                />
-              )}
-              <SettingsSummaryRow label="포맷" value={currentSecurityAlertProvider.description} />
-              <SettingsSummaryRow
-                label="전송 이벤트"
-                value={(securityAlertSettings?.alert_events ?? []).join(", ")}
-              />
-              {SECURITY_ALERT_EVENT_OPTIONS.map((eventOption) => (
-                <SettingsSummaryRow
-                  key={`summary-${eventOption.key}`}
-                  label={eventOption.label}
-                  value={getSecurityAlertRouteLabel(
-                    securityAlertSettings?.event_routes?.[eventOption.key] ?? "default",
-                    currentSecurityAlertProvider.label,
-                  )}
-                />
-              ))}
-              {CHANGE_ALERT_EVENT_OPTIONS.map((eventOption) => (
-                <SettingsSummaryRow
-                  key={`summary-change-${eventOption.key}`}
-                  label={eventOption.label}
-                  value={getSecurityAlertRouteLabel(
-                    securityAlertSettings?.change_event_routes?.[eventOption.key] ?? "default",
-                    currentSecurityAlertProvider.label,
-                  )}
-                />
-              ))}
-              <SettingsSummaryRow label="타임아웃" value={`${securityAlertSettings?.timeout_seconds ?? 5}초`} />
-              {canManage ? (
-                <SettingsActionRow>
-                  <button
-                    type="button"
-                    className="btn-secondary inline-flex items-center gap-2 py-1.5 text-xs"
-                    onClick={handleTestSecurityAlert}
-                    disabled={testSecurityAlertSettings.isPending}
-                  >
-                    <Cloud className="h-3.5 w-3.5" />
-                    {testSecurityAlertSettings.isPending ? "전송 중..." : "테스트 알림 전송"}
-                  </button>
-                </SettingsActionRow>
-              ) : null}
-              <p className="text-xs text-gray-500">테스트는 현재 저장된 기본 채널 설정 기준으로 즉시 전송됩니다.</p>
-              {!isSettingsTestHistoryLoading ? (
-                <div className="space-y-3">
-                  <SettingsTestHistoryNotice
-                    label="마지막 테스트 알림"
-                    history={settingsTestHistory?.security_alert}
-                    timezone={timeDisplaySettings?.display_timezone}
-                  />
-                  <SettingsTestHistoryNotice
-                    label="최근 보안 이벤트 전송"
-                    history={settingsTestHistory?.security_alert_delivery}
-                    timezone={timeDisplaySettings?.display_timezone}
-                    onRetry={() => handleRetryDelivery(settingsTestHistory?.security_alert_delivery, "security")}
-                    isRetrying={retryDelivery.isPending && retryTargetAuditId === settingsTestHistory?.security_alert_delivery?.last_failure_audit_id}
-                  />
-                  <SettingsTestHistoryNotice
-                    label="최근 운영 변경 전송"
-                    history={settingsTestHistory?.change_alert_delivery}
-                    timezone={timeDisplaySettings?.display_timezone}
-                    onRetry={() => handleRetryDelivery(settingsTestHistory?.change_alert_delivery, "change")}
-                    isRetrying={retryDelivery.isPending && retryTargetAuditId === settingsTestHistory?.change_alert_delivery?.last_failure_audit_id}
-                  />
-                </div>
-              ) : null}
-              <ActionResultNotice result={securityAlertTestResult} />
-              <ActionResultNotice result={securityAlertDeliveryRetryResult} />
-              <ActionResultNotice result={changeAlertDeliveryRetryResult} />
-              <p className="text-xs text-gray-500">
-                알림 실패는 운영 가시성에만 영향을 주고, 로그인 차단/잠금 로직 자체는 중단하지 않습니다.
-              </p>
-            </SettingsSummary>
-          )}
-        </div>
+        <SecurityAlertSettingsCard
+          canManage={canManage}
+          isLoading={isSecurityAlertLoading}
+          isEditing={isEditingSecurityAlert}
+          settings={securityAlertSettings}
+          formValue={securityAlertForm}
+          errorMessage={securityAlertErrorMessage}
+          isSaving={updateSecurityAlert.isPending}
+          isTesting={testSecurityAlertSettings.isPending}
+          isHistoryLoading={isSettingsTestHistoryLoading}
+          displayTimezone={timeDisplaySettings?.display_timezone}
+          testResult={securityAlertTestResult}
+          securityRetryResult={securityAlertDeliveryRetryResult}
+          changeRetryResult={changeAlertDeliveryRetryResult}
+          securityTestHistory={settingsTestHistory?.security_alert}
+          securityDeliveryHistory={settingsTestHistory?.security_alert_delivery}
+          changeDeliveryHistory={settingsTestHistory?.change_alert_delivery}
+          isRetryingSecurityDelivery={
+            retryDelivery.isPending &&
+            retryTargetAuditId === settingsTestHistory?.security_alert_delivery?.last_failure_audit_id
+          }
+          isRetryingChangeDelivery={
+            retryDelivery.isPending &&
+            retryTargetAuditId === settingsTestHistory?.change_alert_delivery?.last_failure_audit_id
+          }
+          onEdit={handleEditSecurityAlert}
+          onSave={handleSaveSecurityAlert}
+          onCancel={() => setIsEditingSecurityAlert(false)}
+          onTest={handleTestSecurityAlert}
+          onRetrySecurityDelivery={() =>
+            handleRetryDelivery(settingsTestHistory?.security_alert_delivery, "security")
+          }
+          onRetryChangeDelivery={() =>
+            handleRetryDelivery(settingsTestHistory?.change_alert_delivery, "change")
+          }
+          onFormChange={setSecurityAlertForm}
+        />
 
         <div className="card p-6 h-full order-5">
           <SettingsCardHeader
