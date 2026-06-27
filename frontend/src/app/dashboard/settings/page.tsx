@@ -44,6 +44,7 @@ import {
   SettingsTestHistoryNotice,
 } from "@/features/settings/components/SettingsNotices";
 import { TimeDisplaySettingsCard } from "@/features/settings/components/TimeDisplaySettingsCard";
+import { UpstreamSecuritySettingsCard } from "@/features/settings/components/UpstreamSecuritySettingsCard";
 import {
   useCertificateDiagnosticsSettings,
   useCloudflareStatus,
@@ -82,10 +83,8 @@ import {
   createDefaultUpstreamSecurityForm,
 } from "@/features/settings/lib/settingsDefaults";
 import {
-  applyUpstreamPreset,
   getSecurityAlertRouteLabel,
   getTurnstileModeLabel,
-  inferUpstreamPresetKey,
   parseMultivalueText,
 } from "@/features/settings/lib/settingsFormHelpers";
 import UserManagementSection from "@/features/users/components/UserManagementSection";
@@ -178,8 +177,6 @@ export default function SettingsPage() {
   const importBackup = useImportBackup();
   const validateBackup = useValidateBackup();
   const previewBackup = usePreviewBackup();
-  const upstreamPresets = upstreamSecuritySettings?.available_presets ?? [];
-  const selectedUpstreamPresetKey = inferUpstreamPresetKey(upstreamPresets, upstreamSecurityForm);
 
   const handleEditCf = () => {
     setCfForm(
@@ -671,232 +668,18 @@ export default function SettingsPage() {
           onFormChange={setCertificateDiagnosticsForm}
         />
 
-        <div className="card p-6 order-3">
-          <SettingsCardHeader
-            icon={<ShieldCheck className="w-5 h-5 text-rose-600" />}
-            title="업스트림 보안"
-            description="DNS strict mode와 allowlist를 조합해 업스트림 저장 정책을 명시적으로 제한합니다. 외부 FQDN은 suffix 기준으로, 내부 서비스명과 사설 IP는 별도 옵션으로 제어합니다."
-            canEdit={canManage && !isEditingUpstreamSecurity && !isUpstreamSecurityLoading}
-            onEdit={handleEditUpstreamSecurity}
-          />
-
-          {isUpstreamSecurityLoading ? (
-            <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
-          ) : isEditingUpstreamSecurity ? (
-            <div className="space-y-4">
-              <div>
-                <label className="label">정책 preset</label>
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                  {upstreamPresets.map((preset) => {
-                    const isSelected = selectedUpstreamPresetKey === preset.key;
-                    return (
-                      <button
-                        key={preset.key}
-                        type="button"
-                        className={`rounded-xl border p-3 text-left transition ${
-                          isSelected
-                            ? "border-rose-300 bg-rose-50 shadow-sm"
-                            : "border-gray-200 bg-white hover:border-gray-300"
-                        }`}
-                        onClick={() =>
-                          setUpstreamSecurityForm((current) => applyUpstreamPreset(current, preset))
-                        }
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-sm font-semibold text-gray-900">{preset.name}</span>
-                          {isSelected ? (
-                            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-medium text-rose-700">
-                              현재 조합
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="mt-1 text-xs leading-5 text-gray-500">{preset.description}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="mt-2 text-xs text-gray-500">
-                  preset을 누르면 권장 조합이 바로 적용됩니다. 이후 세부 옵션을 직접 바꾸면 조합은 자동으로 `사용자 정의`
-                  상태가 됩니다.
-                </p>
-                {selectedUpstreamPresetKey === "custom" ? (
-                  <p className="mt-1 text-xs font-medium text-amber-700">
-                    현재 조합은 preset과 다르게 직접 조정된 사용자 정의 상태입니다.
-                  </p>
-                ) : null}
-              </div>
-
-              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded accent-rose-600"
-                  checked={upstreamSecurityForm.dns_strict_mode}
-                  onChange={(e) =>
-                    setUpstreamSecurityForm((current) => ({
-                      ...current,
-                      dns_strict_mode: e.target.checked,
-                    }))
-                  }
-                />
-                <span>
-                  <span className="block font-medium text-gray-900">DNS strict mode 활성화</span>
-                  <span className="block text-xs text-gray-500 mt-1">
-                    도메인 업스트림 저장 시 DNS를 다시 조회해서 loopback, link-local, 문서 예제 대역 같은 금지
-                    주소로 해석되는지 검사합니다.
-                  </span>
-                </span>
-              </label>
-
-              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded accent-rose-600"
-                  checked={upstreamSecurityForm.allowlist_enabled}
-                  onChange={(e) =>
-                    setUpstreamSecurityForm((current) => ({
-                      ...current,
-                      allowlist_enabled: e.target.checked,
-                    }))
-                  }
-                />
-                <span>
-                  <span className="block font-medium text-gray-900">업스트림 allowlist 활성화</span>
-                  <span className="block text-xs text-gray-500 mt-1">
-                    외부 FQDN은 아래 suffix 목록과 일치해야만 저장할 수 있습니다. strict mode와는 별개로 동작합니다.
-                  </span>
-                </span>
-              </label>
-
-              <div>
-                <label className="label">허용 도메인 suffix</label>
-                <textarea
-                  className="input min-h-28 py-3 font-mono text-sm"
-                  placeholder={"예:\nexample.com\nhanadays.co.kr"}
-                  value={upstreamSecurityForm.allowed_domain_suffixes_text}
-                  onChange={(e) =>
-                    setUpstreamSecurityForm((current) => ({
-                      ...current,
-                      allowed_domain_suffixes_text: e.target.value,
-                    }))
-                  }
-                />
-                <p className="mt-1 text-xs text-gray-500">줄바꿈 또는 쉼표로 구분합니다. `*.example.com` 입력도 허용됩니다.</p>
-              </div>
-
-              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded accent-rose-600"
-                  checked={upstreamSecurityForm.allow_docker_service_names}
-                  onChange={(e) =>
-                    setUpstreamSecurityForm((current) => ({
-                      ...current,
-                      allow_docker_service_names: e.target.checked,
-                    }))
-                  }
-                />
-                <span>
-                  <span className="block font-medium text-gray-900">Docker 서비스명 허용</span>
-                  <span className="block text-xs text-gray-500 mt-1">
-                    `vaultwarden`, `open-webui` 같은 점 없는 내부 호스트명을 허용합니다.
-                  </span>
-                </span>
-              </label>
-
-              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded accent-rose-600"
-                  checked={upstreamSecurityForm.allow_private_networks}
-                  onChange={(e) =>
-                    setUpstreamSecurityForm((current) => ({
-                      ...current,
-                      allow_private_networks: e.target.checked,
-                    }))
-                  }
-                />
-                <span>
-                  <span className="block font-medium text-gray-900">사설 IPv4 / Tailscale IP 허용</span>
-                  <span className="block text-xs text-gray-500 mt-1">
-                    `192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`, `100.64.0.0/10` 대역 IP 리터럴을 허용합니다.
-                  </span>
-                </span>
-              </label>
-
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500 space-y-1">
-                <p>기본값은 비활성화입니다.</p>
-                <p>권장 사용처: 외부 FQDN을 업스트림으로 자주 등록하는 환경</p>
-                <p>주의: allowlist를 켠 상태에서 suffix 목록이 비어 있으면 외부 FQDN은 모두 차단됩니다.</p>
-                <p>주의: DNS 조회 실패 시 strict mode가 켜져 있으면 서비스 저장이 차단됩니다.</p>
-              </div>
-
-              <SettingsActionRow>
-                <button
-                  className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
-                  onClick={handleSaveUpstreamSecurity}
-                  disabled={updateUpstreamSecurity.isPending}
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  {updateUpstreamSecurity.isPending ? "저장 중..." : "저장"}
-                </button>
-                <button
-                  className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
-                  onClick={() => setIsEditingUpstreamSecurity(false)}
-                >
-                  <X className="w-3.5 h-3.5" /> 취소
-                </button>
-              </SettingsActionRow>
-            </div>
-          ) : (
-            <SettingsSummary>
-              <SettingsSummaryRow label="정책 preset" value={upstreamSecuritySettings?.preset_name ?? "사용자 정의"} />
-              <SettingsSummaryRow
-                label="DNS strict mode"
-                value={upstreamSecuritySettings?.dns_strict_mode ? "활성화" : "비활성화"}
-              />
-              <SettingsSummaryRow
-                label="업스트림 allowlist"
-                value={upstreamSecuritySettings?.allowlist_enabled ? "활성화" : "비활성화"}
-              />
-              <SettingsSummaryRow
-                label="허용 suffix"
-                value={
-                  upstreamSecuritySettings?.allowed_domain_suffixes?.length
-                    ? `${upstreamSecuritySettings.allowed_domain_suffixes.length}개`
-                    : "없음"
-                }
-              />
-              <SettingsSummaryRow
-                label="Docker 서비스명"
-                value={upstreamSecuritySettings?.allow_docker_service_names ? "허용" : "차단"}
-              />
-              <SettingsSummaryRow
-                label="사설 IPv4 / Tailscale IP"
-                value={upstreamSecuritySettings?.allow_private_networks ? "허용" : "차단"}
-              />
-              {upstreamSecuritySettings?.allowed_domain_suffixes?.length ? (
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-2 text-xs font-medium text-gray-600">허용 suffix 목록</p>
-                  <div className="flex flex-wrap gap-2">
-                    {upstreamSecuritySettings.allowed_domain_suffixes.map((suffix) => (
-                      <span
-                        key={suffix}
-                        className="rounded-full border border-gray-200 bg-white px-2.5 py-1 font-mono text-[11px] text-gray-700"
-                      >
-                        {suffix}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              <p className="text-xs text-gray-500">{upstreamSecuritySettings?.preset_description}</p>
-              <p className="text-xs text-gray-500 pt-1">
-                allowlist는 저장 시점에 외부 FQDN, Docker 서비스명, IP 리터럴을 정책대로 제한합니다. strict mode는
-                도메인 업스트림을 DNS 재해석해서 금지 주소 여부를 추가로 검사합니다.
-              </p>
-            </SettingsSummary>
-          )}
-        </div>
+        <UpstreamSecuritySettingsCard
+          canManage={canManage}
+          isLoading={isUpstreamSecurityLoading}
+          isEditing={isEditingUpstreamSecurity}
+          settings={upstreamSecuritySettings}
+          formValue={upstreamSecurityForm}
+          isSaving={updateUpstreamSecurity.isPending}
+          onEdit={handleEditUpstreamSecurity}
+          onSave={handleSaveUpstreamSecurity}
+          onCancel={() => setIsEditingUpstreamSecurity(false)}
+          onFormChange={setUpstreamSecurityForm}
+        />
 
         <div className="card p-6 h-full order-4">
           <SettingsCardHeader
