@@ -3,6 +3,7 @@ from uuid import UUID
 from ..entities.service import Service
 
 
+# PONYTAIL-DEBT(repo-abc): repository ABCs have one production implementation; keep until architecture decision.
 class ServiceRepository(ABC):
 
     @abstractmethod

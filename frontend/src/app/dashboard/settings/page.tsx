@@ -1,4 +1,5 @@
 "use client";
+// PONYTAIL-DEBT(settings-page): split this oversized settings page into focused section components.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {

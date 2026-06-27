@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 
+# PONYTAIL-DEBT(traefik-client): split health/version, certificate, docker-log, and preflight responsibilities.
 import httpx
 
 from app.core.config import settings

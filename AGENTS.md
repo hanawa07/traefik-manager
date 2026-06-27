@@ -28,6 +28,8 @@ This repository is split into a FastAPI backend and a Next.js frontend.
 - TypeScript: keep `strict`-safe code and explicit types at API boundaries.
 - React components use `PascalCase` file names (for example `ServiceForm.tsx`).
 - Hooks/stores use `camelCase` with `use` prefix (for example `useServices.ts`, `useAuthStore.ts`).
+- One file should own one feature or one clear responsibility.
+- New or refactored files must stay under 500 lines. If a legacy file already exceeds 500 lines, do not grow it further except for urgent fixes; add a `PONYTAIL-DEBT(...)` marker and plan a split.
 
 ## Testing Guidelines
 Automated tests are not fully wired yet; treat lint/build and manual API checks as the minimum gate.
@@ -35,6 +37,13 @@ Automated tests are not fully wired yet; treat lint/build and manual API checks 
 - Add backend tests under `backend/tests/<layer>/test_*.py`.
 - Prefer `pytest` + async test patterns for FastAPI/SQLAlchemy behavior.
 - For frontend changes, run `npm run lint` and verify affected dashboard/login flows manually.
+
+## Agent Workflow Requirements
+- 기본 작업 방식은 포니테일 스킬을 우선 적용한다.
+- 코딩 변경이 끝나면 반드시 관련 테스트, lint, build 또는 수동 API 검증 중 변경 범위에 맞는 검증을 수행한다.
+- 테스트 후 포니테일 리뷰까지 완료하고, 결과와 남은 리스크를 사용자에게 보고한다.
+- 코드 변경이 완료되면 변경 단위별로 파일을 나눠 스테이징하고, `<영역>: <변경 요약>` 형식의 한글 커밋을 만든 뒤 현재 브랜치를 GitHub에 푸시한다.
+- 관련 없는 사용자 변경, 로컬 백업, `.env`, 비밀값, 생성물은 커밋에 포함하지 않는다.
 
 ## Commit & Pull Request Guidelines
 - Follow the existing history style: concise, scope-first summaries (often Korean), one topic per commit.

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+# PONYTAIL-DEBT(settings-router): replace repeated settings get/update/audit flows with a registry/helper.
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession

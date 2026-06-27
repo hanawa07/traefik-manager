@@ -2,6 +2,7 @@ import httpx
 from app.core.config import settings
 
 
+# PONYTAIL-DEBT(authentik-client): collapse repeated httpx request boilerplate into a small request helper.
 class AuthentikClient:
     """Authentik API 클라이언트"""
 

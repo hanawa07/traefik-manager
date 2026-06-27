@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+// PONYTAIL-DEBT(settings-hooks): collapse repeated query/mutation invalidation patterns into small hook helpers.
 import {
   BackupPayload,
   BackupPreviewResult,
