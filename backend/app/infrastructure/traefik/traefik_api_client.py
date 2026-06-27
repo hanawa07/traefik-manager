@@ -18,6 +18,7 @@ ACME_JSON_PATH = Path("/acme.json")
 DOCKER_LOG_HEADER_LENGTH = 8
 ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 DOMAIN_RE = re.compile(r"\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b")
+SEMVER_RE = re.compile(r"v?(\d+)\.(\d+)\.(\d+)")
 
 
 class TraefikApiClientError(Exception):
@@ -27,26 +28,137 @@ class TraefikApiClientError(Exception):
 class TraefikApiClient:
     """Traefik REST API 클라이언트"""
 
+    _latest_version_cache: dict | None = None
+    _latest_version_lock = asyncio.Lock()
+
     def __init__(self):
         self.base_url = settings.TRAEFIK_API_URL.rstrip("/")
         self.timeout = settings.TRAEFIK_API_TIMEOUT_SECONDS
 
     async def get_health(self) -> dict:
-        try:
-            overview = await self._get("/api/overview")
-        except TraefikApiClientError:
+        overview, version_payload, latest_info = await asyncio.gather(
+            self._get_overview_or_none(),
+            self._get_version_or_none(),
+            self._get_latest_version_info(),
+        )
+
+        if overview is None:
             return {
                 "connected": False,
                 "message": "Traefik에 연결할 수 없습니다",
                 "version": None,
+                **latest_info,
             }
 
-        version = overview.get("version") if isinstance(overview, dict) else None
+        version = self._extract_current_version(overview) or self._extract_current_version(version_payload)
+        version_comparison = self._compare_versions(version, latest_info.get("latest_version"))
+        update_available = version_comparison < 0 if version_comparison is not None else None
         return {
             "connected": True,
             "message": "Traefik 연결됨",
             "version": version,
+            **latest_info,
+            "update_available": update_available,
         }
+
+    async def _get_overview_or_none(self) -> dict | None:
+        try:
+            overview = await self._get("/api/overview")
+        except TraefikApiClientError:
+            return None
+        return overview if isinstance(overview, dict) else None
+
+    async def _get_version_or_none(self) -> dict | None:
+        try:
+            payload = await self._get("/api/version")
+        except TraefikApiClientError:
+            return None
+        return payload if isinstance(payload, dict) else None
+
+    def _extract_current_version(self, payload: dict | None) -> str | None:
+        if not isinstance(payload, dict):
+            return None
+        for key in ("version", "Version"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return None
+
+    async def _get_latest_version_info(self) -> dict:
+        now = datetime.now(timezone.utc)
+        cache = self._latest_version_cache
+        if cache and self._is_latest_version_cache_fresh(cache, now):
+            return cache.copy()
+
+        async with self._latest_version_lock:
+            cache = self._latest_version_cache
+            if cache and self._is_latest_version_cache_fresh(cache, now):
+                return cache.copy()
+
+            info = await self._fetch_latest_version_info(now)
+            TraefikApiClient._latest_version_cache = info.copy()
+            return info
+
+    def _is_latest_version_cache_fresh(self, cache: dict, now: datetime) -> bool:
+        checked_at = cache.get("latest_version_checked_at")
+        if not isinstance(checked_at, datetime):
+            return False
+
+        max_age_seconds = max(settings.TRAEFIK_LATEST_VERSION_CACHE_SECONDS, 60)
+        return (now - checked_at).total_seconds() < max_age_seconds
+
+    async def _fetch_latest_version_info(self, checked_at: datetime) -> dict:
+        try:
+            async with httpx.AsyncClient(
+                timeout=settings.TRAEFIK_LATEST_VERSION_TIMEOUT_SECONDS,
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "User-Agent": "traefik-manager",
+                },
+            ) as client:
+                response = await client.get(settings.TRAEFIK_LATEST_VERSION_API_URL)
+                response.raise_for_status()
+                payload = response.json()
+        except (httpx.HTTPError, ValueError):
+            return {
+                "latest_version": None,
+                "update_available": None,
+                "latest_version_checked_at": checked_at,
+                "latest_version_error": "최신 Traefik 버전을 확인하지 못했습니다",
+            }
+
+        latest_version = payload.get("tag_name") if isinstance(payload, dict) else None
+        if not isinstance(latest_version, str) or not self._parse_version(latest_version):
+            return {
+                "latest_version": None,
+                "update_available": None,
+                "latest_version_checked_at": checked_at,
+                "latest_version_error": "최신 Traefik 버전 응답을 해석하지 못했습니다",
+            }
+
+        return {
+            "latest_version": latest_version,
+            "update_available": None,
+            "latest_version_checked_at": checked_at,
+            "latest_version_error": None,
+        }
+
+    def _compare_versions(self, current_version: str | None, latest_version: str | None) -> int | None:
+        current = self._parse_version(current_version)
+        latest = self._parse_version(latest_version)
+        if current is None or latest is None:
+            return None
+        if current == latest:
+            return 0
+        return -1 if current < latest else 1
+
+    def _parse_version(self, value: str | None) -> tuple[int, int, int] | None:
+        if not isinstance(value, str):
+            return None
+        match = SEMVER_RE.search(value)
+        if not match:
+            return None
+        return tuple(int(part) for part in match.groups())
 
     async def get_router_status(self) -> dict:
         try:

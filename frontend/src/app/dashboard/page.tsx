@@ -55,6 +55,46 @@ export default function DashboardPage() {
   const upStreamUpCount = Object.values(healthData).filter((h) => h.status === "up").length;
   const certificateWarningCount = certificates.filter((item) => item.status === "warning").length;
   const certificateErrorCount = certificates.filter((item) => item.status === "error").length;
+  const traefikStatusTone =
+    traefikHealth?.connected === false
+      ? {
+          border: "border-red-200",
+          bg: "bg-red-50",
+          primary: "text-red-700",
+          secondary: "text-red-600",
+          badge: "bg-red-100 text-red-700",
+        }
+      : traefikHealth?.update_available || traefikHealth?.latest_version_error
+        ? {
+            border: "border-amber-200",
+            bg: "bg-amber-50",
+            primary: "text-amber-800",
+            secondary: "text-amber-700",
+            badge: "bg-amber-100 text-amber-800",
+          }
+        : traefikHealth?.connected
+          ? {
+              border: "border-green-200",
+              bg: "bg-green-50",
+              primary: "text-green-700",
+              secondary: "text-green-600",
+              badge: "bg-green-100 text-green-700",
+            }
+          : {
+              border: "border-gray-200",
+              bg: "bg-gray-50",
+              primary: "text-gray-700",
+              secondary: "text-gray-500",
+              badge: "bg-gray-100 text-gray-600",
+            };
+  const traefikVersionStatus =
+    traefikHealth?.update_available === true
+      ? "업데이트 필요"
+      : traefikHealth?.update_available === false
+        ? "최신 상태"
+        : traefikHealth?.latest_version_error
+          ? "확인 실패"
+          : "확인 중";
 
   return (
     <div className="p-8">
@@ -63,20 +103,43 @@ export default function DashboardPage() {
         <p className="text-gray-500 text-sm mt-1">Traefik 서비스 현황</p>
       </div>
 
-      <div
-        className={`mb-6 rounded-lg border px-4 py-3 ${
-          traefikHealth?.connected
-            ? "border-green-200 bg-green-50"
-            : "border-red-200 bg-red-50"
-        }`}
-      >
-        <p className={`text-sm font-medium ${traefikHealth?.connected ? "text-green-700" : "text-red-700"}`}>
-          Traefik 상태: {traefikHealth?.connected ? "연결됨" : "연결 안 됨"}
-        </p>
-        <p className={`text-xs mt-1 ${traefikHealth?.connected ? "text-green-600" : "text-red-600"}`}>
-          {traefikHealth?.message || "Traefik 상태를 확인하는 중입니다"}
-          {traefikHealth?.version ? ` · 버전 ${traefikHealth.version}` : ""}
-        </p>
+      <div className={`mb-6 rounded-lg border px-4 py-3 ${traefikStatusTone.border} ${traefikStatusTone.bg}`}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className={`text-sm font-medium ${traefikStatusTone.primary}`}>
+              Traefik 상태: {traefikHealth?.connected === undefined ? "확인 중" : traefikHealth.connected ? "연결됨" : "연결 안 됨"}
+            </p>
+            <p className={`text-xs mt-1 ${traefikStatusTone.secondary}`}>
+              {traefikHealth?.message || "Traefik 상태를 확인하는 중입니다"}
+              {traefikHealth?.latest_version_checked_at
+                ? ` · 최신 버전 확인 ${formatDateTime(
+                    traefikHealth.latest_version_checked_at,
+                    timeDisplaySettings?.display_timezone,
+                  )}`
+                : ""}
+            </p>
+            {traefikHealth?.latest_version_error ? (
+              <p className="mt-1 text-xs text-amber-700">{traefikHealth.latest_version_error}</p>
+            ) : null}
+          </div>
+          <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${traefikStatusTone.badge}`}>
+            {traefikVersionStatus}
+          </span>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-lg border border-white/60 bg-white/60 px-3 py-2">
+            <p className="text-xs text-gray-500">현재 버전</p>
+            <p className="mt-1 text-sm font-semibold text-gray-900">{traefikHealth?.version || "-"}</p>
+          </div>
+          <div className="rounded-lg border border-white/60 bg-white/60 px-3 py-2">
+            <p className="text-xs text-gray-500">최신 버전</p>
+            <p className="mt-1 text-sm font-semibold text-gray-900">{traefikHealth?.latest_version || "-"}</p>
+          </div>
+          <div className="rounded-lg border border-white/60 bg-white/60 px-3 py-2">
+            <p className="text-xs text-gray-500">업데이트 감지</p>
+            <p className="mt-1 text-sm font-semibold text-gray-900">{traefikVersionStatus}</p>
+          </div>
+        </div>
       </div>
 
       <div className="card mb-6 p-5">

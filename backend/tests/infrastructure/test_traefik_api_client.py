@@ -7,6 +7,83 @@ from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
 
 
 @pytest.mark.asyncio
+async def test_get_health_includes_latest_version_update_status(monkeypatch):
+    client = TraefikApiClient()
+    checked_at = datetime(2026, 6, 28, 1, 20, 0, tzinfo=timezone.utc)
+
+    async def fake_get(path: str):
+        if path == "/api/overview":
+            return {"version": "3.5.3"}
+        if path == "/api/version":
+            return {}
+        raise AssertionError(f"unexpected path: {path}")
+
+    monkeypatch.setattr(client, "_get", fake_get)
+    monkeypatch.setattr(
+        client,
+        "_get_latest_version_info",
+        AsyncMock(
+            return_value={
+                "latest_version": "v3.5.4",
+                "update_available": None,
+                "latest_version_checked_at": checked_at,
+                "latest_version_error": None,
+            }
+        ),
+    )
+
+    result = await client.get_health()
+
+    assert result["connected"] is True
+    assert result["version"] == "3.5.3"
+    assert result["latest_version"] == "v3.5.4"
+    assert result["latest_version_checked_at"] == checked_at
+    assert result["update_available"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_health_uses_version_endpoint_when_overview_has_no_version(monkeypatch):
+    client = TraefikApiClient()
+
+    async def fake_get(path: str):
+        if path == "/api/overview":
+            return {"http": {"routers": {"total": 1}}}
+        if path == "/api/version":
+            return {"Version": "3.3.7", "Codename": "saintnectaire"}
+        raise AssertionError(f"unexpected path: {path}")
+
+    monkeypatch.setattr(client, "_get", fake_get)
+    monkeypatch.setattr(
+        client,
+        "_get_latest_version_info",
+        AsyncMock(
+            return_value={
+                "latest_version": "v3.7.5",
+                "update_available": None,
+                "latest_version_checked_at": datetime(2026, 6, 28, 1, 20, 0, tzinfo=timezone.utc),
+                "latest_version_error": None,
+            }
+        ),
+    )
+
+    result = await client.get_health()
+
+    assert result["connected"] is True
+    assert result["version"] == "3.3.7"
+    assert result["latest_version"] == "v3.7.5"
+    assert result["update_available"] is True
+
+
+def test_compare_versions_handles_v_prefix_and_metadata():
+    client = TraefikApiClient()
+
+    assert client._compare_versions("3.5.4", "v3.5.4") == 0
+    assert client._compare_versions("v3.5.3+build", "v3.5.4") == -1
+    assert client._compare_versions("3.6.0", "v3.5.4") == 1
+    assert client._compare_versions(None, "v3.5.4") is None
+
+
+@pytest.mark.asyncio
 async def test_list_certificates_uses_docker_acme_fallback_when_local_mount_is_unreadable(
     monkeypatch,
 ):
@@ -35,14 +112,14 @@ async def test_list_certificates_uses_docker_acme_fallback_when_local_mount_is_u
     monkeypatch.setattr(
         client,
         "_extract_acme_certificate_expiry",
-        lambda _cert_b64: datetime(2026, 6, 5, 6, 15, 36, tzinfo=timezone.utc),
+        lambda _cert_b64: datetime(2099, 6, 5, 6, 15, 36, tzinfo=timezone.utc),
     )
 
     result = await client.list_certificates()
 
     assert result[0]["domain"] == "example.com"
     assert result[0]["status"] == "active"
-    assert result[0]["expires_at"] == datetime(2026, 6, 5, 6, 15, 36, tzinfo=timezone.utc)
+    assert result[0]["expires_at"] == datetime(2099, 6, 5, 6, 15, 36, tzinfo=timezone.utc)
     docker_read.assert_awaited_once()
 
 

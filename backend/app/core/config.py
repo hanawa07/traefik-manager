@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     TRAEFIK_CONFIG_PATH: str = "/traefik-config/dynamic"
     TRAEFIK_API_URL: str = "http://traefik:8080"
     TRAEFIK_API_TIMEOUT_SECONDS: float = 5.0
+    TRAEFIK_LATEST_VERSION_API_URL: str = "https://api.github.com/repos/traefik/traefik/releases/latest"
+    TRAEFIK_LATEST_VERSION_TIMEOUT_SECONDS: float = 5.0
+    TRAEFIK_LATEST_VERSION_CACHE_SECONDS: int = 3600
     TRAEFIK_TLS_CERT_RESOLVER: str | None = "letsencrypt"
     TRAEFIK_DOCKER_CONTAINER_NAME: str = "traefik"
     TRAEFIK_ACME_STORAGE_PATH: str = "/letsencrypt/acme.json"

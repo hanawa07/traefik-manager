@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -5,6 +7,10 @@ class TraefikHealthResponse(BaseModel):
     connected: bool
     message: str
     version: str | None = None
+    latest_version: str | None = None
+    update_available: bool | None = None
+    latest_version_checked_at: datetime | None = None
+    latest_version_error: str | None = None
 
 
 class TraefikRouterItemResponse(BaseModel):
