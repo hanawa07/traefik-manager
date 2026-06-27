@@ -31,13 +31,14 @@
   - rollback 지원 범위는 기존 테스트를 먼저 보강한 뒤 확장한다.
 - 검증: `cd backend && PYTHONPATH=. ./venv/bin/pytest tests/interfaces/api/test_settings_router.py`.
 
-## 4. Authentik 클라이언트 요청 helper 도입
+## 4. Authentik 클라이언트 요청 helper 도입 - 완료
 - 대상: `backend/app/infrastructure/authentik/client.py`
 - 현재 문제: `httpx.AsyncClient`, headers, timeout, status handling이 메서드마다 반복된다.
-- 실행 순서:
-  - `_request()` helper를 추가하고 GET/POST/DELETE를 순차 전환한다.
-  - URL 조립과 응답 JSON 처리는 메서드별 의미를 유지한다.
-- 검증: 관련 Authentik 호출 테스트 추가 후 `pytest`.
+- 완료 내용:
+  - `_request()` helper를 추가하고 GET/POST/DELETE 반복을 줄였다.
+  - URL 조립과 응답 JSON 처리는 메서드별 의미를 유지했다.
+  - 기존 DELETE의 non-raising 동작을 유지했다.
+- 검증: `cd backend && PYTHONPATH=. ./venv/bin/pytest tests/infrastructure/test_authentik_client.py`.
 
 ## 5. Traefik API 클라이언트 책임 분리
 - 대상: `backend/app/infrastructure/traefik/traefik_api_client.py`
