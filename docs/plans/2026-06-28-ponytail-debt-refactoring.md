@@ -40,14 +40,14 @@
   - 기존 DELETE의 non-raising 동작을 유지했다.
 - 검증: `cd backend && PYTHONPATH=. ./venv/bin/pytest tests/infrastructure/test_authentik_client.py`.
 
-## 5. Traefik API 클라이언트 책임 분리
+## 5. Traefik API 클라이언트 책임 분리 - 완료
 - 대상: `backend/app/infrastructure/traefik/traefik_api_client.py`
 - 현재 문제: health/version, router/middleware, certificate, Docker ACME/log, preflight가 한 클래스에 모여 있다.
-- 실행 순서:
-  - 순수 파서 함수부터 별도 모듈로 이동한다.
-  - Docker ACME/log 읽기 기능을 별도 helper로 분리한다.
-  - certificate/preflight와 runtime status 조회를 마지막에 나눈다.
-- 검증: `cd backend && PYTHONPATH=. ./venv/bin/pytest tests/infrastructure/test_traefik_api_client.py tests/interfaces/api/test_certificates_router.py`.
+- 완료 내용:
+  - 런타임 응답 정규화, ACME/인증서 파싱, Docker 소켓 읽기, 인증서 preflight를 각각 별도 모듈로 분리했다.
+  - `TraefikApiClient`는 외부 API 호출과 결과 조립만 담당하도록 줄였다.
+  - Docker 읽기와 preflight 네트워크 검사는 모듈 함수 seam으로 테스트한다.
+- 검증: Traefik API 클라이언트/인증서 라우터 테스트 통과.
 
 ## 6. Repository ABC 유지 여부 결정
 - 대상: `backend/app/domain/proxy/repositories/*`, `backend/app/domain/auth/repositories/*`

@@ -3,6 +3,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.infrastructure.traefik.acme_parsers import parse_recent_acme_failures
+from app.infrastructure.traefik.docker_api import decode_docker_log_stream
+from app.infrastructure.traefik.runtime_parsers import compare_versions
+from app.infrastructure.traefik import traefik_api_client as traefik_client_module
 from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
 
 
@@ -75,12 +79,10 @@ async def test_get_health_uses_version_endpoint_when_overview_has_no_version(mon
 
 
 def test_compare_versions_handles_v_prefix_and_metadata():
-    client = TraefikApiClient()
-
-    assert client._compare_versions("3.5.4", "v3.5.4") == 0
-    assert client._compare_versions("v3.5.3+build", "v3.5.4") == -1
-    assert client._compare_versions("3.6.0", "v3.5.4") == 1
-    assert client._compare_versions(None, "v3.5.4") is None
+    assert compare_versions("3.5.4", "v3.5.4") == 0
+    assert compare_versions("v3.5.3+build", "v3.5.4") == -1
+    assert compare_versions("3.6.0", "v3.5.4") == 1
+    assert compare_versions(None, "v3.5.4") is None
 
 
 @pytest.mark.asyncio
@@ -107,11 +109,11 @@ async def test_list_certificates_uses_docker_acme_fallback_when_local_mount_is_u
     )
 
     monkeypatch.setattr(client, "_get", fake_get)
-    monkeypatch.setattr(client, "_read_local_acme_json_text", lambda: None)
-    monkeypatch.setattr(client, "_read_docker_acme_json_text", docker_read)
+    monkeypatch.setattr(traefik_client_module, "read_local_acme_json_text", lambda: None)
+    monkeypatch.setattr(traefik_client_module, "read_docker_acme_json_text", docker_read)
     monkeypatch.setattr(
-        client,
-        "_extract_acme_certificate_expiry",
+        traefik_client_module,
+        "extract_acme_certificate_expiry",
         lambda _cert_b64: datetime(2099, 6, 5, 6, 15, 36, tzinfo=timezone.utc),
     )
 
@@ -143,8 +145,8 @@ async def test_list_certificates_marks_pending_when_cert_resolver_exists_without
         raise AssertionError(f"unexpected path: {path}")
 
     monkeypatch.setattr(client, "_get", fake_get)
-    monkeypatch.setattr(client, "_read_local_acme_json_text", lambda: None)
-    monkeypatch.setattr(client, "_read_docker_acme_json_text", AsyncMock(return_value=None))
+    monkeypatch.setattr(traefik_client_module, "read_local_acme_json_text", lambda: None)
+    monkeypatch.setattr(traefik_client_module, "read_docker_acme_json_text", AsyncMock(return_value=None))
 
     result = await client.list_certificates()
 
@@ -155,7 +157,6 @@ async def test_list_certificates_marks_pending_when_cert_resolver_exists_without
 
 
 def test_decode_docker_log_stream_strips_multiplex_headers():
-    client = TraefikApiClient()
     first = b"2026-03-12T11:09:13Z first line\n"
     second = b"2026-03-12T11:10:13Z second line\n"
     payload = (
@@ -167,7 +168,7 @@ def test_decode_docker_log_stream_strips_multiplex_headers():
         + second
     )
 
-    decoded = client._decode_docker_log_stream(payload)
+    decoded = decode_docker_log_stream(payload)
 
     assert "first line" in decoded
     assert "second line" in decoded
@@ -175,7 +176,6 @@ def test_decode_docker_log_stream_strips_multiplex_headers():
 
 
 def test_parse_recent_acme_failures_extracts_domain_kind_and_message():
-    client = TraefikApiClient()
     raw_text = (
         '2026-03-12T11:09:13Z ERR Unable to obtain ACME certificate for domains '
         'error="unable to generate a certificate for the domains [traefik.lizstudio.co.kr]: '
@@ -188,7 +188,7 @@ def test_parse_recent_acme_failures_extracts_domain_kind_and_message():
         'routerName=traefik-dashboard-public@file'
     )
 
-    failures = client._parse_recent_acme_failures(raw_text)
+    failures = parse_recent_acme_failures(raw_text)
 
     assert failures["traefik.lizstudio.co.kr"]["kind"] == "dns"
     assert failures["traefik.lizstudio.co.kr"]["message"] == (
@@ -217,11 +217,11 @@ async def test_list_certificates_includes_recent_acme_failure(monkeypatch):
         raise AssertionError(f"unexpected path: {path}")
 
     monkeypatch.setattr(client, "_get", fake_get)
-    monkeypatch.setattr(client, "_read_local_acme_json_text", lambda: None)
-    monkeypatch.setattr(client, "_read_docker_acme_json_text", AsyncMock(return_value=None))
+    monkeypatch.setattr(traefik_client_module, "read_local_acme_json_text", lambda: None)
+    monkeypatch.setattr(traefik_client_module, "read_docker_acme_json_text", AsyncMock(return_value=None))
     monkeypatch.setattr(
-        client,
-        "_read_docker_container_logs_text",
+        traefik_client_module,
+        "read_docker_container_logs_text",
         AsyncMock(
             return_value=(
                 '2026-03-12T11:09:13Z ERR Unable to obtain ACME certificate for domains '
@@ -267,8 +267,8 @@ async def test_list_certificates_marks_inactive_without_cert_resolver_and_expiry
         raise AssertionError(f"unexpected path: {path}")
 
     monkeypatch.setattr(client, "_get", fake_get)
-    monkeypatch.setattr(client, "_read_local_acme_json_text", lambda: None)
-    monkeypatch.setattr(client, "_read_docker_acme_json_text", AsyncMock(return_value=None))
+    monkeypatch.setattr(traefik_client_module, "read_local_acme_json_text", lambda: None)
+    monkeypatch.setattr(traefik_client_module, "read_docker_acme_json_text", AsyncMock(return_value=None))
 
     result = await client.list_certificates()
 
@@ -303,8 +303,8 @@ async def test_get_certificate_preflight_reports_dns_http_and_default_cert(monke
         ),
     )
     monkeypatch.setattr(
-        client,
-        "_resolve_public_dns_records",
+        traefik_client_module,
+        "resolve_public_dns_records",
         AsyncMock(
             return_value={
                 "ok": True,
@@ -315,8 +315,8 @@ async def test_get_certificate_preflight_reports_dns_http_and_default_cert(monke
         ),
     )
     monkeypatch.setattr(
-        client,
-        "_probe_http_challenge_path",
+        traefik_client_module,
+        "probe_http_challenge_path",
         AsyncMock(
             return_value={
                 "ok": True,
@@ -327,8 +327,8 @@ async def test_get_certificate_preflight_reports_dns_http_and_default_cert(monke
         ),
     )
     monkeypatch.setattr(
-        client,
-        "_inspect_presented_certificate",
+        traefik_client_module,
+        "inspect_presented_certificate",
         AsyncMock(
             return_value={
                 "ok": True,
@@ -363,19 +363,27 @@ async def test_get_certificate_preflight_reports_missing_router(monkeypatch):
 
     monkeypatch.setattr(client, "list_certificates", AsyncMock(return_value=[]))
     monkeypatch.setattr(
-        client,
-        "_resolve_public_dns_records",
+        traefik_client_module,
+        "resolve_public_dns_records",
         AsyncMock(return_value={"ok": False, "a_records": [], "aaaa_records": [], "error": "lookup failed"}),
     )
     monkeypatch.setattr(
-        client,
-        "_probe_http_challenge_path",
+        traefik_client_module,
+        "probe_http_challenge_path",
         AsyncMock(return_value={"ok": False, "status_code": None, "location": None, "error": "timeout"}),
     )
     monkeypatch.setattr(
-        client,
-        "_inspect_presented_certificate",
-        AsyncMock(return_value={"ok": False, "default_cert": False, "subject_common_name": None, "issuer_common_name": None, "error": "connect failed"}),
+        traefik_client_module,
+        "inspect_presented_certificate",
+        AsyncMock(
+            return_value={
+                "ok": False,
+                "default_cert": False,
+                "subject_common_name": None,
+                "issuer_common_name": None,
+                "error": "connect failed",
+            }
+        ),
     )
 
     result = await client.get_certificate_preflight("missing.example.com")
