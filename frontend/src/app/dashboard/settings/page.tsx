@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Bug,
   Cloud,
   Download,
   Save,
@@ -42,6 +41,7 @@ import { LoginDefenseSettingsCard } from "@/features/settings/components/LoginDe
 import { SecurityAlertSettingsCard } from "@/features/settings/components/SecurityAlertSettingsCard";
 import { SessionManagementCard } from "@/features/settings/components/SessionManagementCard";
 import { TimeDisplaySettingsCard } from "@/features/settings/components/TimeDisplaySettingsCard";
+import { TraefikDashboardSettingsCard } from "@/features/settings/components/TraefikDashboardSettingsCard";
 import { UpstreamSecuritySettingsCard } from "@/features/settings/components/UpstreamSecuritySettingsCard";
 import {
   useCertificateDiagnosticsSettings,
@@ -729,165 +729,19 @@ export default function SettingsPage() {
 
         {canManage ? <UserManagementSection className="order-6" /> : null}
 
-        <div className="card p-6 h-full order-7">
-          <SettingsCardHeader
-            icon={<Bug className="w-5 h-5 text-violet-600" />}
-            title="Traefik 디버그 대시보드"
-            description="내장 Traefik dashboard를 필요할 때만 공개 도메인으로 노출합니다. 기본적으로는 비공개로 두고, 디버깅이 끝나면 다시 끄는 것을 권장합니다."
-            canEdit={canManage && !isEditingTraefikDashboard && !isTraefikDashboardLoading}
-            onEdit={handleEditTraefikDashboard}
-          />
-
-          {isTraefikDashboardLoading ? (
-            <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
-          ) : isEditingTraefikDashboard ? (
-            <div className="space-y-4">
-              <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded accent-violet-600"
-                  checked={traefikDashboardForm.enabled}
-                  onChange={(e) =>
-                    setTraefikDashboardForm((current) => ({
-                      ...current,
-                      enabled: e.target.checked,
-                    }))
-                  }
-                />
-                <span>
-                  <span className="block font-medium text-gray-900">공개 라우트 활성화</span>
-                  <span className="block text-xs text-gray-500 mt-1">
-                    `api@internal`을 지정한 공개 도메인으로 연결합니다. 평소에는 끄고, 디버깅할 때만 잠깐 켜는
-                    용도입니다.
-                  </span>
-                </span>
-              </label>
-
-              <div className="grid gap-4 xl:grid-cols-2">
-                <div>
-                  <label className="label">공개 도메인</label>
-                  <input
-                    type="text"
-                    className="input"
-                    placeholder="예: traefik-debug.lizstudio.co.kr"
-                    value={traefikDashboardForm.domain}
-                    onChange={(e) =>
-                      setTraefikDashboardForm((current) => ({
-                        ...current,
-                        domain: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="label">기본 인증 사용자명</label>
-                  <input
-                    type="text"
-                    className="input"
-                    placeholder="예: debug-admin"
-                    value={traefikDashboardForm.auth_username}
-                    onChange={(e) =>
-                      setTraefikDashboardForm((current) => ({
-                        ...current,
-                        auth_username: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="label">기본 인증 비밀번호</label>
-                <input
-                  type="password"
-                  className="input"
-                  placeholder="처음 활성화 시 필수, 비워두면 기존 비밀번호 유지"
-                  value={traefikDashboardForm.auth_password}
-                  onChange={(e) =>
-                    setTraefikDashboardForm((current) => ({
-                      ...current,
-                      auth_password: e.target.value,
-                    }))
-                  }
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  비밀번호는 해시로만 저장됩니다. 이 설정은 Traefik dashboard 엔진 자체를 켜고 끄는 게 아니라,
-                  public route를 생성하거나 제거합니다.
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500 space-y-1">
-                <p>전제 조건: 외부 Traefik 정적 설정에서 `api.dashboard=true`가 켜져 있어야 합니다.</p>
-                <p>보호 방식: 공개 도메인 + HTTPS + Traefik Basic Auth</p>
-                <p>도메인 제약: 기존 서비스 또는 리다이렉트에서 사용하는 도메인과 중복될 수 없습니다.</p>
-                <p>권장 운영: 디버깅 후 즉시 비활성화</p>
-              </div>
-
-              {traefikDashboardErrorMessage ? (
-                <p className="text-xs text-red-600">{traefikDashboardErrorMessage}</p>
-              ) : null}
-
-              <SettingsActionRow>
-                <button
-                  className="btn-primary flex items-center gap-1.5 py-1.5 text-xs"
-                  onClick={handleSaveTraefikDashboard}
-                  disabled={updateTraefikDashboard.isPending}
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  {updateTraefikDashboard.isPending ? "저장 중..." : "저장"}
-                </button>
-                <button
-                  className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs"
-                  onClick={() => setIsEditingTraefikDashboard(false)}
-                >
-                  <X className="w-3.5 h-3.5" /> 취소
-                </button>
-              </SettingsActionRow>
-            </div>
-          ) : (
-            <SettingsSummary>
-              <SettingsSummaryRow
-                label="상태"
-                value={traefikDashboardSettings?.enabled ? "활성화" : "비활성화"}
-              />
-              <SettingsSummaryRow
-                label="공개 주소"
-                value={
-                  traefikDashboardSettings?.public_url ? (
-                    <a
-                      href={traefikDashboardSettings.public_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-700 hover:underline"
-                    >
-                      {traefikDashboardSettings.public_url}
-                    </a>
-                  ) : (
-                    "(미설정)"
-                  )
-                }
-                mono
-              />
-              <SettingsSummaryRow
-                label="기본 인증 사용자"
-                value={traefikDashboardSettings?.auth_username || "(미설정)"}
-                mono
-              />
-              <SettingsSummaryRow
-                label="비밀번호"
-                value={traefikDashboardSettings?.auth_password_configured ? "설정됨" : "(미설정)"}
-              />
-              <SettingsSummaryRow
-                label="라우트 준비 상태"
-                value={traefikDashboardSettings?.configured ? "완료" : "불완전"}
-              />
-              <p className="text-xs text-gray-500">{traefikDashboardSettings?.message}</p>
-              <p className="text-xs text-gray-500 pt-1">
-                이 설정은 Traefik Manager가 dynamic route 파일을 생성/삭제해서 public 노출만 제어합니다.
-              </p>
-            </SettingsSummary>
-          )}
-        </div>
+        <TraefikDashboardSettingsCard
+          canManage={canManage}
+          isLoading={isTraefikDashboardLoading}
+          isEditing={isEditingTraefikDashboard}
+          settings={traefikDashboardSettings}
+          formValue={traefikDashboardForm}
+          errorMessage={traefikDashboardErrorMessage}
+          isSaving={updateTraefikDashboard.isPending}
+          onEdit={handleEditTraefikDashboard}
+          onSave={handleSaveTraefikDashboard}
+          onCancel={() => setIsEditingTraefikDashboard(false)}
+          onFormChange={setTraefikDashboardForm}
+        />
 
         <div className="card p-6 h-full order-10">
           <SettingsCardHeader
