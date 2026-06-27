@@ -2,12 +2,6 @@
 // PONYTAIL-DEBT(settings-page): split this oversized settings page into focused section components.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Download,
-  Settings,
-  ShieldCheck,
-  Upload,
-} from "lucide-react";
 
 import { useLogoutAllSessions, useRevokeSession, useSessions } from "@/features/auth/hooks/useSessions";
 import { useAuditRetryDelivery } from "@/features/audit/hooks/useAudit";
@@ -21,13 +15,8 @@ import {
   SettingsActionTestResult,
   SettingsTestHistoryItem,
 } from "@/features/settings/api/settingsApi";
-import {
-  SettingsCardHeader,
-} from "@/features/settings/components/SettingsCardPrimitives";
+import { BackupRestoreSettingsCard } from "@/features/settings/components/BackupRestoreSettingsCard";
 import { CertificateDiagnosticsSettingsCard } from "@/features/settings/components/CertificateDiagnosticsSettingsCard";
-import {
-  BackupPreviewNotice,
-} from "@/features/settings/components/SettingsNotices";
 import { CloudflareDnsSettingsCard } from "@/features/settings/components/CloudflareDnsSettingsCard";
 import { LoginDefenseSettingsCard } from "@/features/settings/components/LoginDefenseSettingsCard";
 import { SecurityAlertSettingsCard } from "@/features/settings/components/SecurityAlertSettingsCard";
@@ -476,6 +465,22 @@ export default function SettingsPage() {
     }
   };
 
+  const resetBackupReview = () => {
+    setBackupValidationResult(null);
+    setBackupPreviewResult(null);
+  };
+
+  const handleBackupFileChange = (file: File | null) => {
+    setBackupFile(file);
+    resetBackupReview();
+    setImportResultMessage("");
+  };
+
+  const handleImportModeChange = (mode: "merge" | "overwrite") => {
+    setImportMode(mode);
+    resetBackupReview();
+  };
+
   const handleExport = async () => {
     setExportErrorMessage("");
     try {
@@ -746,129 +751,30 @@ export default function SettingsPage() {
           onFormChange={setCfForm}
         />
 
-        <div className="card p-6 h-full order-8">
-          <SettingsCardHeader
-            icon={<Settings className="w-5 h-5 text-indigo-600" />}
-            title="백업 / 복원"
-            description="현재 설정을 JSON으로 내보내거나, 백업 파일을 병합 또는 덮어쓰기 방식으로 복원합니다."
-          />
-
-          <div className="space-y-4">
-            <button
-              type="button"
-              className="btn-secondary w-full inline-flex items-center justify-center gap-2"
-              onClick={handleExport}
-              disabled={exportBackup.isPending}
-            >
-              <Download className="w-4 h-4" />
-              {exportBackup.isPending ? "내보내는 중..." : "설정 JSON 내보내기"}
-            </button>
-            {exportErrorMessage && <p className="text-xs text-red-600">{exportErrorMessage}</p>}
-
-            <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-              <p className="text-sm font-medium text-gray-700">JSON 복원</p>
-              <input
-                type="file"
-                accept="application/json"
-                className="input"
-                onChange={(e) => {
-                  setBackupFile(e.target.files?.[0] || null);
-                  setBackupValidationResult(null);
-                  setBackupPreviewResult(null);
-                  setImportResultMessage("");
-                }}
-              />
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm text-gray-600">
-                  <input
-                    type="radio"
-                    className="accent-blue-600"
-                    checked={importMode === "merge"}
-                    onChange={() => {
-                      setImportMode("merge");
-                      setBackupValidationResult(null);
-                      setBackupPreviewResult(null);
-                    }}
-                  />
-                  병합 (기존 데이터 유지)
-                </label>
-                <label className="flex items-center gap-2 text-sm text-gray-600">
-                  <input
-                    type="radio"
-                    className="accent-blue-600"
-                    checked={importMode === "overwrite"}
-                    onChange={() => {
-                      setImportMode("overwrite");
-                      setBackupValidationResult(null);
-                      setBackupPreviewResult(null);
-                    }}
-                  />
-                  덮어쓰기 (기존 데이터 삭제 후 복원)
-                </label>
-              </div>
-
-              <button
-                type="button"
-                className="btn-secondary w-full inline-flex items-center justify-center gap-2"
-                onClick={handleValidateBackup}
-                disabled={!backupFile || validateBackup.isPending}
-              >
-                <ShieldCheck className="w-4 h-4" />
-                {validateBackup.isPending ? "검증 중..." : "JSON 사전 검증"}
-              </button>
-
-              <button
-                type="button"
-                className="btn-secondary w-full inline-flex items-center justify-center gap-2"
-                onClick={handlePreviewBackup}
-                disabled={!backupFile || previewBackup.isPending}
-              >
-                <Settings className="w-4 h-4" />
-                {previewBackup.isPending ? "미리보기 계산 중..." : "복원 미리보기"}
-              </button>
-
-              {backupValidationResult ? (
-                <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-                  <p className="font-medium">
-                    검증 완료: 서비스 {backupValidationResult.service_count}개, 리다이렉트 {backupValidationResult.redirect_count}개
-                  </p>
-                  <p className="mt-1 text-xs">경고 {backupValidationResult.warning_count}개</p>
-                  {backupValidationResult.warnings.length ? (
-                    <ul className="mt-2 space-y-1 text-xs">
-                      {backupValidationResult.warnings.map((warning) => (
-                        <li key={warning}>- {warning}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              ) : null}
-
-              <BackupPreviewNotice result={backupPreviewResult} />
-
-              <button
-                type="button"
-                className="btn-primary w-full inline-flex items-center justify-center gap-2"
-                onClick={handleImport}
-                disabled={!canManage || !backupFile || importBackup.isPending}
-              >
-                <Upload className="w-4 h-4" />
-                {importBackup.isPending ? "복원 중..." : "설정 JSON 가져오기"}
-              </button>
-              {!canManage ? (
-                <p className="text-xs text-gray-500">viewer 계정은 백업 복원을 실행할 수 없습니다.</p>
-              ) : null}
-
-              {importBackup.error && (
-                <p className="text-xs text-red-600">
-                  {(importBackup.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-                    "백업 복원 중 오류가 발생했습니다"}
-                </p>
-              )}
-              {importResultMessage && <p className="text-xs text-green-700">{importResultMessage}</p>}
-            </div>
-          </div>
-        </div>
+        <BackupRestoreSettingsCard
+          canManage={canManage}
+          backupFile={backupFile}
+          importMode={importMode}
+          validationResult={backupValidationResult}
+          previewResult={backupPreviewResult}
+          exportErrorMessage={exportErrorMessage}
+          importErrorMessage={
+            importBackup.error
+              ? getApiErrorDetail(importBackup.error, "백업 복원 중 오류가 발생했습니다")
+              : null
+          }
+          importResultMessage={importResultMessage}
+          isExporting={exportBackup.isPending}
+          isValidating={validateBackup.isPending}
+          isPreviewing={previewBackup.isPending}
+          isImporting={importBackup.isPending}
+          onExport={handleExport}
+          onValidate={handleValidateBackup}
+          onPreview={handlePreviewBackup}
+          onImport={handleImport}
+          onBackupFileChange={handleBackupFileChange}
+          onImportModeChange={handleImportModeChange}
+        />
       </div>
     </div>
   );
