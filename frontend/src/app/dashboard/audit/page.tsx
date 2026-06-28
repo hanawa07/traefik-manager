@@ -4,166 +4,32 @@ import { Fragment, useState } from "react";
 
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import { useAudit, useAuditRetryDelivery, useAuditRollback } from "@/features/audit/hooks/useAudit";
-import { 
-  History, 
-  Server, 
-  ArrowRightLeft, 
-  SlidersHorizontal, 
-  User, 
-  AlertCircle,
-  Loader2,
-  Shield,
-} from "lucide-react";
+import { History, AlertCircle, Loader2 } from "lucide-react";
 import { clsx } from "clsx";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
-
-const resourceTypeConfig = {
-  service: { icon: Server, label: "서비스", color: "border border-blue-200 bg-blue-50 text-blue-700" },
-  redirect: { icon: ArrowRightLeft, label: "리다이렉트", color: "border border-purple-200 bg-purple-50 text-purple-700" },
-  middleware: { icon: SlidersHorizontal, label: "미들웨어", color: "border border-orange-200 bg-orange-50 text-orange-700" },
-  user: { icon: User, label: "사용자", color: "border border-emerald-200 bg-emerald-50 text-emerald-700" },
-  settings: { icon: SlidersHorizontal, label: "설정", color: "border border-cyan-200 bg-cyan-50 text-cyan-700" },
-  certificate: { icon: Shield, label: "인증서", color: "border border-amber-200 bg-amber-50 text-amber-700" },
-};
-
-const actionConfig = {
-  create: { label: "생성", color: "bg-green-50 text-green-700 border-green-200" },
-  update: { label: "수정", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  delete: { label: "삭제", color: "bg-red-50 text-red-700 border-red-200" },
-  test: { label: "테스트", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
-  alert: { label: "경고", color: "bg-amber-50 text-amber-700 border-amber-200" },
-  rollback: { label: "롤백", color: "bg-amber-50 text-amber-700 border-amber-200" },
-};
-
-const securityEventConfig = {
-  login_failure: { label: "로그인 실패", color: "bg-slate-100 text-slate-700 border-slate-200" },
-  login_locked: { label: "계정 잠금", color: "bg-amber-50 text-amber-700 border-amber-200" },
-  login_suspicious: { label: "이상 징후", color: "bg-orange-50 text-orange-700 border-orange-200" },
-  login_blocked_ip: { label: "IP 차단", color: "bg-red-50 text-red-700 border-red-200" },
-  settings_update_cloudflare: { label: "Cloudflare 설정 변경", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
-  settings_update_time_display: { label: "시간 표시 설정 변경", color: "bg-sky-50 text-sky-700 border-sky-200" },
-  settings_update_certificate_diagnostics: { label: "인증서 진단 설정 변경", color: "bg-violet-50 text-violet-700 border-violet-200" },
-  settings_update_upstream_security: { label: "업스트림 보안 설정 변경", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  settings_update_login_defense: { label: "로그인 방어 설정 변경", color: "bg-violet-50 text-violet-700 border-violet-200" },
-  settings_update_security_alert: { label: "보안 알림 설정 변경", color: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" },
-  settings_rollback_time_display: { label: "시간 표시 설정 롤백", color: "bg-amber-50 text-amber-700 border-amber-200" },
-  settings_rollback_upstream_security: { label: "업스트림 보안 설정 롤백", color: "bg-orange-50 text-orange-700 border-orange-200" },
-  settings_test_cloudflare: { label: "Cloudflare 테스트", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
-  settings_test_cloudflare_drift: { label: "Cloudflare 드리프트 진단", color: "bg-sky-50 text-sky-700 border-sky-200" },
-  settings_test_cloudflare_reconcile: { label: "Cloudflare 재동기화", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  settings_test_security_alert: { label: "보안 알림 테스트", color: "bg-sky-50 text-sky-700 border-sky-200" },
-  security_alert_delivery_success: { label: "보안 알림 전송 성공", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  security_alert_delivery_failure: { label: "보안 알림 전송 실패", color: "bg-rose-50 text-rose-700 border-rose-200" },
-  change_alert_delivery_success: { label: "운영 변경 알림 전송 성공", color: "bg-teal-50 text-teal-700 border-teal-200" },
-  change_alert_delivery_failure: { label: "운영 변경 알림 전송 실패", color: "bg-red-50 text-red-700 border-red-200" },
-  service_create: { label: "서비스 생성", color: "bg-sky-50 text-sky-700 border-sky-200" },
-  service_update: { label: "서비스 변경", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  service_delete: { label: "서비스 삭제", color: "bg-red-50 text-red-700 border-red-200" },
-  service_rollback: { label: "서비스 롤백", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  redirect_create: { label: "리다이렉트 생성", color: "bg-violet-50 text-violet-700 border-violet-200" },
-  redirect_update: { label: "리다이렉트 변경", color: "bg-purple-50 text-purple-700 border-purple-200" },
-  redirect_delete: { label: "리다이렉트 삭제", color: "bg-pink-50 text-pink-700 border-pink-200" },
-  redirect_rollback: { label: "리다이렉트 롤백", color: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" },
-  middleware_create: { label: "미들웨어 생성", color: "bg-orange-50 text-orange-700 border-orange-200" },
-  middleware_update: { label: "미들웨어 변경", color: "bg-orange-50 text-orange-700 border-orange-200" },
-  middleware_delete: { label: "미들웨어 삭제", color: "bg-red-50 text-red-700 border-red-200" },
-  middleware_rollback: { label: "미들웨어 롤백", color: "bg-amber-50 text-amber-700 border-amber-200" },
-  user_create: { label: "사용자 생성", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  user_update: { label: "사용자 변경", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  user_delete: { label: "사용자 삭제", color: "bg-rose-50 text-rose-700 border-rose-200" },
-  user_rollback: { label: "사용자 롤백", color: "bg-lime-50 text-lime-700 border-lime-200" },
-  certificate_warning: { label: "인증서 만료 임박", color: "bg-yellow-50 text-yellow-700 border-yellow-200" },
-  certificate_error: { label: "인증서 만료", color: "bg-red-50 text-red-700 border-red-200" },
-  certificate_recovered: { label: "인증서 복구", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  certificate_preflight: { label: "인증서 사전 진단", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  certificate_preflight_repeated_failure: { label: "인증서 반복 실패", color: "bg-rose-50 text-rose-700 border-rose-200" },
-};
-
-const auditFilters = [
-  { key: "all", label: "전체" },
-  { key: "security", label: "보안 이벤트" },
-  { key: "alert_delivery", label: "알림 전송" },
-  { key: "settings_update", label: "설정 변경" },
-  { key: "settings_test", label: "설정 테스트" },
-  { key: "settings_rollback", label: "설정 롤백" },
-  { key: "login_locked", label: "계정 잠금" },
-  { key: "login_suspicious", label: "이상 징후" },
-  { key: "login_blocked_ip", label: "IP 차단" },
-  { key: "login_failure", label: "로그인 실패" },
-  { key: "certificate_warning", label: "인증서 만료 임박" },
-  { key: "certificate_error", label: "인증서 만료" },
-  { key: "certificate_recovered", label: "인증서 복구" },
-  { key: "certificate_preflight", label: "인증서 사전 진단" },
-  { key: "certificate_preflight_repeated_failure", label: "인증서 반복 실패" },
-] as const;
-
-const deliveryStatusOptions = [
-  { key: "all", label: "전송 상태 전체" },
-  { key: "success", label: "전송 성공" },
-  { key: "failure", label: "전송 실패" },
-] as const;
-
-const deliveryProviderOptions = [
-  { key: "all", label: "채널 전체" },
-  { key: "generic", label: "Generic" },
-  { key: "slack", label: "Slack" },
-  { key: "discord", label: "Discord" },
-  { key: "telegram", label: "Telegram" },
-  { key: "teams", label: "Teams" },
-  { key: "pagerduty", label: "PagerDuty" },
-  { key: "email", label: "Email" },
-] as const;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function formatAuditValue(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "-";
-  if (typeof value === "boolean") return value ? "예" : "아니오";
-  if (Array.isArray(value)) return value.length ? value.join(", ") : "없음";
-  if (typeof value === "number") return String(value);
-  if (typeof value === "string") return value;
-  return JSON.stringify(value);
-}
-
-function getAuditDiffRows(detail: Record<string, unknown> | null) {
-  if (!detail) return [];
-  const before = isRecord(detail.before) ? detail.before : null;
-  const after = isRecord(detail.after) ? detail.after : null;
-  if (!before || !after) return [];
-
-  const changedKeys = Array.isArray(detail.changed_keys)
-    ? detail.changed_keys.filter((item): item is string => typeof item === "string")
-    : Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
-
-  return changedKeys.map((key) => ({
-    key,
-    before: before[key],
-    after: after[key],
-  }));
-}
-
-function getDeliveryDetailRows(detail: Record<string, unknown> | null) {
-  if (!detail) return [];
-  const rows = [
-    { key: "provider", label: "채널", value: detail.provider },
-    { key: "source_event", label: "원본 이벤트", value: detail.source_event },
-    { key: "source_action", label: "원본 작업", value: detail.source_action },
-    { key: "source_resource_type", label: "원본 타입", value: detail.source_resource_type },
-    { key: "source_resource_name", label: "원본 이름", value: detail.source_resource_name },
-    { key: "client_ip", label: "IP", value: detail.client_ip },
-    { key: "detail", label: "전송 상세", value: detail.detail },
-    { key: "retry_of_audit_id", label: "재시도 원본", value: detail.retry_of_audit_id },
-    { key: "trigger", label: "트리거", value: detail.trigger },
-  ];
-  return rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== "");
-}
+import {
+  actionConfig,
+  auditFilters,
+  deliveryProviderOptions,
+  deliveryStatusOptions,
+  fallbackResourceIcon,
+  formatAuditValue,
+  getAuditDiffRows,
+  getDeliveryDetailRows,
+  isRecord,
+  isRollbackResourceType,
+  resourceTypeConfig,
+  securityEventConfig,
+  type AuditFilterKey,
+  type DeliveryProviderKey,
+  type DeliveryStatusKey,
+  type RollbackResourceType,
+} from "./auditPageHelpers";
 
 export default function AuditLogPage() {
-  const [selectedFilter, setSelectedFilter] = useState<(typeof auditFilters)[number]["key"]>("all");
-  const [selectedDeliveryStatus, setSelectedDeliveryStatus] = useState<(typeof deliveryStatusOptions)[number]["key"]>("all");
-  const [selectedDeliveryProvider, setSelectedDeliveryProvider] = useState<(typeof deliveryProviderOptions)[number]["key"]>("all");
+  const [selectedFilter, setSelectedFilter] = useState<AuditFilterKey>("all");
+  const [selectedDeliveryStatus, setSelectedDeliveryStatus] = useState<DeliveryStatusKey>("all");
+  const [selectedDeliveryProvider, setSelectedDeliveryProvider] = useState<DeliveryProviderKey>("all");
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [rollbackFeedback, setRollbackFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [deliveryFeedback, setDeliveryFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -196,7 +62,7 @@ export default function AuditLogPage() {
   const retryDeliveryMutation = useAuditRetryDelivery();
 
   const handleRollback = async (
-    resourceType: "settings" | "service" | "redirect" | "middleware" | "user",
+    resourceType: RollbackResourceType,
     auditLogId: string,
   ) => {
     try {
@@ -296,7 +162,7 @@ export default function AuditLogPage() {
           <span className="text-slate-500">전송 상태</span>
           <select
             value={selectedDeliveryStatus}
-            onChange={(event) => setSelectedDeliveryStatus(event.target.value as (typeof deliveryStatusOptions)[number]["key"])}
+            onChange={(event) => setSelectedDeliveryStatus(event.target.value as DeliveryStatusKey)}
             className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none"
           >
             {deliveryStatusOptions.map((option) => (
@@ -310,7 +176,7 @@ export default function AuditLogPage() {
           <span className="text-slate-500">채널</span>
           <select
             value={selectedDeliveryProvider}
-            onChange={(event) => setSelectedDeliveryProvider(event.target.value as (typeof deliveryProviderOptions)[number]["key"])}
+            onChange={(event) => setSelectedDeliveryProvider(event.target.value as DeliveryProviderKey)}
             className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none"
           >
             {deliveryProviderOptions.map((option) => (
@@ -370,25 +236,20 @@ export default function AuditLogPage() {
                 </tr>
               ) : (
                 logs.map((log) => {
-                  const resource = resourceTypeConfig[log.resource_type as keyof typeof resourceTypeConfig];
-                  const action = actionConfig[log.action as keyof typeof actionConfig];
-                  const event = log.event ? securityEventConfig[log.event as keyof typeof securityEventConfig] : null;
-                  const ResourceIcon = resource?.icon || Server;
+                  const resource = resourceTypeConfig[log.resource_type];
+                  const action = actionConfig[log.action];
+                  const event = log.event ? securityEventConfig[log.event] : null;
+                  const ResourceIcon = resource?.icon || fallbackResourceIcon;
                   const detail = isRecord(log.detail) ? log.detail : null;
                   const diffRows = getAuditDiffRows(detail);
                   const deliveryRows = getDeliveryDetailRows(detail);
                   const retrySupported = log.event?.endsWith("_delivery_failure") === true;
                   const canExpand = diffRows.length > 0 || deliveryRows.length > 0;
+                  const rollbackResourceType = isRollbackResourceType(log.resource_type) ? log.resource_type : null;
                   const rollbackSupported =
                     detail?.rollback_supported === true &&
                     log.action === "update" &&
-                    (
-                      log.resource_type === "settings" ||
-                      log.resource_type === "service" ||
-                      log.resource_type === "redirect" ||
-                      log.resource_type === "middleware" ||
-                      log.resource_type === "user"
-                    );
+                    rollbackResourceType !== null;
                   const isExpanded = expandedLogId === log.id;
 
                   return (
@@ -517,19 +378,14 @@ export default function AuditLogPage() {
                                   </div>
                                 </div>
                               ) : null}
-                              {rollbackSupported ? (
+                              {rollbackSupported && rollbackResourceType ? (
                                 <div className="flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                                   <p className="text-sm text-amber-800">
                                     이 변경은 안전 롤백을 지원합니다. 저장된 이전 상태로 되돌립니다.
                                   </p>
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      handleRollback(
-                                        log.resource_type as "settings" | "service" | "redirect" | "middleware" | "user",
-                                        log.id,
-                                      )
-                                    }
+                                    onClick={() => handleRollback(rollbackResourceType, log.id)}
                                     disabled={rollbackMutation.isPending}
                                     className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
                                   >
