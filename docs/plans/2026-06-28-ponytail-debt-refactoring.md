@@ -49,11 +49,11 @@
   - Docker 읽기와 preflight 네트워크 검사는 모듈 함수 seam으로 테스트한다.
 - 검증: Traefik API 클라이언트/인증서 라우터 테스트 통과.
 
-## 6. Repository ABC 유지 여부 결정
+## 6. Repository ABC 유지 여부 결정 - 완료
 - 대상: `backend/app/domain/proxy/repositories/*`, `backend/app/domain/auth/repositories/*`
 - 현재 문제: production 구현이 SQLite 하나뿐인 ABC 계층이 많다.
-- 보류 이유: DDD 경계와 테스트 stub이 이미 이 인터페이스에 기대고 있어 삭제 영향이 크다.
-- 실행 조건:
-  - 새 저장소 구현 가능성이 없다고 결정될 때만 concrete repository 직접 의존으로 줄인다.
-  - 아니면 `abc.ABC` 대신 `typing.Protocol`로 테스트 유연성만 유지한다.
+- 결정: Repository ABC는 application 계층이 infrastructure 구현체에 직접 의존하지 않게 하는 domain port로 유지한다.
+- 완료 내용:
+  - `PONYTAIL-DEBT(repo-abc)` marker를 제거하고 `ServiceRepository`의 의도를 docstring으로 명시했다.
+  - 현재 파일들은 모두 500줄 미만이며, 단일 책임을 벗어나지 않는다.
 - 검증: backend 전체 pytest.
