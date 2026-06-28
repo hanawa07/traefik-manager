@@ -63,6 +63,13 @@ from app.interfaces.api.v1.routers.settings_summary_helpers import (
     traefik_dashboard_summary as _traefik_dashboard_summary,
     upstream_security_summary as _upstream_security_summary,
 )
+from app.interfaces.api.v1.routers.settings_value_helpers import (
+    get_bool_setting as _get_bool_setting,
+    get_int_setting as _get_int_setting,
+    get_turnstile_mode as _get_turnstile_mode,
+    split_domain_suffixes as _split_domain_suffixes,
+    split_networks as _split_networks,
+)
 from app.interfaces.api.v1.schemas.settings_schemas import (
     CertificateDiagnosticsSettingsResponse,
     CertificateDiagnosticsSettingsUpdateRequest,
@@ -1467,7 +1474,6 @@ async def _get_current_settings_summary_for_event(
         return _upstream_security_summary(await _build_upstream_security_response(repo))
     raise HTTPException(status_code=422, detail="이 설정 변경은 안전 롤백을 지원하지 않습니다")
 
-
 async def _apply_settings_rollback(
     repo: SQLiteSystemSettingsRepository,
     event: str,
@@ -1510,51 +1516,3 @@ async def _apply_settings_rollback(
         return _upstream_security_summary(await _build_upstream_security_response(repo))
 
     raise HTTPException(status_code=422, detail="이 설정 변경은 안전 롤백을 지원하지 않습니다")
-
-
-async def _get_bool_setting(
-    repo: SQLiteSystemSettingsRepository,
-    key: str,
-    *,
-    default: bool,
-) -> bool:
-    value = await repo.get(key)
-    if value is None:
-        return default
-    return value.strip().lower() == "true"
-
-
-async def _get_int_setting(
-    repo: SQLiteSystemSettingsRepository,
-    key: str,
-    *,
-    default: int,
-) -> int:
-    value = await repo.get(key)
-    if value is None:
-        return default
-    try:
-        return int(value.strip())
-    except ValueError:
-        return default
-
-
-async def _get_turnstile_mode(repo: SQLiteSystemSettingsRepository) -> str:
-    stored_mode = ((await repo.get("login_turnstile_mode")) or "").strip().lower()
-    if stored_mode in {"off", "always", "risk_based"}:
-        return stored_mode
-
-    legacy_enabled = await _get_bool_setting(repo, "login_turnstile_enabled", default=False)
-    return "always" if legacy_enabled else "off"
-
-
-def _split_domain_suffixes(value: str | None) -> list[str]:
-    if not value:
-        return []
-    return [item.strip() for item in value.replace(",", "\n").splitlines() if item.strip()]
-
-
-def _split_networks(value: str | None) -> list[str]:
-    if not value:
-        return []
-    return [item.strip() for item in value.replace(",", "\n").splitlines() if item.strip()]
