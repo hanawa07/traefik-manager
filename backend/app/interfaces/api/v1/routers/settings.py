@@ -38,6 +38,7 @@ from app.interfaces.api.v1.routers.settings_audit_helpers import (
 )
 from app.interfaces.api.v1.routers.settings_cloudflare_drift import diagnose_cloudflare_dns_drift_records
 from app.interfaces.api.v1.routers.settings_cloudflare_reconcile import reconcile_cloudflare_dns_records
+from app.interfaces.api.v1.routers.settings_cloudflare_update import update_cloudflare_settings_values
 from app.interfaces.api.v1.routers.settings_response_builders import (
     build_certificate_diagnostics_response as _build_certificate_diagnostics_response,
     build_login_defense_response as _build_login_defense_response,
@@ -242,33 +243,7 @@ async def update_cloudflare_settings(
     _: dict = Depends(require_admin),
 ):
     repo = SQLiteSystemSettingsRepository(db)
-    previous_status = CloudflareClient.from_db_settings(await repo.get_all_dict()).get_status()
-
-    if not request.zones:
-        for key in ("cf_api_token", "cf_zone_id", "cf_record_target", "cf_proxied", CF_ZONE_CONFIGS_KEY):
-            await repo.delete(key)
-    else:
-        zone_configs = [
-            CloudflareZoneConfig(
-                api_token=item.api_token,
-                zone_id=item.zone_id,
-                record_target=item.record_target or None,
-                proxied=item.proxied,
-            )
-            for item in request.zones
-        ]
-        validation_client = CloudflareClient(zone_configs=zone_configs)
-        for config in zone_configs:
-            zone_name = await validation_client.get_zone_name(config)
-            if not zone_name:
-                raise HTTPException(status_code=422, detail=f"Zone ID {config.zone_id}의 영역 이름을 확인할 수 없습니다")
-
-        await repo.set(CF_ZONE_CONFIGS_KEY, CloudflareClient.serialize_zone_configs(zone_configs))
-        for key in ("cf_api_token", "cf_zone_id", "cf_record_target", "cf_proxied"):
-            await repo.delete(key)
-
-    db_settings = await repo.get_all_dict()
-    current_status = CloudflareClient.from_db_settings(db_settings).get_status()
+    previous_status, current_status = await update_cloudflare_settings_values(repo, request)
     await _record_settings_update(
         db=db,
         actor=_.get("username", "unknown"),
