@@ -1,15 +1,38 @@
-from ipaddress import ip_network
-import re
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.interfaces.api.v1.schemas.service_basic_auth_schemas import BasicAuthCredential
-
-AUTH_MODE_VALUES = {"none", "authentik", "token"}
-FRAME_POLICY_VALUES = {"deny", "sameorigin", "off"}
-DEFAULT_HEALTHCHECK_PATH = "/"
-DEFAULT_HEALTHCHECK_TIMEOUT_MS = 3000
+from app.interfaces.api.v1.schemas.service_schema_validators import (
+    AUTH_MODE_VALUES,
+    DEFAULT_HEALTHCHECK_PATH,
+    DEFAULT_HEALTHCHECK_TIMEOUT_MS,
+    FRAME_POLICY_VALUES,
+    normalize_authentik_group_id as _normalize_authentik_group_id,
+    normalize_allowed_ips as _normalize_allowed_ips,
+    normalize_custom_headers as _normalize_custom_headers,
+    normalize_healthcheck_expected_statuses as _normalize_healthcheck_expected_statuses,
+    normalize_healthcheck_path as _normalize_healthcheck_path,
+    normalize_middleware_template_ids as _normalize_middleware_template_ids,
+    normalize_optional_allowed_ips as _normalize_optional_allowed_ips,
+    normalize_optional_custom_headers as _normalize_optional_custom_headers,
+    normalize_optional_healthcheck_expected_statuses as _normalize_optional_healthcheck_expected_statuses,
+    normalize_optional_healthcheck_path as _normalize_optional_healthcheck_path,
+    normalize_optional_middleware_template_ids as _normalize_optional_middleware_template_ids,
+    validate_auth_mode as _validate_auth_mode,
+    validate_blocked_paths as _validate_blocked_paths,
+    validate_domain as _validate_domain,
+    validate_frame_policy as _validate_frame_policy,
+    validate_healthcheck_timeout_ms as _validate_healthcheck_timeout_ms,
+    validate_optional_auth_mode as _validate_optional_auth_mode,
+    validate_optional_frame_policy as _validate_optional_frame_policy,
+    validate_optional_healthcheck_timeout_ms as _validate_optional_healthcheck_timeout_ms,
+    validate_optional_upstream_scheme as _validate_optional_upstream_scheme,
+    validate_port as _validate_port,
+    validate_rate_limit_value as _validate_rate_limit_value,
+    validate_upstream_scheme as _validate_upstream_scheme,
+)
 
 
 class ServiceCreate(BaseModel):
@@ -42,141 +65,72 @@ class ServiceCreate(BaseModel):
     @field_validator("auth_mode")
     @classmethod
     def validate_auth_mode(cls, v: str) -> str:
-        if v not in AUTH_MODE_VALUES:
-            raise ValueError(f"auth_mode는 {AUTH_MODE_VALUES} 중 하나여야 합니다")
-        return v
+        return _validate_auth_mode(v)
 
     @field_validator("upstream_scheme")
     @classmethod
     def validate_upstream_scheme(cls, v: str) -> str:
-        if v not in ["http", "https"]:
-            raise ValueError("업스트림 스킴은 http 또는 https여야 합니다")
-        return v
+        return _validate_upstream_scheme(v)
 
     @field_validator("frame_policy")
     @classmethod
     def validate_frame_policy(cls, v: str) -> str:
-        if v not in FRAME_POLICY_VALUES:
-            raise ValueError(f"frame_policy는 {FRAME_POLICY_VALUES} 중 하나여야 합니다")
-        return v
+        return _validate_frame_policy(v)
 
     @field_validator("healthcheck_path")
     @classmethod
     def validate_healthcheck_path(cls, v: str) -> str:
-        value = v.strip() or DEFAULT_HEALTHCHECK_PATH
-        if not value.startswith("/"):
-            raise ValueError("헬스 체크 경로는 '/'로 시작해야 합니다")
-        return value
+        return _normalize_healthcheck_path(v)
 
     @field_validator("healthcheck_timeout_ms")
     @classmethod
     def validate_healthcheck_timeout_ms(cls, v: int) -> int:
-        if v <= 0:
-            raise ValueError("헬스 체크 타임아웃은 1ms 이상의 정수여야 합니다")
-        return v
+        return _validate_healthcheck_timeout_ms(v)
 
     @field_validator("healthcheck_expected_statuses")
     @classmethod
     def validate_healthcheck_expected_statuses(cls, values: list[int]) -> list[int]:
-        normalized: list[int] = []
-        seen: set[int] = set()
-        for value in values:
-            if not (100 <= value <= 599):
-                raise ValueError("헬스 체크 기대 상태 코드는 100~599 범위여야 합니다")
-            if value not in seen:
-                seen.add(value)
-                normalized.append(value)
-        return sorted(normalized)
+        return _normalize_healthcheck_expected_statuses(values)
 
     @field_validator("domain")
     @classmethod
     def validate_domain(cls, v: str) -> str:
-        pattern = r"^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
-        if not re.match(pattern, v):
-            raise ValueError("유효하지 않은 도메인 형식입니다")
-        return v
+        return _validate_domain(v)
 
     @field_validator("upstream_port")
     @classmethod
     def validate_port(cls, v: int) -> int:
-        if not (1 <= v <= 65535):
-            raise ValueError("포트는 1~65535 범위여야 합니다")
-        return v
+        return _validate_port(v)
 
     @field_validator("allowed_ips")
     @classmethod
     def validate_allowed_ips(cls, values: list[str]) -> list[str]:
-        normalized: list[str] = []
-        seen: set[str] = set()
-        for raw_ip in values:
-            value = raw_ip.strip()
-            if not value:
-                continue
-            cidr = str(ip_network(value, strict=False))
-            if cidr not in seen:
-                seen.add(cidr)
-                normalized.append(cidr)
-        return normalized
+        return _normalize_allowed_ips(values)
 
     @field_validator("blocked_paths")
     @classmethod
     def validate_blocked_paths(cls, v: list[str] | None) -> list[str] | None:
-        if v is None:
-            return None
-        for path in v:
-            if not path.startswith("/"):
-                raise ValueError(f"차단 경로는 '/'로 시작해야 합니다: {path}")
-        return v
+        return _validate_blocked_paths(v)
 
     @field_validator("authentik_group_id")
     @classmethod
     def normalize_authentik_group_id(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        value = value.strip()
-        return value or None
+        return _normalize_authentik_group_id(value)
 
     @field_validator("middleware_template_ids")
     @classmethod
     def normalize_middleware_template_ids(cls, values: list[str]) -> list[str]:
-        normalized: list[str] = []
-        seen: set[str] = set()
-        for raw_id in values:
-            value = str(raw_id).strip()
-            if not value:
-                continue
-            if value not in seen:
-                seen.add(value)
-                normalized.append(value)
-        return normalized
+        return _normalize_middleware_template_ids(values)
 
     @field_validator("rate_limit_average", "rate_limit_burst")
     @classmethod
     def validate_rate_limit_values(cls, value: int | None) -> int | None:
-        if value is None:
-            return None
-        if value <= 0:
-            raise ValueError("Rate Limit 값은 1 이상의 정수여야 합니다")
-        return value
+        return _validate_rate_limit_value(value)
 
     @field_validator("custom_headers")
     @classmethod
     def validate_custom_headers(cls, values: dict[str, str]) -> dict[str, str]:
-        normalized: dict[str, str] = {}
-        token_pattern = re.compile(r"^[A-Za-z0-9-]+$")
-
-        for raw_key, raw_value in values.items():
-            key = raw_key.strip()
-            value = raw_value.strip()
-            if not key:
-                continue
-            if not token_pattern.match(key):
-                raise ValueError(f"유효하지 않은 헤더 키입니다: {key}")
-            if "\n" in key or "\r" in key or "\n" in value or "\r" in value:
-                raise ValueError(f"유효하지 않은 헤더 값입니다: {key}")
-            normalized[key] = value
-
-        return normalized
+        return _normalize_custom_headers(values)
 
     @model_validator(mode="after")
     def validate_cross_fields(self):
@@ -232,105 +186,52 @@ class ServiceUpdate(BaseModel):
     @field_validator("auth_mode")
     @classmethod
     def validate_auth_mode(cls, v: str | None) -> str | None:
-        if v is not None and v not in AUTH_MODE_VALUES:
-            raise ValueError(f"auth_mode는 {AUTH_MODE_VALUES} 중 하나여야 합니다")
-        return v
+        return _validate_optional_auth_mode(v)
 
     @field_validator("upstream_scheme")
     @classmethod
     def validate_upstream_scheme(cls, v: str | None) -> str | None:
-        if v is not None and v not in ["http", "https"]:
-            raise ValueError("업스트림 스킴은 http 또는 https여야 합니다")
-        return v
+        return _validate_optional_upstream_scheme(v)
 
     @field_validator("frame_policy")
     @classmethod
     def validate_frame_policy(cls, v: str | None) -> str | None:
-        if v is not None and v not in FRAME_POLICY_VALUES:
-            raise ValueError(f"frame_policy는 {FRAME_POLICY_VALUES} 중 하나여야 합니다")
-        return v
+        return _validate_optional_frame_policy(v)
 
     @field_validator("healthcheck_path")
     @classmethod
     def validate_healthcheck_path(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
-        value = v.strip() or DEFAULT_HEALTHCHECK_PATH
-        if not value.startswith("/"):
-            raise ValueError("헬스 체크 경로는 '/'로 시작해야 합니다")
-        return value
+        return _normalize_optional_healthcheck_path(v)
 
     @field_validator("healthcheck_timeout_ms")
     @classmethod
     def validate_healthcheck_timeout_ms(cls, v: int | None) -> int | None:
-        if v is not None and v <= 0:
-            raise ValueError("헬스 체크 타임아웃은 1ms 이상의 정수여야 합니다")
-        return v
+        return _validate_optional_healthcheck_timeout_ms(v)
 
     @field_validator("healthcheck_expected_statuses")
     @classmethod
     def validate_healthcheck_expected_statuses(cls, values: list[int] | None) -> list[int] | None:
-        if values is None:
-            return None
-        normalized: list[int] = []
-        seen: set[int] = set()
-        for value in values:
-            if not (100 <= value <= 599):
-                raise ValueError("헬스 체크 기대 상태 코드는 100~599 범위여야 합니다")
-            if value not in seen:
-                seen.add(value)
-                normalized.append(value)
-        return sorted(normalized)
+        return _normalize_optional_healthcheck_expected_statuses(values)
 
     @field_validator("allowed_ips")
     @classmethod
     def validate_allowed_ips(cls, values: list[str] | None) -> list[str] | None:
-        if values is None:
-            return None
-        normalized: list[str] = []
-        seen: set[str] = set()
-        for raw_ip in values:
-            value = raw_ip.strip()
-            if not value:
-                continue
-            cidr = str(ip_network(value, strict=False))
-            if cidr not in seen:
-                seen.add(cidr)
-                normalized.append(cidr)
-        return normalized
+        return _normalize_optional_allowed_ips(values)
 
     @field_validator("authentik_group_id")
     @classmethod
     def normalize_authentik_group_id(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        value = value.strip()
-        return value or None
+        return _normalize_authentik_group_id(value)
 
     @field_validator("middleware_template_ids")
     @classmethod
     def normalize_middleware_template_ids(cls, values: list[str] | None) -> list[str] | None:
-        if values is None:
-            return None
-        normalized: list[str] = []
-        seen: set[str] = set()
-        for raw_id in values:
-            value = str(raw_id).strip()
-            if not value:
-                continue
-            if value not in seen:
-                seen.add(value)
-                normalized.append(value)
-        return normalized
+        return _normalize_optional_middleware_template_ids(values)
 
     @field_validator("rate_limit_average", "rate_limit_burst")
     @classmethod
     def validate_rate_limit_values(cls, value: int | None) -> int | None:
-        if value is None:
-            return None
-        if value <= 0:
-            raise ValueError("Rate Limit 값은 1 이상의 정수여야 합니다")
-        return value
+        return _validate_rate_limit_value(value)
 
     @field_validator("custom_headers")
     @classmethod
@@ -338,22 +239,7 @@ class ServiceUpdate(BaseModel):
         cls,
         values: dict[str, str] | None,
     ) -> dict[str, str] | None:
-        if values is None:
-            return None
-
-        normalized: dict[str, str] = {}
-        token_pattern = re.compile(r"^[A-Za-z0-9-]+$")
-        for raw_key, raw_value in values.items():
-            key = raw_key.strip()
-            value = raw_value.strip()
-            if not key:
-                continue
-            if not token_pattern.match(key):
-                raise ValueError(f"유효하지 않은 헤더 키입니다: {key}")
-            if "\n" in key or "\r" in key or "\n" in value or "\r" in value:
-                raise ValueError(f"유효하지 않은 헤더 값입니다: {key}")
-            normalized[key] = value
-        return normalized
+        return _normalize_optional_custom_headers(values)
 
     @model_validator(mode="after")
     def validate_cross_fields(self):
