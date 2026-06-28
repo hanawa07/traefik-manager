@@ -48,6 +48,7 @@ from app.interfaces.api.v1.routers.settings_security_alert_update import update_
 from app.interfaces.api.v1.routers.settings_traefik_dashboard_update import (
     update_traefik_dashboard_settings_values,
 )
+from app.interfaces.api.v1.routers.settings_time_display_update import update_time_display_settings_value
 from app.interfaces.api.v1.routers.settings_upstream_security_update import update_upstream_security_settings_values
 from app.interfaces.api.v1.routers.settings_summary_helpers import (
     certificate_diagnostics_summary as _certificate_diagnostics_summary,
@@ -344,8 +345,7 @@ async def update_time_display_settings(
     _: dict = Depends(require_admin),
 ):
     repo = SQLiteSystemSettingsRepository(db)
-    previous_value = normalize_display_timezone(await repo.get("display_timezone"))
-    await repo.set("display_timezone", request.display_timezone)
+    previous_value = await update_time_display_settings_value(repo, request.display_timezone)
     response = _build_time_display_response(request.display_timezone)
     await _record_settings_update(
         db=db,
