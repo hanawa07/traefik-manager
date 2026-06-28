@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Trash2 } from "lucide-react";
@@ -132,7 +132,6 @@ export default function MiddlewareForm({
   const {
     register,
     handleSubmit,
-    watch,
     control,
     formState: { errors },
   } = useForm<FormData>({
@@ -152,7 +151,7 @@ export default function MiddlewareForm({
     control,
     name: "custom_headers",
   });
-  const type = watch("type");
+  const type = useWatch({ control, name: "type" });
 
   return (
     <form

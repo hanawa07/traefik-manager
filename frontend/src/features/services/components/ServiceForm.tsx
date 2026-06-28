@@ -1,6 +1,6 @@
 "use client";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { AuthMode, FramePolicy, ServiceCreate } from "../api/serviceApi";
@@ -201,18 +201,18 @@ export default function ServiceForm({
     key,
     value,
   }));
+  const basicAuthUsernames = defaultValues?.basic_auth_usernames;
 
   const initialBasicAuthCredentials = useMemo(() => {
-    if (defaultValues?.basic_auth_usernames && defaultValues.basic_auth_usernames.length > 0) {
-      return defaultValues.basic_auth_usernames.map(username => ({ username, password: "" }));
+    if (basicAuthUsernames && basicAuthUsernames.length > 0) {
+      return basicAuthUsernames.map((username) => ({ username, password: "" }));
     }
     return [{ username: "", password: "" }];
-  }, [defaultValues?.basic_auth_usernames]);
+  }, [basicAuthUsernames]);
 
   const {
     register,
     handleSubmit,
-    watch,
     setValue,
     control,
     formState: { errors },
@@ -261,13 +261,19 @@ export default function ServiceForm({
     name: "basic_auth_credentials",
   });
 
-  const tlsEnabled = watch("tls_enabled");
-  const authMode = watch("auth_mode");
-  const apiKeyValue = watch("api_key");
-  const basicAuthEnabled = watch("basic_auth_enabled");
-  const rateLimitEnabled = watch("rate_limit_enabled");
-  const upstreamScheme = watch("upstream_scheme");
-  const healthcheckEnabled = watch("healthcheck_enabled");
+  const [tlsEnabled, authMode, apiKeyValue, basicAuthEnabled, rateLimitEnabled, upstreamScheme, healthcheckEnabled] =
+    useWatch({
+      control,
+      name: [
+        "tls_enabled",
+        "auth_mode",
+        "api_key",
+        "basic_auth_enabled",
+        "rate_limit_enabled",
+        "upstream_scheme",
+        "healthcheck_enabled",
+      ],
+    });
   
   const isAuthentikEnabled = authMode === "authentik";
   const isAnyAuthEnabled = authMode !== "none";
