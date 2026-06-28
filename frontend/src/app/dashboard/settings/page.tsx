@@ -1,8 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
-import { useLogoutAllSessions, useRevokeSession, useSessions } from "@/features/auth/hooks/useSessions";
 import { useAuditRetryDelivery } from "@/features/audit/hooks/useAudit";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import {
@@ -50,11 +48,10 @@ import { buildActionFailure, getApiErrorDetail } from "@/features/settings/lib/s
 import UserManagementSection from "@/features/users/components/UserManagementSection";
 import { getDefaultDisplayTimezone } from "@/shared/lib/dateTimeFormat";
 import SettingsPageHeader from "./SettingsPageHeader";
+import { useSettingsSessionActions } from "./useSettingsSessionActions";
 
 export default function SettingsPage() {
-  const router = useRouter();
   const role = useAuthStore((state) => state.role);
-  const clearSession = useAuthStore((state) => state.clearSession);
   const canManage = role === "admin";
   const [securityAlertTestResult, setSecurityAlertTestResult] = useState<SettingsActionTestResult | null>(null);
   const [securityAlertDeliveryRetryResult, setSecurityAlertDeliveryRetryResult] = useState<SettingsActionTestResult | null>(null);
@@ -88,7 +85,14 @@ export default function SettingsPage() {
   const { data: loginDefenseSettings, isLoading: isLoginDefenseLoading } = useLoginDefenseSettings();
   const { data: securityAlertSettings, isLoading: isSecurityAlertLoading } = useSecurityAlertSettings();
   const { data: settingsTestHistory, isLoading: isSettingsTestHistoryLoading } = useSettingsTestHistory();
-  const { data: sessionData, isLoading: isSessionsLoading } = useSessions();
+  const {
+    sessionData,
+    isSessionsLoading,
+    isLoggingOutAll,
+    isRevokingSession,
+    handleLogoutAllSessions,
+    handleRevokeSession,
+  } = useSettingsSessionActions();
   const backupRestore = useBackupRestoreSettings(canManage);
   const cloudflareDns = useCloudflareDnsSettingsSection(timeDisplaySettings?.display_timezone);
   const updateTimeDisplay = useUpdateTimeDisplaySettings();
@@ -99,9 +103,6 @@ export default function SettingsPage() {
   const updateSecurityAlert = useUpdateSecurityAlertSettings();
   const testSecurityAlertSettings = useTestSecurityAlertSettings();
   const retryDelivery = useAuditRetryDelivery();
-  const logoutAllSessions = useLogoutAllSessions();
-  const revokeSession = useRevokeSession();
-
   const handleEditTimeDisplay = () => {
     setTimeDisplayForm(timeDisplaySettings?.display_timezone ?? getDefaultDisplayTimezone());
     setTimeDisplayErrorMessage("");
@@ -349,20 +350,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleLogoutAllSessions = async () => {
-    await logoutAllSessions.mutateAsync();
-    clearSession();
-    router.push("/login");
-  };
-
-  const handleRevokeSession = async (sessionId: string, isCurrent: boolean) => {
-    await revokeSession.mutateAsync(sessionId);
-    if (isCurrent) {
-      clearSession();
-      router.push("/login");
-    }
-  };
-
   return (
     <div className="p-8">
       <SettingsPageHeader />
@@ -464,8 +451,8 @@ export default function SettingsPage() {
           isLoading={isSessionsLoading}
           sessions={sessionData?.sessions}
           timezone={timeDisplaySettings?.display_timezone}
-          isLoggingOutAll={logoutAllSessions.isPending}
-          isRevokingSession={revokeSession.isPending}
+          isLoggingOutAll={isLoggingOutAll}
+          isRevokingSession={isRevokingSession}
           onLogoutAll={handleLogoutAllSessions}
           onRevokeSession={handleRevokeSession}
         />
