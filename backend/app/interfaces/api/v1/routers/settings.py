@@ -45,9 +45,8 @@ from app.interfaces.api.v1.routers.settings_rollback_helpers import (
 )
 from app.interfaces.api.v1.routers.settings_login_defense_update import update_login_defense_settings_values
 from app.interfaces.api.v1.routers.settings_security_alert_update import update_security_alert_settings_values
-from app.interfaces.api.v1.routers.settings_traefik_dashboard_update import (
-    ensure_dashboard_domain_is_available,
-    update_traefik_dashboard_settings_values,
+from app.interfaces.api.v1.routers.settings_traefik_dashboard_action import (
+    update_traefik_dashboard_settings_action as _update_traefik_dashboard_settings_action,
 )
 from app.interfaces.api.v1.routers.settings_time_display_response import (
     build_time_display_response as _build_time_display_response,
@@ -62,7 +61,6 @@ from app.interfaces.api.v1.routers.settings_summary_helpers import (
     cloudflare_summary as _cloudflare_summary,
     login_defense_summary as _login_defense_summary,
     security_alert_summary as _security_alert_summary,
-    traefik_dashboard_summary as _traefik_dashboard_summary,
     upstream_security_summary as _upstream_security_summary,
 )
 from app.interfaces.api.v1.schemas.settings_schemas import (
@@ -196,38 +194,18 @@ async def update_traefik_dashboard_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
-    repo = SQLiteSystemSettingsRepository(db)
-
-    previous_response, response, effective_password_hash = await update_traefik_dashboard_settings_values(
-        repo,
-        request,
-        lambda domain: ensure_dashboard_domain_is_available(
-            SQLiteServiceRepository(db),
-            SQLiteRedirectHostRepository(db),
-            domain,
-        ),
-    )
-    file_writer = FileProviderWriter()
-    if request.enabled and request.domain and request.auth_username and effective_password_hash:
-        file_writer.write_traefik_dashboard_public_route(
-            domain=request.domain,
-            basic_auth_username=request.auth_username,
-            basic_auth_password_hash=effective_password_hash,
-        )
-    else:
-        file_writer.delete_traefik_dashboard_public_route()
-
-    await _record_settings_update(
-        audit_service=audit_service,
+    return await _update_traefik_dashboard_settings_action(
+        request=request,
+        http_request=http_request,
         db=db,
-        actor=_.get("username", "unknown"),
-        event=SETTINGS_UPDATE_EVENTS["traefik_dashboard"],
-        resource_name="Traefik 디버그 대시보드 공개 설정",
-        before=_traefik_dashboard_summary(previous_response),
-        after=_traefik_dashboard_summary(response),
-        client_ip=_maybe_get_client_ip(http_request),
+        actor=_,
+        settings_repository_factory=SQLiteSystemSettingsRepository,
+        service_repository_factory=SQLiteServiceRepository,
+        redirect_repository_factory=SQLiteRedirectHostRepository,
+        file_writer_factory=FileProviderWriter,
+        audit_service=audit_service,
+        client_ip_getter=_maybe_get_client_ip,
     )
-    return response
 
 
 @router.get("/time-display", response_model=TimeDisplaySettingsResponse, summary="표시 시간대 설정 조회")
