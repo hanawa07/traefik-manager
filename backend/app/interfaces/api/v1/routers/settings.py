@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.audit import audit_service
@@ -14,14 +13,12 @@ from app.infrastructure.cloudflare.client import (
 )
 from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
-from app.infrastructure.persistence.models import AuditLogModel
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.infrastructure.persistence.repositories.sqlite_redirect_host_repository import SQLiteRedirectHostRepository
 from app.infrastructure.persistence.repositories.sqlite_service_repository import SQLiteServiceRepository
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.routers.settings_audit_helpers import (
-    build_settings_test_history_response as _build_settings_test_history_response,
     record_cloudflare_connection_test_audit as _record_cloudflare_connection_test_audit,
     record_cloudflare_drift_audit as _record_cloudflare_drift_audit,
     record_cloudflare_reconcile_audit as _record_cloudflare_reconcile_audit,
@@ -56,6 +53,9 @@ from app.interfaces.api.v1.routers.settings_traefik_dashboard_update import (
 )
 from app.interfaces.api.v1.routers.settings_time_display_response import (
     build_time_display_response as _build_time_display_response,
+)
+from app.interfaces.api.v1.routers.settings_test_history import (
+    get_settings_test_history_response as _get_settings_test_history_response,
 )
 from app.interfaces.api.v1.routers.settings_time_display_update import update_time_display_settings_value
 from app.interfaces.api.v1.routers.settings_upstream_security_update import update_upstream_security_settings_values
@@ -428,13 +428,7 @@ async def get_settings_test_history(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(AuditLogModel)
-        .where(AuditLogModel.resource_type == "settings")
-        .order_by(desc(AuditLogModel.created_at))
-    )
-    logs = result.scalars().all()
-    return _build_settings_test_history_response(logs)
+    return await _get_settings_test_history_response(db)
 
 
 @router.put("/security-alerts", response_model=SecurityAlertSettingsResponse, summary="보안 알림 설정 저장")
