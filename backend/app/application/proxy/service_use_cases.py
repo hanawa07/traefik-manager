@@ -2,6 +2,11 @@ import logging
 from uuid import UUID
 
 from app.application.proxy.basic_auth_credentials import hash_basic_auth_credentials
+from app.application.proxy.service_cloudflare_records import (
+    delete_cloudflare_record,
+    rollback_cloudflare_record,
+    sync_cloudflare_record,
+)
 from app.domain.proxy.entities.middleware_template import MiddlewareTemplate
 from app.domain.proxy.entities.service import Service
 from app.domain.proxy.repositories.middleware_template_repository import (
@@ -96,20 +101,7 @@ class ServiceUseCases:
             self.file_writer.write_authentik_middleware()
 
         # Cloudflare DNS 자동 등록 (선택 기능)
-        try:
-            service.cloudflare_record_id = await self.cloudflare_client.upsert_service_record(
-                domain=str(service.domain),
-                fallback_target=service.upstream_host,
-            )
-        except Exception:
-            logger.warning(
-                "Cloudflare DNS 연동 실패",
-                extra={
-                    "service_name": service.name,
-                    "domain": str(service.domain),
-                },
-            )
-            raise
+        await sync_cloudflare_record(self.cloudflare_client, service)
 
         try:
             # Traefik YAML 생성
@@ -131,20 +123,7 @@ class ServiceUseCases:
                     "Traefik 설정 롤백 실패",
                     extra={"domain": str(service.domain)},
                 )
-            if service.cloudflare_record_id:
-                try:
-                    await self.cloudflare_client.delete_service_record(
-                        domain=str(service.domain),
-                        record_id=service.cloudflare_record_id,
-                    )
-                except Exception:
-                    logger.warning(
-                        "Cloudflare DNS 롤백 실패",
-                        extra={
-                            "domain": str(service.domain),
-                            "cloudflare_record_id": service.cloudflare_record_id,
-                        },
-                    )
+            await rollback_cloudflare_record(self.cloudflare_client, service)
             raise
 
         logger.info("서비스 생성: domain=%s", service.domain)
@@ -261,22 +240,12 @@ class ServiceUseCases:
                 raise
 
         # Cloudflare가 활성화되어 있으면 레코드도 현재 서비스 상태로 동기화한다.
-        if self.cloudflare_client.enabled:
-            try:
-                service.cloudflare_record_id = await self.cloudflare_client.upsert_service_record(
-                    domain=str(service.domain),
-                    fallback_target=service.upstream_host,
-                )
-            except Exception:
-                logger.warning(
-                    "Cloudflare DNS 연동 실패",
-                    extra={
-                        "service_id": str(service.id),
-                        "service_name": service.name,
-                        "domain": str(service.domain),
-                    },
-                )
-                raise
+        await sync_cloudflare_record(
+            self.cloudflare_client,
+            service,
+            require_enabled=True,
+            include_service_id=True,
+        )
 
         # Traefik YAML 업데이트
         self.file_writer.write(service, middleware_templates=middleware_templates)
@@ -303,22 +272,7 @@ class ServiceUseCases:
                 )
                 raise
 
-        try:
-            await self.cloudflare_client.delete_service_record(
-                domain=str(service.domain),
-                record_id=service.cloudflare_record_id,
-            )
-        except Exception:
-            logger.warning(
-                "Cloudflare DNS 삭제 실패",
-                extra={
-                    "service_id": str(service.id),
-                    "service_name": service.name,
-                    "domain": str(service.domain),
-                    "cloudflare_record_id": service.cloudflare_record_id,
-                },
-            )
-            raise
+        await delete_cloudflare_record(self.cloudflare_client, service)
 
         self.file_writer.delete(service)
         service.delete()
