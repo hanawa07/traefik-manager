@@ -15,6 +15,7 @@ import { useCertificates, useRunCertificateCheck, useRunCertificatePreflight } f
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { useAuditCertificateSummary } from "@/features/audit/hooks/useAudit";
+import CertificatePageHeader from "./CertificatePageHeader";
 import CertificateOverviewPanels from "./CertificateOverviewPanels";
 import {
   ChecklistStateIcon,
@@ -66,32 +67,12 @@ export default function CertificatesPage() {
 
   return (
     <div className="p-8">
-      <div className="flex items-start justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">인증서</h1>
-          <p className="text-gray-500 text-sm mt-1">Traefik API 기반 TLS 인증서 상태</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => runCertificateCheck.mutate()}
-            className="btn-primary flex items-center gap-2"
-            disabled={runCertificateCheck.isPending}
-          >
-            <Shield className="w-4 h-4" />
-            {runCertificateCheck.isPending ? "검사 중..." : "경고 검사"}
-          </button>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="btn-secondary flex items-center gap-2"
-            disabled={isFetching}
-          >
-            <RefreshCcw className="w-4 h-4" />
-            {isFetching ? "갱신 중..." : "새로고침"}
-          </button>
-        </div>
-      </div>
+      <CertificatePageHeader
+        isRefreshing={isFetching}
+        isRunningCheck={runCertificateCheck.isPending}
+        onRefresh={() => refetch()}
+        onRunCheck={() => runCertificateCheck.mutate()}
+      />
 
       <CertificateOverviewPanels
         checkResult={runCertificateCheck.isSuccess ? runCertificateCheck.data : null}
