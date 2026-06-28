@@ -6,12 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.audit import audit_service
 from app.core.config import settings
 from app.core.logging_config import get_client_ip
-from app.core.time_display import (
-    get_display_timezone_label,
-    get_display_timezone_name,
-    get_server_time_context,
-    normalize_display_timezone,
-)
+from app.core.time_display import get_server_time_context
 from app.infrastructure.cloudflare.client import (
     CF_ZONE_CONFIGS_KEY,
     CloudflareClient,
@@ -61,6 +56,9 @@ from app.interfaces.api.v1.routers.settings_security_alert_update import update_
 from app.interfaces.api.v1.routers.settings_traefik_dashboard_update import (
     ensure_dashboard_domain_is_available,
     update_traefik_dashboard_settings_values,
+)
+from app.interfaces.api.v1.routers.settings_time_display_response import (
+    build_time_display_response as _build_time_display_response,
 )
 from app.interfaces.api.v1.routers.settings_time_display_update import update_time_display_settings_value
 from app.interfaces.api.v1.routers.settings_upstream_security_update import update_upstream_security_settings_values
@@ -261,7 +259,7 @@ async def get_time_display_settings(
 ):
     repo = SQLiteSystemSettingsRepository(db)
     stored_timezone = await repo.get("display_timezone")
-    return _build_time_display_response(stored_timezone)
+    return _build_time_display_response(stored_timezone, get_server_time_context())
 
 
 @router.put("/time-display", response_model=TimeDisplaySettingsResponse, summary="표시 시간대 설정 저장")
@@ -273,7 +271,7 @@ async def update_time_display_settings(
 ):
     repo = SQLiteSystemSettingsRepository(db)
     previous_value = await update_time_display_settings_value(repo, request.display_timezone)
-    response = _build_time_display_response(request.display_timezone)
+    response = _build_time_display_response(request.display_timezone, get_server_time_context())
     await _record_settings_update(
         audit_service=audit_service,
         db=db,
@@ -511,21 +509,6 @@ async def rollback_settings_change(
         message=f"{audit_log.resource_name}을(를) 이전 상태로 되돌렸습니다",
         resource_name=audit_log.resource_name,
         event=rollback_event,
-    )
-
-
-def _build_time_display_response(display_timezone: str | None) -> TimeDisplaySettingsResponse:
-    normalized_timezone = normalize_display_timezone(display_timezone)
-    server_context = get_server_time_context()
-    return TimeDisplaySettingsResponse(
-        display_timezone=normalized_timezone,
-        display_timezone_name=get_display_timezone_name(normalized_timezone),
-        display_timezone_label=get_display_timezone_label(normalized_timezone),
-        storage_timezone=server_context["storage_timezone"],
-        server_timezone_name=server_context["server_timezone_name"],
-        server_timezone_label=server_context["server_timezone_label"],
-        server_timezone_offset=server_context["server_timezone_offset"],
-        server_time_iso=server_context["server_time_iso"],
     )
 
 
