@@ -1,7 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, type QueryKey } from "@tanstack/react-query";
 
-// PONYTAIL-DEBT(settings-hooks): collapse repeated query/mutation invalidation patterns into small hook helpers.
 import {
+  BackupImportResult,
   BackupPayload,
   BackupPreviewResult,
   BackupValidateResult,
@@ -17,235 +17,174 @@ import {
   UpstreamSecuritySettingsInput,
   settingsApi,
 } from "../api/settingsApi";
+import {
+  backupImportInvalidationKeys,
+  settingsQueryKeys,
+  settingsRollbackInvalidationKeys,
+} from "./settingsQueryKeys";
+import { useSettingsMutation } from "./useSettingsMutation";
+
+const SETTINGS_STALE_TIME_MS = 30_000;
+const TEST_HISTORY_STALE_TIME_MS = 10_000;
+
+function useSettingsQuery<TData>(
+  queryKey: QueryKey,
+  queryFn: () => Promise<TData>,
+  staleTime = SETTINGS_STALE_TIME_MS,
+) {
+  return useQuery<TData>({
+    queryKey,
+    queryFn,
+    staleTime,
+  });
+}
 
 export function useCloudflareStatus() {
-  return useQuery({
-    queryKey: ["settings", "cloudflare"],
-    queryFn: settingsApi.getCloudflareStatus,
-    staleTime: 30_000,
-  });
+  return useSettingsQuery(settingsQueryKeys.cloudflare, settingsApi.getCloudflareStatus);
 }
 
 export function useTimeDisplaySettings() {
-  return useQuery({
-    queryKey: ["settings", "time-display"],
-    queryFn: settingsApi.getTimeDisplaySettings,
-    staleTime: 30_000,
-  });
+  return useSettingsQuery(settingsQueryKeys.timeDisplay, settingsApi.getTimeDisplaySettings);
 }
 
 export function useCertificateDiagnosticsSettings() {
-  return useQuery({
-    queryKey: ["settings", "certificate-diagnostics"],
-    queryFn: settingsApi.getCertificateDiagnosticsSettings,
-    staleTime: 30_000,
-  });
+  return useSettingsQuery(
+    settingsQueryKeys.certificateDiagnostics,
+    settingsApi.getCertificateDiagnosticsSettings,
+  );
 }
 
 export function useTraefikDashboardSettings() {
-  return useQuery({
-    queryKey: ["settings", "traefik-dashboard"],
-    queryFn: settingsApi.getTraefikDashboardSettings,
-    staleTime: 30_000,
-  });
+  return useSettingsQuery(settingsQueryKeys.traefikDashboard, settingsApi.getTraefikDashboardSettings);
 }
 
 export function useUpstreamSecuritySettings() {
-  return useQuery({
-    queryKey: ["settings", "upstream-security"],
-    queryFn: settingsApi.getUpstreamSecuritySettings,
-    staleTime: 30_000,
-  });
+  return useSettingsQuery(settingsQueryKeys.upstreamSecurity, settingsApi.getUpstreamSecuritySettings);
 }
 
 export function useLoginDefenseSettings() {
-  return useQuery({
-    queryKey: ["settings", "login-defense"],
-    queryFn: settingsApi.getLoginDefenseSettings,
-    staleTime: 30_000,
-  });
+  return useSettingsQuery(settingsQueryKeys.loginDefense, settingsApi.getLoginDefenseSettings);
 }
 
 export function useSecurityAlertSettings() {
-  return useQuery({
-    queryKey: ["settings", "security-alerts"],
-    queryFn: settingsApi.getSecurityAlertSettings,
-    staleTime: 30_000,
-  });
+  return useSettingsQuery(settingsQueryKeys.securityAlerts, settingsApi.getSecurityAlertSettings);
 }
 
 export function useSettingsTestHistory() {
-  return useQuery({
-    queryKey: ["settings", "test-history"],
-    queryFn: settingsApi.getSettingsTestHistory,
-    staleTime: 10_000,
-  });
+  return useSettingsQuery(
+    settingsQueryKeys.testHistory,
+    settingsApi.getSettingsTestHistory,
+    TEST_HISTORY_STALE_TIME_MS,
+  );
 }
 
 export function useUpdateCloudflareSettings() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useSettingsMutation({
     mutationFn: (data: CloudflareSettingsInput) => settingsApi.updateCloudflareSettings(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "cloudflare"] });
-    },
+    invalidateKeys: [settingsQueryKeys.cloudflare],
   });
 }
 
 export function useTestCloudflareConnection() {
-  const queryClient = useQueryClient();
-  return useMutation<SettingsActionTestResult>({
+  return useSettingsMutation<SettingsActionTestResult>({
     mutationFn: () => settingsApi.testCloudflareConnection(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "test-history"] });
-    },
+    invalidateKeys: [settingsQueryKeys.testHistory],
   });
 }
 
 export function useDiagnoseCloudflareDnsDrift() {
-  const queryClient = useQueryClient();
-  return useMutation<CloudflareDriftCheckResult>({
+  return useSettingsMutation<CloudflareDriftCheckResult>({
     mutationFn: () => settingsApi.diagnoseCloudflareDnsDrift(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "test-history"] });
-    },
+    invalidateKeys: [settingsQueryKeys.testHistory],
   });
 }
 
 export function useReconcileCloudflareDns() {
-  const queryClient = useQueryClient();
-  return useMutation<SettingsActionTestResult>({
+  return useSettingsMutation<SettingsActionTestResult>({
     mutationFn: () => settingsApi.reconcileCloudflareDns(),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["settings", "test-history"] }),
-        queryClient.invalidateQueries({ queryKey: ["services"] }),
-      ]);
-    },
+    invalidateKeys: [settingsQueryKeys.testHistory, settingsQueryKeys.services],
   });
 }
 
 export function useUpdateTimeDisplaySettings() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useSettingsMutation({
     mutationFn: (data: TimeDisplaySettingsInput) => settingsApi.updateTimeDisplaySettings(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "time-display"] });
-    },
+    invalidateKeys: [settingsQueryKeys.timeDisplay],
   });
 }
 
 export function useUpdateCertificateDiagnosticsSettings() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useSettingsMutation({
     mutationFn: (data: CertificateDiagnosticsSettingsInput) =>
       settingsApi.updateCertificateDiagnosticsSettings(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "certificate-diagnostics"] });
-    },
+    invalidateKeys: [settingsQueryKeys.certificateDiagnostics],
   });
 }
 
 export function useUpdateTraefikDashboardSettings() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useSettingsMutation({
     mutationFn: (data: TraefikDashboardSettingsInput) => settingsApi.updateTraefikDashboardSettings(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "traefik-dashboard"] });
-    },
+    invalidateKeys: [settingsQueryKeys.traefikDashboard],
   });
 }
 
 export function useUpdateUpstreamSecuritySettings() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useSettingsMutation({
     mutationFn: (data: UpstreamSecuritySettingsInput) => settingsApi.updateUpstreamSecuritySettings(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "upstream-security"] });
-    },
+    invalidateKeys: [settingsQueryKeys.upstreamSecurity],
   });
 }
 
 export function useUpdateLoginDefenseSettings() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useSettingsMutation({
     mutationFn: (data: LoginDefenseSettingsInput) => settingsApi.updateLoginDefenseSettings(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "login-defense"] });
-    },
+    invalidateKeys: [settingsQueryKeys.loginDefense],
   });
 }
 
 export function useUpdateSecurityAlertSettings() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useSettingsMutation({
     mutationFn: (data: SecurityAlertSettingsInput) => settingsApi.updateSecurityAlertSettings(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "security-alerts"] });
-    },
+    invalidateKeys: [settingsQueryKeys.securityAlerts],
   });
 }
 
 export function useTestSecurityAlertSettings() {
-  const queryClient = useQueryClient();
-  return useMutation<SettingsActionTestResult>({
+  return useSettingsMutation<SettingsActionTestResult>({
     mutationFn: () => settingsApi.testSecurityAlertSettings(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "test-history"] });
-    },
+    invalidateKeys: [settingsQueryKeys.testHistory],
   });
 }
 
 export function useRollbackSettingsChange() {
-  const queryClient = useQueryClient();
-  return useMutation<SettingsRollbackActionResult, unknown, string>({
+  return useSettingsMutation<SettingsRollbackActionResult, string>({
     mutationFn: (auditLogId) => settingsApi.rollbackSettingsChange(auditLogId),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["audit-logs"] }),
-        queryClient.invalidateQueries({ queryKey: ["settings", "time-display"] }),
-        queryClient.invalidateQueries({ queryKey: ["settings", "certificate-diagnostics"] }),
-        queryClient.invalidateQueries({ queryKey: ["settings", "traefik-dashboard"] }),
-        queryClient.invalidateQueries({ queryKey: ["settings", "upstream-security"] }),
-        queryClient.invalidateQueries({ queryKey: ["settings", "login-defense"] }),
-        queryClient.invalidateQueries({ queryKey: ["settings", "security-alerts"] }),
-        queryClient.invalidateQueries({ queryKey: ["settings", "cloudflare"] }),
-      ]);
-    },
+    invalidateKeys: settingsRollbackInvalidationKeys,
   });
 }
 
 export function useExportBackup() {
-  return useMutation({
+  return useSettingsMutation<BackupPayload>({
     mutationFn: () => settingsApi.exportBackup(),
   });
 }
 
 export function useImportBackup() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
+  return useSettingsMutation<BackupImportResult, { mode: "merge" | "overwrite"; data: BackupPayload }>({
     mutationFn: (params: { mode: "merge" | "overwrite"; data: BackupPayload }) =>
       settingsApi.importBackup(params.mode, params.data),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["services"] }),
-        queryClient.invalidateQueries({ queryKey: ["redirect-hosts"] }),
-        queryClient.invalidateQueries({ queryKey: ["traefik-health"] }),
-        queryClient.invalidateQueries({ queryKey: ["traefik-router-status"] }),
-      ]);
-    },
+    invalidateKeys: backupImportInvalidationKeys,
   });
 }
 
 export function useValidateBackup() {
-  return useMutation<BackupValidateResult, unknown, { mode: "merge" | "overwrite"; data: BackupPayload }>({
+  return useSettingsMutation<BackupValidateResult, { mode: "merge" | "overwrite"; data: BackupPayload }>({
     mutationFn: (params) => settingsApi.validateBackup(params.mode, params.data),
   });
 }
 
 export function usePreviewBackup() {
-  return useMutation<BackupPreviewResult, unknown, { mode: "merge" | "overwrite"; data: BackupPayload }>({
+  return useSettingsMutation<BackupPreviewResult, { mode: "merge" | "overwrite"; data: BackupPayload }>({
     mutationFn: (params) => settingsApi.previewBackup(params.mode, params.data),
   });
 }
