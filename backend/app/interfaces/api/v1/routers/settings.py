@@ -5,12 +5,7 @@ from app.application.audit import audit_service
 from app.core.config import settings
 from app.core.logging_config import get_client_ip
 from app.core.time_display import get_server_time_context
-from app.infrastructure.cloudflare.client import (
-    CF_ZONE_CONFIGS_KEY,
-    CloudflareClient,
-    CloudflareClientError,
-    CloudflareZoneConfig,
-)
+from app.infrastructure.cloudflare.client import CF_ZONE_CONFIGS_KEY, CloudflareClient, CloudflareClientError
 from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
@@ -30,6 +25,9 @@ from app.interfaces.api.v1.routers.settings_certificate_diagnostics_update impor
     update_certificate_diagnostics_settings_values,
 )
 from app.interfaces.api.v1.routers.settings_cloudflare_drift import diagnose_cloudflare_dns_drift_records
+from app.interfaces.api.v1.routers.settings_cloudflare_client import (
+    get_cloudflare_client,
+)
 from app.interfaces.api.v1.routers.settings_cloudflare_reconcile import reconcile_cloudflare_dns_records
 from app.interfaces.api.v1.routers.settings_cloudflare_update import update_cloudflare_settings_values
 from app.interfaces.api.v1.routers.settings_events import SETTINGS_UPDATE_EVENTS
@@ -89,12 +87,6 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
 )
 
 router = APIRouter()
-
-
-async def get_cloudflare_client(db: AsyncSession = Depends(get_db)) -> CloudflareClient:
-    repo = SQLiteSystemSettingsRepository(db)
-    db_settings = await repo.get_all_dict()
-    return CloudflareClient.from_db_settings(db_settings)
 
 
 @router.get("/cloudflare", response_model=CloudflareSettingsStatusResponse, summary="Cloudflare 설정 상태")
