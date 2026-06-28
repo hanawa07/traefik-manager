@@ -1,5 +1,4 @@
-# PONYTAIL-DEBT(settings-router): replace repeated settings get/update/audit flows with a registry/helper.
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,10 +35,7 @@ from app.interfaces.api.v1.routers.settings_certificate_diagnostics_update impor
 from app.interfaces.api.v1.routers.settings_cloudflare_drift import diagnose_cloudflare_dns_drift_records
 from app.interfaces.api.v1.routers.settings_cloudflare_reconcile import reconcile_cloudflare_dns_records
 from app.interfaces.api.v1.routers.settings_cloudflare_update import update_cloudflare_settings_values
-from app.interfaces.api.v1.routers.settings_events import (
-    SETTINGS_ROLLBACK_EVENTS,
-    SETTINGS_UPDATE_EVENTS,
-)
+from app.interfaces.api.v1.routers.settings_events import SETTINGS_UPDATE_EVENTS
 from app.interfaces.api.v1.routers.settings_response_builders import (
     build_certificate_diagnostics_response as _build_certificate_diagnostics_response,
     build_login_defense_response as _build_login_defense_response,
@@ -50,6 +46,7 @@ from app.interfaces.api.v1.routers.settings_response_builders import (
 from app.interfaces.api.v1.routers.settings_rollback_helpers import (
     apply_settings_rollback as _apply_settings_rollback,
     get_current_settings_summary_for_event as _get_current_settings_summary_for_event,
+    load_supported_settings_rollback as _load_supported_settings_rollback,
 )
 from app.interfaces.api.v1.routers.settings_login_defense_update import update_login_defense_settings_values
 from app.interfaces.api.v1.routers.settings_security_alert_update import update_security_alert_settings_values
@@ -473,25 +470,10 @@ async def rollback_settings_change(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
-    result = await db.execute(select(AuditLogModel).where(AuditLogModel.id == audit_log_id))
-    audit_log = result.scalar_one_or_none()
-    if audit_log is None:
-        raise HTTPException(status_code=404, detail="대상 설정 변경 로그를 찾을 수 없습니다")
-    if audit_log.resource_type != "settings" or audit_log.action != "update":
-        raise HTTPException(status_code=422, detail="설정 변경 로그만 롤백할 수 있습니다")
-
-    detail = audit_log.detail or {}
-    event = detail.get("event")
-    rollback_supported = detail.get("rollback_supported") is True
-    rollback_payload = detail.get("rollback_payload")
-
-    if not isinstance(event, str) or not rollback_supported or not isinstance(rollback_payload, dict):
-        raise HTTPException(status_code=422, detail="이 설정 변경은 안전 롤백을 지원하지 않습니다")
-
+    audit_log, event, rollback_payload, rollback_event = await _load_supported_settings_rollback(db, audit_log_id)
     repo = SQLiteSystemSettingsRepository(db)
     before_state = await _get_current_settings_summary_for_event(repo, event)
     after_state = await _apply_settings_rollback(repo, event, rollback_payload)
-    rollback_event = SETTINGS_ROLLBACK_EVENTS[event]
 
     await _record_settings_rollback(
         audit_service=audit_service,
