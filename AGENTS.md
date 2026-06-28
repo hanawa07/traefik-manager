@@ -44,7 +44,7 @@ Automated tests are not fully wired yet; treat lint/build and manual API checks 
 - 테스트 후 포니테일 리뷰까지 완료하고, 결과와 남은 리스크를 사용자에게 보고한다.
 - 코드 변경이 완료되면 변경 단위별로 파일을 나눠 스테이징하고, `<영역>: <변경 요약>` 형식의 한글 커밋을 만든 뒤 현재 브랜치를 GitHub에 푸시한다.
 - 관련 없는 사용자 변경, 로컬 백업, `.env`, 비밀값, 생성물은 커밋에 포함하지 않는다.
-- 작업이 끝나면 결과 보고와 함께 바로 다음에 진행할 가장 작은 작업을 제안한다.
+- 작업이 끝나면 결과 보고 마지막 줄에 `다음 작업: ...` 형식으로 바로 다음에 진행할 가장 작은 작업을 반드시 제안한다.
 
 ## Commit & Pull Request Guidelines
 - Follow the existing history style: concise, scope-first summaries (often Korean), one topic per commit.
