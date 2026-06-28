@@ -6,9 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.persistence.models import AuditLogModel
 from app.interfaces.api.v1.routers.settings_cloudflare_drift import CloudflareDriftSummary
 from app.interfaces.api.v1.routers.settings_cloudflare_reconcile import CloudflareReconcileSummary
-from app.interfaces.api.v1.routers.settings_events import SETTINGS_TEST_EVENTS
+from app.interfaces.api.v1.routers.settings_events import SETTINGS_DELIVERY_EVENTS, SETTINGS_TEST_EVENTS
 from app.interfaces.api.v1.schemas.settings_schemas import (
     SettingsTestActionResponse,
+    SettingsTestHistoryResponse,
     SettingsTestHistoryItemResponse,
 )
 
@@ -201,6 +202,23 @@ async def record_settings_rollback(
             "summary": after,
             "client_ip": client_ip,
         },
+    )
+
+
+def build_settings_test_history_response(logs: list[AuditLogModel]) -> SettingsTestHistoryResponse:
+    cloudflare = find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["cloudflare"])
+    cloudflare_drift = find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["cloudflare_drift"])
+    cloudflare_reconcile = find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["cloudflare_reconcile"])
+    security_alert = find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["security_alert"])
+    security_alert_delivery = find_latest_settings_events(logs, SETTINGS_DELIVERY_EVENTS["security_alert_delivery"])
+    change_alert_delivery = find_latest_settings_events(logs, SETTINGS_DELIVERY_EVENTS["change_alert_delivery"])
+    return SettingsTestHistoryResponse(
+        cloudflare=cloudflare,
+        cloudflare_drift=cloudflare_drift,
+        cloudflare_reconcile=cloudflare_reconcile,
+        security_alert=security_alert,
+        security_alert_delivery=security_alert_delivery,
+        change_alert_delivery=change_alert_delivery,
     )
 
 

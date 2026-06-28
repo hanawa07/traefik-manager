@@ -27,8 +27,7 @@ from app.infrastructure.persistence.repositories.sqlite_service_repository impor
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.routers.settings_audit_helpers import (
-    find_latest_settings_events as _find_latest_settings_events,
-    find_latest_settings_test_event as _find_latest_settings_test_event,
+    build_settings_test_history_response as _build_settings_test_history_response,
     record_cloudflare_connection_test_audit as _record_cloudflare_connection_test_audit,
     record_cloudflare_drift_audit as _record_cloudflare_drift_audit,
     record_cloudflare_reconcile_audit as _record_cloudflare_reconcile_audit,
@@ -43,9 +42,7 @@ from app.interfaces.api.v1.routers.settings_cloudflare_drift import diagnose_clo
 from app.interfaces.api.v1.routers.settings_cloudflare_reconcile import reconcile_cloudflare_dns_records
 from app.interfaces.api.v1.routers.settings_cloudflare_update import update_cloudflare_settings_values
 from app.interfaces.api.v1.routers.settings_events import (
-    SETTINGS_DELIVERY_EVENTS,
     SETTINGS_ROLLBACK_EVENTS,
-    SETTINGS_TEST_EVENTS,
     SETTINGS_UPDATE_EVENTS,
 )
 from app.interfaces.api.v1.routers.settings_response_builders import (
@@ -456,23 +453,7 @@ async def get_settings_test_history(
         .order_by(desc(AuditLogModel.created_at))
     )
     logs = result.scalars().all()
-
-    cloudflare = _find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["cloudflare"])
-    cloudflare_drift = _find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["cloudflare_drift"])
-    cloudflare_reconcile = _find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["cloudflare_reconcile"])
-    security_alert = _find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["security_alert"])
-    security_alert_delivery = _find_latest_settings_events(
-        logs, SETTINGS_DELIVERY_EVENTS["security_alert_delivery"]
-    )
-    change_alert_delivery = _find_latest_settings_events(logs, SETTINGS_DELIVERY_EVENTS["change_alert_delivery"])
-    return SettingsTestHistoryResponse(
-        cloudflare=cloudflare,
-        cloudflare_drift=cloudflare_drift,
-        cloudflare_reconcile=cloudflare_reconcile,
-        security_alert=security_alert,
-        security_alert_delivery=security_alert_delivery,
-        change_alert_delivery=change_alert_delivery,
-    )
+    return _build_settings_test_history_response(logs)
 
 
 @router.put("/security-alerts", response_model=SecurityAlertSettingsResponse, summary="보안 알림 설정 저장")
