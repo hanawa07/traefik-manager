@@ -1,10 +1,8 @@
-import apiClient from "@/shared/lib/apiClient";
-import type {
-  BackupImportResult,
-  BackupPayload,
-  BackupPreviewResult,
-  BackupValidateResult,
-} from "./settingsBackupTypes";
+import { cloudflareSettingsApi } from "./settingsCloudflareApi";
+import { policySettingsApi } from "./settingsPolicyApi";
+import { securityAlertSettingsApi } from "./settingsSecurityAlertApi";
+import { settingsBackupApi } from "./settingsBackupApi";
+import { settingsHistoryApi } from "./settingsHistoryApi";
 
 export type {
   BackupImportResult,
@@ -16,415 +14,49 @@ export type {
   BackupServiceItem,
   BackupValidateResult,
 } from "./settingsBackupTypes";
-
-export interface CloudflareSettingsStatus {
-  enabled: boolean;
-  configured: boolean;
-  zone_count: number;
-  zones: CloudflareZoneStatus[];
-  message: string;
-}
-
-export interface CloudflareZoneStatus {
-  zone_id: string;
-  zone_name: string | null;
-  record_target: string | null;
-  proxied: boolean;
-}
-
-export interface CloudflareSettingsInput {
-  zones: CloudflareZoneInput[];
-}
-
-export interface CloudflareZoneInput {
-  api_token: string;
-  zone_id: string;
-  record_target: string;
-  proxied: boolean;
-}
-
-export interface CloudflareDriftRecord {
-  domain: string;
-  issue: "missing" | "mismatch" | "orphan";
-  detail: string;
-  expected_type: string | null;
-  expected_content: string | null;
-  expected_proxied: boolean | null;
-  actual_type: string | null;
-  actual_content: string | null;
-  actual_proxied: boolean | null;
-  record_id: string | null;
-}
-
-export interface CloudflareDriftCheckResult {
-  success: boolean;
-  message: string;
-  detail: string | null;
-  zone_count: number;
-  total_services: number;
-  eligible_services: number;
-  skipped_services: number;
-  healthy_services: number;
-  zones: CloudflareDriftZone[];
-  excluded_services: CloudflareExcludedService[];
-  missing_records: CloudflareDriftRecord[];
-  mismatched_records: CloudflareDriftRecord[];
-  orphan_records: CloudflareDriftRecord[];
-}
-
-export interface CloudflareDriftZone {
-  zone_name: string;
-  eligible_services: number;
-  healthy_services: number;
-  missing_records: CloudflareDriftRecord[];
-  mismatched_records: CloudflareDriftRecord[];
-  orphan_records: CloudflareDriftRecord[];
-}
-
-export interface CloudflareExcludedService {
-  domain: string;
-  reason: string;
-}
-
-export interface TraefikDashboardSettingsStatus {
-  enabled: boolean;
-  configured: boolean;
-  domain: string | null;
-  public_url: string | null;
-  auth_username: string | null;
-  auth_password_configured: boolean;
-  message: string;
-}
-
-export interface TraefikDashboardSettingsInput {
-  enabled: boolean;
-  domain: string;
-  auth_username: string;
-  auth_password: string;
-}
-
-export interface TimeDisplaySettingsStatus {
-  display_timezone: string;
-  display_timezone_name: string;
-  display_timezone_label: string;
-  storage_timezone: string;
-  server_timezone_name: string;
-  server_timezone_label: string;
-  server_timezone_offset: string;
-  server_time_iso: string;
-}
-
-export interface TimeDisplaySettingsInput {
-  display_timezone: string;
-}
-
-export interface CertificateDiagnosticsSettingsStatus {
-  auto_check_interval_minutes: number;
-  repeat_alert_threshold: number;
-  repeat_alert_window_minutes: number;
-  repeat_alert_cooldown_minutes: number;
-}
-
-export interface CertificateDiagnosticsSettingsInput {
-  auto_check_interval_minutes: number;
-  repeat_alert_threshold: number;
-  repeat_alert_window_minutes: number;
-  repeat_alert_cooldown_minutes: number;
-}
-
-export interface UpstreamSecuritySettingsStatus {
-  preset_key: string;
-  preset_name: string;
-  preset_description: string;
-  available_presets: UpstreamSecurityPreset[];
-  dns_strict_mode: boolean;
-  allowlist_enabled: boolean;
-  allowed_domain_suffixes: string[];
-  allow_docker_service_names: boolean;
-  allow_private_networks: boolean;
-}
-
-export interface UpstreamSecurityPreset {
-  key: string;
-  name: string;
-  description: string;
-  dns_strict_mode: boolean;
-  allowlist_enabled: boolean;
-  allow_docker_service_names: boolean;
-  allow_private_networks: boolean;
-}
-
-export interface UpstreamSecuritySettingsInput {
-  dns_strict_mode: boolean;
-  allowlist_enabled: boolean;
-  allowed_domain_suffixes: string[];
-  allow_docker_service_names: boolean;
-  allow_private_networks: boolean;
-}
-
-export interface LoginDefenseSettingsStatus {
-  max_failed_attempts: number;
-  failure_window_minutes: number;
-  lockout_minutes: number;
-  suspicious_window_minutes: number;
-  suspicious_failure_count: number;
-  suspicious_username_count: number;
-  suspicious_block_minutes: number;
-  suspicious_block_enabled: boolean;
-  suspicious_trusted_networks: string[];
-  suspicious_block_escalation_enabled: boolean;
-  suspicious_block_escalation_window_minutes: number;
-  suspicious_block_escalation_multiplier: number;
-  suspicious_block_max_minutes: number;
-  turnstile_mode: "off" | "always" | "risk_based";
-  turnstile_enabled: boolean;
-  turnstile_site_key: string | null;
-  turnstile_secret_key_configured: boolean;
-}
-
-export interface LoginDefenseSettingsInput {
-  suspicious_block_enabled: boolean;
-  suspicious_trusted_networks: string[];
-  suspicious_block_escalation_enabled: boolean;
-  suspicious_block_escalation_window_minutes: number;
-  suspicious_block_escalation_multiplier: number;
-  suspicious_block_max_minutes: number;
-  turnstile_mode: "off" | "always" | "risk_based";
-  turnstile_site_key: string;
-  turnstile_secret_key: string;
-}
-
-export type SecurityAlertRouteEvent = "login_locked" | "login_suspicious" | "login_blocked_ip";
-export type SecurityAlertRouteTarget = "default" | "disabled" | "telegram" | "pagerduty" | "email";
-export type SecurityAlertEventRoutes = Record<SecurityAlertRouteEvent, SecurityAlertRouteTarget>;
-export type ChangeAlertRouteEvent =
-  | "settings_change"
-  | "service_change"
-  | "redirect_change"
-  | "middleware_change"
-  | "user_change"
-  | "certificate_status_change"
-  | "certificate_preflight_failure"
-  | "rollback";
-export type ChangeAlertEventRoutes = Record<ChangeAlertRouteEvent, SecurityAlertRouteTarget>;
-
-export interface SecurityAlertSettingsStatus {
-  enabled: boolean;
-  change_alerts_enabled: boolean;
-  provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty" | "email";
-  webhook_url: string | null;
-  telegram_bot_token_configured: boolean;
-  telegram_chat_id: string | null;
-  pagerduty_routing_key_configured: boolean;
-  email_host: string | null;
-  email_port: number;
-  email_security: "none" | "starttls" | "ssl";
-  email_username: string | null;
-  email_password_configured: boolean;
-  email_from: string | null;
-  email_recipients: string[];
-  timeout_seconds: number;
-  alert_events: string[];
-  event_routes: SecurityAlertEventRoutes;
-  change_event_routes: ChangeAlertEventRoutes;
-}
-
-export interface SecurityAlertSettingsInput {
-  enabled: boolean;
-  change_alerts_enabled: boolean;
-  provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty" | "email";
-  webhook_url: string;
-  telegram_bot_token: string;
-  telegram_chat_id: string;
-  pagerduty_routing_key: string;
-  email_host: string;
-  email_port: number;
-  email_security: "none" | "starttls" | "ssl";
-  email_username: string;
-  email_password: string;
-  email_from: string;
-  email_recipients: string[];
-  event_routes: SecurityAlertEventRoutes;
-  change_event_routes: ChangeAlertEventRoutes;
-}
-
-export interface SettingsActionTestResult {
-  success: boolean;
-  message: string;
-  detail: string | null;
-  provider: string | null;
-}
-
-export interface SettingsRollbackActionResult {
-  success: boolean;
-  message: string;
-  resource_name: string;
-  event: string;
-}
-
-export interface SettingsTestHistoryItem {
-  last_event: string | null;
-  last_success: boolean | null;
-  last_message: string | null;
-  last_detail: string | null;
-  last_provider: string | null;
-  last_created_at: string | null;
-  last_success_at: string | null;
-  last_failure_at: string | null;
-  last_failure_audit_id: string | null;
-  last_failure_message: string | null;
-  last_failure_detail: string | null;
-  last_failure_provider: string | null;
-  recent_failure_count: number;
-}
-
-export interface SettingsTestHistoryStatus {
-  cloudflare: SettingsTestHistoryItem;
-  cloudflare_drift: SettingsTestHistoryItem;
-  cloudflare_reconcile: SettingsTestHistoryItem;
-  security_alert: SettingsTestHistoryItem;
-  security_alert_delivery: SettingsTestHistoryItem;
-  change_alert_delivery: SettingsTestHistoryItem;
-}
+export type {
+  CloudflareDriftCheckResult,
+  CloudflareDriftRecord,
+  CloudflareDriftZone,
+  CloudflareExcludedService,
+  CloudflareSettingsInput,
+  CloudflareSettingsStatus,
+  CloudflareZoneInput,
+  CloudflareZoneStatus,
+} from "./settingsCloudflareApi";
+export type {
+  CertificateDiagnosticsSettingsInput,
+  CertificateDiagnosticsSettingsStatus,
+  LoginDefenseSettingsInput,
+  LoginDefenseSettingsStatus,
+  TimeDisplaySettingsInput,
+  TimeDisplaySettingsStatus,
+  TraefikDashboardSettingsInput,
+  TraefikDashboardSettingsStatus,
+  UpstreamSecurityPreset,
+  UpstreamSecuritySettingsInput,
+  UpstreamSecuritySettingsStatus,
+} from "./settingsPolicyApi";
+export type {
+  ChangeAlertEventRoutes,
+  ChangeAlertRouteEvent,
+  SecurityAlertEventRoutes,
+  SecurityAlertRouteEvent,
+  SecurityAlertRouteTarget,
+  SecurityAlertSettingsInput,
+  SecurityAlertSettingsStatus,
+} from "./settingsSecurityAlertApi";
+export type {
+  SettingsActionTestResult,
+  SettingsRollbackActionResult,
+  SettingsTestHistoryItem,
+  SettingsTestHistoryStatus,
+} from "./settingsSharedTypes";
 
 export const settingsApi = {
-  getCloudflareStatus: async (): Promise<CloudflareSettingsStatus> => {
-    const res = await apiClient.get<CloudflareSettingsStatus>("/settings/cloudflare");
-    return res.data;
-  },
-
-  getTimeDisplaySettings: async (): Promise<TimeDisplaySettingsStatus> => {
-    const res = await apiClient.get<TimeDisplaySettingsStatus>("/settings/time-display");
-    return res.data;
-  },
-
-  getCertificateDiagnosticsSettings: async (): Promise<CertificateDiagnosticsSettingsStatus> => {
-    const res = await apiClient.get<CertificateDiagnosticsSettingsStatus>("/settings/certificate-diagnostics");
-    return res.data;
-  },
-
-  getTraefikDashboardSettings: async (): Promise<TraefikDashboardSettingsStatus> => {
-    const res = await apiClient.get<TraefikDashboardSettingsStatus>("/settings/traefik-dashboard");
-    return res.data;
-  },
-
-  getUpstreamSecuritySettings: async (): Promise<UpstreamSecuritySettingsStatus> => {
-    const res = await apiClient.get<UpstreamSecuritySettingsStatus>("/settings/upstream-security");
-    return res.data;
-  },
-
-  getLoginDefenseSettings: async (): Promise<LoginDefenseSettingsStatus> => {
-    const res = await apiClient.get<LoginDefenseSettingsStatus>("/settings/login-defense");
-    return res.data;
-  },
-
-  getSecurityAlertSettings: async (): Promise<SecurityAlertSettingsStatus> => {
-    const res = await apiClient.get<SecurityAlertSettingsStatus>("/settings/security-alerts");
-    return res.data;
-  },
-
-  getSettingsTestHistory: async (): Promise<SettingsTestHistoryStatus> => {
-    const res = await apiClient.get<SettingsTestHistoryStatus>("/settings/test-history");
-    return res.data;
-  },
-
-  updateCloudflareSettings: async (payload: CloudflareSettingsInput): Promise<CloudflareSettingsStatus> => {
-    const res = await apiClient.put<CloudflareSettingsStatus>("/settings/cloudflare", payload);
-    return res.data;
-  },
-
-  testCloudflareConnection: async (): Promise<SettingsActionTestResult> => {
-    const res = await apiClient.post<SettingsActionTestResult>("/settings/cloudflare/test");
-    return res.data;
-  },
-
-  diagnoseCloudflareDnsDrift: async (): Promise<CloudflareDriftCheckResult> => {
-    const res = await apiClient.post<CloudflareDriftCheckResult>("/settings/cloudflare/drift");
-    return res.data;
-  },
-
-  reconcileCloudflareDns: async (): Promise<SettingsActionTestResult> => {
-    const res = await apiClient.post<SettingsActionTestResult>("/settings/cloudflare/reconcile");
-    return res.data;
-  },
-
-  updateTimeDisplaySettings: async (payload: TimeDisplaySettingsInput): Promise<TimeDisplaySettingsStatus> => {
-    const res = await apiClient.put<TimeDisplaySettingsStatus>("/settings/time-display", payload);
-    return res.data;
-  },
-
-  updateCertificateDiagnosticsSettings: async (
-    payload: CertificateDiagnosticsSettingsInput,
-  ): Promise<CertificateDiagnosticsSettingsStatus> => {
-    const res = await apiClient.put<CertificateDiagnosticsSettingsStatus>(
-      "/settings/certificate-diagnostics",
-      payload,
-    );
-    return res.data;
-  },
-
-  updateTraefikDashboardSettings: async (
-    payload: TraefikDashboardSettingsInput,
-  ): Promise<TraefikDashboardSettingsStatus> => {
-    const res = await apiClient.put<TraefikDashboardSettingsStatus>("/settings/traefik-dashboard", payload);
-    return res.data;
-  },
-
-  updateUpstreamSecuritySettings: async (
-    payload: UpstreamSecuritySettingsInput,
-  ): Promise<UpstreamSecuritySettingsStatus> => {
-    const res = await apiClient.put<UpstreamSecuritySettingsStatus>("/settings/upstream-security", payload);
-    return res.data;
-  },
-
-  updateLoginDefenseSettings: async (payload: LoginDefenseSettingsInput): Promise<LoginDefenseSettingsStatus> => {
-    const res = await apiClient.put<LoginDefenseSettingsStatus>("/settings/login-defense", payload);
-    return res.data;
-  },
-
-  updateSecurityAlertSettings: async (
-    payload: SecurityAlertSettingsInput,
-  ): Promise<SecurityAlertSettingsStatus> => {
-    const res = await apiClient.put<SecurityAlertSettingsStatus>("/settings/security-alerts", payload);
-    return res.data;
-  },
-
-  testSecurityAlertSettings: async (): Promise<SettingsActionTestResult> => {
-    const res = await apiClient.post<SettingsActionTestResult>("/settings/security-alerts/test");
-    return res.data;
-  },
-
-  rollbackSettingsChange: async (auditLogId: string): Promise<SettingsRollbackActionResult> => {
-    const res = await apiClient.post<SettingsRollbackActionResult>(`/settings/rollback/${auditLogId}`);
-    return res.data;
-  },
-
-  exportBackup: async (): Promise<BackupPayload> => {
-    const res = await apiClient.get<BackupPayload>("/backup/export");
-    return res.data;
-  },
-
-  importBackup: async (
-    mode: "merge" | "overwrite",
-    data: BackupPayload
-  ): Promise<BackupImportResult> => {
-    const res = await apiClient.post<BackupImportResult>("/backup/import", { mode, data });
-    return res.data;
-  },
-
-  validateBackup: async (
-    mode: "merge" | "overwrite",
-    data: BackupPayload
-  ): Promise<BackupValidateResult> => {
-    const res = await apiClient.post<BackupValidateResult>("/backup/validate", { mode, data });
-    return res.data;
-  },
-
-  previewBackup: async (
-    mode: "merge" | "overwrite",
-    data: BackupPayload
-  ): Promise<BackupPreviewResult> => {
-    const res = await apiClient.post<BackupPreviewResult>("/backup/preview", { mode, data });
-    return res.data;
-  },
+  ...cloudflareSettingsApi,
+  ...policySettingsApi,
+  ...securityAlertSettingsApi,
+  ...settingsHistoryApi,
+  ...settingsBackupApi,
 };
