@@ -12,7 +12,6 @@ from app.core.certificate_diagnostics import (
     CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_KEY,
 )
 from app.core.logging_config import get_client_ip
-from app.core.security import hash_basic_auth_password
 from app.core.time_display import (
     get_display_timezone_label,
     get_display_timezone_name,
@@ -48,6 +47,9 @@ from app.interfaces.api.v1.routers.settings_response_builders import (
 )
 from app.interfaces.api.v1.routers.settings_login_defense_update import update_login_defense_settings_values
 from app.interfaces.api.v1.routers.settings_security_alert_update import update_security_alert_settings_values
+from app.interfaces.api.v1.routers.settings_traefik_dashboard_update import (
+    update_traefik_dashboard_settings_values,
+)
 from app.interfaces.api.v1.routers.settings_summary_helpers import (
     certificate_diagnostics_summary as _certificate_diagnostics_summary,
     cloudflare_summary as _cloudflare_summary,
@@ -304,38 +306,12 @@ async def update_traefik_dashboard_settings(
     _: dict = Depends(require_admin),
 ):
     repo = SQLiteSystemSettingsRepository(db)
-    previous_response = await _build_traefik_dashboard_response(repo)
 
-    existing_password_hash = await repo.get("traefik_dashboard_public_auth_password_hash")
-    effective_password_hash = existing_password_hash or ""
-    if request.auth_password:
-        effective_password_hash = hash_basic_auth_password(request.auth_password)
-
-    if request.enabled:
-        if not request.domain or not request.auth_username:
-            raise HTTPException(status_code=422, detail="공개 도메인과 기본 인증 사용자명이 필요합니다")
-        if not effective_password_hash:
-            raise HTTPException(status_code=422, detail="처음 활성화할 때는 기본 인증 비밀번호가 필요합니다")
-        await _ensure_dashboard_domain_is_available(db, request.domain)
-
-    await repo.set(
-        "traefik_dashboard_public_enabled",
-        "true" if request.enabled else "false",
+    previous_response, response, effective_password_hash = await update_traefik_dashboard_settings_values(
+        repo,
+        request,
+        lambda domain: _ensure_dashboard_domain_is_available(db, domain),
     )
-    await repo.set(
-        "traefik_dashboard_public_domain",
-        request.domain or None,
-    )
-    await repo.set(
-        "traefik_dashboard_public_auth_username",
-        request.auth_username or None,
-    )
-    if request.auth_password:
-        await repo.set(
-            "traefik_dashboard_public_auth_password_hash",
-            effective_password_hash,
-        )
-
     file_writer = FileProviderWriter()
     if request.enabled and request.domain and request.auth_username and effective_password_hash:
         file_writer.write_traefik_dashboard_public_route(
@@ -346,7 +322,6 @@ async def update_traefik_dashboard_settings(
     else:
         file_writer.delete_traefik_dashboard_public_route()
 
-    response = await _build_traefik_dashboard_response(repo)
     await _record_settings_update(
         db=db,
         actor=_.get("username", "unknown"),
