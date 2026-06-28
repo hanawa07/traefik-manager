@@ -2,6 +2,9 @@
 .env
 .env.local
 
+# 로컬 백업 파일
+docker-compose.yml.bak.*
+
 # Python
 __pycache__/
 *.pyc
