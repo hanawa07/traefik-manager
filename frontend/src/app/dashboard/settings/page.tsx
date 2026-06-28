@@ -7,9 +7,6 @@ import { useLogoutAllSessions, useRevokeSession, useSessions } from "@/features/
 import { useAuditRetryDelivery } from "@/features/audit/hooks/useAudit";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import {
-  BackupValidateResult,
-  BackupPayload,
-  BackupPreviewResult,
   CloudflareDriftCheckResult,
   CloudflareZoneInput,
   SettingsActionTestResult,
@@ -28,8 +25,6 @@ import {
   useCertificateDiagnosticsSettings,
   useCloudflareStatus,
   useDiagnoseCloudflareDnsDrift,
-  useExportBackup,
-  useImportBackup,
   useLoginDefenseSettings,
   useSecurityAlertSettings,
   useTraefikDashboardSettings,
@@ -46,9 +41,8 @@ import {
   useUpdateTimeDisplaySettings,
   useUpdateLoginDefenseSettings,
   useUpdateUpstreamSecuritySettings,
-  useValidateBackup,
-  usePreviewBackup,
 } from "@/features/settings/hooks/useSettings";
+import { useBackupRestoreSettings } from "@/features/settings/hooks/useBackupRestoreSettings";
 import {
   createDefaultCertificateDiagnosticsForm,
   createDefaultCloudflareZoneForm,
@@ -60,6 +54,7 @@ import {
 import {
   parseMultivalueText,
 } from "@/features/settings/lib/settingsFormHelpers";
+import { getApiErrorDetail } from "@/features/settings/lib/settingsErrors";
 import UserManagementSection from "@/features/users/components/UserManagementSection";
 import { getDefaultDisplayTimezone } from "@/shared/lib/dateTimeFormat";
 
@@ -72,23 +67,11 @@ function buildActionFailure(message: string, detail?: string): SettingsActionTes
   };
 }
 
-function getApiErrorDetail(error: unknown, fallback: string): string {
-  const detail = (error as { response?: { data?: { detail?: string | Array<{ msg?: string }> } } })?.response?.data
-    ?.detail;
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) return detail[0]?.msg || fallback;
-  return fallback;
-}
-
 export default function SettingsPage() {
   const router = useRouter();
   const role = useAuthStore((state) => state.role);
   const clearSession = useAuthStore((state) => state.clearSession);
   const canManage = role === "admin";
-  const [backupFile, setBackupFile] = useState<File | null>(null);
-  const [importMode, setImportMode] = useState<"merge" | "overwrite">("merge");
-  const [importResultMessage, setImportResultMessage] = useState<string>("");
-  const [exportErrorMessage, setExportErrorMessage] = useState<string>("");
   const [cloudflareErrorMessage, setCloudflareErrorMessage] = useState("");
   const [cloudflareTestResult, setCloudflareTestResult] = useState<SettingsActionTestResult | null>(null);
   const [cloudflareDriftResult, setCloudflareDriftResult] = useState<CloudflareDriftCheckResult | null>(null);
@@ -96,8 +79,6 @@ export default function SettingsPage() {
   const [securityAlertTestResult, setSecurityAlertTestResult] = useState<SettingsActionTestResult | null>(null);
   const [securityAlertDeliveryRetryResult, setSecurityAlertDeliveryRetryResult] = useState<SettingsActionTestResult | null>(null);
   const [changeAlertDeliveryRetryResult, setChangeAlertDeliveryRetryResult] = useState<SettingsActionTestResult | null>(null);
-  const [backupValidationResult, setBackupValidationResult] = useState<BackupValidateResult | null>(null);
-  const [backupPreviewResult, setBackupPreviewResult] = useState<BackupPreviewResult | null>(null);
   const [retryTargetAuditId, setRetryTargetAuditId] = useState<string | null>(null);
 
   const [isEditingCf, setIsEditingCf] = useState(false);
@@ -131,6 +112,7 @@ export default function SettingsPage() {
   const { data: securityAlertSettings, isLoading: isSecurityAlertLoading } = useSecurityAlertSettings();
   const { data: settingsTestHistory, isLoading: isSettingsTestHistoryLoading } = useSettingsTestHistory();
   const { data: sessionData, isLoading: isSessionsLoading } = useSessions();
+  const backupRestore = useBackupRestoreSettings(canManage);
   const updateCloudflare = useUpdateCloudflareSettings();
   const testCloudflareConnection = useTestCloudflareConnection();
   const diagnoseCloudflareDnsDrift = useDiagnoseCloudflareDnsDrift();
@@ -145,10 +127,6 @@ export default function SettingsPage() {
   const retryDelivery = useAuditRetryDelivery();
   const logoutAllSessions = useLogoutAllSessions();
   const revokeSession = useRevokeSession();
-  const exportBackup = useExportBackup();
-  const importBackup = useImportBackup();
-  const validateBackup = useValidateBackup();
-  const previewBackup = usePreviewBackup();
 
   const handleEditCf = () => {
     setCfForm(
@@ -465,124 +443,6 @@ export default function SettingsPage() {
     }
   };
 
-  const resetBackupReview = () => {
-    setBackupValidationResult(null);
-    setBackupPreviewResult(null);
-  };
-
-  const handleBackupFileChange = (file: File | null) => {
-    setBackupFile(file);
-    resetBackupReview();
-    setImportResultMessage("");
-  };
-
-  const handleImportModeChange = (mode: "merge" | "overwrite") => {
-    setImportMode(mode);
-    resetBackupReview();
-  };
-
-  const handleExport = async () => {
-    setExportErrorMessage("");
-    try {
-      const data = await exportBackup.mutateAsync();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      const now = new Date().toISOString().replace(/[:.]/g, "-");
-      a.href = url;
-      a.download = `traefik-manager-backup-${now}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      setExportErrorMessage("백업 내보내기에 실패했습니다");
-    }
-  };
-
-  const handleImport = async () => {
-    if (!canManage) return;
-    if (!backupFile) return;
-    setImportResultMessage("");
-    setBackupValidationResult(null);
-    setBackupPreviewResult(null);
-
-    let parsed: BackupPayload;
-    try {
-      const text = await backupFile.text();
-      parsed = JSON.parse(text) as BackupPayload;
-    } catch {
-      setImportResultMessage("유효하지 않은 JSON 파일입니다");
-      return;
-    }
-
-    let result;
-    try {
-      result = await importBackup.mutateAsync({
-        mode: importMode,
-        data: parsed,
-      });
-    } catch {
-      return;
-    }
-
-    setImportResultMessage(
-      `가져오기 완료: 서비스 생성 ${result.created_services}개, 서비스 수정 ${result.updated_services}개, 리다이렉트 생성 ${result.created_redirects}개, 리다이렉트 수정 ${result.updated_redirects}개`
-    );
-    setBackupFile(null);
-  };
-
-  const handleValidateBackup = async () => {
-    if (!backupFile) return;
-    setImportResultMessage("");
-    setBackupValidationResult(null);
-    setBackupPreviewResult(null);
-
-    let parsed: BackupPayload;
-    try {
-      const text = await backupFile.text();
-      parsed = JSON.parse(text) as BackupPayload;
-    } catch {
-      setImportResultMessage("유효하지 않은 JSON 파일입니다");
-      return;
-    }
-
-    try {
-      const result = await validateBackup.mutateAsync({
-        mode: importMode,
-        data: parsed,
-      });
-      setBackupValidationResult(result);
-    } catch (error) {
-      setImportResultMessage(getApiErrorDetail(error, "백업 사전 검증에 실패했습니다"));
-    }
-  };
-
-  const handlePreviewBackup = async () => {
-    if (!backupFile) return;
-    setImportResultMessage("");
-    setBackupPreviewResult(null);
-
-    let parsed: BackupPayload;
-    try {
-      const text = await backupFile.text();
-      parsed = JSON.parse(text) as BackupPayload;
-    } catch {
-      setImportResultMessage("유효하지 않은 JSON 파일입니다");
-      return;
-    }
-
-    try {
-      const result = await previewBackup.mutateAsync({
-        mode: importMode,
-        data: parsed,
-      });
-      setBackupPreviewResult(result);
-    } catch (error) {
-      setImportResultMessage(getApiErrorDetail(error, "복원 미리보기에 실패했습니다"));
-    }
-  };
-
   const handleLogoutAllSessions = async () => {
     await logoutAllSessions.mutateAsync();
     clearSession();
@@ -751,30 +611,7 @@ export default function SettingsPage() {
           onFormChange={setCfForm}
         />
 
-        <BackupRestoreSettingsCard
-          canManage={canManage}
-          backupFile={backupFile}
-          importMode={importMode}
-          validationResult={backupValidationResult}
-          previewResult={backupPreviewResult}
-          exportErrorMessage={exportErrorMessage}
-          importErrorMessage={
-            importBackup.error
-              ? getApiErrorDetail(importBackup.error, "백업 복원 중 오류가 발생했습니다")
-              : null
-          }
-          importResultMessage={importResultMessage}
-          isExporting={exportBackup.isPending}
-          isValidating={validateBackup.isPending}
-          isPreviewing={previewBackup.isPending}
-          isImporting={importBackup.isPending}
-          onExport={handleExport}
-          onValidate={handleValidateBackup}
-          onPreview={handlePreviewBackup}
-          onImport={handleImport}
-          onBackupFileChange={handleBackupFileChange}
-          onImportModeChange={handleImportModeChange}
-        />
+        <BackupRestoreSettingsCard canManage={canManage} {...backupRestore} />
       </div>
     </div>
   );
