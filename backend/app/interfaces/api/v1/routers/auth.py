@@ -1,18 +1,12 @@
-import logging
-from datetime import datetime, timedelta, timezone
-
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.auth import login_anomaly_service
 from app.application.auth.auth_use_cases import AuthUseCases
 from app.application.audit import audit_service
-from app.application.auth import login_anomaly_service
 from app.core.config import settings
-from app.core.logging_config import get_client_ip
 from app.core.session_security import issue_csrf_token, issue_session_credentials
-from app.domain.auth.entities.auth_session import AuthSession
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.models import ServiceModel
 from app.infrastructure.persistence.repositories.sqlite_auth_session_repository import (
@@ -25,78 +19,36 @@ from app.infrastructure.persistence.repositories.sqlite_user_repository import (
     SQLiteUserRepository,
 )
 from app.infrastructure.security import turnstile_verifier
-from app.interfaces.api.v1.schemas.settings_schemas import normalize_trusted_networks
 from app.interfaces.api.dependencies import get_current_user, resolve_authenticated_user
+from app.interfaces.api.v1.routers.auth_forward import verify_token_handler
+from app.interfaces.api.v1.routers.auth_login import (
+    get_login_protection_handler,
+    login_handler,
+)
 from app.interfaces.api.v1.routers.auth_session_helpers import (
     clear_auth_cookies as _clear_auth_cookies,
     set_auth_cookies as _set_auth_cookies,
     to_session_response as _to_session_response,
 )
+from app.interfaces.api.v1.routers.auth_sessions import (
+    get_current_session_handler,
+    list_sessions_handler,
+    logout_all_sessions_handler,
+    logout_handler,
+    revoke_session_handler,
+)
 from app.interfaces.api.v1.schemas.auth_schemas import (
     CurrentSessionResponse,
-    LoginResponse,
     LoginProtectionResponse,
+    LoginResponse,
     SessionListResponse,
 )
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
 
 def get_use_cases(db: AsyncSession = Depends(get_db)) -> AuthUseCases:
     return AuthUseCases(SQLiteUserRepository(db))
-
-
-def _turnstile_risk_failure_threshold() -> int:
-    return max(2, settings.LOGIN_MAX_FAILED_ATTEMPTS - 2)
-
-
-async def _get_turnstile_mode(repo: SQLiteSystemSettingsRepository) -> str:
-    stored_mode = ((await repo.get("login_turnstile_mode")) or "").strip().lower()
-    if stored_mode in {"off", "always", "risk_based"}:
-        return stored_mode
-
-    legacy_enabled = await _get_bool_system_setting(repo, "login_turnstile_enabled", default=False)
-    return "always" if legacy_enabled else "off"
-
-
-async def _get_int_system_setting(
-    repo: SQLiteSystemSettingsRepository,
-    key: str,
-    *,
-    default: int,
-) -> int:
-    value = await repo.get(key)
-    if value is None:
-        return default
-    try:
-        return int(value.strip())
-    except ValueError:
-        return default
-
-
-async def _is_turnstile_required(
-    *,
-    repo: SQLiteSystemSettingsRepository,
-    db: AsyncSession,
-    client_ip: str | None,
-    now: datetime,
-    trusted_networks: list[str],
-) -> tuple[str, bool]:
-    turnstile_mode = await _get_turnstile_mode(repo)
-    if turnstile_mode == "off":
-        return turnstile_mode, False
-    if turnstile_mode == "always":
-        return turnstile_mode, True
-
-    return turnstile_mode, await login_anomaly_service.should_require_turnstile_for_ip(
-        db=db,
-        client_ip=client_ip,
-        now=now,
-        window=timedelta(minutes=settings.LOGIN_FAILURE_WINDOW_MINUTES),
-        failure_threshold=_turnstile_risk_failure_threshold(),
-        trusted_networks=trusted_networks,
-    )
 
 
 @router.post("/login", response_model=LoginResponse, summary="로그인")
@@ -107,171 +59,22 @@ async def login(
     use_cases: AuthUseCases = Depends(get_use_cases),
     db: AsyncSession = Depends(get_db),
 ):
-    current = datetime.now(timezone.utc)
-    client_ip = get_client_ip(request)
-    system_settings_repo = SQLiteSystemSettingsRepository(db)
-    suspicious_block_enabled = await _get_bool_system_setting(
-        system_settings_repo,
-        "login_suspicious_block_enabled",
-        default=True,
-    )
-    suspicious_block_escalation_enabled = await _get_bool_system_setting(
-        system_settings_repo,
-        "login_suspicious_block_escalation_enabled",
-        default=settings.LOGIN_SUSPICIOUS_BLOCK_ESCALATION_ENABLED,
-    )
-    suspicious_block_escalation_window_minutes = await _get_int_system_setting(
-        system_settings_repo,
-        "login_suspicious_block_escalation_window_minutes",
-        default=settings.LOGIN_SUSPICIOUS_BLOCK_ESCALATION_WINDOW_MINUTES,
-    )
-    suspicious_block_escalation_multiplier = await _get_int_system_setting(
-        system_settings_repo,
-        "login_suspicious_block_escalation_multiplier",
-        default=settings.LOGIN_SUSPICIOUS_BLOCK_ESCALATION_MULTIPLIER,
-    )
-    suspicious_block_max_minutes = await _get_int_system_setting(
-        system_settings_repo,
-        "login_suspicious_block_max_minutes",
-        default=settings.LOGIN_SUSPICIOUS_BLOCK_MAX_MINUTES,
-    )
-    trusted_networks = normalize_trusted_networks(
-        _split_multivalue_setting(await system_settings_repo.get("login_suspicious_trusted_networks"))
-    )
-    if await login_anomaly_service.enforce_suspicious_ip_block_if_needed(
+    return await login_handler(
+        request=request,
+        response=response,
+        form=form,
+        use_cases=use_cases,
         db=db,
-        client_ip=client_ip,
-        now=current,
-        block_window=timedelta(minutes=settings.LOGIN_SUSPICIOUS_BLOCK_MINUTES),
-        block_enabled=suspicious_block_enabled,
-        trusted_networks=trusted_networks,
-        escalation_enabled=suspicious_block_escalation_enabled,
-        escalation_window=timedelta(minutes=suspicious_block_escalation_window_minutes),
-        escalation_multiplier=suspicious_block_escalation_multiplier,
-        max_block_window=timedelta(minutes=suspicious_block_max_minutes),
-    ):
-        logger.warning(
-            "로그인 차단: ip=%s reason=%s",
-            client_ip,
-            "suspicious_ip",
-            extra={"client_ip": client_ip, "failure_reason": "suspicious_ip"},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="아이디 또는 비밀번호가 올바르지 않습니다",
-        )
-
-    _, turnstile_required = await _is_turnstile_required(
-        repo=system_settings_repo,
-        db=db,
-        client_ip=client_ip,
-        now=current,
-        trusted_networks=trusted_networks,
+        auth_session_repository_factory=SQLiteAuthSessionRepository,
+        system_settings_repository_factory=SQLiteSystemSettingsRepository,
+        issue_session_credentials_func=issue_session_credentials,
+        issue_csrf_token_func=issue_csrf_token,
+        set_auth_cookies_func=_set_auth_cookies,
+        audit_service_module=audit_service,
+        login_anomaly_service_module=login_anomaly_service,
+        turnstile_verifier_module=turnstile_verifier,
+        settings_obj=settings,
     )
-    turnstile_site_key = (await system_settings_repo.get("login_turnstile_site_key")) or ""
-    turnstile_secret_key = (await system_settings_repo.get("login_turnstile_secret_key")) or ""
-    if turnstile_required:
-        submitted_form = await request.form()
-        turnstile_token = str(submitted_form.get("cf-turnstile-response") or "").strip()
-        if not turnstile_token or not turnstile_site_key or not turnstile_secret_key:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="추가 로그인 검증에 실패했습니다",
-            )
-        verified = await turnstile_verifier.verify_token(
-            token=turnstile_token,
-            secret_key=turnstile_secret_key,
-            remote_ip=client_ip,
-        )
-        if not verified:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="추가 로그인 검증에 실패했습니다",
-            )
-
-    auth_result = await use_cases.authenticate_user(form.username, form.password)
-    if not auth_result.authenticated_user:
-        event = "login_locked" if auth_result.failure_reason == "locked" else "login_failure"
-        await audit_service.record(
-            db=db,
-            actor=form.username.strip() or "anonymous",
-            action="update",
-            resource_type="user",
-            resource_id=(
-                str(auth_result.subject_user.id)
-                if auth_result.subject_user
-                else (form.username.strip() or "unknown")[:36]
-            ),
-            resource_name=(
-                auth_result.subject_user.username
-                if auth_result.subject_user
-                else (form.username.strip() or "unknown")
-            ),
-            detail={
-                "event": event,
-                "client_ip": client_ip,
-                "locked_until": (
-                    auth_result.locked_until.isoformat()
-                    if auth_result.locked_until is not None
-                    else None
-                ),
-            },
-        )
-        await login_anomaly_service.record_suspicious_login_activity_if_needed(
-            db=db,
-            client_ip=client_ip,
-            now=current,
-            window=timedelta(minutes=settings.LOGIN_SUSPICIOUS_WINDOW_MINUTES),
-            min_failures=settings.LOGIN_SUSPICIOUS_FAILURE_COUNT,
-            min_unique_usernames=settings.LOGIN_SUSPICIOUS_USERNAME_COUNT,
-            trusted_networks=trusted_networks,
-        )
-        logger.warning(
-            "로그인 실패: username=%s reason=%s",
-            form.username,
-            auth_result.failure_reason,
-            extra={
-                "client_ip": client_ip,
-                "failure_reason": auth_result.failure_reason,
-                "locked_until": (
-                    auth_result.locked_until.isoformat()
-                    if auth_result.locked_until is not None
-                    else None
-                ),
-            },
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="아이디 또는 비밀번호가 올바르지 않습니다",
-        )
-    user = auth_result.authenticated_user
-
-    credentials = issue_session_credentials()
-    csrf_token = issue_csrf_token()
-    auth_session = AuthSession.issue(
-        session_id=credentials.session_id,
-        session_secret_hash=credentials.secret_hash,
-        user_id=str(user.id),
-        username=user.username,
-        role=user.role,
-        token_version=user.token_version,
-        absolute_ttl=timedelta(minutes=settings.SESSION_ABSOLUTE_MINUTES),
-        idle_ttl=timedelta(minutes=settings.SESSION_IDLE_MINUTES),
-        ip_address=get_client_ip(request),
-        user_agent=request.headers.get("user-agent"),
-    )
-    await SQLiteAuthSessionRepository(db).save(auth_session)
-    _set_auth_cookies(response, credentials.cookie_value, csrf_token)
-
-    logger.info(
-        "로그인 성공: username=%s",
-        user.username,
-        extra={"client_ip": get_client_ip(request)},
-    )
-    return {
-        "username": user.username,
-        "role": user.role,
-    }
 
 
 @router.get("/login-protection", response_model=LoginProtectionResponse, summary="로그인 보호 공개 설정")
@@ -279,55 +82,18 @@ async def get_login_protection(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    repo = SQLiteSystemSettingsRepository(db)
-    current = datetime.now(timezone.utc)
-    trusted_networks = normalize_trusted_networks(
-        _split_multivalue_setting(await repo.get("login_suspicious_trusted_networks"))
-    )
-    turnstile_mode, turnstile_required = await _is_turnstile_required(
-        repo=repo,
+    return await get_login_protection_handler(
+        request=request,
         db=db,
-        client_ip=get_client_ip(request),
-        now=current,
-        trusted_networks=trusted_networks,
+        system_settings_repository_factory=SQLiteSystemSettingsRepository,
+        login_anomaly_service_module=login_anomaly_service,
+        settings_obj=settings,
     )
-    return LoginProtectionResponse(
-        turnstile_mode=turnstile_mode,
-        turnstile_enabled=turnstile_mode != "off",
-        turnstile_required=turnstile_required,
-        turnstile_site_key=await repo.get("login_turnstile_site_key"),
-    )
-
-
-async def _get_bool_system_setting(
-    repo: SQLiteSystemSettingsRepository,
-    key: str,
-    *,
-    default: bool,
-) -> bool:
-    value = await repo.get(key)
-    if value is None:
-        return default
-    return value.strip().lower() == "true"
-
-
-def _split_multivalue_setting(value: str | None) -> list[str]:
-    if not value:
-        return []
-    return [item.strip() for item in value.replace(",", "\n").splitlines() if item.strip()]
 
 
 @router.get("/me", response_model=CurrentSessionResponse, summary="현재 로그인 세션")
 async def get_current_session(current_user: dict = Depends(get_current_user)):
-    auth_session = current_user["session"]
-    return CurrentSessionResponse(
-        username=current_user["username"],
-        role=current_user["role"],
-        session_id=auth_session.id,
-        issued_at=auth_session.issued_at,
-        expires_at=auth_session.expires_at,
-        idle_expires_at=auth_session.idle_expires_at,
-    )
+    return await get_current_session_handler(current_user)
 
 
 @router.get("/sessions", response_model=SessionListResponse, summary="내 세션 목록")
@@ -335,13 +101,11 @@ async def list_sessions(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    repository = SQLiteAuthSessionRepository(db)
-    sessions = await repository.find_active_by_user_id(
-        current_user["id"],
-        datetime.now(timezone.utc),
-    )
-    return SessionListResponse(
-        sessions=[_to_session_response(session, current_user["session_id"]) for session in sessions]
+    return await list_sessions_handler(
+        current_user=current_user,
+        db=db,
+        auth_session_repository_factory=SQLiteAuthSessionRepository,
+        to_session_response_func=_to_session_response,
     )
 
 
@@ -351,11 +115,13 @@ async def logout(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    auth_session = current_user["session"]
-    auth_session.revoke("user_logout")
-    await SQLiteAuthSessionRepository(db).save(auth_session)
-    _clear_auth_cookies(response)
-    logger.info("로그아웃: username=%s", current_user["username"])
+    await logout_handler(
+        response=response,
+        current_user=current_user,
+        db=db,
+        auth_session_repository_factory=SQLiteAuthSessionRepository,
+        clear_auth_cookies_func=_clear_auth_cookies,
+    )
 
 
 @router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT, summary="내 모든 세션 로그아웃")
@@ -364,14 +130,13 @@ async def logout_all_sessions(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    repository = SQLiteAuthSessionRepository(db)
-    revoked_at = datetime.now(timezone.utc)
-    sessions = await repository.find_active_by_user_id(current_user["id"], revoked_at)
-    for session in sessions:
-        session.revoke("user_logout_all", revoked_at=revoked_at)
-        await repository.save(session)
-    _clear_auth_cookies(response)
-    logger.info("전체 로그아웃: username=%s count=%d", current_user["username"], len(sessions))
+    await logout_all_sessions_handler(
+        response=response,
+        current_user=current_user,
+        db=db,
+        auth_session_repository_factory=SQLiteAuthSessionRepository,
+        clear_auth_cookies_func=_clear_auth_cookies,
+    )
 
 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT, summary="세션 종료")
@@ -381,16 +146,14 @@ async def revoke_session(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    repository = SQLiteAuthSessionRepository(db)
-    auth_session = await repository.find_by_id(session_id)
-    if not auth_session or auth_session.user_id != current_user["id"] or auth_session.revoked_at is not None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="세션을 찾을 수 없습니다")
-
-    auth_session.revoke("user_logout_session")
-    await repository.save(auth_session)
-    if auth_session.id == current_user["session_id"]:
-        _clear_auth_cookies(response)
-    logger.info("세션 종료: username=%s session_id=%s", current_user["username"], session_id)
+    await revoke_session_handler(
+        session_id=session_id,
+        response=response,
+        current_user=current_user,
+        db=db,
+        auth_session_repository_factory=SQLiteAuthSessionRepository,
+        clear_auth_cookies_func=_clear_auth_cookies,
+    )
 
 
 @router.get(
@@ -403,38 +166,9 @@ async def verify_token(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Traefik forwardAuth 미들웨어가 호출하는 엔드포인트.
-    1. 서비스 전용 API Key 검증 (우선)
-    2. 관리자 세션 쿠키 검증
-    """
-    auth_header = request.headers.get("Authorization", "")
-    forwarded_host = request.headers.get("X-Forwarded-Host")
-
-    if auth_header.startswith("Bearer ") and forwarded_host:
-        token = auth_header[7:]
-        result = await db.execute(
-            select(ServiceModel).where(ServiceModel.domain == forwarded_host)
-        )
-        service = result.scalar_one_or_none()
-
-        if service and service.auth_mode == "token" and service.api_key == token:
-            return Response(
-                status_code=200,
-                headers={
-                    "X-Auth-User": f"api-key-{service.name}",
-                    "X-Auth-Role": "api",
-                },
-            )
-
-    try:
-        user, _auth_session = await resolve_authenticated_user(request=request, db=db)
-        return Response(
-            status_code=200,
-            headers={
-                "X-Auth-User": user.username,
-                "X-Auth-Role": user.role,
-            },
-        )
-    except HTTPException:
-        return Response(status_code=401)
+    return await verify_token_handler(
+        request=request,
+        db=db,
+        service_model=ServiceModel,
+        resolve_authenticated_user_func=resolve_authenticated_user,
+    )
