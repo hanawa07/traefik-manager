@@ -11,6 +11,26 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
 )
 
 
+async def ensure_dashboard_domain_is_available(
+    service_repository,
+    redirect_repository,
+    domain: str,
+) -> None:
+    service = await service_repository.find_by_domain(domain)
+    if service is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="이미 서비스에서 사용 중인 도메인입니다. 다른 공개 도메인을 사용해야 합니다.",
+        )
+
+    redirect_host = await redirect_repository.find_by_domain(domain)
+    if redirect_host is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="이미 리다이렉트에서 사용 중인 도메인입니다. 다른 공개 도메인을 사용해야 합니다.",
+        )
+
+
 async def update_traefik_dashboard_settings_values(
     repo: SQLiteSystemSettingsRepository,
     request: TraefikDashboardSettingsUpdateRequest,
