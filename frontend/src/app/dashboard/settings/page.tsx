@@ -1,12 +1,8 @@
 "use client";
 import { useState } from "react";
 
-import { useAuditRetryDelivery } from "@/features/audit/hooks/useAudit";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
-import {
-  SettingsActionTestResult,
-  SettingsTestHistoryItem,
-} from "@/features/settings/api/settingsApi";
+import type { SettingsActionTestResult } from "@/features/settings/api/settingsApi";
 import { BackupRestoreSettingsCard } from "@/features/settings/components/BackupRestoreSettingsCard";
 import { CertificateDiagnosticsSettingsCard } from "@/features/settings/components/CertificateDiagnosticsSettingsCard";
 import { CloudflareDnsSettingsCard } from "@/features/settings/components/CloudflareDnsSettingsCard";
@@ -48,15 +44,13 @@ import { buildActionFailure, getApiErrorDetail } from "@/features/settings/lib/s
 import UserManagementSection from "@/features/users/components/UserManagementSection";
 import { getDefaultDisplayTimezone } from "@/shared/lib/dateTimeFormat";
 import SettingsPageHeader from "./SettingsPageHeader";
+import { useSettingsAlertRetry } from "./useSettingsAlertRetry";
 import { useSettingsSessionActions } from "./useSettingsSessionActions";
 
 export default function SettingsPage() {
   const role = useAuthStore((state) => state.role);
   const canManage = role === "admin";
   const [securityAlertTestResult, setSecurityAlertTestResult] = useState<SettingsActionTestResult | null>(null);
-  const [securityAlertDeliveryRetryResult, setSecurityAlertDeliveryRetryResult] = useState<SettingsActionTestResult | null>(null);
-  const [changeAlertDeliveryRetryResult, setChangeAlertDeliveryRetryResult] = useState<SettingsActionTestResult | null>(null);
-  const [retryTargetAuditId, setRetryTargetAuditId] = useState<string | null>(null);
 
   const [isEditingTimeDisplay, setIsEditingTimeDisplay] = useState(false);
   const [timeDisplayForm, setTimeDisplayForm] = useState(getDefaultDisplayTimezone());
@@ -95,6 +89,14 @@ export default function SettingsPage() {
   } = useSettingsSessionActions();
   const backupRestore = useBackupRestoreSettings(canManage);
   const cloudflareDns = useCloudflareDnsSettingsSection(timeDisplaySettings?.display_timezone);
+  const {
+    securityAlertDeliveryRetryResult,
+    changeAlertDeliveryRetryResult,
+    isRetryingSecurityDelivery,
+    isRetryingChangeDelivery,
+    retrySecurityDelivery,
+    retryChangeDelivery,
+  } = useSettingsAlertRetry(settingsTestHistory);
   const updateTimeDisplay = useUpdateTimeDisplaySettings();
   const updateCertificateDiagnostics = useUpdateCertificateDiagnosticsSettings();
   const updateTraefikDashboard = useUpdateTraefikDashboardSettings();
@@ -102,7 +104,6 @@ export default function SettingsPage() {
   const updateLoginDefense = useUpdateLoginDefenseSettings();
   const updateSecurityAlert = useUpdateSecurityAlertSettings();
   const testSecurityAlertSettings = useTestSecurityAlertSettings();
-  const retryDelivery = useAuditRetryDelivery();
   const handleEditTimeDisplay = () => {
     setTimeDisplayForm(timeDisplaySettings?.display_timezone ?? getDefaultDisplayTimezone());
     setTimeDisplayErrorMessage("");
@@ -314,42 +315,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleRetryDelivery = async (
-    history: SettingsTestHistoryItem | null | undefined,
-    target: "security" | "change",
-  ) => {
-    const auditLogId = history?.last_failure_audit_id;
-    if (!auditLogId) return;
-
-    try {
-      setRetryTargetAuditId(auditLogId);
-      const result = await retryDelivery.mutateAsync({ auditLogId });
-      const notice = {
-        success: result.success,
-        message: result.message,
-        detail: result.detail,
-        provider: result.provider,
-      };
-      if (target === "security") {
-        setSecurityAlertDeliveryRetryResult(notice);
-      } else {
-        setChangeAlertDeliveryRetryResult(notice);
-      }
-    } catch (error) {
-      const notice = buildActionFailure(
-        "알림 전송 재시도에 실패했습니다",
-        getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다"),
-      );
-      if (target === "security") {
-        setSecurityAlertDeliveryRetryResult(notice);
-      } else {
-        setChangeAlertDeliveryRetryResult(notice);
-      }
-    } finally {
-      setRetryTargetAuditId(null);
-    }
-  };
-
   return (
     <div className="p-8">
       <SettingsPageHeader />
@@ -426,24 +391,14 @@ export default function SettingsPage() {
           securityTestHistory={settingsTestHistory?.security_alert}
           securityDeliveryHistory={settingsTestHistory?.security_alert_delivery}
           changeDeliveryHistory={settingsTestHistory?.change_alert_delivery}
-          isRetryingSecurityDelivery={
-            retryDelivery.isPending &&
-            retryTargetAuditId === settingsTestHistory?.security_alert_delivery?.last_failure_audit_id
-          }
-          isRetryingChangeDelivery={
-            retryDelivery.isPending &&
-            retryTargetAuditId === settingsTestHistory?.change_alert_delivery?.last_failure_audit_id
-          }
+          isRetryingSecurityDelivery={isRetryingSecurityDelivery}
+          isRetryingChangeDelivery={isRetryingChangeDelivery}
           onEdit={handleEditSecurityAlert}
           onSave={handleSaveSecurityAlert}
           onCancel={() => setIsEditingSecurityAlert(false)}
           onTest={handleTestSecurityAlert}
-          onRetrySecurityDelivery={() =>
-            handleRetryDelivery(settingsTestHistory?.security_alert_delivery, "security")
-          }
-          onRetryChangeDelivery={() =>
-            handleRetryDelivery(settingsTestHistory?.change_alert_delivery, "change")
-          }
+          onRetrySecurityDelivery={retrySecurityDelivery}
+          onRetryChangeDelivery={retryChangeDelivery}
           onFormChange={setSecurityAlertForm}
         />
 
