@@ -14,9 +14,6 @@ from app.infrastructure.persistence.repositories.sqlite_service_repository impor
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.routers.settings_audit_helpers import (
-    record_cloudflare_connection_test_audit as _record_cloudflare_connection_test_audit,
-    record_cloudflare_drift_audit as _record_cloudflare_drift_audit,
-    record_cloudflare_reconcile_audit as _record_cloudflare_reconcile_audit,
     record_security_alert_test_audit as _record_security_alert_test_audit,
     record_settings_rollback as _record_settings_rollback,
     record_settings_update as _record_settings_update,
@@ -24,11 +21,14 @@ from app.interfaces.api.v1.routers.settings_audit_helpers import (
 from app.interfaces.api.v1.routers.settings_certificate_diagnostics_update import (
     update_certificate_diagnostics_settings_values,
 )
-from app.interfaces.api.v1.routers.settings_cloudflare_drift import diagnose_cloudflare_dns_drift_records
+from app.interfaces.api.v1.routers.settings_cloudflare_actions import (
+    diagnose_cloudflare_dns_drift_action as _diagnose_cloudflare_dns_drift_action,
+    reconcile_cloudflare_dns_action as _reconcile_cloudflare_dns_action,
+    test_cloudflare_connection_action as _test_cloudflare_connection_action,
+)
 from app.interfaces.api.v1.routers.settings_cloudflare_client import (
     get_cloudflare_client,
 )
-from app.interfaces.api.v1.routers.settings_cloudflare_reconcile import reconcile_cloudflare_dns_records
 from app.interfaces.api.v1.routers.settings_cloudflare_update import update_cloudflare_settings_values
 from app.interfaces.api.v1.routers.settings_events import SETTINGS_UPDATE_EVENTS
 from app.interfaces.api.v1.routers.settings_response_builders import (
@@ -104,15 +104,14 @@ async def test_cloudflare_connection(
     cloudflare_client: CloudflareClient = Depends(get_cloudflare_client),
     _: dict = Depends(require_admin),
 ):
-    result = SettingsTestActionResponse(**(await cloudflare_client.test_connection()))
-    await _record_cloudflare_connection_test_audit(
-        audit_service=audit_service,
+    return await _test_cloudflare_connection_action(
+        request=request,
         db=db,
-        actor=_.get("username", "unknown"),
-        result=result,
-        client_ip=get_client_ip(request),
+        actor=_,
+        cloudflare_client=cloudflare_client,
+        audit_service=audit_service,
+        client_ip_getter=get_client_ip,
     )
-    return result
 
 
 @router.post("/cloudflare/drift", response_model=CloudflareDriftCheckResponse, summary="Cloudflare DNS 드리프트 진단")
@@ -122,20 +121,15 @@ async def diagnose_cloudflare_dns_drift(
     cloudflare_client: CloudflareClient = Depends(get_cloudflare_client),
     _: dict = Depends(require_admin),
 ):
-    summary = await diagnose_cloudflare_dns_drift_records(
-        cloudflare_client=cloudflare_client,
-        service_repository=SQLiteServiceRepository(db),
-    )
-    result = summary.result
-
-    await _record_cloudflare_drift_audit(
-        audit_service=audit_service,
+    return await _diagnose_cloudflare_dns_drift_action(
+        request=request,
         db=db,
-        actor=_.get("username", "unknown"),
-        summary=summary,
-        client_ip=get_client_ip(request),
+        actor=_,
+        cloudflare_client=cloudflare_client,
+        service_repository_factory=SQLiteServiceRepository,
+        audit_service=audit_service,
+        client_ip_getter=get_client_ip,
     )
-    return result
 
 
 @router.post("/cloudflare/reconcile", response_model=SettingsTestActionResponse, summary="Cloudflare DNS 재동기화")
@@ -145,20 +139,15 @@ async def reconcile_cloudflare_dns(
     cloudflare_client: CloudflareClient = Depends(get_cloudflare_client),
     _: dict = Depends(require_admin),
 ):
-    summary = await reconcile_cloudflare_dns_records(
-        cloudflare_client=cloudflare_client,
-        service_repository=SQLiteServiceRepository(db),
-    )
-    result = summary.result
-
-    await _record_cloudflare_reconcile_audit(
-        audit_service=audit_service,
+    return await _reconcile_cloudflare_dns_action(
+        request=request,
         db=db,
-        actor=_.get("username", "unknown"),
-        summary=summary,
-        client_ip=get_client_ip(request),
+        actor=_,
+        cloudflare_client=cloudflare_client,
+        service_repository_factory=SQLiteServiceRepository,
+        audit_service=audit_service,
+        client_ip_getter=get_client_ip,
     )
-    return result
 
 
 @router.put("/cloudflare", response_model=CloudflareSettingsStatusResponse, summary="Cloudflare 설정 저장")
