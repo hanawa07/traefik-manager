@@ -44,6 +44,7 @@ from app.interfaces.api.v1.routers.settings_audit_helpers import (
     find_latest_settings_events as _find_latest_settings_events,
     find_latest_settings_test_event as _find_latest_settings_test_event,
 )
+from app.interfaces.api.v1.routers.settings_cloudflare_reconcile import reconcile_cloudflare_dns_records
 from app.interfaces.api.v1.routers.settings_security_alert_helpers import (
     CHANGE_ALERT_EVENTS,
     SECURITY_ALERT_EVENTS,
@@ -450,136 +451,11 @@ async def reconcile_cloudflare_dns(
     cloudflare_client: CloudflareClient = Depends(get_cloudflare_client),
     _: dict = Depends(require_admin),
 ):
-    total_service_count = 0
-    eligible_service_count = 0
-    skipped_count = 0
-    synced_count = 0
-    failed_count = 0
-    cleaned_count = 0
-    cleanup_failed_count = 0
-    zone_count = 0
-
-    if not cloudflare_client.enabled:
-        result = SettingsTestActionResponse(
-            success=False,
-            message="Cloudflare DNS 재동기화에 실패했습니다",
-            detail="Cloudflare 영역 설정을 먼저 저장해야 합니다",
-            provider=None,
-        )
-    else:
-        try:
-            await cloudflare_client.ensure_zone_names()
-            zone_count = len(cloudflare_client.zone_configs)
-            if zone_count == 0:
-                raise CloudflareClientError("Zone 이름을 확인할 수 없습니다")
-
-            service_repository = SQLiteServiceRepository(db)
-            services = await service_repository.find_all()
-            total_service_count = len(services)
-            services_by_zone: dict[str, list] = {config.zone_id: [] for config in cloudflare_client.zone_configs}
-            for service in services:
-                matched_zone = await cloudflare_client.get_matching_zone(str(service.domain))
-                if matched_zone is None:
-                    skipped_count += 1
-                    continue
-                services_by_zone.setdefault(matched_zone.zone_id, []).append(service)
-
-            eligible_service_count = sum(len(zone_services) for zone_services in services_by_zone.values())
-            failure_messages: list[str] = []
-
-            for zone_config in cloudflare_client.zone_configs:
-                zone_services = services_by_zone.get(zone_config.zone_id, [])
-                current_domains = {str(service.domain) for service in zone_services}
-
-                for service in zone_services:
-                    try:
-                        record_id = await cloudflare_client.upsert_service_record(
-                            domain=str(service.domain),
-                            fallback_target=service.upstream.host,
-                        )
-                        if record_id != service.cloudflare_record_id:
-                            service.cloudflare_record_id = record_id
-                            await service_repository.save(service)
-                        synced_count += 1
-                    except Exception as exc:
-                        failed_count += 1
-                        failure_messages.append(f"{service.domain}: {exc}")
-
-                if not zone_services:
-                    continue
-
-                try:
-                    managed_records = await cloudflare_client.list_managed_records(zone_config)
-                except Exception as exc:
-                    cleanup_failed_count += 1
-                    failure_messages.append(f"{zone_config.zone_name or zone_config.zone_id} 관리 레코드 조회 실패: {exc}")
-                    continue
-
-                orphan_records = [
-                    record
-                    for record in managed_records
-                    if isinstance(record.get("name"), str) and record["name"] not in current_domains
-                ]
-                for record in orphan_records:
-                    domain = record.get("name")
-                    record_id = record.get("id")
-                    if not isinstance(domain, str):
-                        continue
-                    try:
-                        await cloudflare_client.delete_service_record(domain=domain, record_id=record_id)
-                        cleaned_count += 1
-                    except Exception as exc:
-                        cleanup_failed_count += 1
-                        failure_messages.append(f"{domain} 정리 실패: {exc}")
-
-            if not services:
-                result = SettingsTestActionResponse(
-                    success=True,
-                    message="재동기화할 서비스가 없습니다",
-                    detail="등록된 서비스가 없어 Cloudflare DNS 재동기화를 수행하지 않았습니다",
-                    provider=None,
-                )
-            elif eligible_service_count == 0:
-                result = SettingsTestActionResponse(
-                    success=True,
-                    message="Cloudflare DNS 재동기화 대상이 없습니다",
-                    detail=f"현재 서비스 {total_service_count}개가 모두 Cloudflare 관리 대상 zone 밖에 있습니다",
-                    provider=None,
-                )
-            elif failed_count == 0 and cleanup_failed_count == 0:
-                detail_parts = [f"Cloudflare 관리 대상 서비스 {synced_count}개를 동기화했습니다"]
-                if cleaned_count:
-                    detail_parts.append(f"고아 레코드 {cleaned_count}개를 정리했습니다")
-                if skipped_count:
-                    detail_parts.append(f"비Cloudflare 도메인 {skipped_count}개는 제외했습니다")
-                result = SettingsTestActionResponse(
-                    success=True,
-                    message="Cloudflare DNS 재동기화가 완료되었습니다",
-                    detail=", ".join(detail_parts),
-                    provider=None,
-                )
-            else:
-                failure_preview = " / ".join(failure_messages[:3])
-                if len(failure_messages) > 3:
-                    failure_preview += f" 외 {len(failure_messages) - 3}건"
-                skipped_detail = f", 비Cloudflare 도메인 {skipped_count}개 제외" if skipped_count else ""
-                cleanup_detail = f", 고아 레코드 정리 실패 {cleanup_failed_count}개" if cleanup_failed_count else ""
-                result = SettingsTestActionResponse(
-                    success=False,
-                    message=(
-                        "Cloudflare DNS 재동기화 중 일부 실패가 발생했습니다 "
-                        f"(성공 {synced_count}개, 실패 {failed_count}개{cleanup_detail}{skipped_detail})"
-                    ),
-                    detail=failure_preview,
-                    provider=None,
-                )
-        except CloudflareClientError as exc:
-            result = SettingsTestActionResponse(
-                success=False,
-                message="Cloudflare DNS 재동기화에 실패했습니다",
-                detail=str(exc),
-                provider=None,
-            )
+    summary = await reconcile_cloudflare_dns_records(
+        cloudflare_client=cloudflare_client,
+        service_repository=SQLiteServiceRepository(db),
+    )
+    result = summary.result
 
     await audit_service.record(
         db=db,
@@ -593,14 +469,14 @@ async def reconcile_cloudflare_dns(
             "success": result.success,
             "message": result.message,
             "detail": result.detail,
-            "total_services": total_service_count,
-            "eligible_services": eligible_service_count,
-            "skipped_services": skipped_count,
-            "synced_services": synced_count,
-            "failed_services": failed_count,
-            "cleaned_records": cleaned_count,
-            "cleanup_failed_records": cleanup_failed_count,
-            "zone_count": zone_count,
+            "total_services": summary.total_service_count,
+            "eligible_services": summary.eligible_service_count,
+            "skipped_services": summary.skipped_count,
+            "synced_services": summary.synced_count,
+            "failed_services": summary.failed_count,
+            "cleaned_records": summary.cleaned_count,
+            "cleanup_failed_records": summary.cleanup_failed_count,
+            "zone_count": summary.zone_count,
             "client_ip": get_client_ip(request),
         },
     )
