@@ -49,6 +49,7 @@ import {
 import { buildActionFailure, getApiErrorDetail } from "@/features/settings/lib/settingsErrors";
 import UserManagementSection from "@/features/users/components/UserManagementSection";
 import { getDefaultDisplayTimezone } from "@/shared/lib/dateTimeFormat";
+import SettingsPageHeader from "./SettingsPageHeader";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -364,10 +365,7 @@ export default function SettingsPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">설정</h1>
-        <p className="text-gray-500 text-sm mt-1">시스템 설정</p>
-      </div>
+      <SettingsPageHeader />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <TimeDisplaySettingsCard
