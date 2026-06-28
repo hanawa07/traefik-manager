@@ -18,9 +18,6 @@ from app.interfaces.api.v1.routers.settings_audit_helpers import (
     record_settings_rollback as _record_settings_rollback,
     record_settings_update as _record_settings_update,
 )
-from app.interfaces.api.v1.routers.settings_certificate_diagnostics_update import (
-    update_certificate_diagnostics_settings_values,
-)
 from app.interfaces.api.v1.routers.settings_cloudflare_actions import (
     diagnose_cloudflare_dns_drift_action as _diagnose_cloudflare_dns_drift_action,
     reconcile_cloudflare_dns_action as _reconcile_cloudflare_dns_action,
@@ -44,6 +41,11 @@ from app.interfaces.api.v1.routers.settings_rollback_helpers import (
     load_supported_settings_rollback as _load_supported_settings_rollback,
 )
 from app.interfaces.api.v1.routers.settings_login_defense_update import update_login_defense_settings_values
+from app.interfaces.api.v1.routers.settings_policy_actions import (
+    update_certificate_diagnostics_settings_action as _update_certificate_diagnostics_settings_action,
+    update_time_display_settings_action as _update_time_display_settings_action,
+    update_upstream_security_settings_action as _update_upstream_security_settings_action,
+)
 from app.interfaces.api.v1.routers.settings_security_alert_update import update_security_alert_settings_values
 from app.interfaces.api.v1.routers.settings_traefik_dashboard_action import (
     update_traefik_dashboard_settings_action as _update_traefik_dashboard_settings_action,
@@ -54,14 +56,10 @@ from app.interfaces.api.v1.routers.settings_time_display_response import (
 from app.interfaces.api.v1.routers.settings_test_history import (
     get_settings_test_history_response as _get_settings_test_history_response,
 )
-from app.interfaces.api.v1.routers.settings_time_display_update import update_time_display_settings_value
-from app.interfaces.api.v1.routers.settings_upstream_security_update import update_upstream_security_settings_values
 from app.interfaces.api.v1.routers.settings_summary_helpers import (
-    certificate_diagnostics_summary as _certificate_diagnostics_summary,
     cloudflare_summary as _cloudflare_summary,
     login_defense_summary as _login_defense_summary,
     security_alert_summary as _security_alert_summary,
-    upstream_security_summary as _upstream_security_summary,
 )
 from app.interfaces.api.v1.schemas.settings_schemas import (
     CertificateDiagnosticsSettingsResponse,
@@ -225,21 +223,16 @@ async def update_time_display_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
-    repo = SQLiteSystemSettingsRepository(db)
-    previous_value = await update_time_display_settings_value(repo, request.display_timezone)
-    response = _build_time_display_response(request.display_timezone, get_server_time_context())
-    await _record_settings_update(
-        audit_service=audit_service,
+    return await _update_time_display_settings_action(
+        request=request,
+        http_request=http_request,
         db=db,
-        actor=_.get("username", "unknown"),
-        event=SETTINGS_UPDATE_EVENTS["time_display"],
-        resource_name="시간 표시 설정",
-        before={"display_timezone": previous_value},
-        after={"display_timezone": response.display_timezone},
-        client_ip=_maybe_get_client_ip(http_request),
-        rollback_payload={"display_timezone": previous_value},
+        actor=_,
+        settings_repository_factory=SQLiteSystemSettingsRepository,
+        audit_service=audit_service,
+        client_ip_getter=_maybe_get_client_ip,
+        server_time_context_getter=get_server_time_context,
     )
-    return response
 
 
 @router.get(
@@ -266,19 +259,15 @@ async def update_certificate_diagnostics_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
-    repo = SQLiteSystemSettingsRepository(db)
-    previous_response, response = await update_certificate_diagnostics_settings_values(repo, request)
-    await _record_settings_update(
-        audit_service=audit_service,
+    return await _update_certificate_diagnostics_settings_action(
+        request=request,
+        http_request=http_request,
         db=db,
-        actor=_.get("username", "unknown"),
-        event=SETTINGS_UPDATE_EVENTS["certificate_diagnostics"],
-        resource_name="인증서 진단 설정",
-        before=_certificate_diagnostics_summary(previous_response),
-        after=_certificate_diagnostics_summary(response),
-        client_ip=_maybe_get_client_ip(http_request),
+        actor=_,
+        settings_repository_factory=SQLiteSystemSettingsRepository,
+        audit_service=audit_service,
+        client_ip_getter=_maybe_get_client_ip,
     )
-    return response
 
 
 @router.get(
@@ -305,20 +294,15 @@ async def update_upstream_security_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
-    repo = SQLiteSystemSettingsRepository(db)
-    previous_response, response, rollback_payload = await update_upstream_security_settings_values(repo, request)
-    await _record_settings_update(
-        audit_service=audit_service,
+    return await _update_upstream_security_settings_action(
+        request=request,
+        http_request=http_request,
         db=db,
-        actor=_.get("username", "unknown"),
-        event=SETTINGS_UPDATE_EVENTS["upstream_security"],
-        resource_name="업스트림 보안 설정",
-        before=_upstream_security_summary(previous_response),
-        after=_upstream_security_summary(response),
-        client_ip=_maybe_get_client_ip(http_request),
-        rollback_payload=rollback_payload,
+        actor=_,
+        settings_repository_factory=SQLiteSystemSettingsRepository,
+        audit_service=audit_service,
+        client_ip_getter=_maybe_get_client_ip,
     )
-    return response
 
 
 @router.get("/login-defense", response_model=LoginDefenseSettingsResponse, summary="로그인 방어 설정 조회")
