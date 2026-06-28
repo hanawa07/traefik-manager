@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID
 
-from app.core.security import hash_basic_auth_password
+from app.application.proxy.basic_auth_credentials import hash_basic_auth_credentials
 from app.domain.proxy.entities.middleware_template import MiddlewareTemplate
 from app.domain.proxy.entities.service import Service
 from app.domain.proxy.repositories.middleware_template_repository import (
@@ -63,7 +63,7 @@ class ServiceUseCases:
             rate_limit_burst=data.rate_limit_burst,
             custom_headers=data.custom_headers,
             basic_auth_users=(
-                self._hash_basic_auth_credentials(data.basic_auth_credentials)
+                hash_basic_auth_credentials(data.basic_auth_credentials)
                 if data.basic_auth_enabled
                 else []
             ),
@@ -171,7 +171,7 @@ class ServiceUseCases:
         if update_payload.get("basic_auth_enabled") is False:
             basic_auth_users = []
         elif "basic_auth_credentials" in update_payload:
-            basic_auth_users = self._hash_basic_auth_credentials(
+            basic_auth_users = hash_basic_auth_credentials(
                 update_payload.get("basic_auth_credentials") or [],
                 existing_users=service.basic_auth_users
             )
@@ -404,47 +404,6 @@ class ServiceUseCases:
         service.authentik_provider_id = None
         service.authentik_app_slug = None
         service.authentik_group_id = None
-
-    def _hash_basic_auth_credentials(self, credentials: list[dict], existing_users: list[str] | None = None) -> list[str]:
-        if not credentials:
-            return []
-
-        # 기존 사용자 해시 맵 생성
-        existing_hash_map = {}
-        if existing_users:
-            for user_str in existing_users:
-                if ":" in user_str:
-                    u, h = user_str.split(":", 1)
-                    existing_hash_map[u] = h
-
-        users: list[str] = []
-        seen_usernames: set[str] = set()
-        for item in credentials:
-            if isinstance(item, dict):
-                username = str(item.get("username", "")).strip()
-                password = str(item.get("password", ""))
-            else:
-                username = str(getattr(item, "username", "")).strip()
-                password = str(getattr(item, "password", ""))
-            
-            if not username:
-                continue
-            if username in seen_usernames:
-                raise ValueError(f"중복된 Basic Auth 사용자 이름입니다: {username}")
-            
-            seen_usernames.add(username)
-            
-            if password:
-                # 새 비밀번호가 입력된 경우 해싱
-                users.append(f"{username}:{hash_basic_auth_password(password)}")
-            elif username in existing_hash_map:
-                # 비밀번호가 없고 기존 사용자인 경우 기존 해시 유지
-                users.append(f"{username}:{existing_hash_map[username]}")
-            else:
-                # 새 사용자인데 비밀번호가 없는 경우 에러
-                raise ValueError(f"새 사용자 '{username}'의 비밀번호를 입력해야 합니다")
-
-        return users
 
     async def _resolve_middleware_templates(self, template_ids: list[str]) -> list[MiddlewareTemplate]:
         if not template_ids:
