@@ -27,11 +27,15 @@ from app.infrastructure.persistence.repositories.sqlite_user_repository import (
 from app.infrastructure.security import turnstile_verifier
 from app.interfaces.api.v1.schemas.settings_schemas import normalize_trusted_networks
 from app.interfaces.api.dependencies import get_current_user, resolve_authenticated_user
+from app.interfaces.api.v1.routers.auth_session_helpers import (
+    clear_auth_cookies as _clear_auth_cookies,
+    set_auth_cookies as _set_auth_cookies,
+    to_session_response as _to_session_response,
+)
 from app.interfaces.api.v1.schemas.auth_schemas import (
     CurrentSessionResponse,
     LoginResponse,
     LoginProtectionResponse,
-    SessionInfoResponse,
     SessionListResponse,
 )
 
@@ -41,56 +45,6 @@ logger = logging.getLogger(__name__)
 
 def get_use_cases(db: AsyncSession = Depends(get_db)) -> AuthUseCases:
     return AuthUseCases(SQLiteUserRepository(db))
-
-
-def _set_auth_cookies(response: Response, session_cookie_value: str, csrf_token: str) -> None:
-    max_age = settings.SESSION_ABSOLUTE_MINUTES * 60
-    response.set_cookie(
-        key=settings.SESSION_COOKIE_NAME,
-        value=session_cookie_value,
-        httponly=True,
-        secure=settings.SESSION_COOKIE_SECURE,
-        samesite=settings.SESSION_COOKIE_SAMESITE,
-        path="/",
-        max_age=max_age,
-    )
-    response.set_cookie(
-        key=settings.SESSION_CSRF_COOKIE_NAME,
-        value=csrf_token,
-        httponly=False,
-        secure=settings.SESSION_COOKIE_SECURE,
-        samesite=settings.SESSION_COOKIE_SAMESITE,
-        path="/",
-        max_age=max_age,
-    )
-
-
-def _clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie(
-        key=settings.SESSION_COOKIE_NAME,
-        path="/",
-        secure=settings.SESSION_COOKIE_SECURE,
-        samesite=settings.SESSION_COOKIE_SAMESITE,
-    )
-    response.delete_cookie(
-        key=settings.SESSION_CSRF_COOKIE_NAME,
-        path="/",
-        secure=settings.SESSION_COOKIE_SECURE,
-        samesite=settings.SESSION_COOKIE_SAMESITE,
-    )
-
-
-def _to_session_response(session: AuthSession, current_session_id: str) -> SessionInfoResponse:
-    return SessionInfoResponse(
-        session_id=session.id,
-        issued_at=session.issued_at,
-        last_seen_at=session.last_seen_at,
-        expires_at=session.expires_at,
-        idle_expires_at=session.idle_expires_at,
-        ip_address=session.ip_address,
-        user_agent=session.user_agent,
-        is_current=session.id == current_session_id,
-    )
 
 
 def _turnstile_risk_failure_threshold() -> int:
