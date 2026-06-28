@@ -7,21 +7,17 @@ import { AuthMode, FramePolicy, ServiceCreate } from "../api/serviceApi";
 import { useAuthentikGroups } from "../hooks/useServices";
 import { Database, Plus, Trash2, Shield, Key, Lock, Copy, Check, RefreshCw, Search } from "lucide-react";
 import Modal from "@/shared/components/Modal";
-import type { DockerContainer, DockerContainerPort, DockerTraefikCandidate } from "@/features/docker/api/dockerApi";
+import type { DockerContainer, DockerTraefikCandidate } from "@/features/docker/api/dockerApi";
 import { useDockerContainers } from "@/features/docker/hooks/useDockerContainers";
 import { useMiddlewareTemplates } from "@/features/middlewares/hooks/useMiddlewares";
-
-function parseHealthcheckExpectedStatuses(input: string | undefined): number[] {
-  if (!input) return [];
-  const normalized = input
-    .split(/\r?\n|,/)
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .map((value) => Number(value));
-
-  const uniqueStatuses = Array.from(new Set(normalized));
-  return uniqueStatuses.sort((a, b) => a - b);
-}
+import {
+  formatDockerPortLabel,
+  generateSecureToken,
+  getSuggestedUpstreamPort,
+  parseAllowedIps,
+  parseBlockedPaths,
+  parseHealthcheckExpectedStatuses,
+} from "./serviceFormUtils";
 
 const schema = z.object({
   name: z.string().min(1, "서비스 이름을 입력하세요"),
@@ -148,42 +144,7 @@ interface ServiceFormProps {
   submitLabel?: string;
 }
 
-function parseAllowedIps(input: string | undefined): string[] {
-  if (!input) return [];
-  return input
-    .split(/\r?\n|,/)
-    .map((value) => value.trim())
-    .filter(Boolean);
-}
-
-function parseBlockedPaths(input: string | undefined): string[] {
-  if (!input) return [];
-  return input
-    .split(/\r?\n|,/)
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .map((p) => (p.startsWith("/") ? p : `/${p}`));
-}
-
-// 보안 랜덤 토큰 생성기
-const generateSecureToken = () => {
-  const array = new Uint8Array(32);
-  window.crypto.getRandomValues(array);
-  const randomStr = Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `service_${btoa(randomStr).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "").substring(0, 44)}`;
-};
-
 type ContainerImportMode = "basic" | "traefik";
-
-function formatDockerPortLabel(port: DockerContainerPort): string {
-  const publicSuffix = port.public_port != null ? ` -> ${port.public_port}` : "";
-  const protocolSuffix = port.type ? `/${port.type}` : "";
-  return `${port.private_port}${publicSuffix}${protocolSuffix}`;
-}
-
-function getSuggestedUpstreamPort(container: DockerContainer): number {
-  return container.ports[0]?.private_port ?? 80;
-}
 
 export default function ServiceForm({
   defaultValues,
