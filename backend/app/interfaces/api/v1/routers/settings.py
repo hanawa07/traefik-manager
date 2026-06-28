@@ -29,6 +29,12 @@ from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.routers.settings_audit_helpers import (
     find_latest_settings_events as _find_latest_settings_events,
     find_latest_settings_test_event as _find_latest_settings_test_event,
+    record_cloudflare_connection_test_audit as _record_cloudflare_connection_test_audit,
+    record_cloudflare_drift_audit as _record_cloudflare_drift_audit,
+    record_cloudflare_reconcile_audit as _record_cloudflare_reconcile_audit,
+    record_security_alert_test_audit as _record_security_alert_test_audit,
+    record_settings_rollback as _record_settings_rollback,
+    record_settings_update as _record_settings_update,
 )
 from app.interfaces.api.v1.routers.settings_certificate_diagnostics_update import (
     update_certificate_diagnostics_settings_values,
@@ -114,20 +120,12 @@ async def test_cloudflare_connection(
     _: dict = Depends(require_admin),
 ):
     result = SettingsTestActionResponse(**(await cloudflare_client.test_connection()))
-    await audit_service.record(
+    await _record_cloudflare_connection_test_audit(
+        audit_service=audit_service,
         db=db,
         actor=_.get("username", "unknown"),
-        action="test",
-        resource_type="settings",
-        resource_id=SETTINGS_TEST_EVENTS["cloudflare"],
-        resource_name="Cloudflare 연결 테스트",
-        detail={
-            "event": SETTINGS_TEST_EVENTS["cloudflare"],
-            "success": result.success,
-            "message": result.message,
-            "detail": result.detail,
-            "client_ip": get_client_ip(request),
-        },
+        result=result,
+        client_ip=get_client_ip(request),
     )
     return result
 
@@ -145,33 +143,12 @@ async def diagnose_cloudflare_dns_drift(
     )
     result = summary.result
 
-    await audit_service.record(
+    await _record_cloudflare_drift_audit(
+        audit_service=audit_service,
         db=db,
         actor=_.get("username", "unknown"),
-        action="test",
-        resource_type="settings",
-        resource_id=SETTINGS_TEST_EVENTS["cloudflare_drift"],
-        resource_name="Cloudflare DNS 드리프트 진단",
-        detail={
-            "event": SETTINGS_TEST_EVENTS["cloudflare_drift"],
-            "success": result.success,
-            "message": result.message,
-            "detail": result.detail,
-            "zone_count": summary.zone_count,
-            "total_services": summary.total_service_count,
-            "eligible_services": summary.eligible_service_count,
-            "skipped_services": summary.skipped_count,
-            "healthy_services": summary.healthy_count,
-            "missing_records": len(summary.missing_records),
-            "mismatched_records": len(summary.mismatched_records),
-            "orphan_records": len(summary.orphan_records),
-            "excluded_services": len(summary.excluded_services),
-            "sample_missing_domains": [item.domain for item in summary.missing_records[:5]],
-            "sample_mismatched_domains": [item.domain for item in summary.mismatched_records[:5]],
-            "sample_orphan_domains": [item.domain for item in summary.orphan_records[:5]],
-            "sample_excluded_domains": [item.domain for item in summary.excluded_services[:5]],
-            "client_ip": get_client_ip(request),
-        },
+        summary=summary,
+        client_ip=get_client_ip(request),
     )
     return result
 
@@ -189,28 +166,12 @@ async def reconcile_cloudflare_dns(
     )
     result = summary.result
 
-    await audit_service.record(
+    await _record_cloudflare_reconcile_audit(
+        audit_service=audit_service,
         db=db,
         actor=_.get("username", "unknown"),
-        action="test",
-        resource_type="settings",
-        resource_id=SETTINGS_TEST_EVENTS["cloudflare_reconcile"],
-        resource_name="Cloudflare DNS 재동기화",
-        detail={
-            "event": SETTINGS_TEST_EVENTS["cloudflare_reconcile"],
-            "success": result.success,
-            "message": result.message,
-            "detail": result.detail,
-            "total_services": summary.total_service_count,
-            "eligible_services": summary.eligible_service_count,
-            "skipped_services": summary.skipped_count,
-            "synced_services": summary.synced_count,
-            "failed_services": summary.failed_count,
-            "cleaned_records": summary.cleaned_count,
-            "cleanup_failed_records": summary.cleanup_failed_count,
-            "zone_count": summary.zone_count,
-            "client_ip": get_client_ip(request),
-        },
+        summary=summary,
+        client_ip=get_client_ip(request),
     )
     return result
 
@@ -225,6 +186,7 @@ async def update_cloudflare_settings(
     repo = SQLiteSystemSettingsRepository(db)
     previous_status, current_status = await update_cloudflare_settings_values(repo, request)
     await _record_settings_update(
+        audit_service=audit_service,
         db=db,
         actor=_.get("username", "unknown"),
         event=SETTINGS_UPDATE_EVENTS["cloudflare"],
@@ -278,6 +240,7 @@ async def update_traefik_dashboard_settings(
         file_writer.delete_traefik_dashboard_public_route()
 
     await _record_settings_update(
+        audit_service=audit_service,
         db=db,
         actor=_.get("username", "unknown"),
         event=SETTINGS_UPDATE_EVENTS["traefik_dashboard"],
@@ -329,6 +292,7 @@ async def update_time_display_settings(
     previous_value = await update_time_display_settings_value(repo, request.display_timezone)
     response = _build_time_display_response(request.display_timezone)
     await _record_settings_update(
+        audit_service=audit_service,
         db=db,
         actor=_.get("username", "unknown"),
         event=SETTINGS_UPDATE_EVENTS["time_display"],
@@ -368,6 +332,7 @@ async def update_certificate_diagnostics_settings(
     repo = SQLiteSystemSettingsRepository(db)
     previous_response, response = await update_certificate_diagnostics_settings_values(repo, request)
     await _record_settings_update(
+        audit_service=audit_service,
         db=db,
         actor=_.get("username", "unknown"),
         event=SETTINGS_UPDATE_EVENTS["certificate_diagnostics"],
@@ -406,6 +371,7 @@ async def update_upstream_security_settings(
     repo = SQLiteSystemSettingsRepository(db)
     previous_response, response, rollback_payload = await update_upstream_security_settings_values(repo, request)
     await _record_settings_update(
+        audit_service=audit_service,
         db=db,
         actor=_.get("username", "unknown"),
         event=SETTINGS_UPDATE_EVENTS["upstream_security"],
@@ -437,6 +403,7 @@ async def update_login_defense_settings(
     repo = SQLiteSystemSettingsRepository(db)
     previous_response, response = await update_login_defense_settings_values(repo, request)
     await _record_settings_update(
+        audit_service=audit_service,
         db=db,
         actor=_.get("username", "unknown"),
         event=SETTINGS_UPDATE_EVENTS["login_defense"],
@@ -468,21 +435,12 @@ async def test_security_alert_settings(
     _: dict = Depends(require_admin),
 ):
     result = SettingsTestActionResponse(**(await security_alert_notifier.send_test_alert(db)))
-    await audit_service.record(
+    await _record_security_alert_test_audit(
+        audit_service=audit_service,
         db=db,
         actor=_.get("username", "unknown"),
-        action="test",
-        resource_type="settings",
-        resource_id=SETTINGS_TEST_EVENTS["security_alert"],
-        resource_name="보안 알림 테스트",
-        detail={
-            "event": SETTINGS_TEST_EVENTS["security_alert"],
-            "success": result.success,
-            "message": result.message,
-            "detail": result.detail,
-            "provider": result.provider,
-            "client_ip": get_client_ip(request),
-        },
+        result=result,
+        client_ip=get_client_ip(request),
     )
     return result
 
@@ -527,6 +485,7 @@ async def update_security_alert_settings(
     repo = SQLiteSystemSettingsRepository(db)
     previous_response, response = await update_security_alert_settings_values(repo, request)
     await _record_settings_update(
+        audit_service=audit_service,
         db=db,
         actor=_.get("username", "unknown"),
         event=SETTINGS_UPDATE_EVENTS["security_alert"],
@@ -569,23 +528,16 @@ async def rollback_settings_change(
     after_state = await _apply_settings_rollback(repo, event, rollback_payload)
     rollback_event = SETTINGS_ROLLBACK_EVENTS[event]
 
-    changed_keys = sorted([key for key in after_state.keys() if before_state.get(key) != after_state.get(key)])
-    await audit_service.record(
+    await _record_settings_rollback(
+        audit_service=audit_service,
         db=db,
         actor=_.get("username", "unknown"),
-        action="rollback",
-        resource_type="settings",
-        resource_id=rollback_event,
+        rollback_event=rollback_event,
+        source_audit_id=audit_log_id,
         resource_name=audit_log.resource_name,
-        detail={
-            "event": rollback_event,
-            "source_audit_id": audit_log_id,
-            "changed_keys": changed_keys,
-            "before": before_state,
-            "after": after_state,
-            "summary": after_state,
-            "client_ip": _maybe_get_client_ip(http_request),
-        },
+        before=before_state,
+        after=after_state,
+        client_ip=_maybe_get_client_ip(http_request),
     )
     return SettingsRollbackActionResponse(
         success=True,
@@ -614,37 +566,3 @@ def _maybe_get_client_ip(http_request: Request | None) -> str | None:
     if http_request is None:
         return None
     return get_client_ip(http_request)
-
-
-async def _record_settings_update(
-    *,
-    db: AsyncSession,
-    actor: str,
-    event: str,
-    resource_name: str,
-    before: dict[str, object],
-    after: dict[str, object],
-    client_ip: str | None,
-    rollback_payload: dict[str, object] | None = None,
-) -> None:
-    changed_keys = sorted([key for key in after.keys() if before.get(key) != after.get(key)])
-    detail = {
-        "event": event,
-        "changed_keys": changed_keys,
-        "before": before,
-        "after": after,
-        "summary": after,
-        "rollback_supported": rollback_payload is not None,
-        "client_ip": client_ip,
-    }
-    if rollback_payload is not None:
-        detail["rollback_payload"] = rollback_payload
-    await audit_service.record(
-        db=db,
-        actor=actor,
-        action="update",
-        resource_type="settings",
-        resource_id=event,
-        resource_name=resource_name,
-        detail=detail,
-    )
