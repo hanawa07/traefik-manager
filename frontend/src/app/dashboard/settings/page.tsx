@@ -1,5 +1,4 @@
 "use client";
-// PONYTAIL-DEBT(settings-page): split this oversized settings page into focused section components.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -7,8 +6,6 @@ import { useLogoutAllSessions, useRevokeSession, useSessions } from "@/features/
 import { useAuditRetryDelivery } from "@/features/audit/hooks/useAudit";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import {
-  CloudflareDriftCheckResult,
-  CloudflareZoneInput,
   SettingsActionTestResult,
   SettingsTestHistoryItem,
 } from "@/features/settings/api/settingsApi";
@@ -23,18 +20,13 @@ import { TraefikDashboardSettingsCard } from "@/features/settings/components/Tra
 import { UpstreamSecuritySettingsCard } from "@/features/settings/components/UpstreamSecuritySettingsCard";
 import {
   useCertificateDiagnosticsSettings,
-  useCloudflareStatus,
-  useDiagnoseCloudflareDnsDrift,
   useLoginDefenseSettings,
   useSecurityAlertSettings,
   useTraefikDashboardSettings,
   useTimeDisplaySettings,
-  useReconcileCloudflareDns,
-  useTestCloudflareConnection,
   useTestSecurityAlertSettings,
   useSettingsTestHistory,
   useUpdateCertificateDiagnosticsSettings,
-  useUpdateCloudflareSettings,
   useUpdateTraefikDashboardSettings,
   useUpstreamSecuritySettings,
   useUpdateSecurityAlertSettings,
@@ -43,9 +35,9 @@ import {
   useUpdateUpstreamSecuritySettings,
 } from "@/features/settings/hooks/useSettings";
 import { useBackupRestoreSettings } from "@/features/settings/hooks/useBackupRestoreSettings";
+import { useCloudflareDnsSettingsSection } from "@/features/settings/hooks/useCloudflareDnsSettingsSection";
 import {
   createDefaultCertificateDiagnosticsForm,
-  createDefaultCloudflareZoneForm,
   createDefaultLoginDefenseForm,
   createDefaultSecurityAlertForm,
   createDefaultTraefikDashboardForm,
@@ -54,35 +46,20 @@ import {
 import {
   parseMultivalueText,
 } from "@/features/settings/lib/settingsFormHelpers";
-import { getApiErrorDetail } from "@/features/settings/lib/settingsErrors";
+import { buildActionFailure, getApiErrorDetail } from "@/features/settings/lib/settingsErrors";
 import UserManagementSection from "@/features/users/components/UserManagementSection";
 import { getDefaultDisplayTimezone } from "@/shared/lib/dateTimeFormat";
-
-function buildActionFailure(message: string, detail?: string): SettingsActionTestResult {
-  return {
-    success: false,
-    message,
-    detail: detail || null,
-    provider: null,
-  };
-}
 
 export default function SettingsPage() {
   const router = useRouter();
   const role = useAuthStore((state) => state.role);
   const clearSession = useAuthStore((state) => state.clearSession);
   const canManage = role === "admin";
-  const [cloudflareErrorMessage, setCloudflareErrorMessage] = useState("");
-  const [cloudflareTestResult, setCloudflareTestResult] = useState<SettingsActionTestResult | null>(null);
-  const [cloudflareDriftResult, setCloudflareDriftResult] = useState<CloudflareDriftCheckResult | null>(null);
-  const [cloudflareReconcileResult, setCloudflareReconcileResult] = useState<SettingsActionTestResult | null>(null);
   const [securityAlertTestResult, setSecurityAlertTestResult] = useState<SettingsActionTestResult | null>(null);
   const [securityAlertDeliveryRetryResult, setSecurityAlertDeliveryRetryResult] = useState<SettingsActionTestResult | null>(null);
   const [changeAlertDeliveryRetryResult, setChangeAlertDeliveryRetryResult] = useState<SettingsActionTestResult | null>(null);
   const [retryTargetAuditId, setRetryTargetAuditId] = useState<string | null>(null);
 
-  const [isEditingCf, setIsEditingCf] = useState(false);
-  const [cfForm, setCfForm] = useState<CloudflareZoneInput[]>([createDefaultCloudflareZoneForm()]);
   const [isEditingTimeDisplay, setIsEditingTimeDisplay] = useState(false);
   const [timeDisplayForm, setTimeDisplayForm] = useState(getDefaultDisplayTimezone());
   const [timeDisplayErrorMessage, setTimeDisplayErrorMessage] = useState("");
@@ -102,7 +79,6 @@ export default function SettingsPage() {
   const [securityAlertForm, setSecurityAlertForm] = useState(createDefaultSecurityAlertForm());
   const [securityAlertErrorMessage, setSecurityAlertErrorMessage] = useState("");
 
-  const { data: cloudflareStatus, isLoading: isCloudflareLoading } = useCloudflareStatus();
   const { data: timeDisplaySettings, isLoading: isTimeDisplayLoading } = useTimeDisplaySettings();
   const { data: certificateDiagnosticsSettings, isLoading: isCertificateDiagnosticsLoading } =
     useCertificateDiagnosticsSettings();
@@ -113,10 +89,7 @@ export default function SettingsPage() {
   const { data: settingsTestHistory, isLoading: isSettingsTestHistoryLoading } = useSettingsTestHistory();
   const { data: sessionData, isLoading: isSessionsLoading } = useSessions();
   const backupRestore = useBackupRestoreSettings(canManage);
-  const updateCloudflare = useUpdateCloudflareSettings();
-  const testCloudflareConnection = useTestCloudflareConnection();
-  const diagnoseCloudflareDnsDrift = useDiagnoseCloudflareDnsDrift();
-  const reconcileCloudflareDns = useReconcileCloudflareDns();
+  const cloudflareDns = useCloudflareDnsSettingsSection(timeDisplaySettings?.display_timezone);
   const updateTimeDisplay = useUpdateTimeDisplaySettings();
   const updateCertificateDiagnostics = useUpdateCertificateDiagnosticsSettings();
   const updateTraefikDashboard = useUpdateTraefikDashboardSettings();
@@ -127,74 +100,6 @@ export default function SettingsPage() {
   const retryDelivery = useAuditRetryDelivery();
   const logoutAllSessions = useLogoutAllSessions();
   const revokeSession = useRevokeSession();
-
-  const handleEditCf = () => {
-    setCfForm(
-      cloudflareStatus?.zones?.length
-        ? cloudflareStatus.zones.map((zone) => ({
-            api_token: "",
-            zone_id: zone.zone_id,
-            record_target: zone.record_target ?? "",
-            proxied: zone.proxied,
-          }))
-        : [createDefaultCloudflareZoneForm()],
-    );
-    setCloudflareErrorMessage("");
-    setIsEditingCf(true);
-  };
-
-  const handleSaveCf = async () => {
-    setCloudflareErrorMessage("");
-    try {
-      await updateCloudflare.mutateAsync({ zones: cfForm });
-      setCloudflareTestResult(null);
-      setCloudflareDriftResult(null);
-      setCloudflareReconcileResult(null);
-      setIsEditingCf(false);
-    } catch (error) {
-      setCloudflareErrorMessage(getApiErrorDetail(error, "Cloudflare 설정 저장에 실패했습니다"));
-    }
-  };
-
-  const handleTestCf = async () => {
-    try {
-      setCloudflareTestResult(await testCloudflareConnection.mutateAsync());
-    } catch (error) {
-      setCloudflareTestResult(buildActionFailure("Cloudflare 연결 테스트에 실패했습니다", getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다")));
-    }
-  };
-
-  const handleReconcileCf = async () => {
-    try {
-      setCloudflareReconcileResult(await reconcileCloudflareDns.mutateAsync());
-    } catch (error) {
-      setCloudflareReconcileResult(
-        buildActionFailure("Cloudflare DNS 재동기화에 실패했습니다", getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다")),
-      );
-    }
-  };
-
-  const handleDiagnoseCfDrift = async () => {
-    try {
-      setCloudflareDriftResult(await diagnoseCloudflareDnsDrift.mutateAsync());
-    } catch (error) {
-      setCloudflareDriftResult({
-        success: false,
-        message: "Cloudflare DNS 드리프트 진단에 실패했습니다",
-        detail: getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다"),
-        zone_count: 0,
-        total_services: 0,
-        eligible_services: 0,
-        skipped_services: 0,
-        healthy_services: 0,
-        zones: [],
-        excluded_services: [],
-        missing_records: [],
-        mismatched_records: [],
-        orphan_records: [],
-      });
-    }
-  };
 
   const handleEditTimeDisplay = () => {
     setTimeDisplayForm(timeDisplaySettings?.display_timezone ?? getDefaultDisplayTimezone());
@@ -583,33 +488,7 @@ export default function SettingsPage() {
           onFormChange={setTraefikDashboardForm}
         />
 
-        <CloudflareDnsSettingsCard
-          canManage={canManage}
-          isLoading={isCloudflareLoading}
-          isEditing={isEditingCf}
-          status={cloudflareStatus}
-          formValue={cfForm}
-          errorMessage={cloudflareErrorMessage}
-          isSaving={updateCloudflare.isPending}
-          isTesting={testCloudflareConnection.isPending}
-          isDiagnosing={diagnoseCloudflareDnsDrift.isPending}
-          isReconciling={reconcileCloudflareDns.isPending}
-          isHistoryLoading={isSettingsTestHistoryLoading}
-          timezone={timeDisplaySettings?.display_timezone}
-          testHistory={settingsTestHistory?.cloudflare}
-          driftHistory={settingsTestHistory?.cloudflare_drift}
-          reconcileHistory={settingsTestHistory?.cloudflare_reconcile}
-          testResult={cloudflareTestResult}
-          driftResult={cloudflareDriftResult}
-          reconcileResult={cloudflareReconcileResult}
-          onEdit={handleEditCf}
-          onSave={handleSaveCf}
-          onCancel={() => setIsEditingCf(false)}
-          onTest={handleTestCf}
-          onDiagnose={handleDiagnoseCfDrift}
-          onReconcile={handleReconcileCf}
-          onFormChange={setCfForm}
-        />
+        <CloudflareDnsSettingsCard canManage={canManage} {...cloudflareDns} />
 
         <BackupRestoreSettingsCard canManage={canManage} {...backupRestore} />
       </div>
