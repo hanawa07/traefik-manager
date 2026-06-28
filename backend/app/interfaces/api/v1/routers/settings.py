@@ -5,12 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.audit import audit_service
 from app.core.config import settings
-from app.core.certificate_diagnostics import (
-    CERTIFICATE_PREFLIGHT_AUTO_CHECK_INTERVAL_KEY,
-    CERTIFICATE_PREFLIGHT_REPEAT_ALERT_COOLDOWN_KEY,
-    CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD_KEY,
-    CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_KEY,
-)
 from app.core.logging_config import get_client_ip
 from app.core.time_display import (
     get_display_timezone_label,
@@ -35,6 +29,9 @@ from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.routers.settings_audit_helpers import (
     find_latest_settings_events as _find_latest_settings_events,
     find_latest_settings_test_event as _find_latest_settings_test_event,
+)
+from app.interfaces.api.v1.routers.settings_certificate_diagnostics_update import (
+    update_certificate_diagnostics_settings_values,
 )
 from app.interfaces.api.v1.routers.settings_cloudflare_drift import diagnose_cloudflare_dns_drift_records
 from app.interfaces.api.v1.routers.settings_cloudflare_reconcile import reconcile_cloudflare_dns_records
@@ -388,12 +385,7 @@ async def update_certificate_diagnostics_settings(
     _: dict = Depends(require_admin),
 ):
     repo = SQLiteSystemSettingsRepository(db)
-    previous_response = await _build_certificate_diagnostics_response(repo)
-    await repo.set(CERTIFICATE_PREFLIGHT_AUTO_CHECK_INTERVAL_KEY, str(request.auto_check_interval_minutes))
-    await repo.set(CERTIFICATE_PREFLIGHT_REPEAT_ALERT_THRESHOLD_KEY, str(request.repeat_alert_threshold))
-    await repo.set(CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_KEY, str(request.repeat_alert_window_minutes))
-    await repo.set(CERTIFICATE_PREFLIGHT_REPEAT_ALERT_COOLDOWN_KEY, str(request.repeat_alert_cooldown_minutes))
-    response = await _build_certificate_diagnostics_response(repo)
+    previous_response, response = await update_certificate_diagnostics_settings_values(repo, request)
     await _record_settings_update(
         db=db,
         actor=_.get("username", "unknown"),
