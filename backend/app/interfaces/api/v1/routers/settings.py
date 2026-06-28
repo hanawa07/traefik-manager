@@ -51,6 +51,7 @@ from app.interfaces.api.v1.routers.settings_security_alert_update import update_
 from app.interfaces.api.v1.routers.settings_traefik_dashboard_update import (
     update_traefik_dashboard_settings_values,
 )
+from app.interfaces.api.v1.routers.settings_upstream_security_update import update_upstream_security_settings_values
 from app.interfaces.api.v1.routers.settings_summary_helpers import (
     certificate_diagnostics_summary as _certificate_diagnostics_summary,
     cloudflare_summary as _cloudflare_summary,
@@ -430,22 +431,7 @@ async def update_upstream_security_settings(
     _: dict = Depends(require_admin),
 ):
     repo = SQLiteSystemSettingsRepository(db)
-    previous_response = await _build_upstream_security_response(repo)
-    await repo.set("upstream_dns_strict_mode", "true" if request.dns_strict_mode else "false")
-    await repo.set("upstream_allowlist_enabled", "true" if request.allowlist_enabled else "false")
-    await repo.set(
-        "upstream_allowed_domain_suffixes",
-        "\n".join(request.allowed_domain_suffixes) or None,
-    )
-    await repo.set(
-        "upstream_allow_docker_service_names",
-        "true" if request.allow_docker_service_names else "false",
-    )
-    await repo.set(
-        "upstream_allow_private_networks",
-        "true" if request.allow_private_networks else "false",
-    )
-    response = await _build_upstream_security_response(repo)
+    previous_response, response, rollback_payload = await update_upstream_security_settings_values(repo, request)
     await _record_settings_update(
         db=db,
         actor=_.get("username", "unknown"),
@@ -454,13 +440,7 @@ async def update_upstream_security_settings(
         before=_upstream_security_summary(previous_response),
         after=_upstream_security_summary(response),
         client_ip=_maybe_get_client_ip(http_request),
-        rollback_payload={
-            "dns_strict_mode": previous_response.dns_strict_mode,
-            "allowlist_enabled": previous_response.allowlist_enabled,
-            "allowed_domain_suffixes": previous_response.allowed_domain_suffixes,
-            "allow_docker_service_names": previous_response.allow_docker_service_names,
-            "allow_private_networks": previous_response.allow_private_networks,
-        },
+        rollback_payload=rollback_payload,
     )
     return response
 
