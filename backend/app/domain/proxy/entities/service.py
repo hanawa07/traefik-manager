@@ -12,6 +12,11 @@ from .service_auth_policy import (
     resolve_created_auth_state,
     resolve_updated_auth_state,
 )
+from .service_transport_policy import (
+    ensure_https_redirect_allowed,
+    resolve_created_transport_state,
+    resolve_updated_transport_state,
+)
 from .service_normalizers import (
     AUTH_MODE_VALUES,
     DEFAULT_HEALTHCHECK_PATH,
@@ -112,8 +117,10 @@ class Service:
         healthcheck_timeout_ms: int = DEFAULT_HEALTHCHECK_TIMEOUT_MS,
         healthcheck_expected_statuses: list[int] | None = None,
     ) -> "Service":
-        if https_redirect_enabled and not tls_enabled:
-            raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
+        ensure_https_redirect_allowed(
+            tls_enabled=tls_enabled,
+            https_redirect_enabled=https_redirect_enabled,
+        )
 
         auth_state = resolve_created_auth_state(
             auth_mode=auth_mode,
@@ -122,9 +129,10 @@ class Service:
             basic_auth_users=basic_auth_users,
             authentik_group_id=authentik_group_id,
         )
-            
-        if upstream_scheme not in ["http", "https"]:
-            raise ValueError("업스트림 스킴은 http 또는 https여야 합니다")
+        transport_state = resolve_created_transport_state(
+            upstream_scheme=upstream_scheme,
+            skip_tls_verify=skip_tls_verify,
+        )
 
         normalized_average, normalized_burst = self._normalize_rate_limit(
             rate_limit_average=rate_limit_average,
@@ -152,8 +160,8 @@ class Service:
             basic_auth_users=self._normalize_basic_auth_users(basic_auth_users),
             middleware_template_ids=self._normalize_middleware_template_ids(middleware_template_ids),
             authentik_group_id=auth_state.authentik_group_id,
-            upstream_scheme=upstream_scheme,
-            skip_tls_verify=skip_tls_verify if upstream_scheme == "https" else False,
+            upstream_scheme=transport_state.upstream_scheme,
+            skip_tls_verify=transport_state.skip_tls_verify,
             frame_policy=self._normalize_frame_policy(frame_policy),
             healthcheck_enabled=healthcheck_enabled,
             healthcheck_path=self._normalize_healthcheck_path(healthcheck_path),
@@ -198,14 +206,15 @@ class Service:
             host = upstream_host or self.upstream.host
             port = upstream_port or self.upstream.port
             self.upstream = Upstream(host, port)
-        if upstream_scheme is not None:
-            if upstream_scheme not in ["http", "https"]:
-                raise ValueError("업스트림 스킴은 http 또는 https여야 합니다")
-            self.upstream_scheme = upstream_scheme
-            if upstream_scheme == "http":
-                self.skip_tls_verify = False
-        if skip_tls_verify is not None:
-            self.skip_tls_verify = skip_tls_verify if self.upstream_scheme == "https" else False
+        transport_state = resolve_updated_transport_state(
+            current_upstream_scheme=self.upstream_scheme,
+            current_skip_tls_verify=self.skip_tls_verify,
+            requested_upstream_scheme=upstream_scheme,
+            requested_skip_tls_verify=skip_tls_verify,
+        )
+        if transport_state is not None:
+            self.upstream_scheme = transport_state.upstream_scheme
+            self.skip_tls_verify = transport_state.skip_tls_verify
         if tls_enabled is not None:
             self.tls_enabled = tls_enabled
             if not tls_enabled:
@@ -228,8 +237,10 @@ class Service:
                 self.authentik_group_id = None
         
         if https_redirect_enabled is not None:
-            if https_redirect_enabled and not self.tls_enabled:
-                raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
+            ensure_https_redirect_allowed(
+                tls_enabled=self.tls_enabled,
+                https_redirect_enabled=https_redirect_enabled,
+            )
             self.https_redirect_enabled = https_redirect_enabled
         if allowed_ips is not None:
             self.allowed_ips = self._normalize_allowed_ips(allowed_ips)
