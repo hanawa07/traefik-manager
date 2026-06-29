@@ -1,18 +1,19 @@
-from ipaddress import ip_address
-
 import httpx
 
 from app.core.config import settings
+from app.infrastructure.cloudflare.errors import CloudflareClientError
+from app.infrastructure.cloudflare.record_payloads import (
+    MANAGED_RECORD_COMMENT,
+    build_service_record_payload,
+    detect_record_type,
+)
+from app.infrastructure.cloudflare.responses import decode_cloudflare_response
 from app.infrastructure.cloudflare.zone_config import (
     CF_ZONE_CONFIGS_KEY,
     CloudflareZoneConfig,
     parse_zone_configs,
     serialize_zone_configs,
 )
-
-
-class CloudflareClientError(Exception):
-    """Cloudflare API 처리 실패 예외"""
 
 
 class CloudflareClient:
@@ -70,6 +71,8 @@ class CloudflareClient:
 
     parse_zone_configs = staticmethod(parse_zone_configs)
     serialize_zone_configs = staticmethod(serialize_zone_configs)
+    _decode_response = staticmethod(decode_cloudflare_response)
+    _detect_record_type = staticmethod(detect_record_type)
 
     @property
     def enabled(self) -> bool:
@@ -200,19 +203,7 @@ class CloudflareClient:
         fallback_target: str,
         zone_config: CloudflareZoneConfig | None = None,
     ) -> dict[str, object]:
-        content = ((zone_config.record_target if zone_config else None) or fallback_target).strip()
-        if not content:
-            raise CloudflareClientError("Cloudflare 레코드 대상 값이 없습니다")
-
-        record_type = self._detect_record_type(content)
-        return {
-            "type": record_type,
-            "name": domain,
-            "content": content,
-            "ttl": 1,
-            "proxied": zone_config.proxied if zone_config else False,
-            "comment": "managed-by-traefik-manager",
-        }
+        return build_service_record_payload(domain, fallback_target, zone_config)
 
     async def delete_service_record(self, domain: str, record_id: str | None) -> None:
         zone_config = await self.get_matching_zone(domain)
@@ -244,7 +235,7 @@ class CloudflareClient:
         return [
             item
             for item in all_records
-            if isinstance(item, dict) and item.get("comment") == "managed-by-traefik-manager"
+            if isinstance(item, dict) and item.get("comment") == MANAGED_RECORD_COMMENT
         ]
 
     async def list_records(self, zone_config: CloudflareZoneConfig) -> list[dict]:
@@ -298,38 +289,3 @@ class CloudflareClient:
             headers=headers,
             timeout=self.timeout,
         )
-
-    async def _decode_response(self, response: httpx.Response) -> dict:
-        try:
-            response.raise_for_status()
-            payload = response.json()
-        except httpx.HTTPStatusError as exc:
-            message = None
-            try:
-                payload = response.json()
-            except ValueError:
-                payload = None
-            if isinstance(payload, dict):
-                errors = payload.get("errors", [])
-                if errors and isinstance(errors[0], dict):
-                    candidate = errors[0].get("message")
-                    if isinstance(candidate, str) and candidate.strip():
-                        message = candidate.strip()
-            detail = message or f"HTTP {response.status_code}"
-            raise CloudflareClientError(f"Cloudflare API 오류 ({response.status_code}): {detail}") from exc
-        except (httpx.HTTPError, ValueError) as exc:
-            raise CloudflareClientError("Cloudflare API 응답 처리에 실패했습니다") from exc
-
-        if not payload.get("success", False):
-            errors = payload.get("errors", [])
-            message = errors[0].get("message") if errors and isinstance(errors[0], dict) else "알 수 없는 오류"
-            raise CloudflareClientError(f"Cloudflare API 오류: {message}")
-
-        return payload
-
-    def _detect_record_type(self, content: str) -> str:
-        try:
-            parsed = ip_address(content)
-            return "A" if parsed.version == 4 else "AAAA"
-        except ValueError:
-            return "CNAME"
