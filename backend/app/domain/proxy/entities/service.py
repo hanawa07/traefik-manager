@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-import secrets
 from uuid import UUID, uuid4
 from ..value_objects.domain_name import DomainName
 from ..value_objects.upstream import Upstream
@@ -8,13 +7,17 @@ from ..value_objects.service_id import ServiceId
 from ..events.service_created import ServiceCreated
 from ..events.service_updated import ServiceUpdated
 from ..events.service_deleted import ServiceDeleted
+from .service_auth_policy import (
+    ensure_basic_auth_allowed,
+    resolve_created_auth_state,
+    resolve_updated_auth_state,
+)
 from .service_normalizers import (
     AUTH_MODE_VALUES,
     DEFAULT_HEALTHCHECK_PATH,
     DEFAULT_HEALTHCHECK_TIMEOUT_MS,
     FRAME_POLICY_VALUES,
     normalize_allowed_ips,
-    normalize_auth_mode,
     normalize_basic_auth_users,
     normalize_blocked_paths,
     normalize_custom_headers,
@@ -112,12 +115,13 @@ class Service:
         if https_redirect_enabled and not tls_enabled:
             raise ValueError("HTTPS 리다이렉트는 TLS 활성화 시에만 사용할 수 있습니다")
 
-        auth_mode = self._normalize_auth_mode(auth_mode=auth_mode, auth_enabled=auth_enabled)
-        auth_enabled = auth_mode != "none"
-        if auth_mode == "authentik" and basic_auth_users:
-            raise ValueError("Authentik 인증과 Basic Auth는 동시에 활성화할 수 없습니다")
-        if auth_mode == "token" and basic_auth_users:
-            raise ValueError("Token 인증과 Basic Auth는 동시에 활성화할 수 없습니다")
+        auth_state = resolve_created_auth_state(
+            auth_mode=auth_mode,
+            auth_enabled=auth_enabled,
+            api_key=api_key,
+            basic_auth_users=basic_auth_users,
+            authentik_group_id=authentik_group_id,
+        )
             
         if upstream_scheme not in ["http", "https"]:
             raise ValueError("업스트림 스킴은 http 또는 https여야 합니다")
@@ -127,11 +131,6 @@ class Service:
             rate_limit_burst=rate_limit_burst,
         )
 
-        if auth_mode == "token" and not api_key:
-            api_key = f"service_{secrets.token_urlsafe(32)}"
-        elif auth_mode != "token":
-            api_key = None
-
         now = datetime.now(timezone.utc)
         service = self(
             id=ServiceId(uuid4()),
@@ -139,9 +138,9 @@ class Service:
             domain=DomainName(domain),
             upstream=Upstream(upstream_host, upstream_port),
             tls_enabled=tls_enabled,
-            auth_enabled=auth_enabled,
-            auth_mode=auth_mode,
-            api_key=api_key,
+            auth_enabled=auth_state.auth_enabled,
+            auth_mode=auth_state.auth_mode,
+            api_key=auth_state.api_key,
             created_at=now,
             updated_at=now,
             https_redirect_enabled=https_redirect_enabled,
@@ -152,7 +151,7 @@ class Service:
             custom_headers=self._normalize_custom_headers(custom_headers),
             basic_auth_users=self._normalize_basic_auth_users(basic_auth_users),
             middleware_template_ids=self._normalize_middleware_template_ids(middleware_template_ids),
-            authentik_group_id=authentik_group_id if auth_mode == "authentik" else None,
+            authentik_group_id=auth_state.authentik_group_id,
             upstream_scheme=upstream_scheme,
             skip_tls_verify=skip_tls_verify if upstream_scheme == "https" else False,
             frame_policy=self._normalize_frame_policy(frame_policy),
@@ -212,27 +211,21 @@ class Service:
             if not tls_enabled:
                 self.https_redirect_enabled = False
 
-        if auth_mode is None and auth_enabled is not None:
-            auth_mode = "authentik" if auth_enabled else "none"
-        if auth_mode is not None:
-            auth_mode = self._normalize_auth_mode(auth_mode=auth_mode)
-            if auth_mode == "token":
-                if api_key:
-                    self.api_key = api_key
-                elif not self.api_key:
-                    self.api_key = f"service_{secrets.token_urlsafe(32)}"
-            else:
-                self.api_key = None
-                
-            self.auth_mode = auth_mode
-            self.auth_enabled = auth_mode != "none"
-            if self.auth_enabled:
+        auth_state = resolve_updated_auth_state(
+            current_auth_mode=self.auth_mode,
+            current_api_key=self.api_key,
+            requested_auth_mode=auth_mode,
+            requested_auth_enabled=auth_enabled,
+            requested_api_key=api_key,
+        )
+        if auth_state is not None:
+            self.auth_mode = auth_state.auth_mode
+            self.auth_enabled = auth_state.auth_enabled
+            self.api_key = auth_state.api_key
+            if auth_state.clear_basic_auth_users:
                 self.basic_auth_users = []
-            if auth_mode != "authentik":
+            if auth_state.clear_authentik_group:
                 self.authentik_group_id = None
-        elif auth_mode is None and self.auth_mode == "token" and api_key:
-            # auth_mode는 유지하면서 키만 업데이트하는 경우
-            self.api_key = api_key
         
         if https_redirect_enabled is not None:
             if https_redirect_enabled and not self.tls_enabled:
@@ -273,8 +266,7 @@ class Service:
         
         if basic_auth_users is not None:
             normalized_basic_auth_users = self._normalize_basic_auth_users(basic_auth_users)
-            if normalized_basic_auth_users and self.auth_enabled:
-                raise ValueError("인증 모드와 Basic Auth는 동시에 활성화할 수 없습니다")
+            ensure_basic_auth_allowed(self.auth_enabled, normalized_basic_auth_users)
             self.basic_auth_users = normalized_basic_auth_users
             
         if middleware_template_ids is not None:
@@ -317,7 +309,6 @@ class Service:
     def basic_auth_usernames(self) -> list[str]:
         return [user.split(":")[0] for user in self.basic_auth_users]
 
-    _normalize_auth_mode = staticmethod(normalize_auth_mode)
     _normalize_frame_policy = staticmethod(normalize_frame_policy)
     _normalize_healthcheck_path = staticmethod(normalize_healthcheck_path)
     _normalize_healthcheck_timeout_ms = staticmethod(normalize_healthcheck_timeout_ms)
