@@ -1,17 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Script from "next/script";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
-import { authApi } from "@/features/auth/api/authApi";
-import { Lock, User } from "lucide-react";
-
-type LoginProtectionState = {
-  turnstile_mode: "off" | "always" | "risk_based";
-  turnstile_enabled: boolean;
-  turnstile_required: boolean;
-  turnstile_site_key: string | null;
-};
+import { authApi, type LoginProtectionResponse } from "@/features/auth/api/authApi";
+import LoginBrandHeader from "@/features/auth/components/LoginBrandHeader";
+import LoginFormCard from "@/features/auth/components/LoginFormCard";
 
 type TurnstileApi = {
   render: (
@@ -37,7 +30,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loginProtection, setLoginProtection] = useState<LoginProtectionState>({
+  const [loginProtection, setLoginProtection] = useState<LoginProtectionResponse>({
     turnstile_mode: "off",
     turnstile_enabled: false,
     turnstile_required: false,
@@ -48,7 +41,7 @@ export default function LoginPage() {
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileWidgetIdRef = useRef<string | number | null>(null);
 
-  const loadLoginProtection = async (): Promise<LoginProtectionState> => {
+  const loadLoginProtection = async (): Promise<LoginProtectionResponse> => {
     const response = await authApi.getLoginProtection();
     setLoginProtection(response);
     return response;
@@ -165,92 +158,19 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-[#0F172A] to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        {/* 브랜드 로고: 아이콘 박스를 제거하고 이미지를 더 크게 강조 */}
-        <div className="text-center mb-10">
-          <div className="relative inline-block group">
-            {/* 배경 광채 효과 강화 */}
-            <div className="absolute -inset-10 bg-brand-primary/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
-            
-            {/* 아이콘: 박스 없이 단독 노출 (w-32) */}
-            <div className="relative transition-all duration-700 hover:scale-105">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src="/icon.png" 
-                alt="" 
-                className="w-32 h-32 object-contain drop-shadow-[0_20px_40px_rgba(59,130,246,0.2)] dark:drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]" 
-              />
-            </div>
-          </div>
-          <h1 className="text-3xl font-bold text-white mt-8 tracking-tight">Traefik <span className="text-brand-primary">Manager</span></h1>
-          <p className="text-slate-400 text-sm mt-2 font-medium tracking-wide">프리미엄 인프라 통합 관리 시스템</p>
-        </div>
-
-        {/* 로그인 폼 */}
-        <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10">
-          {loginProtection.turnstile_enabled && loginProtection.turnstile_site_key ? (
-            <Script
-              src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
-              strategy="afterInteractive"
-              onLoad={() => setTurnstileReady(true)}
-            />
-          ) : null}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="label text-slate-700">아이디</label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
-                <input
-                  type="text"
-                  className="input pl-11 bg-slate-50/50 border-slate-100"
-                  placeholder="사용자 아이디"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  autoComplete="username"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="label text-slate-700">비밀번호</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
-                <input
-                  type="password"
-                  className="input pl-11 bg-slate-50/50 border-slate-100"
-                  placeholder="비밀번호"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
-            </div>
-
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50/80 px-4 py-3 rounded-xl border border-red-100 font-medium">{error}</p>
-            )}
-
-            {loginProtection.turnstile_required ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="mb-3 text-xs font-medium tracking-wide text-slate-500">
-                  추가 로그인 검증
-                </p>
-                <div ref={turnstileContainerRef} />
-              </div>
-            ) : loginProtection.turnstile_mode === "risk_based" && loginProtection.turnstile_enabled ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-xs font-medium tracking-wide text-slate-500">위험 기반 로그인 검증 대기</p>
-                <p className="mt-2 text-xs text-slate-500">
-                  최근 실패가 감지되면 Cloudflare Turnstile 검증이 자동으로 표시됩니다.
-                </p>
-              </div>
-            ) : null}
-
-            <button type="submit" className="btn-primary w-full py-4 text-base tracking-wide" disabled={loading}>
-              {loading ? "인증 중..." : "로그인"}
-            </button>
-          </form>
-        </div>
+        <LoginBrandHeader />
+        <LoginFormCard
+          username={username}
+          password={password}
+          error={error}
+          loading={loading}
+          loginProtection={loginProtection}
+          turnstileContainerRef={turnstileContainerRef}
+          onUsernameChange={setUsername}
+          onPasswordChange={setPassword}
+          onSubmit={handleSubmit}
+          onTurnstileReady={() => setTurnstileReady(true)}
+        />
         <p className="text-center text-slate-500 text-xs mt-8 tracking-widest uppercase opacity-50">© 2026 Traefik Manager Professional</p>
       </div>
     </div>
