@@ -6,31 +6,28 @@ import httpx
 from app.core.config import settings
 from app.infrastructure.traefik.acme_parsers import (
     extract_acme_certificate_expiry,
-    extract_expiry_map,
-    find_expiry,
     parse_acme_expiry_map,
     parse_recent_acme_failures,
-    to_certificate_response,
 )
 from app.infrastructure.traefik.certificate_preflight import (
-    build_certificate_preflight_items,
-    build_preflight_recommendation,
-    compute_preflight_overall_status,
     inspect_presented_certificate,
     probe_http_challenge_path,
     resolve_public_dns_records,
 )
+from app.infrastructure.traefik.certificate_listing_builder import build_certificate_listing
+from app.infrastructure.traefik.certificate_preflight_runner import build_certificate_preflight_result
 from app.infrastructure.traefik.docker_api import (
     read_docker_acme_json_text,
     read_docker_container_logs_text,
     read_local_acme_json_text,
 )
+from app.infrastructure.traefik.runtime_status_builder import (
+    build_middlewares_status,
+    build_router_status,
+)
 from app.infrastructure.traefik.runtime_parsers import (
     compare_versions,
     extract_current_version,
-    extract_domains_from_router,
-    normalize_middlewares,
-    normalize_routers,
     parse_version,
 )
 
@@ -158,38 +155,7 @@ class TraefikApiClient:
                 "domains": {},
             }
 
-        routers = normalize_routers(payload)
-        domain_states: dict[str, dict] = {}
-
-        for router in routers:
-            router_name = router.get("name") or router.get("service") or "unknown"
-            status_raw = str(router.get("status", "enabled")).lower()
-            active = status_raw not in ("disabled", "error", "unknown")
-            rule = str(router.get("rule", ""))
-            domains = extract_domains_from_router(router)
-
-            for domain in domains:
-                current = domain_states.setdefault(
-                    domain,
-                    {
-                        "active": False,
-                        "routers": [],
-                    },
-                )
-                current["active"] = current["active"] or active
-                current["routers"].append(
-                    {
-                        "name": router_name,
-                        "status": status_raw,
-                        "rule": rule,
-                    }
-                )
-
-        return {
-            "connected": True,
-            "message": "Traefik 라우터 상태를 조회했습니다",
-            "domains": domain_states,
-        }
+        return build_router_status(payload)
 
     async def list_middlewares(self) -> dict:
         try:
@@ -201,33 +167,7 @@ class TraefikApiClient:
                 "middlewares": [],
             }
 
-        middlewares = []
-        for item in normalize_middlewares(payload):
-            middlewares.append(
-                {
-                    "name": str(item.get("name") or ""),
-                    "provider": item.get("provider"),
-                    "status": str(item.get("status") or "unknown"),
-                    "type": str(item.get("type") or "unknown"),
-                    "used_by": [
-                        str(value)
-                        for value in item.get("usedBy", [])
-                        if isinstance(value, str)
-                    ],
-                    "config": {
-                        key: value
-                        for key, value in item.items()
-                        if key not in {"name", "provider", "status", "type", "usedBy"}
-                    },
-                }
-            )
-
-        middlewares.sort(key=lambda item: item["name"])
-        return {
-            "connected": True,
-            "message": "Traefik 미들웨어 상태를 조회했습니다",
-            "middlewares": middlewares,
-        }
+        return build_middlewares_status(payload)
 
     async def _load_acme_expiry_map(self) -> dict[str, datetime]:
         """acme.json에서 도메인별 만료일 파싱 (file 라우터 fallback용)"""
@@ -257,83 +197,30 @@ class TraefikApiClient:
             self._get("/api/http/routers"),
         )
 
-        expiry_map = extract_expiry_map(overview)
         recent_acme_failures = await self._load_recent_acme_failures()
-        # acme.json 직접 파싱으로 누락된 도메인 보완 (file 라우터 등)
         acme_map = await self._load_acme_expiry_map()
-        for domain, expires_at in acme_map.items():
-            if domain not in expiry_map:
-                expiry_map[domain] = expires_at
-        routers = normalize_routers(routers_payload)
-
-        certificates_by_domain: dict[str, dict] = {}
-        for router in routers:
-            tls_info = router.get("tls")
-            if not tls_info:
-                continue
-
-            domains = extract_domains_from_router(router)
-            if not domains:
-                continue
-
-            resolver = None
-            if isinstance(tls_info, dict):
-                resolver = tls_info.get("certResolver")
-
-            router_name = router.get("name") or router.get("service") or "unknown"
-            for domain in domains:
-                cert = certificates_by_domain.setdefault(
-                    domain,
-                    {
-                        "domain": domain,
-                        "router_names": set(),
-                        "cert_resolvers": set(),
-                        "expires_at": find_expiry(domain, expiry_map),
-                        "last_acme_error_at": None,
-                        "last_acme_error_message": None,
-                        "last_acme_error_kind": None,
-                    },
-                )
-                cert["router_names"].add(router_name)
-                if resolver:
-                    cert["cert_resolvers"].add(str(resolver))
-                recent_failure = recent_acme_failures.get(domain)
-                if recent_failure:
-                    cert["last_acme_error_at"] = recent_failure.get("occurred_at")
-                    cert["last_acme_error_message"] = recent_failure.get("message")
-                    cert["last_acme_error_kind"] = recent_failure.get("kind")
-
-        result = [to_certificate_response(cert) for cert in certificates_by_domain.values()]
-        return sorted(
-            result,
-            key=lambda item: (
-                item["days_remaining"] is None,
-                item["days_remaining"] or 99999,
-                item["domain"],
-            ),
+        return build_certificate_listing(
+            overview=overview,
+            routers_payload=routers_payload,
+            recent_acme_failures=recent_acme_failures,
+            acme_expiry_map=acme_map,
         )
 
     async def get_certificate_preflight(self, domain: str, certificates: list[dict] | None = None) -> dict:
         certificates = certificates or await self.list_certificates()
-        certificate = next((item for item in certificates if item["domain"] == domain), None)
 
         dns_result, http_result, https_result = await asyncio.gather(
             resolve_public_dns_records(domain),
             probe_http_challenge_path(domain),
             inspect_presented_certificate(domain),
         )
-
-        items = build_certificate_preflight_items(domain, certificate, dns_result, http_result, https_result)
-        overall_status = compute_preflight_overall_status(items)
-        recommendation = build_preflight_recommendation(items, certificate)
-
-        return {
-            "domain": domain,
-            "checked_at": datetime.now(timezone.utc),
-            "overall_status": overall_status,
-            "recommendation": recommendation,
-            "items": items,
-        }
+        return build_certificate_preflight_result(
+            domain=domain,
+            certificates=certificates,
+            dns_result=dns_result,
+            http_result=http_result,
+            https_result=https_result,
+        )
 
     async def _get(self, path: str) -> dict | list:
         try:
