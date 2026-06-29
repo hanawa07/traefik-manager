@@ -1,11 +1,15 @@
-from datetime import datetime, timedelta, timezone
-from ipaddress import ip_address, ip_network
+from datetime import datetime, timedelta
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.audit import audit_service
-from app.infrastructure.persistence.models import AuditLogModel
+from app.application.auth.login_anomaly_logs import load_recent_ip_logs, normalize_utc
+from app.application.auth.login_anomaly_policy import (
+    build_suspicious_login_detail,
+    decide_suspicious_ip_block,
+    should_require_turnstile_from_logs,
+)
+from app.application.auth.login_anomaly_networks import is_trusted_client_ip
 
 
 async def enforce_suspicious_ip_block_if_needed(
@@ -21,57 +25,33 @@ async def enforce_suspicious_ip_block_if_needed(
     escalation_multiplier: int = 2,
     max_block_window: timedelta | None = None,
 ) -> bool:
-    now = _normalize_utc(now)
+    now = normalize_utc(now)
 
-    if not client_ip or not block_enabled or _is_trusted_client_ip(client_ip, trusted_networks):
+    if not client_ip or not block_enabled or is_trusted_client_ip(client_ip, trusted_networks):
         return False
 
     effective_lookup_window = block_window
     if escalation_enabled and escalation_window is not None and escalation_window > effective_lookup_window:
         effective_lookup_window = escalation_window
 
-    logs = await _load_recent_ip_logs(
+    logs = await load_recent_ip_logs(
         db=db,
         client_ip=client_ip,
         cutoff=now - effective_lookup_window,
     )
-    suspicious_logs = [
-        log for log in logs
-        if (log.detail or {}).get("event") == "login_suspicious"
-    ]
-    if not suspicious_logs:
-        return False
-
-    latest_suspicious_at = max(_get_log_created_at(log) for log in suspicious_logs)
-    blocked_logs = sorted(
-        [
-            log
-            for log in logs
-            if (log.detail or {}).get("event") == "login_blocked_ip"
-        ],
-        key=_get_log_created_at,
+    decision = decide_suspicious_ip_block(
+        logs=logs,
+        client_ip=client_ip,
+        now=now,
+        block_window=block_window,
+        escalation_enabled=escalation_enabled,
+        escalation_multiplier=escalation_multiplier,
+        max_block_window=max_block_window,
     )
-    latest_block_log = blocked_logs[-1] if blocked_logs else None
-    if latest_block_log is not None:
-        latest_blocked_at = _get_log_created_at(latest_block_log)
-        blocked_until = _get_blocked_until(latest_block_log, default_window=block_window)
-        if blocked_until > now:
-            return True
-        if latest_suspicious_at <= latest_blocked_at:
-            return False
-
-    base_block_minutes = max(1, int(block_window.total_seconds() // 60))
-    block_minutes = base_block_minutes
-    repeat_count = 1
-    if escalation_enabled:
-        previous_block_count = len(blocked_logs)
-        repeat_count = previous_block_count + 1
-        block_minutes = base_block_minutes * (escalation_multiplier ** previous_block_count)
-        if max_block_window is not None:
-            max_block_minutes = max(1, int(max_block_window.total_seconds() // 60))
-            block_minutes = min(block_minutes, max_block_minutes)
-
-    blocked_until = now + timedelta(minutes=block_minutes)
+    if not decision.blocked:
+        return False
+    if decision.detail is None:
+        return True
 
     await audit_service.record(
         db=db,
@@ -80,16 +60,7 @@ async def enforce_suspicious_ip_block_if_needed(
         resource_type="user",
         resource_id=client_ip[:36],
         resource_name=client_ip[:255],
-        detail={
-            "event": "login_blocked_ip",
-            "client_ip": client_ip,
-            "source_event": "login_suspicious",
-            "source_created_at": latest_suspicious_at.isoformat(),
-            "block_minutes": block_minutes,
-            "blocked_until": blocked_until.isoformat(),
-            "repeat_count": repeat_count,
-            "escalated": block_minutes > base_block_minutes,
-        },
+        detail=decision.detail,
     )
     return True
 
@@ -104,27 +75,23 @@ async def record_suspicious_login_activity_if_needed(
     min_unique_usernames: int,
     trusted_networks: list[str] | None = None,
 ) -> bool:
-    now = _normalize_utc(now)
+    now = normalize_utc(now)
 
-    if not client_ip or _is_trusted_client_ip(client_ip, trusted_networks):
+    if not client_ip or is_trusted_client_ip(client_ip, trusted_networks):
         return False
 
-    logs = await _load_recent_ip_logs(
+    logs = await load_recent_ip_logs(
         db=db,
         client_ip=client_ip,
         cutoff=now - window,
     )
-
-    failure_logs = []
-    for log in logs:
-        detail = log.detail or {}
-        if detail.get("event") == "login_suspicious":
-            return False
-        if detail.get("event") in {"login_failure", "login_locked"}:
-            failure_logs.append(log)
-
-    usernames = {log.resource_name for log in failure_logs if log.resource_name}
-    if len(failure_logs) < min_failures or len(usernames) < min_unique_usernames:
+    detail = build_suspicious_login_detail(
+        logs=logs,
+        client_ip=client_ip,
+        min_failures=min_failures,
+        min_unique_usernames=min_unique_usernames,
+    )
+    if detail is None:
         return False
 
     await audit_service.record(
@@ -134,13 +101,7 @@ async def record_suspicious_login_activity_if_needed(
         resource_type="user",
         resource_id=client_ip[:36],
         resource_name=client_ip[:255],
-        detail={
-            "event": "login_suspicious",
-            "client_ip": client_ip,
-            "failure_count": len(failure_logs),
-            "unique_usernames": len(usernames),
-            "usernames": sorted(usernames),
-        },
+        detail=detail,
     )
     return True
 
@@ -154,94 +115,18 @@ async def should_require_turnstile_for_ip(
     failure_threshold: int,
     trusted_networks: list[str] | None = None,
 ) -> bool:
-    now = _normalize_utc(now)
+    now = normalize_utc(now)
 
-    if not client_ip or failure_threshold <= 0 or _is_trusted_client_ip(client_ip, trusted_networks):
+    if not client_ip or failure_threshold <= 0 or is_trusted_client_ip(client_ip, trusted_networks):
         return False
 
-    logs = await _load_recent_ip_logs(
+    logs = await load_recent_ip_logs(
         db=db,
         client_ip=client_ip,
         cutoff=now - window,
     )
 
-    failure_count = 0
-    for log in logs:
-        detail = log.detail or {}
-        event = detail.get("event")
-        if event in {"login_suspicious", "login_blocked_ip"}:
-            return True
-        if event in {"login_failure", "login_locked"}:
-            failure_count += 1
-
-    return failure_count >= failure_threshold
-
-
-async def _load_recent_ip_logs(
-    *,
-    db: AsyncSession,
-    client_ip: str,
-    cutoff: datetime,
-) -> list[AuditLogModel]:
-    normalized_cutoff = _normalize_utc(cutoff)
-    result = await db.execute(
-        select(AuditLogModel).where(
-            AuditLogModel.resource_type == "user",
-            AuditLogModel.action == "update",
-            AuditLogModel.created_at >= cutoff,
-        )
+    return should_require_turnstile_from_logs(
+        logs=logs,
+        failure_threshold=failure_threshold,
     )
-    logs = result.scalars().all()
-    return [
-        log
-        for log in logs
-        if (log.detail or {}).get("client_ip") == client_ip
-        and _get_log_created_at(log) >= normalized_cutoff
-    ]
-
-
-def _is_trusted_client_ip(client_ip: str, trusted_networks: list[str] | None) -> bool:
-    if not trusted_networks:
-        return False
-    try:
-        address = ip_address(client_ip)
-    except ValueError:
-        return False
-
-    for trusted_network in trusted_networks:
-        try:
-            if address in ip_network(trusted_network, strict=False):
-                return True
-        except ValueError:
-            continue
-    return False
-
-
-def _get_blocked_until(log: AuditLogModel, *, default_window: timedelta) -> datetime:
-    detail = log.detail or {}
-    raw_blocked_until = detail.get("blocked_until")
-    if isinstance(raw_blocked_until, str):
-        try:
-            return _normalize_utc(datetime.fromisoformat(raw_blocked_until))
-        except ValueError:
-            pass
-
-    raw_block_minutes = detail.get("block_minutes")
-    try:
-        block_minutes = int(raw_block_minutes)
-        if block_minutes > 0:
-            return _get_log_created_at(log) + timedelta(minutes=block_minutes)
-    except (TypeError, ValueError):
-        pass
-
-    return _get_log_created_at(log) + default_window
-
-
-def _get_log_created_at(log: AuditLogModel) -> datetime:
-    return _normalize_utc(log.created_at)
-
-
-def _normalize_utc(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
