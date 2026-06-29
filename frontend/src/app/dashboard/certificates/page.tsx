@@ -1,28 +1,14 @@
 "use client";
 import { useState } from "react";
-import {
-  AlertTriangle,
-  Loader2,
-  RefreshCcw,
-  X,
-} from "lucide-react";
 
-import StatusBadge from "@/shared/components/StatusBadge";
 import { useCertificates, useRunCertificateCheck, useRunCertificatePreflight } from "@/features/certificates/hooks/useCertificates";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
-import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { useAuditCertificateSummary } from "@/features/audit/hooks/useAudit";
+import CertificateDetailDrawer from "./CertificateDetailDrawer";
+import CertificateErrorBanner from "./CertificateErrorBanner";
 import CertificateListCard from "./CertificateListCard";
 import CertificatePageHeader from "./CertificatePageHeader";
 import CertificateOverviewPanels from "./CertificateOverviewPanels";
-import {
-  ChecklistStateIcon,
-  getCertificateChecklist,
-  getChangedPreflightItems,
-  getFailureSummary,
-  getPreflightTrend,
-  getRemainingLabel,
-} from "./certificatePageHelpers";
 
 export default function CertificatesPage() {
   const {
@@ -85,33 +71,19 @@ export default function CertificatesPage() {
       />
 
       {isError && (
-        <div className="card p-4 border-red-200 bg-red-50 mb-6">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-red-700">인증서 정보를 가져오지 못했습니다</p>
-              <p className="text-xs text-red-600 mt-1">
-                {(error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-                  "잠시 후 다시 시도해 주세요"}
-              </p>
-            </div>
-          </div>
-        </div>
+        <CertificateErrorBanner
+          title="인증서 정보를 가져오지 못했습니다"
+          error={error}
+          fallback="잠시 후 다시 시도해 주세요"
+        />
       )}
 
       {runCertificateCheck.isError && (
-        <div className="card p-4 border-red-200 bg-red-50 mb-6">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-red-700">인증서 경고 재검사에 실패했습니다</p>
-              <p className="text-xs text-red-600 mt-1">
-                {(runCertificateCheck.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-                  "잠시 후 다시 시도해 주세요"}
-              </p>
-            </div>
-          </div>
-        </div>
+        <CertificateErrorBanner
+          title="인증서 경고 재검사에 실패했습니다"
+          error={runCertificateCheck.error}
+          fallback="잠시 후 다시 시도해 주세요"
+        />
       )}
 
       <CertificateListCard
@@ -121,250 +93,16 @@ export default function CertificatesPage() {
         onOpenCertificate={openCertificateDrawer}
       />
       {selectedCertificate ? (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/35" onClick={closeCertificateDrawer} />
-          <aside className="absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Certificate Detail</p>
-                <h2 className="mt-2 truncate text-xl font-semibold text-gray-900">{selectedCertificate.domain}</h2>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <StatusBadge status={selectedCertificate.status} />
-                  <span className="text-sm text-gray-500">{selectedCertificate.status_message}</span>
-                  {selectedCertificate.preflight_repeated_failure_active ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      반복 실패 x{selectedCertificate.preflight_failure_streak}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={closeCertificateDrawer}
-                className="rounded-lg border border-gray-200 p-2 text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
-              <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                  <p className="text-xs text-gray-500">만료일</p>
-                  <p className="mt-1 text-sm font-medium text-gray-900">
-                    {selectedCertificate.expires_at
-                      ? formatDateTime(selectedCertificate.expires_at, timeDisplaySettings?.display_timezone)
-                      : "-"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                  <p className="text-xs text-gray-500">남은 기간</p>
-                  <p className="mt-1 text-sm font-medium text-gray-900">{getRemainingLabel(selectedCertificate)}</p>
-                </div>
-                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                  <p className="text-xs text-gray-500">발급 방식</p>
-                  <p className="mt-1 text-sm font-medium text-gray-900">
-                    {selectedCertificate.cert_resolvers.length > 0
-                      ? `자동 발급 (${selectedCertificate.cert_resolvers.join(", ")})`
-                      : "수동/미설정"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                  <p className="text-xs text-gray-500">라우터</p>
-                  <p className="mt-1 text-sm font-medium text-gray-900">
-                    {selectedCertificate.router_names.length > 0
-                      ? selectedCertificate.router_names.join(", ")
-                      : "-"}
-                  </p>
-                </div>
-              </section>
-
-              <section className="rounded-2xl border border-gray-200 bg-white p-4">
-                {(() => {
-                  const checklist = getCertificateChecklist(selectedCertificate);
-                  return (
-                    <>
-                      <div className="mb-4 flex items-center justify-between gap-3">
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-900">발급 체크리스트</h3>
-                          <p className="mt-1 text-xs text-gray-500">목록은 압축해서 보여주고, 상세 진단은 이 패널에서 확인합니다.</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => runCertificatePreflight.mutate(selectedCertificate.domain)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                          disabled={runCertificatePreflight.isPending}
-                        >
-                          {runCertificatePreflight.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
-                          {runCertificatePreflight.isPending ? "진단 중..." : "사전 진단"}
-                        </button>
-                      </div>
-                      <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-                        <p className="text-[11px] font-medium text-blue-800">다음 조치</p>
-                        <p className="mt-1 text-xs leading-5 text-blue-700">{checklist.action}</p>
-                      </div>
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                        {checklist.items.map((item) => (
-                          <div key={item.label} className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                            <div className="flex items-start gap-2">
-                              <ChecklistStateIcon state={item.state} />
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium text-gray-900">{item.label}</p>
-                                <p className="mt-1 text-xs leading-5 text-gray-600">{item.detail}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  );
-                })()}
-              </section>
-
-              <section className="rounded-2xl border border-gray-200 bg-white p-4">
-                <h3 className="text-sm font-semibold text-gray-900">최근 ACME 실패</h3>
-                <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                  <p className={`text-sm font-medium ${getFailureSummary(selectedCertificate).tone}`}>
-                    {getFailureSummary(selectedCertificate).label}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {selectedCertificate.last_acme_error_at
-                      ? formatDateTime(selectedCertificate.last_acme_error_at, timeDisplaySettings?.display_timezone)
-                      : "최근 실패 기록이 없습니다"}
-                  </p>
-                  {selectedCertificate.preflight_repeated_failure_active ? (
-                    <p className="mt-2 text-xs text-rose-600">
-                      최근 사전 진단에서 같은 실패가 {selectedCertificate.preflight_failure_streak}회 연속 반복됐습니다.
-                    </p>
-                  ) : null}
-                </div>
-              </section>
-
-              <section className="rounded-2xl border border-gray-200 bg-white p-4">
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-900">사전 진단 결과</h3>
-                  <p className="mt-1 text-xs text-gray-500">DNS, challenge, 현재 제공 인증서, 최근 발급 실패를 한 번에 점검합니다.</p>
-                </div>
-
-                {runCertificatePreflight.isPending && !selectedPreflight ? (
-                  <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-5">
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
-                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                      진단을 실행하는 중입니다
-                    </div>
-                    <p className="mt-2 text-xs leading-5 text-gray-500">
-                      공개 DNS, HTTP challenge 경로, 현재 제공 인증서를 순서대로 확인합니다.
-                    </p>
-                  </div>
-                ) : runCertificatePreflight.isError ? (
-                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-4">
-                    <p className="text-sm font-medium text-rose-700">사전 진단을 실행하지 못했습니다</p>
-                    <p className="mt-1 text-xs leading-5 text-rose-600">
-                      {(runCertificatePreflight.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-                        "잠시 후 다시 시도해 주세요"}
-                    </p>
-                  </div>
-                ) : selectedPreflight ? (
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                      <div className="flex items-center gap-2">
-                        <StatusBadge
-                          status={
-                            selectedPreflight.overall_status === "ok"
-                              ? "active"
-                              : selectedPreflight.overall_status === "warning"
-                                ? "warning"
-                                : "error"
-                          }
-                        />
-                        <p className="text-sm font-medium text-blue-900">다음 조치</p>
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-blue-800">{selectedPreflight.recommendation}</p>
-                      <p className="mt-2 text-[11px] text-blue-700">
-                        검사 시각 {formatDateTime(selectedPreflight.checked_at, timeDisplaySettings?.display_timezone)}
-                      </p>
-                      {selectedPreflight.repeated_failure_active ? (
-                        <p className="mt-2 text-xs font-medium text-rose-700">
-                          같은 실패가 {selectedPreflight.repeated_failure_streak}회 연속 반복돼 알림 대상으로 기록됐습니다.
-                        </p>
-                      ) : null}
-                    </div>
-
-                    {selectedPreflight.previous_result ? (
-                      (() => {
-                        const previousResult = selectedPreflight.previous_result;
-                        const trend = getPreflightTrend(selectedPreflight, previousResult);
-                        const changedItems = getChangedPreflightItems(selectedPreflight, previousResult);
-                        return (
-                          <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-4">
-                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">직전 검사 대비</p>
-                                <p className="mt-1 text-xs text-gray-500">
-                                  이전 검사 {formatDateTime(previousResult.checked_at, timeDisplaySettings?.display_timezone)}
-                                </p>
-                              </div>
-                              <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-medium ${trend.colorClass}`}>
-                                {trend.label}
-                              </span>
-                            </div>
-                            {changedItems.length > 0 ? (
-                              <div className="space-y-2">
-                                {changedItems.map((item) => (
-                                  <div key={item.key} className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
-                                    <div className="flex items-center justify-between gap-3">
-                                      <p className="text-sm font-medium text-gray-900">{item.label}</p>
-                                      <span className="text-[11px] text-gray-500">{item.summary}</span>
-                                    </div>
-                                    {item.previousDetail ? (
-                                      <p className="mt-2 text-[11px] leading-5 text-gray-500">이전: {item.previousDetail}</p>
-                                    ) : null}
-                                    {"currentDetail" in item ? (
-                                      <p className="mt-1 text-[11px] leading-5 text-gray-700">현재: {item.currentDetail}</p>
-                                    ) : null}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-xs text-gray-600">
-                                직전 검사와 비교해 상태 변화가 없습니다.
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-xs leading-5 text-gray-500">
-                        저장된 이전 사전 진단 결과가 없습니다. 이번 검사부터 이력이 쌓입니다.
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      {selectedPreflight.items.map((item) => (
-                        <div key={item.key} className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                          <div className="flex items-start gap-2">
-                            <ChecklistStateIcon
-                              state={item.status === "ok" ? "ok" : item.status === "warning" ? "pending" : "fail"}
-                            />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-gray-900">{item.label}</p>
-                              <p className="mt-1 text-xs leading-5 text-gray-600">{item.detail}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-xs leading-5 text-gray-500">
-                    아직 사전 진단 결과가 없습니다. `사전 진단`을 눌러 현재 발급 조건을 즉시 확인하세요.
-                  </div>
-                )}
-              </section>
-            </div>
-          </aside>
-        </div>
+        <CertificateDetailDrawer
+          certificate={selectedCertificate}
+          selectedPreflight={selectedPreflight}
+          isPreflightPending={runCertificatePreflight.isPending}
+          isPreflightError={runCertificatePreflight.isError}
+          preflightError={runCertificatePreflight.error}
+          timezone={timeDisplaySettings?.display_timezone}
+          onClose={closeCertificateDrawer}
+          onRunPreflight={(domain) => runCertificatePreflight.mutate(domain)}
+        />
       ) : null}
     </div>
   );

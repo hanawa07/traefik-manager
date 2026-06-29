@@ -228,3 +228,11 @@ export function getFailureSummary(certificate: Certificate) {
     tone: "text-rose-700",
   };
 }
+
+export function getCertificateErrorDetail(error: unknown, fallback: string) {
+  const detail = (error as { response?: { data?: { detail?: string | Array<{ msg?: string }> } } })?.response?.data
+    ?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return detail[0]?.msg || fallback;
+  return fallback;
+}
