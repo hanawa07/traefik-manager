@@ -2,6 +2,7 @@ import logging
 from uuid import UUID
 
 from app.application.proxy.basic_auth_credentials import hash_basic_auth_credentials
+from app.application.proxy.service_authentik_lifecycle import ServiceAuthentikLifecycle
 from app.application.proxy.service_authentik_sync import ServiceAuthentikSync
 from app.application.proxy.service_cloudflare_records import (
     delete_cloudflare_record,
@@ -36,6 +37,7 @@ class ServiceUseCases:
         self.middleware_template_repository = middleware_template_repository
         self.file_writer = file_writer
         self.authentik_sync = ServiceAuthentikSync(authentik_client, repository)
+        self.authentik_lifecycle = ServiceAuthentikLifecycle(self.authentik_sync, file_writer)
         self.cloudflare_client = cloudflare_client
         self.upstream_guard = upstream_guard
 
@@ -86,20 +88,7 @@ class ServiceUseCases:
         middleware_templates = await self._resolve_middleware_templates(service.middleware_template_ids)
         self._validate_template_auth_conflict(service, middleware_templates)
 
-        # Authentik 연동 (authentik 모드 활성화 시)
-        if service.uses_authentik:
-            try:
-                await self.authentik_sync.setup(service)
-            except Exception:
-                logger.warning(
-                    "Authentik 연동 실패",
-                    extra={
-                        "service_name": service.name,
-                        "domain": str(service.domain),
-                    },
-                )
-                raise
-            self.file_writer.write_authentik_middleware()
+        await self.authentik_lifecycle.setup_created_service(service)
 
         # Cloudflare DNS 자동 등록 (선택 기능)
         await sync_cloudflare_record(self.cloudflare_client, service)
@@ -191,54 +180,11 @@ class ServiceUseCases:
                 update_payload.get("authentik_group_id") if service.uses_authentik else None
             )
 
-        # 인증 모드 변경 처리
-        new_auth_mode = service.auth_mode
-        if old_auth_mode != new_auth_mode:
-            # 1. Authentik teardown (기존이 authentik이었던 경우)
-            if old_auth_mode == "authentik":
-                try:
-                    await self.authentik_sync.teardown(service)
-                except Exception:
-                    logger.warning(
-                        "Authentik 연동 해제 실패",
-                        extra={
-                            "service_id": str(service.id),
-                            "service_name": service.name,
-                            "domain": str(service.domain),
-                        },
-                    )
-                    raise
-                remaining = await self.authentik_sync.count_services(exclude_id=service.id)
-                self.file_writer.delete_authentik_middleware_if_unused(remaining)
-
-            # 2. Authentik setup (새로운 모드가 authentik인 경우)
-            if new_auth_mode == "authentik":
-                try:
-                    await self.authentik_sync.setup(service)
-                except Exception:
-                    logger.warning(
-                        "Authentik 연동 실패",
-                        extra={
-                            "service_id": str(service.id),
-                            "service_name": service.name,
-                            "domain": str(service.domain),
-                        },
-                    )
-                    raise
-                self.file_writer.write_authentik_middleware()
-        elif service.uses_authentik and previous_group_id != service.authentik_group_id:
-            try:
-                await self.authentik_sync.sync_group_policy(service)
-            except Exception:
-                logger.warning(
-                    "Authentik 그룹 정책 동기화 실패",
-                    extra={
-                        "service_id": str(service.id),
-                        "service_name": service.name,
-                        "domain": str(service.domain),
-                    },
-                )
-                raise
+        await self.authentik_lifecycle.sync_updated_service(
+            service=service,
+            old_auth_mode=old_auth_mode,
+            previous_group_id=previous_group_id,
+        )
 
         # Cloudflare가 활성화되어 있으면 레코드도 현재 서비스 상태로 동기화한다.
         await sync_cloudflare_record(
@@ -259,19 +205,7 @@ class ServiceUseCases:
         if not service:
             return
 
-        if service.uses_authentik:
-            try:
-                await self.authentik_sync.teardown(service)
-            except Exception:
-                logger.warning(
-                    "Authentik 연동 해제 실패",
-                    extra={
-                        "service_id": str(service.id),
-                        "service_name": service.name,
-                        "domain": str(service.domain),
-                    },
-                )
-                raise
+        await self.authentik_lifecycle.teardown_deleted_service(service)
 
         await delete_cloudflare_record(self.cloudflare_client, service)
 
@@ -279,9 +213,7 @@ class ServiceUseCases:
         service.delete()
         await self.repository.delete(service_id)
         
-        if service.uses_authentik:
-            remaining = await self.authentik_sync.count_services(exclude_id=service.id)
-            self.file_writer.delete_authentik_middleware_if_unused(remaining)
+        await self.authentik_lifecycle.cleanup_deleted_service(service)
             
         logger.info("서비스 삭제: id=%s", service_id)
 
