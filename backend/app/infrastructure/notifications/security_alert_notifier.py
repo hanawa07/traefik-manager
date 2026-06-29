@@ -13,19 +13,12 @@ from app.infrastructure.notifications.security_alert_delivery_log import (
     get_event as _get_event,
     record_delivery_result as _record_delivery_result,
 )
-from app.infrastructure.notifications.security_alert_payloads import (
-    build_discord_payload as _build_discord_payload,
-    build_pagerduty_payload as _build_pagerduty_payload,
-    build_payload as _build_payload,
-    build_slack_payload as _build_slack_payload,
-    build_teams_payload as _build_teams_payload,
-    build_telegram_message as _build_telegram_message,
+from app.infrastructure.notifications.security_alert_delivery import (
+    build_alert_request as _build_alert_request,
+    post_alert_request as _post_alert_request,
 )
 from app.infrastructure.notifications.security_alert_routes import (
-    CHANGE_ALERT_GROUPS,
-    SECURITY_ALERT_EVENTS,
     SECURITY_ALERT_PROVIDERS,
-    SECURITY_ALERT_ROUTE_TARGETS,
     get_alert_context as _get_alert_context,
 )
 from app.infrastructure.persistence.models import AuditLogModel
@@ -34,8 +27,6 @@ from app.infrastructure.persistence.repositories.sqlite_system_settings_reposito
 )
 
 logger = logging.getLogger(__name__)
-
-PAGERDUTY_EVENTS_API_URL = "https://events.pagerduty.com/v2/enqueue"
 
 
 async def notify_if_needed(db: AsyncSession, audit_log: AuditLogModel) -> bool:
@@ -158,8 +149,12 @@ async def send_test_alert(db: AsyncSession) -> dict[str, Any]:
 
     url, payload = request
     try:
-        async with httpx.AsyncClient(timeout=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS) as client:
-            await client.post(url, json=payload)
+        await _post_alert_request(
+            httpx_module=httpx,
+            timeout_seconds=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS,
+            url=url,
+            payload=payload,
+        )
         return {
             "success": True,
             "provider": provider,
@@ -211,8 +206,12 @@ async def _deliver_alert(
 
     url, payload = request
     try:
-        async with httpx.AsyncClient(timeout=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS) as client:
-            await client.post(url, json=payload)
+        await _post_alert_request(
+            httpx_module=httpx,
+            timeout_seconds=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS,
+            url=url,
+            payload=payload,
+        )
         return True, f"{provider} 채널로 전송했습니다"
     except httpx.HTTPError as exc:
         logger.warning("보안 웹훅 알림 전송 실패: %s", exc, exc_info=True)
@@ -226,32 +225,4 @@ async def _build_request(
     provider: str,
     category: str,
 ) -> tuple[str, dict[str, Any]] | None:
-    if provider == "telegram":
-        bot_token = ((await repo.get("security_alert_telegram_bot_token")) or "").strip()
-        chat_id = ((await repo.get("security_alert_telegram_chat_id")) or "").strip()
-        if not bot_token or not chat_id:
-            return None
-        return (
-            f"https://api.telegram.org/bot{bot_token}/sendMessage",
-            {
-                "chat_id": chat_id,
-                "text": _build_telegram_message(audit_log, event, category),
-            },
-        )
-    if provider == "pagerduty":
-        routing_key = ((await repo.get("security_alert_pagerduty_routing_key")) or "").strip()
-        if not routing_key:
-            return None
-        return PAGERDUTY_EVENTS_API_URL, _build_pagerduty_payload(audit_log, event, routing_key, category)
-
-    webhook_url = ((await repo.get("security_alert_webhook_url")) or "").strip()
-    if not webhook_url:
-        return None
-
-    if provider == "slack":
-        return webhook_url, _build_slack_payload(audit_log, event, category)
-    if provider == "discord":
-        return webhook_url, _build_discord_payload(audit_log, event, category)
-    if provider == "teams":
-        return webhook_url, _build_teams_payload(audit_log, event, category)
-    return webhook_url, _build_payload(audit_log, event, category)
+    return await _build_alert_request(repo, audit_log, event, provider, category)
