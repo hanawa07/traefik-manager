@@ -1,6 +1,6 @@
 import pytest
 
-from app.interfaces.api.v1.routers import settings as settings_router
+from app.interfaces.api.v1.routers import settings_cloudflare_router as settings_router
 from app.interfaces.api.v1.schemas.settings_schemas import CloudflareSettingsUpdateRequest
 from tests.interfaces.api.settings_cloudflare_router_fakes import (
     fake_get_known_zone_name,

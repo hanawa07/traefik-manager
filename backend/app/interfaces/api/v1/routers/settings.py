@@ -5,7 +5,6 @@ from app.application.audit import audit_service
 from app.core.config import settings
 from app.core.logging_config import get_client_ip
 from app.core.time_display import get_server_time_context
-from app.infrastructure.cloudflare.client import CF_ZONE_CONFIGS_KEY, CloudflareClient, CloudflareClientError
 from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
@@ -13,15 +12,7 @@ from app.infrastructure.persistence.repositories.sqlite_redirect_host_repository
 from app.infrastructure.persistence.repositories.sqlite_service_repository import SQLiteServiceRepository
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.interfaces.api.dependencies import get_current_user, require_admin
-from app.interfaces.api.v1.routers.settings_cloudflare_actions import (
-    diagnose_cloudflare_dns_drift_action as _diagnose_cloudflare_dns_drift_action,
-    reconcile_cloudflare_dns_action as _reconcile_cloudflare_dns_action,
-    test_cloudflare_connection_action as _test_cloudflare_connection_action,
-    update_cloudflare_settings_action as _update_cloudflare_settings_action,
-)
-from app.interfaces.api.v1.routers.settings_cloudflare_client import (
-    get_cloudflare_client,
-)
+from app.interfaces.api.v1.routers.settings_cloudflare_router import router as cloudflare_router
 from app.interfaces.api.v1.routers.settings_login_defense_action import (
     update_login_defense_settings_action as _update_login_defense_settings_action,
 )
@@ -54,9 +45,6 @@ from app.interfaces.api.v1.routers.settings_test_history import (
 from app.interfaces.api.v1.schemas.settings_schemas import (
     CertificateDiagnosticsSettingsResponse,
     CertificateDiagnosticsSettingsUpdateRequest,
-    CloudflareDriftCheckResponse,
-    CloudflareSettingsStatusResponse,
-    CloudflareSettingsUpdateRequest,
     LoginDefenseSettingsResponse,
     LoginDefenseSettingsUpdateRequest,
     SecurityAlertSettingsResponse,
@@ -73,6 +61,7 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
 )
 
 router = APIRouter()
+router.include_router(cloudflare_router)
 
 
 async def _read_settings(action, db: AsyncSession):
@@ -90,77 +79,6 @@ async def _update_settings(action, request, http_request, db: AsyncSession, acto
         client_ip_getter=_maybe_get_client_ip,
         **dependencies,
     )
-
-
-@router.get("/cloudflare", response_model=CloudflareSettingsStatusResponse, summary="Cloudflare 설정 상태")
-async def get_cloudflare_status(
-    cloudflare_client: CloudflareClient = Depends(get_cloudflare_client),
-    _: dict = Depends(get_current_user),
-):
-    return cloudflare_client.get_status()
-
-
-@router.post("/cloudflare/test", response_model=SettingsTestActionResponse, summary="Cloudflare 연결 테스트")
-async def test_cloudflare_connection(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    cloudflare_client: CloudflareClient = Depends(get_cloudflare_client),
-    _: dict = Depends(require_admin),
-):
-    return await _test_cloudflare_connection_action(
-        request=request,
-        db=db,
-        actor=_,
-        cloudflare_client=cloudflare_client,
-        audit_service=audit_service,
-        client_ip_getter=get_client_ip,
-    )
-
-
-@router.post("/cloudflare/drift", response_model=CloudflareDriftCheckResponse, summary="Cloudflare DNS 드리프트 진단")
-async def diagnose_cloudflare_dns_drift(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    cloudflare_client: CloudflareClient = Depends(get_cloudflare_client),
-    _: dict = Depends(require_admin),
-):
-    return await _diagnose_cloudflare_dns_drift_action(
-        request=request,
-        db=db,
-        actor=_,
-        cloudflare_client=cloudflare_client,
-        service_repository_factory=SQLiteServiceRepository,
-        audit_service=audit_service,
-        client_ip_getter=get_client_ip,
-    )
-
-
-@router.post("/cloudflare/reconcile", response_model=SettingsTestActionResponse, summary="Cloudflare DNS 재동기화")
-async def reconcile_cloudflare_dns(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    cloudflare_client: CloudflareClient = Depends(get_cloudflare_client),
-    _: dict = Depends(require_admin),
-):
-    return await _reconcile_cloudflare_dns_action(
-        request=request,
-        db=db,
-        actor=_,
-        cloudflare_client=cloudflare_client,
-        service_repository_factory=SQLiteServiceRepository,
-        audit_service=audit_service,
-        client_ip_getter=get_client_ip,
-    )
-
-
-@router.put("/cloudflare", response_model=CloudflareSettingsStatusResponse, summary="Cloudflare 설정 저장")
-async def update_cloudflare_settings(
-    request: CloudflareSettingsUpdateRequest,
-    http_request: Request = None,
-    db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_admin),
-):
-    return await _update_settings(_update_cloudflare_settings_action, request, http_request, db, _)
 
 
 @router.get(

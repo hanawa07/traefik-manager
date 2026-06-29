@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from app.infrastructure.cloudflare.client import CloudflareZoneConfig
-from app.interfaces.api.v1.routers import settings as settings_router
+from app.interfaces.api.v1.routers import settings_cloudflare_router as settings_router
 
 
 def make_http_request():
