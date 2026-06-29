@@ -1,12 +1,10 @@
-from copy import deepcopy
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.audit import audit_service
 from app.application.proxy.middleware_template_use_cases import MiddlewareTemplateUseCases
-from app.infrastructure.persistence.models import AuditLogModel
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_middleware_template_repository import (
     SQLiteMiddlewareTemplateRepository,
@@ -16,7 +14,15 @@ from app.infrastructure.persistence.repositories.sqlite_service_repository impor
 )
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.interfaces.api.dependencies import get_current_user, require_write_access
-from app.application.audit import audit_service
+from app.interfaces.api.v1.routers.middlewares_audit_helpers import (
+    MIDDLEWARE_CREATE_EVENT,
+    MIDDLEWARE_DELETE_EVENT,
+    MIDDLEWARE_UPDATE_EVENT,
+    build_middleware_rollback_payload,
+    changed_middleware_keys,
+    middleware_audit_summary,
+)
+from app.interfaces.api.v1.routers.middlewares_rollback_action import rollback_template_change_action
 from app.interfaces.api.v1.schemas.middleware_schemas import (
     MiddlewareTemplateCreate,
     MiddlewareTemplateResponse,
@@ -24,10 +30,6 @@ from app.interfaces.api.v1.schemas.middleware_schemas import (
 )
 
 router = APIRouter()
-MIDDLEWARE_CREATE_EVENT = "middleware_create"
-MIDDLEWARE_UPDATE_EVENT = "middleware_update"
-MIDDLEWARE_DELETE_EVENT = "middleware_delete"
-MIDDLEWARE_ROLLBACK_EVENT = "middleware_rollback"
 
 
 def get_use_cases(db: AsyncSession = Depends(get_db)) -> MiddlewareTemplateUseCases:
@@ -96,15 +98,9 @@ async def update_template(
         before_template = await use_cases.get_template(template_id)
         template = await use_cases.update_template(template_id, data)
         if template and before_template:
-            before_summary = _middleware_audit_summary(before_template)
-            after_summary = _middleware_audit_summary(template)
-            changed_keys = sorted(
-                [
-                    key
-                    for key in set(before_summary.keys()) | set(after_summary.keys())
-                    if before_summary.get(key) != after_summary.get(key)
-                ]
-            )
+            before_summary = middleware_audit_summary(before_template)
+            after_summary = middleware_audit_summary(template)
+            changed_keys = changed_middleware_keys(before_summary, after_summary)
             await audit_service.record(
                 db=db,
                 actor=current_user["username"],
@@ -119,7 +115,7 @@ async def update_template(
                     "after": after_summary,
                     "summary": after_summary,
                     "rollback_supported": True,
-                    "rollback_payload": _build_middleware_rollback_payload(before_summary, changed_keys),
+                    "rollback_payload": build_middleware_rollback_payload(before_summary, changed_keys),
                 },
             )
     except ValueError as exc:
@@ -141,57 +137,13 @@ async def rollback_template_change(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_write_access),
 ):
-    result = await db.execute(select(AuditLogModel).where(AuditLogModel.id == audit_log_id))
-    audit_log = result.scalar_one_or_none()
-    if audit_log is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="대상 미들웨어 변경 로그를 찾을 수 없습니다")
-    if audit_log.resource_type != "middleware" or audit_log.action != "update":
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="미들웨어 변경 로그만 롤백할 수 있습니다")
-
-    detail = audit_log.detail or {}
-    rollback_payload = detail.get("rollback_payload")
-    if (
-        detail.get("event") != MIDDLEWARE_UPDATE_EVENT
-        or detail.get("rollback_supported") is not True
-        or not isinstance(rollback_payload, dict)
-    ):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="이 미들웨어 변경은 안전 롤백을 지원하지 않습니다")
-
-    current_template = await use_cases.get_template(UUID(audit_log.resource_id))
-    if current_template is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="미들웨어 템플릿을 찾을 수 없습니다")
-
-    before_summary = _middleware_audit_summary(current_template)
-    updated_template = await use_cases.update_template(UUID(audit_log.resource_id), MiddlewareTemplateUpdate(**rollback_payload))
-    if updated_template is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="미들웨어 템플릿을 찾을 수 없습니다")
-
-    after_summary = _middleware_audit_summary(updated_template)
-    changed_keys = sorted(
-        [
-            key
-            for key in set(before_summary.keys()) | set(after_summary.keys())
-            if before_summary.get(key) != after_summary.get(key)
-        ]
-    )
-    await audit_service.record(
+    return await rollback_template_change_action(
+        audit_log_id=audit_log_id,
+        use_cases=use_cases,
         db=db,
-        actor=current_user["username"],
-        action="rollback",
-        resource_type="middleware",
-        resource_id=str(updated_template.id),
-        resource_name=updated_template.name,
-        detail={
-            "event": MIDDLEWARE_ROLLBACK_EVENT,
-            "source_audit_id": audit_log_id,
-            "changed_keys": changed_keys,
-            "before": before_summary,
-            "after": after_summary,
-            "summary": after_summary,
-        },
+        current_user=current_user,
+        audit_service=audit_service,
     )
-    return updated_template
-
 
 
 @router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT, summary="미들웨어 템플릿 삭제")
@@ -204,7 +156,7 @@ async def delete_template(
     template = await use_cases.get_template(template_id)
     if not template:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="미들웨어 템플릿을 찾을 수 없습니다")
-        
+
     try:
         await use_cases.delete_template(template_id)
         await audit_service.record(
@@ -221,18 +173,3 @@ async def delete_template(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-
-def _middleware_audit_summary(template) -> dict[str, object]:
-    return {
-        "name": getattr(template, "name", ""),
-        "type": getattr(template, "type", ""),
-        "config": deepcopy(getattr(template, "config", {})),
-    }
-
-
-def _build_middleware_rollback_payload(
-    before_summary: dict[str, object],
-    changed_keys: list[str],
-) -> dict[str, object]:
-    return {key: deepcopy(before_summary[key]) for key in changed_keys if key in before_summary}
