@@ -1,0 +1,22 @@
+import { clsx } from "clsx";
+
+interface AuditFeedbackBannerProps {
+  feedback: { type: "success" | "error"; text: string } | null;
+}
+
+export function AuditFeedbackBanner({ feedback }: AuditFeedbackBannerProps) {
+  if (!feedback) return null;
+
+  return (
+    <div
+      className={clsx(
+        "mb-4 rounded-xl border px-4 py-3 text-sm",
+        feedback.type === "success"
+          ? "border-green-200 bg-green-50 text-green-700"
+          : "border-red-200 bg-red-50 text-red-700",
+      )}
+    >
+      {feedback.text}
+    </div>
+  );
+}
