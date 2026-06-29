@@ -21,6 +21,9 @@ from app.infrastructure.notifications.security_alert_routes import (
     SECURITY_ALERT_PROVIDERS,
     get_alert_context as _get_alert_context,
 )
+from app.infrastructure.notifications.security_alert_retry import (
+    build_retry_delivery_context as _build_retry_delivery_context,
+)
 from app.infrastructure.persistence.models import AuditLogModel
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
     SQLiteSystemSettingsRepository,
@@ -54,45 +57,21 @@ async def notify_if_needed(db: AsyncSession, audit_log: AuditLogModel) -> bool:
 
 
 async def retry_delivery(db: AsyncSession, delivery_log: AuditLogModel) -> dict[str, Any]:
-    detail = delivery_log.detail or {}
-    delivery_event = _get_event(delivery_log)
-    if delivery_event not in {"security_alert_delivery_failure", "change_alert_delivery_failure"}:
-        raise ValueError("재시도할 수 없는 알림 전송 로그입니다")
-
-    provider = detail.get("provider")
-    source_event = detail.get("source_event")
-    source_action = detail.get("source_action")
-    source_resource_type = detail.get("source_resource_type")
-    source_resource_id = detail.get("source_resource_id")
-    source_resource_name = detail.get("source_resource_name")
-    if not all(
-        isinstance(value, str) and value
-        for value in (provider, source_event, source_action, source_resource_type, source_resource_id, source_resource_name)
-    ):
-        raise ValueError("재시도에 필요한 원본 알림 정보가 부족합니다")
-
-    category = "security" if delivery_event.startswith("security_") else "change"
+    retry_context = _build_retry_delivery_context(delivery_log)
     repo = SQLiteSystemSettingsRepository(db)
-    source_log = AuditLogModel(
-        actor="system",
-        action=source_action,
-        resource_type=source_resource_type,
-        resource_id=source_resource_id,
-        resource_name=source_resource_name,
-        detail={
-            "event": source_event,
-            "client_ip": detail.get("client_ip"),
-        },
+    success, delivery_detail = await _deliver_alert(
+        repo,
+        retry_context.source_log,
+        retry_context.source_event,
+        retry_context.provider,
+        retry_context.category,
     )
-    source_log.created_at = datetime.now(timezone.utc)
-
-    success, delivery_detail = await _deliver_alert(repo, source_log, source_event, provider, category)
     await _record_delivery_result(
         db=db,
-        audit_log=source_log,
-        event=source_event,
-        category=category,
-        provider=provider,
+        audit_log=retry_context.source_log,
+        event=retry_context.source_event,
+        category=retry_context.category,
+        provider=retry_context.provider,
         success=success,
         delivery_detail=delivery_detail,
         extra_detail={
@@ -104,8 +83,8 @@ async def retry_delivery(db: AsyncSession, delivery_log: AuditLogModel) -> dict[
         "success": success,
         "message": "알림 전송을 다시 시도했습니다" if success else "알림 전송 재시도에 실패했습니다",
         "detail": delivery_detail,
-        "provider": provider,
-        "source_event": source_event,
+        "provider": retry_context.provider,
+        "source_event": retry_context.source_event,
     }
 
 
