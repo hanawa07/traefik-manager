@@ -9,7 +9,7 @@ import { useDockerContainers } from "@/features/docker/hooks/useDockerContainers
 import { useMiddlewareTemplates } from "@/features/middlewares/hooks/useMiddlewares";
 import type { ServiceCreate } from "../api/serviceApi";
 import { useAuthentikGroups } from "../hooks/useServices";
-import type { ContainerImportMode, TraefikImportCandidate } from "./ServiceContainerImportModal";
+import type { ContainerImportMode, TraefikImportCandidate } from "./containerImportTypes";
 import { serviceFormSchema, type ServiceFormData, type ServiceFormDefaultValues } from "./serviceFormSchema";
 import { buildServiceSubmitPayload, createServiceFormDefaultValues } from "./serviceFormPayload";
 import { formatDockerPortLabel, generateSecureToken, getSuggestedUpstreamPort } from "./serviceFormUtils";
