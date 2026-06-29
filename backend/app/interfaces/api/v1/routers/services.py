@@ -21,12 +21,14 @@ from app.interfaces.api.v1.routers.services_actions import (
     create_service_action,
     delete_service_action,
     get_service_action,
-    get_service_health_action,
     list_authentik_groups_action,
-    list_services_health_action,
-    rollback_service_change_action,
     update_service_action,
 )
+from app.interfaces.api.v1.routers.services_health_actions import (
+    get_service_health_action,
+    list_services_health_action,
+)
+from app.interfaces.api.v1.routers.services_rollback_action import rollback_service_change_action
 from app.interfaces.api.v1.schemas.service_schemas import (
     AuthentikGroupResponse,
     ServiceCreate,
