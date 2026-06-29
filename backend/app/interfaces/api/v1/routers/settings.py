@@ -16,14 +16,10 @@ from app.interfaces.api.v1.routers.settings_cloudflare_router import router as c
 from app.interfaces.api.v1.routers.settings_rollback_action import (
     rollback_settings_change_action as _rollback_settings_change_action,
 )
-from app.interfaces.api.v1.routers.settings_route_registry import (
-    SettingsReadRoute,
-    SettingsUpdateRoute,
-    execute_settings_read,
-    execute_settings_update,
-)
-from app.interfaces.api.v1.routers.settings_route_specs import (
-    build_settings_route_specs,
+from app.interfaces.api.v1.routers.settings_router_wiring import (
+    build_default_settings_routes,
+    read_settings_route,
+    update_settings_route,
 )
 from app.interfaces.api.v1.routers.settings_security_alert_actions import (
     test_security_alert_settings_action as _test_security_alert_settings_action,
@@ -52,7 +48,7 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
 router = APIRouter()
 router.include_router(cloudflare_router)
 
-SETTINGS_ROUTES = build_settings_route_specs(
+SETTINGS_ROUTES = build_default_settings_routes(
     server_time_context_getter_provider=lambda: get_server_time_context,
     service_repository_factory_provider=lambda: SQLiteServiceRepository,
     redirect_repository_factory_provider=lambda: SQLiteRedirectHostRepository,
@@ -60,16 +56,16 @@ SETTINGS_ROUTES = build_settings_route_specs(
 )
 
 
-async def _read_settings(route: SettingsReadRoute, db: AsyncSession):
-    return await execute_settings_read(
+async def _read_settings(route, db: AsyncSession):
+    return await read_settings_route(
         route,
         db=db,
         settings_repository_factory=SQLiteSystemSettingsRepository,
     )
 
 
-async def _update_settings(route: SettingsUpdateRoute, request, http_request, db: AsyncSession, actor: dict):
-    return await execute_settings_update(
+async def _update_settings(route, request, http_request, db: AsyncSession, actor: dict):
+    return await update_settings_route(
         route,
         request=request,
         http_request=http_request,
