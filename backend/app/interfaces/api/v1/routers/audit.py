@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -10,19 +10,18 @@ from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.models import AuditLogModel
 from app.interfaces.api.dependencies import get_current_user, require_admin
+from app.interfaces.api.v1.routers.audit_certificate_summary import build_certificate_summary
+from app.interfaces.api.v1.routers.audit_log_filters import filter_audit_logs
+from app.interfaces.api.v1.routers.audit_log_helpers import to_audit_log_response
+from app.interfaces.api.v1.routers.audit_security_summary import build_security_summary
 from app.interfaces.api.v1.schemas.audit_schemas import (
-    AuditCertificateEventResponse,
     AuditCertificateSummaryResponse,
     AuditDeliveryRetryResponse,
     AuditLogResponse,
-    AuditSecurityEventResponse,
     AuditSecuritySummaryResponse,
 )
 
 router = APIRouter()
-SECURITY_EVENTS = {"login_failure", "login_locked", "login_suspicious", "login_blocked_ip"}
-SECURITY_ALERT_EVENTS = {"login_locked", "login_suspicious", "login_blocked_ip"}
-CERTIFICATE_ALERT_EVENTS = {"certificate_warning", "certificate_error", "certificate_recovered"}
 
 
 @router.get("", response_model=list[AuditLogResponse], summary="감사 로그 조회")
@@ -49,7 +48,7 @@ async def list_audit_logs(
     result = await db.execute(query)
     logs = result.scalars().all()
 
-    filtered_logs = _filter_logs(
+    filtered_logs = filter_audit_logs(
         logs,
         resource_type=resource_type,
         action=action,
@@ -59,7 +58,7 @@ async def list_audit_logs(
         delivery_success=delivery_success,
     )
     paged_logs = filtered_logs[offset : offset + limit]
-    return [_to_audit_log_response(log) for log in paged_logs]
+    return [to_audit_log_response(log) for log in paged_logs]
 
 
 @router.get("/security-summary", response_model=AuditSecuritySummaryResponse, summary="보안 이벤트 요약")
@@ -69,39 +68,13 @@ async def get_security_summary(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
     result = await db.execute(select(AuditLogModel).order_by(desc(AuditLogModel.created_at)))
     logs = result.scalars().all()
-    recent_logs = sorted(
-        [log for log in logs if _normalize_utc(log.created_at) >= cutoff],
-        key=lambda log: _normalize_utc(log.created_at),
-        reverse=True,
-    )
-
-    failed_logs = [log for log in recent_logs if _get_event(log) == "login_failure"]
-    locked_logs = [log for log in recent_logs if _get_event(log) == "login_locked"]
-    suspicious_logs = [log for log in recent_logs if _get_event(log) == "login_suspicious"]
-    blocked_logs = [log for log in recent_logs if _get_event(log) == "login_blocked_ip"]
-    recent_events = [
-        AuditSecurityEventResponse(
-            id=log.id,
-            event=_get_event(log) or "unknown",
-            actor=log.actor,
-            resource_name=log.resource_name,
-            client_ip=(log.detail or {}).get("client_ip"),
-            created_at=_normalize_utc(log.created_at),
-        )
-        for log in recent_logs
-        if _get_event(log) in SECURITY_ALERT_EVENTS
-    ][:recent_limit]
-
-    return AuditSecuritySummaryResponse(
+    return build_security_summary(
+        logs=logs,
         window_minutes=window_minutes,
-        failed_login_count=len(failed_logs),
-        locked_login_count=len(locked_logs),
-        suspicious_ip_count=len(suspicious_logs),
-        blocked_ip_count=len(blocked_logs),
-        recent_events=recent_events,
+        recent_limit=recent_limit,
+        now=datetime.now(timezone.utc),
     )
 
 
@@ -112,43 +85,13 @@ async def get_certificate_summary(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
     result = await db.execute(select(AuditLogModel).order_by(desc(AuditLogModel.created_at)))
     logs = result.scalars().all()
-    recent_logs = sorted(
-        [
-            log
-            for log in logs
-            if _normalize_utc(log.created_at) >= cutoff and _get_event(log) in CERTIFICATE_ALERT_EVENTS
-        ],
-        key=lambda log: _normalize_utc(log.created_at),
-        reverse=True,
-    )
-
-    warning_logs = [log for log in recent_logs if _get_event(log) == "certificate_warning"]
-    error_logs = [log for log in recent_logs if _get_event(log) == "certificate_error"]
-    recovered_logs = [log for log in recent_logs if _get_event(log) == "certificate_recovered"]
-    recent_events = [
-        AuditCertificateEventResponse(
-            id=log.id,
-            event=_get_event(log) or "unknown",
-            actor=log.actor,
-            resource_name=log.resource_name,
-            days_remaining=_get_detail_int(log, "days_remaining"),
-            expires_at=_get_detail_str(log, "expires_at"),
-            previous_status=_get_detail_str(log, "previous_status"),
-            checked_at=_get_detail_str(log, "checked_at"),
-            created_at=_normalize_utc(log.created_at),
-        )
-        for log in recent_logs[:recent_limit]
-    ]
-
-    return AuditCertificateSummaryResponse(
+    return build_certificate_summary(
+        logs=logs,
         window_minutes=window_minutes,
-        warning_count=len(warning_logs),
-        error_count=len(error_logs),
-        recovered_count=len(recovered_logs),
-        recent_events=recent_events,
+        recent_limit=recent_limit,
+        now=datetime.now(timezone.utc),
     )
 
 
@@ -173,73 +116,3 @@ async def retry_delivery(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     return AuditDeliveryRetryResponse(**retry_result)
-
-
-def _get_event(log: AuditLogModel) -> str | None:
-    detail = log.detail or {}
-    event = detail.get("event")
-    return event if isinstance(event, str) else None
-
-
-def _get_detail_int(log: AuditLogModel, key: str) -> int | None:
-    detail = log.detail or {}
-    value = detail.get(key)
-    return value if isinstance(value, int) else None
-
-
-def _get_detail_str(log: AuditLogModel, key: str) -> str | None:
-    detail = log.detail or {}
-    value = detail.get(key)
-    return value if isinstance(value, str) else None
-
-
-def _get_detail_bool(log: AuditLogModel, key: str) -> bool | None:
-    detail = log.detail or {}
-    value = detail.get(key)
-    return value if isinstance(value, bool) else None
-
-
-def _filter_logs(
-    logs: list[AuditLogModel],
-    *,
-    resource_type: str | None,
-    action: str | None,
-    event: str | None,
-    security_only: bool,
-    provider: str | None,
-    delivery_success: bool | None,
-) -> list[AuditLogModel]:
-    filtered = logs
-    if resource_type:
-        filtered = [log for log in filtered if log.resource_type == resource_type]
-    if security_only:
-        filtered = [log for log in filtered if _get_event(log) in SECURITY_EVENTS]
-    if action:
-        filtered = [log for log in filtered if log.action == action]
-    if event:
-        filtered = [log for log in filtered if _get_event(log) == event]
-    if provider:
-        filtered = [log for log in filtered if _get_detail_str(log, "provider") == provider]
-    if delivery_success is not None:
-        filtered = [log for log in filtered if _get_detail_bool(log, "success") is delivery_success]
-    return filtered
-
-
-def _normalize_utc(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
-
-
-def _to_audit_log_response(log: AuditLogModel) -> AuditLogResponse:
-    return AuditLogResponse(
-        id=log.id,
-        actor=log.actor,
-        action=log.action,
-        resource_type=log.resource_type,
-        resource_id=log.resource_id,
-        resource_name=log.resource_name,
-        detail=log.detail,
-        event=_get_event(log),
-        created_at=_normalize_utc(log.created_at),
-    )
