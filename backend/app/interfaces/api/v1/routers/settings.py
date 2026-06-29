@@ -25,12 +25,13 @@ from app.interfaces.api.v1.routers.settings_cloudflare_client import (
 from app.interfaces.api.v1.routers.settings_login_defense_action import (
     update_login_defense_settings_action as _update_login_defense_settings_action,
 )
-from app.interfaces.api.v1.routers.settings_response_builders import (
-    build_certificate_diagnostics_response as _build_certificate_diagnostics_response,
-    build_login_defense_response as _build_login_defense_response,
-    build_security_alert_response as _build_security_alert_response,
-    build_traefik_dashboard_response as _build_traefik_dashboard_response,
-    build_upstream_security_response as _build_upstream_security_response,
+from app.interfaces.api.v1.routers.settings_read_actions import (
+    get_certificate_diagnostics_settings_action as _get_certificate_diagnostics_settings_action,
+    get_login_defense_settings_action as _get_login_defense_settings_action,
+    get_security_alert_settings_action as _get_security_alert_settings_action,
+    get_time_display_settings_action as _get_time_display_settings_action,
+    get_traefik_dashboard_settings_action as _get_traefik_dashboard_settings_action,
+    get_upstream_security_settings_action as _get_upstream_security_settings_action,
 )
 from app.interfaces.api.v1.routers.settings_rollback_action import (
     rollback_settings_change_action as _rollback_settings_change_action,
@@ -46,9 +47,6 @@ from app.interfaces.api.v1.routers.settings_security_alert_actions import (
 )
 from app.interfaces.api.v1.routers.settings_traefik_dashboard_action import (
     update_traefik_dashboard_settings_action as _update_traefik_dashboard_settings_action,
-)
-from app.interfaces.api.v1.routers.settings_time_display_response import (
-    build_time_display_response as _build_time_display_response,
 )
 from app.interfaces.api.v1.routers.settings_test_history import (
     get_settings_test_history_response as _get_settings_test_history_response,
@@ -75,6 +73,23 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
 )
 
 router = APIRouter()
+
+
+async def _read_settings(action, db: AsyncSession):
+    return await action(db=db, settings_repository_factory=SQLiteSystemSettingsRepository)
+
+
+async def _update_settings(action, request, http_request, db: AsyncSession, actor: dict, **dependencies):
+    return await action(
+        request=request,
+        http_request=http_request,
+        db=db,
+        actor=actor,
+        settings_repository_factory=SQLiteSystemSettingsRepository,
+        audit_service=audit_service,
+        client_ip_getter=_maybe_get_client_ip,
+        **dependencies,
+    )
 
 
 @router.get("/cloudflare", response_model=CloudflareSettingsStatusResponse, summary="Cloudflare 설정 상태")
@@ -145,15 +160,7 @@ async def update_cloudflare_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
-    return await _update_cloudflare_settings_action(
-        request=request,
-        http_request=http_request,
-        db=db,
-        actor=_,
-        settings_repository_factory=SQLiteSystemSettingsRepository,
-        audit_service=audit_service,
-        client_ip_getter=_maybe_get_client_ip,
-    )
+    return await _update_settings(_update_cloudflare_settings_action, request, http_request, db, _)
 
 
 @router.get(
@@ -165,8 +172,7 @@ async def get_traefik_dashboard_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
-    repo = SQLiteSystemSettingsRepository(db)
-    return await _build_traefik_dashboard_response(repo)
+    return await _read_settings(_get_traefik_dashboard_settings_action, db)
 
 
 @router.put(
@@ -180,17 +186,15 @@ async def update_traefik_dashboard_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
-    return await _update_traefik_dashboard_settings_action(
-        request=request,
-        http_request=http_request,
-        db=db,
-        actor=_,
-        settings_repository_factory=SQLiteSystemSettingsRepository,
+    return await _update_settings(
+        _update_traefik_dashboard_settings_action,
+        request,
+        http_request,
+        db,
+        _,
         service_repository_factory=SQLiteServiceRepository,
         redirect_repository_factory=SQLiteRedirectHostRepository,
         file_writer_factory=FileProviderWriter,
-        audit_service=audit_service,
-        client_ip_getter=_maybe_get_client_ip,
     )
 
 
@@ -199,9 +203,11 @@ async def get_time_display_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
-    repo = SQLiteSystemSettingsRepository(db)
-    stored_timezone = await repo.get("display_timezone")
-    return _build_time_display_response(stored_timezone, get_server_time_context())
+    return await _get_time_display_settings_action(
+        db=db,
+        settings_repository_factory=SQLiteSystemSettingsRepository,
+        server_time_context_getter=get_server_time_context,
+    )
 
 
 @router.put("/time-display", response_model=TimeDisplaySettingsResponse, summary="표시 시간대 설정 저장")
@@ -211,14 +217,12 @@ async def update_time_display_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
-    return await _update_time_display_settings_action(
-        request=request,
-        http_request=http_request,
-        db=db,
-        actor=_,
-        settings_repository_factory=SQLiteSystemSettingsRepository,
-        audit_service=audit_service,
-        client_ip_getter=_maybe_get_client_ip,
+    return await _update_settings(
+        _update_time_display_settings_action,
+        request,
+        http_request,
+        db,
+        _,
         server_time_context_getter=get_server_time_context,
     )
 
@@ -232,8 +236,7 @@ async def get_certificate_diagnostics_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
-    repo = SQLiteSystemSettingsRepository(db)
-    return await _build_certificate_diagnostics_response(repo)
+    return await _read_settings(_get_certificate_diagnostics_settings_action, db)
 
 
 @router.put(
@@ -247,15 +250,7 @@ async def update_certificate_diagnostics_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
-    return await _update_certificate_diagnostics_settings_action(
-        request=request,
-        http_request=http_request,
-        db=db,
-        actor=_,
-        settings_repository_factory=SQLiteSystemSettingsRepository,
-        audit_service=audit_service,
-        client_ip_getter=_maybe_get_client_ip,
-    )
+    return await _update_settings(_update_certificate_diagnostics_settings_action, request, http_request, db, _)
 
 
 @router.get(
@@ -267,8 +262,7 @@ async def get_upstream_security_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
-    repo = SQLiteSystemSettingsRepository(db)
-    return await _build_upstream_security_response(repo)
+    return await _read_settings(_get_upstream_security_settings_action, db)
 
 
 @router.put(
@@ -282,15 +276,7 @@ async def update_upstream_security_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
-    return await _update_upstream_security_settings_action(
-        request=request,
-        http_request=http_request,
-        db=db,
-        actor=_,
-        settings_repository_factory=SQLiteSystemSettingsRepository,
-        audit_service=audit_service,
-        client_ip_getter=_maybe_get_client_ip,
-    )
+    return await _update_settings(_update_upstream_security_settings_action, request, http_request, db, _)
 
 
 @router.get("/login-defense", response_model=LoginDefenseSettingsResponse, summary="로그인 방어 설정 조회")
@@ -298,8 +284,7 @@ async def get_login_defense_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
-    repo = SQLiteSystemSettingsRepository(db)
-    return await _build_login_defense_response(repo)
+    return await _read_settings(_get_login_defense_settings_action, db)
 
 
 @router.put("/login-defense", response_model=LoginDefenseSettingsResponse, summary="로그인 방어 설정 저장")
@@ -309,15 +294,7 @@ async def update_login_defense_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
-    return await _update_login_defense_settings_action(
-        request=request,
-        http_request=http_request,
-        db=db,
-        actor=_,
-        settings_repository_factory=SQLiteSystemSettingsRepository,
-        audit_service=audit_service,
-        client_ip_getter=_maybe_get_client_ip,
-    )
+    return await _update_settings(_update_login_defense_settings_action, request, http_request, db, _)
 
 
 @router.get("/security-alerts", response_model=SecurityAlertSettingsResponse, summary="보안 알림 설정 조회")
@@ -325,8 +302,7 @@ async def get_security_alert_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
-    repo = SQLiteSystemSettingsRepository(db)
-    return await _build_security_alert_response(repo)
+    return await _read_settings(_get_security_alert_settings_action, db)
 
 
 @router.post(
@@ -364,15 +340,7 @@ async def update_security_alert_settings(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_admin),
 ):
-    return await _update_security_alert_settings_action(
-        request=request,
-        http_request=http_request,
-        db=db,
-        actor=_,
-        settings_repository_factory=SQLiteSystemSettingsRepository,
-        audit_service=audit_service,
-        client_ip_getter=_maybe_get_client_ip,
-    )
+    return await _update_settings(_update_security_alert_settings_action, request, http_request, db, _)
 
 
 @router.post(
