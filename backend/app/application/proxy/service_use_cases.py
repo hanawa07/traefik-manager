@@ -2,6 +2,7 @@ import logging
 from uuid import UUID
 
 from app.application.proxy.basic_auth_credentials import hash_basic_auth_credentials
+from app.application.proxy.service_authentik_sync import ServiceAuthentikSync
 from app.application.proxy.service_cloudflare_records import (
     delete_cloudflare_record,
     rollback_cloudflare_record,
@@ -34,7 +35,7 @@ class ServiceUseCases:
         self.repository = repository
         self.middleware_template_repository = middleware_template_repository
         self.file_writer = file_writer
-        self.authentik_client = authentik_client
+        self.authentik_sync = ServiceAuthentikSync(authentik_client, repository)
         self.cloudflare_client = cloudflare_client
         self.upstream_guard = upstream_guard
 
@@ -88,7 +89,7 @@ class ServiceUseCases:
         # Authentik 연동 (authentik 모드 활성화 시)
         if service.uses_authentik:
             try:
-                await self._setup_authentik(service)
+                await self.authentik_sync.setup(service)
             except Exception:
                 logger.warning(
                     "Authentik 연동 실패",
@@ -196,7 +197,7 @@ class ServiceUseCases:
             # 1. Authentik teardown (기존이 authentik이었던 경우)
             if old_auth_mode == "authentik":
                 try:
-                    await self._teardown_authentik(service)
+                    await self.authentik_sync.teardown(service)
                 except Exception:
                     logger.warning(
                         "Authentik 연동 해제 실패",
@@ -207,13 +208,13 @@ class ServiceUseCases:
                         },
                     )
                     raise
-                remaining = await self._count_authentik_services(exclude_id=service.id)
+                remaining = await self.authentik_sync.count_services(exclude_id=service.id)
                 self.file_writer.delete_authentik_middleware_if_unused(remaining)
 
             # 2. Authentik setup (새로운 모드가 authentik인 경우)
             if new_auth_mode == "authentik":
                 try:
-                    await self._setup_authentik(service)
+                    await self.authentik_sync.setup(service)
                 except Exception:
                     logger.warning(
                         "Authentik 연동 실패",
@@ -227,7 +228,7 @@ class ServiceUseCases:
                 self.file_writer.write_authentik_middleware()
         elif service.uses_authentik and previous_group_id != service.authentik_group_id:
             try:
-                await self._sync_authentik_group_policy(service)
+                await self.authentik_sync.sync_group_policy(service)
             except Exception:
                 logger.warning(
                     "Authentik 그룹 정책 동기화 실패",
@@ -260,7 +261,7 @@ class ServiceUseCases:
 
         if service.uses_authentik:
             try:
-                await self._teardown_authentik(service)
+                await self.authentik_sync.teardown(service)
             except Exception:
                 logger.warning(
                     "Authentik 연동 해제 실패",
@@ -279,85 +280,13 @@ class ServiceUseCases:
         await self.repository.delete(service_id)
         
         if service.uses_authentik:
-            remaining = await self._count_authentik_services(exclude_id=service.id)
+            remaining = await self.authentik_sync.count_services(exclude_id=service.id)
             self.file_writer.delete_authentik_middleware_if_unused(remaining)
             
         logger.info("서비스 삭제: id=%s", service_id)
 
     async def list_authentik_groups(self) -> list[dict]:
-        return await self.authentik_client.list_groups()
-
-    async def _setup_authentik(self, service: Service) -> None:
-        slug = str(service.domain).replace(".", "-")
-        provider = await self.authentik_client.create_proxy_provider(
-            name=service.name,
-            domain=str(service.domain),
-        )
-        application = await self.authentik_client.create_application(
-            name=service.name,
-            slug=slug,
-            provider_pk=provider["pk"],
-        )
-        service.authentik_provider_id = str(provider["pk"])
-        service.authentik_app_slug = slug
-        await self._sync_authentik_group_policy(
-            service=service,
-            application_pk=str(application["pk"]),
-        )
-
-    async def _sync_authentik_group_policy(
-        self,
-        service: Service,
-        application_pk: str | None = None,
-    ) -> None:
-        await self._clear_authentik_group_policy(service)
-
-        if not service.auth_enabled or not service.authentik_group_id:
-            service.authentik_group_name = None
-            return
-
-        group = await self.authentik_client.get_group(service.authentik_group_id)
-        if not group:
-            raise ValueError("선택한 Authentik 그룹을 찾을 수 없습니다")
-
-        if application_pk is None:
-            if not service.authentik_app_slug:
-                raise ValueError("Authentik 애플리케이션 정보가 없습니다")
-            application = await self.authentik_client.get_application_by_slug(service.authentik_app_slug)
-            if not application:
-                raise ValueError("Authentik 애플리케이션을 찾을 수 없습니다")
-            application_pk = str(application["pk"])
-
-        policy = await self.authentik_client.create_group_policy(
-            name=f"{service.name}-{service.domain}-group-policy",
-            group_name=group["name"],
-        )
-        binding = await self.authentik_client.bind_policy_to_application(
-            application_pk=application_pk,
-            policy_pk=str(policy["pk"]),
-        )
-        service.authentik_group_name = group["name"]
-        service.authentik_policy_id = str(policy["pk"])
-        service.authentik_policy_binding_id = str(binding["pk"])
-
-    async def _clear_authentik_group_policy(self, service: Service) -> None:
-        if service.authentik_policy_binding_id:
-            await self.authentik_client.delete_policy_binding(service.authentik_policy_binding_id)
-        if service.authentik_policy_id:
-            await self.authentik_client.delete_policy(service.authentik_policy_id)
-        service.authentik_policy_binding_id = None
-        service.authentik_policy_id = None
-        service.authentik_group_name = None
-
-    async def _teardown_authentik(self, service: Service) -> None:
-        await self._clear_authentik_group_policy(service)
-        if service.authentik_app_slug:
-            await self.authentik_client.delete_application(service.authentik_app_slug)
-        if service.authentik_provider_id:
-            await self.authentik_client.delete_provider(service.authentik_provider_id)
-        service.authentik_provider_id = None
-        service.authentik_app_slug = None
-        service.authentik_group_id = None
+        return await self.authentik_sync.list_groups()
 
     async def _resolve_middleware_templates(self, template_ids: list[str]) -> list[MiddlewareTemplate]:
         if not template_ids:
@@ -390,11 +319,3 @@ class ServiceUseCases:
             return
         if any(template.type == "basicAuth" for template in templates):
             raise ValueError("인증 모드와 BasicAuth 미들웨어 템플릿은 동시에 사용할 수 없습니다")
-
-    async def _count_authentik_services(self, exclude_id=None) -> int:
-        """Authentik 인증이 활성화된 서비스 수를 반환한다 (exclude_id 서비스 제외)."""
-        all_services = await self.repository.find_all()
-        return sum(
-            1 for s in all_services
-            if s.uses_authentik and (exclude_id is None or s.id.value != exclude_id)
-        )
