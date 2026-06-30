@@ -5,7 +5,9 @@ from app.core.certificate_diagnostics import (
     CERTIFICATE_PREFLIGHT_REPEAT_ALERT_WINDOW_KEY,
 )
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
-from app.interfaces.api.v1.routers.settings_response_builders import build_certificate_diagnostics_response
+from app.interfaces.api.v1.routers.settings_certificate_diagnostics_response import (
+    build_certificate_diagnostics_response,
+)
 from app.interfaces.api.v1.schemas.settings_schemas import (
     CertificateDiagnosticsSettingsResponse,
     CertificateDiagnosticsSettingsUpdateRequest,

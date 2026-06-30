@@ -4,7 +4,7 @@ from fastapi import HTTPException
 
 from app.core.security import hash_basic_auth_password
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
-from app.interfaces.api.v1.routers.settings_response_builders import build_traefik_dashboard_response
+from app.interfaces.api.v1.routers.settings_traefik_dashboard_response import build_traefik_dashboard_response
 from app.interfaces.api.v1.schemas.settings_schemas import (
     TraefikDashboardSettingsResponse,
     TraefikDashboardSettingsUpdateRequest,

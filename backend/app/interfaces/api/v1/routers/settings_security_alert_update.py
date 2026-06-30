@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
-from app.interfaces.api.v1.routers.settings_response_builders import build_security_alert_response
+from app.interfaces.api.v1.routers.settings_security_alert_response import build_security_alert_response
 from app.interfaces.api.v1.routers.settings_security_alert_helpers import (
     CHANGE_ALERT_EVENTS,
     SECURITY_ALERT_EVENTS,

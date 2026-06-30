@@ -6,7 +6,7 @@ from app.core.time_display import normalize_display_timezone
 from app.infrastructure.persistence.models import AuditLogModel
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.interfaces.api.v1.routers.settings_events import SETTINGS_ROLLBACK_EVENTS, SETTINGS_UPDATE_EVENTS
-from app.interfaces.api.v1.routers.settings_response_builders import build_upstream_security_response
+from app.interfaces.api.v1.routers.settings_upstream_security_response import build_upstream_security_response
 from app.interfaces.api.v1.routers.settings_summary_helpers import upstream_security_summary
 
 

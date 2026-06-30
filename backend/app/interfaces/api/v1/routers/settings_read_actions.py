@@ -2,11 +2,19 @@ from collections.abc import Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.interfaces.api.v1.routers.settings_response_builders import (
+from app.interfaces.api.v1.routers.settings_certificate_diagnostics_response import (
     build_certificate_diagnostics_response,
+)
+from app.interfaces.api.v1.routers.settings_login_defense_response import (
     build_login_defense_response,
+)
+from app.interfaces.api.v1.routers.settings_security_alert_response import (
     build_security_alert_response,
+)
+from app.interfaces.api.v1.routers.settings_traefik_dashboard_response import (
     build_traefik_dashboard_response,
+)
+from app.interfaces.api.v1.routers.settings_upstream_security_response import (
     build_upstream_security_response,
 )
 from app.interfaces.api.v1.routers.settings_time_display_response import build_time_display_response

@@ -2,7 +2,7 @@ from fastapi import HTTPException
 
 from app.core.config import settings
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
-from app.interfaces.api.v1.routers.settings_response_builders import build_login_defense_response
+from app.interfaces.api.v1.routers.settings_login_defense_response import build_login_defense_response
 from app.interfaces.api.v1.schemas.settings_schemas import (
     LoginDefenseSettingsResponse,
     LoginDefenseSettingsUpdateRequest,
