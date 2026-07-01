@@ -1,20 +1,11 @@
-import { useQuery, type QueryKey } from "@tanstack/react-query";
-
 import {
   BackupImportResult,
   BackupPayload,
   BackupPreviewResult,
   BackupValidateResult,
-  CertificateDiagnosticsSettingsInput,
   CloudflareDriftCheckResult,
-  CloudflareSettingsInput,
-  LoginDefenseSettingsInput,
   SettingsRollbackActionResult,
-  SecurityAlertSettingsInput,
   SettingsActionTestResult,
-  TraefikDashboardSettingsInput,
-  TimeDisplaySettingsInput,
-  UpstreamSecuritySettingsInput,
   settingsApi,
 } from "../api/settingsApi";
 import {
@@ -22,22 +13,12 @@ import {
   settingsQueryKeys,
   settingsRollbackInvalidationKeys,
 } from "./settingsQueryKeys";
+import {
+  TEST_HISTORY_STALE_TIME_MS,
+  useSettingsMutationForQuery,
+  useSettingsQuery,
+} from "./useSettingsHookHelpers";
 import { useSettingsMutation } from "./useSettingsMutation";
-
-const SETTINGS_STALE_TIME_MS = 30_000;
-const TEST_HISTORY_STALE_TIME_MS = 10_000;
-
-function useSettingsQuery<TData>(
-  queryKey: QueryKey,
-  queryFn: () => Promise<TData>,
-  staleTime = SETTINGS_STALE_TIME_MS,
-) {
-  return useQuery<TData>({
-    queryKey,
-    queryFn,
-    staleTime,
-  });
-}
 
 export function useCloudflareStatus() {
   return useSettingsQuery(settingsQueryKeys.cloudflare, settingsApi.getCloudflareStatus);
@@ -79,24 +60,24 @@ export function useSettingsTestHistory() {
 }
 
 export function useUpdateCloudflareSettings() {
-  return useSettingsMutation({
-    mutationFn: (data: CloudflareSettingsInput) => settingsApi.updateCloudflareSettings(data),
-    invalidateKeys: [settingsQueryKeys.cloudflare],
-  });
+  return useSettingsMutationForQuery(
+    settingsApi.updateCloudflareSettings,
+    settingsQueryKeys.cloudflare,
+  );
 }
 
 export function useTestCloudflareConnection() {
-  return useSettingsMutation<SettingsActionTestResult>({
-    mutationFn: () => settingsApi.testCloudflareConnection(),
-    invalidateKeys: [settingsQueryKeys.testHistory],
-  });
+  return useSettingsMutationForQuery<SettingsActionTestResult>(
+    settingsApi.testCloudflareConnection,
+    settingsQueryKeys.testHistory,
+  );
 }
 
 export function useDiagnoseCloudflareDnsDrift() {
-  return useSettingsMutation<CloudflareDriftCheckResult>({
-    mutationFn: () => settingsApi.diagnoseCloudflareDnsDrift(),
-    invalidateKeys: [settingsQueryKeys.testHistory],
-  });
+  return useSettingsMutationForQuery<CloudflareDriftCheckResult>(
+    settingsApi.diagnoseCloudflareDnsDrift,
+    settingsQueryKeys.testHistory,
+  );
 }
 
 export function useReconcileCloudflareDns() {
@@ -107,53 +88,52 @@ export function useReconcileCloudflareDns() {
 }
 
 export function useUpdateTimeDisplaySettings() {
-  return useSettingsMutation({
-    mutationFn: (data: TimeDisplaySettingsInput) => settingsApi.updateTimeDisplaySettings(data),
-    invalidateKeys: [settingsQueryKeys.timeDisplay],
-  });
+  return useSettingsMutationForQuery(
+    settingsApi.updateTimeDisplaySettings,
+    settingsQueryKeys.timeDisplay,
+  );
 }
 
 export function useUpdateCertificateDiagnosticsSettings() {
-  return useSettingsMutation({
-    mutationFn: (data: CertificateDiagnosticsSettingsInput) =>
-      settingsApi.updateCertificateDiagnosticsSettings(data),
-    invalidateKeys: [settingsQueryKeys.certificateDiagnostics],
-  });
+  return useSettingsMutationForQuery(
+    settingsApi.updateCertificateDiagnosticsSettings,
+    settingsQueryKeys.certificateDiagnostics,
+  );
 }
 
 export function useUpdateTraefikDashboardSettings() {
-  return useSettingsMutation({
-    mutationFn: (data: TraefikDashboardSettingsInput) => settingsApi.updateTraefikDashboardSettings(data),
-    invalidateKeys: [settingsQueryKeys.traefikDashboard],
-  });
+  return useSettingsMutationForQuery(
+    settingsApi.updateTraefikDashboardSettings,
+    settingsQueryKeys.traefikDashboard,
+  );
 }
 
 export function useUpdateUpstreamSecuritySettings() {
-  return useSettingsMutation({
-    mutationFn: (data: UpstreamSecuritySettingsInput) => settingsApi.updateUpstreamSecuritySettings(data),
-    invalidateKeys: [settingsQueryKeys.upstreamSecurity],
-  });
+  return useSettingsMutationForQuery(
+    settingsApi.updateUpstreamSecuritySettings,
+    settingsQueryKeys.upstreamSecurity,
+  );
 }
 
 export function useUpdateLoginDefenseSettings() {
-  return useSettingsMutation({
-    mutationFn: (data: LoginDefenseSettingsInput) => settingsApi.updateLoginDefenseSettings(data),
-    invalidateKeys: [settingsQueryKeys.loginDefense],
-  });
+  return useSettingsMutationForQuery(
+    settingsApi.updateLoginDefenseSettings,
+    settingsQueryKeys.loginDefense,
+  );
 }
 
 export function useUpdateSecurityAlertSettings() {
-  return useSettingsMutation({
-    mutationFn: (data: SecurityAlertSettingsInput) => settingsApi.updateSecurityAlertSettings(data),
-    invalidateKeys: [settingsQueryKeys.securityAlerts],
-  });
+  return useSettingsMutationForQuery(
+    settingsApi.updateSecurityAlertSettings,
+    settingsQueryKeys.securityAlerts,
+  );
 }
 
 export function useTestSecurityAlertSettings() {
-  return useSettingsMutation<SettingsActionTestResult>({
-    mutationFn: () => settingsApi.testSecurityAlertSettings(),
-    invalidateKeys: [settingsQueryKeys.testHistory],
-  });
+  return useSettingsMutationForQuery<SettingsActionTestResult>(
+    settingsApi.testSecurityAlertSettings,
+    settingsQueryKeys.testHistory,
+  );
 }
 
 export function useRollbackSettingsChange() {
