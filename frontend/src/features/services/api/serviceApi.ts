@@ -1,159 +1,20 @@
-import apiClient from "@/shared/lib/apiClient";
+import { serviceAuthentikApi } from "./service-api/serviceAuthentikApi";
+import { serviceCrudApi } from "./service-api/serviceCrudApi";
+import { serviceHealthApi } from "./service-api/serviceHealthApi";
 
-export type AuthMode = "none" | "authentik" | "token";
-export type FramePolicy = "deny" | "sameorigin" | "off";
-
-export interface Service {
-  id: string;
-  name: string;
-  domain: string;
-  upstream_host: string;
-  upstream_port: number;
-  upstream_scheme: "http" | "https";
-  skip_tls_verify: boolean;
-  tls_enabled: boolean;
-  https_redirect_enabled: boolean;
-  auth_enabled: boolean;
-  auth_mode: AuthMode;
-  api_key: string | null;
-  allowed_ips: string[];
-  blocked_paths: string[];
-  rate_limit_enabled: boolean;
-  rate_limit_average: number | null;
-  rate_limit_burst: number | null;
-  custom_headers: Record<string, string>;
-  frame_policy: FramePolicy;
-  healthcheck_enabled: boolean;
-  healthcheck_path: string;
-  healthcheck_timeout_ms: number;
-  healthcheck_expected_statuses: number[];
-  basic_auth_enabled: boolean;
-  basic_auth_user_count: number;
-  basic_auth_usernames: string[];
-  middleware_template_ids: string[];
-  authentik_group_id: string | null;
-  authentik_group_name: string | null;
-  cloudflare_record_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BasicAuthCredential {
-  username: string;
-  password: string;
-}
-
-export interface ServiceCreate {
-  name: string;
-  domain: string;
-  upstream_host: string;
-  upstream_port: number;
-  upstream_scheme: "http" | "https";
-  skip_tls_verify: boolean;
-  tls_enabled: boolean;
-  https_redirect_enabled: boolean;
-  auth_enabled?: boolean;
-  auth_mode: AuthMode;
-  api_key?: string | null;
-  basic_auth_enabled: boolean;
-  rate_limit_enabled?: boolean;
-  allowed_ips: string[];
-  blocked_paths: string[];
-  rate_limit_average: number | null;
-  rate_limit_burst: number | null;
-  custom_headers: Record<string, string>;
-  frame_policy: FramePolicy;
-  healthcheck_enabled: boolean;
-  healthcheck_path: string;
-  healthcheck_timeout_ms: number;
-  healthcheck_expected_statuses: number[];
-  basic_auth_credentials?: BasicAuthCredential[];
-  middleware_template_ids: string[];
-  authentik_group_id?: string | null;
-}
-
-export interface ServiceUpdate {
-  name?: string;
-  upstream_host?: string;
-  upstream_port?: number;
-  upstream_scheme?: "http" | "https";
-  skip_tls_verify?: boolean;
-  tls_enabled?: boolean;
-  https_redirect_enabled?: boolean;
-  auth_enabled?: boolean;
-  auth_mode?: AuthMode;
-  api_key?: string | null;
-  basic_auth_enabled?: boolean;
-  rate_limit_enabled?: boolean;
-  rate_limit_average?: number | null;
-  rate_limit_burst?: number | null;
-  custom_headers?: Record<string, string>;
-  frame_policy?: FramePolicy;
-  healthcheck_enabled?: boolean;
-  healthcheck_path?: string;
-  healthcheck_timeout_ms?: number;
-  healthcheck_expected_statuses?: number[];
-  allowed_ips?: string[];
-  blocked_paths?: string[];
-  basic_auth_credentials?: BasicAuthCredential[];
-  middleware_template_ids?: string[];
-  authentik_group_id?: string | null;
-}
-
-export interface AuthentikGroup {
-  id: string;
-  name: string;
-}
-
-export interface UpstreamHealth {
-  service_id: string;
-  domain: string;
-  status: "up" | "down" | "unknown";
-  status_code: number | null;
-  latency_ms: number | null;
-  error: string | null;
-  error_kind: string | null;
-  checked_url: string;
-  checked_at: string;
-}
+export type {
+  AuthentikGroup,
+  AuthMode,
+  BasicAuthCredential,
+  FramePolicy,
+  Service,
+  ServiceCreate,
+  ServiceUpdate,
+  UpstreamHealth,
+} from "./service-api/serviceTypes";
 
 export const serviceApi = {
-  list: async (): Promise<Service[]> => {
-    const res = await apiClient.get<Service[]>("/services");
-    return res.data;
-  },
-
-  get: async (id: string): Promise<Service> => {
-    const res = await apiClient.get<Service>(`/services/${id}`);
-    return res.data;
-  },
-
-  create: async (data: ServiceCreate): Promise<Service> => {
-    const res = await apiClient.post<Service>("/services", data);
-    return res.data;
-  },
-
-  update: async (id: string, data: ServiceUpdate): Promise<Service> => {
-    const res = await apiClient.patch<Service>(`/services/${id}`, data);
-    return res.data;
-  },
-
-  delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/services/${id}`);
-  },
-
-  listAuthentikGroups: async (): Promise<AuthentikGroup[]> => {
-    const res = await apiClient.get<AuthentikGroup[]>("/services/authentik/groups");
-    return res.data;
-  },
-
-  getServiceHealth: async (id: string): Promise<UpstreamHealth> => {
-    const res = await apiClient.get<UpstreamHealth>(`/services/${id}/health`);
-    return res.data;
-  },
-
-  getAllServicesHealth: async (): Promise<Record<string, UpstreamHealth>> => {
-    const res = await apiClient.get<Record<string, UpstreamHealth>>("/services/health/all");
-    return res.data;
-  },
+  ...serviceCrudApi,
+  ...serviceAuthentikApi,
+  ...serviceHealthApi,
 };
