@@ -1,18 +1,14 @@
+import { Cloud } from "lucide-react";
+
 import type {
   SettingsActionTestResult,
   SettingsTestHistoryItem,
-  SecurityAlertSettingsStatus,
 } from "@/features/settings/api/settingsApi";
-import { SettingsSummary } from "@/features/settings/components/SettingsCardPrimitives";
-import { SECURITY_ALERT_PROVIDER_OPTIONS } from "@/features/settings/lib/settingsDefaults";
-import { SecurityAlertChannelSummary } from "./SecurityAlertChannelSummary";
-import { SecurityAlertDeliverySummary } from "./SecurityAlertDeliverySummary";
-import { SecurityAlertRoutingSummary } from "./SecurityAlertRoutingSummary";
+import { SettingsActionRow } from "@/features/settings/components/SettingsCardPrimitives";
+import { SecurityAlertDeliveryHistory } from "@/features/settings/components/SecurityAlertDeliveryHistory";
 
-interface SecurityAlertSettingsSummaryProps {
+interface SecurityAlertDeliverySummaryProps {
   canManage: boolean;
-  settings?: SecurityAlertSettingsStatus;
-  provider: (typeof SECURITY_ALERT_PROVIDER_OPTIONS)[number];
   isTesting: boolean;
   isHistoryLoading: boolean;
   displayTimezone?: string;
@@ -29,10 +25,8 @@ interface SecurityAlertSettingsSummaryProps {
   onRetryChangeDelivery: () => void;
 }
 
-export function SecurityAlertSettingsSummary({
+export function SecurityAlertDeliverySummary({
   canManage,
-  settings,
-  provider,
   isTesting,
   isHistoryLoading,
   displayTimezone,
@@ -47,15 +41,25 @@ export function SecurityAlertSettingsSummary({
   onTest,
   onRetrySecurityDelivery,
   onRetryChangeDelivery,
-}: SecurityAlertSettingsSummaryProps) {
+}: SecurityAlertDeliverySummaryProps) {
   return (
-    <SettingsSummary>
-      <SecurityAlertChannelSummary settings={settings} provider={provider} />
-      <SecurityAlertRoutingSummary settings={settings} providerLabel={provider.label} />
-      <SecurityAlertDeliverySummary
-        canManage={canManage}
+    <>
+      {canManage ? (
+        <SettingsActionRow>
+          <button
+            type="button"
+            className="btn-secondary inline-flex items-center gap-2 py-1.5 text-xs"
+            onClick={onTest}
+            disabled={isTesting}
+          >
+            <Cloud className="h-3.5 w-3.5" />
+            {isTesting ? "전송 중..." : "테스트 알림 전송"}
+          </button>
+        </SettingsActionRow>
+      ) : null}
+      <p className="text-xs text-gray-500">테스트는 현재 저장된 기본 채널 설정 기준으로 즉시 전송됩니다.</p>
+      <SecurityAlertDeliveryHistory
         isHistoryLoading={isHistoryLoading}
-        isTesting={isTesting}
         displayTimezone={displayTimezone}
         testResult={testResult}
         securityRetryResult={securityRetryResult}
@@ -65,10 +69,12 @@ export function SecurityAlertSettingsSummary({
         changeDeliveryHistory={changeDeliveryHistory}
         isRetryingSecurityDelivery={isRetryingSecurityDelivery}
         isRetryingChangeDelivery={isRetryingChangeDelivery}
-        onTest={onTest}
         onRetrySecurityDelivery={onRetrySecurityDelivery}
         onRetryChangeDelivery={onRetryChangeDelivery}
       />
-    </SettingsSummary>
+      <p className="text-xs text-gray-500">
+        알림 실패는 운영 가시성에만 영향을 주고, 로그인 차단/잠금 로직 자체는 중단하지 않습니다.
+      </p>
+    </>
   );
 }
