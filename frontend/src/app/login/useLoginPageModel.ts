@@ -1,22 +1,10 @@
 import type { FormEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { authApi, type LoginProtectionResponse } from "@/features/auth/api/authApi";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
-
-type TurnstileApi = {
-  render: (
-    container: HTMLElement,
-    options: {
-      sitekey: string;
-      callback: (token: string) => void;
-      "expired-callback": () => void;
-      "error-callback": () => void;
-    },
-  ) => string | number;
-  reset: (widgetId?: string | number) => void;
-};
+import { useLoginTurnstile } from "./useLoginTurnstile";
 
 const DEFAULT_LOGIN_PROTECTION: LoginProtectionResponse = {
   turnstile_mode: "off",
@@ -39,10 +27,12 @@ export function useLoginPageModel() {
   const [loginProtection, setLoginProtection] = useState<LoginProtectionResponse>(
     DEFAULT_LOGIN_PROTECTION,
   );
-  const [turnstileReady, setTurnstileReady] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState("");
-  const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
-  const turnstileWidgetIdRef = useRef<string | number | null>(null);
+  const {
+    token: turnstileToken,
+    containerRef: turnstileContainerRef,
+    onReady: handleTurnstileReady,
+    resetChallenge,
+  } = useLoginTurnstile(loginProtection);
 
   const loadLoginProtection = async (): Promise<LoginProtectionResponse> => {
     const response = await authApi.getLoginProtection();
@@ -84,38 +74,6 @@ export function useLoginPageModel() {
     };
   }, []);
 
-  useEffect(() => {
-    if (
-      !loginProtection.turnstile_required ||
-      !loginProtection.turnstile_site_key ||
-      !turnstileReady ||
-      !turnstileContainerRef.current ||
-      turnstileWidgetIdRef.current !== null
-    ) {
-      return;
-    }
-
-    const turnstile = getTurnstileApi();
-    if (!turnstile) {
-      return;
-    }
-
-    turnstileWidgetIdRef.current = turnstile.render(turnstileContainerRef.current, {
-      sitekey: loginProtection.turnstile_site_key,
-      callback: (token) => setTurnstileToken(token),
-      "expired-callback": () => setTurnstileToken(""),
-      "error-callback": () => setTurnstileToken(""),
-    });
-  }, [loginProtection.turnstile_required, loginProtection.turnstile_site_key, turnstileReady]);
-
-  useEffect(() => {
-    if (loginProtection.turnstile_required && loginProtection.turnstile_site_key) {
-      return;
-    }
-    turnstileWidgetIdRef.current = null;
-    setTurnstileToken("");
-  }, [loginProtection.turnstile_required, loginProtection.turnstile_site_key]);
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
@@ -129,9 +87,7 @@ export function useLoginPageModel() {
       login(result.username, result.role);
       router.replace("/dashboard");
     } catch {
-      if (resetTurnstileChallenge(turnstileWidgetIdRef.current)) {
-        setTurnstileToken("");
-      }
+      resetChallenge();
       try {
         const nextProtection = await loadLoginProtection();
         setError(getLoginFailureMessage(nextProtection.turnstile_required));
@@ -153,24 +109,11 @@ export function useLoginPageModel() {
     onUsernameChange: setUsername,
     onPasswordChange: setPassword,
     onSubmit: handleSubmit,
-    onTurnstileReady: () => setTurnstileReady(true),
+    onTurnstileReady: handleTurnstileReady,
   };
 }
 
 export type LoginPageModel = ReturnType<typeof useLoginPageModel>;
-
-function getTurnstileApi() {
-  return (window as Window & { turnstile?: TurnstileApi }).turnstile;
-}
-
-function resetTurnstileChallenge(widgetId: string | number | null) {
-  const turnstile = getTurnstileApi();
-  if (turnstile && widgetId !== null) {
-    turnstile.reset(widgetId);
-    return true;
-  }
-  return false;
-}
 
 function getLoginFailureMessage(turnstileRequired: boolean) {
   return turnstileRequired
