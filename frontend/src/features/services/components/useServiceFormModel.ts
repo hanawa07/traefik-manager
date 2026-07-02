@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -8,9 +8,10 @@ import { useMiddlewareTemplates } from "@/features/middlewares/hooks/useMiddlewa
 import type { ServiceCreate } from "../api/serviceApi";
 import { useAuthentikGroups } from "../hooks/useServices";
 import { useServiceContainerImportModel } from "./useServiceContainerImportModel";
+import { useServiceFormActions } from "./useServiceFormActions";
+import { useServiceFormSyncEffects } from "./useServiceFormSyncEffects";
 import { serviceFormSchema, type ServiceFormData, type ServiceFormDefaultValues } from "./serviceFormSchema";
 import { buildServiceSubmitPayload, createServiceFormDefaultValues } from "./serviceFormPayload";
-import { generateSecureToken } from "./serviceFormUtils";
 
 interface UseServiceFormModelParams {
   defaultValues?: ServiceFormDefaultValues;
@@ -18,7 +19,6 @@ interface UseServiceFormModelParams {
 }
 
 export function useServiceFormModel({ defaultValues, onSubmit }: UseServiceFormModelParams) {
-  const [copied, setCopied] = useState(false);
   const serviceFormDefaultValues = useMemo(() => createServiceFormDefaultValues(defaultValues), [defaultValues]);
 
   const {
@@ -65,53 +65,22 @@ export function useServiceFormModel({ defaultValues, onSubmit }: UseServiceFormM
   const { data: authentikGroups = [] } = useAuthentikGroups(isAuthentikEnabled);
   const { data: middlewareTemplates = [], isLoading: isMiddlewareLoading } = useMiddlewareTemplates();
   const { onOpenContainerImportModal, containerImportModal } = useServiceContainerImportModel({ setValue });
+  const serviceFormActions = useServiceFormActions({
+    appendBasicAuthField,
+    appendCustomHeader: append,
+    removeBasicAuthField,
+    removeCustomHeader: remove,
+    setValue,
+  });
 
-  useEffect(() => {
-    if (defaultValues?.api_key) {
-      setValue("api_key", defaultValues.api_key);
-    }
-  }, [defaultValues?.api_key, setValue]);
-
-  useEffect(() => {
-    if (authMode === "token" && !apiKeyValue) {
-      setValue("api_key", generateSecureToken());
-    }
-  }, [authMode, apiKeyValue, setValue]);
-
-  useEffect(() => {
-    if (!tlsEnabled) {
-      setValue("https_redirect_enabled", false);
-    }
-  }, [tlsEnabled, setValue]);
-
-  useEffect(() => {
-    if (authMode !== "authentik") {
-      setValue("authentik_group_id", "");
-    }
-  }, [authMode, setValue]);
-
-  useEffect(() => {
-    if (authMode !== "none") {
-      setValue("basic_auth_enabled", false);
-      setValue("basic_auth_credentials", [{ username: "", password: "" }]);
-    }
-  }, [authMode, setValue]);
-
-  useEffect(() => {
-    if (upstreamScheme === "http") {
-      setValue("skip_tls_verify", false);
-    }
-  }, [upstreamScheme, setValue]);
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy!", err);
-    }
-  };
+  useServiceFormSyncEffects({
+    apiKeyValue,
+    authMode,
+    defaultApiKey: defaultValues?.api_key,
+    setValue,
+    tlsEnabled,
+    upstreamScheme,
+  });
 
   const submitForm = (data: ServiceFormData) => {
     onSubmit(buildServiceSubmitPayload(data));
@@ -136,14 +105,14 @@ export function useServiceFormModel({ defaultValues, onSubmit }: UseServiceFormM
       isMiddlewareLoading,
       customHeaderFields: fields,
       basicAuthFields,
-      copied,
+      copied: serviceFormActions.copied,
       onOpenContainerImportModal,
-      onRegenerateApiKey: () => setValue("api_key", generateSecureToken()),
-      onCopyApiKey: copyToClipboard,
-      onAddBasicAuthUser: () => appendBasicAuthField({ username: "", password: "" }),
-      onRemoveBasicAuthUser: removeBasicAuthField,
-      onAddCustomHeader: () => append({ key: "", value: "" }),
-      onRemoveCustomHeader: remove,
+      onRegenerateApiKey: serviceFormActions.onRegenerateApiKey,
+      onCopyApiKey: serviceFormActions.onCopyApiKey,
+      onAddBasicAuthUser: serviceFormActions.onAddBasicAuthUser,
+      onRemoveBasicAuthUser: serviceFormActions.onRemoveBasicAuthUser,
+      onAddCustomHeader: serviceFormActions.onAddCustomHeader,
+      onRemoveCustomHeader: serviceFormActions.onRemoveCustomHeader,
     },
     containerImportModal,
   };
