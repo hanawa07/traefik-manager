@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  turbopack: {
+    // Avoid workspace-root inference picking up /home/lizstudio/package-lock.json.
+    root: process.cwd(),
+  },
   async headers() {
     return [
       {
