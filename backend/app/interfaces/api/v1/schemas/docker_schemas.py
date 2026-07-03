@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -54,4 +56,10 @@ class DockerDeploymentInfoResponse(BaseModel):
     version: str | None = None
     revision: str | None = None
     build_date: str | None = None
+    source: str | None = None
+    latest_version: str | None = None
+    latest_release_url: str | None = None
+    latest_version_checked_at: datetime | None = None
+    latest_version_error: str | None = None
+    update_available: bool | None = None
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)

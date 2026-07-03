@@ -21,6 +21,12 @@ export interface DeploymentInfo {
   version: string | null;
   revision: string | null;
   build_date: string | null;
+  source: string | null;
+  latest_version: string | null;
+  latest_release_url: string | null;
+  latest_version_checked_at: string | null;
+  latest_version_error: string | null;
+  update_available: boolean | null;
   components: DeploymentComponent[];
 }
 

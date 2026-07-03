@@ -5,6 +5,7 @@ from urllib.parse import quote
 import httpx
 
 from app.core.config import settings
+from app.infrastructure.docker.deployment_release import ManagerReleaseChecker
 
 
 class DockerClientError(Exception):
@@ -71,12 +72,17 @@ class DockerClient:
     async def get_manager_deployment_info(self) -> dict:
         fallback_component = self._build_fallback_component("backend")
         if not self.enabled:
+            version = fallback_component["version"]
+            source = fallback_component["source"]
+            release_info = await ManagerReleaseChecker().get_release_status(version, source)
             return {
                 "enabled": False,
                 "message": "Docker 소켓이 없어 배포 이미지 라벨을 조회할 수 없습니다",
-                "version": fallback_component["version"],
+                "version": version,
                 "revision": fallback_component["revision"],
                 "build_date": fallback_component["build_date"],
+                "source": source,
+                **release_info,
                 "components": [fallback_component],
             }
 
@@ -91,12 +97,17 @@ class DockerClient:
             ),
         ]
         ok_count = sum(1 for item in components if item["status"] == "ok")
+        version = self._select_component_value(components, "version") or fallback_component["version"]
+        source = self._select_component_value(components, "source") or fallback_component["source"]
+        release_info = await ManagerReleaseChecker().get_release_status(version, source)
         return {
             "enabled": True,
             "message": f"배포 이미지 라벨을 조회했습니다 ({ok_count}/{len(components)}개)",
-            "version": self._select_component_value(components, "version") or fallback_component["version"],
+            "version": version,
             "revision": self._select_component_value(components, "revision") or fallback_component["revision"],
             "build_date": self._select_component_value(components, "build_date") or fallback_component["build_date"],
+            "source": source,
+            **release_info,
             "components": components,
         }
 

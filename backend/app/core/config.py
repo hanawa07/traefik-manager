@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     TRAEFIK_MANAGER_GIT_SHA: str = ""
     TRAEFIK_MANAGER_BUILD_DATE: str = ""
     TRAEFIK_MANAGER_IMAGE_SOURCE: str = "https://github.com/hanawa07/traefik-manager"
+    TRAEFIK_MANAGER_LATEST_RELEASE_API_URL: str | None = None
+    TRAEFIK_MANAGER_LATEST_RELEASE_TIMEOUT_SECONDS: float = 5.0
+    TRAEFIK_MANAGER_LATEST_RELEASE_CACHE_SECONDS: int = 3600
     TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME: str = "traefik-manager-backend"
     TRAEFIK_MANAGER_FRONTEND_CONTAINER_NAME: str = "traefik-manager-frontend"
 

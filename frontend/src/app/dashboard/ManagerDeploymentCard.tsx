@@ -1,4 +1,4 @@
-import { GitCommit, PackageCheck } from "lucide-react";
+import { ExternalLink, GitCommit, PackageCheck } from "lucide-react";
 
 import type { DeploymentComponent, DeploymentInfo } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
@@ -11,7 +11,11 @@ interface ManagerDeploymentCardProps {
 export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymentCardProps) {
   const revision = formatRevision(deployment?.revision);
   const version = deployment?.version || "-";
+  const latestVersion = deployment?.latest_version || "-";
   const buildDate = formatDateTime(deployment?.build_date, timezone);
+  const latestCheckedAt = formatDateTime(deployment?.latest_version_checked_at, timezone);
+  const releaseStatus = getReleaseStatus(deployment);
+  const releaseTone = getReleaseTone(deployment);
 
   return (
     <div className="card mb-6 p-5">
@@ -22,18 +26,31 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
             <h2 className="text-base font-semibold text-gray-900">Manager 배포 버전</h2>
           </div>
           <p className="mt-1 text-xs text-gray-500">
-            backend/frontend 이미지의 OCI 라벨 기준으로 현재 배포된 커밋을 추적합니다.
+            backend/frontend 이미지의 OCI 라벨과 GitHub 최신 릴리즈를 비교합니다.
           </p>
         </div>
-        <span className="w-fit rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-          {deployment?.enabled === false ? "Docker 조회 불가" : deployment ? "조회 완료" : "확인 중"}
+        <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${releaseTone.badge}`}>
+          {releaseStatus}
         </span>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <DeploymentFact label="버전" value={version} />
+      <div className="grid gap-3 md:grid-cols-4">
+        <DeploymentFact label="현재 버전" value={version} />
+        <DeploymentFact
+          href={deployment?.latest_release_url || undefined}
+          label="최신 릴리즈"
+          value={latestVersion}
+        />
         <DeploymentFact label="커밋" value={revision} monospace />
         <DeploymentFact label="빌드 시각" value={buildDate} />
+      </div>
+
+      <div className={`mt-4 rounded-xl border px-4 py-3 text-xs ${releaseTone.panel}`}>
+        <p className="font-medium">{deployment?.message || "배포 정보를 확인하는 중입니다"}</p>
+        <p className="mt-1">
+          최신 릴리즈 확인: {latestCheckedAt}
+          {deployment?.latest_version_error ? ` · ${deployment.latest_version_error}` : ""}
+        </p>
       </div>
 
       <div className="mt-4 grid gap-2 md:grid-cols-2">
@@ -46,18 +63,34 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
 }
 
 function DeploymentFact({
+  href,
   label,
   value,
   monospace = false,
 }: {
+  href?: string;
   label: string;
   value: string;
   monospace?: boolean;
 }) {
+  const valueClassName = `mt-1 truncate text-sm font-semibold text-gray-900 ${monospace ? "font-mono" : ""}`;
+
   return (
     <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
       <p className="text-xs text-gray-500">{label}</p>
-      <p className={`mt-1 truncate text-sm font-semibold text-gray-900 ${monospace ? "font-mono" : ""}`}>{value}</p>
+      {href ? (
+        <a
+          className={`${valueClassName} inline-flex max-w-full items-center gap-1 text-blue-700 hover:text-blue-800`}
+          href={href}
+          rel="noreferrer"
+          target="_blank"
+        >
+          <span className="truncate">{value}</span>
+          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+        </a>
+      ) : (
+        <p className={valueClassName}>{value}</p>
+      )}
     </div>
   );
 }
@@ -102,4 +135,44 @@ function getStatusClassName(status: string) {
   if (status === "ok") return "bg-emerald-100 text-emerald-700";
   if (status === "local_env") return "bg-blue-100 text-blue-700";
   return "bg-amber-100 text-amber-700";
+}
+
+function getReleaseStatus(deployment?: DeploymentInfo) {
+  if (!deployment) return "확인 중";
+  if (deployment.enabled === false) return "Docker 조회 불가";
+  if (deployment.update_available === true) return "업데이트 필요";
+  if (deployment.update_available === false) return "최신 상태";
+  if (deployment.latest_version_error) return "확인 실패";
+  return "비교 불가";
+}
+
+function getReleaseTone(deployment?: DeploymentInfo) {
+  if (!deployment) {
+    return {
+      badge: "bg-slate-100 text-slate-700",
+      panel: "border-slate-200 bg-slate-50 text-slate-600",
+    };
+  }
+  if (deployment.enabled === false) {
+    return {
+      badge: "bg-amber-100 text-amber-800",
+      panel: "border-amber-200 bg-amber-50 text-amber-800",
+    };
+  }
+  if (deployment.update_available === true || deployment.latest_version_error) {
+    return {
+      badge: "bg-amber-100 text-amber-800",
+      panel: "border-amber-200 bg-amber-50 text-amber-800",
+    };
+  }
+  if (deployment.update_available === false) {
+    return {
+      badge: "bg-emerald-100 text-emerald-700",
+      panel: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    };
+  }
+  return {
+    badge: "bg-slate-100 text-slate-700",
+    panel: "border-slate-200 bg-slate-50 text-slate-600",
+  };
 }
