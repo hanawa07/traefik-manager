@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { useMiddlewareTemplates } from "@/features/middlewares/hooks/useMiddlewares";
@@ -12,6 +12,8 @@ import { useServiceFormActions } from "./useServiceFormActions";
 import { useServiceFormSyncEffects } from "./useServiceFormSyncEffects";
 import { serviceFormSchema, type ServiceFormData, type ServiceFormDefaultValues } from "./serviceFormSchema";
 import { buildServiceSubmitPayload, createServiceFormDefaultValues } from "./serviceFormPayload";
+import { useServiceFormFieldArrays } from "./useServiceFormFieldArrays";
+import { useServiceFormWatchValues } from "./useServiceFormWatchValues";
 
 interface UseServiceFormModelParams {
   defaultValues?: ServiceFormDefaultValues;
@@ -32,54 +34,34 @@ export function useServiceFormModel({ defaultValues, onSubmit }: UseServiceFormM
     defaultValues: serviceFormDefaultValues,
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "custom_headers",
-  });
   const {
-    fields: basicAuthFields,
-    append: appendBasicAuthField,
-    remove: removeBasicAuthField,
-  } = useFieldArray({
-    control,
-    name: "basic_auth_credentials",
-  });
+    customHeaderFields,
+    appendCustomHeader,
+    removeCustomHeader,
+    basicAuthFields,
+    appendBasicAuthField,
+    removeBasicAuthField,
+  } = useServiceFormFieldArrays(control);
+  const watchValues = useServiceFormWatchValues(control);
 
-  const [tlsEnabled, authMode, apiKeyValue, basicAuthEnabled, rateLimitEnabled, upstreamScheme, healthcheckEnabled] =
-    useWatch({
-      control,
-      name: [
-        "tls_enabled",
-        "auth_mode",
-        "api_key",
-        "basic_auth_enabled",
-        "rate_limit_enabled",
-        "upstream_scheme",
-        "healthcheck_enabled",
-      ],
-    });
-
-  const isAuthentikEnabled = authMode === "authentik";
-  const isAnyAuthEnabled = authMode !== "none";
-
-  const { data: authentikGroups = [] } = useAuthentikGroups(isAuthentikEnabled);
+  const { data: authentikGroups = [] } = useAuthentikGroups(watchValues.isAuthentikEnabled);
   const { data: middlewareTemplates = [], isLoading: isMiddlewareLoading } = useMiddlewareTemplates();
   const { onOpenContainerImportModal, containerImportModal } = useServiceContainerImportModel({ setValue });
   const serviceFormActions = useServiceFormActions({
     appendBasicAuthField,
-    appendCustomHeader: append,
+    appendCustomHeader,
     removeBasicAuthField,
-    removeCustomHeader: remove,
+    removeCustomHeader,
     setValue,
   });
 
   useServiceFormSyncEffects({
-    apiKeyValue,
-    authMode,
+    apiKeyValue: watchValues.apiKeyValue,
+    authMode: watchValues.authMode,
     defaultApiKey: defaultValues?.api_key,
     setValue,
-    tlsEnabled,
-    upstreamScheme,
+    tlsEnabled: watchValues.tlsEnabled,
+    upstreamScheme: watchValues.upstreamScheme,
   });
 
   const submitForm = (data: ServiceFormData) => {
@@ -92,18 +74,18 @@ export function useServiceFormModel({ defaultValues, onSubmit }: UseServiceFormM
       setValue,
       errors,
       onSubmit: handleSubmit(submitForm),
-      tlsEnabled,
-      authMode,
-      apiKeyValue,
-      basicAuthEnabled,
-      rateLimitEnabled,
-      upstreamScheme,
-      healthcheckEnabled,
-      isAnyAuthEnabled,
+      tlsEnabled: watchValues.tlsEnabled,
+      authMode: watchValues.authMode,
+      apiKeyValue: watchValues.apiKeyValue,
+      basicAuthEnabled: watchValues.basicAuthEnabled,
+      rateLimitEnabled: watchValues.rateLimitEnabled,
+      upstreamScheme: watchValues.upstreamScheme,
+      healthcheckEnabled: watchValues.healthcheckEnabled,
+      isAnyAuthEnabled: watchValues.isAnyAuthEnabled,
       authentikGroups,
       middlewareTemplates,
       isMiddlewareLoading,
-      customHeaderFields: fields,
+      customHeaderFields,
       basicAuthFields,
       copied: serviceFormActions.copied,
       onOpenContainerImportModal,
