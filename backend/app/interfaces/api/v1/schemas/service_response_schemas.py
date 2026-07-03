@@ -91,3 +91,14 @@ class ServiceGatewayDiagnosisResponse(BaseModel):
     summary: str
     checked_at: datetime
     checks: list[ServiceGatewayDiagnosticCheckResponse]
+
+
+class ServiceGatewayNetworkConnectResponse(BaseModel):
+    service_id: UUID
+    domain: str
+    upstream_host: str
+    network: str
+    status: str  # "connected" | "already_connected"
+    message: str
+    upstream_networks: list[str]
+    checked_at: datetime

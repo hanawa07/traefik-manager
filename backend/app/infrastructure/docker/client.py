@@ -119,6 +119,32 @@ class DockerClient:
             "components": components,
         }
 
+    async def connect_container_to_network(self, *, container_name: str, network_name: str) -> dict:
+        if not self.enabled:
+            raise DockerClientError("Docker 소켓이 없어 네트워크 연결을 실행할 수 없습니다")
+
+        container = await self._get_object_json(f"/{self.api_version}/containers/{quote(container_name, safe='')}/json")
+        current_networks = self._extract_networks(container)
+        if network_name in current_networks:
+            return {
+                "changed": False,
+                "container_id": self._normalize_value(container.get("Id")),
+                "networks": current_networks,
+            }
+
+        await self._post_json(
+            f"/{self.api_version}/networks/{quote(network_name, safe='')}/connect",
+            {"Container": container_name},
+        )
+        updated_container = await self._get_object_json(
+            f"/{self.api_version}/containers/{quote(container_name, safe='')}/json"
+        )
+        return {
+            "changed": True,
+            "container_id": self._normalize_value(updated_container.get("Id")) or self._normalize_value(container.get("Id")),
+            "networks": self._extract_networks(updated_container),
+        }
+
     async def _get_json(self, path: str, params: dict | None = None) -> list[dict]:
         payload = await self._request_json(path, params=params)
         if not isinstance(payload, list):
@@ -144,6 +170,19 @@ class DockerClient:
                 return response.json()
         except (httpx.HTTPError, ValueError, OSError) as exc:
             raise DockerClientError("Docker API 조회에 실패했습니다") from exc
+
+    async def _post_json(self, path: str, payload: dict) -> None:
+        transport = httpx.AsyncHTTPTransport(uds=self.socket_path)
+        try:
+            async with httpx.AsyncClient(
+                base_url="http://docker",
+                transport=transport,
+                timeout=self.timeout,
+            ) as client:
+                response = await client.post(path, json=payload)
+                response.raise_for_status()
+        except (httpx.HTTPError, OSError) as exc:
+            raise DockerClientError("Docker API 변경 요청에 실패했습니다") from exc
 
     async def _inspect_manager_component(self, name: str, container_name: str) -> dict:
         try:

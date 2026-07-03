@@ -11,6 +11,7 @@ export type {
   ServiceCreate,
   ServiceGatewayDiagnosis,
   ServiceGatewayDiagnosticCheck,
+  ServiceGatewayNetworkConnectResult,
   ServiceUpdate,
   UpstreamHealth,
 } from "./service-api/serviceTypes";

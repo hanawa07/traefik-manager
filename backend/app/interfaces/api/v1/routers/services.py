@@ -30,12 +30,16 @@ from app.interfaces.api.v1.routers.services_health_actions import (
     get_service_health_action,
     list_services_health_action,
 )
-from app.interfaces.api.v1.routers.services_gateway_diagnostics import diagnose_service_gateway_action
+from app.interfaces.api.v1.routers.services_gateway_diagnostics import (
+    connect_service_gateway_network_action,
+    diagnose_service_gateway_action,
+)
 from app.interfaces.api.v1.routers.services_rollback_action import rollback_service_change_action
 from app.interfaces.api.v1.schemas.service_schemas import (
     AuthentikGroupResponse,
     ServiceCreate,
     ServiceGatewayDiagnosisResponse,
+    ServiceGatewayNetworkConnectResponse,
     ServiceResponse,
     ServiceUpdate,
     UpstreamHealthResponse,
@@ -136,6 +140,28 @@ async def diagnose_service_gateway(
         upstream_checker=upstream_checker,
         traefik_client=traefik_client,
         docker_client=docker_client,
+    )
+
+
+@router.post(
+    "/{service_id}/diagnostics/gateway/network/connect",
+    response_model=ServiceGatewayNetworkConnectResponse,
+    summary="서비스 업스트림 컨테이너를 Traefik 네트워크에 연결",
+)
+async def connect_service_gateway_network(
+    service_id: UUID,
+    use_cases: ServiceUseCases = Depends(get_use_cases),
+    docker_client: DockerClient = Depends(get_docker_client),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_write_access),
+):
+    return await connect_service_gateway_network_action(
+        service_id=service_id,
+        use_cases=use_cases,
+        docker_client=docker_client,
+        db=db,
+        current_user=current_user,
+        audit_service=audit_service,
     )
 
 

@@ -131,3 +131,14 @@ export interface ServiceGatewayDiagnosis {
   checked_at: string;
   checks: ServiceGatewayDiagnosticCheck[];
 }
+
+export interface ServiceGatewayNetworkConnectResult {
+  service_id: string;
+  domain: string;
+  upstream_host: string;
+  network: string;
+  status: "connected" | "already_connected";
+  message: string;
+  upstream_networks: string[];
+  checked_at: string;
+}

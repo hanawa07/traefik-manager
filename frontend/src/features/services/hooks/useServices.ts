@@ -66,3 +66,9 @@ export function useDiagnoseServiceGateway() {
     mutationFn: (id: string) => serviceApi.diagnoseGateway(id),
   });
 }
+
+export function useConnectServiceGatewayNetwork() {
+  return useMutation({
+    mutationFn: (id: string) => serviceApi.connectGatewayNetwork(id),
+  });
+}

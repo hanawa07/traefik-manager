@@ -2,8 +2,13 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException
 
-from app.interfaces.api.v1.routers.services_gateway_diagnostics import diagnose_service_gateway_action
+from app.interfaces.api.v1.routers.services_gateway_diagnostics import (
+    SERVICE_DOCKER_NETWORK_CONNECT_EVENT,
+    connect_service_gateway_network_action,
+    diagnose_service_gateway_action,
+)
 
 
 @pytest.mark.asyncio
@@ -54,6 +59,7 @@ async def test_diagnose_service_gateway_flags_missing_shared_network():
     assert result.status == "fail"
     assert checks["docker_network"].status == "fail"
     assert "같은 Docker 네트워크" in checks["docker_network"].message
+    assert checks["docker_network"].details["target_network"] == "proxy_net"
 
 
 @pytest.mark.asyncio
@@ -75,9 +81,80 @@ async def test_diagnose_service_gateway_flags_missing_router_and_down_upstream()
     assert checks["upstream_http"].status == "fail"
 
 
+@pytest.mark.asyncio
+async def test_connect_service_gateway_network_connects_upstream_to_proxy_network():
+    service_id = uuid4()
+    service = _make_service(service_id=service_id, upstream_host="english-app-1")
+    docker_client = _DockerClient(
+        containers=[
+            {"name": "traefik", "networks": ["proxy_net"]},
+            {"name": "english-app-1", "networks": ["default"]},
+        ]
+    )
+    audit = _AuditService()
+
+    result = await connect_service_gateway_network_action(
+        service_id=service_id,
+        use_cases=_UseCases(service),
+        docker_client=docker_client,
+        db=object(),
+        current_user={"username": "admin"},
+        audit_service=audit,
+    )
+
+    assert result.status == "connected"
+    assert result.network == "proxy_net"
+    assert result.upstream_networks == ["default", "proxy_net"]
+    assert docker_client.connect_calls == [("english-app-1", "proxy_net")]
+    assert audit.records[0]["detail"]["event"] == SERVICE_DOCKER_NETWORK_CONNECT_EVENT
+
+
+@pytest.mark.asyncio
+async def test_connect_service_gateway_network_skips_when_already_connected():
+    service_id = uuid4()
+    service = _make_service(service_id=service_id, upstream_host="english-app-1")
+    docker_client = _DockerClient(
+        containers=[
+            {"name": "traefik", "networks": ["proxy_net"]},
+            {"name": "english-app-1", "networks": ["proxy_net"]},
+        ]
+    )
+
+    result = await connect_service_gateway_network_action(
+        service_id=service_id,
+        use_cases=_UseCases(service),
+        docker_client=docker_client,
+        db=object(),
+        current_user={"username": "admin"},
+        audit_service=_AuditService(),
+    )
+
+    assert result.status == "already_connected"
+    assert docker_client.connect_calls == []
+
+
+@pytest.mark.asyncio
+async def test_connect_service_gateway_network_rejects_non_container_upstream():
+    service_id = uuid4()
+    service = _make_service(service_id=service_id, upstream_host="api.example.com")
+
+    with pytest.raises(HTTPException) as exc_info:
+        await connect_service_gateway_network_action(
+            service_id=service_id,
+            use_cases=_UseCases(service),
+            docker_client=_DockerClient(containers=[]),
+            db=object(),
+            current_user={"username": "admin"},
+            audit_service=_AuditService(),
+        )
+
+    assert exc_info.value.status_code == 400
+
+
 def _make_service(service_id, upstream_host="app"):
     return SimpleNamespace(
         id=SimpleNamespace(value=service_id),
+        name="English",
         domain="english.lizstudio.co.kr",
         upstream_host=upstream_host,
         upstream_port=3000,
@@ -146,6 +223,7 @@ class _DockerClient:
 
     def __init__(self, *, containers):
         self.containers = containers
+        self.connect_calls = []
 
     async def list_container_candidates(self):
         return {
@@ -154,3 +232,21 @@ class _DockerClient:
             "message": "ok",
             "containers": self.containers,
         }
+
+    async def connect_container_to_network(self, *, container_name, network_name):
+        self.connect_calls.append((container_name, network_name))
+        for container in self.containers:
+            if container["name"] == container_name:
+                networks = set(container.get("networks") or [])
+                networks.add(network_name)
+                container["networks"] = sorted(networks)
+                return {"changed": True, "networks": container["networks"]}
+        return {"changed": False, "networks": []}
+
+
+class _AuditService:
+    def __init__(self):
+        self.records = []
+
+    async def record(self, **kwargs):
+        self.records.append(kwargs)

@@ -74,6 +74,7 @@ export const securityEventConfig: Record<string, BadgeConfig> = {
   service_update: { label: "서비스 변경", color: "bg-blue-50 text-blue-700 border-blue-200" },
   service_delete: { label: "서비스 삭제", color: "bg-red-50 text-red-700 border-red-200" },
   service_rollback: { label: "서비스 롤백", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  service_docker_network_connect: { label: "서비스 Docker 네트워크 연결", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
   redirect_create: { label: "리다이렉트 생성", color: "bg-violet-50 text-violet-700 border-violet-200" },
   redirect_update: { label: "리다이렉트 변경", color: "bg-purple-50 text-purple-700 border-purple-200" },
   redirect_delete: { label: "리다이렉트 삭제", color: "bg-pink-50 text-pink-700 border-pink-200" },

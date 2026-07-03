@@ -1,6 +1,6 @@
 import apiClient from "@/shared/lib/apiClient";
 
-import type { ServiceGatewayDiagnosis, UpstreamHealth } from "./serviceTypes";
+import type { ServiceGatewayDiagnosis, ServiceGatewayNetworkConnectResult, UpstreamHealth } from "./serviceTypes";
 
 export const serviceHealthApi = {
   getServiceHealth: async (id: string): Promise<UpstreamHealth> => {
@@ -15,6 +15,13 @@ export const serviceHealthApi = {
 
   diagnoseGateway: async (id: string): Promise<ServiceGatewayDiagnosis> => {
     const res = await apiClient.get<ServiceGatewayDiagnosis>(`/services/${id}/diagnostics/gateway`);
+    return res.data;
+  },
+
+  connectGatewayNetwork: async (id: string): Promise<ServiceGatewayNetworkConnectResult> => {
+    const res = await apiClient.post<ServiceGatewayNetworkConnectResult>(
+      `/services/${id}/diagnostics/gateway/network/connect`
+    );
     return res.data;
   },
 };

@@ -67,3 +67,43 @@ async def test_list_container_candidates_includes_general_and_traefik_metadata(m
             "tls_enabled": True,
         },
     ]
+
+
+@pytest.mark.asyncio
+async def test_connect_container_to_network_posts_docker_network_connect(monkeypatch):
+    client = DockerClient()
+    client.socket_path = "/etc/hosts"
+    inspected = [
+        {
+            "Id": "container-1",
+            "NetworkSettings": {"Networks": {"default": {}}},
+        },
+        {
+            "Id": "container-1",
+            "NetworkSettings": {"Networks": {"default": {}, "proxy_net": {}}},
+        },
+    ]
+    posts = []
+
+    async def fake_get_object_json(_path: str, params=None):
+        return inspected.pop(0)
+
+    async def fake_post_json(path: str, payload: dict):
+        posts.append((path, payload))
+
+    monkeypatch.setattr(client, "_get_object_json", fake_get_object_json)
+    monkeypatch.setattr(client, "_post_json", fake_post_json)
+
+    result = await client.connect_container_to_network(container_name="english-app-1", network_name="proxy_net")
+
+    assert result == {
+        "changed": True,
+        "container_id": "container-1",
+        "networks": ["default", "proxy_net"],
+    }
+    assert posts == [
+        (
+            "/v1.41/networks/proxy_net/connect",
+            {"Container": "english-app-1"},
+        )
+    ]

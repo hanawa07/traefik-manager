@@ -1,19 +1,29 @@
-import { AlertTriangle, CheckCircle2, Loader2, Stethoscope, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, PlugZap, Stethoscope, XCircle } from "lucide-react";
 import { clsx } from "clsx";
 import Link from "next/link";
 import { useState } from "react";
 
-import { useDiagnoseServiceGateway } from "../hooks/useServices";
+import { useConnectServiceGatewayNetwork, useDiagnoseServiceGateway } from "../hooks/useServices";
 import type { Service, ServiceGatewayDiagnosticCheck } from "../api/serviceApi";
 
 interface ServiceGatewayDiagnosisPanelProps {
   service: Service;
+  canManage: boolean;
 }
 
-export default function ServiceGatewayDiagnosisPanel({ service }: ServiceGatewayDiagnosisPanelProps) {
+export default function ServiceGatewayDiagnosisPanel({ canManage, service }: ServiceGatewayDiagnosisPanelProps) {
   const diagnosis = useDiagnoseServiceGateway();
+  const connectNetwork = useConnectServiceGatewayNetwork();
   const [copiedCommand, setCopiedCommand] = useState(false);
-  const networkCommand = buildNetworkConnectCommand(service, diagnosis.data?.checks);
+  const targetNetwork = getTargetNetwork(diagnosis.data?.checks);
+  const networkCommand = buildNetworkConnectCommand(service, diagnosis.data?.checks, targetNetwork);
+  const canConnectNetwork = canManage && Boolean(networkCommand);
+
+  const connectNetworkAction = () => {
+    connectNetwork.mutate(service.id, {
+      onSuccess: () => diagnosis.mutate(service.id),
+    });
+  };
 
   const copyNetworkCommand = async () => {
     if (!networkCommand) return;
@@ -69,7 +79,28 @@ export default function ServiceGatewayDiagnosisPanel({ service }: ServiceGateway
                   {copiedCommand ? "명령 복사됨" : "네트워크 연결 명령 복사"}
                 </button>
               ) : null}
+              {canConnectNetwork ? (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={connectNetwork.isPending}
+                  onClick={connectNetworkAction}
+                  type="button"
+                >
+                  {connectNetwork.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <PlugZap className="h-3.5 w-3.5" />
+                  )}
+                  {connectNetwork.isPending ? "연결 중" : `${targetNetwork} 연결 실행`}
+                </button>
+              ) : null}
             </div>
+          ) : null}
+          {connectNetwork.data ? (
+            <p className="mt-2 text-xs font-semibold text-emerald-700">{connectNetwork.data.message}</p>
+          ) : null}
+          {connectNetwork.isError ? (
+            <p className="mt-2 text-xs font-semibold text-rose-700">Docker 네트워크 연결을 실행하지 못했습니다.</p>
           ) : null}
         </div>
       ) : null}
@@ -104,9 +135,15 @@ function getPanelClassName(status: string) {
   return "border-rose-200 bg-rose-50 text-rose-800";
 }
 
-function buildNetworkConnectCommand(service: Service, checks?: ServiceGatewayDiagnosticCheck[]) {
+function buildNetworkConnectCommand(service: Service, checks: ServiceGatewayDiagnosticCheck[] | undefined, targetNetwork: string) {
   const networkCheck = checks?.find((check) => check.key === "docker_network" && check.status === "fail");
   if (!networkCheck) return null;
 
-  return `docker network connect proxy_net ${service.upstream_host}`;
+  return `docker network connect ${targetNetwork} ${service.upstream_host}`;
+}
+
+function getTargetNetwork(checks?: ServiceGatewayDiagnosticCheck[]) {
+  const networkCheck = checks?.find((check) => check.key === "docker_network");
+  const value = networkCheck?.details.target_network;
+  return typeof value === "string" && value.trim() ? value.trim() : "proxy_net";
 }

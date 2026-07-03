@@ -2,6 +2,7 @@ from app.interfaces.api.v1.schemas.service_request_schemas import ServiceCreate,
 from app.interfaces.api.v1.schemas.service_response_schemas import (
     AuthentikGroupResponse,
     ServiceGatewayDiagnosisResponse,
+    ServiceGatewayNetworkConnectResponse,
     ServiceResponse,
     UpstreamHealthResponse,
 )
@@ -10,6 +11,7 @@ __all__ = [
     "AuthentikGroupResponse",
     "ServiceCreate",
     "ServiceGatewayDiagnosisResponse",
+    "ServiceGatewayNetworkConnectResponse",
     "ServiceResponse",
     "ServiceUpdate",
     "UpstreamHealthResponse",

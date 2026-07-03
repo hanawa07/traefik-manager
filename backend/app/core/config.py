@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     TRAEFIK_LATEST_VERSION_CACHE_SECONDS: int = 3600
     TRAEFIK_TLS_CERT_RESOLVER: str | None = "letsencrypt"
     TRAEFIK_DOCKER_CONTAINER_NAME: str = "traefik"
+    TRAEFIK_DOCKER_NETWORK: str = "proxy_net"
     TRAEFIK_ACME_STORAGE_PATH: str = "/letsencrypt/acme.json"
     TRAEFIK_LOG_TAIL_LINES: int = 2000
 

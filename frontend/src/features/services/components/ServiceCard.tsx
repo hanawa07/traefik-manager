@@ -45,7 +45,7 @@ export default function ServiceCard({
         lastSuccessAt={lastSuccessAt}
         lastFailureAt={lastFailureAt}
       />
-      <ServiceGatewayDiagnosisPanel service={service} />
+      <ServiceGatewayDiagnosisPanel service={service} canManage={canManage} />
     </div>
   );
 }
