@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import type {
-  BackupPayload,
   BackupPreviewResult,
   BackupValidateResult,
 } from "@/features/settings/api/settingsApi";
@@ -11,6 +10,10 @@ import {
   usePreviewBackup,
   useValidateBackup,
 } from "@/features/settings/hooks/useSettings";
+import {
+  formatBackupImportResult,
+  readBackupPayloadFile,
+} from "./backupImportActionHelpers";
 
 type BackupImportMode = "merge" | "overwrite";
 
@@ -33,12 +36,13 @@ export function useBackupImportActions(canManage: boolean) {
   const readBackupPayload = async () => {
     if (!backupFile) return null;
 
-    try {
-      return JSON.parse(await backupFile.text()) as BackupPayload;
-    } catch {
-      setImportResultMessage("유효하지 않은 JSON 파일입니다");
+    const result = await readBackupPayloadFile(backupFile);
+    if (!result.ok) {
+      setImportResultMessage(result.errorMessage);
       return null;
     }
+
+    return result.data;
   };
 
   const handleBackupFileChange = (file: File | null) => {
@@ -117,23 +121,4 @@ export function useBackupImportActions(canManage: boolean) {
     previewResult,
     validationResult,
   };
-}
-
-function formatBackupImportResult({
-  created_redirects,
-  created_services,
-  updated_redirects,
-  updated_services,
-}: {
-  created_redirects: number;
-  created_services: number;
-  updated_redirects: number;
-  updated_services: number;
-}) {
-  return [
-    `가져오기 완료: 서비스 생성 ${created_services}개`,
-    `서비스 수정 ${updated_services}개`,
-    `리다이렉트 생성 ${created_redirects}개`,
-    `리다이렉트 수정 ${updated_redirects}개`,
-  ].join(", ");
 }
