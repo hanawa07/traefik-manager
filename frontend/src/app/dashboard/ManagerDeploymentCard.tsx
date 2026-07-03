@@ -2,6 +2,7 @@ import { ExternalLink, GitCommit, PackageCheck } from "lucide-react";
 
 import type { DeploymentComponent, DeploymentInfo } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { buildDeploymentComponentConsistency } from "./managerDeploymentConsistency";
 import { buildDeploymentVersionDisplay } from "./managerDeploymentVersionDisplay";
 
 interface ManagerDeploymentCardProps {
@@ -14,6 +15,7 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
   const latestVersion = deployment?.latest_version || "-";
   const buildDate = formatDateTime(deployment?.build_date, timezone);
   const latestCheckedAt = formatDateTime(deployment?.latest_version_checked_at, timezone);
+  const componentConsistency = buildDeploymentComponentConsistency(deployment?.components);
   const versionDisplay = buildDeploymentVersionDisplay({
     enabled: deployment?.enabled,
     latestVersion: deployment?.latest_version,
@@ -21,7 +23,7 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
     updateAvailable: deployment?.update_available,
     version: deployment?.version,
   });
-  const releaseTone = getReleaseTone(versionDisplay.state);
+  const releaseTone = getReleaseTone(versionDisplay.state, componentConsistency.hasMismatch);
 
   return (
     <div className="card mb-6 p-5">
@@ -36,7 +38,7 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
           </p>
         </div>
         <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${releaseTone.badge}`}>
-          {versionDisplay.statusLabel}
+          {componentConsistency.hasMismatch ? "컴포넌트 불일치" : versionDisplay.statusLabel}
         </span>
       </div>
 
@@ -58,6 +60,7 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
 
       <div className={`mt-4 rounded-xl border px-4 py-3 text-xs ${releaseTone.panel}`}>
         <p className="font-medium">{deployment?.message || "배포 정보를 확인하는 중입니다"}</p>
+        {componentConsistency.message ? <p className="mt-1 font-semibold">{componentConsistency.message}</p> : null}
         {versionDisplay.releaseMessage ? <p className="mt-1">{versionDisplay.releaseMessage}</p> : null}
         <p className="mt-1">
           최신 릴리즈 확인: {latestCheckedAt}
@@ -70,6 +73,7 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
           <DeploymentComponentRow
             key={component.name}
             component={component}
+            hasMismatch={componentConsistency.mismatchedComponentNames.has(component.name)}
             latestVersion={deployment?.latest_version}
           />
         ))}
@@ -122,9 +126,11 @@ function DeploymentFact({
 
 function DeploymentComponentRow({
   component,
+  hasMismatch,
   latestVersion,
 }: {
   component: DeploymentComponent;
+  hasMismatch?: boolean;
   latestVersion?: string | null;
 }) {
   const revision = formatRevision(component.revision);
@@ -136,12 +142,19 @@ function DeploymentComponentRow({
   });
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white px-4 py-3">
+    <div className={`rounded-xl border bg-white px-4 py-3 ${hasMismatch ? "border-amber-300" : "border-gray-200"}`}>
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold text-gray-900">{getComponentLabel(component.name)}</p>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusClassName(component.status)}`}>
-          {getStatusLabel(component.status)}
-        </span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {hasMismatch ? (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+              불일치
+            </span>
+          ) : null}
+          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusClassName(component.status)}`}>
+            {getStatusLabel(component.status)}
+          </span>
+        </div>
       </div>
       <p className="mt-2 truncate text-xs text-gray-500">{component.container_name}</p>
       <p className="mt-2 truncate text-xs font-medium text-gray-700">{versionDisplay.currentValue}</p>
@@ -179,7 +192,13 @@ function getStatusClassName(status: string) {
   return "bg-amber-100 text-amber-700";
 }
 
-function getReleaseTone(state: ReturnType<typeof buildDeploymentVersionDisplay>["state"]) {
+function getReleaseTone(state: ReturnType<typeof buildDeploymentVersionDisplay>["state"], hasMismatch: boolean) {
+  if (hasMismatch) {
+    return {
+      badge: "bg-amber-100 text-amber-800",
+      panel: "border-amber-200 bg-amber-50 text-amber-800",
+    };
+  }
   if (state === "loading") {
     return {
       badge: "bg-slate-100 text-slate-700",
