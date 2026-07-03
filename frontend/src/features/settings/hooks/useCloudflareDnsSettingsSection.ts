@@ -6,6 +6,11 @@ import type {
   SettingsActionTestResult,
 } from "@/features/settings/api/settingsApi";
 import {
+  buildCloudflareActionFailureResult,
+  buildCloudflareDriftFailureResult,
+  buildCloudflareZoneFormValue,
+} from "@/features/settings/hooks/cloudflareDnsSettingsModelHelpers";
+import {
   useCloudflareStatus,
   useDiagnoseCloudflareDnsDrift,
   useReconcileCloudflareDns,
@@ -14,7 +19,7 @@ import {
   useUpdateCloudflareSettings,
 } from "@/features/settings/hooks/useSettings";
 import { createDefaultCloudflareZoneForm } from "@/features/settings/lib/settingsDefaults";
-import { buildActionFailure, getApiErrorDetail } from "@/features/settings/lib/settingsErrors";
+import { getApiErrorDetail } from "@/features/settings/lib/settingsErrors";
 
 export function useCloudflareDnsSettingsSection(timezone?: string) {
   const [errorMessage, setErrorMessage] = useState("");
@@ -32,16 +37,7 @@ export function useCloudflareDnsSettingsSection(timezone?: string) {
   const reconcileCloudflareDns = useReconcileCloudflareDns();
 
   const handleEdit = () => {
-    setFormValue(
-      status?.zones?.length
-        ? status.zones.map((zone) => ({
-            api_token: "",
-            zone_id: zone.zone_id,
-            record_target: zone.record_target ?? "",
-            proxied: zone.proxied,
-          }))
-        : [createDefaultCloudflareZoneForm()],
-    );
+    setFormValue(buildCloudflareZoneFormValue(status));
     setErrorMessage("");
     setIsEditing(true);
   };
@@ -64,10 +60,7 @@ export function useCloudflareDnsSettingsSection(timezone?: string) {
       setTestResult(await testCloudflareConnection.mutateAsync());
     } catch (error) {
       setTestResult(
-        buildActionFailure(
-          "Cloudflare 연결 테스트에 실패했습니다",
-          getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다"),
-        ),
+        buildCloudflareActionFailureResult(error, "Cloudflare 연결 테스트에 실패했습니다"),
       );
     }
   };
@@ -77,10 +70,7 @@ export function useCloudflareDnsSettingsSection(timezone?: string) {
       setReconcileResult(await reconcileCloudflareDns.mutateAsync());
     } catch (error) {
       setReconcileResult(
-        buildActionFailure(
-          "Cloudflare DNS 재동기화에 실패했습니다",
-          getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다"),
-        ),
+        buildCloudflareActionFailureResult(error, "Cloudflare DNS 재동기화에 실패했습니다"),
       );
     }
   };
@@ -89,21 +79,7 @@ export function useCloudflareDnsSettingsSection(timezone?: string) {
     try {
       setDriftResult(await diagnoseCloudflareDnsDrift.mutateAsync());
     } catch (error) {
-      setDriftResult({
-        success: false,
-        message: "Cloudflare DNS 드리프트 진단에 실패했습니다",
-        detail: getApiErrorDetail(error, "요청 처리 중 오류가 발생했습니다"),
-        zone_count: 0,
-        total_services: 0,
-        eligible_services: 0,
-        skipped_services: 0,
-        healthy_services: 0,
-        zones: [],
-        excluded_services: [],
-        missing_records: [],
-        mismatched_records: [],
-        orphan_records: [],
-      });
+      setDriftResult(buildCloudflareDriftFailureResult(error));
     }
   };
 
