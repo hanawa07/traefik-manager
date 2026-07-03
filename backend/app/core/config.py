@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     DOCKER_API_VERSION: str = "v1.41"
     DOCKER_API_TIMEOUT_SECONDS: float = 5.0
 
+    TRAEFIK_MANAGER_VERSION: str = "0.1.0"
+    TRAEFIK_MANAGER_GIT_SHA: str = ""
+    TRAEFIK_MANAGER_BUILD_DATE: str = ""
+    TRAEFIK_MANAGER_IMAGE_SOURCE: str = "https://github.com/hanawa07/traefik-manager"
+    TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME: str = "traefik-manager-backend"
+    TRAEFIK_MANAGER_FRONTEND_CONTAINER_NAME: str = "traefik-manager-frontend"
+
     CLOUDFLARE_API_TOKEN: str | None = None
     CLOUDFLARE_ZONE_ID: str | None = None
     CLOUDFLARE_RECORD_TARGET: str | None = None

@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from urllib.parse import quote
 
 import httpx
 
@@ -12,6 +13,8 @@ class DockerClientError(Exception):
 
 class DockerClient:
     """Docker Socket 기반 읽기 전용 컨테이너 조회 클라이언트"""
+
+    OCI_LABEL_PREFIX = "org.opencontainers.image."
 
     def __init__(self):
         self.socket_path = settings.DOCKER_SOCKET_PATH
@@ -65,7 +68,51 @@ class DockerClient:
             "containers": containers,
         }
 
+    async def get_manager_deployment_info(self) -> dict:
+        fallback_component = self._build_fallback_component("backend")
+        if not self.enabled:
+            return {
+                "enabled": False,
+                "message": "Docker 소켓이 없어 배포 이미지 라벨을 조회할 수 없습니다",
+                "version": fallback_component["version"],
+                "revision": fallback_component["revision"],
+                "build_date": fallback_component["build_date"],
+                "components": [fallback_component],
+            }
+
+        components = [
+            await self._inspect_manager_component(
+                name="backend",
+                container_name=settings.TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME,
+            ),
+            await self._inspect_manager_component(
+                name="frontend",
+                container_name=settings.TRAEFIK_MANAGER_FRONTEND_CONTAINER_NAME,
+            ),
+        ]
+        ok_count = sum(1 for item in components if item["status"] == "ok")
+        return {
+            "enabled": True,
+            "message": f"배포 이미지 라벨을 조회했습니다 ({ok_count}/{len(components)}개)",
+            "version": self._select_component_value(components, "version") or fallback_component["version"],
+            "revision": self._select_component_value(components, "revision") or fallback_component["revision"],
+            "build_date": self._select_component_value(components, "build_date") or fallback_component["build_date"],
+            "components": components,
+        }
+
     async def _get_json(self, path: str, params: dict | None = None) -> list[dict]:
+        payload = await self._request_json(path, params=params)
+        if not isinstance(payload, list):
+            raise DockerClientError("Docker API 응답 형식이 올바르지 않습니다")
+        return payload
+
+    async def _get_object_json(self, path: str, params: dict | None = None) -> dict:
+        payload = await self._request_json(path, params=params)
+        if not isinstance(payload, dict):
+            raise DockerClientError("Docker API 응답 형식이 올바르지 않습니다")
+        return payload
+
+    async def _request_json(self, path: str, params: dict | None = None):
         transport = httpx.AsyncHTTPTransport(uds=self.socket_path)
         try:
             async with httpx.AsyncClient(
@@ -75,12 +122,117 @@ class DockerClient:
             ) as client:
                 response = await client.get(path, params=params)
                 response.raise_for_status()
-                payload = response.json()
-                if not isinstance(payload, list):
-                    raise DockerClientError("Docker API 응답 형식이 올바르지 않습니다")
-                return payload
+                return response.json()
         except (httpx.HTTPError, ValueError, OSError) as exc:
-            raise DockerClientError("Docker 컨테이너 목록 조회에 실패했습니다") from exc
+            raise DockerClientError("Docker API 조회에 실패했습니다") from exc
+
+    async def _inspect_manager_component(self, name: str, container_name: str) -> dict:
+        try:
+            container = await self._get_object_json(
+                f"/{self.api_version}/containers/{quote(container_name, safe='')}/json"
+            )
+        except DockerClientError:
+            return {
+                "name": name,
+                "container_name": container_name,
+                "status": "unavailable",
+                "container_id": None,
+                "image": None,
+                "image_id": None,
+                "image_created": None,
+                "version": None,
+                "revision": None,
+                "build_date": None,
+                "source": None,
+                "oci_labels": {},
+            }
+
+        config = container.get("Config") if isinstance(container.get("Config"), dict) else {}
+        image_ref = container.get("Image") or config.get("Image")
+        image = await self._inspect_image(str(image_ref)) if image_ref else {}
+        image_config = image.get("Config") if isinstance(image.get("Config"), dict) else {}
+        labels = self._extract_oci_labels(image_config.get("Labels"))
+        if not labels:
+            labels = self._extract_oci_labels(config.get("Labels"))
+        env_map = self._parse_env(config.get("Env"))
+
+        return {
+            "name": name,
+            "container_name": container_name,
+            "status": "ok",
+            "container_id": self._normalize_value(container.get("Id")),
+            "image": self._normalize_value(config.get("Image")),
+            "image_id": self._normalize_value(image.get("Id")) or self._normalize_value(image_ref),
+            "image_created": self._normalize_value(image.get("Created")),
+            "version": self._normalize_value(
+                labels.get("org.opencontainers.image.version") or env_map.get("TRAEFIK_MANAGER_VERSION")
+            ),
+            "revision": self._normalize_value(
+                labels.get("org.opencontainers.image.revision") or env_map.get("TRAEFIK_MANAGER_GIT_SHA")
+            ),
+            "build_date": self._normalize_value(
+                labels.get("org.opencontainers.image.created") or env_map.get("TRAEFIK_MANAGER_BUILD_DATE")
+            ),
+            "source": self._normalize_value(
+                labels.get("org.opencontainers.image.source") or env_map.get("TRAEFIK_MANAGER_IMAGE_SOURCE")
+            ),
+            "oci_labels": labels,
+        }
+
+    async def _inspect_image(self, image_ref: str) -> dict:
+        try:
+            return await self._get_object_json(f"/{self.api_version}/images/{quote(image_ref, safe='')}/json")
+        except DockerClientError:
+            return {}
+
+    def _build_fallback_component(self, name: str) -> dict:
+        return {
+            "name": name,
+            "container_name": settings.TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME,
+            "status": "local_env",
+            "container_id": None,
+            "image": None,
+            "image_id": None,
+            "image_created": None,
+            "version": self._normalize_value(settings.TRAEFIK_MANAGER_VERSION),
+            "revision": self._normalize_value(settings.TRAEFIK_MANAGER_GIT_SHA),
+            "build_date": self._normalize_value(settings.TRAEFIK_MANAGER_BUILD_DATE),
+            "source": self._normalize_value(settings.TRAEFIK_MANAGER_IMAGE_SOURCE),
+            "oci_labels": {},
+        }
+
+    def _extract_oci_labels(self, labels) -> dict[str, str]:
+        if not isinstance(labels, dict):
+            return {}
+        return {
+            str(key): str(value)
+            for key, value in labels.items()
+            if isinstance(key, str) and key.startswith(self.OCI_LABEL_PREFIX) and value is not None
+        }
+
+    def _parse_env(self, values) -> dict[str, str]:
+        if not isinstance(values, list):
+            return {}
+        parsed: dict[str, str] = {}
+        for item in values:
+            if not isinstance(item, str) or "=" not in item:
+                continue
+            key, value = item.split("=", 1)
+            parsed[key] = value
+        return parsed
+
+    def _select_component_value(self, components: list[dict], key: str) -> str | None:
+        for component in components:
+            value = self._normalize_value(component.get(key))
+            if value:
+                return value
+        return None
+
+    def _normalize_value(self, value) -> str | None:
+        text = str(value).strip() if value is not None else ""
+        if not text or text.lower() == "unknown":
+            return None
+        return text
 
     def _extract_traefik_candidates(self, container: dict, labels: dict) -> list[dict]:
         candidates: list[dict] = []

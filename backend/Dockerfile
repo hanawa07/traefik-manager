@@ -2,6 +2,23 @@ FROM python:3.12-slim
 
 ARG APP_UID=10001
 ARG APP_GID=10001
+ARG TRAEFIK_MANAGER_VERSION=0.1.0
+ARG TRAEFIK_MANAGER_GIT_SHA=unknown
+ARG TRAEFIK_MANAGER_BUILD_DATE=unknown
+ARG TRAEFIK_MANAGER_IMAGE_SOURCE=https://github.com/hanawa07/traefik-manager
+
+LABEL org.opencontainers.image.title="Traefik Manager Backend" \
+  org.opencontainers.image.description="FastAPI backend for Traefik Manager" \
+  org.opencontainers.image.source="${TRAEFIK_MANAGER_IMAGE_SOURCE}" \
+  org.opencontainers.image.version="${TRAEFIK_MANAGER_VERSION}" \
+  org.opencontainers.image.revision="${TRAEFIK_MANAGER_GIT_SHA}" \
+  org.opencontainers.image.created="${TRAEFIK_MANAGER_BUILD_DATE}"
+
+ENV TRAEFIK_MANAGER_COMPONENT=backend
+ENV TRAEFIK_MANAGER_VERSION=${TRAEFIK_MANAGER_VERSION}
+ENV TRAEFIK_MANAGER_GIT_SHA=${TRAEFIK_MANAGER_GIT_SHA}
+ENV TRAEFIK_MANAGER_BUILD_DATE=${TRAEFIK_MANAGER_BUILD_DATE}
+ENV TRAEFIK_MANAGER_IMAGE_SOURCE=${TRAEFIK_MANAGER_IMAGE_SOURCE}
 
 WORKDIR /app
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class DockerContainerPortResponse(BaseModel):
@@ -31,3 +31,27 @@ class DockerContainerListResponse(BaseModel):
     socket_path: str
     message: str
     containers: list[DockerContainerResponse]
+
+
+class DockerDeploymentComponentResponse(BaseModel):
+    name: str
+    container_name: str
+    status: str
+    container_id: str | None = None
+    image: str | None = None
+    image_id: str | None = None
+    image_created: str | None = None
+    version: str | None = None
+    revision: str | None = None
+    build_date: str | None = None
+    source: str | None = None
+    oci_labels: dict[str, str] = Field(default_factory=dict)
+
+
+class DockerDeploymentInfoResponse(BaseModel):
+    enabled: bool
+    message: str
+    version: str | None = None
+    revision: str | None = None
+    build_date: str | None = None
+    components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)

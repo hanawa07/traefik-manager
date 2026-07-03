@@ -3,11 +3,13 @@
 import { useAuditCertificateSummary, useAuditSecuritySummary } from "@/features/audit/hooks/useAudit";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { useCertificates } from "@/features/certificates/hooks/useCertificates";
+import { useDeploymentInfo } from "@/features/deployment/hooks/useDeploymentInfo";
 import { useAllServicesHealth, useServices } from "@/features/services/hooks/useServices";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import { useTraefikHealth, useTraefikRouterStatus } from "@/features/traefik/hooks/useTraefik";
 import { CertificateAlertSummaryCard } from "./CertificateAlertSummaryCard";
 import { DashboardServicesTable } from "./DashboardServicesTable";
+import { ManagerDeploymentCard } from "./ManagerDeploymentCard";
 import { SecurityAlertSummaryCard } from "./SecurityAlertSummaryCard";
 import { ServiceOverviewStats } from "./ServiceOverviewStats";
 import { TraefikStatusBanner } from "./TraefikStatusBanner";
@@ -23,6 +25,7 @@ export default function DashboardPage() {
   const { data: certificateSummary } = useAuditCertificateSummary({ recent_limit: 3 });
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const { data: certificates = [] } = useCertificates();
+  const { data: deploymentInfo } = useDeploymentInfo();
 
   const totalServices = services.length;
   const authEnabled = services.filter((s) => s.auth_mode !== "none" || s.basic_auth_enabled).length;
@@ -39,6 +42,7 @@ export default function DashboardPage() {
       </div>
 
       <TraefikStatusBanner health={traefikHealth} timezone={displayTimezone} />
+      <ManagerDeploymentCard deployment={deploymentInfo} timezone={displayTimezone} />
       <SecurityAlertSummaryCard summary={securitySummary} timezone={displayTimezone} />
       <CertificateAlertSummaryCard certificates={certificates} summary={certificateSummary} timezone={displayTimezone} />
       <ServiceOverviewStats
