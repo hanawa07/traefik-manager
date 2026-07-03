@@ -8,8 +8,7 @@ import type {
   SettingsActionTestResult,
   SettingsTestHistoryItem,
 } from "@/features/settings/api/settingsApi";
-import { CloudflareDnsEditForm } from "@/features/settings/components/CloudflareDnsEditForm";
-import { CloudflareDnsSummary } from "@/features/settings/components/CloudflareDnsSummary";
+import { CloudflareDnsSettingsCardBody } from "@/features/settings/components/CloudflareDnsSettingsCardBody";
 import { CloudflarePermissionNote } from "@/features/settings/components/CloudflarePermissionNote";
 import { SettingsCardHeader } from "@/features/settings/components/SettingsCardPrimitives";
 
@@ -78,37 +77,32 @@ export function CloudflareDnsSettingsCard({
         onEdit={onEdit}
       />
 
-      {isLoading ? (
-        <div className="h-20 bg-gray-100 rounded-lg animate-pulse" />
-      ) : isEditing ? (
-        <CloudflareDnsEditForm
-          zones={formValue}
-          errorMessage={errorMessage}
-          isSaving={isSaving}
-          onSave={onSave}
-          onCancel={onCancel}
-          onFormChange={onFormChange}
-        />
-      ) : (
-        <CloudflareDnsSummary
-          canManage={canManage}
-          status={status}
-          isTesting={isTesting}
-          isDiagnosing={isDiagnosing}
-          isReconciling={isReconciling}
-          isHistoryLoading={isHistoryLoading}
-          timezone={timezone}
-          testHistory={testHistory}
-          driftHistory={driftHistory}
-          reconcileHistory={reconcileHistory}
-          testResult={testResult}
-          driftResult={driftResult}
-          reconcileResult={reconcileResult}
-          onTest={onTest}
-          onDiagnose={onDiagnose}
-          onReconcile={onReconcile}
-        />
-      )}
+      <CloudflareDnsSettingsCardBody
+        canManage={canManage}
+        isLoading={isLoading}
+        isEditing={isEditing}
+        status={status}
+        formValue={formValue}
+        errorMessage={errorMessage}
+        isSaving={isSaving}
+        isTesting={isTesting}
+        isDiagnosing={isDiagnosing}
+        isReconciling={isReconciling}
+        isHistoryLoading={isHistoryLoading}
+        timezone={timezone}
+        testHistory={testHistory}
+        driftHistory={driftHistory}
+        reconcileHistory={reconcileHistory}
+        testResult={testResult}
+        driftResult={driftResult}
+        reconcileResult={reconcileResult}
+        onSave={onSave}
+        onCancel={onCancel}
+        onTest={onTest}
+        onDiagnose={onDiagnose}
+        onReconcile={onReconcile}
+        onFormChange={onFormChange}
+      />
 
       <CloudflarePermissionNote />
     </div>
