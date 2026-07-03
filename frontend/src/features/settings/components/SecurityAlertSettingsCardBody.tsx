@@ -1,5 +1,4 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Cloud } from "lucide-react";
 
 import type {
   SecurityAlertSettingsInput,
@@ -7,10 +6,11 @@ import type {
   SettingsActionTestResult,
   SettingsTestHistoryItem,
 } from "@/features/settings/api/settingsApi";
-import { SettingsCardHeader } from "@/features/settings/components/SettingsCardPrimitives";
-import { SecurityAlertSettingsCardBody } from "@/features/settings/components/SecurityAlertSettingsCardBody";
+import { SECURITY_ALERT_PROVIDER_OPTIONS } from "@/features/settings/lib/settingsDefaults";
+import { SecurityAlertSettingsEditForm } from "@/features/settings/components/SecurityAlertSettingsEditForm";
+import { SecurityAlertSettingsSummary } from "@/features/settings/components/SecurityAlertSettingsSummary";
 
-interface SecurityAlertSettingsCardProps {
+interface SecurityAlertSettingsCardBodyProps {
   canManage: boolean;
   isLoading: boolean;
   isEditing: boolean;
@@ -29,7 +29,6 @@ interface SecurityAlertSettingsCardProps {
   changeDeliveryHistory?: SettingsTestHistoryItem | null;
   isRetryingSecurityDelivery: boolean;
   isRetryingChangeDelivery: boolean;
-  onEdit: () => void;
   onSave: () => void;
   onCancel: () => void;
   onTest: () => void;
@@ -38,7 +37,7 @@ interface SecurityAlertSettingsCardProps {
   onFormChange: Dispatch<SetStateAction<SecurityAlertSettingsInput>>;
 }
 
-export function SecurityAlertSettingsCard({
+export function SecurityAlertSettingsCardBody({
   canManage,
   isLoading,
   isEditing,
@@ -57,50 +56,54 @@ export function SecurityAlertSettingsCard({
   changeDeliveryHistory,
   isRetryingSecurityDelivery,
   isRetryingChangeDelivery,
-  onEdit,
   onSave,
   onCancel,
   onTest,
   onRetrySecurityDelivery,
   onRetryChangeDelivery,
   onFormChange,
-}: SecurityAlertSettingsCardProps) {
-  return (
-    <div className="card p-6 h-full order-9">
-      <SettingsCardHeader
-        icon={<Cloud className="w-5 h-5 text-sky-600" />}
-        title="보안 알림"
-        description="보안 이벤트와 운영 변경 이벤트를 외부 채널로 전달합니다."
-        canEdit={canManage && !isEditing && !isLoading}
-        onEdit={onEdit}
-      />
+}: SecurityAlertSettingsCardBodyProps) {
+  if (isLoading) {
+    return <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />;
+  }
 
-      <SecurityAlertSettingsCardBody
-        canManage={canManage}
-        isLoading={isLoading}
-        isEditing={isEditing}
+  if (isEditing) {
+    return (
+      <SecurityAlertSettingsEditForm
         settings={settings}
         formValue={formValue}
         errorMessage={errorMessage}
         isSaving={isSaving}
-        isTesting={isTesting}
-        isHistoryLoading={isHistoryLoading}
-        displayTimezone={displayTimezone}
-        testResult={testResult}
-        securityRetryResult={securityRetryResult}
-        changeRetryResult={changeRetryResult}
-        securityTestHistory={securityTestHistory}
-        securityDeliveryHistory={securityDeliveryHistory}
-        changeDeliveryHistory={changeDeliveryHistory}
-        isRetryingSecurityDelivery={isRetryingSecurityDelivery}
-        isRetryingChangeDelivery={isRetryingChangeDelivery}
         onSave={onSave}
         onCancel={onCancel}
-        onTest={onTest}
-        onRetrySecurityDelivery={onRetrySecurityDelivery}
-        onRetryChangeDelivery={onRetryChangeDelivery}
         onFormChange={onFormChange}
       />
-    </div>
+    );
+  }
+
+  const currentProvider =
+    SECURITY_ALERT_PROVIDER_OPTIONS.find((option) => option.value === (settings?.provider ?? "generic")) ??
+    SECURITY_ALERT_PROVIDER_OPTIONS[0];
+
+  return (
+    <SecurityAlertSettingsSummary
+      canManage={canManage}
+      settings={settings}
+      provider={currentProvider}
+      isTesting={isTesting}
+      isHistoryLoading={isHistoryLoading}
+      displayTimezone={displayTimezone}
+      testResult={testResult}
+      securityRetryResult={securityRetryResult}
+      changeRetryResult={changeRetryResult}
+      securityTestHistory={securityTestHistory}
+      securityDeliveryHistory={securityDeliveryHistory}
+      changeDeliveryHistory={changeDeliveryHistory}
+      isRetryingSecurityDelivery={isRetryingSecurityDelivery}
+      isRetryingChangeDelivery={isRetryingChangeDelivery}
+      onTest={onTest}
+      onRetrySecurityDelivery={onRetrySecurityDelivery}
+      onRetryChangeDelivery={onRetryChangeDelivery}
+    />
   );
 }
