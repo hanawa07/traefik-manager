@@ -6,10 +6,7 @@ import type {
 } from "@/features/settings/api/settingsApi";
 import { SettingsCardHeader } from "@/features/settings/components/SettingsCardPrimitives";
 import { BackupExportSection } from "./BackupExportSection";
-import { BackupImportExecutionSection } from "./BackupImportExecutionSection";
-import { BackupImportSourceSection } from "./BackupImportSourceSection";
-import { BackupReviewActionsSection } from "./BackupReviewActionsSection";
-import { BackupReviewResultsSection } from "./BackupReviewResultsSection";
+import { BackupImportSection } from "./BackupImportSection";
 import type { BackupImportMode } from "./BackupRestoreSettingsTypes";
 
 interface BackupRestoreSettingsCardProps {
@@ -68,33 +65,23 @@ export function BackupRestoreSettingsCard({
           onExport={onExport}
         />
 
-        <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-          <p className="text-sm font-medium text-gray-700">JSON 복원</p>
-          <BackupImportSourceSection
-            importMode={importMode}
-            onBackupFileChange={onBackupFileChange}
-            onImportModeChange={onImportModeChange}
-          />
-          <BackupReviewActionsSection
-            backupFile={backupFile}
-            isPreviewing={isPreviewing}
-            isValidating={isValidating}
-            onPreview={onPreview}
-            onValidate={onValidate}
-          />
-          <BackupReviewResultsSection
-            previewResult={previewResult}
-            validationResult={validationResult}
-          />
-          <BackupImportExecutionSection
-            backupFile={backupFile}
-            canManage={canManage}
-            errorMessage={importErrorMessage}
-            isImporting={isImporting}
-            resultMessage={importResultMessage}
-            onImport={onImport}
-          />
-        </div>
+        <BackupImportSection
+          backupFile={backupFile}
+          canManage={canManage}
+          errorMessage={importErrorMessage}
+          importMode={importMode}
+          isImporting={isImporting}
+          isPreviewing={isPreviewing}
+          isValidating={isValidating}
+          previewResult={previewResult}
+          resultMessage={importResultMessage}
+          validationResult={validationResult}
+          onBackupFileChange={onBackupFileChange}
+          onImport={onImport}
+          onImportModeChange={onImportModeChange}
+          onPreview={onPreview}
+          onValidate={onValidate}
+        />
       </div>
     </div>
   );
