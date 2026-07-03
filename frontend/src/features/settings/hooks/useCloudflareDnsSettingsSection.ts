@@ -1,40 +1,27 @@
 import { useState } from "react";
 
-import type {
-  CloudflareDriftCheckResult,
-  CloudflareZoneInput,
-  SettingsActionTestResult,
-} from "@/features/settings/api/settingsApi";
+import type { CloudflareZoneInput } from "@/features/settings/api/settingsApi";
 import {
-  buildCloudflareActionFailureResult,
-  buildCloudflareDriftFailureResult,
   buildCloudflareZoneFormValue,
 } from "@/features/settings/hooks/cloudflareDnsSettingsModelHelpers";
 import {
   useCloudflareStatus,
-  useDiagnoseCloudflareDnsDrift,
-  useReconcileCloudflareDns,
   useSettingsTestHistory,
-  useTestCloudflareConnection,
   useUpdateCloudflareSettings,
 } from "@/features/settings/hooks/useSettings";
+import { useCloudflareDnsActionResults } from "./useCloudflareDnsActionResults";
 import { createDefaultCloudflareZoneForm } from "@/features/settings/lib/settingsDefaults";
 import { getApiErrorDetail } from "@/features/settings/lib/settingsErrors";
 
 export function useCloudflareDnsSettingsSection(timezone?: string) {
   const [errorMessage, setErrorMessage] = useState("");
-  const [testResult, setTestResult] = useState<SettingsActionTestResult | null>(null);
-  const [driftResult, setDriftResult] = useState<CloudflareDriftCheckResult | null>(null);
-  const [reconcileResult, setReconcileResult] = useState<SettingsActionTestResult | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState<CloudflareZoneInput[]>([createDefaultCloudflareZoneForm()]);
 
   const { data: status, isLoading } = useCloudflareStatus();
   const { data: testHistory, isLoading: isHistoryLoading } = useSettingsTestHistory();
   const updateCloudflare = useUpdateCloudflareSettings();
-  const testCloudflareConnection = useTestCloudflareConnection();
-  const diagnoseCloudflareDnsDrift = useDiagnoseCloudflareDnsDrift();
-  const reconcileCloudflareDns = useReconcileCloudflareDns();
+  const cloudflareActions = useCloudflareDnsActionResults();
 
   const handleEdit = () => {
     setFormValue(buildCloudflareZoneFormValue(status));
@@ -46,40 +33,10 @@ export function useCloudflareDnsSettingsSection(timezone?: string) {
     setErrorMessage("");
     try {
       await updateCloudflare.mutateAsync({ zones: formValue });
-      setTestResult(null);
-      setDriftResult(null);
-      setReconcileResult(null);
+      cloudflareActions.resetActionResults();
       setIsEditing(false);
     } catch (error) {
       setErrorMessage(getApiErrorDetail(error, "Cloudflare 설정 저장에 실패했습니다"));
-    }
-  };
-
-  const handleTest = async () => {
-    try {
-      setTestResult(await testCloudflareConnection.mutateAsync());
-    } catch (error) {
-      setTestResult(
-        buildCloudflareActionFailureResult(error, "Cloudflare 연결 테스트에 실패했습니다"),
-      );
-    }
-  };
-
-  const handleReconcile = async () => {
-    try {
-      setReconcileResult(await reconcileCloudflareDns.mutateAsync());
-    } catch (error) {
-      setReconcileResult(
-        buildCloudflareActionFailureResult(error, "Cloudflare DNS 재동기화에 실패했습니다"),
-      );
-    }
-  };
-
-  const handleDiagnose = async () => {
-    try {
-      setDriftResult(await diagnoseCloudflareDnsDrift.mutateAsync());
-    } catch (error) {
-      setDriftResult(buildCloudflareDriftFailureResult(error));
     }
   };
 
@@ -90,23 +47,23 @@ export function useCloudflareDnsSettingsSection(timezone?: string) {
     formValue,
     errorMessage,
     isSaving: updateCloudflare.isPending,
-    isTesting: testCloudflareConnection.isPending,
-    isDiagnosing: diagnoseCloudflareDnsDrift.isPending,
-    isReconciling: reconcileCloudflareDns.isPending,
+    isTesting: cloudflareActions.isTesting,
+    isDiagnosing: cloudflareActions.isDiagnosing,
+    isReconciling: cloudflareActions.isReconciling,
     isHistoryLoading,
     timezone,
     testHistory: testHistory?.cloudflare,
     driftHistory: testHistory?.cloudflare_drift,
     reconcileHistory: testHistory?.cloudflare_reconcile,
-    testResult,
-    driftResult,
-    reconcileResult,
+    testResult: cloudflareActions.testResult,
+    driftResult: cloudflareActions.driftResult,
+    reconcileResult: cloudflareActions.reconcileResult,
     onEdit: handleEdit,
     onSave: handleSave,
     onCancel: () => setIsEditing(false),
-    onTest: handleTest,
-    onDiagnose: handleDiagnose,
-    onReconcile: handleReconcile,
+    onTest: cloudflareActions.onTest,
+    onDiagnose: cloudflareActions.onDiagnose,
+    onReconcile: cloudflareActions.onReconcile,
     onFormChange: setFormValue,
   };
 }
