@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     DOCKER_API_VERSION: str = "v1.41"
     DOCKER_API_TIMEOUT_SECONDS: float = 5.0
 
-    TRAEFIK_MANAGER_VERSION: str = "0.1.0"
+    TRAEFIK_MANAGER_VERSION: str = "v1.36.7"
     TRAEFIK_MANAGER_GIT_SHA: str = ""
     TRAEFIK_MANAGER_BUILD_DATE: str = ""
     TRAEFIK_MANAGER_IMAGE_SOURCE: str = "https://github.com/hanawa07/traefik-manager"

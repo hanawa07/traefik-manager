@@ -7,6 +7,7 @@ from app.infrastructure.traefik.runtime_parsers import compare_versions
 
 def test_compare_versions_handles_v_prefix_and_metadata():
     assert compare_versions("3.5.4", "v3.5.4") == 0
+    assert compare_versions("v1.36.7-251-g8539794", "v1.36.7") == 0
     assert compare_versions("v3.5.3+build", "v3.5.4") == -1
     assert compare_versions("3.6.0", "v3.5.4") == 1
     assert compare_versions(None, "v3.5.4") is None

@@ -25,7 +25,7 @@ def create_app(lifespan) -> FastAPI:
     app = FastAPI(
         title="Traefik Manager",
         description="Traefik + Authentik 통합 관리 도구",
-        version="0.1.0",
+        version=settings.TRAEFIK_MANAGER_VERSION,
         lifespan=lifespan,
         redirect_slashes=False,
         docs_url="/api/docs" if settings.APP_ENV == "development" else None,
