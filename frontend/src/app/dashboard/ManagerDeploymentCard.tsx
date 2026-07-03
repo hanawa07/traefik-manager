@@ -67,7 +67,11 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
 
       <div className="mt-4 grid gap-2 md:grid-cols-2">
         {(deployment?.components || []).map((component) => (
-          <DeploymentComponentRow key={component.name} component={component} />
+          <DeploymentComponentRow
+            key={component.name}
+            component={component}
+            latestVersion={deployment?.latest_version}
+          />
         ))}
       </div>
     </div>
@@ -116,8 +120,21 @@ function DeploymentFact({
   );
 }
 
-function DeploymentComponentRow({ component }: { component: DeploymentComponent }) {
+function DeploymentComponentRow({
+  component,
+  latestVersion,
+}: {
+  component: DeploymentComponent;
+  latestVersion?: string | null;
+}) {
   const revision = formatRevision(component.revision);
+  const versionDisplay = buildDeploymentVersionDisplay({
+    enabled: component.status !== "unavailable",
+    latestVersion,
+    updateAvailable: null,
+    version: component.version,
+  });
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white px-4 py-3">
       <div className="flex items-center justify-between gap-3">
@@ -127,6 +144,10 @@ function DeploymentComponentRow({ component }: { component: DeploymentComponent 
         </span>
       </div>
       <p className="mt-2 truncate text-xs text-gray-500">{component.container_name}</p>
+      <p className="mt-2 truncate text-xs font-medium text-gray-700">{versionDisplay.currentValue}</p>
+      {versionDisplay.currentDetail ? (
+        <p className="mt-1 truncate font-mono text-[11px] text-gray-500">{versionDisplay.currentDetail}</p>
+      ) : null}
       <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
         <GitCommit className="h-3.5 w-3.5" />
         <span className="font-mono">{revision}</span>
