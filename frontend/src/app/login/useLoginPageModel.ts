@@ -2,16 +2,11 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { authApi, type LoginProtectionResponse } from "@/features/auth/api/authApi";
+import { authApi } from "@/features/auth/api/authApi";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
+import { getLoginFailureMessage } from "./loginFailureMessage";
+import { useLoginProtectionLoader } from "./useLoginProtectionLoader";
 import { useLoginTurnstile } from "./useLoginTurnstile";
-
-const DEFAULT_LOGIN_PROTECTION: LoginProtectionResponse = {
-  turnstile_mode: "off",
-  turnstile_enabled: false,
-  turnstile_required: false,
-  turnstile_site_key: null,
-};
 
 export function useLoginPageModel() {
   const router = useRouter();
@@ -24,21 +19,13 @@ export function useLoginPageModel() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loginProtection, setLoginProtection] = useState<LoginProtectionResponse>(
-    DEFAULT_LOGIN_PROTECTION,
-  );
+  const { loginProtection, loadLoginProtection } = useLoginProtectionLoader();
   const {
     token: turnstileToken,
     containerRef: turnstileContainerRef,
     onReady: handleTurnstileReady,
     resetChallenge,
   } = useLoginTurnstile(loginProtection);
-
-  const loadLoginProtection = async (): Promise<LoginProtectionResponse> => {
-    const response = await authApi.getLoginProtection();
-    setLoginProtection(response);
-    return response;
-  };
 
   useEffect(() => {
     if (hydrated && !initialized) {
@@ -51,28 +38,6 @@ export function useLoginPageModel() {
       router.replace("/dashboard");
     }
   }, [hydrated, initialized, isAuthenticated, router]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const initializeLoginProtection = async () => {
-      try {
-        const response = await authApi.getLoginProtection();
-        if (!cancelled) {
-          setLoginProtection(response);
-        }
-      } catch {
-        if (!cancelled) {
-          setLoginProtection(DEFAULT_LOGIN_PROTECTION);
-        }
-      }
-    };
-
-    void initializeLoginProtection();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -114,9 +79,3 @@ export function useLoginPageModel() {
 }
 
 export type LoginPageModel = ReturnType<typeof useLoginPageModel>;
-
-function getLoginFailureMessage(turnstileRequired: boolean) {
-  return turnstileRequired
-    ? "아이디/비밀번호 또는 추가 로그인 검증이 올바르지 않습니다"
-    : "아이디 또는 비밀번호가 올바르지 않습니다";
-}
