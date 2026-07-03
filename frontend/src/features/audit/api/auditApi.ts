@@ -1,4 +1,8 @@
 import apiClient from "@/shared/lib/apiClient";
+import {
+  getAuditRollbackEndpoint,
+  type AuditRollbackResourceType,
+} from "./auditRollbackEndpoints";
 
 export interface AuditLogItem {
   id: string;
@@ -90,20 +94,12 @@ export const auditApi = {
   },
 
   rollbackChange: async (
-    resourceType: "settings" | "service" | "redirect" | "middleware" | "user",
+    resourceType: AuditRollbackResourceType,
     auditLogId: string,
   ): Promise<Record<string, unknown>> => {
-    const endpoint =
-      resourceType === "settings"
-        ? `/settings/rollback/${auditLogId}`
-        : resourceType === "service"
-          ? `/services/rollback/${auditLogId}`
-          : resourceType === "redirect"
-            ? `/redirects/rollback/${auditLogId}`
-            : resourceType === "middleware"
-              ? `/middlewares/rollback/${auditLogId}`
-              : `/users/rollback/${auditLogId}`;
-    const res = await apiClient.post<Record<string, unknown>>(endpoint);
+    const res = await apiClient.post<Record<string, unknown>>(
+      getAuditRollbackEndpoint(resourceType, auditLogId),
+    );
     return res.data;
   },
 
