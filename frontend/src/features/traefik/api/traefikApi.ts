@@ -5,9 +5,14 @@ export interface TraefikHealth {
   message: string;
   version: string | null;
   latest_version: string | null;
+  latest_release_url: string | null;
   update_available: boolean | null;
   latest_version_checked_at: string | null;
   latest_version_error: string | null;
+}
+
+export interface TraefikHealthRequest {
+  refreshLatest?: boolean;
 }
 
 export interface TraefikRouterItem {
@@ -43,8 +48,10 @@ export interface TraefikMiddlewareList {
 }
 
 export const traefikApi = {
-  health: async (): Promise<TraefikHealth> => {
-    const res = await apiClient.get<TraefikHealth>("/traefik/health");
+  health: async (request: TraefikHealthRequest = {}): Promise<TraefikHealth> => {
+    const res = await apiClient.get<TraefikHealth>("/traefik/health", {
+      params: request.refreshLatest ? { refresh_latest: true } : undefined,
+    });
     return res.data;
   },
 

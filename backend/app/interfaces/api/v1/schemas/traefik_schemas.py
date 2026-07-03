@@ -8,6 +8,7 @@ class TraefikHealthResponse(BaseModel):
     message: str
     version: str | None = None
     latest_version: str | None = None
+    latest_release_url: str | None = None
     update_available: bool | None = None
     latest_version_checked_at: datetime | None = None
     latest_version_error: str | None = None

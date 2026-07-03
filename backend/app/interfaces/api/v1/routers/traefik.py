@@ -17,10 +17,11 @@ def get_traefik_client() -> TraefikApiClient:
 
 @router.get("/health", response_model=TraefikHealthResponse, summary="Traefik 연결 상태")
 async def get_traefik_health(
+    refresh_latest: bool = False,
     traefik_client: TraefikApiClient = Depends(get_traefik_client),
     _: dict = Depends(get_current_user),
 ):
-    return await traefik_client.get_health()
+    return await traefik_client.get_health(refresh_latest=refresh_latest)
 
 
 @router.get("/routers", response_model=TraefikRouterStatusResponse, summary="Traefik 라우터 상태")

@@ -6,7 +6,7 @@ import { useCertificates } from "@/features/certificates/hooks/useCertificates";
 import { useDeploymentInfo, useRefreshDeploymentLatest } from "@/features/deployment/hooks/useDeploymentInfo";
 import { useAllServicesHealth, useServices } from "@/features/services/hooks/useServices";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
-import { useTraefikHealth, useTraefikRouterStatus } from "@/features/traefik/hooks/useTraefik";
+import { useRefreshTraefikLatest, useTraefikHealth, useTraefikRouterStatus } from "@/features/traefik/hooks/useTraefik";
 import { CertificateAlertSummaryCard } from "./CertificateAlertSummaryCard";
 import { DashboardServicesTable } from "./DashboardServicesTable";
 import { ManagerDeploymentCard } from "./ManagerDeploymentCard";
@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const { data: services = [], isLoading } = useServices();
   const { data: healthData = {} } = useAllServicesHealth();
   const { data: traefikHealth } = useTraefikHealth();
+  const refreshTraefikLatest = useRefreshTraefikLatest();
   const { data: routerStatus } = useTraefikRouterStatus();
   const { data: securitySummary } = useAuditSecuritySummary({ recent_limit: 3 });
   const { data: certificateSummary } = useAuditCertificateSummary({ recent_limit: 3 });
@@ -42,7 +43,13 @@ export default function DashboardPage() {
         <p className="text-gray-500 text-sm mt-1">Traefik 서비스 현황</p>
       </div>
 
-      <TraefikStatusBanner health={traefikHealth} timezone={displayTimezone} />
+      <TraefikStatusBanner
+        health={traefikHealth}
+        isRefreshingLatest={refreshTraefikLatest.isPending}
+        onRefreshLatest={() => refreshTraefikLatest.mutate()}
+        refreshLatestError={refreshTraefikLatest.isError ? "최신 Traefik 버전을 다시 확인하지 못했습니다" : null}
+        timezone={displayTimezone}
+      />
       <ManagerDeploymentCard
         deployment={deploymentInfo}
         isRefreshingLatest={refreshDeploymentLatest.isPending}

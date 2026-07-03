@@ -1,12 +1,23 @@
+import { ExternalLink, RefreshCw } from "lucide-react";
+
 import type { TraefikHealth } from "@/features/traefik/api/traefikApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 interface TraefikStatusBannerProps {
   health?: TraefikHealth;
+  isRefreshingLatest?: boolean;
+  onRefreshLatest?: () => void;
+  refreshLatestError?: string | null;
   timezone?: string;
 }
 
-export function TraefikStatusBanner({ health, timezone }: TraefikStatusBannerProps) {
+export function TraefikStatusBanner({
+  health,
+  isRefreshingLatest = false,
+  onRefreshLatest,
+  refreshLatestError,
+  timezone,
+}: TraefikStatusBannerProps) {
   const tone = getTraefikStatusTone(health);
   const versionStatus = getTraefikVersionStatus(health);
 
@@ -25,22 +36,48 @@ export function TraefikStatusBanner({ health, timezone }: TraefikStatusBannerPro
           </p>
           {health?.latest_version_error ? <p className="mt-1 text-xs text-amber-700">{health.latest_version_error}</p> : null}
         </div>
-        <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${tone.badge}`}>{versionStatus}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {onRefreshLatest ? (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/70 bg-white/70 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isRefreshingLatest}
+              onClick={onRefreshLatest}
+              type="button"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingLatest ? "animate-spin" : ""}`} />
+              {isRefreshingLatest ? "재확인 중" : "최신 재확인"}
+            </button>
+          ) : null}
+          <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${tone.badge}`}>{versionStatus}</span>
+        </div>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
         <TraefikVersionTile label="현재 버전" value={health?.version || "-"} />
-        <TraefikVersionTile label="최신 버전" value={health?.latest_version || "-"} />
+        <TraefikVersionTile href={health?.latest_release_url || undefined} label="최신 버전" value={health?.latest_version || "-"} />
         <TraefikVersionTile label="업데이트 감지" value={versionStatus} />
       </div>
+      {refreshLatestError ? <p className="mt-2 text-xs font-semibold text-red-700">{refreshLatestError}</p> : null}
     </div>
   );
 }
 
-function TraefikVersionTile({ label, value }: { label: string; value: string }) {
+function TraefikVersionTile({ href, label, value }: { href?: string; label: string; value: string }) {
   return (
     <div className="rounded-lg border border-white/60 bg-white/60 px-3 py-2">
       <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-gray-900">{value}</p>
+      {href ? (
+        <a
+          className="mt-1 inline-flex max-w-full items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-800"
+          href={href}
+          rel="noreferrer"
+          target="_blank"
+        >
+          <span className="truncate">{value}</span>
+          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+        </a>
+      ) : (
+        <p className="mt-1 text-sm font-semibold text-gray-900">{value}</p>
+      )}
     </div>
   );
 }

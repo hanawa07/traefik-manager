@@ -25,6 +25,7 @@ async def test_get_health_includes_latest_version_update_status(monkeypatch):
         AsyncMock(
             return_value={
                 "latest_version": "v3.5.4",
+                "latest_release_url": "https://github.com/traefik/traefik/releases/tag/v3.5.4",
                 "update_available": None,
                 "latest_version_checked_at": checked_at,
                 "latest_version_error": None,
@@ -37,6 +38,7 @@ async def test_get_health_includes_latest_version_update_status(monkeypatch):
     assert result["connected"] is True
     assert result["version"] == "3.5.3"
     assert result["latest_version"] == "v3.5.4"
+    assert result["latest_release_url"] == "https://github.com/traefik/traefik/releases/tag/v3.5.4"
     assert result["latest_version_checked_at"] == checked_at
     assert result["update_available"] is True
 
@@ -59,6 +61,7 @@ async def test_get_health_uses_version_endpoint_when_overview_has_no_version(mon
         AsyncMock(
             return_value={
                 "latest_version": "v3.7.5",
+                "latest_release_url": "https://github.com/traefik/traefik/releases/tag/v3.7.5",
                 "update_available": None,
                 "latest_version_checked_at": datetime(2026, 6, 28, 1, 20, 0, tzinfo=timezone.utc),
                 "latest_version_error": None,
@@ -71,4 +74,44 @@ async def test_get_health_uses_version_endpoint_when_overview_has_no_version(mon
     assert result["connected"] is True
     assert result["version"] == "3.3.7"
     assert result["latest_version"] == "v3.7.5"
+    assert result["update_available"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_health_force_refresh_bypasses_latest_version_cache(monkeypatch):
+    client = TraefikApiClient()
+    TraefikApiClient._latest_version_cache = {
+        "latest_version": "v3.1.0",
+        "latest_release_url": "https://github.com/traefik/traefik/releases/tag/v3.1.0",
+        "update_available": None,
+        "latest_version_checked_at": datetime.now(timezone.utc),
+        "latest_version_error": None,
+    }
+    captured = {"count": 0}
+
+    async def fake_get(path: str):
+        if path == "/api/overview":
+            return {"version": "3.6.0"}
+        if path == "/api/version":
+            return {}
+        raise AssertionError(f"unexpected path: {path}")
+
+    async def fake_fetch_latest_version_info(checked_at):
+        captured["count"] += 1
+        return {
+            "latest_version": "v3.7.0",
+            "latest_release_url": "https://github.com/traefik/traefik/releases/tag/v3.7.0",
+            "update_available": None,
+            "latest_version_checked_at": checked_at,
+            "latest_version_error": None,
+        }
+
+    monkeypatch.setattr(client, "_get", fake_get)
+    monkeypatch.setattr(client, "_fetch_latest_version_info", fake_fetch_latest_version_info)
+
+    result = await client.get_health(refresh_latest=True)
+
+    assert captured["count"] == 1
+    assert result["latest_version"] == "v3.7.0"
+    assert result["latest_release_url"] == "https://github.com/traefik/traefik/releases/tag/v3.7.0"
     assert result["update_available"] is True

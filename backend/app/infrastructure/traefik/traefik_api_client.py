@@ -46,11 +46,11 @@ class TraefikApiClient:
         self.base_url = settings.TRAEFIK_API_URL.rstrip("/")
         self.timeout = settings.TRAEFIK_API_TIMEOUT_SECONDS
 
-    async def get_health(self) -> dict:
+    async def get_health(self, *, refresh_latest: bool = False) -> dict:
         overview, version_payload, latest_info = await asyncio.gather(
             self._get_overview_or_none(),
             self._get_version_or_none(),
-            self._get_latest_version_info(),
+            self._get_latest_version_info(force_refresh=refresh_latest),
         )
 
         if overview is None:
@@ -86,15 +86,15 @@ class TraefikApiClient:
             return None
         return payload if isinstance(payload, dict) else None
 
-    async def _get_latest_version_info(self) -> dict:
+    async def _get_latest_version_info(self, *, force_refresh: bool = False) -> dict:
         now = datetime.now(timezone.utc)
         cache = self._latest_version_cache
-        if cache and self._is_latest_version_cache_fresh(cache, now):
+        if not force_refresh and cache and self._is_latest_version_cache_fresh(cache, now):
             return cache.copy()
 
         async with self._latest_version_lock:
             cache = self._latest_version_cache
-            if cache and self._is_latest_version_cache_fresh(cache, now):
+            if not force_refresh and cache and self._is_latest_version_cache_fresh(cache, now):
                 return cache.copy()
 
             info = await self._fetch_latest_version_info(now)
@@ -124,6 +124,7 @@ class TraefikApiClient:
         except (httpx.HTTPError, ValueError):
             return {
                 "latest_version": None,
+                "latest_release_url": None,
                 "update_available": None,
                 "latest_version_checked_at": checked_at,
                 "latest_version_error": "최신 Traefik 버전을 확인하지 못했습니다",
@@ -133,13 +134,16 @@ class TraefikApiClient:
         if not isinstance(latest_version, str) or not parse_version(latest_version):
             return {
                 "latest_version": None,
+                "latest_release_url": None,
                 "update_available": None,
                 "latest_version_checked_at": checked_at,
                 "latest_version_error": "최신 Traefik 버전 응답을 해석하지 못했습니다",
             }
 
+        latest_release_url = payload.get("html_url") if isinstance(payload, dict) else None
         return {
             "latest_version": latest_version,
+            "latest_release_url": latest_release_url if isinstance(latest_release_url, str) else None,
             "update_available": None,
             "latest_version_checked_at": checked_at,
             "latest_version_error": None,

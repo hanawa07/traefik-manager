@@ -1,12 +1,25 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { traefikApi } from "../api/traefikApi";
 
+const TRAEFIK_HEALTH_QUERY_KEY = ["traefik-health"];
+
 export function useTraefikHealth() {
   return useQuery({
-    queryKey: ["traefik-health"],
-    queryFn: traefikApi.health,
+    queryKey: TRAEFIK_HEALTH_QUERY_KEY,
+    queryFn: () => traefikApi.health(),
     refetchInterval: 10_000,
+  });
+}
+
+export function useRefreshTraefikLatest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => traefikApi.health({ refreshLatest: true }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(TRAEFIK_HEALTH_QUERY_KEY, data);
+    },
   });
 }
 
