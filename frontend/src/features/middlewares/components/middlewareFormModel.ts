@@ -1,10 +1,8 @@
 import { z } from "zod";
 
-import type {
-  MiddlewareTemplate,
-  MiddlewareTemplateCreate,
-  MiddlewareTemplateType,
-} from "../api/middlewareApi";
+import { extractMiddlewareFormDefaults } from "./middlewareFormDefaults";
+import { parseMultiline } from "./middlewareFormParsing";
+import { buildMiddlewareTemplatePayload } from "./middlewareFormPayload";
 
 export const middlewareFormSchema = z.object({
   name: z.string().min(1, "템플릿 이름을 입력하세요"),
@@ -64,80 +62,4 @@ export const middlewareFormSchema = z.object({
 
 export type MiddlewareFormData = z.infer<typeof middlewareFormSchema>;
 
-export function parseMultiline(input: string | undefined): string[] {
-  if (!input) return [];
-  return input
-    .split(/\r?\n|,/)
-    .map((value) => value.trim())
-    .filter(Boolean);
-}
-
-export function extractMiddlewareFormDefaults(template?: MiddlewareTemplate) {
-  const config = template?.config || {};
-
-  const sourceRange = Array.isArray(config.sourceRange)
-    ? config.sourceRange.map(String).join("\n")
-    : "";
-  const rateLimitAverage = typeof config.average === "number" ? config.average : undefined;
-  const rateLimitBurst = typeof config.burst === "number" ? config.burst : undefined;
-  const basicAuthUsers = Array.isArray(config.users) ? config.users.map(String).join("\n") : "";
-  const customHeaders = extractCustomHeaderDefaults(config);
-
-  return {
-    name: template?.name || "",
-    type: (template?.type as MiddlewareTemplateType) || "ipAllowList",
-    source_range_input: sourceRange,
-    rate_limit_average: rateLimitAverage,
-    rate_limit_burst: rateLimitBurst,
-    basic_auth_users_input: basicAuthUsers,
-    custom_headers: customHeaders,
-  };
-}
-
-export function buildMiddlewareTemplatePayload(data: MiddlewareFormData): MiddlewareTemplateCreate {
-  return {
-    name: data.name.trim(),
-    type: data.type,
-    config: buildMiddlewareConfig(data),
-  };
-}
-
-function buildMiddlewareConfig(data: MiddlewareFormData): Record<string, unknown> {
-  if (data.type === "ipAllowList") {
-    return { sourceRange: parseMultiline(data.source_range_input) };
-  }
-  if (data.type === "rateLimit") {
-    return {
-      average: data.rate_limit_average,
-      burst: data.rate_limit_burst,
-    };
-  }
-  if (data.type === "basicAuth") {
-    return { users: parseMultiline(data.basic_auth_users_input) };
-  }
-
-  const headers = data.custom_headers.reduce<Record<string, string>>((acc, item) => {
-    const key = item.key.trim();
-    if (!key) return acc;
-    acc[key] = item.value.trim();
-    return acc;
-  }, {});
-  return { customResponseHeaders: headers };
-}
-
-function extractCustomHeaderDefaults(config: Record<string, unknown>) {
-  if (
-    config.customResponseHeaders &&
-    typeof config.customResponseHeaders === "object" &&
-    !Array.isArray(config.customResponseHeaders)
-  ) {
-    const entries = Object.entries(config.customResponseHeaders as Record<string, unknown>).map(
-      ([key, value]) => ({
-        key,
-        value: String(value),
-      }),
-    );
-    if (entries.length > 0) return entries;
-  }
-  return [{ key: "", value: "" }];
-}
+export { buildMiddlewareTemplatePayload, extractMiddlewareFormDefaults, parseMultiline };
