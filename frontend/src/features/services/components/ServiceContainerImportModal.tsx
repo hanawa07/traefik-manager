@@ -1,10 +1,8 @@
 import type { DockerContainer, DockerContainerListResponse } from "@/features/docker/api/dockerApi";
 import Modal from "@/shared/components/Modal";
-import ContainerImportBasicList from "./ContainerImportBasicList";
 import ContainerImportModeTabs from "./ContainerImportModeTabs";
+import { ContainerImportResultsPanel } from "./ContainerImportResultsPanel";
 import ContainerImportSearchInput from "./ContainerImportSearchInput";
-import ContainerImportTraefikList from "./ContainerImportTraefikList";
-import { getDockerErrorMessage } from "./containerImportErrors";
 import type { ContainerImportMode, TraefikImportCandidate } from "./containerImportTypes";
 
 interface ServiceContainerImportModalProps {
@@ -68,34 +66,21 @@ export default function ServiceContainerImportModal({
           onSearchQueryChange={onSearchQueryChange}
         />
 
-        {isDockerLoading || (isDockerFetching && !dockerContainers) ? (
-          <div className="space-y-2">
-            <div className="h-24 rounded-xl bg-gray-50 animate-pulse" />
-            <div className="h-24 rounded-xl bg-gray-50 animate-pulse" />
-          </div>
-        ) : isDockerError ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {getDockerErrorMessage(dockerContainersError)}
-          </div>
-        ) : !dockerContainers || !dockerContainers.enabled ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-            {dockerContainers?.message || "Docker 자동 감지를 사용할 수 없습니다."}
-          </div>
-        ) : mode === "basic" ? (
-          <ContainerImportBasicList
-            availableContainers={availableContainers}
-            filteredContainers={filteredContainers}
-            normalizedSearchQuery={normalizedSearchQuery}
-            onImport={onBasicImport}
-          />
-        ) : (
-          <ContainerImportTraefikList
-            traefikImportCandidates={traefikImportCandidates}
-            filteredTraefikImportCandidates={filteredTraefikImportCandidates}
-            normalizedSearchQuery={normalizedSearchQuery}
-            onImport={onTraefikImport}
-          />
-        )}
+        <ContainerImportResultsPanel
+          mode={mode}
+          dockerContainers={dockerContainers}
+          dockerContainersError={dockerContainersError}
+          isDockerLoading={isDockerLoading}
+          isDockerFetching={isDockerFetching}
+          isDockerError={isDockerError}
+          availableContainers={availableContainers}
+          filteredContainers={filteredContainers}
+          normalizedSearchQuery={normalizedSearchQuery}
+          traefikImportCandidates={traefikImportCandidates}
+          filteredTraefikImportCandidates={filteredTraefikImportCandidates}
+          onBasicImport={onBasicImport}
+          onTraefikImport={onTraefikImport}
+        />
       </div>
     </Modal>
   );
