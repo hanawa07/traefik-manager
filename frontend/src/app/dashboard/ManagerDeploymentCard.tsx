@@ -1,4 +1,4 @@
-import { ExternalLink, GitCommit, PackageCheck } from "lucide-react";
+import { ExternalLink, GitCommit, PackageCheck, RefreshCw } from "lucide-react";
 
 import type { DeploymentComponent, DeploymentInfo } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
@@ -8,10 +8,19 @@ import { buildDeploymentVersionDisplay } from "./managerDeploymentVersionDisplay
 
 interface ManagerDeploymentCardProps {
   deployment?: DeploymentInfo;
+  isRefreshingLatest?: boolean;
+  onRefreshLatest?: () => void;
+  refreshLatestError?: string | null;
   timezone?: string;
 }
 
-export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymentCardProps) {
+export function ManagerDeploymentCard({
+  deployment,
+  isRefreshingLatest = false,
+  onRefreshLatest,
+  refreshLatestError,
+  timezone,
+}: ManagerDeploymentCardProps) {
   const revision = formatRevision(deployment?.revision);
   const latestVersion = deployment?.latest_version || "-";
   const buildDate = formatDateTime(deployment?.build_date, timezone);
@@ -44,9 +53,22 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
             backend/frontend 이미지의 OCI 라벨과 GitHub 최신 릴리즈를 비교합니다.
           </p>
         </div>
-        <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${releaseTone.badge}`}>
-          {componentConsistency.hasMismatch ? "컴포넌트 불일치" : versionDisplay.statusLabel}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {onRefreshLatest ? (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600 hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isRefreshingLatest}
+              onClick={onRefreshLatest}
+              type="button"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingLatest ? "animate-spin" : ""}`} />
+              {isRefreshingLatest ? "재확인 중" : "최신 재확인"}
+            </button>
+          ) : null}
+          <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${releaseTone.badge}`}>
+            {componentConsistency.hasMismatch ? "컴포넌트 불일치" : versionDisplay.statusLabel}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">
@@ -69,6 +91,7 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
       <div className={`mt-4 rounded-xl border px-4 py-3 text-xs ${releaseTone.panel}`}>
         <p className="font-medium">{deployment?.message || "배포 정보를 확인하는 중입니다"}</p>
         {componentConsistency.message ? <p className="mt-1 font-semibold">{componentConsistency.message}</p> : null}
+        {refreshLatestError ? <p className="mt-1 font-semibold text-red-700">{refreshLatestError}</p> : null}
         {versionDisplay.releaseMessage ? <p className="mt-1">{versionDisplay.releaseMessage}</p> : null}
         <p className="mt-1">
           최신 릴리즈 확인: {latestCheckedAt}

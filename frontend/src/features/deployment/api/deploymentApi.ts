@@ -30,9 +30,15 @@ export interface DeploymentInfo {
   components: DeploymentComponent[];
 }
 
+export interface DeploymentInfoRequest {
+  refreshLatest?: boolean;
+}
+
 export const deploymentApi = {
-  getInfo: async (): Promise<DeploymentInfo> => {
-    const res = await apiClient.get<DeploymentInfo>("/docker/deployment");
+  getInfo: async (request: DeploymentInfoRequest = {}): Promise<DeploymentInfo> => {
+    const res = await apiClient.get<DeploymentInfo>("/docker/deployment", {
+      params: request.refreshLatest ? { refresh_latest: true } : undefined,
+    });
     return res.data;
   },
 };

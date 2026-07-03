@@ -69,12 +69,16 @@ class DockerClient:
             "containers": containers,
         }
 
-    async def get_manager_deployment_info(self) -> dict:
+    async def get_manager_deployment_info(self, *, refresh_latest: bool = False) -> dict:
         fallback_component = self._build_fallback_component("backend")
         if not self.enabled:
             version = fallback_component["version"]
             source = fallback_component["source"]
-            release_info = await ManagerReleaseChecker().get_release_status(version, source)
+            release_info = await ManagerReleaseChecker().get_release_status(
+                version,
+                source,
+                force_refresh=refresh_latest,
+            )
             return {
                 "enabled": False,
                 "message": "Docker 소켓이 없어 배포 이미지 라벨을 조회할 수 없습니다",
@@ -99,7 +103,11 @@ class DockerClient:
         ok_count = sum(1 for item in components if item["status"] == "ok")
         version = self._select_component_value(components, "version") or fallback_component["version"]
         source = self._select_component_value(components, "source") or fallback_component["source"]
-        release_info = await ManagerReleaseChecker().get_release_status(version, source)
+        release_info = await ManagerReleaseChecker().get_release_status(
+            version,
+            source,
+            force_refresh=refresh_latest,
+        )
         return {
             "enabled": True,
             "message": f"배포 이미지 라벨을 조회했습니다 ({ok_count}/{len(components)}개)",

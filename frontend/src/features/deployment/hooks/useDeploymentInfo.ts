@@ -1,11 +1,24 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { deploymentApi } from "../api/deploymentApi";
 
+const QUERY_KEY = ["deployment-info"];
+
 export function useDeploymentInfo() {
   return useQuery({
-    queryKey: ["deployment-info"],
-    queryFn: deploymentApi.getInfo,
+    queryKey: QUERY_KEY,
+    queryFn: () => deploymentApi.getInfo(),
     refetchInterval: 60_000,
+  });
+}
+
+export function useRefreshDeploymentLatest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => deploymentApi.getInfo({ refreshLatest: true }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(QUERY_KEY, data);
+    },
   });
 }

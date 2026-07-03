@@ -30,11 +30,12 @@ async def list_containers(
 
 @router.get("/deployment", response_model=DockerDeploymentInfoResponse, summary="Traefik Manager 배포 정보")
 async def get_deployment_info(
+    refresh_latest: bool = False,
     docker_client: DockerClient = Depends(get_docker_client),
     _: dict = Depends(get_current_user),
 ):
     try:
-        return await docker_client.get_manager_deployment_info()
+        return await docker_client.get_manager_deployment_info(refresh_latest=refresh_latest)
     except DockerClientError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

@@ -15,15 +15,21 @@ class ManagerReleaseChecker:
     _latest_release_cache: dict[str, dict] = {}
     _latest_release_lock = asyncio.Lock()
 
-    async def get_release_status(self, current_version: str | None, source_url: str | None) -> dict:
-        latest_info = await self._get_latest_release_info(source_url)
+    async def get_release_status(
+        self,
+        current_version: str | None,
+        source_url: str | None,
+        *,
+        force_refresh: bool = False,
+    ) -> dict:
+        latest_info = await self._get_latest_release_info(source_url, force_refresh=force_refresh)
         version_comparison = compare_versions(current_version, latest_info.get("latest_version"))
         return {
             **latest_info,
             "update_available": version_comparison < 0 if version_comparison is not None else None,
         }
 
-    async def _get_latest_release_info(self, source_url: str | None) -> dict:
+    async def _get_latest_release_info(self, source_url: str | None, *, force_refresh: bool = False) -> dict:
         checked_at = datetime.now(timezone.utc)
         api_url = self._resolve_api_url(source_url)
         if not api_url:
@@ -33,12 +39,12 @@ class ManagerReleaseChecker:
             )
 
         cache = self._latest_release_cache.get(api_url)
-        if cache and self._is_cache_fresh(cache, checked_at):
+        if not force_refresh and cache and self._is_cache_fresh(cache, checked_at):
             return cache.copy()
 
         async with self._latest_release_lock:
             cache = self._latest_release_cache.get(api_url)
-            if cache and self._is_cache_fresh(cache, checked_at):
+            if not force_refresh and cache and self._is_cache_fresh(cache, checked_at):
                 return cache.copy()
 
             info = await self._fetch_latest_release_info(api_url, checked_at)
