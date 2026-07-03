@@ -1,0 +1,75 @@
+import { AlertTriangle, CheckCircle2, Loader2, Stethoscope, XCircle } from "lucide-react";
+import { clsx } from "clsx";
+
+import { useDiagnoseServiceGateway } from "../hooks/useServices";
+import type { Service, ServiceGatewayDiagnosticCheck } from "../api/serviceApi";
+
+interface ServiceGatewayDiagnosisPanelProps {
+  service: Service;
+}
+
+export default function ServiceGatewayDiagnosisPanel({ service }: ServiceGatewayDiagnosisPanelProps) {
+  const diagnosis = useDiagnoseServiceGateway();
+
+  return (
+    <div className="mt-4 border-t border-gray-100 pt-3">
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={diagnosis.isPending}
+        onClick={() => diagnosis.mutate(service.id)}
+      >
+        {diagnosis.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Stethoscope className="h-3.5 w-3.5" />}
+        {diagnosis.isPending ? "진단 중" : "Bad Gateway 진단"}
+      </button>
+
+      {diagnosis.isError ? (
+        <p className="mt-2 text-xs text-rose-700">진단 정보를 가져오지 못했습니다.</p>
+      ) : null}
+
+      {diagnosis.data ? (
+        <div className={clsx("mt-3 rounded-xl border p-3 text-xs", getPanelClassName(diagnosis.data.status))}>
+          <div className="flex items-start gap-2">
+            <StatusIcon status={diagnosis.data.status} />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">{diagnosis.data.summary}</p>
+              <p className="mt-0.5 text-[11px] opacity-70">확인 대상: {diagnosis.data.domain}</p>
+            </div>
+          </div>
+          <div className="mt-3 space-y-2">
+            {diagnosis.data.checks.map((check) => (
+              <DiagnosisCheckRow key={check.key} check={check} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DiagnosisCheckRow({ check }: { check: ServiceGatewayDiagnosticCheck }) {
+  return (
+    <div className="rounded-lg bg-white/70 px-3 py-2">
+      <div className="flex items-start gap-2">
+        <StatusIcon status={check.status} compact />
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-slate-800">{check.label}</p>
+          <p className="mt-0.5 break-words text-slate-600">{check.message}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusIcon({ compact = false, status }: { compact?: boolean; status: string }) {
+  const className = compact ? "mt-0.5 h-3.5 w-3.5 shrink-0" : "mt-0.5 h-4 w-4 shrink-0";
+  if (status === "ok") return <CheckCircle2 className={`${className} text-emerald-600`} />;
+  if (status === "warning") return <AlertTriangle className={`${className} text-amber-600`} />;
+  return <XCircle className={`${className} text-rose-600`} />;
+}
+
+function getPanelClassName(status: string) {
+  if (status === "ok") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (status === "warning") return "border-amber-200 bg-amber-50 text-amber-800";
+  return "border-rose-200 bg-rose-50 text-rose-800";
+}

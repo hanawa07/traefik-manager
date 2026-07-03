@@ -7,6 +7,7 @@ from app.application.audit import audit_service
 from app.application.proxy.service_use_cases import ServiceUseCases
 from app.infrastructure.authentik.client import AuthentikClient
 from app.infrastructure.cloudflare.client import CloudflareClient
+from app.infrastructure.docker.client import DockerClient
 from app.infrastructure.health import upstream_checker
 from app.infrastructure.network import UpstreamDnsGuard
 from app.infrastructure.persistence.database import get_db
@@ -16,6 +17,7 @@ from app.infrastructure.persistence.repositories.sqlite_middleware_template_repo
 from app.infrastructure.persistence.repositories.sqlite_service_repository import SQLiteServiceRepository
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
+from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
 from app.interfaces.api.dependencies import get_current_user, require_write_access
 from app.interfaces.api.v1.routers.services_actions import (
     create_service_action,
@@ -28,10 +30,12 @@ from app.interfaces.api.v1.routers.services_health_actions import (
     get_service_health_action,
     list_services_health_action,
 )
+from app.interfaces.api.v1.routers.services_gateway_diagnostics import diagnose_service_gateway_action
 from app.interfaces.api.v1.routers.services_rollback_action import rollback_service_change_action
 from app.interfaces.api.v1.schemas.service_schemas import (
     AuthentikGroupResponse,
     ServiceCreate,
+    ServiceGatewayDiagnosisResponse,
     ServiceResponse,
     ServiceUpdate,
     UpstreamHealthResponse,
@@ -51,6 +55,14 @@ async def get_use_cases(db: AsyncSession = Depends(get_db)) -> ServiceUseCases:
         cloudflare_client=CloudflareClient.from_db_settings(db_settings),
         upstream_guard=UpstreamDnsGuard(settings_repository),
     )
+
+
+def get_traefik_client() -> TraefikApiClient:
+    return TraefikApiClient()
+
+
+def get_docker_client() -> DockerClient:
+    return DockerClient()
 
 
 @router.get("", response_model=list[ServiceResponse], summary="서비스 목록")
@@ -103,6 +115,27 @@ async def get_service_health(
         service_id=service_id,
         use_cases=use_cases,
         upstream_checker=upstream_checker,
+    )
+
+
+@router.get(
+    "/{service_id}/diagnostics/gateway",
+    response_model=ServiceGatewayDiagnosisResponse,
+    summary="서비스 Bad Gateway 진단",
+)
+async def diagnose_service_gateway(
+    service_id: UUID,
+    use_cases: ServiceUseCases = Depends(get_use_cases),
+    traefik_client: TraefikApiClient = Depends(get_traefik_client),
+    docker_client: DockerClient = Depends(get_docker_client),
+    _: dict = Depends(get_current_user),
+):
+    return await diagnose_service_gateway_action(
+        service_id=service_id,
+        use_cases=use_cases,
+        upstream_checker=upstream_checker,
+        traefik_client=traefik_client,
+        docker_client=docker_client,
     )
 
 

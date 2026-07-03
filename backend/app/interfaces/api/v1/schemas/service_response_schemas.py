@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ServiceResponse(BaseModel):
@@ -74,3 +74,20 @@ class UpstreamHealthResponse(BaseModel):
     error_kind: str | None = None
     checked_url: str
     checked_at: datetime
+
+
+class ServiceGatewayDiagnosticCheckResponse(BaseModel):
+    key: str
+    label: str
+    status: str  # "ok" | "warning" | "fail"
+    message: str
+    details: dict = Field(default_factory=dict)
+
+
+class ServiceGatewayDiagnosisResponse(BaseModel):
+    service_id: UUID
+    domain: str
+    status: str  # "ok" | "warning" | "fail"
+    summary: str
+    checked_at: datetime
+    checks: list[ServiceGatewayDiagnosticCheckResponse]

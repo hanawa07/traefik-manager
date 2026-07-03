@@ -9,6 +9,8 @@ export type {
   FramePolicy,
   Service,
   ServiceCreate,
+  ServiceGatewayDiagnosis,
+  ServiceGatewayDiagnosticCheck,
   ServiceUpdate,
   UpstreamHealth,
 } from "./service-api/serviceTypes";

@@ -114,3 +114,20 @@ export interface UpstreamHealth {
   checked_url: string;
   checked_at: string;
 }
+
+export interface ServiceGatewayDiagnosticCheck {
+  key: string;
+  label: string;
+  status: "ok" | "warning" | "fail";
+  message: string;
+  details: Record<string, unknown>;
+}
+
+export interface ServiceGatewayDiagnosis {
+  service_id: string;
+  domain: string;
+  status: "ok" | "warning" | "fail";
+  summary: string;
+  checked_at: string;
+  checks: ServiceGatewayDiagnosticCheck[];
+}

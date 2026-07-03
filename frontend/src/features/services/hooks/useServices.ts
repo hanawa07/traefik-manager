@@ -60,3 +60,9 @@ export function useAllServicesHealth() {
     staleTime: 30_000,
   });
 }
+
+export function useDiagnoseServiceGateway() {
+  return useMutation({
+    mutationFn: (id: string) => serviceApi.diagnoseGateway(id),
+  });
+}

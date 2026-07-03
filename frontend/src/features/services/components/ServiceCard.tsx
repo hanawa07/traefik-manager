@@ -2,6 +2,7 @@
 import type { Certificate } from "@/features/certificates/api/certificateApi";
 import type { Service, UpstreamHealth } from "../api/serviceApi";
 import ServiceCardBadges from "./ServiceCardBadges";
+import ServiceGatewayDiagnosisPanel from "./ServiceGatewayDiagnosisPanel";
 import ServiceCardHeader from "./ServiceCardHeader";
 import ServiceCardHealthDetails from "./ServiceCardHealthDetails";
 
@@ -44,6 +45,7 @@ export default function ServiceCard({
         lastSuccessAt={lastSuccessAt}
         lastFailureAt={lastFailureAt}
       />
+      <ServiceGatewayDiagnosisPanel service={service} />
     </div>
   );
 }

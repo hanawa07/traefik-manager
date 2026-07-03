@@ -1,6 +1,6 @@
 import apiClient from "@/shared/lib/apiClient";
 
-import type { UpstreamHealth } from "./serviceTypes";
+import type { ServiceGatewayDiagnosis, UpstreamHealth } from "./serviceTypes";
 
 export const serviceHealthApi = {
   getServiceHealth: async (id: string): Promise<UpstreamHealth> => {
@@ -10,6 +10,11 @@ export const serviceHealthApi = {
 
   getAllServicesHealth: async (): Promise<Record<string, UpstreamHealth>> => {
     const res = await apiClient.get<Record<string, UpstreamHealth>>("/services/health/all");
+    return res.data;
+  },
+
+  diagnoseGateway: async (id: string): Promise<ServiceGatewayDiagnosis> => {
+    const res = await apiClient.get<ServiceGatewayDiagnosis>(`/services/${id}/diagnostics/gateway`);
     return res.data;
   },
 };
