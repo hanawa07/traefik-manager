@@ -2,6 +2,7 @@ import { ExternalLink, GitCommit, PackageCheck } from "lucide-react";
 
 import type { DeploymentComponent, DeploymentInfo } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { buildDeploymentVersionDisplay } from "./managerDeploymentVersionDisplay";
 
 interface ManagerDeploymentCardProps {
   deployment?: DeploymentInfo;
@@ -10,12 +11,17 @@ interface ManagerDeploymentCardProps {
 
 export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymentCardProps) {
   const revision = formatRevision(deployment?.revision);
-  const version = deployment?.version || "-";
   const latestVersion = deployment?.latest_version || "-";
   const buildDate = formatDateTime(deployment?.build_date, timezone);
   const latestCheckedAt = formatDateTime(deployment?.latest_version_checked_at, timezone);
-  const releaseStatus = getReleaseStatus(deployment);
-  const releaseTone = getReleaseTone(deployment);
+  const versionDisplay = buildDeploymentVersionDisplay({
+    enabled: deployment?.enabled,
+    latestVersion: deployment?.latest_version,
+    latestVersionError: deployment?.latest_version_error,
+    updateAvailable: deployment?.update_available,
+    version: deployment?.version,
+  });
+  const releaseTone = getReleaseTone(versionDisplay.state);
 
   return (
     <div className="card mb-6 p-5">
@@ -30,12 +36,17 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
           </p>
         </div>
         <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${releaseTone.badge}`}>
-          {releaseStatus}
+          {versionDisplay.statusLabel}
         </span>
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">
-        <DeploymentFact label="현재 버전" value={version} />
+        <DeploymentFact
+          description={versionDisplay.currentDetail}
+          descriptionMonospace
+          label="현재 빌드"
+          value={versionDisplay.currentValue}
+        />
         <DeploymentFact
           href={deployment?.latest_release_url || undefined}
           label="최신 릴리즈"
@@ -47,6 +58,7 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
 
       <div className={`mt-4 rounded-xl border px-4 py-3 text-xs ${releaseTone.panel}`}>
         <p className="font-medium">{deployment?.message || "배포 정보를 확인하는 중입니다"}</p>
+        {versionDisplay.releaseMessage ? <p className="mt-1">{versionDisplay.releaseMessage}</p> : null}
         <p className="mt-1">
           최신 릴리즈 확인: {latestCheckedAt}
           {deployment?.latest_version_error ? ` · ${deployment.latest_version_error}` : ""}
@@ -63,11 +75,15 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
 }
 
 function DeploymentFact({
+  description,
+  descriptionMonospace = false,
   href,
   label,
   value,
   monospace = false,
 }: {
+  description?: string;
+  descriptionMonospace?: boolean;
   href?: string;
   label: string;
   value: string;
@@ -91,6 +107,11 @@ function DeploymentFact({
       ) : (
         <p className={valueClassName}>{value}</p>
       )}
+      {description ? (
+        <p className={`mt-1 truncate text-[11px] text-gray-500 ${descriptionMonospace ? "font-mono" : ""}`}>
+          {description}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -137,35 +158,32 @@ function getStatusClassName(status: string) {
   return "bg-amber-100 text-amber-700";
 }
 
-function getReleaseStatus(deployment?: DeploymentInfo) {
-  if (!deployment) return "확인 중";
-  if (deployment.enabled === false) return "Docker 조회 불가";
-  if (deployment.update_available === true) return "업데이트 필요";
-  if (deployment.update_available === false) return "최신 상태";
-  if (deployment.latest_version_error) return "확인 실패";
-  return "비교 불가";
-}
-
-function getReleaseTone(deployment?: DeploymentInfo) {
-  if (!deployment) {
+function getReleaseTone(state: ReturnType<typeof buildDeploymentVersionDisplay>["state"]) {
+  if (state === "loading") {
     return {
       badge: "bg-slate-100 text-slate-700",
       panel: "border-slate-200 bg-slate-50 text-slate-600",
     };
   }
-  if (deployment.enabled === false) {
+  if (state === "unavailable") {
     return {
       badge: "bg-amber-100 text-amber-800",
       panel: "border-amber-200 bg-amber-50 text-amber-800",
     };
   }
-  if (deployment.update_available === true || deployment.latest_version_error) {
+  if (state === "update" || state === "unknown") {
     return {
       badge: "bg-amber-100 text-amber-800",
       panel: "border-amber-200 bg-amber-50 text-amber-800",
     };
   }
-  if (deployment.update_available === false) {
+  if (state === "post_release") {
+    return {
+      badge: "bg-blue-100 text-blue-700",
+      panel: "border-blue-200 bg-blue-50 text-blue-700",
+    };
+  }
+  if (state === "current") {
     return {
       badge: "bg-emerald-100 text-emerald-700",
       panel: "border-emerald-200 bg-emerald-50 text-emerald-700",
