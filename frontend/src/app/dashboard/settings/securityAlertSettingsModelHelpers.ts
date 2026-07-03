@@ -1,0 +1,53 @@
+import type {
+  SecurityAlertSettingsInput,
+  SecurityAlertSettingsStatus,
+} from "@/features/settings/api/settingsApi";
+import { createDefaultSecurityAlertForm } from "@/features/settings/lib/settingsDefaults";
+
+export function createSecurityAlertFormFromSettings(
+  settings?: SecurityAlertSettingsStatus,
+): SecurityAlertSettingsInput {
+  const defaults = createDefaultSecurityAlertForm();
+
+  return {
+    enabled: settings?.enabled ?? defaults.enabled,
+    change_alerts_enabled: settings?.change_alerts_enabled ?? defaults.change_alerts_enabled,
+    provider: settings?.provider ?? defaults.provider,
+    webhook_url: settings?.webhook_url ?? defaults.webhook_url,
+    telegram_bot_token: defaults.telegram_bot_token,
+    telegram_chat_id: settings?.telegram_chat_id ?? defaults.telegram_chat_id,
+    pagerduty_routing_key: defaults.pagerduty_routing_key,
+    email_host: settings?.email_host ?? defaults.email_host,
+    email_port: settings?.email_port ?? defaults.email_port,
+    email_security: settings?.email_security ?? defaults.email_security,
+    email_username: settings?.email_username ?? defaults.email_username,
+    email_password: defaults.email_password,
+    email_from: settings?.email_from ?? defaults.email_from,
+    email_recipients: settings?.email_recipients ?? defaults.email_recipients,
+    event_routes: settings?.event_routes ?? defaults.event_routes,
+    change_event_routes: settings?.change_event_routes ?? defaults.change_event_routes,
+  };
+}
+
+export function buildSecurityAlertSettingsPayload(
+  formValue: SecurityAlertSettingsInput,
+): SecurityAlertSettingsInput {
+  return {
+    enabled: formValue.enabled,
+    change_alerts_enabled: formValue.change_alerts_enabled,
+    provider: formValue.provider,
+    webhook_url: formValue.webhook_url.trim(),
+    telegram_bot_token: formValue.telegram_bot_token.trim(),
+    telegram_chat_id: formValue.telegram_chat_id.trim(),
+    pagerduty_routing_key: formValue.pagerduty_routing_key.trim(),
+    email_host: formValue.email_host.trim(),
+    email_port: formValue.email_port,
+    email_security: formValue.email_security,
+    email_username: formValue.email_username.trim(),
+    email_password: formValue.email_password.trim(),
+    email_from: formValue.email_from.trim(),
+    email_recipients: formValue.email_recipients,
+    event_routes: formValue.event_routes,
+    change_event_routes: formValue.change_event_routes,
+  };
+}
