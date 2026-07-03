@@ -65,8 +65,17 @@ function ContainerPortBadges({ container }: { container: DockerContainer }) {
 }
 
 function ContainerNetworkBadges({ container }: { container: DockerContainer }) {
+  const hasProxyNetwork = container.networks.includes("proxy_net");
+
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
+      <span
+        className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+          hasProxyNetwork ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+        }`}
+      >
+        {hasProxyNetwork ? "proxy_net 연결됨" : "proxy_net 미연결"}
+      </span>
       {container.networks.length > 0 ? (
         container.networks.map((network) => (
           <span

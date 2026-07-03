@@ -17,7 +17,8 @@ export default function ContainerImportTraefikList({
     <div className="space-y-3">
       <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs leading-5 text-indigo-800">
         기존 Docker 라벨에서 도메인, 업스트림 포트, TLS 여부를 함께 가져옵니다. 이미 Traefik Docker provider로 운영 중인
-        컨테이너를 Manager로 옮길 때 쓰는 import 흐름입니다.
+        컨테이너를 Manager로 옮길 때 쓰는 import 흐름입니다. `traefik.enable=true`만 있으면 부족하고
+        `traefik.http.routers.*.rule=Host(...)` 라벨이 있어야 후보로 표시됩니다.
       </div>
 
       <p className="text-xs text-gray-500">
@@ -61,6 +62,15 @@ export default function ContainerImportTraefikList({
                 </span>
                 <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700">
                   port {candidate.upstream_port}
+                </span>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                    candidate.networks.includes("proxy_net")
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-amber-50 text-amber-700"
+                  }`}
+                >
+                  {candidate.networks.includes("proxy_net") ? "proxy_net 연결됨" : "proxy_net 미연결"}
                 </span>
                 {candidate.networks.map((network) => (
                   <span
