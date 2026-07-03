@@ -24,12 +24,12 @@ export default function ServiceAuthModeSelector({
   return (
     <div>
       <label className="label">인증 모드 (ForwardAuth)</label>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {AUTH_MODE_OPTIONS.map((option) => (
           <label
             key={option.value}
             className={`
-              relative flex cursor-pointer flex-col rounded-xl border p-3 transition-all
+              relative flex min-w-0 cursor-pointer flex-col rounded-xl border p-3 transition-all
               ${authMode === option.value
                 ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
                 : "border-gray-200 bg-white hover:border-gray-300"}
@@ -48,7 +48,7 @@ export default function ServiceAuthModeSelector({
             >
               {option.label}
             </span>
-            <span className="mt-1 text-[10px] leading-tight text-gray-500">
+            <span className="mt-1 text-xs leading-snug text-gray-500">
               {option.desc}
             </span>
           </label>

@@ -36,7 +36,7 @@ export default function EditServicePage() {
   }
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="w-full max-w-7xl p-4 sm:p-6 lg:p-8">
       <EditServicePageHeader domain={service.domain} />
       <EditServiceFormCard
         service={service}

@@ -34,7 +34,7 @@ export default function ServiceCustomHeadersFields({
       </div>
       <div className="space-y-2">
         {customHeaderFields.map((field, index) => (
-          <div key={field.id} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+          <div key={field.id} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
             <input
               className="input text-sm"
               placeholder="Key"

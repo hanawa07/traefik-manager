@@ -17,7 +17,7 @@ export function EditServiceFormCard({
   onSubmit,
 }: EditServiceFormCardProps) {
   return (
-    <div className="card p-6">
+    <div className="card p-4 sm:p-6 lg:p-8">
       {error ? (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-5">
           <p className="text-red-600 text-sm">{getServiceEditErrorMessage(error)}</p>

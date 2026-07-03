@@ -22,8 +22,8 @@ export default function ServiceBasicAuthUsers({
 }: ServiceBasicAuthUsersProps) {
   return (
     <div className="animate-in fade-in space-y-3 slide-in-from-top-2">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <p className="text-sm font-medium text-gray-700">Basic Auth 사용자</p>
           <p className="text-xs text-gray-500">
             입력한 비밀번호는 서버에서 htpasswd 형식으로 해시 저장됩니다
@@ -31,7 +31,7 @@ export default function ServiceBasicAuthUsers({
         </div>
         <button
           type="button"
-          className="btn-secondary inline-flex items-center gap-1.5 py-1.5 text-sm"
+          className="btn-secondary inline-flex w-full shrink-0 items-center justify-center gap-1.5 py-1.5 text-sm sm:w-auto"
           onClick={onAddBasicAuthUser}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -41,7 +41,7 @@ export default function ServiceBasicAuthUsers({
 
       <div className="space-y-2">
         {basicAuthFields.map((field, index) => (
-          <div key={field.id} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+          <div key={field.id} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
             <input
               className="input"
               placeholder="사용자 이름"

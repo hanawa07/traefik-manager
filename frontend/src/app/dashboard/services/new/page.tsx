@@ -18,7 +18,7 @@ export default function NewServicePage() {
 
   if (role === "viewer") {
     return (
-      <div className="max-w-4xl p-8">
+      <div className="w-full max-w-5xl p-4 sm:p-6 lg:p-8">
         <div className="card p-6">
           <h1 className="text-xl font-semibold text-gray-900">읽기 전용 계정</h1>
           <p className="mt-2 text-sm text-gray-500">viewer 계정은 서비스를 추가할 수 없습니다.</p>
@@ -31,7 +31,7 @@ export default function NewServicePage() {
   }
 
   return (
-    <div className="max-w-5xl p-8">
+    <div className="w-full max-w-7xl p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
         <Link
           href="/dashboard/services"
@@ -44,7 +44,7 @@ export default function NewServicePage() {
         <p className="text-gray-500 text-sm mt-1">새 Traefik 라우팅 서비스를 등록합니다</p>
       </div>
 
-      <div className="card p-6">
+      <div className="card p-4 sm:p-6 lg:p-8">
         {createService.error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-5">
             <p className="text-red-600 text-sm">
