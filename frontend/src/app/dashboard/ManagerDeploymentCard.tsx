@@ -3,6 +3,7 @@ import { ExternalLink, GitCommit, PackageCheck } from "lucide-react";
 import type { DeploymentComponent, DeploymentInfo } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { buildDeploymentComponentConsistency } from "./managerDeploymentConsistency";
+import { buildManagerDeploymentLinks } from "./managerDeploymentLinks";
 import { buildDeploymentVersionDisplay } from "./managerDeploymentVersionDisplay";
 
 interface ManagerDeploymentCardProps {
@@ -16,6 +17,12 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
   const buildDate = formatDateTime(deployment?.build_date, timezone);
   const latestCheckedAt = formatDateTime(deployment?.latest_version_checked_at, timezone);
   const componentConsistency = buildDeploymentComponentConsistency(deployment?.components);
+  const deploymentLinks = buildManagerDeploymentLinks({
+    latestReleaseUrl: deployment?.latest_release_url,
+    latestVersion: deployment?.latest_version,
+    revision: deployment?.revision,
+    source: deployment?.source,
+  });
   const versionDisplay = buildDeploymentVersionDisplay({
     enabled: deployment?.enabled,
     latestVersion: deployment?.latest_version,
@@ -46,15 +53,16 @@ export function ManagerDeploymentCard({ deployment, timezone }: ManagerDeploymen
         <DeploymentFact
           description={versionDisplay.currentDetail}
           descriptionMonospace
+          href={deploymentLinks.commitUrl}
           label="현재 빌드"
           value={versionDisplay.currentValue}
         />
         <DeploymentFact
-          href={deployment?.latest_release_url || undefined}
+          href={deploymentLinks.releaseUrl}
           label="최신 릴리즈"
           value={latestVersion}
         />
-        <DeploymentFact label="커밋" value={revision} monospace />
+        <DeploymentFact href={deploymentLinks.commitUrl} label="커밋" value={revision} monospace />
         <DeploymentFact label="빌드 시각" value={buildDate} />
       </div>
 
@@ -140,6 +148,11 @@ function DeploymentComponentRow({
     updateAvailable: null,
     version: component.version,
   });
+  const componentLinks = buildManagerDeploymentLinks({
+    latestVersion,
+    revision: component.revision,
+    source: component.source,
+  });
 
   return (
     <div className={`rounded-xl border bg-white px-4 py-3 ${hasMismatch ? "border-amber-300" : "border-gray-200"}`}>
@@ -161,11 +174,33 @@ function DeploymentComponentRow({
       {versionDisplay.currentDetail ? (
         <p className="mt-1 truncate font-mono text-[11px] text-gray-500">{versionDisplay.currentDetail}</p>
       ) : null}
-      <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
-        <GitCommit className="h-3.5 w-3.5" />
-        <span className="font-mono">{revision}</span>
-      </p>
+      <DeploymentRevisionLink href={componentLinks.commitUrl} revision={revision} />
     </div>
+  );
+}
+
+function DeploymentRevisionLink({ href, revision }: { href?: string; revision: string }) {
+  const children = (
+    <>
+      <GitCommit className="h-3.5 w-3.5" />
+      <span className="font-mono">{revision}</span>
+    </>
+  );
+
+  if (!href) {
+    return <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">{children}</p>;
+  }
+
+  return (
+    <a
+      className="mt-1 flex items-center gap-1 text-xs text-gray-500 hover:text-blue-700"
+      href={href}
+      rel="noreferrer"
+      target="_blank"
+    >
+      {children}
+      <ExternalLink className="h-3.5 w-3.5" />
+    </a>
   );
 }
 
