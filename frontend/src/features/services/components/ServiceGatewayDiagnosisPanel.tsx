@@ -1,5 +1,7 @@
 import { AlertTriangle, CheckCircle2, Loader2, Stethoscope, XCircle } from "lucide-react";
 import { clsx } from "clsx";
+import Link from "next/link";
+import { useState } from "react";
 
 import { useDiagnoseServiceGateway } from "../hooks/useServices";
 import type { Service, ServiceGatewayDiagnosticCheck } from "../api/serviceApi";
@@ -10,6 +12,15 @@ interface ServiceGatewayDiagnosisPanelProps {
 
 export default function ServiceGatewayDiagnosisPanel({ service }: ServiceGatewayDiagnosisPanelProps) {
   const diagnosis = useDiagnoseServiceGateway();
+  const [copiedCommand, setCopiedCommand] = useState(false);
+  const networkCommand = buildNetworkConnectCommand(service, diagnosis.data?.checks);
+
+  const copyNetworkCommand = async () => {
+    if (!networkCommand) return;
+    await navigator.clipboard.writeText(networkCommand);
+    setCopiedCommand(true);
+    window.setTimeout(() => setCopiedCommand(false), 2000);
+  };
 
   return (
     <div className="mt-4 border-t border-gray-100 pt-3">
@@ -41,6 +52,25 @@ export default function ServiceGatewayDiagnosisPanel({ service }: ServiceGateway
               <DiagnosisCheckRow key={check.key} check={check} />
             ))}
           </div>
+          {diagnosis.data.status !== "ok" ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                className="rounded-lg border border-white/70 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-700"
+                href={`/dashboard/services/${service.id}`}
+              >
+                서비스 설정 열기
+              </Link>
+              {networkCommand ? (
+                <button
+                  className="rounded-lg border border-white/70 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-700"
+                  onClick={copyNetworkCommand}
+                  type="button"
+                >
+                  {copiedCommand ? "명령 복사됨" : "네트워크 연결 명령 복사"}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -72,4 +102,11 @@ function getPanelClassName(status: string) {
   if (status === "ok") return "border-emerald-200 bg-emerald-50 text-emerald-800";
   if (status === "warning") return "border-amber-200 bg-amber-50 text-amber-800";
   return "border-rose-200 bg-rose-50 text-rose-800";
+}
+
+function buildNetworkConnectCommand(service: Service, checks?: ServiceGatewayDiagnosticCheck[]) {
+  const networkCheck = checks?.find((check) => check.key === "docker_network" && check.status === "fail");
+  if (!networkCheck) return null;
+
+  return `docker network connect proxy_net ${service.upstream_host}`;
 }
