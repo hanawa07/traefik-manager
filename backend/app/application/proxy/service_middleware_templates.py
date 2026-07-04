@@ -27,6 +27,9 @@ class ServiceMiddlewareTemplateResolver:
             resolved.append(template)
         return resolved
 
+    async def list_all(self) -> list[MiddlewareTemplate]:
+        return await self.repository.find_all()
+
     def validate_auth_conflict(
         self,
         service: Service,

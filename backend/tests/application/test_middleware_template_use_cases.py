@@ -48,6 +48,7 @@ class StubServiceRepository:
 class StubFileWriter:
     def __init__(self):
         self.writes: list[dict] = []
+        self.shared_template_writes: list[list[str]] = []
 
     def write(self, service: Service, middleware_templates: list[MiddlewareTemplate] | None = None) -> None:
         self.writes.append(
@@ -56,6 +57,9 @@ class StubFileWriter:
                 "middleware_names": [template.name for template in middleware_templates or []],
             }
         )
+
+    def write_shared_middleware_templates(self, templates: list[MiddlewareTemplate]) -> None:
+        self.shared_template_writes.append([template.name for template in templates])
 
 
 class StubUpdatePayload:
@@ -107,6 +111,7 @@ async def test_update_template_rewrites_attached_services():
 
     assert updated is not None
     assert updated.config == {"average": 300, "burst": 500}
+    assert file_writer.shared_template_writes == [["DDoS 방어", "보안 헤더"]]
     assert file_writer.writes == [
         {
             "service_name": "English",

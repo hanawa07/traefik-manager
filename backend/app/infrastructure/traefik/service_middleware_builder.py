@@ -48,10 +48,7 @@ def append_service_middlewares(
         router_middlewares.append(names["basic_auth"])
 
     for template in middleware_templates:
-        middlewares[template.shared_name] = {
-            template.type: template.config,
-        }
-        router_middlewares.append(template.shared_name)
+        router_middlewares.append(f"{template.shared_name}@file")
 
     if service.uses_token_auth:
         middlewares[names["token_auth"]] = {

@@ -11,6 +11,7 @@ class FileProviderWriter:
     """Traefik File Provider 디렉토리에 YAML 파일 생성/삭제"""
 
     AUTHENTIK_MIDDLEWARE_FILE = "authentik-middleware.yml"
+    SHARED_MIDDLEWARE_TEMPLATES_FILE = "shared-middleware-templates.yml"
     TRAEFIK_DASHBOARD_PUBLIC_FILE = "traefik-dashboard-public.yml"
     AUTHENTIK_FORWARD_AUTH_CONFIG = {
         "http": {
@@ -65,6 +66,19 @@ class FileProviderWriter:
         file_path = self._get_service_file_path(service)
         if file_path.exists():
             file_path.unlink()
+
+    def write_shared_middleware_templates(self, templates: list[MiddlewareTemplate]) -> None:
+        self.config_path.mkdir(parents=True, exist_ok=True)
+        file_path = self.config_path / self.SHARED_MIDDLEWARE_TEMPLATES_FILE
+        if not templates:
+            if file_path.exists():
+                file_path.unlink()
+            return
+
+        file_path.write_text(
+            self.generator.to_yaml_shared_middleware_templates(templates),
+            encoding="utf-8",
+        )
 
     def write_redirect_host(self, redirect_host: RedirectHost) -> None:
         self.config_path.mkdir(parents=True, exist_ok=True)

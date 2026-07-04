@@ -48,12 +48,18 @@ class StubRedirectHostRepository:
 
 
 class StubMiddlewareTemplateRepository:
+    async def find_all(self):
+        return []
+
     async def find_many_by_ids(self, _template_ids):
         return []
 
 
 class StubFileWriter:
     def write(self, *_args, **_kwargs):
+        return None
+
+    def write_shared_middleware_templates(self, *_args, **_kwargs):
         return None
 
     def delete(self, *_args, **_kwargs):

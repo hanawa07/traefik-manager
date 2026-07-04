@@ -13,6 +13,8 @@ async def sync_existing_service_configs(
     file_writer,
 ) -> int:
     services = await service_repository.find_all()
+    templates = await middleware_template_repository.find_all()
+    file_writer.write_shared_middleware_templates(templates)
     rewritten = 0
 
     for service in services:

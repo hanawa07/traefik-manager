@@ -15,6 +15,9 @@ class StubServiceRepository:
 
 
 class StubMiddlewareTemplateRepository:
+    async def find_all(self):
+        return []
+
     async def find_many_by_ids(self, _template_ids):
         return []
 
@@ -24,9 +27,13 @@ class RecordingFileWriter:
         self.calls = []
         self.dashboard_write_calls = []
         self.dashboard_deleted = False
+        self.shared_template_writes = []
 
     def write(self, service, middleware_templates=None):
         self.calls.append((service, middleware_templates or []))
+
+    def write_shared_middleware_templates(self, templates):
+        self.shared_template_writes.append(templates)
 
     def write_traefik_dashboard_public_route(self, domain, basic_auth_username, basic_auth_password_hash):
         self.dashboard_write_calls.append((domain, basic_auth_username, basic_auth_password_hash))
@@ -60,6 +67,7 @@ async def test_sync_existing_service_configs_rewrites_all_services(make_service)
     assert rewritten == 2
     assert [str(call[0].domain) for call in writer.calls] == ["alpha.example.com", "beta.example.com"]
     assert writer.calls[0][1] == []
+    assert writer.shared_template_writes == [[]]
 
 
 @pytest.mark.asyncio

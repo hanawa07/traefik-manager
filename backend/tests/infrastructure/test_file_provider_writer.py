@@ -1,6 +1,10 @@
 import pytest
+import yaml
 from pathlib import Path
 from unittest.mock import MagicMock
+
+from app.domain.proxy.entities.middleware_template import MiddlewareTemplate
+from app.domain.proxy.entities.service import Service
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 
 
@@ -86,3 +90,33 @@ def test_delete_traefik_dashboard_public_route_removes_file(writer, tmp_path):
     writer.delete_traefik_dashboard_public_route()
 
     assert not file_path.exists()
+
+
+def test_write_service_references_shared_template_without_redefining_it(writer, tmp_path):
+    template = MiddlewareTemplate.create(
+        name="DDoS 방어",
+        type="rateLimit",
+        config={"average": 100, "burst": 200},
+    )
+    service = Service.create(
+        name="app",
+        domain="app.example.com",
+        upstream_host="app",
+        upstream_port=3000,
+        tls_enabled=False,
+        https_redirect_enabled=False,
+        middleware_template_ids=[str(template.id)],
+    )
+
+    writer.write_shared_middleware_templates([template])
+    writer.write(service, middleware_templates=[template])
+
+    service_config = yaml.safe_load((tmp_path / "app-example-com.yml").read_text())
+    shared_config = yaml.safe_load((tmp_path / FileProviderWriter.SHARED_MIDDLEWARE_TEMPLATES_FILE).read_text())
+    router = service_config["http"]["routers"]["app-example-com"]
+
+    assert template.shared_name not in service_config["http"].get("middlewares", {})
+    assert f"{template.shared_name}@file" in router["middlewares"]
+    assert shared_config["http"]["middlewares"][template.shared_name] == {
+        "rateLimit": {"average": 100, "burst": 200}
+    }

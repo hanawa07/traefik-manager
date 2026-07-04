@@ -33,6 +33,7 @@ class MiddlewareTemplateUseCases:
             config=data.config,
         )
         await self.repository.save(template)
+        await self._sync_shared_templates()
         return template
 
     async def update_template(self, template_id: UUID, data) -> MiddlewareTemplate | None:
@@ -49,12 +50,14 @@ class MiddlewareTemplateUseCases:
         affected_services = await self._find_services_using_template(template_id)
         self._validate_auth_conflicts(template, affected_services)
         await self.repository.save(template)
+        await self._sync_shared_templates()
         await self._rewrite_services(affected_services)
         return template
 
     async def delete_template(self, template_id: UUID) -> None:
         await self._validate_not_used(template_id)
         await self.repository.delete(template_id)
+        await self._sync_shared_templates()
 
     async def _validate_not_used(self, template_id: UUID) -> None:
         services = await self._find_services_using_template(template_id)
@@ -91,6 +94,9 @@ class MiddlewareTemplateUseCases:
         for service in services:
             middleware_templates = await self._resolve_templates(service.middleware_template_ids)
             self.file_writer.write(service, middleware_templates=middleware_templates)
+
+    async def _sync_shared_templates(self) -> None:
+        self.file_writer.write_shared_middleware_templates(await self.repository.find_all())
 
     async def _resolve_templates(self, template_ids: list[str]) -> list[MiddlewareTemplate]:
         if not template_ids:

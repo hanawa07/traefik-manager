@@ -70,6 +70,7 @@ class ServiceUseCases:
 
         try:
             # Traefik YAML 생성
+            await self._sync_shared_middleware_templates()
             self.file_writer.write(service, middleware_templates=middleware_templates)
             await self.repository.save(service)
         except Exception:
@@ -125,6 +126,7 @@ class ServiceUseCases:
         )
 
         # Traefik YAML 업데이트
+        await self._sync_shared_middleware_templates()
         self.file_writer.write(service, middleware_templates=middleware_templates)
         await self.repository.save(service)
         logger.info("서비스 수정: id=%s", service_id)
@@ -149,3 +151,6 @@ class ServiceUseCases:
 
     async def list_authentik_groups(self) -> list[dict]:
         return await self.authentik_sync.list_groups()
+
+    async def _sync_shared_middleware_templates(self) -> None:
+        self.file_writer.write_shared_middleware_templates(await self.middleware_templates.list_all())

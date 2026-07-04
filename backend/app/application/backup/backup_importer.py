@@ -47,6 +47,7 @@ class BackupImporter:
             else:
                 stats["created_redirects"] += 1
 
+        await self._write_shared_middleware_templates()
         return {"mode": mode, **stats}
 
     async def _delete_existing(self) -> tuple[int, int]:
@@ -146,6 +147,11 @@ class BackupImporter:
         )
         self.file_writer.write(service, middleware_templates=middleware_templates)
         await self.service_repository.save(service)
+
+    async def _write_shared_middleware_templates(self) -> None:
+        self.file_writer.write_shared_middleware_templates(
+            await self.middleware_template_repository.find_all()
+        )
 
     async def _upsert_redirect(self, item: dict) -> bool:
         existing = await self.redirect_repository.find_by_domain(item["domain"])

@@ -6,6 +6,9 @@ from app.domain.proxy.entities.service import Service
 from app.infrastructure.traefik.dashboard_config_builder import (
     build_traefik_dashboard_public_route_config,
 )
+from app.infrastructure.traefik.middleware_template_config_builder import (
+    build_shared_middleware_templates_config,
+)
 from app.infrastructure.traefik.redirect_config_builder import build_redirect_host_config
 from app.infrastructure.traefik.service_config_builder import (
     build_frame_policy_headers,
@@ -84,6 +87,16 @@ class TraefikConfigGenerator:
                 basic_auth_username=basic_auth_username,
                 basic_auth_password_hash=basic_auth_password_hash,
             ),
+            default_flow_style=False,
+            allow_unicode=True,
+        )
+
+    def generate_shared_middleware_templates(self, templates: list[MiddlewareTemplate]) -> dict:
+        return build_shared_middleware_templates_config(templates)
+
+    def to_yaml_shared_middleware_templates(self, templates: list[MiddlewareTemplate]) -> str:
+        return yaml.dump(
+            self.generate_shared_middleware_templates(templates),
             default_flow_style=False,
             allow_unicode=True,
         )
