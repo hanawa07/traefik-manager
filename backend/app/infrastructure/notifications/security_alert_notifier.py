@@ -142,8 +142,8 @@ async def send_test_alert(db: AsyncSession) -> dict[str, Any]:
             "detail": f"{provider} 채널로 테스트 payload를 전송했습니다",
         }
     except httpx.HTTPError as exc:
-        detail = redact_sensitive_log_value(str(exc))
-        logger.warning("테스트 보안 웹훅 알림 전송 실패: %s", exc, exc_info=True)
+        detail = _format_http_error_detail(exc)
+        logger.warning("테스트 보안 웹훅 알림 전송 실패: %s", detail, exc_info=True)
         return {
             "success": False,
             "provider": provider,
@@ -195,9 +195,32 @@ async def _deliver_alert(
         )
         return True, f"{provider} 채널로 전송했습니다"
     except httpx.HTTPError as exc:
-        detail = redact_sensitive_log_value(str(exc))
-        logger.warning("보안 웹훅 알림 전송 실패: %s", exc, exc_info=True)
+        detail = _format_http_error_detail(exc)
+        logger.warning("보안 웹훅 알림 전송 실패: %s", detail, exc_info=True)
         return False, detail
+
+
+def _format_http_error_detail(exc: httpx.HTTPError) -> str:
+    message = str(exc).strip()
+    if not message:
+        if isinstance(exc, httpx.TimeoutException):
+            message = "요청 제한 시간 초과"
+        elif isinstance(exc, httpx.ConnectError):
+            message = "연결 실패"
+        else:
+            message = "전송 실패"
+
+    error_name = exc.__class__.__name__
+    detail = message if error_name in message else f"{error_name}: {message}"
+
+    try:
+        request = exc.request
+    except RuntimeError:
+        request = None
+
+    if request is not None:
+        detail = f"{detail} ({request.method} {request.url})"
+    return redact_sensitive_log_value(detail)
 
 
 async def _build_request(
