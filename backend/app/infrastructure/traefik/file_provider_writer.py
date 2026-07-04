@@ -1,4 +1,7 @@
+import os
 from pathlib import Path
+from tempfile import NamedTemporaryFile
+
 import yaml
 from app.core.config import settings
 from app.domain.proxy.entities.middleware_template import MiddlewareTemplate
@@ -57,9 +60,9 @@ class FileProviderWriter:
     ) -> None:
         self.config_path.mkdir(parents=True, exist_ok=True)
         file_path = self._get_service_file_path(service)
-        file_path.write_text(
+        self._write_text_atomic(
+            file_path,
             self.generator.to_yaml(service, middleware_templates=middleware_templates or []),
-            encoding="utf-8",
         )
 
     def delete(self, service: Service) -> None:
@@ -75,17 +78,17 @@ class FileProviderWriter:
                 file_path.unlink()
             return
 
-        file_path.write_text(
+        self._write_text_atomic(
+            file_path,
             self.generator.to_yaml_shared_middleware_templates(templates),
-            encoding="utf-8",
         )
 
     def write_redirect_host(self, redirect_host: RedirectHost) -> None:
         self.config_path.mkdir(parents=True, exist_ok=True)
         file_path = self._get_redirect_file_path(redirect_host)
-        file_path.write_text(
+        self._write_text_atomic(
+            file_path,
             self.generator.to_yaml_redirect_host(redirect_host),
-            encoding="utf-8",
         )
 
     def delete_redirect_host(self, redirect_host: RedirectHost) -> None:
@@ -105,13 +108,13 @@ class FileProviderWriter:
     ) -> None:
         self.config_path.mkdir(parents=True, exist_ok=True)
         file_path = self.config_path / self.TRAEFIK_DASHBOARD_PUBLIC_FILE
-        file_path.write_text(
+        self._write_text_atomic(
+            file_path,
             self.generator.to_yaml_traefik_dashboard_public_route(
                 domain=domain,
                 basic_auth_username=basic_auth_username,
                 basic_auth_password_hash=basic_auth_password_hash,
             ),
-            encoding="utf-8",
         )
 
     def delete_traefik_dashboard_public_route(self) -> None:
@@ -134,13 +137,13 @@ class FileProviderWriter:
         """authentik ForwardAuth 미들웨어 정의 파일을 생성한다."""
         self.config_path.mkdir(parents=True, exist_ok=True)
         file_path = self.config_path / self.AUTHENTIK_MIDDLEWARE_FILE
-        file_path.write_text(
+        self._write_text_atomic(
+            file_path,
             yaml.dump(
                 self.AUTHENTIK_FORWARD_AUTH_CONFIG,
                 default_flow_style=False,
                 allow_unicode=True,
             ),
-            encoding="utf-8",
         )
 
     def delete_authentik_middleware_if_unused(self, remaining_auth_service_count: int) -> None:
@@ -150,3 +153,26 @@ class FileProviderWriter:
         file_path = self.config_path / self.AUTHENTIK_MIDDLEWARE_FILE
         if file_path.exists():
             file_path.unlink()
+
+    def _write_text_atomic(self, file_path: Path, content: str) -> None:
+        """Traefik이 부분 작성된 YAML을 읽지 않도록 같은 디렉터리에서 원자 교체한다."""
+        self.config_path.mkdir(parents=True, exist_ok=True)
+        tmp_path: Path | None = None
+        try:
+            with NamedTemporaryFile(
+                "w",
+                encoding="utf-8",
+                dir=file_path.parent,
+                prefix=f".{file_path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as tmp_file:
+                tmp_path = Path(tmp_file.name)
+                tmp_file.write(content)
+                tmp_file.flush()
+                os.fsync(tmp_file.fileno())
+            tmp_path.replace(file_path)
+        except Exception:
+            if tmp_path is not None and tmp_path.exists():
+                tmp_path.unlink()
+            raise

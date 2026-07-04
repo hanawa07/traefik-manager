@@ -37,6 +37,23 @@ def test_write_authentik_middleware_is_idempotent(writer, tmp_path):
     assert file_path.exists()
 
 
+def test_write_keeps_existing_file_when_atomic_write_fails(writer, tmp_path, monkeypatch):
+    file_path = tmp_path / FileProviderWriter.AUTHENTIK_MIDDLEWARE_FILE
+    file_path.write_text("old: true\n", encoding="utf-8")
+
+    def fail_fsync(_fd):
+        raise RuntimeError("disk sync failed")
+
+    monkeypatch.setattr("app.infrastructure.traefik.file_provider_writer.os.fsync", fail_fsync)
+
+    with pytest.raises(RuntimeError, match="disk sync failed"):
+        writer.write_authentik_middleware()
+
+    assert file_path.read_text(encoding="utf-8") == "old: true\n"
+    assert list(tmp_path.glob("*.tmp")) == []
+    assert list(tmp_path.glob(".*.tmp")) == []
+
+
 def test_delete_authentik_middleware_if_unused_deletes_when_zero(writer, tmp_path):
     writer.write_authentik_middleware()
     file_path = tmp_path / FileProviderWriter.AUTHENTIK_MIDDLEWARE_FILE
