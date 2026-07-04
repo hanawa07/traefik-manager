@@ -6,6 +6,7 @@ import type {
 } from "@/features/settings/api/settingsApi";
 import { SettingsActionRow } from "@/features/settings/components/SettingsCardPrimitives";
 import { SecurityAlertDeliveryHistory } from "@/features/settings/components/SecurityAlertDeliveryHistory";
+import { SecurityAlertFailureBanner } from "@/features/settings/components/SecurityAlertFailureBanner";
 
 interface SecurityAlertDeliverySummaryProps {
   canManage: boolean;
@@ -58,6 +59,22 @@ export function SecurityAlertDeliverySummary({
         </SettingsActionRow>
       ) : null}
       <p className="text-xs text-gray-500">테스트는 현재 저장된 기본 채널 설정 기준으로 즉시 전송됩니다.</p>
+      <div className="space-y-2">
+        <SecurityAlertFailureBanner
+          label="보안 이벤트"
+          history={securityDeliveryHistory}
+          timezone={displayTimezone}
+          isRetrying={isRetryingSecurityDelivery}
+          onRetry={onRetrySecurityDelivery}
+        />
+        <SecurityAlertFailureBanner
+          label="운영 변경"
+          history={changeDeliveryHistory}
+          timezone={displayTimezone}
+          isRetrying={isRetryingChangeDelivery}
+          onRetry={onRetryChangeDelivery}
+        />
+      </div>
       <SecurityAlertDeliveryHistory
         isHistoryLoading={isHistoryLoading}
         displayTimezone={displayTimezone}
