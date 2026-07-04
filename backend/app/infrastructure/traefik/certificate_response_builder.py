@@ -1,4 +1,8 @@
 from datetime import datetime, timezone
+from math import ceil
+
+
+WARNING_THRESHOLD_DAYS = 30
 
 
 def to_certificate_response(cert: dict) -> dict:
@@ -11,11 +15,12 @@ def to_certificate_response(cert: dict) -> dict:
     days_remaining = None
 
     if isinstance(expires_at, datetime):
-        days_remaining = int((expires_at - now).total_seconds() // 86400)
+        remaining_seconds = (expires_at - now).total_seconds()
+        days_remaining = ceil(remaining_seconds / 86400)
         if expires_at < now:
             status = "error"
             message = "인증서가 만료되었습니다"
-        elif days_remaining <= 30:
+        elif remaining_seconds <= WARNING_THRESHOLD_DAYS * 86400:
             status = "warning"
             message = f"{days_remaining}일 이내 만료 예정"
         else:

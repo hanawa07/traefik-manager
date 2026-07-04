@@ -1,9 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 
 import pytest
 
 from app.infrastructure.traefik import traefik_api_client as traefik_client_module
+from app.infrastructure.traefik.certificate_response_builder import to_certificate_response
 from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
 
 
@@ -155,3 +156,33 @@ async def test_list_certificates_marks_inactive_without_cert_resolver_and_expiry
     assert result[0]["status"] == "inactive"
     assert result[0]["status_message"] == "자동 인증서 발급 미설정"
     assert result[0]["expires_at"] is None
+
+
+def test_certificate_response_keeps_more_than_30_days_active():
+    result = to_certificate_response(
+        {
+            "domain": "example.com",
+            "router_names": {"example-com"},
+            "cert_resolvers": {"letsencrypt"},
+            "expires_at": datetime.now(timezone.utc) + timedelta(days=30, hours=12),
+        }
+    )
+
+    assert result["days_remaining"] == 31
+    assert result["status"] == "active"
+    assert result["status_message"] == "정상"
+
+
+def test_certificate_response_warns_at_30_days_or_less():
+    result = to_certificate_response(
+        {
+            "domain": "example.com",
+            "router_names": {"example-com"},
+            "cert_resolvers": {"letsencrypt"},
+            "expires_at": datetime.now(timezone.utc) + timedelta(days=29, hours=12),
+        }
+    )
+
+    assert result["days_remaining"] == 30
+    assert result["status"] == "warning"
+    assert result["status_message"] == "30일 이내 만료 예정"
