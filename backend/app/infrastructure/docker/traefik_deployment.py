@@ -73,14 +73,7 @@ def _build_checks(*, container: dict, compose: dict, current_version: str | None
             if compose["working_dir"] and compose["config_files"]
             else "Compose 라벨이 없어 안전한 적용 명령을 만들 수 없습니다.",
         ),
-        _check(
-            "version_delta",
-            "버전 차이",
-            "ok" if _is_patch_update(current_version, target_version) else "warning",
-            "패치 업데이트로 감지되었습니다."
-            if _is_patch_update(current_version, target_version)
-            else "패치 업데이트가 아니거나 버전 해석이 필요합니다.",
-        ),
+        _build_version_delta_check(current_version, target_version),
         _check(
             "proxy_network",
             "proxy_net 네트워크",
@@ -101,6 +94,19 @@ def _build_checks(*, container: dict, compose: dict, current_version: str | None
     return checks
 
 
+def _build_version_delta_check(current_version: str | None, target_version: str | None) -> dict:
+    comparison = compare_versions(current_version, target_version)
+    if comparison == 0:
+        return _check("version_delta", "버전 차이", "ok", "현재 Traefik이 최신 버전입니다.")
+    if comparison is not None and comparison < 0 and _is_patch_update(current_version, target_version):
+        return _check("version_delta", "버전 차이", "ok", "패치 업데이트로 감지되었습니다.")
+    if comparison is not None and comparison < 0:
+        return _check("version_delta", "버전 차이", "warning", "패치 업데이트가 아니므로 릴리스 노트 확인이 필요합니다.")
+    if comparison is not None and comparison > 0:
+        return _check("version_delta", "버전 차이", "warning", "현재 버전이 감지된 최신 버전보다 높습니다.")
+    return _check("version_delta", "버전 차이", "warning", "버전 차이를 해석하지 못했습니다.")
+
+
 def _build_commands(*, compose: dict, current_image: str | None, target_image: str | None) -> list[dict]:
     working_dir = compose["working_dir"] or "<traefik-compose-dir>"
     service = compose["service"] or "traefik"
@@ -117,7 +123,7 @@ def _build_commands(*, compose: dict, current_image: str | None, target_image: s
             ),
         }
     ]
-    if current_image and target_image:
+    if current_image and target_image and current_image != target_image:
         commands.append(
             {
                 "label": "이미지 태그 변경",

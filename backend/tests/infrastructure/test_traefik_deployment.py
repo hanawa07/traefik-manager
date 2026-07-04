@@ -53,6 +53,37 @@ async def test_traefik_deployment_status_reports_missing_socket():
     assert result["checks"][0]["status"] == "fail"
 
 
+@pytest.mark.asyncio
+async def test_traefik_deployment_status_reports_latest_version(monkeypatch):
+    monkeypatch.setattr("app.infrastructure.docker.traefik_deployment.which", lambda name: None)
+    docker_client = _DockerClient(
+        {
+            "Config": {
+                "Image": "traefik:v3.7.6",
+                "Labels": {
+                    "com.docker.compose.project": "traefik",
+                    "com.docker.compose.service": "traefik",
+                    "com.docker.compose.project.working_dir": "/home/lizstudio/docker/traefik",
+                    "com.docker.compose.project.config_files": "/home/lizstudio/docker/traefik/docker-compose.yml",
+                    "org.opencontainers.image.version": "v3.7.6",
+                },
+            },
+            "NetworkSettings": {"Networks": {"proxy_net": {}}},
+            "Mounts": [{"Destination": "/letsencrypt"}],
+        }
+    )
+
+    result = await TraefikDeploymentInspector(docker_client).get_status(latest_version="v3.7.6")
+
+    checks = {check["key"]: check for check in result["checks"]}
+    assert result["update_available"] is False
+    assert result["current_image"] == "traefik:v3.7.6"
+    assert result["target_image"] == "traefik:v3.7.6"
+    assert checks["version_delta"]["status"] == "ok"
+    assert "최신 버전" in checks["version_delta"]["message"]
+    assert not any("sed -i" in item["command"] for item in result["commands"])
+
+
 class _DockerClient:
     enabled = True
     api_version = "v1.41"
