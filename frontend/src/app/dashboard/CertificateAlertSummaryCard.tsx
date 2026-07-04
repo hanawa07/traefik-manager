@@ -20,6 +20,9 @@ export function CertificateAlertSummaryCard({
 }: CertificateAlertSummaryCardProps) {
   const warningCount = certificates.filter((item) => item.status === "warning").length;
   const errorCount = certificates.filter((item) => item.status === "error").length;
+  const historyText = summary
+    ? `최근 이력: 만료 임박 ${summary.warning_count}건, 만료 ${summary.error_count}건, 복구 ${summary.recovered_count}건`
+    : "최근 이력 로딩 중";
 
   return (
     <div className="card mb-6 p-5">
@@ -27,8 +30,9 @@ export function CertificateAlertSummaryCard({
         <div>
           <h2 className="text-base font-semibold text-gray-900">운영 경고 요약</h2>
           <p className="mt-1 text-xs text-gray-500">
-            현재 인증서 상태와 최근 {formatDurationMinutes(summary?.window_minutes ?? 43200)} 기준 경고 전환입니다.
+            현재 인증서 상태와 최근 {formatDurationMinutes(summary?.window_minutes ?? 43200)} 기준 전환 이력을 분리해서 표시합니다.
           </p>
+          <p className="mt-1 text-xs text-gray-500">{historyText}</p>
         </div>
         <Link href="/dashboard/certificates" className="text-sm font-medium text-blue-600 hover:text-blue-700">
           인증서 보기
@@ -37,18 +41,18 @@ export function CertificateAlertSummaryCard({
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <DashboardStatCard icon={Shield} label="전체 인증서" value={certificates.length} color="bg-slate-500" />
-        <DashboardStatCard icon={AlertTriangle} label="만료 임박" value={warningCount} color="bg-amber-500" />
-        <DashboardStatCard icon={Shield} label="만료됨" value={errorCount} color="bg-rose-500" />
-        <DashboardStatCard icon={Activity} label="최근 경고 전환" value={summary?.recent_events.length ?? 0} color="bg-indigo-500" />
+        <DashboardStatCard icon={AlertTriangle} label="현재 만료 임박" value={warningCount} color="bg-amber-500" />
+        <DashboardStatCard icon={Shield} label="현재 만료" value={errorCount} color="bg-rose-500" />
+        <DashboardStatCard icon={Activity} label="최근 전환 이력" value={summary?.recent_events.length ?? 0} color="bg-indigo-500" />
       </div>
 
       <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
         <div className="mb-2 flex items-center justify-between gap-4">
-          <h3 className="text-sm font-semibold text-gray-900">최근 인증서 경고</h3>
+          <h3 className="text-sm font-semibold text-gray-900">최근 인증서 전환 이력</h3>
           <span className="text-xs text-gray-500">만료 임박/만료/복구 전환 표시</span>
         </div>
         {!summary?.recent_events?.length ? (
-          <p className="text-sm text-gray-500">최근 인증서 경고 전환이 없습니다.</p>
+          <p className="text-sm text-gray-500">최근 인증서 상태 전환 이력이 없습니다.</p>
         ) : (
           <div className="space-y-2">
             {summary.recent_events.map((event) => (
