@@ -1,18 +1,25 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+
 import { useCreateService } from "@/features/services/hooks/useServices";
 import ServiceForm from "@/features/services/components/ServiceForm";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
+import { runServiceSaveDiagnosis, storeServiceSaveDiagnosisNotice } from "../serviceSaveDiagnosis";
 
 export default function NewServicePage() {
   const router = useRouter();
   const role = useAuthStore((state) => state.role);
   const createService = useCreateService();
+  const [isDiagnosingAfterSave, setIsDiagnosingAfterSave] = useState(false);
 
   const handleSubmit = async (data: Parameters<typeof createService.mutateAsync>[0]) => {
-    await createService.mutateAsync(data);
+    const service = await createService.mutateAsync(data);
+    setIsDiagnosingAfterSave(true);
+    const notice = await runServiceSaveDiagnosis(service, "created");
+    storeServiceSaveDiagnosisNotice(notice);
     router.push("/dashboard/services");
   };
 
@@ -54,7 +61,7 @@ export default function NewServicePage() {
         )}
         <ServiceForm
           onSubmit={handleSubmit}
-          loading={createService.isPending}
+          loading={createService.isPending || isDiagnosingAfterSave}
           submitLabel="서비스 추가"
         />
       </div>

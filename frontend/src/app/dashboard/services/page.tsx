@@ -1,13 +1,22 @@
 "use client";
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+
 import DeleteServiceModal from "./DeleteServiceModal";
+import { ServiceSaveDiagnosisBanner } from "./ServiceSaveDiagnosisBanner";
 import ServicesListSection from "./ServicesListSection";
 import ServicesToolbar from "./ServicesToolbar";
+import { consumeServiceSaveDiagnosisNotice, type ServiceSaveDiagnosisNotice } from "./serviceSaveDiagnosis";
 import { useServicesPageModel } from "./useServicesPageModel";
 
 export default function ServicesPage() {
   const model = useServicesPageModel();
+  const [saveDiagnosisNotice, setSaveDiagnosisNotice] = useState<ServiceSaveDiagnosisNotice | null>(null);
+
+  useEffect(() => {
+    setSaveDiagnosisNotice(consumeServiceSaveDiagnosisNotice());
+  }, []);
 
   return (
     <div className="p-8">
@@ -26,6 +35,13 @@ export default function ServicesPage() {
           </Link>
         ) : null}
       </div>
+
+      {saveDiagnosisNotice ? (
+        <ServiceSaveDiagnosisBanner
+          notice={saveDiagnosisNotice}
+          onClose={() => setSaveDiagnosisNotice(null)}
+        />
+      ) : null}
 
       {/* 검색 + 정렬 툴바 */}
       <ServicesToolbar

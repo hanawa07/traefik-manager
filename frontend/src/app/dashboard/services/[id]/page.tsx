@@ -1,5 +1,7 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
+
 import { useService, useUpdateService } from "@/features/services/hooks/useServices";
 import { ServiceUpdate } from "@/features/services/api/serviceApi";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
@@ -10,6 +12,7 @@ import {
   EditServiceNotFoundState,
   EditServiceReadOnlyState,
 } from "./EditServicePageStates";
+import { runServiceSaveDiagnosis, storeServiceSaveDiagnosisNotice } from "../serviceSaveDiagnosis";
 
 export default function EditServicePage() {
   const { id } = useParams<{ id: string }>();
@@ -17,9 +20,13 @@ export default function EditServicePage() {
   const role = useAuthStore((state) => state.role);
   const { data: service, isLoading } = useService(id);
   const updateService = useUpdateService(id);
+  const [isDiagnosingAfterSave, setIsDiagnosingAfterSave] = useState(false);
 
   const handleSubmit = async (data: ServiceUpdate) => {
-    await updateService.mutateAsync(data);
+    const updatedService = await updateService.mutateAsync(data);
+    setIsDiagnosingAfterSave(true);
+    const notice = await runServiceSaveDiagnosis(updatedService, "updated");
+    storeServiceSaveDiagnosisNotice(notice);
     router.push("/dashboard/services");
   };
 
@@ -41,7 +48,7 @@ export default function EditServicePage() {
       <EditServiceFormCard
         service={service}
         error={updateService.error}
-        isPending={updateService.isPending}
+        isPending={updateService.isPending || isDiagnosingAfterSave}
         onSubmit={handleSubmit}
       />
     </div>

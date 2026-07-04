@@ -3,6 +3,7 @@ import { serviceApi, ServiceCreate, ServiceUpdate } from "../api/serviceApi";
 
 const QUERY_KEY = ["services"];
 const AUTHENTIK_GROUPS_QUERY_KEY = ["authentik-groups"];
+const TRAEFIK_ROUTER_STATUS_QUERY_KEY = ["traefik-router-status"];
 
 export function useServices() {
   return useQuery({
@@ -23,7 +24,11 @@ export function useCreateService() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: ServiceCreate) => serviceApi.create(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: TRAEFIK_ROUTER_STATUS_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: [...QUERY_KEY, "health-all"] });
+    },
   });
 }
 
@@ -31,7 +36,12 @@ export function useUpdateService(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: ServiceUpdate) => serviceApi.update(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: [...QUERY_KEY, id] });
+      qc.invalidateQueries({ queryKey: TRAEFIK_ROUTER_STATUS_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: [...QUERY_KEY, "health-all"] });
+    },
   });
 }
 
