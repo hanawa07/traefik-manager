@@ -6,7 +6,12 @@ import { useCertificates } from "@/features/certificates/hooks/useCertificates";
 import { useDeploymentInfo, useRefreshDeploymentLatest } from "@/features/deployment/hooks/useDeploymentInfo";
 import { useAllServicesHealth, useServices } from "@/features/services/hooks/useServices";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
-import { useRefreshTraefikLatest, useTraefikHealth, useTraefikRouterStatus } from "@/features/traefik/hooks/useTraefik";
+import {
+  useRefreshTraefikLatest,
+  useTraefikDeployment,
+  useTraefikHealth,
+  useTraefikRouterStatus,
+} from "@/features/traefik/hooks/useTraefik";
 import { CertificateAlertSummaryCard } from "./CertificateAlertSummaryCard";
 import { DashboardServicesTable } from "./DashboardServicesTable";
 import { ManagerDeploymentCard } from "./ManagerDeploymentCard";
@@ -20,6 +25,7 @@ export default function DashboardPage() {
   const { data: services = [], isLoading } = useServices();
   const { data: healthData = {} } = useAllServicesHealth();
   const { data: traefikHealth } = useTraefikHealth();
+  const { data: traefikDeployment } = useTraefikDeployment();
   const refreshTraefikLatest = useRefreshTraefikLatest();
   const { data: routerStatus } = useTraefikRouterStatus();
   const { data: securitySummary } = useAuditSecuritySummary({ recent_limit: 3 });
@@ -44,6 +50,7 @@ export default function DashboardPage() {
       </div>
 
       <TraefikStatusBanner
+        deployment={traefikDeployment}
         health={traefikHealth}
         isRefreshingLatest={refreshTraefikLatest.isPending}
         onRefreshLatest={() => refreshTraefikLatest.mutate()}

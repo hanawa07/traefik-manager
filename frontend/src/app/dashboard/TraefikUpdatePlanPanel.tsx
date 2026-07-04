@@ -1,16 +1,17 @@
 import { CheckCircle2, Clipboard, RotateCcw, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 
-import type { TraefikHealth } from "@/features/traefik/api/traefikApi";
+import type { TraefikDeploymentStatus, TraefikHealth } from "@/features/traefik/api/traefikApi";
 import { buildTraefikUpdatePlan, type TraefikUpdateRisk } from "./traefikUpdatePlan";
 
 interface TraefikUpdatePlanPanelProps {
+  deployment?: TraefikDeploymentStatus;
   health?: TraefikHealth;
 }
 
-export function TraefikUpdatePlanPanel({ health }: TraefikUpdatePlanPanelProps) {
+export function TraefikUpdatePlanPanel({ deployment, health }: TraefikUpdatePlanPanelProps) {
   const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
-  const plan = buildTraefikUpdatePlan(health);
+  const plan = buildTraefikUpdatePlan(health, deployment);
   if (!plan) return null;
 
   const copyCommand = async (label: string, command: string) => {
@@ -32,9 +33,19 @@ export function TraefikUpdatePlanPanel({ health }: TraefikUpdatePlanPanelProps) 
           <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">{plan.summary}</p>
         </div>
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
-          자동 실행 전 단계
+          {plan.canApply ? "자동 적용 가능" : "명령 확인 후 적용"}
         </div>
       </div>
+      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+        <TraefikDeploymentFact label="현재 이미지" value={plan.currentImage || "-"} />
+        <TraefikDeploymentFact label="목표 이미지" value={plan.targetImage || "-"} />
+        <TraefikDeploymentFact label="Compose 위치" value={plan.composeWorkingDir || "-"} monospace />
+      </div>
+      {plan.applyBlockedReason ? (
+        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+          {plan.applyBlockedReason}
+        </p>
+      ) : null}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.2fr]">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/80">
@@ -83,6 +94,17 @@ export function TraefikUpdatePlanPanel({ health }: TraefikUpdatePlanPanelProps) 
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function TraefikDeploymentFact({ label, monospace = false, value }: { label: string; monospace?: boolean; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white/70 px-3 py-2 dark:border-slate-700 dark:bg-slate-950/60">
+      <p className="text-[11px] text-slate-500 dark:text-slate-400">{label}</p>
+      <p className={`mt-1 truncate text-xs font-semibold text-slate-800 dark:text-slate-100 ${monospace ? "font-mono" : ""}`}>
+        {value}
+      </p>
     </div>
   );
 }

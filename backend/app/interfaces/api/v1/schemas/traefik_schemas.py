@@ -14,6 +14,38 @@ class TraefikHealthResponse(BaseModel):
     latest_version_error: str | None = None
 
 
+class TraefikDeploymentCheckResponse(BaseModel):
+    key: str
+    label: str
+    status: str
+    message: str
+
+
+class TraefikDeploymentCommandResponse(BaseModel):
+    label: str
+    description: str
+    command: str
+
+
+class TraefikDeploymentStatusResponse(BaseModel):
+    enabled: bool
+    message: str
+    container_name: str | None = None
+    current_image: str | None = None
+    target_image: str | None = None
+    current_version: str | None = None
+    target_version: str | None = None
+    update_available: bool | None = None
+    compose_project: str | None = None
+    compose_service: str | None = None
+    compose_working_dir: str | None = None
+    compose_config_files: list[str] = Field(default_factory=list)
+    can_apply: bool
+    apply_blocked_reason: str | None = None
+    checks: list[TraefikDeploymentCheckResponse] = Field(default_factory=list)
+    commands: list[TraefikDeploymentCommandResponse] = Field(default_factory=list)
+
+
 class TraefikRouterItemResponse(BaseModel):
     name: str
     status: str

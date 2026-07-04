@@ -15,6 +15,38 @@ export interface TraefikHealthRequest {
   refreshLatest?: boolean;
 }
 
+export interface TraefikDeploymentCheck {
+  key: string;
+  label: string;
+  status: "ok" | "warning" | "fail";
+  message: string;
+}
+
+export interface TraefikDeploymentCommand {
+  label: string;
+  description: string;
+  command: string;
+}
+
+export interface TraefikDeploymentStatus {
+  enabled: boolean;
+  message: string;
+  container_name: string | null;
+  current_image: string | null;
+  target_image: string | null;
+  current_version: string | null;
+  target_version: string | null;
+  update_available: boolean | null;
+  compose_project: string | null;
+  compose_service: string | null;
+  compose_working_dir: string | null;
+  compose_config_files: string[];
+  can_apply: boolean;
+  apply_blocked_reason: string | null;
+  checks: TraefikDeploymentCheck[];
+  commands: TraefikDeploymentCommand[];
+}
+
 export interface TraefikRouterItem {
   name: string;
   status: string;
@@ -57,6 +89,13 @@ export const traefikApi = {
 
   routerStatus: async (): Promise<TraefikRouterStatus> => {
     const res = await apiClient.get<TraefikRouterStatus>("/traefik/routers");
+    return res.data;
+  },
+
+  deployment: async (request: TraefikHealthRequest = {}): Promise<TraefikDeploymentStatus> => {
+    const res = await apiClient.get<TraefikDeploymentStatus>("/traefik/deployment", {
+      params: request.refreshLatest ? { refresh_latest: true } : undefined,
+    });
     return res.data;
   },
 

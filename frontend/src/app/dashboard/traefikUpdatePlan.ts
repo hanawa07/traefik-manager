@@ -1,4 +1,4 @@
-import type { TraefikHealth } from "@/features/traefik/api/traefikApi";
+import type { TraefikDeploymentStatus, TraefikHealth } from "@/features/traefik/api/traefikApi";
 
 export type TraefikUpdateRisk = "low" | "medium" | "high" | "unknown";
 
@@ -16,15 +16,25 @@ export interface TraefikUpdatePlan {
   summary: string;
   checks: string[];
   commands: TraefikUpdateCommand[];
+  canApply: boolean;
+  applyBlockedReason: string | null;
+  composeWorkingDir: string | null;
+  currentImage: string | null;
+  targetImage: string | null;
   rollbackNote: string;
 }
 
-export function buildTraefikUpdatePlan(health?: TraefikHealth): TraefikUpdatePlan | null {
+export function buildTraefikUpdatePlan(
+  health?: TraefikHealth,
+  deployment?: TraefikDeploymentStatus,
+): TraefikUpdatePlan | null {
   if (!health?.update_available || !health.version || !health.latest_version) return null;
 
-  const currentVersion = health.version;
-  const latestVersion = health.latest_version;
+  const currentVersion = deployment?.current_version || health.version;
+  const latestVersion = deployment?.target_version || health.latest_version;
   const risk = getUpdateRisk(currentVersion, latestVersion);
+  const dynamicChecks = deployment?.checks.map((check) => `${check.label}: ${check.message}`);
+  const dynamicCommands = deployment?.commands;
 
   return {
     currentVersion,
@@ -32,13 +42,13 @@ export function buildTraefikUpdatePlan(health?: TraefikHealth): TraefikUpdatePla
     risk,
     riskLabel: getRiskLabel(risk),
     summary: getSummary(risk, currentVersion, latestVersion),
-    checks: [
+    checks: dynamicChecks?.length ? dynamicChecks : [
       "업데이트 전 라우터, 인증서, 서비스 헬스 상태가 모두 정상인지 확인합니다.",
       "Traefik 컨테이너의 현재 이미지 태그와 compose 위치를 먼저 기록합니다.",
       "인증서 저장소(acme.json)와 Traefik 정적 설정 파일을 백업한 뒤 진행합니다.",
       "업데이트 후 대시보드의 라우터/인증서/서비스 헬스 상태를 다시 확인합니다.",
     ],
-    commands: [
+    commands: dynamicCommands?.length ? dynamicCommands : [
       {
         label: "현재 이미지 확인",
         description: "롤백에 필요한 기존 Traefik 이미지 태그를 확인합니다.",
@@ -60,6 +70,11 @@ export function buildTraefikUpdatePlan(health?: TraefikHealth): TraefikUpdatePla
         command: "docker compose logs -f --tail=100 traefik",
       },
     ],
+    canApply: deployment?.can_apply ?? false,
+    applyBlockedReason: deployment?.apply_blocked_reason || null,
+    composeWorkingDir: deployment?.compose_working_dir || null,
+    currentImage: deployment?.current_image || null,
+    targetImage: deployment?.target_image || null,
     rollbackNote:
       "문제가 생기면 compose 파일의 Traefik image 태그를 업데이트 전 값으로 되돌린 뒤 `docker compose up -d traefik`를 실행합니다.",
   };

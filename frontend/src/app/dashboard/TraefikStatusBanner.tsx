@@ -1,10 +1,11 @@
 import { ExternalLink, RefreshCw } from "lucide-react";
 
-import type { TraefikHealth } from "@/features/traefik/api/traefikApi";
+import type { TraefikDeploymentStatus, TraefikHealth } from "@/features/traefik/api/traefikApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { TraefikUpdatePlanPanel } from "./TraefikUpdatePlanPanel";
 
 interface TraefikStatusBannerProps {
+  deployment?: TraefikDeploymentStatus;
   health?: TraefikHealth;
   isRefreshingLatest?: boolean;
   onRefreshLatest?: () => void;
@@ -13,6 +14,7 @@ interface TraefikStatusBannerProps {
 }
 
 export function TraefikStatusBanner({
+  deployment,
   health,
   isRefreshingLatest = false,
   onRefreshLatest,
@@ -58,7 +60,7 @@ export function TraefikStatusBanner({
         <TraefikVersionTile label="업데이트 감지" value={versionStatus} />
       </div>
       {refreshLatestError ? <p className="mt-2 text-xs font-semibold text-red-700">{refreshLatestError}</p> : null}
-      <TraefikUpdatePlanPanel health={health} />
+      <TraefikUpdatePlanPanel deployment={deployment} health={health} />
     </div>
   );
 }
