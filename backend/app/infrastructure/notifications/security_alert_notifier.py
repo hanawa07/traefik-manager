@@ -6,6 +6,7 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.logging_config import redact_sensitive_log_value
 from app.infrastructure.notifications.security_alert_email import (
     send_email_alert_with_detail as _send_email_alert_with_detail_impl,
 )
@@ -141,12 +142,13 @@ async def send_test_alert(db: AsyncSession) -> dict[str, Any]:
             "detail": f"{provider} 채널로 테스트 payload를 전송했습니다",
         }
     except httpx.HTTPError as exc:
+        detail = redact_sensitive_log_value(str(exc))
         logger.warning("테스트 보안 웹훅 알림 전송 실패: %s", exc, exc_info=True)
         return {
             "success": False,
             "provider": provider,
             "message": "테스트 보안 알림 전송에 실패했습니다",
-            "detail": str(exc),
+            "detail": detail,
         }
 
 
@@ -193,8 +195,9 @@ async def _deliver_alert(
         )
         return True, f"{provider} 채널로 전송했습니다"
     except httpx.HTTPError as exc:
+        detail = redact_sensitive_log_value(str(exc))
         logger.warning("보안 웹훅 알림 전송 실패: %s", exc, exc_info=True)
-        return False, str(exc)
+        return False, detail
 
 
 async def _build_request(

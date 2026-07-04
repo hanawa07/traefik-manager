@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from app.core.logging_config import JsonFormatter, is_logging_exempt_path
+from app.core.logging_config import JsonFormatter, TextFormatter, is_logging_exempt_path
 
 def test_json_formatter_includes_extra_fields():
     formatter = JsonFormatter()
@@ -38,6 +38,27 @@ def test_json_formatter_includes_extra_fields():
 def test_is_logging_exempt_path_skips_health_only():
     assert is_logging_exempt_path("/api/health") is True
     assert is_logging_exempt_path("/api/v1/services") is False
+
+def test_formatters_redact_telegram_bot_token():
+    record = logging.LogRecord(
+        name="httpx",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=10,
+        msg='HTTP Request: POST https://api.telegram.org/bot123456:ABC-secret/sendMessage "HTTP/1.1 200 OK"',
+        args=(),
+        exc_info=None,
+    )
+    record.url = "https://api.telegram.org/bot123456:ABC-secret/sendMessage"
+
+    json_payload = json.loads(JsonFormatter().format(record))
+    text_payload = TextFormatter().format(record)
+
+    assert "123456:ABC-secret" not in json_payload["message"]
+    assert "123456:ABC-secret" not in json_payload["url"]
+    assert "123456:ABC-secret" not in text_payload
+    assert "https://api.telegram.org/bot<redacted>/sendMessage" in json_payload["message"]
+    assert "url=https://api.telegram.org/bot<redacted>/sendMessage" in text_payload
 
 def test_main_calls_setup_logging_inside_lifespan_only():
     backend_root = Path(__file__).resolve().parents[2]

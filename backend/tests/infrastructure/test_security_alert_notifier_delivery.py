@@ -110,6 +110,34 @@ async def test_notify_if_needed_records_failed_delivery_audit(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_notify_if_needed_redacts_telegram_token_in_failed_delivery_audit(monkeypatch):
+    token = "123456:ABC-secret"
+    request_url = f"https://api.telegram.org/bot{token}/sendMessage"
+    request = httpx.Request("POST", request_url)
+    patch_settings(
+        monkeypatch,
+        {
+            "security_alerts_enabled": "true",
+            "security_alert_provider": "telegram",
+            "security_alert_telegram_bot_token": token,
+            "security_alert_telegram_chat_id": "10001",
+        },
+    )
+    patch_http_client(
+        monkeypatch,
+        error=httpx.ConnectError(f"network down: {request_url}", request=request),
+    )
+    db = StubDB()
+
+    result = await security_alert_notifier.notify_if_needed(db, make_audit_log("login_suspicious"))
+
+    assert result is False
+    detail = db.added[0].detail["detail"]
+    assert token not in detail
+    assert "https://api.telegram.org/bot<redacted>/sendMessage" in detail
+
+
+@pytest.mark.asyncio
 async def test_retry_delivery_replays_failed_delivery_with_original_provider(monkeypatch):
     posted = []
     patch_settings(

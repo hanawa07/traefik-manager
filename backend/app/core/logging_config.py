@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import sys
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
@@ -13,6 +14,7 @@ _RESERVED_LOG_RECORD_FIELDS = frozenset(logging.makeLogRecord({}).__dict__.keys(
     "color_message",
 }
 _LOGGING_CONFIGURED = False
+_TELEGRAM_BOT_TOKEN_PATTERN = re.compile(r"(https://api\.telegram\.org/bot)[^/\s\"']+")
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -72,12 +74,12 @@ class JsonFormatter(logging.Formatter):
             "time": _format_timestamp(record.created),
             "level": record.levelname,
         }
-        message = record.getMessage()
+        message = redact_sensitive_log_value(record.getMessage())
         if message:
             payload["message"] = message
         payload.update(_collect_extra_fields(record))
         if record.exc_info:
-            payload["exc"] = self.formatException(record.exc_info)
+            payload["exc"] = redact_sensitive_log_value(self.formatException(record.exc_info))
         return json.dumps(payload, ensure_ascii=False)
 
 
@@ -85,14 +87,18 @@ class TextFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         message = (
             f"{_format_timestamp(record.created)} {record.levelname:<5} "
-            f"[{record.name}] {record.getMessage()}"
+            f"[{record.name}] {redact_sensitive_log_value(record.getMessage())}"
         )
         extra_fields = _collect_extra_fields(record)
         if extra_fields:
             message = f"{message} {_format_text_extra_fields(extra_fields)}"
         if record.exc_info:
-            message = f"{message}\n{self.formatException(record.exc_info)}"
+            message = f"{message}\n{redact_sensitive_log_value(self.formatException(record.exc_info))}"
         return message
+
+
+def redact_sensitive_log_value(value: str) -> str:
+    return _TELEGRAM_BOT_TOKEN_PATTERN.sub(r"\1<redacted>", value)
 
 
 def _resolve_log_level(raw_level: str) -> int:
@@ -117,7 +123,7 @@ def _collect_extra_fields(record: logging.LogRecord) -> dict[str, object]:
 
 def _normalize_value(value):
     if isinstance(value, (str, int, float, bool)) or value is None:
-        return value
+        return redact_sensitive_log_value(value) if isinstance(value, str) else value
     if isinstance(value, (list, tuple)):
         return [_normalize_value(item) for item in value]
     if isinstance(value, dict):
