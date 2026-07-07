@@ -1,7 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Cloud } from "lucide-react";
 
-import ToastNotice, { type ToastNoticeValue } from "@/shared/components/ToastNotice";
 import type {
   SecurityAlertSettingsInput,
   SecurityAlertSettingsStatus,
@@ -23,7 +22,6 @@ interface SecurityAlertSettingsCardProps {
   isHistoryLoading: boolean;
   displayTimezone?: string;
   testResult: SettingsActionTestResult | null;
-  saveToastNotice: ToastNoticeValue | null;
   securityRetryResult: SettingsActionTestResult | null;
   changeRetryResult: SettingsActionTestResult | null;
   securityTestHistory?: SettingsTestHistoryItem | null;
@@ -37,7 +35,6 @@ interface SecurityAlertSettingsCardProps {
   onTest: () => void;
   onRetrySecurityDelivery: () => void;
   onRetryChangeDelivery: () => void;
-  onDismissSaveToast: () => void;
   onFormChange: Dispatch<SetStateAction<SecurityAlertSettingsInput>>;
 }
 
@@ -53,7 +50,6 @@ export function SecurityAlertSettingsCard({
   isHistoryLoading,
   displayTimezone,
   testResult,
-  saveToastNotice,
   securityRetryResult,
   changeRetryResult,
   securityTestHistory,
@@ -67,12 +63,10 @@ export function SecurityAlertSettingsCard({
   onTest,
   onRetrySecurityDelivery,
   onRetryChangeDelivery,
-  onDismissSaveToast,
   onFormChange,
 }: SecurityAlertSettingsCardProps) {
   return (
     <div className="card p-6 h-full order-9">
-      <ToastNotice notice={saveToastNotice} onClose={onDismissSaveToast} />
       <SettingsCardHeader
         icon={<Cloud className="w-5 h-5 text-sky-600" />}
         title="보안 알림"

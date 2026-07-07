@@ -6,8 +6,9 @@ import {
 } from "@/features/settings/hooks/useSettings";
 import { createDefaultUpstreamSecurityForm } from "@/features/settings/lib/settingsDefaults";
 import { parseMultivalueText } from "@/features/settings/lib/settingsFormHelpers";
+import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
 
-export function useUpstreamSecuritySettingsModel(canManage: boolean) {
+export function useUpstreamSecuritySettingsModel(canManage: boolean, onToast: (notice: ToastNoticeValue) => void) {
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState(createDefaultUpstreamSecurityForm());
   const { data: settings, isLoading } = useUpstreamSecuritySettings();
@@ -32,6 +33,11 @@ export function useUpstreamSecuritySettingsModel(canManage: boolean) {
       allowed_domain_suffixes: parseMultivalueText(formValue.allowed_domain_suffixes_text),
       allow_docker_service_names: formValue.allow_docker_service_names,
       allow_private_networks: formValue.allow_private_networks,
+    });
+    onToast({
+      tone: "success",
+      message: "업스트림 보안 설정 저장 완료",
+      detail: formValue.dns_strict_mode ? "DNS strict mode가 활성화됐습니다." : "DNS strict mode가 비활성화됐습니다.",
     });
     setIsEditing(false);
   };

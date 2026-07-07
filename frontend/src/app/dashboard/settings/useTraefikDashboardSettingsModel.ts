@@ -5,9 +5,10 @@ import {
   useUpdateTraefikDashboardSettings,
 } from "@/features/settings/hooks/useSettings";
 import { createDefaultTraefikDashboardForm } from "@/features/settings/lib/settingsDefaults";
+import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
 import { getSettingsModelErrorMessage } from "./settingsModelErrors";
 
-export function useTraefikDashboardSettingsModel(canManage: boolean) {
+export function useTraefikDashboardSettingsModel(canManage: boolean, onToast: (notice: ToastNoticeValue) => void) {
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState(createDefaultTraefikDashboardForm());
   const [errorMessage, setErrorMessage] = useState("");
@@ -33,6 +34,11 @@ export function useTraefikDashboardSettingsModel(canManage: boolean) {
         domain: formValue.domain.trim(),
         auth_username: formValue.auth_username.trim(),
         auth_password: formValue.auth_password,
+      });
+      onToast({
+        tone: "success",
+        message: "Traefik 디버그 대시보드 설정 저장 완료",
+        detail: formValue.enabled ? `${formValue.domain.trim()} 공개 라우트가 적용됩니다.` : "공개 라우트가 비활성화됩니다.",
       });
       setIsEditing(false);
     } catch (error) {

@@ -1,6 +1,9 @@
+import { useState } from "react";
+
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { useBackupRestoreSettings } from "@/features/settings/hooks/useBackupRestoreSettings";
 import { useCloudflareDnsSettingsSection } from "@/features/settings/hooks/useCloudflareDnsSettingsSection";
+import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
 import { useCertificateDiagnosticsSettingsModel } from "./useCertificateDiagnosticsSettingsModel";
 import { useLoginDefenseSettingsModel } from "./useLoginDefenseSettingsModel";
 import { useSecurityAlertSettingsModel } from "./useSecurityAlertSettingsModel";
@@ -12,7 +15,8 @@ import { useUpstreamSecuritySettingsModel } from "./useUpstreamSecuritySettingsM
 export function useSettingsPageModel() {
   const role = useAuthStore((state) => state.role);
   const canManage = role === "admin";
-  const timeDisplay = useTimeDisplaySettingsModel(canManage);
+  const [toastNotice, setToastNotice] = useState<ToastNoticeValue | null>(null);
+  const timeDisplay = useTimeDisplaySettingsModel(canManage, setToastNotice);
   const {
     sessionData,
     isSessionsLoading,
@@ -22,16 +26,18 @@ export function useSettingsPageModel() {
     handleRevokeSession,
   } = useSettingsSessionActions();
   const displayTimezone = timeDisplay.displayTimezone;
-  const certificateDiagnostics = useCertificateDiagnosticsSettingsModel(canManage);
-  const upstreamSecurity = useUpstreamSecuritySettingsModel(canManage);
-  const loginDefense = useLoginDefenseSettingsModel(canManage);
-  const securityAlert = useSecurityAlertSettingsModel(canManage, displayTimezone);
-  const traefikDashboard = useTraefikDashboardSettingsModel(canManage);
+  const certificateDiagnostics = useCertificateDiagnosticsSettingsModel(canManage, setToastNotice);
+  const upstreamSecurity = useUpstreamSecuritySettingsModel(canManage, setToastNotice);
+  const loginDefense = useLoginDefenseSettingsModel(canManage, setToastNotice);
+  const securityAlert = useSecurityAlertSettingsModel(canManage, displayTimezone, setToastNotice);
+  const traefikDashboard = useTraefikDashboardSettingsModel(canManage, setToastNotice);
   const backupRestore = useBackupRestoreSettings(canManage);
-  const cloudflareDns = useCloudflareDnsSettingsSection(displayTimezone);
+  const cloudflareDns = useCloudflareDnsSettingsSection(displayTimezone, setToastNotice);
 
   return {
     canManage,
+    toastNotice,
+    onDismissToast: () => setToastNotice(null),
     timeDisplay: timeDisplay.card,
     certificateDiagnostics,
     upstreamSecurity,

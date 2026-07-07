@@ -12,8 +12,12 @@ import {
 import { useCloudflareDnsActionResults } from "./useCloudflareDnsActionResults";
 import { createDefaultCloudflareZoneForm } from "@/features/settings/lib/settingsDefaults";
 import { getApiErrorDetail } from "@/features/settings/lib/settingsErrors";
+import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
 
-export function useCloudflareDnsSettingsSection(timezone?: string) {
+export function useCloudflareDnsSettingsSection(
+  timezone: string | undefined,
+  onToast: (notice: ToastNoticeValue) => void,
+) {
   const [errorMessage, setErrorMessage] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState<CloudflareZoneInput[]>([createDefaultCloudflareZoneForm()]);
@@ -34,6 +38,11 @@ export function useCloudflareDnsSettingsSection(timezone?: string) {
     try {
       await updateCloudflare.mutateAsync({ zones: formValue });
       cloudflareActions.resetActionResults();
+      onToast({
+        tone: "success",
+        message: "Cloudflare DNS 설정 저장 완료",
+        detail: `${formValue.length}개 zone 설정이 저장됐습니다.`,
+      });
       setIsEditing(false);
     } catch (error) {
       setErrorMessage(getApiErrorDetail(error, "Cloudflare 설정 저장에 실패했습니다"));

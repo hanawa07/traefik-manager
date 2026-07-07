@@ -6,9 +6,10 @@ import {
 } from "@/features/settings/hooks/useSettings";
 import { createDefaultLoginDefenseForm } from "@/features/settings/lib/settingsDefaults";
 import { parseMultivalueText } from "@/features/settings/lib/settingsFormHelpers";
+import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
 import { getSettingsModelErrorMessage } from "./settingsModelErrors";
 
-export function useLoginDefenseSettingsModel(canManage: boolean) {
+export function useLoginDefenseSettingsModel(canManage: boolean, onToast: (notice: ToastNoticeValue) => void) {
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState(createDefaultLoginDefenseForm());
   const [errorMessage, setErrorMessage] = useState("");
@@ -45,6 +46,11 @@ export function useLoginDefenseSettingsModel(canManage: boolean) {
         turnstile_mode: formValue.turnstile_mode,
         turnstile_site_key: formValue.turnstile_site_key.trim(),
         turnstile_secret_key: formValue.turnstile_secret_key.trim(),
+      });
+      onToast({
+        tone: "success",
+        message: "로그인 방어 설정 저장 완료",
+        detail: `반복 실패 IP 차단 ${formValue.suspicious_block_enabled ? "활성화" : "비활성화"}, Turnstile ${formValue.turnstile_mode} 모드입니다.`,
       });
       setIsEditing(false);
     } catch (error) {
