@@ -155,7 +155,7 @@ async def record_service_gateway_diagnosis(
     traefik_client: TraefikApiClient = Depends(get_traefik_client),
     docker_client: DockerClient = Depends(get_docker_client),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_write_access),
+    current_user: dict = Depends(get_current_user),
 ):
     return await record_service_gateway_diagnosis_action(
         service_id=service_id,
