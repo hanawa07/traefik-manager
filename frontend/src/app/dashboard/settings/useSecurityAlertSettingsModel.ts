@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { SettingsActionTestResult } from "@/features/settings/api/settingsApi";
+import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
 import {
   useSecurityAlertSettings,
   useSettingsTestHistory,
@@ -21,6 +22,7 @@ export function useSecurityAlertSettingsModel(canManage: boolean, displayTimezon
   const [formValue, setFormValue] = useState(createDefaultSecurityAlertForm());
   const [errorMessage, setErrorMessage] = useState("");
   const [testResult, setTestResult] = useState<SettingsActionTestResult | null>(null);
+  const [saveToastNotice, setSaveToastNotice] = useState<ToastNoticeValue | null>(null);
   const { data: settings, isLoading } = useSecurityAlertSettings();
   const { data: settingsTestHistory, isLoading: isHistoryLoading } = useSettingsTestHistory();
   const updateSecurityAlert = useUpdateSecurityAlertSettings();
@@ -45,6 +47,11 @@ export function useSecurityAlertSettingsModel(canManage: boolean, displayTimezon
     try {
       await updateSecurityAlert.mutateAsync(buildSecurityAlertSettingsPayload(formValue));
       setTestResult(null);
+      setSaveToastNotice({
+        tone: "success",
+        message: "보안 알림 설정 저장 완료",
+        detail: "저장된 채널과 이벤트별 라우팅 정책이 다음 알림부터 적용됩니다.",
+      });
       setIsEditing(false);
     } catch (error) {
       setErrorMessage(getSettingsModelErrorMessage(error, "보안 알림 설정 저장에 실패했습니다"));
@@ -73,6 +80,7 @@ export function useSecurityAlertSettingsModel(canManage: boolean, displayTimezon
     isHistoryLoading,
     displayTimezone,
     testResult,
+    saveToastNotice,
     securityRetryResult: securityAlertDeliveryRetryResult,
     changeRetryResult: changeAlertDeliveryRetryResult,
     securityTestHistory: settingsTestHistory?.security_alert,
@@ -86,6 +94,7 @@ export function useSecurityAlertSettingsModel(canManage: boolean, displayTimezon
     onTest: handleTest,
     onRetrySecurityDelivery: retrySecurityDelivery,
     onRetryChangeDelivery: retryChangeDelivery,
+    onDismissSaveToast: () => setSaveToastNotice(null),
     onFormChange: setFormValue,
   };
 }
