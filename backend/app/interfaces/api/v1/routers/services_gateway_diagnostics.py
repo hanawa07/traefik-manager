@@ -14,6 +14,7 @@ from app.interfaces.api.v1.schemas.service_schemas import (
 
 
 SERVICE_DOCKER_NETWORK_CONNECT_EVENT = "service_docker_network_connect"
+SERVICE_GATEWAY_DIAGNOSIS_EVENT = "service_gateway_diagnosis"
 
 
 async def diagnose_service_gateway_action(
@@ -42,6 +43,43 @@ async def diagnose_service_gateway_action(
         checked_at=datetime.now(timezone.utc),
         checks=checks,
     )
+
+
+async def record_service_gateway_diagnosis_action(
+    *,
+    service_id: UUID,
+    use_cases: ServiceUseCases,
+    upstream_checker,
+    traefik_client,
+    docker_client,
+    db,
+    current_user: dict,
+    audit_service,
+) -> ServiceGatewayDiagnosisResponse:
+    result = await diagnose_service_gateway_action(
+        service_id=service_id,
+        use_cases=use_cases,
+        upstream_checker=upstream_checker,
+        traefik_client=traefik_client,
+        docker_client=docker_client,
+    )
+    await audit_service.record(
+        db=db,
+        actor=current_user["username"],
+        action="test",
+        resource_type="service",
+        resource_id=str(service_id),
+        resource_name=result.domain,
+        detail={
+            "event": SERVICE_GATEWAY_DIAGNOSIS_EVENT,
+            "domain": result.domain,
+            "status": result.status,
+            "summary": result.summary,
+            "checked_at": result.checked_at.isoformat(),
+            "checks": [check.model_dump() for check in result.checks],
+        },
+    )
+    return result
 
 
 async def connect_service_gateway_network_action(

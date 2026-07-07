@@ -6,8 +6,10 @@ from fastapi import HTTPException
 
 from app.interfaces.api.v1.routers.services_gateway_diagnostics import (
     SERVICE_DOCKER_NETWORK_CONNECT_EVENT,
+    SERVICE_GATEWAY_DIAGNOSIS_EVENT,
     connect_service_gateway_network_action,
     diagnose_service_gateway_action,
+    record_service_gateway_diagnosis_action,
 )
 
 
@@ -79,6 +81,36 @@ async def test_diagnose_service_gateway_flags_missing_router_and_down_upstream()
     assert result.status == "fail"
     assert checks["traefik_router"].status == "fail"
     assert checks["upstream_http"].status == "fail"
+
+
+@pytest.mark.asyncio
+async def test_record_service_gateway_diagnosis_persists_audit_event():
+    service_id = uuid4()
+    service = _make_service(service_id=service_id, upstream_host="english-app-1")
+    audit = _AuditService()
+
+    result = await record_service_gateway_diagnosis_action(
+        service_id=service_id,
+        use_cases=_UseCases(service),
+        upstream_checker=_UpstreamChecker(status="up"),
+        traefik_client=_TraefikClient(active=True),
+        docker_client=_DockerClient(
+            containers=[
+                {"name": "traefik", "networks": ["proxy_net"]},
+                {"name": "english-app-1", "networks": ["proxy_net"]},
+            ]
+        ),
+        db=object(),
+        current_user={"username": "admin"},
+        audit_service=audit,
+    )
+
+    assert result.status == "ok"
+    assert audit.records[0]["action"] == "test"
+    assert audit.records[0]["resource_type"] == "service"
+    assert audit.records[0]["detail"]["event"] == SERVICE_GATEWAY_DIAGNOSIS_EVENT
+    assert audit.records[0]["detail"]["status"] == "ok"
+    assert audit.records[0]["detail"]["checks"][0]["key"] == "traefik_router"
 
 
 @pytest.mark.asyncio

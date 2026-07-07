@@ -8,6 +8,7 @@ import { useServicesPageData } from "./useServicesPageData";
 import { useServicesPageDeleteAction } from "./useServicesPageDeleteAction";
 import { useServicesPageFilters } from "./useServicesPageFilters";
 import { useServicesPageHealthHistory } from "./useServicesPageHealthHistory";
+import { buildServiceDiagnosisSnapshotsFromAuditLogs } from "./serviceGatewayDiagnosisAuditSnapshots";
 
 export type { HealthFilter, HealthHistoryEntry, SortDir, SortKey } from "./servicesPageTypes";
 
@@ -30,6 +31,10 @@ export function useServicesPageModel() {
       ),
     [data.certificates],
   );
+  const diagnosisSnapshots = useMemo(
+    () => buildServiceDiagnosisSnapshotsFromAuditLogs(data.gatewayDiagnosisLogs),
+    [data.gatewayDiagnosisLogs],
+  );
 
   return {
     canManage,
@@ -40,6 +45,7 @@ export function useServicesPageModel() {
     healthMap: data.healthMap,
     healthHistory,
     certificateMap,
+    diagnosisSnapshots,
     displayTimeZone: data.displayTimeZone,
     deleteTarget: deleteAction.deleteTarget,
     deletePending: deleteAction.deletePending,

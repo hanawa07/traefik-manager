@@ -21,6 +21,7 @@ export default function ServicesPage() {
   const [saveDiagnosisNotice, setSaveDiagnosisNotice] = useState<ServiceSaveDiagnosisNotice | null>(null);
   const [diagnosisSnapshots, setDiagnosisSnapshots] = useState<ServiceDiagnosisSnapshotMap>({});
   const [toastNotice, setToastNotice] = useState<ToastNoticeValue | null>(null);
+  const combinedDiagnosisSnapshots = { ...model.diagnosisSnapshots, ...diagnosisSnapshots };
 
   useEffect(() => {
     const notice = consumeServiceSaveDiagnosisNotice();
@@ -85,7 +86,7 @@ export default function ServicesPage() {
         healthHistory={model.healthHistory}
         certificateMap={model.certificateMap}
         displayTimeZone={model.displayTimeZone}
-        diagnosisSnapshots={diagnosisSnapshots}
+        diagnosisSnapshots={combinedDiagnosisSnapshots}
         onClearSearch={() => model.setSearch("")}
         onDelete={model.setDeleteTarget}
       />

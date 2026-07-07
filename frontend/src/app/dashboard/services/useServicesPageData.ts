@@ -1,5 +1,6 @@
 "use client";
 
+import { useAudit } from "@/features/audit/hooks/useAudit";
 import { useCertificates } from "@/features/certificates/hooks/useCertificates";
 import { useAllServicesHealth, useServices } from "@/features/services/hooks/useServices";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
@@ -11,12 +12,18 @@ export function useServicesPageData() {
   const { data: healthMap } = useAllServicesHealth();
   const { data: certificates = [] } = useCertificates();
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
+  const { data: gatewayDiagnosisLogs = [] } = useAudit({
+    event: "service_gateway_diagnosis",
+    limit: 100,
+    resource_type: "service",
+  });
 
   return {
     certificates,
     displayTimeZone: timeDisplaySettings?.display_timezone,
     healthMap,
     isLoading,
+    gatewayDiagnosisLogs,
     routerStatus,
     services,
   };

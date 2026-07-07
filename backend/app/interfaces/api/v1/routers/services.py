@@ -33,6 +33,7 @@ from app.interfaces.api.v1.routers.services_health_actions import (
 from app.interfaces.api.v1.routers.services_gateway_diagnostics import (
     connect_service_gateway_network_action,
     diagnose_service_gateway_action,
+    record_service_gateway_diagnosis_action,
 )
 from app.interfaces.api.v1.routers.services_rollback_action import rollback_service_change_action
 from app.interfaces.api.v1.schemas.service_schemas import (
@@ -140,6 +141,31 @@ async def diagnose_service_gateway(
         upstream_checker=upstream_checker,
         traefik_client=traefik_client,
         docker_client=docker_client,
+    )
+
+
+@router.post(
+    "/{service_id}/diagnostics/gateway",
+    response_model=ServiceGatewayDiagnosisResponse,
+    summary="서비스 Bad Gateway 진단 기록",
+)
+async def record_service_gateway_diagnosis(
+    service_id: UUID,
+    use_cases: ServiceUseCases = Depends(get_use_cases),
+    traefik_client: TraefikApiClient = Depends(get_traefik_client),
+    docker_client: DockerClient = Depends(get_docker_client),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_write_access),
+):
+    return await record_service_gateway_diagnosis_action(
+        service_id=service_id,
+        use_cases=use_cases,
+        upstream_checker=upstream_checker,
+        traefik_client=traefik_client,
+        docker_client=docker_client,
+        db=db,
+        current_user=current_user,
+        audit_service=audit_service,
     )
 
 

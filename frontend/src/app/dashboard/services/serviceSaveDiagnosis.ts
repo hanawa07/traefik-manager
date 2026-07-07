@@ -27,7 +27,7 @@ export async function runServiceSaveDiagnosis(
   try {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       await delay(RETRY_DELAY_MS);
-      lastDiagnosis = await serviceApi.diagnoseGateway(service.id);
+      lastDiagnosis = await serviceApi.recordGatewayDiagnosis(service.id);
       if (!shouldRetryDiagnosis(lastDiagnosis) || attempt === MAX_ATTEMPTS) {
         break;
       }

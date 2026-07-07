@@ -18,6 +18,11 @@ export const serviceHealthApi = {
     return res.data;
   },
 
+  recordGatewayDiagnosis: async (id: string): Promise<ServiceGatewayDiagnosis> => {
+    const res = await apiClient.post<ServiceGatewayDiagnosis>(`/services/${id}/diagnostics/gateway`);
+    return res.data;
+  },
+
   connectGatewayNetwork: async (id: string): Promise<ServiceGatewayNetworkConnectResult> => {
     const res = await apiClient.post<ServiceGatewayNetworkConnectResult>(
       `/services/${id}/diagnostics/gateway/network/connect`

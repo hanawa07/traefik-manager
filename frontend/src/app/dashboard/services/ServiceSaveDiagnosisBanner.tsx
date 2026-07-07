@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2, Stethoscope, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { serviceApi } from "@/features/services/api/serviceApi";
 import { storeServiceDiagnosisSnapshot, type ServiceSaveDiagnosisNotice } from "./serviceSaveDiagnosis";
@@ -18,6 +19,7 @@ export function ServiceSaveDiagnosisBanner({
   onClose,
   onNoticeChange,
 }: ServiceSaveDiagnosisBannerProps) {
+  const queryClient = useQueryClient();
   const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -33,7 +35,7 @@ export function ServiceSaveDiagnosisBanner({
     setConnectionError(null);
     try {
       const connectResult = await serviceApi.connectGatewayNetwork(notice.serviceId);
-      const nextDiagnosis = await serviceApi.diagnoseGateway(notice.serviceId);
+      const nextDiagnosis = await serviceApi.recordGatewayDiagnosis(notice.serviceId);
       const nextNotice = {
         ...notice,
         checkedAt: new Date().toISOString(),
@@ -43,6 +45,11 @@ export function ServiceSaveDiagnosisBanner({
       setConnectionMessage(connectResult.message);
       storeServiceDiagnosisSnapshot(nextNotice);
       onNoticeChange(nextNotice);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["services", "health-all"] }),
+        queryClient.invalidateQueries({ queryKey: ["traefik-router-status"] }),
+        queryClient.invalidateQueries({ queryKey: ["audit-logs"] }),
+      ]);
     } catch (error) {
       setConnectionError(getNetworkConnectErrorMessage(error));
     } finally {
