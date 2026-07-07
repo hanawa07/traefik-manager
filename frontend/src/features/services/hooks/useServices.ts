@@ -1,9 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { serviceApi, ServiceCreate, ServiceUpdate } from "../api/serviceApi";
 
 const QUERY_KEY = ["services"];
 const AUTHENTIK_GROUPS_QUERY_KEY = ["authentik-groups"];
 const TRAEFIK_ROUTER_STATUS_QUERY_KEY = ["traefik-router-status"];
+const AUDIT_LOGS_QUERY_KEY = ["audit-logs"];
 
 export function useServices() {
   return useQuery({
@@ -72,13 +73,27 @@ export function useAllServicesHealth() {
 }
 
 export function useDiagnoseServiceGateway() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => serviceApi.diagnoseGateway(id),
+    mutationFn: (id: string) => serviceApi.recordGatewayDiagnosis(id),
+    onSuccess: () => {
+      invalidateGatewayDiagnosisContext(qc);
+    },
   });
 }
 
 export function useConnectServiceGatewayNetwork() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => serviceApi.connectGatewayNetwork(id),
+    onSuccess: () => {
+      invalidateGatewayDiagnosisContext(qc);
+    },
   });
+}
+
+function invalidateGatewayDiagnosisContext(qc: QueryClient) {
+  qc.invalidateQueries({ queryKey: [...QUERY_KEY, "health-all"] });
+  qc.invalidateQueries({ queryKey: TRAEFIK_ROUTER_STATUS_QUERY_KEY });
+  qc.invalidateQueries({ queryKey: AUDIT_LOGS_QUERY_KEY });
 }
