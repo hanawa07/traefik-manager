@@ -4,6 +4,7 @@ import ServiceCard from "@/features/services/components/ServiceCard";
 import type { TraefikRouterStatus } from "@/features/traefik/api/traefikApi";
 import { ServicesEmptyState } from "./ServicesEmptyState";
 import { ServicesLoadingGrid } from "./ServicesLoadingGrid";
+import type { ServiceDiagnosisSnapshotMap } from "./serviceSaveDiagnosis";
 import type { HealthHistoryEntry } from "./useServicesPageModel";
 
 interface ServicesListSectionProps {
@@ -16,6 +17,7 @@ interface ServicesListSectionProps {
   healthHistory: Record<string, HealthHistoryEntry>;
   certificateMap: Record<string, Certificate>;
   displayTimeZone?: string;
+  diagnosisSnapshots: ServiceDiagnosisSnapshotMap;
   onClearSearch: () => void;
   onDelete: (service: Service) => void;
 }
@@ -30,6 +32,7 @@ export default function ServicesListSection({
   healthHistory,
   certificateMap,
   displayTimeZone,
+  diagnosisSnapshots,
   onClearSearch,
   onDelete,
 }: ServicesListSectionProps) {
@@ -58,6 +61,7 @@ export default function ServicesListSection({
           lastSuccessAt={healthHistory[service.id]?.last_up_at}
           lastFailureAt={healthHistory[service.id]?.last_down_at}
           certificate={certificateMap[service.domain]}
+          lastGatewayDiagnosis={diagnosisSnapshots[service.id]?.diagnosis}
         />
       ))}
     </div>

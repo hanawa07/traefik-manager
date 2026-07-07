@@ -1,16 +1,54 @@
 import { AlertTriangle, CheckCircle2, Stethoscope, XCircle } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
-import type { ServiceSaveDiagnosisNotice } from "./serviceSaveDiagnosis";
+import { serviceApi } from "@/features/services/api/serviceApi";
+import { storeServiceDiagnosisSnapshot, type ServiceSaveDiagnosisNotice } from "./serviceSaveDiagnosis";
 
 interface ServiceSaveDiagnosisBannerProps {
+  canManage: boolean;
   notice: ServiceSaveDiagnosisNotice;
   onClose: () => void;
+  onNoticeChange: (notice: ServiceSaveDiagnosisNotice) => void;
 }
 
-export function ServiceSaveDiagnosisBanner({ notice, onClose }: ServiceSaveDiagnosisBannerProps) {
+export function ServiceSaveDiagnosisBanner({
+  canManage,
+  notice,
+  onClose,
+  onNoticeChange,
+}: ServiceSaveDiagnosisBannerProps) {
+  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
   const diagnosis = notice.diagnosis;
-  const status = notice.error ? "warning" : diagnosis?.status ?? "warning";
+  const status = notice.error || connectionError ? "warning" : diagnosis?.status ?? "warning";
+  const targetNetwork = getTargetNetwork(diagnosis);
+  const canConnectNetwork = canManage && Boolean(targetNetwork) && !connectionError;
+
+  const handleConnectNetwork = async () => {
+    if (!targetNetwork) return;
+    setIsConnecting(true);
+    setConnectionMessage(null);
+    setConnectionError(null);
+    try {
+      const connectResult = await serviceApi.connectGatewayNetwork(notice.serviceId);
+      const nextDiagnosis = await serviceApi.diagnoseGateway(notice.serviceId);
+      const nextNotice = {
+        ...notice,
+        checkedAt: new Date().toISOString(),
+        diagnosis: nextDiagnosis,
+        error: null,
+      };
+      setConnectionMessage(connectResult.message);
+      storeServiceDiagnosisSnapshot(nextNotice);
+      onNoticeChange(nextNotice);
+    } catch (error) {
+      setConnectionError(getNetworkConnectErrorMessage(error));
+    } finally {
+      setIsConnecting(false);
+    }
+  };
 
   return (
     <div className={getBannerClassName(status)}>
@@ -33,6 +71,16 @@ export function ServiceSaveDiagnosisBanner({ notice, onClose }: ServiceSaveDiagn
           >
             서비스 설정 열기
           </Link>
+          {canConnectNetwork ? (
+            <button
+              type="button"
+              onClick={handleConnectNetwork}
+              disabled={isConnecting}
+              className="rounded-lg border border-blue-200 bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isConnecting ? "연결 중..." : `${targetNetwork} 연결 실행`}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onClose}
@@ -57,6 +105,8 @@ export function ServiceSaveDiagnosisBanner({ notice, onClose }: ServiceSaveDiagn
           ))}
         </div>
       ) : null}
+      {connectionMessage ? <p className="mt-3 text-xs font-semibold text-emerald-700">{connectionMessage}</p> : null}
+      {connectionError ? <p className="mt-3 text-xs font-semibold text-rose-700">{connectionError}</p> : null}
     </div>
   );
 }
@@ -74,4 +124,16 @@ function getBannerClassName(status: string) {
   if (status === "ok") return `${base} border-emerald-200 bg-emerald-50`;
   if (status === "fail") return `${base} border-rose-200 bg-rose-50`;
   return `${base} border-amber-200 bg-amber-50`;
+}
+
+function getTargetNetwork(diagnosis: ServiceSaveDiagnosisNotice["diagnosis"]) {
+  const networkCheck = diagnosis?.checks.find((check) => check.key === "docker_network" && check.status === "fail");
+  const value = networkCheck?.details.target_network;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function getNetworkConnectErrorMessage(error: unknown) {
+  const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+  if (detail) return detail;
+  return "Docker 네트워크 연결을 실행하지 못했습니다.";
 }

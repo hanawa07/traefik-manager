@@ -5,6 +5,7 @@ const RETRY_DELAY_MS = 1000;
 const MAX_ATTEMPTS = 3;
 
 export const SERVICE_SAVE_DIAGNOSIS_STORAGE_KEY = "traefik-manager:service-save-diagnosis";
+export const SERVICE_DIAGNOSIS_SNAPSHOT_STORAGE_KEY = "traefik-manager:service-diagnosis-snapshots";
 
 export interface ServiceSaveDiagnosisNotice {
   action: "created" | "updated";
@@ -14,6 +15,8 @@ export interface ServiceSaveDiagnosisNotice {
   error: string | null;
   serviceId: string;
 }
+
+export type ServiceDiagnosisSnapshotMap = Record<string, ServiceSaveDiagnosisNotice>;
 
 export async function runServiceSaveDiagnosis(
   service: Service,
@@ -44,6 +47,7 @@ export async function runServiceSaveDiagnosis(
 export function storeServiceSaveDiagnosisNotice(notice: ServiceSaveDiagnosisNotice) {
   if (typeof window === "undefined") return;
   window.sessionStorage.setItem(SERVICE_SAVE_DIAGNOSIS_STORAGE_KEY, JSON.stringify(notice));
+  storeServiceDiagnosisSnapshot(notice);
 }
 
 export function consumeServiceSaveDiagnosisNotice(): ServiceSaveDiagnosisNotice | null {
@@ -57,6 +61,25 @@ export function consumeServiceSaveDiagnosisNotice(): ServiceSaveDiagnosisNotice 
   } catch {
     return null;
   }
+}
+
+export function readServiceDiagnosisSnapshots(): ServiceDiagnosisSnapshotMap {
+  if (typeof window === "undefined") return {};
+  const raw = window.sessionStorage.getItem(SERVICE_DIAGNOSIS_SNAPSHOT_STORAGE_KEY);
+  if (!raw) return {};
+
+  try {
+    return JSON.parse(raw) as ServiceDiagnosisSnapshotMap;
+  } catch {
+    return {};
+  }
+}
+
+export function storeServiceDiagnosisSnapshot(notice: ServiceSaveDiagnosisNotice) {
+  if (typeof window === "undefined") return;
+  const snapshots = readServiceDiagnosisSnapshots();
+  snapshots[notice.serviceId] = notice;
+  window.sessionStorage.setItem(SERVICE_DIAGNOSIS_SNAPSHOT_STORAGE_KEY, JSON.stringify(snapshots));
 }
 
 function buildNotice({

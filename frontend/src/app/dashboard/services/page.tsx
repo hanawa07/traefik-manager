@@ -7,16 +7,28 @@ import DeleteServiceModal from "./DeleteServiceModal";
 import { ServiceSaveDiagnosisBanner } from "./ServiceSaveDiagnosisBanner";
 import ServicesListSection from "./ServicesListSection";
 import ServicesToolbar from "./ServicesToolbar";
-import { consumeServiceSaveDiagnosisNotice, type ServiceSaveDiagnosisNotice } from "./serviceSaveDiagnosis";
+import {
+  consumeServiceSaveDiagnosisNotice,
+  readServiceDiagnosisSnapshots,
+  type ServiceDiagnosisSnapshotMap,
+  type ServiceSaveDiagnosisNotice,
+} from "./serviceSaveDiagnosis";
 import { useServicesPageModel } from "./useServicesPageModel";
 
 export default function ServicesPage() {
   const model = useServicesPageModel();
   const [saveDiagnosisNotice, setSaveDiagnosisNotice] = useState<ServiceSaveDiagnosisNotice | null>(null);
+  const [diagnosisSnapshots, setDiagnosisSnapshots] = useState<ServiceDiagnosisSnapshotMap>({});
 
   useEffect(() => {
     setSaveDiagnosisNotice(consumeServiceSaveDiagnosisNotice());
+    setDiagnosisSnapshots(readServiceDiagnosisSnapshots());
   }, []);
+
+  const handleDiagnosisNoticeChange = (notice: ServiceSaveDiagnosisNotice) => {
+    setSaveDiagnosisNotice(notice);
+    setDiagnosisSnapshots((current) => ({ ...current, [notice.serviceId]: notice }));
+  };
 
   return (
     <div className="p-8">
@@ -38,8 +50,10 @@ export default function ServicesPage() {
 
       {saveDiagnosisNotice ? (
         <ServiceSaveDiagnosisBanner
+          canManage={model.canManage}
           notice={saveDiagnosisNotice}
           onClose={() => setSaveDiagnosisNotice(null)}
+          onNoticeChange={handleDiagnosisNoticeChange}
         />
       ) : null}
 
@@ -66,6 +80,7 @@ export default function ServicesPage() {
         healthHistory={model.healthHistory}
         certificateMap={model.certificateMap}
         displayTimeZone={model.displayTimeZone}
+        diagnosisSnapshots={diagnosisSnapshots}
         onClearSearch={() => model.setSearch("")}
         onDelete={model.setDeleteTarget}
       />

@@ -1,6 +1,6 @@
 "use client";
 import type { Certificate } from "@/features/certificates/api/certificateApi";
-import type { Service, UpstreamHealth } from "../api/serviceApi";
+import type { Service, ServiceGatewayDiagnosis, UpstreamHealth } from "../api/serviceApi";
 import ServiceCardBadges from "./ServiceCardBadges";
 import ServiceGatewayDiagnosisPanel from "./ServiceGatewayDiagnosisPanel";
 import ServiceCardHeader from "./ServiceCardHeader";
@@ -16,6 +16,7 @@ interface ServiceCardProps {
   lastSuccessAt?: string | null;
   lastFailureAt?: string | null;
   certificate?: Certificate;
+  lastGatewayDiagnosis?: ServiceGatewayDiagnosis | null;
 }
 
 export default function ServiceCard({
@@ -28,6 +29,7 @@ export default function ServiceCard({
   lastSuccessAt,
   lastFailureAt,
   certificate,
+  lastGatewayDiagnosis,
 }: ServiceCardProps) {
   return (
     <div className="card p-5 transition-shadow hover:shadow-md">
@@ -37,6 +39,7 @@ export default function ServiceCard({
         routerActive={routerActive}
         upstreamHealth={upstreamHealth}
         certificate={certificate}
+        lastGatewayDiagnosis={lastGatewayDiagnosis}
       />
       <ServiceCardHealthDetails
         upstreamHealth={upstreamHealth}
