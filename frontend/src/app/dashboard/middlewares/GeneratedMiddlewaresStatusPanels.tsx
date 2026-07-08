@@ -3,6 +3,8 @@ import { Sparkles } from "lucide-react";
 import { extractErrorMessage } from "./middlewarePageHelpers";
 
 interface GeneratedMiddlewaresStatusPanelsProps {
+  emptyDescription: string;
+  emptyTitle: string;
   generatedServiceCount: number;
   isRuntimeLoading: boolean;
   isServicesError: boolean;
@@ -26,6 +28,8 @@ export function GeneratedRuntimeBanner({
 }
 
 export function GeneratedMiddlewaresStatusPanels({
+  emptyDescription,
+  emptyTitle,
   generatedServiceCount,
   isRuntimeLoading,
   isServicesError,
@@ -34,7 +38,9 @@ export function GeneratedMiddlewaresStatusPanels({
 }: GeneratedMiddlewaresStatusPanelsProps) {
   if (isServicesLoading || isRuntimeLoading) return <GeneratedMiddlewaresLoadingState />;
   if (isServicesError) return <GeneratedMiddlewaresErrorState servicesError={servicesError} />;
-  if (generatedServiceCount === 0) return <GeneratedMiddlewaresEmptyState />;
+  if (generatedServiceCount === 0) {
+    return <GeneratedMiddlewaresEmptyState description={emptyDescription} title={emptyTitle} />;
+  }
   return null;
 }
 
@@ -60,14 +66,18 @@ function GeneratedMiddlewaresErrorState({ servicesError }: { servicesError: unkn
   );
 }
 
-function GeneratedMiddlewaresEmptyState() {
+function GeneratedMiddlewaresEmptyState({
+  description,
+  title,
+}: {
+  description: string;
+  title: string;
+}) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white py-16 text-center text-gray-500">
       <Sparkles className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-      <p className="text-sm">조건에 맞는 자동 생성 미들웨어가 없습니다</p>
-      <p className="mt-2 text-xs text-gray-400">
-        허용 IP, 서비스 Rate Limit, 프레임 정책, Basic Auth, HTTPS 리다이렉트 같은 서비스 옵션을 켜면 여기에 표시됩니다.
-      </p>
+      <p className="text-sm">{title}</p>
+      <p className="mt-2 text-xs text-gray-400">{description}</p>
     </div>
   );
 }
