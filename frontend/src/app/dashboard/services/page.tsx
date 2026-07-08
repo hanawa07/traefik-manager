@@ -8,6 +8,7 @@ import DeleteServiceModal from "./DeleteServiceModal";
 import { ServiceSaveDiagnosisBanner } from "./ServiceSaveDiagnosisBanner";
 import ServicesListSection from "./ServicesListSection";
 import ServicesToolbar from "./ServicesToolbar";
+import type { ServiceDiagnosisHistoryMap } from "./serviceGatewayDiagnosisAuditSnapshots";
 import {
   consumeServiceSaveDiagnosisNotice,
   readServiceDiagnosisSnapshots,
@@ -22,6 +23,7 @@ export default function ServicesPage() {
   const [diagnosisSnapshots, setDiagnosisSnapshots] = useState<ServiceDiagnosisSnapshotMap>({});
   const [toastNotice, setToastNotice] = useState<ToastNoticeValue | null>(null);
   const combinedDiagnosisSnapshots = { ...model.diagnosisSnapshots, ...diagnosisSnapshots };
+  const combinedDiagnosisHistories = mergeDiagnosisHistories(model.diagnosisHistories, diagnosisSnapshots);
 
   useEffect(() => {
     const notice = consumeServiceSaveDiagnosisNotice();
@@ -86,6 +88,7 @@ export default function ServicesPage() {
         healthHistory={model.healthHistory}
         certificateMap={model.certificateMap}
         displayTimeZone={model.displayTimeZone}
+        diagnosisHistories={combinedDiagnosisHistories}
         diagnosisSnapshots={combinedDiagnosisSnapshots}
         onClearSearch={() => model.setSearch("")}
         onDelete={model.setDeleteTarget}
@@ -117,4 +120,18 @@ function getDiagnosisStatusLabel(status?: string) {
   if (status === "warning") return "게이트웨이 추가 확인 필요";
   if (status === "fail") return "게이트웨이 문제 감지";
   return "게이트웨이 진단 결과 없음";
+}
+
+function mergeDiagnosisHistories(
+  serverHistories: ServiceDiagnosisHistoryMap,
+  localSnapshots: ServiceDiagnosisSnapshotMap,
+): ServiceDiagnosisHistoryMap {
+  const histories: ServiceDiagnosisHistoryMap = { ...serverHistories };
+  for (const notice of Object.values(localSnapshots)) {
+    if (!notice.diagnosis) continue;
+    const current = histories[notice.serviceId] ?? [];
+    const alreadyFirst = current[0]?.checked_at === notice.diagnosis.checked_at;
+    histories[notice.serviceId] = alreadyFirst ? current : [notice.diagnosis, ...current].slice(0, 3);
+  }
+  return histories;
 }

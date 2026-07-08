@@ -2,6 +2,7 @@
 import type { Certificate } from "@/features/certificates/api/certificateApi";
 import type { Service, ServiceGatewayDiagnosis, UpstreamHealth } from "../api/serviceApi";
 import ServiceCardBadges from "./ServiceCardBadges";
+import ServiceCardDiagnosisHistory from "./ServiceCardDiagnosisHistory";
 import ServiceGatewayDiagnosisPanel from "./ServiceGatewayDiagnosisPanel";
 import ServiceCardHeader from "./ServiceCardHeader";
 import ServiceCardHealthDetails from "./ServiceCardHealthDetails";
@@ -17,6 +18,7 @@ interface ServiceCardProps {
   lastFailureAt?: string | null;
   certificate?: Certificate;
   lastGatewayDiagnosis?: ServiceGatewayDiagnosis | null;
+  gatewayDiagnosisHistory?: ServiceGatewayDiagnosis[];
 }
 
 export default function ServiceCard({
@@ -29,6 +31,7 @@ export default function ServiceCard({
   lastSuccessAt,
   lastFailureAt,
   certificate,
+  gatewayDiagnosisHistory,
   lastGatewayDiagnosis,
 }: ServiceCardProps) {
   return (
@@ -41,6 +44,7 @@ export default function ServiceCard({
         certificate={certificate}
         lastGatewayDiagnosis={lastGatewayDiagnosis}
       />
+      <ServiceCardDiagnosisHistory history={gatewayDiagnosisHistory} displayTimeZone={displayTimeZone} />
       <ServiceCardHealthDetails
         upstreamHealth={upstreamHealth}
         certificate={certificate}

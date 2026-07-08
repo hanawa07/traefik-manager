@@ -2,6 +2,8 @@ import type { AuditLogItem } from "@/features/audit/api/auditApi";
 import type { ServiceGatewayDiagnosis, ServiceGatewayDiagnosticCheck } from "@/features/services/api/serviceApi";
 import type { ServiceDiagnosisSnapshotMap, ServiceSaveDiagnosisNotice } from "./serviceSaveDiagnosis";
 
+export type ServiceDiagnosisHistoryMap = Record<string, ServiceGatewayDiagnosis[]>;
+
 export function buildServiceDiagnosisSnapshotsFromAuditLogs(logs: AuditLogItem[]): ServiceDiagnosisSnapshotMap {
   const snapshots: ServiceDiagnosisSnapshotMap = {};
   for (const log of logs) {
@@ -12,6 +14,21 @@ export function buildServiceDiagnosisSnapshotsFromAuditLogs(logs: AuditLogItem[]
     }
   }
   return snapshots;
+}
+
+export function buildServiceDiagnosisHistoriesFromAuditLogs(
+  logs: AuditLogItem[],
+  limitPerService = 3,
+): ServiceDiagnosisHistoryMap {
+  const histories: ServiceDiagnosisHistoryMap = {};
+  for (const log of logs) {
+    const notice = toServiceDiagnosisNotice(log);
+    if (!notice?.diagnosis) continue;
+    const history = histories[notice.serviceId] ?? (histories[notice.serviceId] = []);
+    if (history.length >= limitPerService) continue;
+    history.push(notice.diagnosis);
+  }
+  return histories;
 }
 
 function toServiceDiagnosisNotice(log: AuditLogItem): ServiceSaveDiagnosisNotice | null {
