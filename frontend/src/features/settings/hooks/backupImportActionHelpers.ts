@@ -20,19 +20,25 @@ export async function readBackupPayloadFile(file: File): Promise<BackupPayloadRe
 export function formatBackupImportResult({
   created_redirects,
   created_services,
+  deleted_redirects,
+  deleted_services,
   updated_redirects,
   updated_services,
 }: {
   created_redirects: number;
   created_services: number;
+  deleted_redirects: number;
+  deleted_services: number;
   updated_redirects: number;
   updated_services: number;
 }) {
   return [
     `가져오기 완료: 서비스 생성 ${created_services}개`,
     `서비스 수정 ${updated_services}개`,
+    `서비스 삭제 ${deleted_services}개`,
     `리다이렉트 생성 ${created_redirects}개`,
     `리다이렉트 수정 ${updated_redirects}개`,
+    `리다이렉트 삭제 ${deleted_redirects}개`,
   ].join(", ");
 }
 
