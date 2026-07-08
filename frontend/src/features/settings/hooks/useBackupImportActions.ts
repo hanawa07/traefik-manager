@@ -7,6 +7,7 @@ import {
 import {
   formatBackupImportResult,
   formatBackupPreviewResult,
+  formatBackupValidationResult,
   readBackupPayloadFile,
 } from "./backupImportActionHelpers";
 import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
@@ -72,11 +73,12 @@ export function useBackupImportActions(canManage: boolean, onToast: (notice: Toa
     if (!data) return;
 
     try {
-      importState.setValidationResult(await validateBackup.mutateAsync({ mode: importState.importMode, data }));
+      const result = await validateBackup.mutateAsync({ mode: importState.importMode, data });
+      importState.setValidationResult(result);
       onToast({
         tone: "success",
         message: "백업 사전 검증 완료",
-        detail: "복원 전에 검증 결과를 확인하세요.",
+        detail: formatBackupValidationResult(result),
       });
     } catch (error) {
       const message = getApiErrorDetail(error, "백업 사전 검증에 실패했습니다");
