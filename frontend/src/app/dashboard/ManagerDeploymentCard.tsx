@@ -99,6 +99,12 @@ export function ManagerDeploymentCard({
         </p>
       </div>
 
+      <DeploymentLinkBar
+        commitUrl={deploymentLinks.commitUrl}
+        releaseUrl={deploymentLinks.releaseUrl}
+        sourceUrl={deploymentLinks.sourceUrl}
+      />
+
       <div className="mt-4 grid gap-2 md:grid-cols-2">
         {(deployment?.components || []).map((component) => (
           <DeploymentComponentRow
@@ -109,6 +115,41 @@ export function ManagerDeploymentCard({
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+function DeploymentLinkBar({
+  commitUrl,
+  releaseUrl,
+  sourceUrl,
+}: {
+  commitUrl?: string;
+  releaseUrl?: string;
+  sourceUrl?: string;
+}) {
+  const links = [
+    { href: releaseUrl, label: "릴리즈 보기" },
+    { href: commitUrl, label: "커밋 보기" },
+    { href: sourceUrl, label: "저장소 보기" },
+  ].filter((link): link is { href: string; label: string } => Boolean(link.href));
+
+  if (links.length === 0) return null;
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {links.map((link) => (
+        <a
+          className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-blue-200 hover:text-blue-700"
+          href={link.href}
+          key={link.label}
+          rel="noreferrer"
+          target="_blank"
+        >
+          {link.label}
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      ))}
     </div>
   );
 }
