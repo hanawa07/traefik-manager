@@ -31,7 +31,7 @@ export function useSettingsPageModel() {
   const loginDefense = useLoginDefenseSettingsModel(canManage, setToastNotice);
   const securityAlert = useSecurityAlertSettingsModel(canManage, displayTimezone, setToastNotice);
   const traefikDashboard = useTraefikDashboardSettingsModel(canManage, setToastNotice);
-  const backupRestore = useBackupRestoreSettings(canManage);
+  const backupRestore = useBackupRestoreSettings(canManage, setToastNotice);
   const cloudflareDns = useCloudflareDnsSettingsSection(displayTimezone, setToastNotice);
 
   return {

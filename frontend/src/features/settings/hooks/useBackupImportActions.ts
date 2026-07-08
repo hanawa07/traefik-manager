@@ -8,9 +8,10 @@ import {
   formatBackupImportResult,
   readBackupPayloadFile,
 } from "./backupImportActionHelpers";
+import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
 import { useBackupImportState } from "./useBackupImportState";
 
-export function useBackupImportActions(canManage: boolean) {
+export function useBackupImportActions(canManage: boolean, onToast: (notice: ToastNoticeValue) => void) {
   const importState = useBackupImportState();
   const importBackup = useImportBackup();
   const validateBackup = useValidateBackup();
@@ -22,6 +23,11 @@ export function useBackupImportActions(canManage: boolean) {
     const result = await readBackupPayloadFile(importState.backupFile);
     if (!result.ok) {
       importState.setImportResultMessage(result.errorMessage);
+      onToast({
+        tone: "warning",
+        message: "백업 파일 확인 필요",
+        detail: result.errorMessage,
+      });
       return null;
     }
 
@@ -38,9 +44,20 @@ export function useBackupImportActions(canManage: boolean) {
 
     try {
       const result = await importBackup.mutateAsync({ mode: importState.importMode, data });
-      importState.setImportResultMessage(formatBackupImportResult(result));
+      const resultMessage = formatBackupImportResult(result);
+      importState.setImportResultMessage(resultMessage);
       importState.setBackupFile(null);
+      onToast({
+        tone: "success",
+        message: "백업 복원 완료",
+        detail: resultMessage,
+      });
     } catch {
+      onToast({
+        tone: "error",
+        message: "백업 복원 실패",
+        detail: "설정 JSON 가져오기를 완료하지 못했습니다.",
+      });
       return;
     }
   };
@@ -55,8 +72,19 @@ export function useBackupImportActions(canManage: boolean) {
 
     try {
       importState.setValidationResult(await validateBackup.mutateAsync({ mode: importState.importMode, data }));
+      onToast({
+        tone: "success",
+        message: "백업 사전 검증 완료",
+        detail: "복원 전에 검증 결과를 확인하세요.",
+      });
     } catch (error) {
-      importState.setImportResultMessage(getApiErrorDetail(error, "백업 사전 검증에 실패했습니다"));
+      const message = getApiErrorDetail(error, "백업 사전 검증에 실패했습니다");
+      importState.setImportResultMessage(message);
+      onToast({
+        tone: "error",
+        message: "백업 사전 검증 실패",
+        detail: message,
+      });
     }
   };
 
@@ -70,8 +98,19 @@ export function useBackupImportActions(canManage: boolean) {
 
     try {
       importState.setPreviewResult(await previewBackup.mutateAsync({ mode: importState.importMode, data }));
+      onToast({
+        tone: "success",
+        message: "복원 미리보기 완료",
+        detail: "생성, 수정, 삭제 예정 항목을 확인하세요.",
+      });
     } catch (error) {
-      importState.setImportResultMessage(getApiErrorDetail(error, "복원 미리보기에 실패했습니다"));
+      const message = getApiErrorDetail(error, "복원 미리보기에 실패했습니다");
+      importState.setImportResultMessage(message);
+      onToast({
+        tone: "error",
+        message: "복원 미리보기 실패",
+        detail: message,
+      });
     }
   };
 
