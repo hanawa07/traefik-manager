@@ -8,9 +8,8 @@ import { SharedMiddlewareTemplateActions } from "./SharedMiddlewareTemplateActio
 import {
   getTemplateConfigSummary,
   getTemplateTypeLabel,
-  mapRuntimeStatus,
-  type BadgeStatus,
 } from "./middlewarePageHelpers";
+import { getSharedTemplateStatus } from "./middlewareTemplateFilters";
 
 interface SharedMiddlewareTemplateCardProps {
   canManage: boolean;
@@ -34,10 +33,12 @@ export default function SharedMiddlewareTemplateCard({
   onAssign,
 }: SharedMiddlewareTemplateCardProps) {
   const sharedRuntime = runtimeMap.get(`${template.shared_name}@file`);
-  const templateStatus: BadgeStatus =
-    appliedServices.length === 0
-      ? "inactive"
-      : mapRuntimeStatus(sharedRuntime, { runtimeConnected });
+  const templateStatus = getSharedTemplateStatus({
+    appliedServices,
+    runtimeConnected,
+    runtimeMap,
+    template,
+  });
   const runtimeUsedByCount = sharedRuntime?.used_by.length ?? 0;
 
   return (

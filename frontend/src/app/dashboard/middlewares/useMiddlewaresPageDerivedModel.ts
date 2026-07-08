@@ -16,6 +16,11 @@ import {
   sortMiddlewareTemplates,
   sortServicesByName,
 } from "./middlewareDerivedModelHelpers";
+import {
+  countMiddlewareTemplateStatuses,
+  filterMiddlewareTemplates,
+  type TemplateStatusFilter,
+} from "./middlewareTemplateFilters";
 
 interface UseMiddlewaresPageDerivedModelArgs {
   assignmentSearch: string;
@@ -27,6 +32,8 @@ interface UseMiddlewaresPageDerivedModelArgs {
   services: Service[];
   servicesError: unknown;
   templateError: unknown;
+  templateSearch: string;
+  templateStatusFilter: TemplateStatusFilter;
   templates: MiddlewareTemplate[];
 }
 
@@ -40,6 +47,8 @@ export function useMiddlewaresPageDerivedModel({
   services,
   servicesError,
   templateError,
+  templateSearch,
+  templateStatusFilter,
   templates,
 }: UseMiddlewaresPageDerivedModelArgs) {
   const runtimeConnected = runtimeMiddlewaresResponse?.connected ?? false;
@@ -62,6 +71,34 @@ export function useMiddlewaresPageDerivedModel({
     () => buildAppliedServicesByTemplate(sortedTemplates, sortedServices),
     [sortedServices, sortedTemplates],
   );
+
+  const visibleTemplates = useMemo(() => {
+    return filterMiddlewareTemplates({
+      appliedServicesByTemplate,
+      runtimeConnected,
+      runtimeMap,
+      statusFilter: templateStatusFilter,
+      templates: sortedTemplates,
+      templateSearch,
+    });
+  }, [
+    appliedServicesByTemplate,
+    runtimeConnected,
+    runtimeMap,
+    sortedTemplates,
+    templateSearch,
+    templateStatusFilter,
+  ]);
+
+  const templateFilterCounts = useMemo(() => {
+    return countMiddlewareTemplateStatuses({
+      appliedServicesByTemplate,
+      runtimeConnected,
+      runtimeMap,
+      templates: sortedTemplates,
+      templateSearch,
+    });
+  }, [appliedServicesByTemplate, runtimeConnected, runtimeMap, sortedTemplates, templateSearch]);
 
   const filteredServicesForAssignment = useMemo(() => {
     return filterServicesForMiddlewareAssignment(sortedServices, assignmentSearch);
@@ -93,5 +130,7 @@ export function useMiddlewaresPageDerivedModel({
     sharedTabBlocked,
     sharedTabErrorMessage,
     sortedTemplates,
+    templateFilterCounts,
+    visibleTemplates,
   };
 }

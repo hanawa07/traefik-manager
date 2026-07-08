@@ -53,3 +53,16 @@ export function SharedMiddlewareEmptyState({
     </div>
   );
 }
+
+export function SharedMiddlewareFilteredEmptyState({ onReset }: { onReset: () => void }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white py-12 text-center text-gray-500">
+      <Layers3 className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+      <p className="text-sm">검색 조건에 맞는 공유 미들웨어 템플릿이 없습니다</p>
+      <p className="mt-2 text-xs text-gray-400">검색어를 줄이거나 상태 필터를 전체로 바꿔 다시 확인하세요.</p>
+      <button className="mt-3 text-sm text-blue-500 hover:underline" onClick={onReset}>
+        조건 초기화
+      </button>
+    </div>
+  );
+}

@@ -6,25 +6,45 @@ import type { MiddlewareTemplate } from "@/features/middlewares/api/middlewareAp
 import type { Service } from "@/features/services/api/serviceApi";
 
 import type { MiddlewareTab } from "./middlewarePageHelpers";
+import { isTemplateStatusFilter, type TemplateStatusFilter } from "./middlewareTemplateFilters";
 
 interface MiddlewarePageUrlState {
   activeTab: MiddlewareTab;
   generatedSearch: string;
+  templateSearch: string;
+  templateStatusFilter: TemplateStatusFilter;
 }
 
 function readMiddlewarePageUrlState(): MiddlewarePageUrlState {
   if (typeof window === "undefined") {
-    return { activeTab: "templates", generatedSearch: "" };
+    return {
+      activeTab: "templates",
+      generatedSearch: "",
+      templateSearch: "",
+      templateStatusFilter: "all",
+    };
   }
 
   const params = new URLSearchParams(window.location.search);
+  const activeTab = params.get("tab") === "generated" ? "generated" : "templates";
+  const search = params.get("search") ?? "";
+  const status = params.get("status");
+
   return {
-    activeTab: params.get("tab") === "generated" ? "generated" : "templates",
-    generatedSearch: params.get("search") ?? "",
+    activeTab,
+    generatedSearch: activeTab === "generated" ? search : "",
+    templateSearch: activeTab === "templates" ? search : "",
+    templateStatusFilter:
+      activeTab === "templates" && isTemplateStatusFilter(status) ? status : "all",
   };
 }
 
-function replaceMiddlewarePageUrl({ activeTab, generatedSearch }: MiddlewarePageUrlState) {
+function replaceMiddlewarePageUrl({
+  activeTab,
+  generatedSearch,
+  templateSearch,
+  templateStatusFilter,
+}: MiddlewarePageUrlState) {
   if (typeof window === "undefined") {
     return;
   }
@@ -40,8 +60,17 @@ function replaceMiddlewarePageUrl({ activeTab, generatedSearch }: MiddlewarePage
     }
   } else {
     url.searchParams.delete("tab");
-    url.searchParams.delete("search");
-    url.searchParams.delete("status");
+    const trimmedSearch = templateSearch.trim();
+    if (trimmedSearch) {
+      url.searchParams.set("search", trimmedSearch);
+    } else {
+      url.searchParams.delete("search");
+    }
+    if (templateStatusFilter === "all") {
+      url.searchParams.delete("status");
+    } else {
+      url.searchParams.set("status", templateStatusFilter);
+    }
   }
 
   const nextUrl = `${url.pathname}${url.search}${url.hash}`;
@@ -54,6 +83,8 @@ function replaceMiddlewarePageUrl({ activeTab, generatedSearch }: MiddlewarePage
 export function useMiddlewaresPageUiState() {
   const [activeTab, setActiveTab] = useState<MiddlewareTab>("templates");
   const [generatedSearch, setGeneratedSearch] = useState("");
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [templateStatusFilter, setTemplateStatusFilter] = useState<TemplateStatusFilter>("all");
   const [isUrlReady, setIsUrlReady] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<MiddlewareTemplate | null>(null);
@@ -67,6 +98,8 @@ export function useMiddlewaresPageUiState() {
       const urlState = readMiddlewarePageUrlState();
       setActiveTab(urlState.activeTab);
       setGeneratedSearch(urlState.generatedSearch);
+      setTemplateSearch(urlState.templateSearch);
+      setTemplateStatusFilter(urlState.templateStatusFilter);
     }
 
     applyUrlState();
@@ -81,8 +114,13 @@ export function useMiddlewaresPageUiState() {
       return;
     }
 
-    replaceMiddlewarePageUrl({ activeTab, generatedSearch });
-  }, [activeTab, generatedSearch, isUrlReady]);
+    replaceMiddlewarePageUrl({
+      activeTab,
+      generatedSearch,
+      templateSearch,
+      templateStatusFilter,
+    });
+  }, [activeTab, generatedSearch, isUrlReady, templateSearch, templateStatusFilter]);
 
   const toggleServiceSelection = (serviceId: string) => {
     setSelectedServiceIds((current) =>
@@ -113,6 +151,10 @@ export function useMiddlewaresPageUiState() {
     setEditTarget,
     setGeneratedSearch,
     setSelectedServiceIds,
+    setTemplateSearch,
+    setTemplateStatusFilter,
+    templateSearch,
+    templateStatusFilter,
     toggleServiceSelection,
   };
 }
