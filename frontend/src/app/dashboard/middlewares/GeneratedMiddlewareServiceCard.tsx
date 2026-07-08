@@ -14,6 +14,8 @@ export function GeneratedMiddlewareServiceCard({
   items,
   service,
 }: GeneratedMiddlewareServiceCardProps) {
+  const summary = buildStatusSummary(items);
+
   return (
     <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -38,6 +40,11 @@ export function GeneratedMiddlewareServiceCard({
           서비스 설정 열기
         </Link>
       </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <SummaryPill label="정상" value={summary.active} />
+        <SummaryPill label="확인 필요" value={summary.attention} />
+        <SummaryPill label="대기" value={summary.pending} />
+      </div>
 
       <div className="mt-4 space-y-3">
         {items.map((item) => (
@@ -45,5 +52,25 @@ export function GeneratedMiddlewareServiceCard({
         ))}
       </div>
     </article>
+  );
+}
+
+function SummaryPill({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-600">
+      {label}: <span className="font-semibold text-gray-800">{value}개</span>
+    </span>
+  );
+}
+
+function buildStatusSummary(items: GeneratedMiddlewareItem[]) {
+  return items.reduce(
+    (summary, item) => {
+      if (item.status === "active") summary.active += 1;
+      else if (item.status === "pending") summary.pending += 1;
+      else summary.attention += 1;
+      return summary;
+    },
+    { active: 0, attention: 0, pending: 0 },
   );
 }

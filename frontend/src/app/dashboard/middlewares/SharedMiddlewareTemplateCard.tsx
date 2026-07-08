@@ -38,6 +38,7 @@ export default function SharedMiddlewareTemplateCard({
     appliedServices.length === 0
       ? "inactive"
       : mapRuntimeStatus(sharedRuntime, { runtimeConnected });
+  const runtimeUsedByCount = sharedRuntime?.used_by.length ?? 0;
 
   return (
     <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -53,6 +54,22 @@ export default function SharedMiddlewareTemplateCard({
           </div>
           <p className="mt-2 font-mono text-xs text-gray-500">{template.shared_name}@file</p>
           <p className="mt-2 text-sm text-gray-600">{getTemplateConfigSummary(template)}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <RuntimeSummaryPill label="DB 적용" value={`${appliedServices.length}개 서비스`} />
+            <RuntimeSummaryPill
+              label="런타임 사용"
+              value={runtimeConnected ? `${runtimeUsedByCount}개 라우터` : "확인 중"}
+            />
+            <RuntimeSummaryPill
+              label="동기화"
+              value={getRuntimeSyncLabel({
+                appliedServicesCount: appliedServices.length,
+                runtimeConnected,
+                runtimeUsedByCount,
+                sharedRuntime,
+              })}
+            />
+          </div>
         </div>
 
         {canManage ? (
@@ -74,4 +91,31 @@ export default function SharedMiddlewareTemplateCard({
       ) : null}
     </article>
   );
+}
+
+function RuntimeSummaryPill({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-600">
+      {label}: <span className="font-semibold text-gray-800">{value}</span>
+    </span>
+  );
+}
+
+function getRuntimeSyncLabel({
+  appliedServicesCount,
+  runtimeConnected,
+  runtimeUsedByCount,
+  sharedRuntime,
+}: {
+  appliedServicesCount: number;
+  runtimeConnected: boolean;
+  runtimeUsedByCount: number;
+  sharedRuntime?: TraefikMiddlewareItem;
+}) {
+  if (appliedServicesCount === 0) return "미적용";
+  if (!runtimeConnected) return "확인 중";
+  if (!sharedRuntime) return "런타임 없음";
+  return runtimeUsedByCount === appliedServicesCount
+    ? "일치"
+    : `${runtimeUsedByCount}/${appliedServicesCount}`;
 }
