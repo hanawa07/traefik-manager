@@ -1,4 +1,5 @@
 import type { BackupPreviewGroup, BackupPreviewResult } from "@/features/settings/api/settingsApi";
+import { formatBackupPreviewResult } from "@/features/settings/hooks/backupImportActionHelpers";
 
 function BackupPreviewGroupList({
   title,
@@ -39,9 +40,7 @@ export default function BackupPreviewNotice({ result }: { result: BackupPreviewR
   return (
     <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
       <div>
-        <p className="font-medium">
-          복원 미리보기: 서비스 {result.service_count}개, 리다이렉트 {result.redirect_count}개
-        </p>
+        <p className="font-medium">복원 미리보기: {formatBackupPreviewResult(result)}</p>
         <p className="mt-1 text-xs text-blue-800">
           {result.mode === "overwrite"
             ? "덮어쓰기 모드라 기존 항목 삭제 후 백업 내용을 새로 생성합니다."

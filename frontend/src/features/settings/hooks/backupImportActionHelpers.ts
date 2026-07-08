@@ -1,4 +1,4 @@
-import type { BackupPayload } from "@/features/settings/api/settingsApi";
+import type { BackupPayload, BackupPreviewGroup, BackupPreviewResult } from "@/features/settings/api/settingsApi";
 
 type BackupPayloadReadResult =
   | { ok: true; data: BackupPayload }
@@ -29,4 +29,16 @@ export function formatBackupImportResult({
     `리다이렉트 생성 ${created_redirects}개`,
     `리다이렉트 수정 ${updated_redirects}개`,
   ].join(", ");
+}
+
+export function formatBackupPreviewResult(result: BackupPreviewResult) {
+  return [
+    formatBackupPreviewGroup("서비스", result.services),
+    formatBackupPreviewGroup("리다이렉트", result.redirect_hosts),
+    result.warning_count ? `경고 ${result.warning_count}개` : "경고 없음",
+  ].join(" · ");
+}
+
+function formatBackupPreviewGroup(label: string, group: BackupPreviewGroup) {
+  return `${label} 생성 ${group.creates.length} / 수정 ${group.updates.length} / 삭제 ${group.deletes.length}`;
 }

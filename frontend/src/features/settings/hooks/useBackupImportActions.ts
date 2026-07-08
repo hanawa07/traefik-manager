@@ -6,6 +6,7 @@ import {
 } from "@/features/settings/hooks/useSettings";
 import {
   formatBackupImportResult,
+  formatBackupPreviewResult,
   readBackupPayloadFile,
 } from "./backupImportActionHelpers";
 import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
@@ -97,11 +98,12 @@ export function useBackupImportActions(canManage: boolean, onToast: (notice: Toa
     if (!data) return;
 
     try {
-      importState.setPreviewResult(await previewBackup.mutateAsync({ mode: importState.importMode, data }));
+      const result = await previewBackup.mutateAsync({ mode: importState.importMode, data });
+      importState.setPreviewResult(result);
       onToast({
         tone: "success",
         message: "복원 미리보기 완료",
-        detail: "생성, 수정, 삭제 예정 항목을 확인하세요.",
+        detail: formatBackupPreviewResult(result),
       });
     } catch (error) {
       const message = getApiErrorDetail(error, "복원 미리보기에 실패했습니다");
