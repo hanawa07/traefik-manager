@@ -7,15 +7,82 @@ import type { Service } from "@/features/services/api/serviceApi";
 
 import type { MiddlewareTab } from "./middlewarePageHelpers";
 
+interface MiddlewarePageUrlState {
+  activeTab: MiddlewareTab;
+  generatedSearch: string;
+}
+
+function readMiddlewarePageUrlState(): MiddlewarePageUrlState {
+  if (typeof window === "undefined") {
+    return { activeTab: "templates", generatedSearch: "" };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  return {
+    activeTab: params.get("tab") === "generated" ? "generated" : "templates",
+    generatedSearch: params.get("search") ?? "",
+  };
+}
+
+function replaceMiddlewarePageUrl({ activeTab, generatedSearch }: MiddlewarePageUrlState) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  if (activeTab === "generated") {
+    url.searchParams.set("tab", "generated");
+    const trimmedSearch = generatedSearch.trim();
+    if (trimmedSearch) {
+      url.searchParams.set("search", trimmedSearch);
+    } else {
+      url.searchParams.delete("search");
+    }
+  } else {
+    url.searchParams.delete("tab");
+    url.searchParams.delete("search");
+    url.searchParams.delete("status");
+  }
+
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (nextUrl !== currentUrl) {
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }
+}
+
 export function useMiddlewaresPageUiState() {
   const [activeTab, setActiveTab] = useState<MiddlewareTab>("templates");
   const [generatedSearch, setGeneratedSearch] = useState("");
+  const [isUrlReady, setIsUrlReady] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<MiddlewareTemplate | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MiddlewareTemplate | null>(null);
   const [assignmentTarget, setAssignmentTarget] = useState<MiddlewareTemplate | null>(null);
   const [assignmentSearch, setAssignmentSearch] = useState("");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    function applyUrlState() {
+      const urlState = readMiddlewarePageUrlState();
+      setActiveTab(urlState.activeTab);
+      setGeneratedSearch(urlState.generatedSearch);
+    }
+
+    applyUrlState();
+    setIsUrlReady(true);
+    window.addEventListener("popstate", applyUrlState);
+
+    return () => window.removeEventListener("popstate", applyUrlState);
+  }, []);
+
+  useEffect(() => {
+    if (!isUrlReady) {
+      return;
+    }
+
+    replaceMiddlewarePageUrl({ activeTab, generatedSearch });
+  }, [activeTab, generatedSearch, isUrlReady]);
 
   const toggleServiceSelection = (serviceId: string) => {
     setSelectedServiceIds((current) =>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { Service } from "@/features/services/api/serviceApi";
 
@@ -13,6 +13,38 @@ import {
 import { type GeneratedMiddlewareItem } from "./middlewarePageHelpers";
 
 type GeneratedStatusFilter = "all" | "attention" | "pending";
+
+function isGeneratedStatusFilter(value: string | null): value is GeneratedStatusFilter {
+  return value === "attention" || value === "pending" || value === "all";
+}
+
+function readStatusFilterFromUrl(): GeneratedStatusFilter {
+  if (typeof window === "undefined") {
+    return "all";
+  }
+
+  const status = new URLSearchParams(window.location.search).get("status");
+  return isGeneratedStatusFilter(status) ? status : "all";
+}
+
+function replaceStatusFilterInUrl(statusFilter: GeneratedStatusFilter) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  if (statusFilter === "all") {
+    url.searchParams.delete("status");
+  } else {
+    url.searchParams.set("status", statusFilter);
+  }
+
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (nextUrl !== currentUrl) {
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }
+}
 
 interface GeneratedMiddlewaresTabProps {
   generatedSearch: string;
@@ -41,6 +73,7 @@ export default function GeneratedMiddlewaresTab({
   generatedServiceGroups,
 }: GeneratedMiddlewaresTabProps) {
   const [statusFilter, setStatusFilter] = useState<GeneratedStatusFilter>("all");
+  const [isUrlReady, setIsUrlReady] = useState(false);
   const filterCounts = buildFilterCounts(generatedServiceGroups);
   const emptyState = getGeneratedEmptyState({
     generatedSearch,
@@ -50,6 +83,26 @@ export default function GeneratedMiddlewaresTab({
   const visibleServiceGroups = filterGeneratedServiceGroups(generatedServiceGroups, statusFilter);
   const shouldShowGroups =
     !isServicesLoading && !isRuntimeLoading && !isServicesError && visibleServiceGroups.length > 0;
+
+  useEffect(() => {
+    function applyStatusFilterFromUrl() {
+      setStatusFilter(readStatusFilterFromUrl());
+    }
+
+    applyStatusFilterFromUrl();
+    setIsUrlReady(true);
+    window.addEventListener("popstate", applyStatusFilterFromUrl);
+
+    return () => window.removeEventListener("popstate", applyStatusFilterFromUrl);
+  }, []);
+
+  useEffect(() => {
+    if (!isUrlReady) {
+      return;
+    }
+
+    replaceStatusFilterInUrl(statusFilter);
+  }, [isUrlReady, statusFilter]);
 
   return (
     <div className="space-y-4">
