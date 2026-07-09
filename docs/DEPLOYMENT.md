@@ -98,7 +98,7 @@ providers:
 
 - 브라우저에서 `https://<FRONTEND_DOMAIN>` 접속 시 로그인 페이지가 보입니다.
 - `curl -Ik https://<FRONTEND_DOMAIN>` 응답이 `200` 또는 `302`입니다.
-- 서비스 목록 화면과 의존 API를 함께 확인하려면 `cd frontend && TM_SMOKE_BASE_URL=https://<FRONTEND_DOMAIN> TM_SMOKE_COOKIE='tm_session=...; tm_csrf=...' npm run smoke:services`를 실행합니다.
+- 서비스 목록 화면과 의존 API를 함께 확인하려면 `TM_SMOKE_COOKIE='tm_session=...; tm_csrf=...' ./scripts/check-services.sh`를 실행합니다. `TM_SMOKE_BASE_URL`이 없으면 `.env`의 `FRONTEND_DOMAIN`을 사용합니다.
 - 운영 세션 쿠키 대신 테스트 계정으로 확인하려면 `TM_SMOKE_USERNAME`과 `TM_SMOKE_PASSWORD`를 사용합니다. Turnstile이 필요한 환경에서는 기존 세션 쿠키 방식이 더 안전합니다.
 - 로그인 후 서비스 추가 시 `traefik-config/dynamic/<domain>.yml` 파일이 생성됩니다.
 - Traefik 로그 또는 대시보드에서 새 라우터가 반영됩니다.
