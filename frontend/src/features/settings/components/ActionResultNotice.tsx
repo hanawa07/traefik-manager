@@ -7,8 +7,8 @@ export default function ActionResultNotice({ result }: { result: SettingsActionT
     <div
       className={`rounded-lg border p-3 text-sm ${
         result.success
-          ? "border-green-200 bg-green-50 text-green-800"
-          : "border-red-200 bg-red-50 text-red-700"
+          ? "border-green-200 bg-green-50 text-green-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200"
+          : "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200"
       }`}
     >
       <p className="font-medium">{result.message}</p>

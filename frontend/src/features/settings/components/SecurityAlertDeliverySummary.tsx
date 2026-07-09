@@ -58,7 +58,7 @@ export function SecurityAlertDeliverySummary({
           </button>
         </SettingsActionRow>
       ) : null}
-      <p className="text-xs text-gray-500">테스트는 현재 저장된 기본 채널 설정 기준으로 즉시 전송됩니다.</p>
+      <p className="text-xs text-gray-500 dark:text-slate-400">테스트는 현재 저장된 기본 채널 설정 기준으로 즉시 전송됩니다.</p>
       <div className="space-y-2">
         <SecurityAlertFailureBanner
           label="보안 이벤트"
@@ -89,7 +89,7 @@ export function SecurityAlertDeliverySummary({
         onRetrySecurityDelivery={onRetrySecurityDelivery}
         onRetryChangeDelivery={onRetryChangeDelivery}
       />
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-gray-500 dark:text-slate-400">
         알림 실패는 운영 가시성에만 영향을 주고, 로그인 차단/잠금 로직 자체는 중단하지 않습니다.
       </p>
     </>
