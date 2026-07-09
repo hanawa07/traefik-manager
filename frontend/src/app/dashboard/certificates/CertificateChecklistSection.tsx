@@ -19,7 +19,7 @@ export default function CertificateChecklistSection({
   const checklist = getCertificateChecklist(certificate);
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-4">
+    <section className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
       <CertificateChecklistHeader
         isRunning={isRunning}
         onRunPreflight={onRunPreflight}

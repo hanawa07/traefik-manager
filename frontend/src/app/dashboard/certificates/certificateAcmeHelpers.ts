@@ -24,13 +24,13 @@ export function getFailureSummary(certificate: Certificate) {
   if (!certificate.last_acme_error_message) {
     return {
       label: "최근 실패 없음",
-      tone: "text-gray-500",
+      tone: "text-gray-500 dark:text-slate-400",
     };
   }
 
   const kindLabel = getAcmeErrorKindLabel(certificate.last_acme_error_kind);
   return {
     label: `${kindLabel ? `${kindLabel} · ` : ""}${certificate.last_acme_error_message}`,
-    tone: "text-rose-700",
+    tone: "text-rose-700 dark:text-rose-300",
   };
 }

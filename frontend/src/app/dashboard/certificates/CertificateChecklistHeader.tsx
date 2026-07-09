@@ -4,6 +4,7 @@ const PREFLIGHT_BUTTON_CLASS = [
   "inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2",
   "text-xs font-medium text-gray-700 transition-colors",
   "hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700",
+  "dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:bg-blue-950/30 dark:hover:text-blue-300",
 ].join(" ");
 
 interface CertificateChecklistHeaderProps {
@@ -18,8 +19,8 @@ export default function CertificateChecklistHeader({
   return (
     <div className="mb-4 flex items-center justify-between gap-3">
       <div>
-        <h3 className="text-sm font-semibold text-gray-900">발급 체크리스트</h3>
-        <p className="mt-1 text-xs text-gray-500">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">발급 체크리스트</h3>
+        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
           목록은 압축해서 보여주고, 상세 진단은 이 패널에서 확인합니다.
         </p>
       </div>
