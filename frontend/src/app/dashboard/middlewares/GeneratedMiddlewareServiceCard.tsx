@@ -17,25 +17,25 @@ export function GeneratedMiddlewareServiceCard({
   const summary = buildStatusSummary(items);
 
   return (
-    <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href={`/dashboard/services/${service.id}`}
-              className="text-lg font-semibold text-gray-900 hover:text-blue-700"
+              className="text-lg font-semibold text-gray-900 hover:text-blue-700 dark:text-slate-100 dark:hover:text-blue-300"
             >
               {service.name}
             </Link>
-            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
+            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500 dark:bg-slate-800 dark:text-slate-300">
               {items.length}개 자동 생성
             </span>
           </div>
-          <p className="mt-1 text-sm text-gray-500">{service.domain}</p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">{service.domain}</p>
         </div>
         <Link
           href={`/dashboard/services/${service.id}`}
-          className="text-sm font-medium text-blue-600 hover:text-blue-800"
+          className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
         >
           서비스 설정 열기
         </Link>
@@ -57,8 +57,8 @@ export function GeneratedMiddlewareServiceCard({
 
 function SummaryPill({ label, value }: { label: string; value: number }) {
   return (
-    <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-600">
-      {label}: <span className="font-semibold text-gray-800">{value}개</span>
+    <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+      {label}: <span className="font-semibold text-gray-800 dark:text-slate-100">{value}개</span>
     </span>
   );
 }

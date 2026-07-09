@@ -34,7 +34,7 @@ export function SharedMiddlewareTemplateActions({
       <button
         className={
           "btn-secondary inline-flex items-center gap-1.5 py-2 text-sm text-red-600 " +
-          "hover:border-red-200 hover:bg-red-50"
+          "hover:border-red-200 hover:bg-red-50 dark:text-red-400 dark:hover:border-red-500/60 dark:hover:bg-red-950/30"
         }
         onClick={() => onDelete(template)}
       >

@@ -42,19 +42,19 @@ export default function SharedMiddlewareTemplateCard({
   const runtimeUsedByCount = sharedRuntime?.used_by.length ?? 0;
 
   return (
-    <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold text-gray-900">{template.name}</h2>
-            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">{template.name}</h2>
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-500/15 dark:text-blue-200">
               {getTemplateTypeLabel(template.type)}
             </span>
             <StatusBadge status={templateStatus} />
-            <span className="text-xs text-gray-400">{appliedServices.length}개 서비스 적용</span>
+            <span className="text-xs text-gray-400 dark:text-slate-500">{appliedServices.length}개 서비스 적용</span>
           </div>
-          <p className="mt-2 font-mono text-xs text-gray-500">{template.shared_name}@file</p>
-          <p className="mt-2 text-sm text-gray-600">{getTemplateConfigSummary(template)}</p>
+          <p className="mt-2 font-mono text-xs text-gray-500 dark:text-slate-400">{template.shared_name}@file</p>
+          <p className="mt-2 text-sm text-gray-600 dark:text-slate-300">{getTemplateConfigSummary(template)}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <RuntimeSummaryPill label="DB 적용" value={`${appliedServices.length}개 서비스`} />
             <RuntimeSummaryPill
@@ -86,7 +86,7 @@ export default function SharedMiddlewareTemplateCard({
       <SharedMiddlewareAppliedServices services={appliedServices} />
 
       {appliedServices.length > 0 ? (
-        <p className="mt-4 text-xs text-gray-500">
+        <p className="mt-4 text-xs text-gray-500 dark:text-slate-400">
           템플릿을 수정하면 연결된 서비스 YAML이 즉시 다시 생성되어 Traefik에 반영됩니다.
         </p>
       ) : null}
@@ -96,8 +96,8 @@ export default function SharedMiddlewareTemplateCard({
 
 function RuntimeSummaryPill({ label, value }: { label: string; value: string }) {
   return (
-    <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-600">
-      {label}: <span className="font-semibold text-gray-800">{value}</span>
+    <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+      {label}: <span className="font-semibold text-gray-800 dark:text-slate-100">{value}</span>
     </span>
   );
 }
