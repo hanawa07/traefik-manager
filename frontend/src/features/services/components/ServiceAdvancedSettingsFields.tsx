@@ -33,8 +33,8 @@ export default function ServiceAdvancedSettingsFields({
   onRemoveCustomHeader,
 }: ServiceAdvancedSettingsFieldsProps) {
   return (
-    <div className="space-y-4 pt-4 border-t border-gray-100">
-      <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+    <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-slate-800">
+      <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 dark:text-slate-100">
         <Key className="w-4 h-4 text-blue-600" />
         고급 설정 및 미들웨어
       </h3>

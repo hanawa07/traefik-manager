@@ -19,7 +19,7 @@ export default function ServiceRateLimitFields({
           className="h-4 w-4 rounded accent-blue-600"
           {...register("rate_limit_enabled")}
         />
-        <span className="text-sm font-medium text-gray-700">Rate Limit 활성화</span>
+        <span className="text-sm font-medium text-gray-700 dark:text-slate-200">Rate Limit 활성화</span>
       </label>
 
       {rateLimitEnabled ? (

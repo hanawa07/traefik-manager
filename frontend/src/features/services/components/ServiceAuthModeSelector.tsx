@@ -31,8 +31,8 @@ export default function ServiceAuthModeSelector({
             className={`
               relative flex min-w-0 cursor-pointer flex-col rounded-xl border p-3 transition-all
               ${authMode === option.value
-                ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
-                : "border-gray-200 bg-white hover:border-gray-300"}
+                ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500 dark:bg-blue-500/15"
+                : "border-gray-200 bg-white hover:border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"}
             `}
           >
             <input
@@ -43,12 +43,12 @@ export default function ServiceAuthModeSelector({
             />
             <span
               className={`text-sm font-bold ${
-                authMode === option.value ? "text-blue-700" : "text-gray-900"
+                authMode === option.value ? "text-blue-700 dark:text-blue-200" : "text-gray-900 dark:text-slate-100"
               }`}
             >
               {option.label}
             </span>
-            <span className="mt-1 text-xs leading-snug text-gray-500">
+            <span className="mt-1 text-xs leading-snug text-gray-500 dark:text-slate-400">
               {option.desc}
             </span>
           </label>

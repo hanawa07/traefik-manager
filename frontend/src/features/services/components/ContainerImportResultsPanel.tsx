@@ -72,15 +72,15 @@ export function ContainerImportResultsPanel({
 function ContainerImportLoadingState() {
   return (
     <div className="space-y-2">
-      <div className="h-24 rounded-xl bg-gray-50 animate-pulse" />
-      <div className="h-24 rounded-xl bg-gray-50 animate-pulse" />
+      <div className="h-24 rounded-xl bg-gray-50 animate-pulse dark:bg-slate-800" />
+      <div className="h-24 rounded-xl bg-gray-50 animate-pulse dark:bg-slate-800" />
     </div>
   );
 }
 
 function ContainerImportErrorNotice({ error }: { error: unknown }) {
   return (
-    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
       {getDockerErrorMessage(error)}
     </div>
   );
@@ -88,7 +88,7 @@ function ContainerImportErrorNotice({ error }: { error: unknown }) {
 
 function ContainerImportUnavailableNotice({ message }: { message?: string }) {
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
       {message || "Docker 자동 감지를 사용할 수 없습니다."}
     </div>
   );

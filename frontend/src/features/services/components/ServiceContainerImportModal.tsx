@@ -54,7 +54,7 @@ export default function ServiceContainerImportModal({
       maxWidthClass="max-w-3xl"
     >
       <div className="space-y-4">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-slate-300">
           새 서비스는 일반 컨테이너에서 업스트림만 가져오고, 기존 Traefik 운영분은 라벨까지 함께 가져올 수 있습니다.
         </p>
 

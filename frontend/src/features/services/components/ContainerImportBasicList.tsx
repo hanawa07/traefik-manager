@@ -18,12 +18,12 @@ export default function ContainerImportBasicList({
 }: ContainerImportBasicListProps) {
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-xs leading-5 text-sky-800">
+      <div className="rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-xs leading-5 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
         컨테이너 이름과 내부 포트를 가져와 업스트림을 빠르게 채웁니다. 도메인은 직접 입력하고, Manager/Traefik와 같은
         Docker 네트워크에 붙어 있는지 확인하세요.
       </div>
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-gray-500 dark:text-slate-400">
         {filteredContainers.length} / {availableContainers.length}개 표시
       </p>
 

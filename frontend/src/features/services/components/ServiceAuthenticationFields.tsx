@@ -40,8 +40,8 @@ export default function ServiceAuthenticationFields({
 }: ServiceAuthenticationFieldsProps) {
   return (
     <>
-      <div className="space-y-4 pt-4 border-t border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+      <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-slate-800">
+        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 dark:text-slate-100">
           <Lock className="w-4 h-4 text-blue-600" />
           인증 설정
         </h3>
