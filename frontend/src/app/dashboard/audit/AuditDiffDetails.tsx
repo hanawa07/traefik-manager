@@ -21,7 +21,7 @@ export function AuditDiffDetails({ logId, diffRows }: AuditDiffDetailsProps) {
         {diffRows.map((row) => (
           <span
             key={`${logId}-${row.key}`}
-            className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600"
+            className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
           >
             {row.key}
           </span>
@@ -47,13 +47,13 @@ function AuditDiffColumn({
   title: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</p>
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</p>
       <div className="space-y-2">
         {diffRows.map((row) => (
           <div key={`${logId}-${row.key}-${valueKey}`} className="grid grid-cols-[160px_1fr] gap-3 text-sm">
-            <span className="text-slate-500">{row.key}</span>
-            <span className="break-all text-slate-900">{formatAuditValue(row[valueKey])}</span>
+            <span className="text-slate-500 dark:text-slate-400">{row.key}</span>
+            <span className="break-all text-slate-900 dark:text-slate-100">{formatAuditValue(row[valueKey])}</span>
           </div>
         ))}
       </div>

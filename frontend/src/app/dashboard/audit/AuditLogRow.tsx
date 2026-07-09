@@ -56,7 +56,7 @@ export function AuditLogRow({
 
   return (
     <Fragment>
-      <tr className="group transition-colors hover:bg-slate-50">
+      <tr className="group transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/70">
         <td className="px-6 py-4">
           <AuditActorCell actor={log.actor} />
         </td>
@@ -80,13 +80,13 @@ export function AuditLogRow({
           />
         </td>
         <td className="whitespace-nowrap px-6 py-4">
-          <span className="text-sm font-medium text-slate-700">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
             {formatDateTime(log.created_at, timezone)}
           </span>
         </td>
       </tr>
       {isExpanded ? (
-        <tr className="bg-slate-50/80">
+        <tr className="bg-slate-50/80 dark:bg-slate-950/70">
           <td colSpan={6} className="px-6 py-5">
             <AuditLogDetailPanel
               logId={log.id}
