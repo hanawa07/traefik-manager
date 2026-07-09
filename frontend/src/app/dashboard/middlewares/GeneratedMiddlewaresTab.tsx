@@ -169,13 +169,13 @@ function StatusFilterButton({
       className={
         "rounded-full border px-3 py-1.5 text-xs font-semibold transition " +
         (active
-          ? "border-blue-200 bg-blue-600 text-white shadow-sm"
-          : "border-gray-200 bg-white text-gray-600 hover:border-blue-200 hover:text-blue-700")
+          ? "border-blue-200 bg-blue-600 text-white shadow-sm dark:border-blue-500 dark:bg-blue-500"
+          : "border-gray-200 bg-white text-gray-600 hover:border-blue-200 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-300")
       }
       type="button"
       onClick={onClick}
     >
-      {label} <span className={active ? "text-blue-100" : "text-gray-400"}>{count}</span>
+      {label} <span className={active ? "text-blue-100" : "text-gray-400 dark:text-slate-500"}>{count}</span>
     </button>
   );
 }
