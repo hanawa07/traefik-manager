@@ -18,8 +18,8 @@ export default function MiddlewareTemplateCreateModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="미들웨어 템플릿 추가">
       {createTemplate.error ? (
-        <div className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3">
-          <p className="text-sm text-red-600">
+        <div className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-500/50 dark:bg-red-950/30">
+          <p className="text-sm text-red-600 dark:text-red-300">
             {extractErrorMessage(createTemplate.error, "템플릿 추가 중 오류가 발생했습니다")}
           </p>
         </div>

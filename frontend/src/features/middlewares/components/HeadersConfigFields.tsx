@@ -21,7 +21,7 @@ export function HeadersConfigFields({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-700">customResponseHeaders</p>
+        <p className="text-sm font-medium text-gray-700 dark:text-slate-300">customResponseHeaders</p>
         <button
           type="button"
           className="btn-secondary inline-flex items-center gap-1.5 py-1.5 text-sm"
@@ -38,7 +38,7 @@ export function HeadersConfigFields({
             <input className="input" placeholder="헤더 값" {...register(`custom_headers.${index}.value`)} />
             <button
               type="button"
-              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-slate-500 dark:hover:bg-red-950/30 dark:hover:text-red-300"
               onClick={() => remove(index)}
               disabled={fields.length === 1}
               title="헤더 삭제"

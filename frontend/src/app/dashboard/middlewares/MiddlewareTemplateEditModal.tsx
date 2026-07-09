@@ -27,16 +27,16 @@ export default function MiddlewareTemplateEditModal({
     >
       {editTarget ? (
         <>
-          <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
-            <p className="text-sm font-medium text-blue-700">수정 즉시 반영</p>
-            <p className="mt-1 text-xs text-blue-600">
+          <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 dark:border-blue-500/50 dark:bg-blue-950/30">
+            <p className="text-sm font-medium text-blue-700 dark:text-blue-200">수정 즉시 반영</p>
+            <p className="mt-1 text-xs text-blue-600 dark:text-blue-300">
               이 템플릿을 사용하는 서비스가 있으면 저장과 동시에 해당 서비스 설정이 다시 생성됩니다.
             </p>
           </div>
 
           {updateTemplate.error ? (
-            <div className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3">
-              <p className="text-sm text-red-600">
+            <div className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-500/50 dark:bg-red-950/30">
+              <p className="text-sm text-red-600 dark:text-red-300">
                 {extractErrorMessage(updateTemplate.error, "템플릿 수정 중 오류가 발생했습니다")}
               </p>
             </div>

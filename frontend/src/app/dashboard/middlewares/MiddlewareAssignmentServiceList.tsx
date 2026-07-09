@@ -16,7 +16,7 @@ export function MiddlewareAssignmentServiceList({
   onToggleService,
 }: MiddlewareAssignmentServiceListProps) {
   return (
-    <div className="max-h-[420px] space-y-2 overflow-y-auto rounded-xl border border-gray-200 p-2">
+    <div className="max-h-[420px] space-y-2 overflow-y-auto rounded-xl border border-gray-200 p-2 dark:border-slate-700">
       {filteredServices.map((service) => {
         const checked = selectedServiceIds.includes(service.id);
         return (
@@ -25,8 +25,8 @@ export function MiddlewareAssignmentServiceList({
             className={clsx(
               "flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 transition-colors",
               checked
-                ? "border-blue-200 bg-blue-50"
-                : "border-transparent bg-white hover:border-gray-200 hover:bg-gray-50",
+                ? "border-blue-200 bg-blue-50 dark:border-blue-500/50 dark:bg-blue-950/30"
+                : "border-transparent bg-white hover:border-gray-200 hover:bg-gray-50 dark:bg-slate-900 dark:hover:border-slate-700 dark:hover:bg-slate-800",
             )}
           >
             <div className="flex items-center gap-3">
@@ -37,8 +37,8 @@ export function MiddlewareAssignmentServiceList({
                 onChange={() => onToggleService(service.id)}
               />
               <div>
-                <p className="text-sm font-medium text-gray-900">{service.name}</p>
-                <p className="text-xs text-gray-500">{service.domain}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{service.name}</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">{service.domain}</p>
               </div>
             </div>
             {checked ? <Checkmark /> : null}
@@ -47,7 +47,7 @@ export function MiddlewareAssignmentServiceList({
       })}
 
       {filteredServices.length === 0 ? (
-        <div className="px-4 py-8 text-center text-sm text-gray-500">
+        <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400">
           검색 조건에 맞는 서비스가 없습니다.
         </div>
       ) : null}
