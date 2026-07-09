@@ -16,19 +16,19 @@ export function CertificateStatusCell({ certificate }: CertificateStatusCellProp
       <div className="flex items-center gap-2">
         <StatusBadge status={certificate.status} />
         {certificate.alerts_suppressed ? (
-          <span className={`${STATUS_BADGE_BASE_CLASS} bg-amber-50 text-amber-700`}>
+          <span className={`${STATUS_BADGE_BASE_CLASS} bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200`}>
             <History className="h-3 w-3" />
             억제 중
           </span>
         ) : null}
         {certificate.preflight_repeated_failure_active ? (
-          <span className={`${STATUS_BADGE_BASE_CLASS} bg-rose-50 text-rose-700`}>
+          <span className={`${STATUS_BADGE_BASE_CLASS} bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200`}>
             <AlertTriangle className="h-3 w-3" />
             반복 실패 x{certificate.preflight_failure_streak}
           </span>
         ) : null}
       </div>
-      <p className="text-xs text-gray-500">{certificate.status_message}</p>
+      <p className="text-xs text-gray-500 dark:text-slate-400">{certificate.status_message}</p>
     </div>
   );
 }

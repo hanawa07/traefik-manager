@@ -3,11 +3,11 @@ import { clsx } from "clsx";
 type Status = "active" | "inactive" | "warning" | "error" | "pending";
 
 const variants: Record<Status, string> = {
-  active: "bg-green-100 text-green-700",
-  inactive: "bg-gray-100 text-gray-500",
-  warning: "bg-yellow-100 text-yellow-700",
-  error: "bg-red-100 text-red-700",
-  pending: "bg-blue-100 text-blue-700",
+  active: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-200",
+  inactive: "bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-300",
+  warning: "bg-yellow-100 text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-200",
+  error: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200",
+  pending: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200",
 };
 
 const labels: Record<Status, string> = {

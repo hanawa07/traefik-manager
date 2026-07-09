@@ -12,6 +12,7 @@ const DETAIL_BUTTON_CLASS = [
   "inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2",
   "text-xs font-medium text-gray-700 transition-colors",
   "hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700",
+  "dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:bg-blue-950/30 dark:hover:text-blue-300",
 ].join(" ");
 
 interface CertificateListRowProps {
@@ -27,7 +28,7 @@ export default function CertificateListRow({
 }: CertificateListRowProps) {
   return (
     <tr
-      className="cursor-pointer transition-colors hover:bg-gray-50"
+      className="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-slate-900/70"
       onClick={() => onOpenCertificate(certificate.domain)}
     >
       <td className="px-6 py-4">
@@ -36,11 +37,11 @@ export default function CertificateListRow({
       <td className="px-6 py-4">
         <CertificateStatusCell certificate={certificate} />
       </td>
-      <td className="px-6 py-3 text-sm text-gray-500">
+      <td className="px-6 py-3 text-sm text-gray-500 dark:text-slate-400">
         {certificate.expires_at ? formatDateTime(certificate.expires_at, timezone) : "-"}
       </td>
-      <td className="px-6 py-3 text-sm text-gray-500">{getRemainingLabel(certificate)}</td>
-      <td className="px-6 py-3 text-sm text-gray-500">{getResolverLabel(certificate)}</td>
+      <td className="px-6 py-3 text-sm text-gray-500 dark:text-slate-400">{getRemainingLabel(certificate)}</td>
+      <td className="px-6 py-3 text-sm text-gray-500 dark:text-slate-400">{getResolverLabel(certificate)}</td>
       <td className="px-6 py-3">
         <CertificateFailureCell certificate={certificate} timezone={timezone} />
       </td>

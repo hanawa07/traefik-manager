@@ -17,12 +17,12 @@ export function CertificateFailureCell({ certificate, timezone }: CertificateFai
         {failureSummary.label}
       </p>
       {certificate.last_acme_error_at ? (
-        <p className="mt-1 text-[11px] text-gray-400">
+        <p className="mt-1 text-[11px] text-gray-400 dark:text-slate-500">
           {formatDateTime(certificate.last_acme_error_at, timezone)}
         </p>
       ) : null}
       {certificate.preflight_repeated_failure_active ? (
-        <p className="mt-1 text-[11px] text-rose-600">
+        <p className="mt-1 text-[11px] text-rose-600 dark:text-rose-300">
           같은 실패가 {certificate.preflight_failure_streak}회 연속 반복되었습니다
         </p>
       ) : null}

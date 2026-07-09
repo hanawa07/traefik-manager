@@ -17,7 +17,7 @@ export default function CertificateListTable({
     <div className="overflow-x-auto">
       <table className="w-full min-w-[860px]">
         <thead>
-          <tr className="border-b border-gray-100 text-xs text-gray-400">
+          <tr className="border-b border-gray-100 text-xs text-gray-400 dark:border-slate-800 dark:text-slate-500">
             <th className="px-6 py-3 text-left font-medium">도메인</th>
             <th className="px-6 py-3 text-left font-medium">상태</th>
             <th className="px-6 py-3 text-left font-medium">만료일</th>
@@ -27,7 +27,7 @@ export default function CertificateListTable({
             <th className="px-6 py-3 text-right font-medium">상세</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
           {certificates.map((certificate) => (
             <CertificateListRow
               key={certificate.domain}
