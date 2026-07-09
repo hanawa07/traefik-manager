@@ -26,6 +26,24 @@
   }
   .input {
     @apply w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary;
+    color-scheme: light;
+  }
+  .dark .input {
+    color-scheme: dark;
+  }
+  .input::file-selector-button {
+    margin: -0.25rem 0.75rem -0.25rem -0.5rem;
+    border: 0;
+    border-radius: 0.75rem;
+    background: #f1f5f9;
+    color: #334155;
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.5rem 0.75rem;
+  }
+  .dark .input::file-selector-button {
+    background: #1e293b;
+    color: #e2e8f0;
   }
   .label {
     @apply mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300;
@@ -84,6 +102,12 @@
   .dark [class*="bg-blue-50/"],
   .dark [class*="bg-blue-100/"] {
     background-color: rgb(23 37 84 / 0.4);
+  }
+
+  .dark :is(.bg-sky-50, .bg-sky-100),
+  .dark [class*="bg-sky-50/"],
+  .dark [class*="bg-sky-100/"] {
+    background-color: rgb(8 47 73 / 0.42);
   }
 
   .dark :is(.bg-green-50, .bg-green-100),
@@ -146,7 +170,7 @@
     background-color: rgb(67 20 7 / 0.42);
   }
 
-  .dark :is(.text-blue-600, .text-blue-700, .text-blue-800) {
+  .dark :is(.text-blue-600, .text-blue-700, .text-blue-800, .text-sky-600, .text-sky-700, .text-sky-800, .text-sky-900) {
     color: #93c5fd;
   }
 
@@ -193,6 +217,9 @@
   .dark :is(
     .border-blue-100,
     .border-blue-200,
+    .border-sky-100,
+    .border-sky-200,
+    .border-sky-500,
     .border-green-100,
     .border-green-200,
     .border-red-100,
