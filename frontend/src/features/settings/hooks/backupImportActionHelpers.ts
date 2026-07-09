@@ -9,6 +9,8 @@ type BackupPayloadReadResult =
   | { ok: true; data: BackupPayload }
   | { ok: false; errorMessage: string };
 
+const BACKUP_SUMMARY_SEPARATOR = " · ";
+
 export async function readBackupPayloadFile(file: File): Promise<BackupPayloadReadResult> {
   try {
     return { ok: true, data: JSON.parse(await file.text()) as BackupPayload };
@@ -39,7 +41,7 @@ export function formatBackupImportResult({
     `리다이렉트 생성 ${created_redirects}개`,
     `리다이렉트 수정 ${updated_redirects}개`,
     `리다이렉트 삭제 ${deleted_redirects}개`,
-  ].join(", ");
+  ].join(BACKUP_SUMMARY_SEPARATOR);
 }
 
 export function formatBackupPreviewResult(result: BackupPreviewResult) {
@@ -47,7 +49,7 @@ export function formatBackupPreviewResult(result: BackupPreviewResult) {
     formatBackupPreviewGroup("서비스", result.services),
     formatBackupPreviewGroup("리다이렉트", result.redirect_hosts),
     formatBackupWarningCount(result.warning_count),
-  ].join(" · ");
+  ].join(BACKUP_SUMMARY_SEPARATOR);
 }
 
 export function formatBackupValidationResult(result: BackupValidateResult) {
@@ -55,7 +57,7 @@ export function formatBackupValidationResult(result: BackupValidateResult) {
     `서비스 ${result.service_count}개`,
     `리다이렉트 ${result.redirect_count}개`,
     formatBackupWarningCount(result.warning_count),
-  ].join(" · ");
+  ].join(BACKUP_SUMMARY_SEPARATOR);
 }
 
 function formatBackupPreviewGroup(label: string, group: BackupPreviewGroup) {
