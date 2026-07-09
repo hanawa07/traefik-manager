@@ -21,7 +21,7 @@ export function BackupImportSourceSection({
       />
 
       <div className="space-y-2">
-        <label className="flex items-center gap-2 text-sm text-gray-600">
+        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
           <input
             type="radio"
             className="accent-blue-600"
@@ -30,7 +30,7 @@ export function BackupImportSourceSection({
           />
           병합 (기존 데이터 유지)
         </label>
-        <label className="flex items-center gap-2 text-sm text-gray-600">
+        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
           <input
             type="radio"
             className="accent-blue-600"

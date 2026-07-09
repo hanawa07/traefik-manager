@@ -22,7 +22,7 @@ export function BackupExportSection({
         <Download className="h-4 w-4" />
         {isExporting ? "내보내는 중..." : "설정 JSON 내보내기"}
       </button>
-      {errorMessage ? <p className="text-xs text-red-600">{errorMessage}</p> : null}
+      {errorMessage ? <p className="text-xs text-red-600 dark:text-red-300">{errorMessage}</p> : null}
     </div>
   );
 }

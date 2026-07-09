@@ -25,9 +25,9 @@ export function CloudflareDriftSummaryCards({ result }: CloudflareDriftSummaryCa
 
 function CloudflareDriftSummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-white/60 bg-white/70 p-2">
-      <p className="text-gray-500">{label}</p>
-      <p className="mt-1 font-medium text-gray-900">{value}</p>
+    <div className="rounded-md border border-white/60 bg-white/70 p-2 dark:border-slate-700 dark:bg-slate-900/80">
+      <p className="text-gray-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 font-medium text-gray-900 dark:text-slate-100">{value}</p>
     </div>
   );
 }

@@ -44,8 +44,8 @@ export function BackupImportSection({
   onValidate,
 }: BackupImportSectionProps) {
   return (
-    <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-      <p className="text-sm font-medium text-gray-700">JSON 복원</p>
+    <div className="border border-gray-200 rounded-lg p-4 space-y-3 dark:border-slate-700 dark:bg-slate-950/40">
+      <p className="text-sm font-medium text-gray-700 dark:text-slate-200">JSON 복원</p>
       <BackupImportSourceSection
         importMode={importMode}
         onBackupFileChange={onBackupFileChange}

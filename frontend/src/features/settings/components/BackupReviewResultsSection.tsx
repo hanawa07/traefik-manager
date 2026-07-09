@@ -26,7 +26,7 @@ function BackupValidationNotice({ result }: { result: BackupValidateResult | nul
   if (!result) return null;
 
   return (
-    <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+    <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
       <p className="font-medium">검증 완료: {formatBackupValidationResult(result)}</p>
       {result.warnings.length ? (
         <ul className="mt-2 space-y-1 text-xs">

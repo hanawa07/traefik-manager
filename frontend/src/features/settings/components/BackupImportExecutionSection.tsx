@@ -29,10 +29,10 @@ export function BackupImportExecutionSection({
         {isImporting ? "복원 중..." : "설정 JSON 가져오기"}
       </button>
       {!canManage ? (
-        <p className="text-xs text-gray-500">viewer 계정은 백업 복원을 실행할 수 없습니다.</p>
+        <p className="text-xs text-gray-500 dark:text-slate-400">viewer 계정은 백업 복원을 실행할 수 없습니다.</p>
       ) : null}
-      {errorMessage ? <p className="text-xs text-red-600">{errorMessage}</p> : null}
-      {resultMessage ? <p className="text-xs text-green-700">{resultMessage}</p> : null}
+      {errorMessage ? <p className="text-xs text-red-600 dark:text-red-300">{errorMessage}</p> : null}
+      {resultMessage ? <p className="text-xs text-green-700 dark:text-emerald-300">{resultMessage}</p> : null}
     </div>
   );
 }

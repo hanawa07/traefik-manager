@@ -59,7 +59,7 @@ export function CloudflareDnsSummary({
           onReconcile={onReconcile}
         />
       ) : null}
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-gray-500 dark:text-slate-400">
         테스트, 드리프트 진단, 재동기화는 현재 저장된 Cloudflare zone 목록 기준으로 수행됩니다.
       </p>
       <CloudflareDnsActionHistory

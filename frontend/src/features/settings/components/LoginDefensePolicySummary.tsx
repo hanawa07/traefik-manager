@@ -8,7 +8,7 @@ export function LoginDefensePolicySummary({
   settings?: LoginDefenseSettingsStatus;
 }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
       <p>
         계정 잠금 정책: {formatDurationMinutes(settings?.failure_window_minutes)} 동안 {settings?.max_failed_attempts}회
         실패 시 {formatDurationMinutes(settings?.lockout_minutes)} 잠금

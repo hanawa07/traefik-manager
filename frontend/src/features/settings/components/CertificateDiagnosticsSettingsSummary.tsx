@@ -27,7 +27,7 @@ export function CertificateDiagnosticsSettingsSummary({
         label="반복 실패 알림 쿨다운"
         value={formatDurationMinutes(settings?.repeat_alert_cooldown_minutes ?? 240)}
       />
-      <p className="text-xs text-gray-500 pt-1">
+      <p className="text-xs text-gray-500 pt-1 dark:text-slate-400">
         인증서 발급 사전 진단 자동 재검사와 반복 실패 감지 기준을 공통으로 제어합니다.
       </p>
     </SettingsSummary>

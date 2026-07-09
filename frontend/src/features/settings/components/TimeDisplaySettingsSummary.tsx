@@ -18,7 +18,7 @@ export function TimeDisplaySettingsSummary({
         value={`${settings?.server_timezone_label} (${settings?.server_timezone_offset})`}
         mono
       />
-      <p className="pt-1 text-xs text-gray-500">
+      <p className="pt-1 text-xs text-gray-500 dark:text-slate-400">
         저장 데이터와 토큰 시각은 항상 UTC로 유지됩니다. 서버 시간대는 현재 컨테이너의 로컬 시간대로,
         `docker compose`의 `TZ` 설정에 따라 달라질 수 있습니다.
       </p>

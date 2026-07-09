@@ -21,7 +21,7 @@ export function SettingsCardHeader({
       <div className="mb-2 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           {icon}
-          <h2 className="font-semibold text-gray-900">{title}</h2>
+          <h2 className="font-semibold text-gray-900 dark:text-slate-100">{title}</h2>
         </div>
         {action ? (
           action
@@ -31,7 +31,7 @@ export function SettingsCardHeader({
           </button>
         ) : null}
       </div>
-      <p className="mb-4 text-xs text-gray-400">{description}</p>
+      <p className="mb-4 text-xs text-gray-400 dark:text-slate-500">{description}</p>
     </>
   );
 }
@@ -51,8 +51,8 @@ export function SettingsSummaryRow({
 }) {
   return (
     <div className="flex justify-between gap-4">
-      <span className="text-gray-500">{label}</span>
-      <span className={`${mono ? "font-mono " : ""}text-right text-gray-700`}>{value}</span>
+      <span className="text-gray-500 dark:text-slate-400">{label}</span>
+      <span className={`${mono ? "font-mono " : ""}text-right text-gray-700 dark:text-slate-200`}>{value}</span>
     </div>
   );
 }

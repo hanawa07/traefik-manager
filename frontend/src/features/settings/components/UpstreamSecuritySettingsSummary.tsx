@@ -24,13 +24,13 @@ export function UpstreamSecuritySettingsSummary({ settings }: UpstreamSecuritySe
         value={settings?.allow_private_networks ? "허용" : "차단"}
       />
       {settings?.allowed_domain_suffixes?.length ? (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-          <p className="mb-2 text-xs font-medium text-gray-600">허용 suffix 목록</p>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-950">
+          <p className="mb-2 text-xs font-medium text-gray-600 dark:text-slate-300">허용 suffix 목록</p>
           <div className="flex flex-wrap gap-2">
             {settings.allowed_domain_suffixes.map((suffix) => (
               <span
                 key={suffix}
-                className="rounded-full border border-gray-200 bg-white px-2.5 py-1 font-mono text-[11px] text-gray-700"
+                className="rounded-full border border-gray-200 bg-white px-2.5 py-1 font-mono text-[11px] text-gray-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
               >
                 {suffix}
               </span>
@@ -38,8 +38,8 @@ export function UpstreamSecuritySettingsSummary({ settings }: UpstreamSecuritySe
           </div>
         </div>
       ) : null}
-      <p className="text-xs text-gray-500">{settings?.preset_description}</p>
-      <p className="text-xs text-gray-500 pt-1">
+      <p className="text-xs text-gray-500 dark:text-slate-400">{settings?.preset_description}</p>
+      <p className="text-xs text-gray-500 pt-1 dark:text-slate-400">
         allowlist는 저장 시점에 외부 FQDN, Docker 서비스명, IP 리터럴을 정책대로 제한합니다. strict mode는 도메인
         업스트림을 DNS 재해석해서 금지 주소 여부를 추가로 검사합니다.
       </p>

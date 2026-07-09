@@ -28,8 +28,8 @@ export function TraefikDashboardSettingsSummary({
         label="라우트 준비 상태"
         value={settings?.configured ? "완료" : "불완전"}
       />
-      <p className="text-xs text-gray-500">{settings?.message}</p>
-      <p className="text-xs text-gray-500 pt-1">
+      <p className="text-xs text-gray-500 dark:text-slate-400">{settings?.message}</p>
+      <p className="text-xs text-gray-500 pt-1 dark:text-slate-400">
         이 설정은 Traefik Manager가 dynamic route 파일을 생성/삭제해서 public 노출만
         제어합니다.
       </p>
@@ -45,7 +45,7 @@ function getPublicUrlValue(settings?: TraefikDashboardSettingsStatus) {
       href={settings.public_url}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-blue-600 hover:text-blue-700 hover:underline"
+      className="text-blue-600 hover:text-blue-700 hover:underline dark:text-blue-300 dark:hover:text-blue-200"
     >
       {settings.public_url}
     </a>
