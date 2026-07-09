@@ -21,17 +21,20 @@ export default function CertificateChecklistGuide() {
   return (
     <div className="card mb-6 p-5">
       <div className="mb-4">
-        <h2 className="text-base font-semibold text-gray-900">발급 체크리스트 기준</h2>
-        <p className="mt-1 text-xs text-gray-500">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">발급 체크리스트 기준</h2>
+        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
           각 인증서 행은 같은 4단계 체크리스트로 읽습니다. 초록은 정상, 파랑은 대기,
           빨강은 바로 확인해야 할 항목입니다.
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-3 text-sm text-gray-600 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 text-sm text-gray-600 dark:text-slate-300 md:grid-cols-2 xl:grid-cols-4">
         {CHECKLIST_ITEMS.map((item) => (
-          <div key={item.title} className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-            <p className="font-medium text-gray-900">{item.title}</p>
-            <p className="mt-1 text-xs leading-5 text-gray-500">{item.detail}</p>
+          <div
+            key={item.title}
+            className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+          >
+            <p className="font-medium text-gray-900 dark:text-slate-100">{item.title}</p>
+            <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-slate-400">{item.detail}</p>
           </div>
         ))}
       </div>
