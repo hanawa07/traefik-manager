@@ -23,7 +23,7 @@ export function ServiceOverviewStats({
     return (
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         {[...Array(5)].map((_, index) => (
-          <div key={index} className="card p-5 animate-pulse h-20" />
+          <div key={index} className="card h-20 animate-pulse p-5 dark:bg-slate-900" />
         ))}
       </div>
     );

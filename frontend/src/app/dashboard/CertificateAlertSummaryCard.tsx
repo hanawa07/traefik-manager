@@ -28,13 +28,13 @@ export function CertificateAlertSummaryCard({
     <div className="card mb-6 p-5">
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold text-gray-900">운영 경고 요약</h2>
-          <p className="mt-1 text-xs text-gray-500">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">운영 경고 요약</h2>
+          <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
             현재 인증서 상태와 최근 {formatDurationMinutes(summary?.window_minutes ?? 43200)} 기준 전환 이력을 분리해서 표시합니다.
           </p>
-          <p className="mt-1 text-xs text-gray-500">{historyText}</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{historyText}</p>
         </div>
-        <Link href="/dashboard/certificates" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+        <Link href="/dashboard/certificates" className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200">
           인증서 보기
         </Link>
       </div>
@@ -46,31 +46,31 @@ export function CertificateAlertSummaryCard({
         <DashboardStatCard icon={Activity} label="최근 전환 이력" value={summary?.recent_events.length ?? 0} color="bg-indigo-500" />
       </div>
 
-      <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+      <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-950">
         <div className="mb-2 flex items-center justify-between gap-4">
-          <h3 className="text-sm font-semibold text-gray-900">최근 인증서 전환 이력</h3>
-          <span className="text-xs text-gray-500">만료 임박/만료/복구 전환 표시</span>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">최근 인증서 전환 이력</h3>
+          <span className="text-xs text-gray-500 dark:text-slate-400">만료 임박/만료/복구 전환 표시</span>
         </div>
         {!summary?.recent_events?.length ? (
-          <p className="text-sm text-gray-500">최근 인증서 상태 전환 이력이 없습니다.</p>
+          <p className="text-sm text-gray-500 dark:text-slate-400">최근 인증서 상태 전환 이력이 없습니다.</p>
         ) : (
           <div className="space-y-2">
             {summary.recent_events.map((event) => (
               <div
                 key={event.id}
-                className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 md:flex-row md:items-center md:justify-between"
+                className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 md:flex-row md:items-center md:justify-between dark:border-slate-700 dark:bg-slate-900"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
                     {getCertificateEventLabel(event.event)}
-                    <span className="ml-2 font-normal text-gray-600">{event.resource_name}</span>
+                    <span className="ml-2 font-normal text-gray-600 dark:text-slate-300">{event.resource_name}</span>
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
                     {getCertificateRemainingText(event.days_remaining)}
                     {event.expires_at ? ` · 만료 ${formatDateTime(event.expires_at, timezone)}` : ""}
                   </p>
                 </div>
-                <span className="shrink-0 text-xs text-gray-500">{formatDateTime(event.created_at, timezone)}</span>
+                <span className="shrink-0 text-xs text-gray-500 dark:text-slate-400">{formatDateTime(event.created_at, timezone)}</span>
               </div>
             ))}
           </div>

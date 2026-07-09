@@ -26,7 +26,7 @@ export function DeploymentLinkBar({
     <div className="mt-3 flex flex-wrap gap-2">
       {links.map((link) => (
         <a
-          className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-blue-200 hover:text-blue-700"
+          className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-blue-200 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-300"
           href={link.href}
           key={link.label}
           rel="noreferrer"
@@ -55,11 +55,11 @@ export function DeploymentFact({
   value: string;
   monospace?: boolean;
 }) {
-  const valueClassName = `mt-1 truncate text-sm font-semibold text-gray-900 ${monospace ? "font-mono" : ""}`;
+  const valueClassName = `mt-1 truncate text-sm font-semibold text-gray-900 dark:text-slate-100 ${monospace ? "font-mono" : ""}`;
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-      <p className="text-xs text-gray-500">{label}</p>
+    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
+      <p className="text-xs text-gray-500 dark:text-slate-400">{label}</p>
       {href ? (
         <a
           className={`${valueClassName} inline-flex max-w-full items-center gap-1 text-blue-700 hover:text-blue-800`}
@@ -74,7 +74,7 @@ export function DeploymentFact({
         <p className={valueClassName}>{value}</p>
       )}
       {description ? (
-        <p className={`mt-1 truncate text-[11px] text-gray-500 ${descriptionMonospace ? "font-mono" : ""}`}>
+        <p className={`mt-1 truncate text-[11px] text-gray-500 dark:text-slate-400 ${descriptionMonospace ? "font-mono" : ""}`}>
           {description}
         </p>
       ) : null}
@@ -105,12 +105,16 @@ export function DeploymentComponentRow({
   });
 
   return (
-    <div className={`rounded-xl border bg-white px-4 py-3 ${hasMismatch ? "border-amber-300" : "border-gray-200"}`}>
+    <div
+      className={`rounded-xl border bg-white px-4 py-3 dark:bg-slate-950 ${
+        hasMismatch ? "border-amber-300 dark:border-amber-500/40" : "border-gray-200 dark:border-slate-700"
+      }`}
+    >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-gray-900">{getComponentLabel(component.name)}</p>
+        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{getComponentLabel(component.name)}</p>
         <div className="flex shrink-0 items-center gap-1.5">
           {hasMismatch ? (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-100">
               불일치
             </span>
           ) : null}
@@ -119,10 +123,10 @@ export function DeploymentComponentRow({
           </span>
         </div>
       </div>
-      <p className="mt-2 truncate text-xs text-gray-500">{component.container_name}</p>
-      <p className="mt-2 truncate text-xs font-medium text-gray-700">{versionDisplay.currentValue}</p>
+      <p className="mt-2 truncate text-xs text-gray-500 dark:text-slate-400">{component.container_name}</p>
+      <p className="mt-2 truncate text-xs font-medium text-gray-700 dark:text-slate-300">{versionDisplay.currentValue}</p>
       {versionDisplay.currentDetail ? (
-        <p className="mt-1 truncate font-mono text-[11px] text-gray-500">{versionDisplay.currentDetail}</p>
+        <p className="mt-1 truncate font-mono text-[11px] text-gray-500 dark:text-slate-400">{versionDisplay.currentDetail}</p>
       ) : null}
       <DeploymentRevisionLink href={componentLinks.commitUrl} revision={revision} />
     </div>
@@ -138,12 +142,12 @@ function DeploymentRevisionLink({ href, revision }: { href?: string; revision: s
   );
 
   if (!href) {
-    return <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">{children}</p>;
+    return <p className="mt-1 flex items-center gap-1 text-xs text-gray-500 dark:text-slate-400">{children}</p>;
   }
 
   return (
     <a
-      className="mt-1 flex items-center gap-1 text-xs text-gray-500 hover:text-blue-700"
+      className="mt-1 flex items-center gap-1 text-xs text-gray-500 hover:text-blue-700 dark:text-slate-400 dark:hover:text-blue-300"
       href={href}
       rel="noreferrer"
       target="_blank"
@@ -172,7 +176,7 @@ function getStatusLabel(status: string) {
 }
 
 function getStatusClassName(status: string) {
-  if (status === "ok") return "bg-emerald-100 text-emerald-700";
-  if (status === "local_env") return "bg-blue-100 text-blue-700";
-  return "bg-amber-100 text-amber-700";
+  if (status === "ok") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200";
+  if (status === "local_env") return "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200";
+  return "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-100";
 }
