@@ -65,7 +65,13 @@ export function AuditLogRow({
         </td>
         <td className="px-6 py-4">
           <AuditBadgeCell
-            config={action || { label: log.action, color: "border-slate-200 bg-slate-100 text-slate-700" }}
+            config={
+              action || {
+                label: log.action,
+                color:
+                  "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
+              }
+            }
           />
         </td>
         <td className="px-6 py-4">

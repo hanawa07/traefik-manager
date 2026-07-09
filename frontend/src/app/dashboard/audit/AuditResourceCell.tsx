@@ -14,7 +14,7 @@ export function AuditResourceCell({ resourceType }: { resourceType: string }) {
       <div className={clsx("rounded-lg p-1.5", resource?.color)}>
         <ResourceIcon className="h-3.5 w-3.5" />
       </div>
-      <span className="text-sm font-medium text-slate-900">
+      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
         {resource?.label || resourceType}
       </span>
     </div>

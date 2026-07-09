@@ -12,7 +12,7 @@ interface AuditBadgeCellProps {
 
 export function AuditBadgeCell({ config, fallbackLabel = "-" }: AuditBadgeCellProps) {
   if (!config) {
-    return <span className="text-xs text-slate-500">{fallbackLabel}</span>;
+    return <span className="text-xs text-slate-500 dark:text-slate-400">{fallbackLabel}</span>;
   }
 
   return (
