@@ -77,7 +77,7 @@ export function SecurityAlertEmailFields({
               updateForm({ email_recipients: parseMultivalueText(event.target.value) })
             }
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
             줄바꿈 또는 쉼표로 여러 수신자를 구분할 수 있습니다.
           </p>
         </div>

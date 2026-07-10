@@ -62,7 +62,7 @@ export function DeploymentFact({
       <p className="text-xs text-gray-500 dark:text-slate-400">{label}</p>
       {href ? (
         <a
-          className={`${valueClassName} inline-flex max-w-full items-center gap-1 text-blue-700 hover:text-blue-800`}
+          className={`${valueClassName} inline-flex max-w-full items-center gap-1 text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200`}
           href={href}
           rel="noreferrer"
           target="_blank"

@@ -19,7 +19,7 @@ export function RedirectActionsCell({
         <button
           type="button"
           aria-label={`${redirect.domain} 리다이렉트 수정`}
-          className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+          className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:text-slate-500 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
           onClick={() => onEdit(redirect)}
         >
           <Pencil className="h-4 w-4" />
@@ -27,7 +27,7 @@ export function RedirectActionsCell({
         <button
           type="button"
           aria-label={`${redirect.domain} 리다이렉트 삭제`}
-          className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+          className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-slate-500 dark:hover:bg-red-500/10 dark:hover:text-red-300"
           onClick={() => onDelete(redirect)}
         >
           <Trash2 className="h-4 w-4" />

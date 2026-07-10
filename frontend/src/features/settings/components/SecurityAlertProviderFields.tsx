@@ -28,8 +28,8 @@ export function SecurityAlertProviderPicker({
             key={option.value}
             className={`rounded-lg border p-3 text-sm cursor-pointer ${
               value === option.value
-                ? "border-sky-500 bg-sky-50 text-sky-900"
-                : "border-gray-200 bg-white text-gray-700"
+                ? "border-sky-500 bg-sky-50 text-sky-900 dark:border-sky-500 dark:bg-sky-500/10 dark:text-sky-100"
+                : "border-gray-200 bg-white text-gray-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
             }`}
           >
             <input
@@ -40,7 +40,7 @@ export function SecurityAlertProviderPicker({
               onChange={() => onChange(option.value)}
             />
             <span className="block font-medium">{option.label}</span>
-            <span className="mt-1 block text-xs text-gray-500">{option.description}</span>
+            <span className="mt-1 block text-xs text-gray-500 dark:text-slate-400">{option.description}</span>
           </label>
         ))}
       </div>

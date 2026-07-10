@@ -17,10 +17,10 @@ export function SecurityAlertRoutePolicySection<T extends string>({
   onChange: (key: T, route: SecurityAlertRouteTarget) => void;
 }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+    <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-950">
       <div>
-        <p className="text-sm font-medium text-gray-900">{title}</p>
-        <p className="mt-1 text-xs text-gray-500">{description}</p>
+        <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{title}</p>
+        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{description}</p>
       </div>
       <div className="grid gap-3">
         {events.map((eventOption) => (

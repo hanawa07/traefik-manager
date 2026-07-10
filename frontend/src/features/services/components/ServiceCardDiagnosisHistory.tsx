@@ -42,7 +42,7 @@ export default function ServiceCardDiagnosisHistory({
           >
             <div className="flex items-center justify-between gap-2">
               <span className={getStatusClassName(diagnosis.status)}>{getStatusLabel(diagnosis.status)}</span>
-              <span className="shrink-0 text-[11px] text-slate-400">
+              <span className="shrink-0 text-[11px] text-slate-400 dark:text-slate-500">
                 {formatDateTime(diagnosis.checked_at, displayTimeZone)}
               </span>
             </div>

@@ -14,7 +14,8 @@ export function TraefikDashboardSettingsFields({
       <label
         className={
           "flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 " +
-          "bg-gray-50 p-3 text-sm text-gray-700"
+          "bg-gray-50 p-3 text-sm text-gray-700 dark:border-slate-700 dark:bg-slate-950 " +
+          "dark:text-slate-300"
         }
       >
         <input
@@ -24,8 +25,8 @@ export function TraefikDashboardSettingsFields({
           onChange={(event) => onChange({ enabled: event.target.checked })}
         />
         <span>
-          <span className="block font-medium text-gray-900">공개 라우트 활성화</span>
-          <span className="mt-1 block text-xs text-gray-500">
+          <span className="block font-medium text-gray-900 dark:text-slate-100">공개 라우트 활성화</span>
+          <span className="mt-1 block text-xs text-gray-500 dark:text-slate-400">
             `api@internal`을 지정한 공개 도메인으로 연결합니다. 평소에는 끄고,
             디버깅할 때만 잠깐 켜는 용도입니다.
           </span>
@@ -87,7 +88,7 @@ function TraefikDashboardTextField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
-      {help ? <p className="mt-1 text-xs text-gray-500">{help}</p> : null}
+      {help ? <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{help}</p> : null}
     </div>
   );
 }

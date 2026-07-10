@@ -33,7 +33,7 @@ export function UpstreamSecurityAllowlistSection({
             })
           }
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
           줄바꿈 또는 쉼표로 구분합니다. `*.example.com` 입력도 허용됩니다.
         </p>
       </div>

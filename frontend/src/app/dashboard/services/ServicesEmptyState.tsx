@@ -14,15 +14,15 @@ export function ServicesEmptyState({
 }: ServicesEmptyStateProps) {
   return (
     <div className="card py-20 text-center">
-      <Server className="mx-auto mb-4 h-12 w-12 text-gray-300" />
-      <p className="font-medium text-gray-500">
+      <Server className="mx-auto mb-4 h-12 w-12 text-gray-300 dark:text-slate-600" />
+      <p className="font-medium text-gray-500 dark:text-slate-400">
         {search ? `"${search}" 검색 결과가 없습니다` : "등록된 서비스가 없습니다"}
       </p>
       {search ? (
         <button
           type="button"
           onClick={onClearSearch}
-          className="mt-2 text-sm text-blue-500 hover:underline"
+          className="mt-2 text-sm text-blue-500 hover:underline dark:text-blue-300"
         >
           검색 초기화
         </button>

@@ -14,7 +14,7 @@ export function RedirectStatusBadge({
   return (
     <span
       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-        enabled ? enabledClassName : "bg-gray-100 text-gray-600"
+        enabled ? enabledClassName : "bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-300"
       }`}
     >
       {enabled ? enabledLabel : disabledLabel}

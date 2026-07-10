@@ -60,7 +60,7 @@ export function LoginDefenseEscalationFields({
           />
         </div>
       </div>
-      <p className="text-xs text-gray-500 -mt-2">
+      <p className="-mt-2 text-xs text-gray-500 dark:text-slate-400">
         기본 차단 시간은 {formatDurationMinutes(settings?.suspicious_block_minutes ?? 30)}이며, 반복 차단 시
         배수만큼 늘어나되 최대 시간에서 멈춥니다.
       </p>

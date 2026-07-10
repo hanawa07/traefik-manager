@@ -57,7 +57,7 @@ export function CertificateDiagnosticsSettingsEditForm({
         />
       </div>
 
-      <div className="space-y-1 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500">
+      <div className="space-y-1 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
         <p>적용 범위: 수동 사전 진단, 백그라운드 자동 재검사, 반복 실패 streak 계산, 반복 실패 알림</p>
         <p>권장값: 주기 60분 / 기준 3회 / 추적 창 240분 / 쿨다운 240분</p>
       </div>

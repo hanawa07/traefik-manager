@@ -66,23 +66,23 @@ export default function RedirectForm({
         <label className="label">대상 URL</label>
         <input className="input" placeholder="예: https://new.example.com" {...register("target_url")} />
         {errors.target_url && <p className="text-xs text-red-500 mt-1">{errors.target_url.message}</p>}
-        <p className="text-xs text-gray-500 mt-1">도메인만 입력하면 기본 HTTPS URL로 변환됩니다</p>
+        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">도메인만 입력하면 기본 HTTPS URL로 변환됩니다</p>
       </div>
 
       <div className="space-y-3 pt-1">
         <label className="flex items-center gap-3 cursor-pointer">
           <input type="checkbox" className="w-4 h-4 rounded accent-blue-600" {...register("tls_enabled")} />
           <div>
-            <span className="text-sm font-medium text-gray-700">HTTPS 엔트리포인트 사용</span>
-            <p className="text-xs text-gray-500">활성화 시 HTTP 요청은 HTTPS로 먼저 전환됩니다</p>
+            <span className="text-sm font-medium text-gray-700 dark:text-slate-200">HTTPS 엔트리포인트 사용</span>
+            <p className="text-xs text-gray-500 dark:text-slate-400">활성화 시 HTTP 요청은 HTTPS로 먼저 전환됩니다</p>
           </div>
         </label>
 
         <label className="flex items-center gap-3 cursor-pointer">
           <input type="checkbox" className="w-4 h-4 rounded accent-blue-600" {...register("permanent")} />
           <div>
-            <span className="text-sm font-medium text-gray-700">영구 리다이렉트 (301)</span>
-            <p className="text-xs text-gray-500">비활성화 시 임시 리다이렉트(302)로 동작합니다</p>
+            <span className="text-sm font-medium text-gray-700 dark:text-slate-200">영구 리다이렉트 (301)</span>
+            <p className="text-xs text-gray-500 dark:text-slate-400">비활성화 시 임시 리다이렉트(302)로 동작합니다</p>
           </div>
         </label>
       </div>

@@ -22,7 +22,7 @@ export default function ServiceCardBadges({
   lastGatewayDiagnosis,
 }: ServiceCardBadgesProps) {
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4">
+    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4 dark:border-slate-800">
       <ServiceCardSecurityBadges service={service} />
       <ServiceCardCertificateBadge service={service} certificate={certificate} />
       <ServiceCardMiddlewareBadge service={service} />

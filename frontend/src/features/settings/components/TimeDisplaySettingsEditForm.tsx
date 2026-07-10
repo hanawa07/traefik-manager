@@ -43,7 +43,7 @@ export function TimeDisplaySettingsEditForm({
             <option key={timeZone} value={timeZone} />
           ))}
         </datalist>
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
           검색 가능한 전체 IANA 타임존 목록을 지원합니다. 예: `Asia/Seoul`, `UTC`, `Europe/Berlin`,
           `America/New_York`
         </p>

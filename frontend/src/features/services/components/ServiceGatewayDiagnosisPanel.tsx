@@ -34,10 +34,10 @@ export default function ServiceGatewayDiagnosisPanel({ canManage, service }: Ser
   };
 
   return (
-    <div className="mt-4 border-t border-gray-100 pt-3">
+    <div className="mt-4 border-t border-gray-100 pt-3 dark:border-slate-800">
       <button
         type="button"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-300"
         disabled={diagnosis.isPending}
         onClick={() => diagnosis.mutate(service.id)}
       >
@@ -46,7 +46,7 @@ export default function ServiceGatewayDiagnosisPanel({ canManage, service }: Ser
       </button>
 
       {diagnosis.isError ? (
-        <p className="mt-2 text-xs text-rose-700">진단 정보를 가져오지 못했습니다.</p>
+        <p className="mt-2 text-xs text-rose-700 dark:text-rose-200">진단 정보를 가져오지 못했습니다.</p>
       ) : null}
 
       {diagnosis.data ? (
@@ -66,19 +66,19 @@ export default function ServiceGatewayDiagnosisPanel({ canManage, service }: Ser
           {actionableChecks.length > 0 ? (
             <div className="mt-3 space-y-2">
               {actionableChecks.map((check) => (
-                <div className="rounded-lg border border-white/70 bg-white/70 px-3 py-2" key={`action-${check.key}`}>
-                  <p className="font-semibold text-slate-800">빠른 조치 · {check.label}</p>
-                  <p className="mt-0.5 text-[11px] text-slate-600">{getActionHint(check, targetNetwork)}</p>
+                <div className="rounded-lg border border-white/70 bg-white/70 px-3 py-2 dark:border-slate-700 dark:bg-slate-950/70" key={`action-${check.key}`}>
+                  <p className="font-semibold text-slate-800 dark:text-slate-100">빠른 조치 · {check.label}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-600 dark:text-slate-300">{getActionHint(check, targetNetwork)}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <Link
-                      className="rounded-lg border border-white/70 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-700"
+                      className="rounded-lg border border-white/70 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-blue-300"
                       href={`/dashboard/services/${service.id}`}
                     >
                       {getSettingsActionLabel(check.key)}
                     </Link>
                     {check.key === "docker_network" && networkCommand ? (
                       <button
-                        className="rounded-lg border border-white/70 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-700"
+                        className="rounded-lg border border-white/70 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-blue-300"
                         onClick={copyNetworkCommand}
                         type="button"
                       >
@@ -106,10 +106,10 @@ export default function ServiceGatewayDiagnosisPanel({ canManage, service }: Ser
             </div>
           ) : null}
           {connectNetwork.data ? (
-            <p className="mt-2 text-xs font-semibold text-emerald-700">{connectNetwork.data.message}</p>
+            <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-200">{connectNetwork.data.message}</p>
           ) : null}
           {connectNetwork.isError ? (
-            <p className="mt-2 text-xs font-semibold text-rose-700">Docker 네트워크 연결을 실행하지 못했습니다.</p>
+            <p className="mt-2 text-xs font-semibold text-rose-700 dark:text-rose-200">Docker 네트워크 연결을 실행하지 못했습니다.</p>
           ) : null}
         </div>
       ) : null}
@@ -119,12 +119,12 @@ export default function ServiceGatewayDiagnosisPanel({ canManage, service }: Ser
 
 function DiagnosisCheckRow({ check }: { check: ServiceGatewayDiagnosticCheck }) {
   return (
-    <div className="rounded-lg bg-white/70 px-3 py-2">
+    <div className="rounded-lg bg-white/70 px-3 py-2 dark:bg-slate-950/70">
       <div className="flex items-start gap-2">
         <StatusIcon status={check.status} compact />
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-slate-800">{check.label}</p>
-          <p className="mt-0.5 break-words text-slate-600">{check.message}</p>
+          <p className="font-medium text-slate-800 dark:text-slate-100">{check.label}</p>
+          <p className="mt-0.5 break-words text-slate-600 dark:text-slate-300">{check.message}</p>
         </div>
       </div>
     </div>
@@ -133,15 +133,15 @@ function DiagnosisCheckRow({ check }: { check: ServiceGatewayDiagnosticCheck }) 
 
 function StatusIcon({ compact = false, status }: { compact?: boolean; status: string }) {
   const className = compact ? "mt-0.5 h-3.5 w-3.5 shrink-0" : "mt-0.5 h-4 w-4 shrink-0";
-  if (status === "ok") return <CheckCircle2 className={`${className} text-emerald-600`} />;
-  if (status === "warning") return <AlertTriangle className={`${className} text-amber-600`} />;
-  return <XCircle className={`${className} text-rose-600`} />;
+  if (status === "ok") return <CheckCircle2 className={`${className} text-emerald-600 dark:text-emerald-300`} />;
+  if (status === "warning") return <AlertTriangle className={`${className} text-amber-600 dark:text-amber-300`} />;
+  return <XCircle className={`${className} text-rose-600 dark:text-rose-300`} />;
 }
 
 function getPanelClassName(status: string) {
-  if (status === "ok") return "border-emerald-200 bg-emerald-50 text-emerald-800";
-  if (status === "warning") return "border-amber-200 bg-amber-50 text-amber-800";
-  return "border-rose-200 bg-rose-50 text-rose-800";
+  if (status === "ok") return "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100";
+  if (status === "warning") return "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100";
+  return "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100";
 }
 
 function getActionHint(check: ServiceGatewayDiagnosticCheck, targetNetwork: string) {

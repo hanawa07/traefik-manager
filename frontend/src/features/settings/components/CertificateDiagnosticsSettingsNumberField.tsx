@@ -26,7 +26,7 @@ export function CertificateDiagnosticsSettingsNumberField({
         value={value}
         onChange={(event) => onChange(Number(event.target.value || min))}
       />
-      <p className="mt-1 text-xs text-gray-500">{help}</p>
+      <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{help}</p>
     </div>
   );
 }

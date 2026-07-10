@@ -48,7 +48,7 @@ export function LoginDefenseSettingsCard({
       />
 
       {isLoading ? (
-        <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+        <div className="h-24 animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />
       ) : isEditing ? (
         <LoginDefenseSettingsEditForm
           settings={settings}

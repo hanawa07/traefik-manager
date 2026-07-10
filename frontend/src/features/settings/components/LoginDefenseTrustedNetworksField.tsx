@@ -19,7 +19,7 @@ export function LoginDefenseTrustedNetworksField({
         value={formValue.suspicious_trusted_networks_text}
         onChange={(event) => updateForm({ suspicious_trusted_networks_text: event.target.value })}
       />
-      <p className="mt-1 text-xs text-gray-500">
+      <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
         줄바꿈 또는 쉼표로 구분합니다. 여기에 포함된 IP는 이상 징후 기록과 자동 차단에서 제외됩니다.
         사용자별 계정 잠금은 그대로 적용됩니다.
       </p>

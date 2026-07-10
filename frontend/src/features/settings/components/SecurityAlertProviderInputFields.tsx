@@ -25,7 +25,7 @@ export function TextField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
-      {help ? <p className="mt-1 text-xs text-gray-500">{help}</p> : null}
+      {help ? <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{help}</p> : null}
     </div>
   );
 }

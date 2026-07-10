@@ -8,7 +8,7 @@ export function SecurityAlertSettingsInfoNotice({
   settings,
 }: SecurityAlertSettingsInfoNoticeProps) {
   return (
-    <div className="space-y-1 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+    <div className="space-y-1 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
       <p>전송 이벤트: {(settings?.alert_events ?? []).join(", ")}</p>
       <p>전송 타임아웃: {settings?.timeout_seconds ?? 5}초</p>
       <p>이벤트별 override는 Telegram, PagerDuty, Email 또는 전송 안 함으로만 분기합니다.</p>

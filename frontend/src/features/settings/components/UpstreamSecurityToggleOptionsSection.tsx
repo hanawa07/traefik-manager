@@ -36,7 +36,7 @@ export function UpstreamSecurityToggleOptionsSection({
         onChange={(checked) => onFormChange({ ...formValue, allow_private_networks: checked })}
       />
 
-      <div className="space-y-1 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500">
+      <div className="space-y-1 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
         <p>기본값은 비활성화입니다.</p>
         <p>권장 사용처: 외부 FQDN을 업스트림으로 자주 등록하는 환경</p>
         <p>주의: allowlist를 켠 상태에서 suffix 목록이 비어 있으면 외부 FQDN은 모두 차단됩니다.</p>

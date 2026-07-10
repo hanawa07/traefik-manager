@@ -75,7 +75,7 @@ function TraefikVersionTile({ href, label, value }: { href?: string; label: stri
       <p className="text-xs text-gray-500 dark:text-slate-400">{label}</p>
       {href ? (
         <a
-          className="mt-1 inline-flex max-w-full items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-800"
+          className="mt-1 inline-flex max-w-full items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
           href={href}
           rel="noreferrer"
           target="_blank"

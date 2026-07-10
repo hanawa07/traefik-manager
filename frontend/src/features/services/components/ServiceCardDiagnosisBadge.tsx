@@ -15,10 +15,10 @@ export function ServiceCardDiagnosisBadge({ diagnosis }: ServiceCardDiagnosisBad
       className={clsx(
         "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
         diagnosis.status === "ok"
-          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200"
           : diagnosis.status === "warning"
-            ? "border-amber-200 bg-amber-50 text-amber-700"
-            : "border-rose-200 bg-rose-50 text-rose-700",
+            ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+            : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200",
       )}
       title={diagnosis.summary}
     >
@@ -30,9 +30,9 @@ export function ServiceCardDiagnosisBadge({ diagnosis }: ServiceCardDiagnosisBad
 
 function DiagnosisIcon({ status }: { status: string }) {
   const className = "h-3 w-3";
-  if (status === "ok") return <CheckCircle2 className={`${className} text-emerald-500`} />;
-  if (status === "warning") return <AlertTriangle className={`${className} text-amber-500`} />;
-  return <XCircle className={`${className} text-rose-500`} />;
+  if (status === "ok") return <CheckCircle2 className={`${className} text-emerald-500 dark:text-emerald-300`} />;
+  if (status === "warning") return <AlertTriangle className={`${className} text-amber-500 dark:text-amber-300`} />;
+  return <XCircle className={`${className} text-rose-500 dark:text-rose-300`} />;
 }
 
 function getStatusLabel(status: string) {

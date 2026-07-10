@@ -15,7 +15,7 @@ export function UpstreamSecurityCheckboxRow({
     <label
       className={
         "flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 " +
-        "text-sm text-gray-700"
+        "text-sm text-gray-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
       }
     >
       <input
@@ -25,8 +25,8 @@ export function UpstreamSecurityCheckboxRow({
         onChange={(event) => onChange(event.target.checked)}
       />
       <span>
-        <span className="block font-medium text-gray-900">{title}</span>
-        <span className="mt-1 block text-xs text-gray-500">{description}</span>
+        <span className="block font-medium text-gray-900 dark:text-slate-100">{title}</span>
+        <span className="mt-1 block text-xs text-gray-500 dark:text-slate-400">{description}</span>
       </span>
     </label>
   );

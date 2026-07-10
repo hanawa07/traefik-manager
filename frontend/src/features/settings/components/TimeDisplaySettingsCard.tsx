@@ -42,7 +42,7 @@ export function TimeDisplaySettingsCard({
       />
 
       {isLoading ? (
-        <div className="h-24 animate-pulse rounded-lg bg-gray-100" />
+        <div className="h-24 animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />
       ) : isEditing ? (
         <TimeDisplaySettingsEditForm
           errorMessage={errorMessage}

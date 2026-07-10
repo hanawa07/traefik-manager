@@ -64,7 +64,7 @@ export function SecurityAlertSettingsCardBody({
   onFormChange,
 }: SecurityAlertSettingsCardBodyProps) {
   if (isLoading) {
-    return <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />;
+    return <div className="h-24 animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />;
   }
 
   if (isEditing) {
