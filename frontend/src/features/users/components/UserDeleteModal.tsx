@@ -13,15 +13,15 @@ export function UserDeleteModal({ user, onClose }: UserDeleteModalProps) {
 
   return (
     <Modal isOpen={!!user} onClose={onClose} title="사용자 삭제">
-      <p className="mb-1 text-sm text-gray-600">다음 사용자를 삭제합니다:</p>
-      <p className="mb-4 font-semibold text-gray-900">{user?.username}</p>
-      <div className="flex justify-end gap-3">
-        <button type="button" className="btn-secondary" onClick={onClose}>
+      <p className="mb-1 text-sm text-gray-600 dark:text-slate-300">다음 사용자를 삭제합니다:</p>
+      <p className="mb-4 font-semibold text-gray-900 dark:text-slate-100">{user?.username}</p>
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <button type="button" className="btn-secondary justify-center" onClick={onClose}>
           취소
         </button>
         <button
           type="button"
-          className="btn-danger"
+          className="btn-danger justify-center"
           disabled={deleteUser.isPending}
           onClick={async () => {
             if (!user) return;

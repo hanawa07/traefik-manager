@@ -74,7 +74,7 @@ export default function MiddlewareForm({
       />
 
       <div className="flex justify-end gap-3 pt-2">
-        <button type="submit" className="btn-primary" disabled={loading}>
+        <button type="submit" className="btn-primary w-full justify-center sm:w-auto" disabled={loading}>
           {loading ? "처리 중..." : submitLabel}
         </button>
       </div>

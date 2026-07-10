@@ -24,11 +24,11 @@ export default function DeleteServiceModal({
           <p className="text-sm text-amber-700 dark:text-amber-200">Authentik Provider/Application도 함께 삭제됩니다</p>
         </div>
       ) : null}
-      <div className="flex justify-end gap-3">
-        <button type="button" className="btn-secondary" onClick={onClose}>
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <button type="button" className="btn-secondary justify-center" onClick={onClose}>
           취소
         </button>
-        <button type="button" className="btn-danger" onClick={onConfirm} disabled={isPending}>
+        <button type="button" className="btn-danger justify-center" onClick={onConfirm} disabled={isPending}>
           {isPending ? "삭제 중..." : "삭제"}
         </button>
       </div>

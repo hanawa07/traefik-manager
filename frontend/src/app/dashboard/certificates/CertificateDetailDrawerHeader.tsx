@@ -6,7 +6,7 @@ import StatusBadge from "@/shared/components/StatusBadge";
 const REPEATED_FAILURE_BADGE_CLASS =
   "inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 dark:bg-rose-500/15 dark:text-rose-200";
 const CLOSE_BUTTON_CLASS =
-  "rounded-lg border border-gray-200 p-2 text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-600 dark:border-slate-700 dark:text-slate-500 dark:hover:border-slate-500 dark:hover:text-slate-200";
+  "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-600 dark:border-slate-700 dark:text-slate-500 dark:hover:border-slate-500 dark:hover:text-slate-200";
 
 interface CertificateDetailDrawerHeaderProps {
   certificate: Certificate;
@@ -18,12 +18,12 @@ export default function CertificateDetailDrawerHeader({
   onClose,
 }: CertificateDetailDrawerHeaderProps) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5 dark:border-slate-800">
+    <div className="flex items-start justify-between gap-3 border-b border-gray-200 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5 dark:border-slate-800">
       <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 dark:text-slate-500">
           Certificate Detail
         </p>
-        <h2 className="mt-2 truncate text-xl font-semibold text-gray-900 dark:text-slate-100">
+        <h2 className="mt-2 break-all text-lg font-semibold text-gray-900 sm:text-xl dark:text-slate-100">
           {certificate.domain}
         </h2>
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -38,6 +38,7 @@ export default function CertificateDetailDrawerHeader({
         </div>
       </div>
       <button
+        aria-label="인증서 상세 닫기"
         type="button"
         onClick={onClose}
         className={CLOSE_BUTTON_CLASS}

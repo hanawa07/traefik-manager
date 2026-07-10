@@ -36,10 +36,10 @@ export default function ContainerImportModeTabs({
         onClick={() => onModeChange("traefik")}
       >
         <span className="flex items-center justify-between gap-2">
-          기존 Traefik 설정
+          Traefik 라벨
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">{traefikCount}</span>
         </span>
-        <span className="mt-0.5 block text-[11px] font-normal opacity-70">도메인/라우터 라벨까지 가져옴</span>
+        <span className="mt-0.5 block text-[11px] font-normal opacity-70">도메인/라우터까지 채움</span>
       </button>
     </div>
   );

@@ -14,7 +14,7 @@ export default function CertificatePageHeader({
   onRunCheck,
 }: CertificatePageHeaderProps) {
   return (
-    <div className="mb-8 flex flex-col items-stretch gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="mb-6 flex flex-col items-stretch gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">인증서</h1>
         <p className="text-gray-500 text-sm mt-1 dark:text-slate-400">Traefik API 기반 TLS 인증서 상태</p>

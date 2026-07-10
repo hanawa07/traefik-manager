@@ -30,7 +30,12 @@ export default function CertificateDetailDrawer({
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/35" onClick={onClose} />
-      <aside className="absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col bg-white shadow-2xl dark:bg-slate-950">
+      <aside
+        aria-label={`${certificate.domain} 인증서 상세`}
+        aria-modal="true"
+        role="dialog"
+        className="absolute inset-y-0 right-0 flex max-h-[100dvh] w-full max-w-2xl flex-col bg-white shadow-2xl dark:bg-slate-950"
+      >
         <CertificateDetailDrawerHeader certificate={certificate} onClose={onClose} />
         <CertificateDetailDrawerBody
           certificate={certificate}

@@ -49,7 +49,7 @@ export function ManagerDeploymentCard({
   const releaseTone = getReleaseTone(versionDisplay.state, componentConsistency.hasMismatch);
 
   return (
-    <div className="card mb-6 p-5">
+    <div className="card mb-4 p-4 sm:mb-6 sm:p-5">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -78,7 +78,7 @@ export function ManagerDeploymentCard({
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
         <DeploymentFact
           description={versionDisplay.currentDetail}
           descriptionMonospace

@@ -25,8 +25,8 @@ export function CertificateAlertSummaryCard({
     : "최근 이력 로딩 중";
 
   return (
-    <div className="card mb-6 p-5">
-      <div className="mb-4 flex items-center justify-between gap-4">
+    <div className="card mb-4 p-4 sm:mb-6 sm:p-5">
+      <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
           <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">운영 경고 요약</h2>
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
@@ -39,15 +39,15 @@ export function CertificateAlertSummaryCard({
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         <DashboardStatCard icon={Shield} label="전체 인증서" value={certificates.length} color="bg-slate-500" />
         <DashboardStatCard icon={AlertTriangle} label="현재 만료 임박" value={warningCount} color="bg-amber-500" />
         <DashboardStatCard icon={Shield} label="현재 만료" value={errorCount} color="bg-rose-500" />
         <DashboardStatCard icon={Activity} label="최근 전환 이력" value={summary?.recent_events.length ?? 0} color="bg-indigo-500" />
       </div>
 
-      <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-950">
-        <div className="mb-2 flex items-center justify-between gap-4">
+      <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4 dark:border-slate-700 dark:bg-slate-950">
+        <div className="mb-2 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">최근 인증서 전환 이력</h3>
           <span className="text-xs text-gray-500 dark:text-slate-400">만료 임박/만료/복구 전환 표시</span>
         </div>

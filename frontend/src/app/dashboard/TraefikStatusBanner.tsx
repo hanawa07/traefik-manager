@@ -25,7 +25,7 @@ export function TraefikStatusBanner({
   const versionStatus = getTraefikVersionStatus(health);
 
   return (
-    <div className={`mb-6 rounded-lg border px-4 py-3 ${tone.border} ${tone.bg}`}>
+    <div className={`mb-4 rounded-lg border px-3 py-3 sm:mb-6 sm:px-4 ${tone.border} ${tone.bg}`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className={`text-sm font-medium ${tone.primary}`}>
@@ -41,7 +41,7 @@ export function TraefikStatusBanner({
             <p className="mt-1 text-xs text-amber-700 dark:text-amber-200">{health.latest_version_error}</p>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-start">
           {onRefreshLatest ? (
             <button
               className="inline-flex items-center gap-1.5 rounded-full border border-white/70 bg-white/70 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-300"
@@ -56,7 +56,7 @@ export function TraefikStatusBanner({
           <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${tone.badge}`}>{versionStatus}</span>
         </div>
       </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+      <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">
         <TraefikVersionTile label="현재 버전" value={health?.version || "-"} />
         <TraefikVersionTile href={health?.latest_release_url || undefined} label="최신 버전" value={health?.latest_version || "-"} />
         <TraefikVersionTile label="업데이트 감지" value={versionStatus} />
@@ -71,8 +71,8 @@ export function TraefikStatusBanner({
 
 function TraefikVersionTile({ href, label, value }: { href?: string; label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-white/60 bg-white/60 px-3 py-2 dark:border-slate-700 dark:bg-slate-950/70">
-      <p className="text-xs text-gray-500 dark:text-slate-400">{label}</p>
+    <div className="min-w-0 rounded-lg border border-white/60 bg-white/60 px-2 py-2 sm:px-3 dark:border-slate-700 dark:bg-slate-950/70">
+      <p className="text-[11px] text-gray-500 sm:text-xs dark:text-slate-400">{label}</p>
       {href ? (
         <a
           className="mt-1 inline-flex max-w-full items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
@@ -84,7 +84,7 @@ function TraefikVersionTile({ href, label, value }: { href?: string; label: stri
           <ExternalLink className="h-3.5 w-3.5 shrink-0" />
         </a>
       ) : (
-        <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">{value}</p>
+        <p className="mt-1 truncate text-sm font-semibold text-gray-900 dark:text-slate-100">{value}</p>
       )}
     </div>
   );

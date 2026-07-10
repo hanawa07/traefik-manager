@@ -17,6 +17,7 @@ export default function LoginPageView({
 }: LoginPageModel) {
   return (
     <div
+      data-visual-background
       className={
         "flex min-h-screen items-center justify-center bg-gradient-to-br " +
         "from-slate-950 via-[#0F172A] to-slate-900 p-4"

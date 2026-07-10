@@ -17,8 +17,8 @@ export default function CertificateRecentEventsPanel({
   timezone,
 }: CertificateRecentEventsPanelProps) {
   return (
-    <div className="card mb-6 p-5">
-      <div className="mb-4 flex items-center justify-between gap-4">
+    <div className="card mb-4 p-4 sm:mb-6 sm:p-5">
+      <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
           <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">최근 상태 전이</h2>
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">

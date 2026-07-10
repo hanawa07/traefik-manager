@@ -24,7 +24,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!hydrated || !initialized) return null;
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+    <div
+      className="flex min-h-screen bg-slate-50 transition-colors duration-300 dark:bg-slate-950"
+      data-visual-background
+    >
       <Sidebar />
       <main className="min-w-0 flex-1 overflow-auto pt-16 lg:pt-0">
         <div className="p-4 lg:p-8">

@@ -58,7 +58,7 @@ export function DeploymentFact({
   const valueClassName = `mt-1 truncate text-sm font-semibold text-gray-900 dark:text-slate-100 ${monospace ? "font-mono" : ""}`;
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
+    <div className="min-w-0 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 sm:px-4 dark:border-slate-700 dark:bg-slate-950">
       <p className="text-xs text-gray-500 dark:text-slate-400">{label}</p>
       {href ? (
         <a

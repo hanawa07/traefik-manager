@@ -28,7 +28,7 @@ export default function CertificateDetailDrawerBody({
   onRunPreflight,
 }: CertificateDetailDrawerBodyProps) {
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+    <div className="flex-1 space-y-4 overscroll-contain overflow-y-auto px-4 py-4 sm:space-y-6 sm:px-6 sm:py-5">
       <CertificateDetailFacts certificate={certificate} timezone={timezone} />
       <CertificateChecklistSection
         certificate={certificate}

@@ -21,11 +21,11 @@ export function RedirectDeleteModal({
       <p className="mb-1 text-sm text-gray-600 dark:text-slate-300">다음 리다이렉트를 삭제합니다:</p>
       <p className="mb-1 font-semibold text-gray-900 dark:text-slate-100">{deleteTarget?.domain}</p>
       <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">→ {deleteTarget?.target_url}</p>
-      <div className="flex justify-end gap-3">
-        <button className="btn-secondary" onClick={onClose}>
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <button className="btn-secondary justify-center" onClick={onClose}>
           취소
         </button>
-        <button className="btn-danger" disabled={isDeleting} onClick={onConfirm}>
+        <button className="btn-danger justify-center" disabled={isDeleting} onClick={onConfirm}>
           {isDeleting ? "삭제 중..." : "삭제"}
         </button>
       </div>

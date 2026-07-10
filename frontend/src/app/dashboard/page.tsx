@@ -44,7 +44,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">대시보드</h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Traefik 서비스 현황</p>
       </div>

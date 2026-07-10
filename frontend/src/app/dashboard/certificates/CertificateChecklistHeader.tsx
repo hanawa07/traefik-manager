@@ -17,7 +17,7 @@ export default function CertificateChecklistHeader({
   onRunPreflight,
 }: CertificateChecklistHeaderProps) {
   return (
-    <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="mb-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">발급 체크리스트</h3>
         <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
@@ -27,7 +27,7 @@ export default function CertificateChecklistHeader({
       <button
         type="button"
         onClick={onRunPreflight}
-        className={PREFLIGHT_BUTTON_CLASS}
+        className={`${PREFLIGHT_BUTTON_CLASS} justify-center`}
         disabled={isRunning}
       >
         {isRunning ? (
