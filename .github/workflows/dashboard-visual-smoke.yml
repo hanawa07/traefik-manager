@@ -21,6 +21,7 @@ jobs:
       TM_SMOKE_COOKIE: ${{ secrets.TM_SMOKE_COOKIE }}
       TM_SMOKE_USERNAME: ${{ secrets.TM_SMOKE_USERNAME }}
       TM_SMOKE_PASSWORD: ${{ secrets.TM_SMOKE_PASSWORD }}
+      TM_SMOKE_ARTIFACT_DIR: smoke-artifacts
     steps:
       - name: 저장소 체크아웃
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -45,3 +46,12 @@ jobs:
             exit 0
           fi
           node scripts/smoke-services-browser-session.mjs
+
+      - name: 실패 화면 업로드
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dashboard-visual-smoke-${{ github.run_id }}
+          path: smoke-artifacts
+          if-no-files-found: warn
+          retention-days: 7

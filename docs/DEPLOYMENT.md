@@ -103,6 +103,7 @@ providers:
 - GitHub Actions의 `대시보드 인증 시각 스모크`는 매일 03:17(KST)에 실행되며 수동 실행도 지원합니다.
 - 저장소 비밀값에 `TM_SMOKE_BASE_URL`과 `TM_SMOKE_COOKIE`를 등록하거나, 쿠키 대신 `TM_SMOKE_USERNAME`과 `TM_SMOKE_PASSWORD`를 등록하면 실제 인증 화면을 검사합니다.
 - 인증 비밀값이 아직 없으면 예약 작업은 브라우저 스모크 self-test만 실행하고 정상 종료합니다.
+- 인증 화면 검사에 실패하면 모바일 화면 PNG를 GitHub Actions 아티팩트로 7일간 보관합니다.
 - 로그인 후 서비스 추가 시 `traefik-config/dynamic/<domain>.yml` 파일이 생성됩니다.
 - Traefik 로그 또는 대시보드에서 새 라우터가 반영됩니다.
 - `docker compose logs -f backend`에 `/traefik-config/dynamic` 권한 오류가 없습니다.

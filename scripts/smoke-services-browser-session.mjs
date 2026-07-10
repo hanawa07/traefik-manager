@@ -91,7 +91,12 @@ async function main() {
       results.push({ ...check, data: result.data });
     }
 
-    const visualRoutes = await runDashboardVisualSmoke({ baseUrl, cdp, timeoutMs });
+    const visualRoutes = await runDashboardVisualSmoke({
+      artifactDir: process.env.TM_SMOKE_ARTIFACT_DIR,
+      baseUrl,
+      cdp,
+      timeoutMs,
+    });
 
     const session = results.find((item) => item.label === "현재 세션")?.data;
     const services = results.find((item) => item.label === "서비스 목록")?.data ?? [];
