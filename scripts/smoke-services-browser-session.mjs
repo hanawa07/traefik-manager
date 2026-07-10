@@ -5,6 +5,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
+import {
+  runDashboardVisualSmoke,
+  runDashboardVisualSmokeSelfTest,
+} from "./dashboard-visual-smoke.mjs";
 
 const DEFAULT_TIMEOUT_MS = 40_000;
 
@@ -87,12 +91,15 @@ async function main() {
       results.push({ ...check, data: result.data });
     }
 
+    const visualRoutes = await runDashboardVisualSmoke({ baseUrl, cdp, timeoutMs });
+
     const session = results.find((item) => item.label === "현재 세션")?.data;
     const services = results.find((item) => item.label === "서비스 목록")?.data ?? [];
     console.log(`서비스 브라우저 스모크 통과: ${baseUrl}`);
     console.log(`- 세션: ${session.username} (${session.role})`);
     console.log(`- 서비스: ${services.length}개`);
     console.log(`- 확인 API: ${results.map((item) => item.label).join(", ")}`);
+    console.log(`- 모바일 다크모드: ${visualRoutes.join(", ")}`);
   } finally {
     await chrome.close();
   }
@@ -446,5 +453,6 @@ function runSelfTest() {
   assert.deepEqual(parseSetCookieHeaders(["tm_session=abc; Path=/; HttpOnly"]), [
     { name: "tm_session", value: "abc" },
   ]);
+  runDashboardVisualSmokeSelfTest();
   console.log("서비스 브라우저 스모크 self-test 통과");
 }
