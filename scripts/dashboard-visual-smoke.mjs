@@ -10,7 +10,12 @@ const MOBILE_VIEWPORT = {
 };
 
 const DASHBOARD_ROUTES = [
-  { label: "대시보드", path: "/dashboard", marker: "Traefik 서비스 현황" },
+  {
+    label: "대시보드",
+    path: "/dashboard",
+    marker: "Traefik 서비스 현황",
+    pendingMarkers: ["Traefik 상태: 확인 중", "배포 정보를 확인하는 중입니다"],
+  },
   { label: "인증서", path: "/dashboard/certificates", marker: "Traefik API 기반 TLS 인증서 상태" },
   { label: "감사 로그", path: "/dashboard/audit", marker: "시스템의 모든 변경 사항을 추적합니다" },
   { label: "미들웨어", path: "/dashboard/middlewares", marker: "공용 템플릿" },
@@ -182,6 +187,7 @@ async function waitForRoute(cdp, route, timeoutMs) {
       lastSnapshot.path === route.path &&
       lastSnapshot.hasSurface &&
       !lastSnapshot.isLoading &&
+      !route.pendingMarkers?.some((marker) => lastSnapshot.text.includes(marker)) &&
       lastSnapshot.text.includes(route.marker)
     ) {
       return;
