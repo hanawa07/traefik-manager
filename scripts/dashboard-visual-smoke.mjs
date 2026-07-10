@@ -62,6 +62,7 @@ async function checkRenderedRoute(cdp, route, artifactDir) {
     const surfaceText = surface?.querySelector('h1, h2, h3, p, label, span, button, a') || surface;
     const surfaceTextStyle = surfaceText ? getComputedStyle(surfaceText) : null;
     const visualBackground = document.querySelector('[data-visual-background], .min-h-screen');
+    const main = document.querySelector('main');
     const sortControls = document.querySelector('[data-testid="services-sort-controls"]');
     const overviewStats =
       document.querySelector('[data-testid="service-overview-stats"]') ||
@@ -78,6 +79,8 @@ async function checkRenderedRoute(cdp, route, artifactDir) {
       visualBackground: getComputedStyle(visualBackground || document.body).backgroundColor,
       dark: document.documentElement.classList.contains('dark'),
       documentWidth: document.documentElement.scrollWidth,
+      mainScrollWidth: main?.scrollWidth ?? null,
+      mainWidth: main?.clientWidth ?? null,
       path: location.pathname,
       overviewColumns: overviewStats ? getComputedStyle(overviewStats).gridTemplateColumns.split(' ').length : null,
       sortDisplay: sortControls ? getComputedStyle(sortControls).display : null,
@@ -122,6 +125,12 @@ function assertVisualSnapshot(snapshot, route) {
     snapshot.documentWidth <= snapshot.viewportWidth + 1,
     `${route.label}: 페이지가 모바일 뷰포트를 ${snapshot.documentWidth - snapshot.viewportWidth}px 넘습니다`,
   );
+  if (snapshot.mainWidth !== null) {
+    assert.ok(
+      snapshot.mainScrollWidth <= snapshot.mainWidth + 1,
+      `${route.label}: 콘텐츠가 모바일 영역을 ${snapshot.mainScrollWidth - snapshot.mainWidth}px 넘습니다`,
+    );
+  }
   assert.ok(
     isDarkColor(snapshot.visualBackground),
     `${route.label}: 화면 배경이 어둡지 않습니다 (${snapshot.visualBackground})`,
@@ -256,6 +265,8 @@ export function runDashboardVisualSmokeSelfTest() {
     visualBackground: "rgb(2, 6, 23)",
     dark: true,
     documentWidth: 390,
+    mainScrollWidth: 390,
+    mainWidth: 390,
     path: "/dashboard/services",
     overviewColumns: null,
     sortDisplay: "grid",
@@ -288,6 +299,10 @@ export function runDashboardVisualSmokeSelfTest() {
   assert.throws(
     () => assertVisualSnapshot({ ...valid, documentWidth: 430 }, serviceRoute),
     /모바일 뷰포트/,
+  );
+  assert.throws(
+    () => assertVisualSnapshot({ ...valid, mainScrollWidth: 430 }, serviceRoute),
+    /콘텐츠가 모바일 영역/,
   );
   assert.throws(
     () => assertVisualSnapshot({ ...valid, surfaceBackground: "rgb(255, 255, 255)" }, serviceRoute),
