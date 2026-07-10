@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+
+import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
+import {
+  checkCertificateDrawer,
+  checkOptionalAdminModal,
+} from "./dashboard-visual-interactions.mjs";
 
 const MOBILE_VIEWPORT = {
   width: 390,
@@ -8,6 +12,28 @@ const MOBILE_VIEWPORT = {
   deviceScaleFactor: 1,
   mobile: true,
 };
+
+const VISUAL_PROFILES = [
+  {
+    dark: true,
+    id: "mobile-dark",
+    label: "모바일 다크모드",
+    mobile: true,
+    viewport: MOBILE_VIEWPORT,
+  },
+  {
+    dark: false,
+    id: "desktop-light",
+    label: "데스크톱 라이트모드",
+    mobile: false,
+    viewport: {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    },
+  },
+];
 
 const DASHBOARD_ROUTES = [
   {
@@ -25,42 +51,70 @@ const DASHBOARD_ROUTES = [
 ];
 
 export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeoutMs }) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", MOBILE_VIEWPORT);
-  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true });
-  await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
-    source: `
-      localStorage.setItem("theme", "dark");
-      document.documentElement.classList.add("dark");
-    `,
-  });
-
   const labels = [];
-  for (const route of DASHBOARD_ROUTES) {
-    await checkRoute({ artifactDir, baseUrl, cdp, route, timeoutMs });
-    labels.push(route.label);
+  for (const profile of VISUAL_PROFILES) {
+    await withVisualProfile(cdp, profile, async () => {
+      for (const route of DASHBOARD_ROUTES) {
+        await checkRoute({ artifactDir, baseUrl, cdp, profile, route, timeoutMs });
+        if (route.path === "/dashboard/certificates") {
+          const opened = await checkCertificateDrawer({ artifactDir, cdp, profile, timeoutMs });
+          if (opened) labels.push(`${profile.label} 인증서 drawer`);
+        }
+        if (route.path === "/dashboard/settings") {
+          const opened = await checkOptionalAdminModal({ artifactDir, cdp, profile, timeoutMs });
+          if (opened) labels.push(`${profile.label} 사용자 추가 모달`);
+        }
+      }
+    });
+    labels.push(`${profile.label} ${DASHBOARD_ROUTES.length}개 화면`);
   }
 
   await cdp.send("Network.clearBrowserCookies");
   await evaluate(cdp, `localStorage.removeItem("auth")`);
   const loginRoute = { label: "로그인", path: "/login", marker: "로그인" };
-  await checkRoute({ artifactDir, baseUrl, cdp, route: loginRoute, timeoutMs });
-  labels.push(loginRoute.label);
+  for (const profile of VISUAL_PROFILES) {
+    await withVisualProfile(cdp, profile, () =>
+      checkRoute({ artifactDir, baseUrl, cdp, profile, route: loginRoute, timeoutMs }),
+    );
+  }
+  labels.push("로그인 2개 화면");
 
   return labels;
 }
 
-async function checkRoute({ artifactDir, baseUrl, cdp, route, timeoutMs }) {
+async function withVisualProfile(cdp, profile, callback) {
+  await cdp.send("Emulation.setDeviceMetricsOverride", profile.viewport);
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: profile.mobile });
+  const script = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: profile.dark
+      ? `localStorage.setItem("theme", "dark"); document.documentElement.classList.add("dark");`
+      : `localStorage.setItem("theme", "light"); document.documentElement.classList.remove("dark");`,
+  });
+  try {
+    await callback();
+  } finally {
+    if (script.identifier) {
+      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: script.identifier });
+    }
+  }
+}
+
+async function checkRoute({ artifactDir, baseUrl, cdp, profile, route, timeoutMs }) {
   try {
     await navigateAndWait(cdp, `${baseUrl}${route.path}`, timeoutMs);
     await waitForRoute(cdp, route, timeoutMs);
-    await checkRenderedRoute(cdp, route, artifactDir);
+    await checkRenderedRoute(cdp, route, artifactDir, profile);
   } catch (error) {
-    await captureScreenshot(cdp, route, artifactDir, "failure-").catch(() => undefined);
+    await captureVisualScreenshot({
+      artifactDir,
+      cdp,
+      name: `failure-${screenshotName(profile, route.path)}`,
+    }).catch(() => undefined);
     throw error;
   }
 }
 
-async function checkRenderedRoute(cdp, route, artifactDir) {
+async function checkRenderedRoute(cdp, route, artifactDir, profile) {
   const snapshot = await evaluate(cdp, `(() => {
     const surface = document.querySelector('.card, [data-visual-surface], [data-testid="login-form-card"]');
     const surfaceStyle = surface ? getComputedStyle(surface) : null;
@@ -96,75 +150,73 @@ async function checkRenderedRoute(cdp, route, artifactDir) {
     };
   })()`);
 
-  await captureScreenshot(cdp, route, artifactDir);
-  assertVisualSnapshot(snapshot, route);
+  await captureVisualScreenshot({ artifactDir, cdp, name: screenshotName(profile, route.path) });
+  assertVisualSnapshot(snapshot, route, profile);
 }
 
-async function captureScreenshot(cdp, route, artifactDir, prefix = "") {
-  const screenshot = await cdp.send("Page.captureScreenshot", {
-    captureBeyondViewport: false,
-    format: "png",
-    fromSurface: true,
-  });
-  assert.ok(screenshot.data?.length > 1000, `${route.label}: 스크린샷 생성 실패`);
-  if (!artifactDir) return;
-
-  await mkdir(artifactDir, { recursive: true });
-  await writeFile(
-    join(artifactDir, `${prefix}${buildScreenshotName(route.path)}`),
-    Buffer.from(screenshot.data, "base64"),
-  );
-}
-
-function buildScreenshotName(path) {
+function screenshotName(profile, path) {
   const slug = path.replace(/^\//, "").replaceAll("/", "-") || "root";
-  return `${slug}.png`;
+  return `${profile.id}-${slug}`;
 }
 
-function assertVisualSnapshot(snapshot, route) {
+function assertVisualSnapshot(snapshot, route, profile) {
   assert.equal(snapshot.path, route.path, `${route.label}: 예상 경로와 다릅니다`);
   if (route.path.startsWith("/dashboard")) {
-    assert.equal(snapshot.dark, true, `${route.label}: 다크모드가 적용되지 않았습니다`);
+    assert.equal(
+      snapshot.dark,
+      profile.dark,
+      `${profile.label} ${route.label}: 테마가 예상과 다릅니다`,
+    );
   }
   assert.ok(
     snapshot.documentWidth <= snapshot.viewportWidth + 1,
-    `${route.label}: 페이지가 모바일 뷰포트를 ${snapshot.documentWidth - snapshot.viewportWidth}px 넘습니다`,
+    `${profile.label} ${route.label}: 페이지가 뷰포트를 ${snapshot.documentWidth - snapshot.viewportWidth}px 넘습니다`,
   );
   if (snapshot.mainWidth !== null) {
     assert.ok(
       snapshot.mainScrollWidth <= snapshot.mainWidth + 1,
-      `${route.label}: 콘텐츠가 모바일 영역을 ${snapshot.mainScrollWidth - snapshot.mainWidth}px 넘습니다`,
+      `${profile.label} ${route.label}: 콘텐츠가 화면 영역을 ${snapshot.mainScrollWidth - snapshot.mainWidth}px 넘습니다`,
     );
   }
-  assert.ok(
-    isDarkColor(snapshot.visualBackground),
-    `${route.label}: 화면 배경이 어둡지 않습니다 (${snapshot.visualBackground})`,
-  );
   if (route.path === "/login") {
     assert.ok(
+      isDarkColor(snapshot.visualBackground),
+      `${profile.label} ${route.label}: 화면 배경이 어둡지 않습니다 (${snapshot.visualBackground})`,
+    );
+    assert.ok(
       isLightColor(snapshot.surfaceBackground),
-      `${route.label}: 로그인 카드가 밝지 않습니다 (${snapshot.surfaceBackground})`,
+      `${profile.label} ${route.label}: 로그인 카드가 밝지 않습니다 (${snapshot.surfaceBackground})`,
     );
     assert.ok(
       hasReadableContrast(snapshot.surfaceBackground, snapshot.surfaceColor),
-      `${route.label}: 로그인 카드 글자 대비가 부족합니다 (${snapshot.surfaceColor})`,
+      `${profile.label} ${route.label}: 로그인 카드 글자 대비가 부족합니다 (${snapshot.surfaceColor})`,
     );
   } else {
     assert.ok(
-      isDarkColor(snapshot.surfaceBackground),
-      `${route.label}: 주요 표면이 어둡지 않습니다 (${snapshot.surfaceBackground})`,
+      profile.dark
+        ? isDarkColor(snapshot.visualBackground) && isDarkColor(snapshot.surfaceBackground)
+        : isLightColor(snapshot.visualBackground) && isLightColor(snapshot.surfaceBackground),
+      `${profile.label} ${route.label}: 배경과 주요 표면이 테마와 다릅니다`,
     );
     assert.ok(
       hasReadableContrast(snapshot.surfaceBackground, snapshot.surfaceColor),
-      `${route.label}: 주요 표면 글자 대비가 부족합니다 (${snapshot.surfaceColor})`,
+      `${profile.label} ${route.label}: 주요 표면 글자 대비가 부족합니다 (${snapshot.surfaceColor})`,
     );
   }
 
   if (route.path === "/dashboard/services") {
-    assert.equal(snapshot.sortDisplay, "grid", "서비스: 모바일 정렬 컨트롤이 그리드가 아닙니다");
+    assert.equal(
+      snapshot.sortDisplay,
+      profile.mobile ? "grid" : "flex",
+      `${profile.label} 서비스: 정렬 컨트롤 배치가 예상과 다릅니다`,
+    );
   }
   if (route.path === "/dashboard") {
-    assert.equal(snapshot.overviewColumns, 2, "대시보드: 모바일 서비스 통계가 2열이 아닙니다");
+    assert.equal(
+      snapshot.overviewColumns,
+      profile.mobile ? 2 : 5,
+      `${profile.label} 대시보드: 서비스 통계 열 수가 예상과 다릅니다`,
+    );
   }
   for (const table of snapshot.tableScrolls) {
     assert.equal(table.overflow, "auto", `${route.label}: ${table.id} 표 내부 스크롤이 비활성입니다`);
@@ -260,13 +312,15 @@ function sleep(ms) {
 }
 
 export function runDashboardVisualSmokeSelfTest() {
+  const mobileProfile = VISUAL_PROFILES[0];
+  const desktopProfile = VISUAL_PROFILES[1];
   const serviceRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/services");
   const dashboardRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard");
   const loginRoute = { label: "로그인", path: "/login", marker: "로그인" };
   assert.ok(serviceRoute);
   assert.ok(dashboardRoute);
-  assert.equal(buildScreenshotName("/dashboard/services"), "dashboard-services.png");
-  assert.equal(buildScreenshotName("/login"), "login.png");
+  assert.equal(screenshotName(mobileProfile, "/dashboard/services"), "mobile-dark-dashboard-services");
+  assert.equal(screenshotName(desktopProfile, "/login"), "desktop-light-login");
   const valid = {
     visualBackground: "rgb(2, 6, 23)",
     dark: true,
@@ -282,11 +336,32 @@ export function runDashboardVisualSmokeSelfTest() {
     viewportWidth: 390,
   };
 
-  assert.doesNotThrow(() => assertVisualSnapshot(valid, serviceRoute));
+  assert.doesNotThrow(() => assertVisualSnapshot(valid, serviceRoute, mobileProfile));
   assert.doesNotThrow(() =>
     assertVisualSnapshot(
       { ...valid, path: "/dashboard", overviewColumns: 2, sortDisplay: null },
       dashboardRoute,
+      mobileProfile,
+    ),
+  );
+  const desktopValid = {
+    ...valid,
+    visualBackground: "rgb(248, 250, 252)",
+    dark: false,
+    documentWidth: 1440,
+    mainScrollWidth: 1184,
+    mainWidth: 1184,
+    sortDisplay: "flex",
+    surfaceBackground: "rgb(255, 255, 255)",
+    surfaceColor: "rgb(15, 23, 42)",
+    viewportWidth: 1440,
+  };
+  assert.doesNotThrow(() => assertVisualSnapshot(desktopValid, serviceRoute, desktopProfile));
+  assert.doesNotThrow(() =>
+    assertVisualSnapshot(
+      { ...desktopValid, path: "/dashboard", overviewColumns: 5, sortDisplay: null },
+      dashboardRoute,
+      desktopProfile,
     ),
   );
   assert.doesNotThrow(() =>
@@ -300,22 +375,33 @@ export function runDashboardVisualSmokeSelfTest() {
         surfaceColor: "rgb(15, 23, 42)",
       },
       loginRoute,
+      mobileProfile,
     ),
   );
   assert.throws(
-    () => assertVisualSnapshot({ ...valid, documentWidth: 430 }, serviceRoute),
-    /모바일 뷰포트/,
+    () => assertVisualSnapshot({ ...valid, documentWidth: 430 }, serviceRoute, mobileProfile),
+    /페이지가 뷰포트/,
   );
   assert.throws(
-    () => assertVisualSnapshot({ ...valid, mainScrollWidth: 430 }, serviceRoute),
-    /콘텐츠가 모바일 영역/,
+    () => assertVisualSnapshot({ ...valid, mainScrollWidth: 430 }, serviceRoute, mobileProfile),
+    /콘텐츠가 화면 영역/,
   );
   assert.throws(
-    () => assertVisualSnapshot({ ...valid, surfaceBackground: "rgb(255, 255, 255)" }, serviceRoute),
-    /주요 표면/,
+    () =>
+      assertVisualSnapshot(
+        { ...valid, surfaceBackground: "rgb(255, 255, 255)" },
+        serviceRoute,
+        mobileProfile,
+      ),
+    /배경과 주요 표면/,
   );
   assert.throws(
-    () => assertVisualSnapshot({ ...valid, surfaceColor: "rgb(15, 23, 42)" }, serviceRoute),
+    () =>
+      assertVisualSnapshot(
+        { ...valid, surfaceColor: "rgb(15, 23, 42)" },
+        serviceRoute,
+        mobileProfile,
+      ),
     /글자 대비/,
   );
   assert.throws(
@@ -326,6 +412,7 @@ export function runDashboardVisualSmokeSelfTest() {
           tableScrolls: [{ id: "sample", overflow: "visible", scrollWidth: 800, width: 390 }],
         },
         serviceRoute,
+        mobileProfile,
       ),
     /내부 스크롤/,
   );
