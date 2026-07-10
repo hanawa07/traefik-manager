@@ -1,0 +1,47 @@
+name: 대시보드 인증 시각 스모크
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 18 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dashboard-visual-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TM_SMOKE_BASE_URL: ${{ secrets.TM_SMOKE_BASE_URL }}
+      TM_SMOKE_COOKIE: ${{ secrets.TM_SMOKE_COOKIE }}
+      TM_SMOKE_USERNAME: ${{ secrets.TM_SMOKE_USERNAME }}
+      TM_SMOKE_PASSWORD: ${{ secrets.TM_SMOKE_PASSWORD }}
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 준비
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 인증 대시보드 검사
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$TM_SMOKE_BASE_URL" ]]; then
+            echo "::notice::TM_SMOKE_BASE_URL이 없어 self-test만 실행합니다."
+            node scripts/smoke-services-browser-session.mjs --self-test
+            exit 0
+          fi
+          if [[ -z "$TM_SMOKE_COOKIE" && ( -z "$TM_SMOKE_USERNAME" || -z "$TM_SMOKE_PASSWORD" ) ]]; then
+            echo "::notice::인증 비밀값이 없어 self-test만 실행합니다."
+            node scripts/smoke-services-browser-session.mjs --self-test
+            exit 0
+          fi
+          node scripts/smoke-services-browser-session.mjs

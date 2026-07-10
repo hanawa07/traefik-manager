@@ -9,6 +9,9 @@ const MOBILE_VIEWPORT = {
 
 const DASHBOARD_ROUTES = [
   { label: "대시보드", path: "/dashboard", marker: "Traefik 서비스 현황" },
+  { label: "인증서", path: "/dashboard/certificates", marker: "Traefik API 기반 TLS 인증서 상태" },
+  { label: "감사 로그", path: "/dashboard/audit", marker: "시스템의 모든 변경 사항을 추적합니다" },
+  { label: "미들웨어", path: "/dashboard/middlewares", marker: "공용 템플릿" },
   { label: "리다이렉트", path: "/dashboard/redirects", marker: "도메인 리다이렉트 호스트 관리" },
   { label: "서비스", path: "/dashboard/services", marker: "Traefik 라우팅 서비스 관리" },
   { label: "설정", path: "/dashboard/settings", marker: "설정" },
@@ -45,21 +48,24 @@ export async function runDashboardVisualSmoke({ baseUrl, cdp, timeoutMs }) {
 
 async function checkRenderedRoute(cdp, route) {
   const snapshot = await evaluate(cdp, `(() => {
-    const surface = document.querySelector('.card, [data-testid="login-form-card"]');
+    const surface = document.querySelector('.card, [data-visual-surface], [data-testid="login-form-card"]');
     const surfaceStyle = surface ? getComputedStyle(surface) : null;
-    const redirectScroll = document.querySelector('[data-testid="redirects-table-scroll"]');
     const sortControls = document.querySelector('[data-testid="services-sort-controls"]');
+    const tableScrolls = Array.from(document.querySelectorAll('[data-table-scroll]')).map((element) => ({
+      id: element.getAttribute('data-table-scroll'),
+      overflow: getComputedStyle(element).overflowX,
+      scrollWidth: element.scrollWidth,
+      width: element.clientWidth,
+    }));
     return {
       bodyBackground: getComputedStyle(document.body).backgroundColor,
       dark: document.documentElement.classList.contains('dark'),
       documentWidth: document.documentElement.scrollWidth,
       path: location.pathname,
-      redirectOverflow: redirectScroll ? getComputedStyle(redirectScroll).overflowX : null,
-      redirectScrollWidth: redirectScroll?.scrollWidth ?? null,
-      redirectWidth: redirectScroll?.clientWidth ?? null,
       sortDisplay: sortControls ? getComputedStyle(sortControls).display : null,
       surfaceBackground: surfaceStyle?.backgroundColor ?? null,
       surfaceColor: surfaceStyle?.color ?? null,
+      tableScrolls,
       viewportWidth: document.documentElement.clientWidth,
     };
   })()`);
@@ -87,9 +93,9 @@ function assertVisualSnapshot(snapshot, route) {
   if (route.path === "/dashboard/services") {
     assert.equal(snapshot.sortDisplay, "grid", "서비스: 모바일 정렬 컨트롤이 그리드가 아닙니다");
   }
-  if (snapshot.redirectOverflow !== null) {
-    assert.equal(snapshot.redirectOverflow, "auto", "리다이렉트: 테이블 내부 스크롤이 비활성입니다");
-    assert.ok(snapshot.redirectScrollWidth >= snapshot.redirectWidth, "리다이렉트: 스크롤 폭 계산이 잘못됐습니다");
+  for (const table of snapshot.tableScrolls) {
+    assert.equal(table.overflow, "auto", `${route.label}: ${table.id} 표 내부 스크롤이 비활성입니다`);
+    assert.ok(table.scrollWidth >= table.width, `${route.label}: ${table.id} 표 스크롤 폭 계산이 잘못됐습니다`);
   }
 }
 
@@ -99,7 +105,7 @@ async function waitForRoute(cdp, route, timeoutMs) {
 
   while (Date.now() < deadline) {
     lastSnapshot = await evaluate(cdp, `({
-      hasSurface: Boolean(document.querySelector('.card, [data-testid="login-form-card"]')),
+      hasSurface: Boolean(document.querySelector('.card, [data-visual-surface], [data-testid="login-form-card"]')),
       path: location.pathname,
       text: document.body.innerText.slice(0, 5000),
     })`);
@@ -155,27 +161,38 @@ function sleep(ms) {
 }
 
 export function runDashboardVisualSmokeSelfTest() {
+  const serviceRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/services");
+  assert.ok(serviceRoute);
   const valid = {
     bodyBackground: "rgb(2, 6, 23)",
     dark: true,
     documentWidth: 390,
     path: "/dashboard/services",
-    redirectOverflow: null,
-    redirectScrollWidth: null,
-    redirectWidth: null,
     sortDisplay: "grid",
     surfaceBackground: "rgba(15, 23, 42, 0.95)",
     surfaceColor: "rgb(241, 245, 249)",
+    tableScrolls: [],
     viewportWidth: 390,
   };
 
-  assert.doesNotThrow(() => assertVisualSnapshot(valid, DASHBOARD_ROUTES[2]));
+  assert.doesNotThrow(() => assertVisualSnapshot(valid, serviceRoute));
   assert.throws(
-    () => assertVisualSnapshot({ ...valid, documentWidth: 430 }, DASHBOARD_ROUTES[2]),
+    () => assertVisualSnapshot({ ...valid, documentWidth: 430 }, serviceRoute),
     /모바일 뷰포트/,
   );
   assert.throws(
-    () => assertVisualSnapshot({ ...valid, surfaceBackground: "rgb(255, 255, 255)" }, DASHBOARD_ROUTES[2]),
+    () => assertVisualSnapshot({ ...valid, surfaceBackground: "rgb(255, 255, 255)" }, serviceRoute),
     /주요 표면/,
+  );
+  assert.throws(
+    () =>
+      assertVisualSnapshot(
+        {
+          ...valid,
+          tableScrolls: [{ id: "sample", overflow: "visible", scrollWidth: 800, width: 390 }],
+        },
+        serviceRoute,
+      ),
+    /내부 스크롤/,
   );
 }
