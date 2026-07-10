@@ -104,6 +104,9 @@ providers:
 - 저장소 비밀값에 `TM_SMOKE_BASE_URL`과 `TM_SMOKE_COOKIE`를 등록하거나, 쿠키 대신 `TM_SMOKE_USERNAME`과 `TM_SMOKE_PASSWORD`를 등록하면 실제 인증 화면을 검사합니다.
 - 인증 비밀값이 아직 없으면 예약 작업은 브라우저 스모크 self-test만 실행하고 정상 종료합니다.
 - 인증 화면 검사에 실패하면 모바일 화면 PNG를 GitHub Actions 아티팩트로 7일간 보관합니다.
+- `TM_SMOKE_TELEGRAM_BOT_TOKEN`과 `TM_SMOKE_TELEGRAM_CHAT_ID` 비밀값이 있으면 실패 실행 링크를 Telegram으로 전송합니다.
+- `scripts/rotate-smoke-viewer-password.sh`는 `traefik-smoke-viewer` 비밀번호와 `TM_SMOKE_PASSWORD` secret을 함께 교체하고 실제 인증 스모크로 검증합니다.
+- 운영 호스트에서는 매월 1일 04:17에 회전 스크립트를 실행하는 사용자 cron을 사용합니다. 실행 로그는 `~/.local/state/traefik-manager/smoke-password-rotation.log`에 저장합니다.
 - 로그인 후 서비스 추가 시 `traefik-config/dynamic/<domain>.yml` 파일이 생성됩니다.
 - Traefik 로그 또는 대시보드에서 새 라우터가 반영됩니다.
 - `docker compose logs -f backend`에 `/traefik-config/dynamic` 권한 오류가 없습니다.

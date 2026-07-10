@@ -2,6 +2,12 @@ name: 대시보드 인증 시각 스모크
 
 on:
   workflow_dispatch:
+    inputs:
+      test_failure_notification:
+        description: "실패 아티팩트와 Telegram 알림 경로만 점검"
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: "17 18 * * *"
 
@@ -50,6 +56,10 @@ jobs:
             node scripts/smoke-services-browser-session.mjs --self-test
             exit 0
           fi
+          if [[ "${{ inputs.test_failure_notification }}" == "true" ]]; then
+            echo "::error::실패 알림 경로 점검을 위해 의도적으로 종료합니다."
+            exit 1
+          fi
           node scripts/smoke-services-browser-session.mjs
 
       - name: 실패 화면 업로드
@@ -60,3 +70,23 @@ jobs:
           path: smoke-artifacts
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Telegram 실패 알림
+        if: failure()
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TM_SMOKE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TM_SMOKE_TELEGRAM_CHAT_ID }}
+        run: |
+          if [[ -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_CHAT_ID" ]]; then
+            echo "::notice::Telegram 비밀값이 없어 실패 알림을 건너뜁니다."
+            exit 0
+          fi
+          message="Traefik Manager 인증 시각 스모크 실패
+          저장소: ${GITHUB_REPOSITORY}
+          커밋: ${GITHUB_SHA:0:12}
+          실행: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          curl --fail --silent --show-error --output /dev/null \
+            --request POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${message}"
