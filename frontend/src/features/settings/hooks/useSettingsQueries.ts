@@ -36,6 +36,10 @@ export function useSecurityAlertSettings() {
   return useSettingsQuery(settingsQueryKeys.securityAlerts, settingsApi.getSecurityAlertSettings);
 }
 
+export function useSmokeRotationStatus() {
+  return useSettingsQuery(settingsQueryKeys.smokeRotation, settingsApi.getSmokeRotationStatus);
+}
+
 export function useSettingsTestHistory() {
   return useSettingsQuery(
     settingsQueryKeys.testHistory,

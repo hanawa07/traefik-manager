@@ -3,6 +3,7 @@ import { policySettingsApi } from "./settingsPolicyApi";
 import { securityAlertSettingsApi } from "./settingsSecurityAlertApi";
 import { settingsBackupApi } from "./settingsBackupApi";
 import { settingsHistoryApi } from "./settingsHistoryApi";
+import { smokeRotationSettingsApi } from "./settingsSmokeRotationApi";
 
 export type {
   BackupImportResult,
@@ -52,6 +53,10 @@ export type {
   SettingsTestHistoryItem,
   SettingsTestHistoryStatus,
 } from "./settingsSharedTypes";
+export type {
+  SmokeRotationState,
+  SmokeRotationStatus,
+} from "./settingsSmokeRotationApi";
 
 export const settingsApi = {
   ...cloudflareSettingsApi,
@@ -59,4 +64,5 @@ export const settingsApi = {
   ...securityAlertSettingsApi,
   ...settingsHistoryApi,
   ...settingsBackupApi,
+  ...smokeRotationSettingsApi,
 };

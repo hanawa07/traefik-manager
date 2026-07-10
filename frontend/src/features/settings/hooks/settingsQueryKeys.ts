@@ -5,6 +5,7 @@ export const settingsQueryKeys = {
   loginDefense: ["settings", "login-defense"] as const,
   redirectHosts: ["redirect-hosts"] as const,
   securityAlerts: ["settings", "security-alerts"] as const,
+  smokeRotation: ["settings", "smoke-rotation"] as const,
   services: ["services"] as const,
   testHistory: ["settings", "test-history"] as const,
   timeDisplay: ["settings", "time-display"] as const,

@@ -3,6 +3,7 @@ export {
   useCloudflareStatus,
   useLoginDefenseSettings,
   useSecurityAlertSettings,
+  useSmokeRotationStatus,
   useSettingsTestHistory,
   useTimeDisplaySettings,
   useTraefikDashboardSettings,

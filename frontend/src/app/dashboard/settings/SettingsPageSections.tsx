@@ -5,6 +5,7 @@ import { CertificateDiagnosticsSettingsCard } from "@/features/settings/componen
 import { CloudflareDnsSettingsCard } from "@/features/settings/components/CloudflareDnsSettingsCard";
 import { LoginDefenseSettingsCard } from "@/features/settings/components/LoginDefenseSettingsCard";
 import { SecurityAlertSettingsCard } from "@/features/settings/components/SecurityAlertSettingsCard";
+import { SmokeRotationStatusCard } from "@/features/settings/components/SmokeRotationStatusCard";
 import { SessionManagementCard } from "@/features/settings/components/SessionManagementCard";
 import { TimeDisplaySettingsCard } from "@/features/settings/components/TimeDisplaySettingsCard";
 import { TraefikDashboardSettingsCard } from "@/features/settings/components/TraefikDashboardSettingsCard";
@@ -18,6 +19,7 @@ interface SettingsPageSectionsProps {
   upstreamSecurity: ComponentProps<typeof UpstreamSecuritySettingsCard>;
   loginDefense: ComponentProps<typeof LoginDefenseSettingsCard>;
   securityAlert: ComponentProps<typeof SecurityAlertSettingsCard>;
+  smokeRotation: ComponentProps<typeof SmokeRotationStatusCard>;
   sessionManagement: ComponentProps<typeof SessionManagementCard>;
   traefikDashboard: ComponentProps<typeof TraefikDashboardSettingsCard>;
   cloudflareDns: ComponentProps<typeof CloudflareDnsSettingsCard>;
@@ -31,6 +33,7 @@ export function SettingsPageSections({
   upstreamSecurity,
   loginDefense,
   securityAlert,
+  smokeRotation,
   sessionManagement,
   traefikDashboard,
   cloudflareDns,
@@ -43,6 +46,7 @@ export function SettingsPageSections({
       <UpstreamSecuritySettingsCard {...upstreamSecurity} />
       <LoginDefenseSettingsCard {...loginDefense} />
       <SecurityAlertSettingsCard {...securityAlert} />
+      <SmokeRotationStatusCard {...smokeRotation} />
       <SessionManagementCard {...sessionManagement} />
       {canManage ? <UserManagementSection className="order-6" /> : null}
       <TraefikDashboardSettingsCard {...traefikDashboard} />
