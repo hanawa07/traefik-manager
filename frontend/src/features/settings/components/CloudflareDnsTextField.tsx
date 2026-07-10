@@ -23,7 +23,7 @@ export function CloudflareDnsTextField({
     <div>
       <label className="label">
         {label}{" "}
-        {labelSuffix ? <span className="font-normal text-gray-400">{labelSuffix}</span> : null}
+        {labelSuffix ? <span className="font-normal text-gray-400 dark:text-slate-500">{labelSuffix}</span> : null}
       </label>
       <input
         type={type}
@@ -32,7 +32,7 @@ export function CloudflareDnsTextField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
-      {help ? <p className="mt-1 text-xs text-gray-400">{help}</p> : null}
+      {help ? <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">{help}</p> : null}
     </div>
   );
 }

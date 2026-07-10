@@ -34,7 +34,7 @@ export function CloudflareZoneSettingsFields({
       />
 
       <div>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
           <input
             type="checkbox"
             className="accent-blue-600"
@@ -43,7 +43,7 @@ export function CloudflareZoneSettingsFields({
           />
           Cloudflare Proxy (Proxied) 사용
         </label>
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
           활성화 시 트래픽이 Cloudflare를 경유하며 실제 서버 IP가 숨겨집니다.
           DNS only가 필요하면 체크를 해제하세요.
         </p>

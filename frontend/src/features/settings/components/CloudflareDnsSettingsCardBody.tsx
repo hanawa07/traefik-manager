@@ -64,7 +64,7 @@ export function CloudflareDnsSettingsCardBody({
   onFormChange,
 }: CloudflareDnsSettingsCardBodyProps) {
   if (isLoading) {
-    return <div className="h-20 bg-gray-100 rounded-lg animate-pulse" />;
+    return <div className="h-20 bg-gray-100 rounded-lg animate-pulse dark:bg-slate-800" />;
   }
 
   if (isEditing) {
