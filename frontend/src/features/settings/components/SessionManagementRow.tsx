@@ -25,7 +25,7 @@ export function SessionManagementRow({
           : "border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-950"
       }`}
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="mb-2 flex min-w-0 items-center gap-2">
             <Laptop className="h-4 w-4 text-gray-500 dark:text-slate-400" />
@@ -40,7 +40,7 @@ export function SessionManagementRow({
 
         <button
           type="button"
-          className="btn-secondary inline-flex shrink-0 items-center gap-2 py-1.5 text-xs"
+          className="btn-secondary inline-flex w-full shrink-0 items-center justify-center gap-2 py-1.5 text-xs sm:w-auto"
           onClick={() => onRevoke(session.session_id, session.is_current)}
           disabled={isRevoking}
         >

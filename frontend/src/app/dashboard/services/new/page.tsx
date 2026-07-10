@@ -25,7 +25,7 @@ export default function NewServicePage() {
 
   if (role === "viewer") {
     return (
-      <div className="w-full max-w-5xl p-4 sm:p-6 lg:p-8">
+      <div className="w-full max-w-5xl">
         <div className="card p-6">
           <h1 className="text-xl font-semibold text-gray-900 dark:text-slate-100">읽기 전용 계정</h1>
           <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">viewer 계정은 서비스를 추가할 수 없습니다.</p>
@@ -38,7 +38,7 @@ export default function NewServicePage() {
   }
 
   return (
-    <div className="w-full max-w-7xl p-4 sm:p-6 lg:p-8">
+    <div className="w-full max-w-7xl">
       <div className="mb-8">
         <Link
           href="/dashboard/services"

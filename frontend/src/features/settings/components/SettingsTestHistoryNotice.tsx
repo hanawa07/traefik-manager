@@ -20,7 +20,7 @@ export default function SettingsTestHistoryNotice({
 
   return (
     <div className="space-y-1 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <p>
             {label}:{" "}
@@ -37,7 +37,7 @@ export default function SettingsTestHistoryNotice({
             onClick={onRetry}
             disabled={isRetrying}
             className={[
-              "rounded-md border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-medium text-amber-800",
+              "w-full rounded-md border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-medium text-amber-800 sm:w-auto",
               "transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60",
               "dark:border-amber-500/40 dark:bg-slate-900 dark:text-amber-100 dark:hover:bg-amber-500/10",
             ].join(" ")}

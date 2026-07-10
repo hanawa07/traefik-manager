@@ -18,15 +18,15 @@ export function SettingsCardHeader({
 }) {
   return (
     <>
-      <div className="mb-2 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="mb-2 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
           {icon}
           <h2 className="font-semibold text-gray-900 dark:text-slate-100">{title}</h2>
         </div>
         {action ? (
           action
         ) : canEdit && onEdit ? (
-          <button onClick={onEdit} className="btn-secondary flex items-center gap-1.5 py-1.5 text-xs">
+          <button onClick={onEdit} className="btn-secondary flex w-full items-center justify-center gap-1.5 py-1.5 text-xs sm:w-auto">
             <Edit2 className="h-3.5 w-3.5" /> 편집
           </button>
         ) : null}
@@ -50,13 +50,13 @@ export function SettingsSummaryRow({
   mono?: boolean;
 }) {
   return (
-    <div className="flex justify-between gap-4">
+    <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4">
       <span className="text-gray-500 dark:text-slate-400">{label}</span>
-      <span className={`${mono ? "font-mono " : ""}text-right text-gray-700 dark:text-slate-200`}>{value}</span>
+      <span className={`${mono ? "break-all font-mono " : "break-words "}min-w-0 text-left text-gray-700 dark:text-slate-200 sm:text-right`}>{value}</span>
     </div>
   );
 }
 
 export function SettingsActionRow({ children }: { children: ReactNode }) {
-  return <div className="flex gap-2 pt-2">{children}</div>;
+  return <div className="flex flex-col gap-2 pt-2 [&>*]:justify-center sm:flex-row">{children}</div>;
 }

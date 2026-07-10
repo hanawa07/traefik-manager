@@ -31,9 +31,12 @@ export function AuditLogTable({
   onRetryDelivery,
 }: AuditLogTableProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left">
+    <div
+      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+      data-visual-surface
+    >
+      <div className="overflow-x-auto" data-table-scroll="audit-log">
+        <table className="w-full min-w-[1040px] border-collapse text-left">
           <AuditLogTableHeader />
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
             {!logs || logs.length === 0 ? (

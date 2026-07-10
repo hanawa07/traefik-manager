@@ -23,7 +23,7 @@ export function CloudflareZoneForm({
 
   return (
     <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-950">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">Cloudflare 영역 {index + 1}</p>
           <p className="text-xs text-gray-500 dark:text-slate-400">
@@ -32,7 +32,7 @@ export function CloudflareZoneForm({
         </div>
         <button
           type="button"
-          className="btn-secondary py-1.5 text-xs"
+          className="btn-secondary w-full py-1.5 text-xs sm:w-auto"
           onClick={() => onRemove(index)}
           disabled={!canRemove}
         >

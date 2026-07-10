@@ -43,7 +43,7 @@ export default function DashboardPage() {
   const displayTimezone = timeDisplaySettings?.display_timezone;
 
   return (
-    <div className="p-8">
+    <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">대시보드</h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Traefik 서비스 현황</p>

@@ -14,7 +14,7 @@ export function SessionLogoutAllButton({
   return (
     <button
       type="button"
-      className="btn-secondary inline-flex items-center gap-2 py-1.5 text-xs"
+      className="btn-secondary inline-flex w-full items-center justify-center gap-2 py-1.5 text-xs sm:w-auto"
       onClick={onLogoutAll}
       disabled={disabled}
     >

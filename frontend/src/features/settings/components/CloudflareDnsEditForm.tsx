@@ -54,7 +54,7 @@ export function CloudflareDnsEditForm({
         />
       ))}
 
-      <button type="button" className="btn-secondary py-1.5 text-xs" onClick={addZone}>
+      <button type="button" className="btn-secondary w-full py-1.5 text-xs sm:w-auto" onClick={addZone}>
         영역 추가
       </button>
 

@@ -10,7 +10,7 @@ export default function SettingsPage() {
   const { toastNotice, onDismissToast, ...sections } = settingsPage;
 
   return (
-    <div className="p-8">
+    <div>
       <ToastNotice notice={toastNotice} onClose={onDismissToast} />
       <SettingsPageHeader />
       <SettingsPageSections {...sections} />

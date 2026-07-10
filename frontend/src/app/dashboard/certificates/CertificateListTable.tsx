@@ -14,7 +14,7 @@ export default function CertificateListTable({
   onOpenCertificate,
 }: CertificateListTableProps) {
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" data-table-scroll="certificates">
       <table className="w-full min-w-[860px]">
         <thead>
           <tr className="border-b border-gray-100 text-xs text-gray-400 dark:border-slate-800 dark:text-slate-500">

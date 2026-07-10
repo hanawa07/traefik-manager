@@ -11,7 +11,7 @@ export default function CertificatesPage() {
   const model = useCertificatesPageModel();
 
   return (
-    <div className="p-8">
+    <div>
       <CertificatePageHeader {...model.header} />
 
       <CertificateOverviewPanels {...model.overview} />

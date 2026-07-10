@@ -10,7 +10,7 @@ export default function MiddlewaresPage() {
   const { pageHeader, sharedTab, generatedTab, modals } = useMiddlewaresPageModel();
 
   return (
-    <div className="p-8">
+    <div>
       <MiddlewarePageHeader {...pageHeader} />
       {pageHeader.activeTab === "templates" ? (
         <SharedMiddlewareTemplatesTab {...sharedTab} />

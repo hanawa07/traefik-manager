@@ -183,7 +183,7 @@ function SharedMiddlewareTemplateFilters({
         {hasActiveFilters ? (
           <button
             type="button"
-            className="ml-auto text-xs text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
+            className="w-full text-left text-xs text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 sm:ml-auto sm:w-auto sm:text-right"
             onClick={onReset}
           >
             조건 초기화

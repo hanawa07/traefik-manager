@@ -38,7 +38,7 @@ export default function ServicesPage() {
   };
 
   return (
-    <div className="p-4 sm:p-8">
+    <div>
       <ToastNotice notice={toastNotice} onClose={() => setToastNotice(null)} />
       {/* 헤더 */}
       <div className="mb-6 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">

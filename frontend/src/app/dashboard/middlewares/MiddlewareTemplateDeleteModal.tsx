@@ -21,7 +21,7 @@ export default function MiddlewareTemplateDeleteModal({
       <p className="mb-1 font-semibold text-gray-900 dark:text-slate-100">{deleteTarget?.name}</p>
       <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">{deleteTarget?.shared_name}</p>
 
-      <div className="flex justify-end gap-3">
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button className="btn-secondary" onClick={onClose}>
           취소
         </button>

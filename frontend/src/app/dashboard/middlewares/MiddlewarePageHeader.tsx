@@ -22,7 +22,7 @@ export default function MiddlewarePageHeader({
     <>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">미들웨어</h1>
             <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500 dark:bg-slate-800 dark:text-slate-300">
               템플릿 {templatesCount}개
@@ -36,14 +36,17 @@ export default function MiddlewarePageHeader({
           </p>
         </div>
         {canManage && activeTab === "templates" ? (
-          <button className="btn-primary inline-flex items-center gap-2 self-start lg:self-auto" onClick={onCreateOpen}>
+          <button className="btn-primary inline-flex w-full items-center justify-center gap-2 lg:w-auto" onClick={onCreateOpen}>
             <Plus className="h-4 w-4" />
             템플릿 추가
           </button>
         ) : null}
       </div>
 
-      <div className="mb-6 inline-flex rounded-2xl bg-gray-100 p-1 dark:bg-slate-800">
+      <div
+        className="mb-6 grid w-full grid-cols-2 rounded-2xl bg-gray-100 p-1 dark:bg-slate-800 sm:inline-flex sm:w-auto"
+        data-visual-surface
+      >
         <button
           className={clsx(
             "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
