@@ -47,8 +47,8 @@ export function TraefikUpdatePlanPanel({ deployment, health }: TraefikUpdatePlan
         </p>
       ) : null}
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.2fr]">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/80">
+      <div className="mt-4 grid min-w-0 gap-4 lg:grid-cols-[1fr_1.2fr]">
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/80">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
             <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-300" />
             업데이트 전 확인
@@ -67,10 +67,10 @@ export function TraefikUpdatePlanPanel({ deployment, health }: TraefikUpdatePlan
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           {plan.commands.map((item) => (
             <div
-              className="rounded-xl border border-slate-200 bg-slate-950 p-3 text-slate-100 shadow-sm dark:border-slate-700"
+              className="min-w-0 rounded-xl border border-slate-200 bg-slate-950 p-3 text-slate-100 shadow-sm dark:border-slate-700"
               key={item.label}
             >
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -87,7 +87,7 @@ export function TraefikUpdatePlanPanel({ deployment, health }: TraefikUpdatePlan
                   {copiedCommand === item.label ? "복사됨" : "복사"}
                 </button>
               </div>
-              <code className="mt-2 block overflow-x-auto whitespace-pre rounded-lg bg-black/35 px-2.5 py-2 text-[11px] leading-5 text-emerald-200">
+              <code className="mt-2 block max-w-full overflow-x-auto whitespace-pre rounded-lg bg-black/35 px-2.5 py-2 text-[11px] leading-5 text-emerald-200">
                 {item.command}
               </code>
             </div>
