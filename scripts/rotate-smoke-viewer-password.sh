@@ -5,8 +5,32 @@ export PATH="/usr/local/bin:/usr/bin:/bin:${PATH:-}"
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 readonly SMOKE_USERNAME="${TM_SMOKE_USERNAME:-traefik-smoke-viewer}"
+rotation_step="초기화"
 
 cd "${REPO_ROOT}"
+
+report_rotation_status() {
+  local status="$1"
+  local detail="${2:-}"
+  TM_SMOKE_ROTATION_STATUS="${status}" TM_SMOKE_ROTATION_DETAIL="${detail}" \
+    docker compose exec -T \
+      -e TM_SMOKE_ROTATION_STATUS \
+      -e TM_SMOKE_ROTATION_DETAIL \
+      backend python -m app.interfaces.cli.smoke_rotation_reporter
+}
+
+handle_exit() {
+  local exit_code=$?
+  trap - EXIT
+  if (( exit_code != 0 )); then
+    report_rotation_status failure "${rotation_step}" || \
+      echo "회전 실패 상태와 운영 알림을 기록하지 못했습니다: ${rotation_step}" >&2
+  fi
+  unset password
+  exit "${exit_code}"
+}
+
+trap handle_exit EXIT
 
 for command_name in docker gh openssl; do
   command -v "${command_name}" >/dev/null || {
@@ -15,12 +39,17 @@ for command_name in docker gh openssl; do
   }
 done
 
+rotation_step="GitHub 인증 확인"
 gh auth status >/dev/null
 gh secret list --app actions >/dev/null
 
-password="$(openssl rand -hex 32)"
-trap 'unset password' EXIT
+rotation_step="회전 시작 상태 기록"
+report_rotation_status running "회전을 시작했습니다"
 
+rotation_step="임시 비밀번호 생성"
+password="$(openssl rand -hex 32)"
+
+rotation_step="viewer 계정 갱신"
 TM_CI_PASSWORD="${password}" TM_SMOKE_USERNAME="${SMOKE_USERNAME}" \
   docker compose exec -T -e TM_CI_PASSWORD -e TM_SMOKE_USERNAME backend python - <<'PY'
 import json
@@ -84,6 +113,7 @@ if user["role"] != "viewer" or not user["is_active"]:
 print("스모크 viewer 계정 비밀번호 갱신 완료")
 PY
 
+rotation_step="GitHub secret 갱신"
 secret_updated=false
 for attempt in 1 2 3; do
   if printf %s "${password}" | gh secret set TM_SMOKE_PASSWORD --app actions; then
@@ -99,6 +129,7 @@ if [[ "${secret_updated}" != "true" ]]; then
   exit 1
 fi
 
+rotation_step="Node.js 실행 환경 준비"
 if [[ -s "${HOME}/.nvm/nvm.sh" ]]; then
   export NVM_DIR="${HOME}/.nvm"
   # shellcheck disable=SC1091
@@ -106,6 +137,7 @@ if [[ -s "${HOME}/.nvm/nvm.sh" ]]; then
   nvm use --silent default >/dev/null
 fi
 
+rotation_step="회전 후 인증 스모크 검증"
 if command -v node >/dev/null && [[ -f .env ]]; then
   # shellcheck disable=SC1091
   source .env
@@ -114,7 +146,10 @@ if command -v node >/dev/null && [[ -f .env ]]; then
     TM_SMOKE_PASSWORD="${password}" \
     node scripts/smoke-services-browser-session.mjs
 else
-  echo "Node.js 또는 .env가 없어 로컬 스모크 검증은 건너뜁니다"
+  echo "Node.js 또는 .env가 없어 로컬 스모크 검증을 실행할 수 없습니다" >&2
+  exit 1
 fi
 
+rotation_step="성공 상태 기록"
+report_rotation_status success
 echo "스모크 viewer 비밀번호와 GitHub secret 회전 완료"

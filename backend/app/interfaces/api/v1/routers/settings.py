@@ -24,11 +24,15 @@ from app.interfaces.api.v1.routers.settings_router_wiring import (
 from app.interfaces.api.v1.routers.settings_security_alert_actions import (
     test_security_alert_settings_action as _test_security_alert_settings_action,
 )
+from app.interfaces.api.v1.routers.settings_smoke_rotation_response import (
+    get_smoke_rotation_status_response as _get_smoke_rotation_status_response,
+)
 from app.interfaces.api.v1.routers.settings_standard_routes import register_settings_standard_routes
 from app.interfaces.api.v1.routers.settings_test_history import (
     get_settings_test_history_response as _get_settings_test_history_response,
 )
 from app.interfaces.api.v1.schemas.settings_schemas import (
+    SmokeRotationStatusResponse,
     SettingsRollbackActionResponse,
     SettingsTestHistoryResponse,
     SettingsTestActionResponse,
@@ -84,6 +88,18 @@ get_login_defense_settings = STANDARD_ENDPOINTS.get_login_defense_settings
 update_login_defense_settings = STANDARD_ENDPOINTS.update_login_defense_settings
 get_security_alert_settings = STANDARD_ENDPOINTS.get_security_alert_settings
 update_security_alert_settings = STANDARD_ENDPOINTS.update_security_alert_settings
+
+
+@router.get(
+    "/smoke-rotation",
+    response_model=SmokeRotationStatusResponse,
+    summary="스모크 viewer 비밀번호 회전 상태 조회",
+)
+async def get_smoke_rotation_status(
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    return await _get_smoke_rotation_status_response(db)
 
 
 @router.post(

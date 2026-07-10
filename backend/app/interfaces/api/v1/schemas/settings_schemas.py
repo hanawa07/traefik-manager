@@ -32,6 +32,9 @@ from app.interfaces.api.v1.schemas.settings_security_alert_schemas import (
     normalize_email_address,
     normalize_email_recipients,
 )
+from app.interfaces.api.v1.schemas.settings_smoke_rotation_schemas import (
+    SmokeRotationStatusResponse,
+)
 from app.interfaces.api.v1.schemas.settings_test_schemas import (
     SettingsRollbackActionResponse,
     SettingsTestActionResponse,
@@ -54,6 +57,7 @@ __all__ = [
     "LoginDefenseSettingsUpdateRequest",
     "SecurityAlertSettingsResponse",
     "SecurityAlertSettingsUpdateRequest",
+    "SmokeRotationStatusResponse",
     "SettingsRollbackActionResponse",
     "SettingsTestActionResponse",
     "SettingsTestHistoryItemResponse",

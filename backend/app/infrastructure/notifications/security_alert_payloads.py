@@ -59,6 +59,8 @@ def build_message(event: str, resource_name: str, client_ip: Any, category: str)
         return f"인증서 복구: {resource_name}"
     if event == "certificate_preflight_repeated_failure":
         return f"인증서 발급 반복 실패: {resource_name}"
+    if event == "smoke_rotation_failed":
+        return f"스모크 viewer 비밀번호 회전 실패: {resource_name}"
     return f"롤백 실행: {resource_name}"
 
 
@@ -192,6 +194,8 @@ def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
             lines.append(f"만료 시각: {detail.get('expires_at')}")
         if detail.get("source_audit_id"):
             lines.append(f"원본 변경 로그: {detail.get('source_audit_id')}")
+        if event == "smoke_rotation_failed" and detail.get("step"):
+            lines.append(f"실패 단계: {detail.get('step')}")
     return "\n".join(lines)
 
 

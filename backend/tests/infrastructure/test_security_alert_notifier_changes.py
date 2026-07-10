@@ -34,6 +34,35 @@ async def test_notify_if_needed_posts_operational_change_when_enabled(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_notify_if_needed_posts_smoke_rotation_failure(monkeypatch):
+    posted = []
+    audit_log = make_audit_log(
+        "smoke_rotation_failed",
+        resource_type="user",
+        resource_id="traefik-smoke-viewer",
+        resource_name="traefik-smoke-viewer",
+    )
+    audit_log.detail["step"] = "GitHub secret 갱신"
+    patch_settings(
+        monkeypatch,
+        {
+            "change_alerts_enabled": "true",
+            "security_alert_provider": "telegram",
+            "security_alert_telegram_bot_token": "telegram-secret",
+            "security_alert_telegram_chat_id": "10001",
+            "security_alert_change_route_settings_change": "default",
+        },
+    )
+    patch_http_client(monkeypatch, posted)
+
+    result = await security_alert_notifier.notify_if_needed(object(), audit_log)
+
+    assert result is True
+    assert "스모크 viewer 비밀번호 회전 실패" in posted[0][1]["text"]
+    assert "실패 단계: GitHub secret 갱신" in posted[0][1]["text"]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("event", "resource_type", "route_key"),
     [

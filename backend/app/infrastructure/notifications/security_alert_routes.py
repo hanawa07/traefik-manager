@@ -50,6 +50,8 @@ def get_alert_category_and_group(event: str) -> tuple[str, str] | None:
         return "security", event
     if event.startswith("settings_update_"):
         return "change", "settings_change"
+    if event == "smoke_rotation_failed":
+        return "change", "settings_change"
     if event in {"service_create", "service_update", "service_delete"}:
         return "change", "service_change"
     if event in {"redirect_create", "redirect_update", "redirect_delete"}:
