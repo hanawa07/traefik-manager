@@ -44,6 +44,11 @@ const CHECKS = [
     validate: (data) => typeof data?.display_timezone === "string",
   },
   {
+    label: "스모크 회전 상태",
+    path: "/api/v1/settings/smoke-rotation",
+    validate: (data) => ["never", "running", "success", "failure"].includes(data?.status),
+  },
+  {
     label: "서비스 진단 감사 로그",
     path: "/api/v1/audit?event=service_gateway_diagnosis&limit=100&resource_type=service",
     validate: Array.isArray,

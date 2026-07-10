@@ -34,6 +34,64 @@ export async function checkOptionalAdminModal({ artifactDir, cdp, profile, timeo
   return true;
 }
 
+export async function checkMobileSidebar({ artifactDir, cdp, profile, timeoutMs }) {
+  if (!profile.mobile) return false;
+
+  await clickAriaLabel(cdp, "메뉴 열기");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const sidebar = document.querySelector('#dashboard-sidebar');
+      const toggle = document.querySelector('[aria-controls="dashboard-sidebar"]');
+      return Boolean(
+        sidebar &&
+        toggle?.getAttribute('aria-expanded') === 'true' &&
+        sidebar.getBoundingClientRect().x >= -1
+      );
+    })()`,
+    timeoutMs,
+    "모바일 메뉴가 열리지 않았습니다",
+  );
+
+  const snapshot = await evaluate(cdp, `(() => {
+    const sidebar = document.querySelector('#dashboard-sidebar');
+    const rect = sidebar?.getBoundingClientRect();
+    return rect ? {
+      height: rect.height,
+      navLinks: sidebar.querySelectorAll('nav a').length,
+      scrollWidth: sidebar.scrollWidth,
+      viewportHeight: window.innerHeight,
+      viewportWidth: window.innerWidth,
+      width: rect.width,
+      x: rect.x,
+    } : null;
+  })()`);
+  assert.ok(snapshot, "모바일 메뉴를 찾지 못했습니다");
+  assert.ok(snapshot.x >= -1, "모바일 메뉴가 화면 안으로 들어오지 않았습니다");
+  assert.ok(snapshot.width <= snapshot.viewportWidth + 1, "모바일 메뉴가 화면 폭을 넘습니다");
+  assert.ok(snapshot.height <= snapshot.viewportHeight + 1, "모바일 메뉴가 화면 높이를 넘습니다");
+  assert.ok(snapshot.scrollWidth <= snapshot.width + 1, "모바일 메뉴 내부가 가로로 넘칩니다");
+  assert.ok(snapshot.navLinks >= 7, "모바일 메뉴의 탐색 링크가 누락됐습니다");
+
+  await captureVisualScreenshot({ artifactDir, cdp, name: `${profile.id}-sidebar-open` });
+  await clickAriaLabel(cdp, "메뉴 닫기");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const sidebar = document.querySelector('#dashboard-sidebar');
+      const toggle = document.querySelector('[aria-controls="dashboard-sidebar"]');
+      return Boolean(
+        sidebar &&
+        toggle?.getAttribute('aria-expanded') === 'false' &&
+        sidebar.getBoundingClientRect().right <= 1
+      );
+    })()`,
+    timeoutMs,
+    "모바일 메뉴가 닫히지 않았습니다",
+  );
+  return true;
+}
+
 async function assertDialogFitsViewport(cdp, label) {
   const snapshot = await evaluate(cdp, `(() => {
     const dialog = document.querySelector('[role="dialog"]');
@@ -75,7 +133,7 @@ async function clickAriaLabel(cdp, label) {
       return Boolean(button);
     })()`,
   );
-  assert.equal(clicked, true, `${label}: 닫기 버튼을 찾지 못했습니다`);
+  assert.equal(clicked, true, `${label}: 버튼을 찾지 못했습니다`);
 }
 
 async function waitForDialog(cdp, label, timeoutMs) {

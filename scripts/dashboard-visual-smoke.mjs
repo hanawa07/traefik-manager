@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
 import {
   checkCertificateDrawer,
+  checkMobileSidebar,
   checkOptionalAdminModal,
 } from "./dashboard-visual-interactions.mjs";
+import { assertDashboardShell } from "./dashboard-visual-shell.mjs";
 
 const MOBILE_VIEWPORT = {
   width: 390,
@@ -47,7 +49,7 @@ const DASHBOARD_ROUTES = [
   { label: "미들웨어", path: "/dashboard/middlewares", marker: "공용 템플릿" },
   { label: "리다이렉트", path: "/dashboard/redirects", marker: "도메인 리다이렉트 호스트 관리" },
   { label: "서비스", path: "/dashboard/services", marker: "Traefik 라우팅 서비스 관리" },
-  { label: "설정", path: "/dashboard/settings", marker: "설정" },
+  { label: "설정", path: "/dashboard/settings", marker: "스모크 계정 자동 회전" },
 ];
 
 export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeoutMs }) {
@@ -56,6 +58,10 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
     await withVisualProfile(cdp, profile, async () => {
       for (const route of DASHBOARD_ROUTES) {
         await checkRoute({ artifactDir, baseUrl, cdp, profile, route, timeoutMs });
+        if (route.path === "/dashboard") {
+          const opened = await checkMobileSidebar({ artifactDir, cdp, profile, timeoutMs });
+          if (opened) labels.push(`${profile.label} 사이드바`);
+        }
         if (route.path === "/dashboard/certificates") {
           const opened = await checkCertificateDrawer({ artifactDir, cdp, profile, timeoutMs });
           if (opened) labels.push(`${profile.label} 인증서 drawer`);
@@ -123,6 +129,10 @@ async function checkRenderedRoute(cdp, route, artifactDir, profile) {
     const visualBackground = document.querySelector('[data-visual-background], .min-h-screen');
     const main = document.querySelector('main');
     const sortControls = document.querySelector('[data-testid="services-sort-controls"]');
+    const sidebar = document.querySelector('#dashboard-sidebar');
+    const mobileBar = document.querySelector('#dashboard-mobile-bar');
+    const sidebarRect = sidebar?.getBoundingClientRect();
+    const mobileBarRect = mobileBar?.getBoundingClientRect();
     const overviewStats =
       document.querySelector('[data-testid="service-overview-stats"]') ||
       Array.from(document.querySelectorAll('.grid')).find((element) =>
@@ -142,11 +152,23 @@ async function checkRenderedRoute(cdp, route, artifactDir, profile) {
       mainWidth: main?.clientWidth ?? null,
       path: location.pathname,
       overviewColumns: overviewStats ? getComputedStyle(overviewStats).gridTemplateColumns.split(' ').length : null,
+      sidebarRect: sidebarRect ? {
+        height: sidebarRect.height,
+        right: sidebarRect.right,
+        width: sidebarRect.width,
+        x: sidebarRect.x,
+      } : null,
+      mobileBarRect: mobileBarRect ? {
+        display: getComputedStyle(mobileBar).display,
+        height: mobileBarRect.height,
+        width: mobileBarRect.width,
+      } : null,
       sortDisplay: sortControls ? getComputedStyle(sortControls).display : null,
       surfaceBackground: surfaceStyle?.backgroundColor ?? null,
       surfaceColor: surfaceTextStyle?.color ?? null,
       tableScrolls,
       viewportWidth: document.documentElement.clientWidth,
+      viewportHeight: document.documentElement.clientHeight,
     };
   })()`);
 
@@ -167,6 +189,7 @@ function assertVisualSnapshot(snapshot, route, profile) {
       profile.dark,
       `${profile.label} ${route.label}: 테마가 예상과 다릅니다`,
     );
+    assertDashboardShell(snapshot, route, profile);
   }
   assert.ok(
     snapshot.documentWidth <= snapshot.viewportWidth + 1,
@@ -329,10 +352,13 @@ export function runDashboardVisualSmokeSelfTest() {
     mainWidth: 390,
     path: "/dashboard/services",
     overviewColumns: null,
+    sidebarRect: { height: 844, right: 0, width: 256, x: -256 },
+    mobileBarRect: { display: "flex", height: 64, width: 390 },
     sortDisplay: "grid",
     surfaceBackground: "rgba(15, 23, 42, 0.95)",
     surfaceColor: "rgb(241, 245, 249)",
     tableScrolls: [],
+    viewportHeight: 844,
     viewportWidth: 390,
   };
 
@@ -351,9 +377,12 @@ export function runDashboardVisualSmokeSelfTest() {
     documentWidth: 1440,
     mainScrollWidth: 1184,
     mainWidth: 1184,
+    sidebarRect: { height: 900, right: 256, width: 256, x: 0 },
+    mobileBarRect: { display: "none", height: 0, width: 0 },
     sortDisplay: "flex",
     surfaceBackground: "rgb(255, 255, 255)",
     surfaceColor: "rgb(15, 23, 42)",
+    viewportHeight: 900,
     viewportWidth: 1440,
   };
   assert.doesNotThrow(() => assertVisualSnapshot(desktopValid, serviceRoute, desktopProfile));

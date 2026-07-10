@@ -30,7 +30,9 @@ export default function Sidebar() {
       <SidebarMobileBar isOpen={isOpen} onToggle={toggleSidebar} />
 
       {isOpen && (
-        <div
+        <button
+          type="button"
+          aria-label="메뉴 배경 닫기"
           className="fixed inset-0 z-[55] bg-black/40 backdrop-blur-sm lg:hidden"
           onClick={() => setIsOpen(false)}
         />
@@ -38,6 +40,9 @@ export default function Sidebar() {
 
       {/* 사이드바 메인: #E7E7E7 배경 적용 */}
       <aside
+        id="dashboard-sidebar"
+        aria-label="주 메뉴"
+        data-open={isOpen}
         className={clsx(
           "fixed inset-y-0 left-0 z-[60] flex min-h-screen w-64 flex-col bg-sidebar shadow-2xl",
           "border-r border-sidebar-border/50 transition-all duration-300 dark:border-slate-800",
