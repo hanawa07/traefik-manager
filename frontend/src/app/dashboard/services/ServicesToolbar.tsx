@@ -45,7 +45,7 @@ export default function ServicesToolbar({
         onSortDirChange={onSortDirChange}
       />
       {hasActiveFilters ? (
-        <button type="button" className="btn-secondary shrink-0 py-2 text-sm" onClick={resetFilters}>
+        <button type="button" className="btn-secondary w-full shrink-0 py-2 text-sm sm:w-auto" onClick={resetFilters}>
           조건 초기화
         </button>
       ) : null}

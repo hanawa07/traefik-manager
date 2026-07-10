@@ -16,12 +16,12 @@ export function LoginCredentialsFields({
   return (
     <>
       <div>
-        <label className="label text-slate-700">아이디</label>
+        <label className="label text-slate-700 dark:text-slate-300">아이디</label>
         <div className="relative">
-          <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+          <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
-            className="input pl-11 bg-slate-50/50 border-slate-100"
+            className="input border-slate-100 bg-slate-50/50 pl-11 dark:border-slate-700 dark:bg-slate-950/70"
             placeholder="사용자 아이디"
             value={username}
             onChange={(event) => onUsernameChange(event.target.value)}
@@ -31,12 +31,12 @@ export function LoginCredentialsFields({
         </div>
       </div>
       <div>
-        <label className="label text-slate-700">비밀번호</label>
+        <label className="label text-slate-700 dark:text-slate-300">비밀번호</label>
         <div className="relative">
-          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 dark:text-slate-500" />
           <input
             type="password"
-            className="input pl-11 bg-slate-50/50 border-slate-100"
+            className="input border-slate-100 bg-slate-50/50 pl-11 dark:border-slate-700 dark:bg-slate-950/70"
             placeholder="비밀번호"
             value={password}
             onChange={(event) => onPasswordChange(event.target.value)}

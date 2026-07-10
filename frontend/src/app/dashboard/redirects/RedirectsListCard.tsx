@@ -28,12 +28,14 @@ export function RedirectsListCard({
       ) : redirects.length === 0 ? (
         <RedirectsEmptyState canManage={canManage} onCreate={onCreate} />
       ) : (
-        <RedirectsTable
-          canManage={canManage}
-          redirects={redirects}
-          onEdit={onEdit}
-          onDelete={onDelete}
-        />
+        <div className="overflow-x-auto" data-testid="redirects-table-scroll">
+          <RedirectsTable
+            canManage={canManage}
+            redirects={redirects}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        </div>
       )}
     </div>
   );

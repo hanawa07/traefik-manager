@@ -38,10 +38,10 @@ export default function ServicesPage() {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <ToastNotice notice={toastNotice} onClose={() => setToastNotice(null)} />
       {/* 헤더 */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">서비스</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
@@ -49,7 +49,7 @@ export default function ServicesPage() {
           </p>
         </div>
         {model.canManage ? (
-          <Link href="/dashboard/services/new" className="btn-primary flex items-center gap-2">
+          <Link href="/dashboard/services/new" className="btn-primary flex items-center justify-center gap-2">
             <Plus className="w-4 h-4" />
             서비스 추가
           </Link>

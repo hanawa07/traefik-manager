@@ -31,7 +31,10 @@ export default function LoginFormCard({
   onTurnstileReady,
 }: LoginFormCardProps) {
   return (
-    <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10">
+    <div
+      className="rounded-[2rem] border border-white/10 bg-white/95 p-8 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/95 sm:p-10"
+      data-testid="login-form-card"
+    >
       {loginProtection.turnstile_enabled && loginProtection.turnstile_site_key ? (
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
@@ -48,7 +51,7 @@ export default function LoginFormCard({
         />
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50/80 px-4 py-3 rounded-xl border border-red-100 font-medium">
+          <p className="rounded-xl border border-red-100 bg-red-50/80 px-4 py-3 text-sm font-medium text-red-600 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
             {error}
           </p>
         )}

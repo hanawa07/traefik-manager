@@ -11,7 +11,7 @@ export default function RedirectsPage() {
   const page = useRedirectsPageModel();
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <RedirectsPageHeader
         canManage={page.canManage}
         redirectCount={page.redirects.length}

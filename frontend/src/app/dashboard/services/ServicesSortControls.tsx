@@ -21,12 +21,12 @@ export function ServicesSortControls({
   onSortDirChange,
 }: ServicesSortControlsProps) {
   return (
-    <div className="flex flex-shrink-0 items-center gap-2">
-      <ArrowUpDown className="h-4 w-4 text-gray-400 dark:text-slate-500" />
+    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-shrink-0 sm:items-center" data-testid="services-sort-controls">
+      <ArrowUpDown className="hidden h-4 w-4 text-gray-400 dark:text-slate-500 sm:block" />
       <select
         value={healthFilter}
         onChange={(event) => onHealthFilterChange(event.target.value as HealthFilter)}
-        className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+        className="min-w-0 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 sm:w-auto"
       >
         {HEALTH_FILTER_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
@@ -40,7 +40,7 @@ export function ServicesSortControls({
           onSortKeyChange(event.target.value as SortKey);
           onSortDirChange(() => "asc");
         }}
-        className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+        className="min-w-0 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 sm:w-auto"
       >
         {SORT_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
@@ -51,7 +51,7 @@ export function ServicesSortControls({
       <button
         type="button"
         onClick={() => onSortDirChange((value) => (value === "asc" ? "desc" : "asc"))}
-        className="min-w-[70px] select-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        className="col-span-2 w-full select-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 sm:col-auto sm:min-w-[70px] sm:w-auto"
         title={sortDir === "asc" ? "오름차순" : "내림차순"}
       >
         {sortDir === "asc" ? "↑ 오름" : "↓ 내림"}

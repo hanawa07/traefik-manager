@@ -17,7 +17,7 @@ export function RedirectsTable({
   onDelete,
 }: RedirectsTableProps) {
   return (
-    <table className="w-full">
+    <table className="min-w-[680px] w-full">
       <thead>
         <tr className="border-b border-gray-100 text-xs text-gray-400 dark:border-slate-800 dark:text-slate-500">
           <th className="px-6 py-3 text-left font-medium">원본 도메인</th>
