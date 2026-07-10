@@ -59,6 +59,8 @@ async function checkRenderedRoute(cdp, route, artifactDir) {
   const snapshot = await evaluate(cdp, `(() => {
     const surface = document.querySelector('.card, [data-visual-surface], [data-testid="login-form-card"]');
     const surfaceStyle = surface ? getComputedStyle(surface) : null;
+    const surfaceText = surface?.querySelector('h1, h2, h3, p, label, span, button, a') || surface;
+    const surfaceTextStyle = surfaceText ? getComputedStyle(surfaceText) : null;
     const visualBackground = document.querySelector('[data-visual-background], .min-h-screen');
     const sortControls = document.querySelector('[data-testid="services-sort-controls"]');
     const overviewStats =
@@ -80,7 +82,7 @@ async function checkRenderedRoute(cdp, route, artifactDir) {
       overviewColumns: overviewStats ? getComputedStyle(overviewStats).gridTemplateColumns.split(' ').length : null,
       sortDisplay: sortControls ? getComputedStyle(sortControls).display : null,
       surfaceBackground: surfaceStyle?.backgroundColor ?? null,
-      surfaceColor: surfaceStyle?.color ?? null,
+      surfaceColor: surfaceTextStyle?.color ?? null,
       tableScrolls,
       viewportWidth: document.documentElement.clientWidth,
     };
@@ -130,7 +132,7 @@ function assertVisualSnapshot(snapshot, route) {
       `${route.label}: 로그인 카드가 밝지 않습니다 (${snapshot.surfaceBackground})`,
     );
     assert.ok(
-      isDarkColor(snapshot.surfaceColor),
+      hasReadableContrast(snapshot.surfaceBackground, snapshot.surfaceColor),
       `${route.label}: 로그인 카드 글자 대비가 부족합니다 (${snapshot.surfaceColor})`,
     );
   } else {
@@ -139,7 +141,7 @@ function assertVisualSnapshot(snapshot, route) {
       `${route.label}: 주요 표면이 어둡지 않습니다 (${snapshot.surfaceBackground})`,
     );
     assert.ok(
-      isLightColor(snapshot.surfaceColor),
+      hasReadableContrast(snapshot.surfaceBackground, snapshot.surfaceColor),
       `${route.label}: 주요 표면 글자 대비가 부족합니다 (${snapshot.surfaceColor})`,
     );
   }
@@ -163,10 +165,16 @@ async function waitForRoute(cdp, route, timeoutMs) {
   while (Date.now() < deadline) {
     lastSnapshot = await evaluate(cdp, `({
       hasSurface: Boolean(document.querySelector('.card, [data-visual-surface], [data-testid="login-form-card"]')),
+      isLoading: Boolean(document.querySelector('.animate-pulse')),
       path: location.pathname,
       text: document.body.innerText.slice(0, 5000),
     })`);
-    if (lastSnapshot.path === route.path && lastSnapshot.hasSurface && lastSnapshot.text.includes(route.marker)) {
+    if (
+      lastSnapshot.path === route.path &&
+      lastSnapshot.hasSurface &&
+      !lastSnapshot.isLoading &&
+      lastSnapshot.text.includes(route.marker)
+    ) {
       return;
     }
     if (route.path.startsWith("/dashboard") && lastSnapshot.path === "/login") {
@@ -206,6 +214,25 @@ function isDarkColor(value) {
 function isLightColor(value) {
   const rgb = parseRgb(value);
   return rgb !== null && Math.min(...rgb) > 160;
+}
+
+function hasReadableContrast(background, foreground) {
+  const backgroundRgb = parseRgb(background);
+  const foregroundRgb = parseRgb(foreground);
+  if (!backgroundRgb || !foregroundRgb) return false;
+  const lighter = Math.max(relativeLuminance(backgroundRgb), relativeLuminance(foregroundRgb));
+  const darker = Math.min(relativeLuminance(backgroundRgb), relativeLuminance(foregroundRgb));
+  return (lighter + 0.05) / (darker + 0.05) >= 4.5;
+}
+
+function relativeLuminance(rgb) {
+  const [red, green, blue] = rgb.map((channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
 function parseRgb(value) {
@@ -265,6 +292,10 @@ export function runDashboardVisualSmokeSelfTest() {
   assert.throws(
     () => assertVisualSnapshot({ ...valid, surfaceBackground: "rgb(255, 255, 255)" }, serviceRoute),
     /주요 표면/,
+  );
+  assert.throws(
+    () => assertVisualSnapshot({ ...valid, surfaceColor: "rgb(15, 23, 42)" }, serviceRoute),
+    /글자 대비/,
   );
   assert.throws(
     () =>
