@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+SmokeMonitoringFrequency = Literal["daily", "weekly"]
+
 
 class SmokeRotationStatusResponse(BaseModel):
     status: Literal["never", "running", "success", "failure"]
@@ -12,3 +14,16 @@ class SmokeRotationStatusResponse(BaseModel):
     stale_after_days: int = 35
     recent_log_lines: list[str] = Field(default_factory=list)
     log_updated_at: str | None = None
+    monitoring_enabled: bool = True
+    monitoring_frequency: SmokeMonitoringFrequency = "daily"
+    monitoring_schedule_time: str = "03:17"
+    monitoring_schedule_timezone: str = "Asia/Seoul"
+
+
+class SmokeMonitoringSettingsUpdateRequest(BaseModel):
+    monitoring_enabled: bool
+    monitoring_frequency: SmokeMonitoringFrequency
+
+
+class SmokeMonitoringScheduleDecisionResponse(BaseModel):
+    should_run: bool

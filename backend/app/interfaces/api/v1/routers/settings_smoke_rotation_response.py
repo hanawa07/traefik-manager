@@ -18,6 +18,9 @@ from app.core.smoke_rotation_status import (
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
     SQLiteSystemSettingsRepository,
 )
+from app.interfaces.api.v1.routers.settings_smoke_monitoring_values import (
+    read_smoke_monitoring_values,
+)
 from app.interfaces.api.v1.schemas.settings_smoke_rotation_schemas import (
     SmokeRotationStatusResponse,
 )
@@ -41,6 +44,7 @@ async def get_smoke_rotation_status_response(
             read_smoke_rotation_log_tail,
             settings.SMOKE_ROTATION_LOG_PATH,
         )
+    monitoring = await read_smoke_monitoring_values(repo)
     return SmokeRotationStatusResponse(
         status=status,
         last_attempt_at=await repo.get(SMOKE_ROTATION_LAST_ATTEMPT_AT_KEY),
@@ -50,4 +54,5 @@ async def get_smoke_rotation_status_response(
         stale_after_days=SMOKE_ROTATION_STALE_AFTER_DAYS,
         recent_log_lines=log_lines,
         log_updated_at=log_updated_at,
+        **monitoring,
     )

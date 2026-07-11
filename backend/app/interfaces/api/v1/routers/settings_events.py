@@ -24,6 +24,7 @@ SETTINGS_UPDATE_EVENTS = {
     "upstream_security": "settings_update_upstream_security",
     "login_defense": "settings_update_login_defense",
     "security_alert": "settings_update_security_alert",
+    "smoke_monitoring": "settings_update_smoke_monitoring",
 }
 
 SETTINGS_ROLLBACK_EVENTS = {

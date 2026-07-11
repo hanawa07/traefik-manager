@@ -9,6 +9,12 @@ import {
   runDashboardVisualSmoke,
   runDashboardVisualSmokeSelfTest,
 } from "./dashboard-visual-smoke.mjs";
+import {
+  parseCookieHeader,
+  parseSetCookieHeaders,
+  resolveSessionCookies,
+  splitCombinedSetCookie,
+} from "./smoke-session-auth.mjs";
 
 const DEFAULT_TIMEOUT_MS = 40_000;
 
@@ -49,7 +55,9 @@ const CHECKS = [
     validate: (data) =>
       ["never", "running", "success", "failure"].includes(data?.status) &&
       typeof data?.is_stale === "boolean" &&
-      data?.stale_after_days === 35,
+      data?.stale_after_days === 35 &&
+      typeof data?.monitoring_enabled === "boolean" &&
+      ["daily", "weekly"].includes(data?.monitoring_frequency),
     failureMessage: (data) =>
       data?.is_stale
         ? `스모크 계정 자동 회전이 ${data.stale_after_days}일 이상 성공하지 않았습니다`
@@ -149,37 +157,6 @@ function normalizeBaseUrl(value) {
     ? trimmed
     : `https://${trimmed}`;
   return withScheme.replace(/\/+$/, "");
-}
-
-async function resolveSessionCookies(baseUrl) {
-  if (process.env.TM_SMOKE_COOKIE) {
-    return parseCookieHeader(process.env.TM_SMOKE_COOKIE);
-  }
-
-  const username = process.env.TM_SMOKE_USERNAME;
-  const password = process.env.TM_SMOKE_PASSWORD;
-  if (!username || !password) {
-    throw new Error("TM_SMOKE_COOKIE 또는 TM_SMOKE_USERNAME/TM_SMOKE_PASSWORD가 필요합니다");
-  }
-
-  const form = new URLSearchParams({ username, password });
-  const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: form,
-    redirect: "manual",
-  });
-  const body = await response.text();
-  if (!response.ok) {
-    throw new Error(`로그인 API ${response.status}: ${body.slice(0, 200)}`);
-  }
-
-  const setCookies = getSetCookieHeaders(response.headers);
-  const cookies = parseSetCookieHeaders(setCookies);
-  if (cookies.length === 0) {
-    throw new Error("로그인 응답에서 세션 쿠키를 받지 못했습니다");
-  }
-  return cookies;
 }
 
 async function launchChrome(timeoutMs) {
@@ -376,41 +353,6 @@ class CdpClient {
     const listener = listeners.shift();
     listener(message.params ?? {});
   }
-}
-
-function getSetCookieHeaders(headers) {
-  if (typeof headers.getSetCookie === "function") {
-    return headers.getSetCookie();
-  }
-  return splitCombinedSetCookie(headers.get("set-cookie") || "");
-}
-
-function parseCookieHeader(value) {
-  return value
-    .split(";")
-    .map((item) => parseCookiePair(item.trim()))
-    .filter(Boolean);
-}
-
-function parseSetCookieHeaders(headers) {
-  return headers.flatMap((header) => {
-    const [pair] = header.split(";");
-    return parseCookiePair(pair.trim()) ?? [];
-  });
-}
-
-function parseCookiePair(pair) {
-  const index = pair.indexOf("=");
-  if (index <= 0) return null;
-  return {
-    name: pair.slice(0, index).trim(),
-    value: pair.slice(index + 1).trim(),
-  };
-}
-
-function splitCombinedSetCookie(value) {
-  if (!value) return [];
-  return value.split(/,(?=\s*[^;,=\s]+=)/).map((item) => item.trim());
 }
 
 async function waitForJson(url, timeoutMs) {

@@ -1,4 +1,4 @@
-name: 대시보드 인증 시각 스모크
+name: 운영 로그인·화면 스모크
 
 on:
   workflow_dispatch:
@@ -38,12 +38,29 @@ jobs:
         with:
           node-version: 22
 
+      - name: 예약 실행 설정 확인
+        id: schedule
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" != "schedule" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ -z "$TM_SMOKE_BASE_URL" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          node scripts/smoke-schedule-check.mjs >> "$GITHUB_OUTPUT"
+
       - name: 한글 폰트 준비
+        if: steps.schedule.outputs.should_run == 'true'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends fonts-noto-cjk
 
-      - name: 인증 대시보드 검사
+      - name: 운영 로그인·화면 검사
+        if: steps.schedule.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -84,9 +101,9 @@ jobs:
             echo "::notice::Telegram 비밀값이 없어 실패 알림을 건너뜁니다."
             exit 0
           fi
-          title="Traefik Manager 인증 시각 스모크 실패"
+          title="Traefik Manager 운영 로그인·화면 스모크 실패"
           if [[ "$TEST_FAILURE_NOTIFICATION" == "true" ]]; then
-            title="[테스트] Traefik Manager 인증 시각 스모크 실패"
+            title="[테스트] Traefik Manager 운영 로그인·화면 스모크 실패"
           fi
           detail=""
           if [[ -s "$TM_SMOKE_ALERT_DETAIL_FILE" ]]; then
