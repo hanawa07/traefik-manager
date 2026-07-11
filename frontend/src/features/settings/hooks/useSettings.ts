@@ -22,6 +22,7 @@ export {
   useUpdateCloudflareSettings,
   useUpdateLoginDefenseSettings,
   useUpdateSecurityAlertSettings,
+  useUpdateSmokeMonitoringSettings,
   useUpdateTimeDisplaySettings,
   useUpdateTraefikDashboardSettings,
   useUpdateUpstreamSecuritySettings,

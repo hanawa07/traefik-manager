@@ -38,7 +38,7 @@ export function LoginDefenseSettingsCard({
     <div className="card p-6 h-full order-4">
       <SettingsCardHeader
         icon={<ShieldCheck className="w-5 h-5 text-amber-600" />}
-        title="로그인 방어"
+        title="로그인 보안 방어"
         description={
           "사용자별 계정 잠금은 항상 유지하고, 반복 실패 IP 자동 차단과 " +
           "선택형 Turnstile 로그인 검증을 함께 조정합니다."

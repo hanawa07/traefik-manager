@@ -36,3 +36,10 @@ export function useUpdateLoginDefenseSettings() {
     settingsQueryKeys.loginDefense,
   );
 }
+
+export function useUpdateSmokeMonitoringSettings() {
+  return useSettingsMutationForQuery(
+    settingsApi.updateSmokeMonitoringSettings,
+    settingsQueryKeys.smokeRotation,
+  );
+}

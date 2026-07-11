@@ -57,6 +57,10 @@ export const securityEventConfig: Record<string, BadgeConfig> = {
   },
   settings_update_login_defense: { label: "로그인 방어 설정 변경", color: "bg-violet-50 text-violet-700 border-violet-200" },
   settings_update_security_alert: { label: "보안 알림 설정 변경", color: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" },
+  settings_update_smoke_monitoring: {
+    label: "운영 점검 설정 변경",
+    color: "bg-cyan-50 text-cyan-700 border-cyan-200",
+  },
   settings_rollback_time_display: { label: "시간 표시 설정 롤백", color: "bg-amber-50 text-amber-700 border-amber-200" },
   settings_rollback_upstream_security: {
     label: "업스트림 보안 설정 롤백",

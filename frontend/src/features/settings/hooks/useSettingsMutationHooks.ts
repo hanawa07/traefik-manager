@@ -13,6 +13,7 @@ export {
 export {
   useUpdateCertificateDiagnosticsSettings,
   useUpdateLoginDefenseSettings,
+  useUpdateSmokeMonitoringSettings,
   useUpdateTimeDisplaySettings,
   useUpdateTraefikDashboardSettings,
   useUpdateUpstreamSecuritySettings,

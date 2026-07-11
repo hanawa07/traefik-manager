@@ -54,6 +54,8 @@ export type {
   SettingsTestHistoryStatus,
 } from "./settingsSharedTypes";
 export type {
+  SmokeMonitoringFrequency,
+  SmokeMonitoringSettingsInput,
   SmokeRotationState,
   SmokeRotationStatus,
 } from "./settingsSmokeRotationApi";

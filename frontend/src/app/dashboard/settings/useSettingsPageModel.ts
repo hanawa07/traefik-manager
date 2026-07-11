@@ -3,11 +3,11 @@ import { useState } from "react";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { useBackupRestoreSettings } from "@/features/settings/hooks/useBackupRestoreSettings";
 import { useCloudflareDnsSettingsSection } from "@/features/settings/hooks/useCloudflareDnsSettingsSection";
-import { useSmokeRotationStatus } from "@/features/settings/hooks/useSettings";
 import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
 import { useCertificateDiagnosticsSettingsModel } from "./useCertificateDiagnosticsSettingsModel";
 import { useLoginDefenseSettingsModel } from "./useLoginDefenseSettingsModel";
 import { useSecurityAlertSettingsModel } from "./useSecurityAlertSettingsModel";
+import { useSmokeMonitoringSettingsModel } from "./useSmokeMonitoringSettingsModel";
 import { useSettingsSessionActions } from "./useSettingsSessionActions";
 import { useTimeDisplaySettingsModel } from "./useTimeDisplaySettingsModel";
 import { useTraefikDashboardSettingsModel } from "./useTraefikDashboardSettingsModel";
@@ -31,7 +31,11 @@ export function useSettingsPageModel() {
   const upstreamSecurity = useUpstreamSecuritySettingsModel(canManage, setToastNotice);
   const loginDefense = useLoginDefenseSettingsModel(canManage, setToastNotice);
   const securityAlert = useSecurityAlertSettingsModel(canManage, displayTimezone, setToastNotice);
-  const smokeRotation = useSmokeRotationStatus();
+  const smokeRotation = useSmokeMonitoringSettingsModel(
+    canManage,
+    displayTimezone,
+    setToastNotice,
+  );
   const traefikDashboard = useTraefikDashboardSettingsModel(canManage, setToastNotice);
   const backupRestore = useBackupRestoreSettings(canManage, setToastNotice);
   const cloudflareDns = useCloudflareDnsSettingsSection(displayTimezone, setToastNotice);
@@ -45,12 +49,7 @@ export function useSettingsPageModel() {
     upstreamSecurity,
     loginDefense,
     securityAlert,
-    smokeRotation: {
-      isLoading: smokeRotation.isLoading,
-      isError: smokeRotation.isError,
-      status: smokeRotation.data,
-      timezone: displayTimezone,
-    },
+    smokeRotation,
     sessionManagement: {
       isLoading: isSessionsLoading,
       sessions: sessionData?.sessions,
