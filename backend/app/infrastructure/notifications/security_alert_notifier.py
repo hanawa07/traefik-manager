@@ -37,6 +37,8 @@ async def notify_if_needed(db: AsyncSession, audit_log: AuditLogModel) -> bool:
     event = _get_event(audit_log)
     if event is None:
         return False
+    if _is_routine_smoke_viewer_password_rotation(audit_log, event):
+        return False
 
     repo = SQLiteSystemSettingsRepository(db)
     alert_context = await _get_alert_context(repo, event)
@@ -55,6 +57,15 @@ async def notify_if_needed(db: AsyncSession, audit_log: AuditLogModel) -> bool:
         delivery_detail=delivery_detail,
     )
     return success
+
+
+def _is_routine_smoke_viewer_password_rotation(audit_log: AuditLogModel, event: str) -> bool:
+    detail = audit_log.detail or {}
+    return (
+        event == "user_update"
+        and audit_log.resource_name == "traefik-smoke-viewer"
+        and detail.get("changed_keys") == ["password_changed"]
+    )
 
 
 async def retry_delivery(db: AsyncSession, delivery_log: AuditLogModel) -> dict[str, Any]:

@@ -63,6 +63,61 @@ async def test_notify_if_needed_posts_smoke_rotation_failure(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_notify_if_needed_skips_routine_smoke_viewer_password_rotation(monkeypatch):
+    posted = []
+    audit_log = make_audit_log(
+        "user_update",
+        resource_type="user",
+        resource_id="smoke-viewer",
+        resource_name="traefik-smoke-viewer",
+    )
+    audit_log.detail["changed_keys"] = ["password_changed"]
+    patch_settings(
+        monkeypatch,
+        {
+            "change_alerts_enabled": "true",
+            "security_alert_provider": "telegram",
+            "security_alert_telegram_bot_token": "telegram-secret",
+            "security_alert_telegram_chat_id": "10001",
+        },
+    )
+    patch_http_client(monkeypatch, posted)
+
+    result = await security_alert_notifier.notify_if_needed(object(), audit_log)
+
+    assert result is False
+    assert posted == []
+
+
+@pytest.mark.asyncio
+async def test_notify_if_needed_keeps_smoke_viewer_role_change_alert(monkeypatch):
+    posted = []
+    audit_log = make_audit_log(
+        "user_update",
+        resource_type="user",
+        resource_id="smoke-viewer",
+        resource_name="traefik-smoke-viewer",
+    )
+    audit_log.detail["changed_keys"] = ["password_changed", "role"]
+    patch_settings(
+        monkeypatch,
+        {
+            "change_alerts_enabled": "true",
+            "security_alert_provider": "telegram",
+            "security_alert_telegram_bot_token": "telegram-secret",
+            "security_alert_telegram_chat_id": "10001",
+            "security_alert_change_route_user_change": "default",
+        },
+    )
+    patch_http_client(monkeypatch, posted)
+
+    result = await security_alert_notifier.notify_if_needed(object(), audit_log)
+
+    assert result is True
+    assert "사용자 변경: traefik-smoke-viewer" in posted[0][1]["text"]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("event", "resource_type", "route_key"),
     [

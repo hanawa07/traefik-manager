@@ -77,12 +77,17 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TM_SMOKE_TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TM_SMOKE_TELEGRAM_CHAT_ID }}
+          TEST_FAILURE_NOTIFICATION: ${{ inputs.test_failure_notification }}
         run: |
           if [[ -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_CHAT_ID" ]]; then
             echo "::notice::Telegram 비밀값이 없어 실패 알림을 건너뜁니다."
             exit 0
           fi
-          message="Traefik Manager 인증 시각 스모크 실패
+          title="Traefik Manager 인증 시각 스모크 실패"
+          if [[ "$TEST_FAILURE_NOTIFICATION" == "true" ]]; then
+            title="[테스트] Traefik Manager 인증 시각 스모크 실패"
+          fi
+          message="${title}
           저장소: ${GITHUB_REPOSITORY}
           커밋: ${GITHUB_SHA:0:12}
           실행: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
