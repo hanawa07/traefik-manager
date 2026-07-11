@@ -9,6 +9,8 @@ export interface SmokeRotationStatus {
   detail: string | null;
   is_stale: boolean;
   stale_after_days: number;
+  recent_log_lines: string[];
+  log_updated_at: string | null;
 }
 
 export const smokeRotationSettingsApi = {

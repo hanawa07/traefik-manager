@@ -37,6 +37,7 @@ export function SmokeRotationStatusCard({
   timezone?: string;
 }) {
   const isStaleSuccess = status?.status === "success" && status.is_stale;
+  const recentLogLines = status?.recent_log_lines ?? [];
   return (
     <div className="card order-6 p-6" data-testid="smoke-rotation-status-card">
       <SettingsCardHeader
@@ -68,6 +69,18 @@ export function SmokeRotationStatusCard({
               마지막 성공 후 {status.stale_after_days}일이 지났습니다. cron 실행 로그와 GitHub secret 동기화를 확인하세요.
             </div>
           ) : null}
+          <details className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-950">
+            <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
+              최근 cron 로그 · {formatDateTime(status.log_updated_at, timezone)}
+            </summary>
+            {recentLogLines.length ? (
+              <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-5 text-gray-600 dark:text-slate-300">
+                {recentLogLines.join("\n")}
+              </pre>
+            ) : (
+              <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">표시할 cron 로그가 없습니다.</p>
+            )}
+          </details>
         </SettingsSummary>
       )}
     </div>

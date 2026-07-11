@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     TRAEFIK_MANAGER_LATEST_RELEASE_CACHE_SECONDS: int = 3600
     TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME: str = "traefik-manager-backend"
     TRAEFIK_MANAGER_FRONTEND_CONTAINER_NAME: str = "traefik-manager-frontend"
+    SMOKE_ROTATION_LOG_PATH: str = "/host-state/traefik-manager/smoke-password-rotation.log"
 
     CLOUDFLARE_API_TOKEN: str | None = None
     CLOUDFLARE_ZONE_ID: str | None = None

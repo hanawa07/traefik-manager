@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SmokeRotationStatusResponse(BaseModel):
@@ -10,3 +10,5 @@ class SmokeRotationStatusResponse(BaseModel):
     detail: str | None = None
     is_stale: bool = False
     stale_after_days: int = 35
+    recent_log_lines: list[str] = Field(default_factory=list)
+    log_updated_at: str | None = None

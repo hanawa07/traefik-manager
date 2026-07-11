@@ -97,9 +97,12 @@ update_security_alert_settings = STANDARD_ENDPOINTS.update_security_alert_settin
 )
 async def get_smoke_rotation_status(
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
-    return await _get_smoke_rotation_status_response(db)
+    return await _get_smoke_rotation_status_response(
+        db,
+        include_recent_logs=current_user["role"] == "admin",
+    )
 
 
 @router.post(

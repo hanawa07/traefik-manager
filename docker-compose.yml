@@ -27,6 +27,7 @@ services:
       - backend-data:/app/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /home/lizstudio/docker/traefik/letsencrypt/acme.json:/acme.json:ro
+      - ${SMOKE_ROTATION_HOST_STATE_DIR:-/home/lizstudio/.local/state/traefik-manager}:/host-state/traefik-manager:ro
     networks:
       - traefik-manager-internal
       - proxy_net

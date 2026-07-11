@@ -111,6 +111,10 @@ providers:
 - 정기 회전의 비밀번호 단독 변경은 감사 로그만 남기고 운영 알림에서는 제외하며, 수동 실패 시험 알림은 제목에 `[테스트]`를 표시합니다.
 - 회전 스크립트는 `~/.local/state/traefik-manager/smoke-password-rotation.lock` 잠금을 사용해 cron과 수동 실행의 중복 회전을 건너뜁니다.
 - 마지막 성공 후 35일이 지나면 설정 화면의 회전 상태가 `점검 필요`로 표시됩니다.
+- 일일 인증 스모크도 35일 미회전을 실패로 처리해 Telegram으로 능동 통지합니다.
+- backend 상태 기록 자체가 실패하면 호스트 스크립트가 `host-operation-alert.yml`을 호출해 GitHub Actions의 Telegram secret으로 우회 통지합니다.
+- 최근 24시간의 실패 알림은 5분 간격으로 최대 3회 자동 재시도하며, 각 재시도 결과도 감사 로그에 남깁니다.
+- 관리자 설정 카드의 `최근 cron 로그`에서 호스트 로그 마지막 12줄을 확인할 수 있으며, 상태 디렉터리는 backend에 읽기 전용으로 마운트됩니다.
 - 로그인 후 서비스 추가 시 `traefik-config/dynamic/<domain>.yml` 파일이 생성됩니다.
 - Traefik 로그 또는 대시보드에서 새 라우터가 반영됩니다.
 - `docker compose logs -f backend`에 `/traefik-config/dynamic` 권한 오류가 없습니다.

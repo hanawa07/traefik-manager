@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
@@ -50,6 +50,10 @@ const CHECKS = [
       ["never", "running", "success", "failure"].includes(data?.status) &&
       typeof data?.is_stale === "boolean" &&
       data?.stale_after_days === 35,
+    failureMessage: (data) =>
+      data?.is_stale
+        ? `스모크 계정 자동 회전이 ${data.stale_after_days}일 이상 성공하지 않았습니다`
+        : null,
   },
   {
     label: "서비스 진단 감사 로그",
@@ -63,8 +67,10 @@ if (process.argv.includes("--self-test")) {
   process.exit(0);
 }
 
-main().catch((error) => {
-  console.error(`서비스 브라우저 스모크 실패: ${error.message}`);
+main().catch(async (error) => {
+  const message = String(error?.message || "알 수 없는 오류");
+  await writeSmokeAlertDetail(message).catch(() => undefined);
+  console.error(`서비스 브라우저 스모크 실패: ${message}`);
   process.exit(1);
 });
 
@@ -96,6 +102,10 @@ async function main() {
       if (!check.validate(result.data)) {
         throw new Error(`${check.label} API 응답 형식이 예상과 다릅니다`);
       }
+      const failureMessage = check.failureMessage?.(result.data);
+      if (failureMessage) {
+        throw new Error(failureMessage);
+      }
       results.push({ ...check, data: result.data });
     }
 
@@ -116,6 +126,12 @@ async function main() {
   } finally {
     await chrome.close();
   }
+}
+
+async function writeSmokeAlertDetail(message) {
+  const path = process.env.TM_SMOKE_ALERT_DETAIL_FILE;
+  if (!path || !message.startsWith("스모크 계정 자동 회전")) return;
+  await writeFile(path, message.slice(0, 500), "utf8");
 }
 
 function resolveBaseUrl() {
@@ -466,6 +482,9 @@ function runSelfTest() {
   assert.deepEqual(parseSetCookieHeaders(["tm_session=abc; Path=/; HttpOnly"]), [
     { name: "tm_session", value: "abc" },
   ]);
+  const rotationCheck = CHECKS.find((check) => check.label === "스모크 회전 상태");
+  assert.match(rotationCheck.failureMessage({ is_stale: true, stale_after_days: 35 }), /35일/);
+  assert.equal(rotationCheck.failureMessage({ is_stale: false, stale_after_days: 35 }), null);
   runDashboardVisualSmokeSelfTest();
   console.log("서비스 브라우저 스모크 self-test 통과");
 }

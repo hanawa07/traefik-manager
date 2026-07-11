@@ -68,3 +68,42 @@ async def test_get_smoke_rotation_status_keeps_recent_success_fresh() -> None:
 
     assert result.status == "success"
     assert result.is_stale is False
+
+
+@pytest.mark.asyncio
+async def test_get_smoke_rotation_status_hides_logs_by_default(tmp_path, monkeypatch) -> None:
+    log_path = tmp_path / "rotation.log"
+    log_path.write_text("민감할 수 있는 운영 로그\n", encoding="utf-8")
+    monkeypatch.setattr(
+        "app.interfaces.api.v1.routers.settings_smoke_rotation_response.settings.SMOKE_ROTATION_LOG_PATH",
+        str(log_path),
+    )
+    StubRepository.values = {}
+
+    result = await get_smoke_rotation_status_response(
+        object(),
+        settings_repository_factory=StubRepository,
+    )
+
+    assert result.recent_log_lines == []
+    assert result.log_updated_at is None
+
+
+@pytest.mark.asyncio
+async def test_get_smoke_rotation_status_includes_logs_for_admin(tmp_path, monkeypatch) -> None:
+    log_path = tmp_path / "rotation.log"
+    log_path.write_text("회전 완료\n", encoding="utf-8")
+    monkeypatch.setattr(
+        "app.interfaces.api.v1.routers.settings_smoke_rotation_response.settings.SMOKE_ROTATION_LOG_PATH",
+        str(log_path),
+    )
+    StubRepository.values = {}
+
+    result = await get_smoke_rotation_status_response(
+        object(),
+        settings_repository_factory=StubRepository,
+        include_recent_logs=True,
+    )
+
+    assert result.recent_log_lines == ["회전 완료"]
+    assert result.log_updated_at is not None
