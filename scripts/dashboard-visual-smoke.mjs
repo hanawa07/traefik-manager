@@ -49,7 +49,7 @@ const DASHBOARD_ROUTES = [
   { label: "미들웨어", path: "/dashboard/middlewares", marker: "공용 템플릿" },
   { label: "리다이렉트", path: "/dashboard/redirects", marker: "도메인 리다이렉트 호스트 관리" },
   { label: "서비스", path: "/dashboard/services", marker: "Traefik 라우팅 서비스 관리" },
-  { label: "설정", path: "/dashboard/settings", marker: "스모크 계정 자동 회전" },
+  { label: "설정", path: "/dashboard/settings", marker: "운영 로그인·화면 점검" },
 ];
 
 export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeoutMs }) {
@@ -339,9 +339,11 @@ export function runDashboardVisualSmokeSelfTest() {
   const desktopProfile = VISUAL_PROFILES[1];
   const serviceRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/services");
   const dashboardRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard");
+  const settingsRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/settings");
   const loginRoute = { label: "로그인", path: "/login", marker: "로그인" };
   assert.ok(serviceRoute);
   assert.ok(dashboardRoute);
+  assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");
   assert.equal(screenshotName(mobileProfile, "/dashboard/services"), "mobile-dark-dashboard-services");
   assert.equal(screenshotName(desktopProfile, "/login"), "desktop-light-login");
   const valid = {
