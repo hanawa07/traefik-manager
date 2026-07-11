@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from uuid import uuid4
 
+import httpx
+
 from app.infrastructure.notifications import security_alert_notifier
 
 
@@ -28,9 +30,15 @@ class StubDB:
 
 
 class StubHttpClient:
-    def __init__(self, posted: list | None = None, error: Exception | None = None):
+    def __init__(
+        self,
+        posted: list | None = None,
+        error: Exception | None = None,
+        status_code: int = 200,
+    ):
         self.posted = posted if posted is not None else []
         self.error = error
+        self.status_code = status_code
 
     async def __aenter__(self):
         return self
@@ -42,6 +50,7 @@ class StubHttpClient:
         if self.error:
             raise self.error
         self.posted.append((url, json))
+        return httpx.Response(self.status_code, request=httpx.Request("POST", url))
 
 
 def patch_settings(monkeypatch, values: dict[str, str]) -> None:
@@ -58,8 +67,9 @@ def patch_http_client(
     posted: list | None = None,
     *,
     error: Exception | None = None,
+    status_code: int = 200,
 ) -> StubHttpClient:
-    client = StubHttpClient(posted, error)
+    client = StubHttpClient(posted, error, status_code)
     monkeypatch.setattr(
         security_alert_notifier.httpx,
         "AsyncClient",

@@ -110,6 +110,30 @@ async def test_notify_if_needed_records_failed_delivery_audit(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_notify_if_needed_records_http_status_failure(monkeypatch):
+    posted = []
+    patch_settings(
+        monkeypatch,
+        {
+            "security_alerts_enabled": "true",
+            "security_alert_provider": "slack",
+            "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+        },
+    )
+    patch_http_client(monkeypatch, posted, status_code=503)
+    db = StubDB()
+
+    result = await security_alert_notifier.notify_if_needed(db, make_audit_log("login_suspicious"))
+
+    assert result is False
+    assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"
+    delivery_log = db.added[0]
+    assert delivery_log.detail["event"] == "security_alert_delivery_failure"
+    assert delivery_log.detail["success"] is False
+    assert "503 Service Unavailable" in delivery_log.detail["detail"]
+
+
+@pytest.mark.asyncio
 async def test_notify_if_needed_redacts_telegram_token_in_failed_delivery_audit(monkeypatch):
     token = "123456:ABC-secret"
     request_url = f"https://api.telegram.org/bot{token}/sendMessage"

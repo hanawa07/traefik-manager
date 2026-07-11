@@ -62,4 +62,5 @@ async def post_alert_request(
     payload: dict[str, Any],
 ) -> None:
     async with httpx_module.AsyncClient(timeout=timeout_seconds) as client:
-        await client.post(url, json=payload)
+        response = await client.post(url, json=payload)
+        response.raise_for_status()
