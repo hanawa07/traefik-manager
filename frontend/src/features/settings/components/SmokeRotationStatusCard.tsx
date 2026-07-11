@@ -36,6 +36,7 @@ export function SmokeRotationStatusCard({
   status?: SmokeRotationStatus;
   timezone?: string;
 }) {
+  const isStaleSuccess = status?.status === "success" && status.is_stale;
   return (
     <div className="card order-6 p-6" data-testid="smoke-rotation-status-card">
       <SettingsCardHeader
@@ -53,8 +54,8 @@ export function SmokeRotationStatusCard({
           <SettingsSummaryRow
             label="상태"
             value={
-              <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_STYLES[status.status]}`}>
-                {STATUS_LABELS[status.status]}
+              <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${isStaleSuccess ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" : STATUS_STYLES[status.status]}`}>
+                {isStaleSuccess ? "점검 필요" : STATUS_LABELS[status.status]}
               </span>
             }
           />
@@ -62,6 +63,11 @@ export function SmokeRotationStatusCard({
           <SettingsSummaryRow label="최근 성공" value={formatDateTime(status.last_success_at, timezone)} />
           <SettingsSummaryRow label="실행 주기" value="매월 1일 04:17" />
           {status.detail ? <SettingsSummaryRow label="세부 상태" value={status.detail} /> : null}
+          {status.is_stale ? (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
+              마지막 성공 후 {status.stale_after_days}일이 지났습니다. cron 실행 로그와 GitHub secret 동기화를 확인하세요.
+            </div>
+          ) : null}
         </SettingsSummary>
       )}
     </div>

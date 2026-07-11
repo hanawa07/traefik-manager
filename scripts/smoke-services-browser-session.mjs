@@ -46,7 +46,10 @@ const CHECKS = [
   {
     label: "스모크 회전 상태",
     path: "/api/v1/settings/smoke-rotation",
-    validate: (data) => ["never", "running", "success", "failure"].includes(data?.status),
+    validate: (data) =>
+      ["never", "running", "success", "failure"].includes(data?.status) &&
+      typeof data?.is_stale === "boolean" &&
+      data?.stale_after_days === 35,
   },
   {
     label: "서비스 진단 감사 로그",

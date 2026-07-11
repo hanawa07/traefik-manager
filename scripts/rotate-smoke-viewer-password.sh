@@ -5,6 +5,8 @@ export PATH="/usr/local/bin:/usr/bin:/bin:${PATH:-}"
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 readonly SMOKE_USERNAME="${TM_SMOKE_USERNAME:-traefik-smoke-viewer}"
+readonly ROTATION_STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/traefik-manager"
+readonly ROTATION_LOCK_FILE="${ROTATION_STATE_DIR}/smoke-password-rotation.lock"
 rotation_step="초기화"
 
 cd "${REPO_ROOT}"
@@ -32,12 +34,20 @@ handle_exit() {
 
 trap handle_exit EXIT
 
-for command_name in docker gh openssl; do
+for command_name in docker flock gh openssl; do
   command -v "${command_name}" >/dev/null || {
     echo "필수 명령을 찾을 수 없습니다: ${command_name}" >&2
     exit 1
   }
 done
+
+rotation_step="중복 실행 잠금 획득"
+mkdir -p "${ROTATION_STATE_DIR}"
+exec 9>"${ROTATION_LOCK_FILE}"
+if ! flock -n 9; then
+  echo "스모크 viewer 비밀번호 회전이 이미 실행 중이므로 건너뜁니다"
+  exit 0
+fi
 
 rotation_step="GitHub 인증 확인"
 gh auth status >/dev/null
