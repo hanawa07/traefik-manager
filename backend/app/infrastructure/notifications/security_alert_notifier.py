@@ -68,7 +68,14 @@ def _is_routine_smoke_viewer_password_rotation(audit_log: AuditLogModel, event: 
     )
 
 
-async def retry_delivery(db: AsyncSession, delivery_log: AuditLogModel) -> dict[str, Any]:
+async def retry_delivery(
+    db: AsyncSession,
+    delivery_log: AuditLogModel,
+    *,
+    trigger: str = "manual_retry",
+) -> dict[str, Any]:
+    if trigger not in {"manual_retry", "automatic_retry"}:
+        raise ValueError("지원하지 않는 알림 재시도 방식입니다")
     retry_context = _build_retry_delivery_context(delivery_log)
     repo = SQLiteSystemSettingsRepository(db)
     success, delivery_detail = await _deliver_alert(
@@ -78,6 +85,20 @@ async def retry_delivery(db: AsyncSession, delivery_log: AuditLogModel) -> dict[
         retry_context.provider,
         retry_context.category,
     )
+    extra_detail = {
+        "trigger": trigger,
+        "retry_of_audit_id": str(delivery_log.id),
+    }
+    if trigger == "automatic_retry":
+        detail = delivery_log.detail or {}
+        extra_detail.update(
+            {
+                "auto_retry_attempt": int(detail.get("auto_retry_attempt") or 0) + 1,
+                "retry_root_audit_id": detail.get("retry_root_audit_id")
+                or detail.get("retry_of_audit_id")
+                or str(delivery_log.id),
+            }
+        )
     await _record_delivery_result(
         db=db,
         audit_log=retry_context.source_log,
@@ -86,10 +107,7 @@ async def retry_delivery(db: AsyncSession, delivery_log: AuditLogModel) -> dict[
         provider=retry_context.provider,
         success=success,
         delivery_detail=delivery_detail,
-        extra_detail={
-            "trigger": "manual_retry",
-            "retry_of_audit_id": str(delivery_log.id),
-        },
+        extra_detail=extra_detail,
     )
     return {
         "success": success,

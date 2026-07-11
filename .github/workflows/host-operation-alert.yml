@@ -1,0 +1,52 @@
+name: 호스트 운영 장애 알림
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "장애가 발생한 작업"
+        required: true
+        type: string
+      detail:
+        description: "안전한 장애 단계 또는 요약"
+        required: true
+        type: string
+      dry_run:
+        description: "Telegram 전송 없이 workflow만 점검"
+        required: false
+        default: false
+        type: boolean
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      ALERT_SOURCE: ${{ inputs.source }}
+      ALERT_DETAIL: ${{ inputs.detail }}
+      DRY_RUN: ${{ inputs.dry_run }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TM_SMOKE_TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TM_SMOKE_TELEGRAM_CHAT_ID }}
+    steps:
+      - name: Telegram 호스트 장애 알림
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$DRY_RUN" == "true" ]]; then
+            echo "::notice::호스트 운영 장애 알림 dry-run 통과"
+            exit 0
+          fi
+          if [[ -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_CHAT_ID" ]]; then
+            echo "::error::Telegram 비밀값이 없습니다."
+            exit 1
+          fi
+          message="[호스트] Traefik Manager 운영 장애
+          작업: ${ALERT_SOURCE}
+          단계: ${ALERT_DETAIL:0:500}
+          실행: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          curl --fail --silent --show-error --output /dev/null \
+            --request POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${message}"

@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from app.app_factory import create_app
 from app.app_lifespan import (
+    alert_retry_loop as _alert_retry_loop,
     auth_cleanup_loop as _auth_cleanup_loop,
     certificate_alert_loop as _certificate_alert_loop,
     certificate_preflight_loop as _certificate_preflight_loop,
@@ -32,18 +33,22 @@ async def lifespan(app: FastAPI):
     cleanup_task = asyncio.create_task(_auth_cleanup_loop())
     certificate_task = asyncio.create_task(_certificate_alert_loop())
     certificate_preflight_task = asyncio.create_task(_certificate_preflight_loop())
+    alert_retry_task = asyncio.create_task(_alert_retry_loop())
     try:
         yield
     finally:
         cleanup_task.cancel()
         certificate_task.cancel()
         certificate_preflight_task.cancel()
+        alert_retry_task.cancel()
         with suppress(asyncio.CancelledError):
             await cleanup_task
         with suppress(asyncio.CancelledError):
             await certificate_task
         with suppress(asyncio.CancelledError):
             await certificate_preflight_task
+        with suppress(asyncio.CancelledError):
+            await alert_retry_task
 
 
 app = create_app(lifespan=lifespan)

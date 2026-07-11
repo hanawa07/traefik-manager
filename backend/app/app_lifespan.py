@@ -132,6 +132,33 @@ async def certificate_preflight_loop() -> None:
         await check_certificate_preflight_once()
 
 
+async def retry_failed_alerts_once() -> None:
+    from app.infrastructure.notifications.security_alert_retry_monitor import (
+        retry_failed_deliveries_once,
+    )
+
+    try:
+        async with AsyncSessionLocal() as session:
+            retry_count = await retry_failed_deliveries_once(session)
+            await session.commit()
+            if retry_count:
+                logger.info("실패 알림 자동 재시도 완료 (%d개)", retry_count)
+    except Exception:
+        logger.warning("실패 알림 자동 재시도 실패 (다음 주기에 재시도)", exc_info=True)
+
+
+async def alert_retry_loop() -> None:
+    from app.infrastructure.notifications.security_alert_retry_monitor import (
+        ALERT_RETRY_INTERVAL_SECONDS,
+        run_periodic_alert_retry,
+    )
+
+    await run_periodic_alert_retry(
+        interval_seconds=ALERT_RETRY_INTERVAL_SECONDS,
+        retry_once=retry_failed_alerts_once,
+    )
+
+
 async def load_certificate_preflight_interval_seconds() -> int:
     try:
         async with AsyncSessionLocal() as session:

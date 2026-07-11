@@ -21,12 +21,21 @@ report_rotation_status() {
       backend python -m app.interfaces.cli.smoke_rotation_reporter
 }
 
+request_external_failure_alert() {
+  gh workflow run host-operation-alert.yml \
+    --ref main \
+    -f source="스모크 viewer 비밀번호 회전" \
+    -f detail="$1"
+}
+
 handle_exit() {
   local exit_code=$?
   trap - EXIT
   if (( exit_code != 0 )); then
-    report_rotation_status failure "${rotation_step}" || \
-      echo "회전 실패 상태와 운영 알림을 기록하지 못했습니다: ${rotation_step}" >&2
+    if ! report_rotation_status failure "${rotation_step}"; then
+      request_external_failure_alert "${rotation_step}" || \
+        echo "내부·외부 회전 실패 알림을 모두 전송하지 못했습니다: ${rotation_step}" >&2
+    fi
   fi
   unset password
   exit "${exit_code}"

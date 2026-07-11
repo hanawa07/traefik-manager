@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import httpx
 import pytest
 
@@ -215,6 +217,35 @@ async def test_retry_delivery_replays_failed_delivery_with_original_provider(mon
     assert retry_result_log.detail["event"] == "security_alert_delivery_success"
     assert retry_result_log.detail["trigger"] == "manual_retry"
     assert retry_result_log.detail["retry_of_audit_id"] == str(delivery_log.id)
+
+
+@pytest.mark.asyncio
+async def test_retry_delivery_tracks_automatic_retry_attempt(monkeypatch):
+    posted = []
+    patch_settings(
+        monkeypatch,
+        {
+            "security_alerts_enabled": "true",
+            "security_alert_provider": "slack",
+            "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+        },
+    )
+    patch_http_client(monkeypatch, posted)
+    db = StubDB()
+    delivery_log = make_delivery_log("security_alert_delivery_failure", provider="slack")
+    root_audit_id = str(uuid4())
+    delivery_log.detail["retry_of_audit_id"] = root_audit_id
+
+    await security_alert_notifier.retry_delivery(
+        db,
+        delivery_log,
+        trigger="automatic_retry",
+    )
+
+    retry_result_log = db.added[0]
+    assert retry_result_log.detail["trigger"] == "automatic_retry"
+    assert retry_result_log.detail["auto_retry_attempt"] == 1
+    assert retry_result_log.detail["retry_root_audit_id"] == root_audit_id
 
 
 @pytest.mark.asyncio
