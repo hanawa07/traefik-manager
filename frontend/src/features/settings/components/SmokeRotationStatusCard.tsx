@@ -104,6 +104,36 @@ export function SmokeRotationStatusCard({
             value={monitoringFrequency === "daily" ? "매일" : "매주 일요일"}
           />
           <SettingsSummaryRow label="점검 시각" value={`${scheduleTime} (${scheduleTimezone})`} />
+          <SettingsSummaryRow
+            label="최근 원격 점검 성공"
+            value={
+              status.monitoring_last_run_url ? (
+                <a
+                  className="text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+                  href={status.monitoring_last_run_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {formatDateTime(status.monitoring_last_success_at, timezone)}
+                </a>
+              ) : (
+                "기록 없음"
+              )
+            }
+          />
+          <SettingsSummaryRow
+            label="수동 점검"
+            value={
+              <a
+                className="text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+                href={status.monitoring_workflow_url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                GitHub Actions에서 실행
+              </a>
+            }
+          />
 
           <div className="my-3 border-t border-gray-200 dark:border-slate-700" />
           <SettingsSummaryRow
