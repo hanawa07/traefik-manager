@@ -27,6 +27,10 @@ export async function resolveSessionCookies(baseUrl) {
   return cookies;
 }
 
+export function formatCookieHeader(cookies) {
+  return cookies.map(({ name, value }) => `${name}=${value}`).join("; ");
+}
+
 export function parseCookieHeader(value) {
   return value
     .split(";")

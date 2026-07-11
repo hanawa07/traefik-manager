@@ -10,6 +10,7 @@ import {
   runDashboardVisualSmokeSelfTest,
 } from "./dashboard-visual-smoke.mjs";
 import {
+  formatCookieHeader,
   parseCookieHeader,
   parseSetCookieHeaders,
   resolveSessionCookies,
@@ -123,6 +124,7 @@ async function main() {
       cdp,
       timeoutMs,
     });
+    await reportRemoteSmokeSuccess(baseUrl, cookiePairs);
 
     const session = results.find((item) => item.label === "현재 세션")?.data;
     const services = results.find((item) => item.label === "서비스 목록")?.data ?? [];
@@ -134,6 +136,33 @@ async function main() {
   } finally {
     await chrome.close();
   }
+}
+
+async function reportRemoteSmokeSuccess(baseUrl, cookies) {
+  const runId = process.env.GITHUB_RUN_ID;
+  if (!runId) return;
+  const csrfCookie = findCsrfCookie(cookies);
+  if (!csrfCookie) {
+    throw new Error("원격 스모크 성공 기록에 필요한 CSRF 쿠키가 없습니다");
+  }
+
+  const response = await fetch(`${baseUrl}/api/v1/settings/smoke-run-success`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie: formatCookieHeader(cookies),
+      "x-csrf-token": csrfCookie.value,
+    },
+    body: JSON.stringify({ run_id: Number(runId) }),
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`원격 스모크 성공 기록 API ${response.status}: ${text.slice(0, 200)}`);
+  }
+}
+
+function findCsrfCookie(cookies) {
+  return cookies.find((cookie) => cookie.name.toLowerCase().includes("csrf"));
 }
 
 async function writeSmokeAlertDetail(message) {
@@ -417,6 +446,10 @@ function runSelfTest() {
     { name: "tm_session", value: "abc" },
     { name: "tm_csrf", value: "def" },
   ]);
+  assert.equal(
+    formatCookieHeader([{ name: "tm_session", value: "abc" }, { name: "tm_csrf", value: "def" }]),
+    "tm_session=abc; tm_csrf=def",
+  );
   assert.deepEqual(
     splitCombinedSetCookie("a=1; Expires=Wed, 21 Oct 2030 07:28:00 GMT; Path=/, b=2; Path=/"),
     ["a=1; Expires=Wed, 21 Oct 2030 07:28:00 GMT; Path=/", "b=2; Path=/"],
@@ -424,6 +457,10 @@ function runSelfTest() {
   assert.deepEqual(parseSetCookieHeaders(["tm_session=abc; Path=/; HttpOnly"]), [
     { name: "tm_session", value: "abc" },
   ]);
+  assert.equal(findCsrfCookie([
+    { name: "tm_session", value: "abc" },
+    { name: "tm_csrf", value: "def" },
+  ])?.value, "def");
   const rotationCheck = CHECKS.find((check) => check.label === "스모크 회전 상태");
   assert.match(rotationCheck.failureMessage({ is_stale: true, stale_after_days: 35 }), /35일/);
   assert.equal(rotationCheck.failureMessage({ is_stale: false, stale_after_days: 35 }), null);

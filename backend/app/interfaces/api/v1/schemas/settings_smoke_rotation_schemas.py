@@ -18,6 +18,9 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_frequency: SmokeMonitoringFrequency = "daily"
     monitoring_schedule_time: str = "03:17"
     monitoring_schedule_timezone: str = "Asia/Seoul"
+    monitoring_last_success_at: str | None = None
+    monitoring_last_run_url: str | None = None
+    monitoring_workflow_url: str
 
 
 class SmokeMonitoringSettingsUpdateRequest(BaseModel):
@@ -27,3 +30,12 @@ class SmokeMonitoringSettingsUpdateRequest(BaseModel):
 
 class SmokeMonitoringScheduleDecisionResponse(BaseModel):
     should_run: bool
+
+
+class SmokeMonitoringRunSuccessRequest(BaseModel):
+    run_id: int = Field(gt=0)
+
+
+class SmokeMonitoringRunSuccessResponse(BaseModel):
+    recorded_at: str
+    run_url: str

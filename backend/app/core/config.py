@@ -59,6 +59,7 @@ class Settings(BaseSettings):
 
     SESSION_COOKIE_NAME: str = "tm_session"
     SESSION_CSRF_COOKIE_NAME: str = "tm_csrf"
+    SMOKE_VIEWER_USERNAME: str = "traefik-smoke-viewer"
     SESSION_IDLE_MINUTES: int = 480
     SESSION_ABSOLUTE_MINUTES: int = 10080
     AUTH_SESSION_CLEANUP_INTERVAL_MINUTES: int = 30
