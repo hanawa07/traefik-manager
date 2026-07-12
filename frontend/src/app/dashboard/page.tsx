@@ -69,7 +69,7 @@ export default function DashboardPage() {
       </div>
 
       <ManagerHealthAlertBanner
-        components={deploymentInfo?.components}
+        deployment={deploymentInfo}
         updatedAt={deploymentUpdatedAtIso}
         timezone={displayTimezone}
       />

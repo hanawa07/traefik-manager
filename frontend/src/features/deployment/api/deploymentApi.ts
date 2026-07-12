@@ -34,6 +34,8 @@ export interface DeploymentInfo {
   update_available: boolean | null;
   external_watchdog_status: "healthy" | "unhealthy" | "unknown";
   external_watchdog_checked_at: string | null;
+  external_watchdog_consecutive_failures: number;
+  external_watchdog_stale: boolean;
   components: DeploymentComponent[];
 }
 

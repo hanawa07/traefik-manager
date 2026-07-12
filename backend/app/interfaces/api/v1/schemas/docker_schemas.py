@@ -70,4 +70,6 @@ class DockerDeploymentInfoResponse(BaseModel):
     update_available: bool | None = None
     external_watchdog_status: Literal["healthy", "unhealthy", "unknown"] = "unknown"
     external_watchdog_checked_at: datetime | None = None
+    external_watchdog_consecutive_failures: int = Field(default=0, ge=0)
+    external_watchdog_stale: bool = False
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)

@@ -7,6 +7,10 @@ import { buildDeploymentComponentConsistency } from "./managerDeploymentConsiste
 import { buildManagerDeploymentLinks } from "./managerDeploymentLinks";
 import { buildDeploymentVersionDisplay } from "./managerDeploymentVersionDisplay";
 import {
+  EXTERNAL_WATCHDOG_STALE_MINUTES,
+  getExternalWatchdogLabel,
+} from "./managerWatchdogStatus";
+import {
   DeploymentComponentRow,
   DeploymentFact,
   DeploymentLinkBar,
@@ -127,7 +131,11 @@ export function ManagerDeploymentCard({
         </p>
         <p className="mt-1">마지막 상태 갱신: {formatDateTime(statusUpdatedAt, timezone)} · 30초 자동 갱신</p>
         <p className="mt-1">
-          외부 watchdog: {getExternalWatchdogLabel(deployment?.external_watchdog_status)} · 마지막 실행: {externalWatchdogCheckedAt}
+          외부 watchdog: {getExternalWatchdogLabel(deployment?.external_watchdog_status)}
+          {deployment?.external_watchdog_stale
+            ? ` (${EXTERNAL_WATCHDOG_STALE_MINUTES}분 이상 갱신 없음)`
+            : ""}
+          {" · "}연속 실패 {deployment?.external_watchdog_consecutive_failures ?? 0}회 · 마지막 실행: {externalWatchdogCheckedAt}
         </p>
       </div>
 
@@ -150,12 +158,6 @@ export function ManagerDeploymentCard({
       </div>
     </div>
   );
-}
-
-function getExternalWatchdogLabel(status?: DeploymentInfo["external_watchdog_status"]) {
-  if (status === "healthy") return "정상";
-  if (status === "unhealthy") return "장애 감지";
-  return "확인 불가";
 }
 
 function getReleaseTone(state: ReturnType<typeof buildDeploymentVersionDisplay>["state"], hasMismatch: boolean) {
