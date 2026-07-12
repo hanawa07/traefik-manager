@@ -119,6 +119,7 @@ export function ManagerDeploymentCard({
             component={component}
             hasMismatch={componentConsistency.mismatchedComponentNames.has(component.name)}
             latestVersion={deployment?.latest_version}
+            timezone={timezone}
           />
         ))}
       </div>

@@ -8,7 +8,7 @@ export function useDeploymentInfo() {
   return useQuery({
     queryKey: QUERY_KEY,
     queryFn: () => deploymentApi.getInfo(),
-    refetchInterval: 60_000,
+    refetchInterval: 30_000,
   });
 }
 

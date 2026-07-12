@@ -1,6 +1,7 @@
 import { ExternalLink, GitCommit } from "lucide-react";
 
 import type { DeploymentComponent } from "@/features/deployment/api/deploymentApi";
+import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 import { buildManagerDeploymentLinks } from "./managerDeploymentLinks";
 import { buildDeploymentVersionDisplay } from "./managerDeploymentVersionDisplay";
@@ -86,10 +87,12 @@ export function DeploymentComponentRow({
   component,
   hasMismatch,
   latestVersion,
+  timezone,
 }: {
   component: DeploymentComponent;
   hasMismatch?: boolean;
   latestVersion?: string | null;
+  timezone?: string;
 }) {
   const revision = formatDeploymentRevision(component.revision);
   const versionDisplay = buildDeploymentVersionDisplay({
@@ -128,6 +131,14 @@ export function DeploymentComponentRow({
       <p className="mt-2 truncate text-xs font-medium text-gray-700 dark:text-slate-300">{versionDisplay.currentValue}</p>
       {versionDisplay.currentDetail ? (
         <p className="mt-1 truncate font-mono text-[11px] text-gray-500 dark:text-slate-400">{versionDisplay.currentDetail}</p>
+      ) : null}
+      {component.health_status === "unhealthy" ? (
+        <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+          <p className="font-semibold">
+            최근 검사 결과: 종료 코드 {component.health_last_exit_code ?? "확인 불가"} · 연속 실패 {component.health_failing_streak}회
+          </p>
+          <p className="mt-1">마지막 검사: {formatDateTime(component.health_last_checked_at, timezone)}</p>
+        </div>
       ) : null}
       <DeploymentRevisionLink href={componentLinks.commitUrl} revision={revision} />
     </div>

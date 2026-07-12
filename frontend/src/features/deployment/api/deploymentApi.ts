@@ -6,6 +6,9 @@ export interface DeploymentComponent {
   status: string;
   runtime_status: string | null;
   health_status: string | null;
+  health_failing_streak: number;
+  health_last_checked_at: string | null;
+  health_last_exit_code: number | null;
   container_id: string | null;
   image: string | null;
   image_id: string | null;
