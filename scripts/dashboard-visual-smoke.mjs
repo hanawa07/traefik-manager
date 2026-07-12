@@ -47,6 +47,7 @@ const DASHBOARD_ROUTES = [
       "Backend",
       "Frontend",
       "Docker 정상",
+      "Docker 상태 전이 이력",
       "마지막 상태 갱신",
       "상태 새로고침",
     ],
@@ -60,7 +61,7 @@ const DASHBOARD_ROUTES = [
     label: "설정",
     path: "/dashboard/settings",
     marker: "운영 로그인·화면 점검",
-    requiredMarkers: ["Artifact 만료"],
+    requiredMarkers: ["Artifact 만료", "Manager Docker 감지"],
   },
 ];
 
@@ -361,11 +362,12 @@ export function runDashboardVisualSmokeSelfTest() {
     "Backend",
     "Frontend",
     "Docker 정상",
+    "Docker 상태 전이 이력",
     "마지막 상태 갱신",
     "상태 새로고침",
   ]);
   assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");
-  assert.deepEqual(settingsRoute.requiredMarkers, ["Artifact 만료"]);
+  assert.deepEqual(settingsRoute.requiredMarkers, ["Artifact 만료", "Manager Docker 감지"]);
   assert.equal(screenshotName(mobileProfile, "/dashboard/services"), "mobile-dark-dashboard-services");
   assert.equal(screenshotName(desktopProfile, "/login"), "desktop-light-login");
   const valid = {

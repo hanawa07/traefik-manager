@@ -1,6 +1,10 @@
 "use client";
 
-import { useAuditCertificateSummary, useAuditSecuritySummary } from "@/features/audit/hooks/useAudit";
+import {
+  useAuditCertificateSummary,
+  useAuditSecuritySummary,
+  useManagerHealthAudit,
+} from "@/features/audit/hooks/useAudit";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { useCertificates } from "@/features/certificates/hooks/useCertificates";
 import { useDeploymentInfo, useRefreshDeploymentLatest } from "@/features/deployment/hooks/useDeploymentInfo";
@@ -16,6 +20,7 @@ import { CertificateAlertSummaryCard } from "./CertificateAlertSummaryCard";
 import { DashboardServicesTable } from "./DashboardServicesTable";
 import { ManagerDeploymentCard } from "./ManagerDeploymentCard";
 import { ManagerHealthAlertBanner } from "./ManagerHealthAlertBanner";
+import { ManagerHealthHistoryCard } from "./ManagerHealthHistoryCard";
 import { SecurityAlertSummaryCard } from "./SecurityAlertSummaryCard";
 import { ServiceOverviewStats } from "./ServiceOverviewStats";
 import { TraefikStatusBanner } from "./TraefikStatusBanner";
@@ -31,6 +36,11 @@ export default function DashboardPage() {
   const { data: routerStatus } = useTraefikRouterStatus();
   const { data: securitySummary } = useAuditSecuritySummary({ recent_limit: 3 });
   const { data: certificateSummary } = useAuditCertificateSummary({ recent_limit: 3 });
+  const {
+    data: managerHealthLogs = [],
+    isError: isManagerHealthHistoryError,
+    isLoading: isManagerHealthHistoryLoading,
+  } = useManagerHealthAudit();
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const { data: certificates = [] } = useCertificates();
   const {
@@ -79,6 +89,12 @@ export default function DashboardPage() {
         onRefreshStatus={() => void refreshDeploymentStatus()}
         refreshLatestError={refreshDeploymentLatest.isError ? "최신 릴리즈를 다시 확인하지 못했습니다" : null}
         statusUpdatedAt={deploymentUpdatedAtIso}
+        timezone={displayTimezone}
+      />
+      <ManagerHealthHistoryCard
+        isError={isManagerHealthHistoryError}
+        isLoading={isManagerHealthHistoryLoading}
+        logs={managerHealthLogs}
         timezone={displayTimezone}
       />
       <SecurityAlertSummaryCard summary={securitySummary} timezone={displayTimezone} />

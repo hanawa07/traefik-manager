@@ -39,6 +39,16 @@ export const useAuditCertificateSummary = (params?: {
   });
 };
 
+export const useManagerHealthAudit = (limit = 5) => {
+  const params = { limit, resource_type: "manager_component" };
+  return useQuery({
+    queryKey: ["audit-logs", params],
+    queryFn: () => auditApi.getLogs(params),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+};
+
 export const useAuditRollback = () => {
   const queryClient = useQueryClient();
   return useMutation<
