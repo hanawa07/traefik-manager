@@ -10,6 +10,8 @@ readonly LOCK_FILE="${STATE_DIR}/manager-health-watchdog.lock"
 readonly COOLDOWN_SECONDS="${TM_MANAGER_WATCHDOG_COOLDOWN_SECONDS:-3600}"
 readonly REQUEST_TIMEOUT_SECONDS="${TM_MANAGER_WATCHDOG_TIMEOUT_SECONDS:-15}"
 readonly WATCHDOG_REPOSITORY="${TM_MANAGER_WATCHDOG_REPOSITORY:-hanawa07/traefik-manager}"
+readonly CURL_BIN="${TM_MANAGER_WATCHDOG_CURL_BIN:-curl}"
+readonly GH_BIN="${TM_MANAGER_WATCHDOG_GH_BIN:-gh}"
 
 decide_action() {
   local current_status="$1"
@@ -110,7 +112,7 @@ write_state() {
 check_health() {
   local http_code
   http_code="$(
-    curl --location --silent --show-error \
+    "${CURL_BIN}" --location --silent --show-error \
       --max-time "${REQUEST_TIMEOUT_SECONDS}" \
       --output /dev/null \
       --write-out '%{http_code}' \
@@ -126,7 +128,7 @@ check_health() {
 dispatch_alert() {
   local status="$1"
   local detail="$2"
-  gh workflow run host-operation-alert.yml \
+  "${GH_BIN}" workflow run host-operation-alert.yml \
     --repo "${WATCHDOG_REPOSITORY}" \
     --ref main \
     -f source="Manager 외부 가용성 watchdog" \
@@ -145,7 +147,7 @@ for numeric_value in "${COOLDOWN_SECONDS}" "${REQUEST_TIMEOUT_SECONDS}"; do
     exit 1
   fi
 done
-for command_name in awk curl flock gh mktemp; do
+for command_name in awk "${CURL_BIN}" flock "${GH_BIN}" mktemp; do
   command -v "${command_name}" >/dev/null || {
     echo "필수 명령을 찾을 수 없습니다: ${command_name}" >&2
     exit 1
