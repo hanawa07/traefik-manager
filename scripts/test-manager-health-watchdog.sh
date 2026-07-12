@@ -45,27 +45,33 @@ run_watchdog() {
 assert_state() {
   local expected_status="$1"
   local expected_alert_active="$2"
+  local expected_consecutive_failures="$3"
   grep -qx "status=${expected_status}" "${STATE_DIR}/manager-health-watchdog.state"
   grep -qx "alert_active=${expected_alert_active}" "${STATE_DIR}/manager-health-watchdog.state"
+  grep -qx "consecutive_failures=${expected_consecutive_failures}" "${STATE_DIR}/manager-health-watchdog.state"
 }
 
 printf 'healthy' > "${STATUS_FILE}"
 run_watchdog
-assert_state healthy 0
+assert_state healthy 0 0
 [[ "$(stat --format='%a' "${STATE_DIR}/manager-health-watchdog.state")" == "644" ]]
 [[ ! -s "${DISPATCH_LOG}" ]]
 
 printf 'unhealthy' > "${STATUS_FILE}"
 run_watchdog
-assert_state unhealthy 1
+assert_state unhealthy 1 1
 grep -q -- '-f status=failure' "${DISPATCH_LOG}"
+
+run_watchdog
+assert_state unhealthy 1 2
 
 printf 'healthy' > "${STATUS_FILE}"
 run_watchdog
-assert_state healthy 0
+assert_state healthy 0 0
 grep -q -- '-f status=recovery' "${DISPATCH_LOG}"
+grep -q -- '장애 중 연속 실패 2회' "${DISPATCH_LOG}"
 
-[[ "$(wc -l < "${CURL_LOG}")" -eq 3 ]]
+[[ "$(wc -l < "${CURL_LOG}")" -eq 4 ]]
 [[ "$(wc -l < "${DISPATCH_LOG}")" -eq 2 ]]
 if grep -v -q 'https://watchdog.invalid/api/health' "${CURL_LOG}"; then
   echo "watchdog 통합 시험이 예상하지 않은 URL을 호출했습니다" >&2

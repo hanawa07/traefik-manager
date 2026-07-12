@@ -101,10 +101,12 @@ write_state() {
   local status="$1"
   local alert_active="$2"
   local last_alert_at="$3"
+  local consecutive_failures="$4"
   local temporary_file
   temporary_file="$(mktemp "${STATE_FILE}.tmp.XXXXXX")"
-  printf 'status=%s\nalert_active=%s\nlast_alert_at=%s\n' \
-    "${status}" "${alert_active}" "${last_alert_at}" > "${temporary_file}"
+  printf 'status=%s\nalert_active=%s\nlast_alert_at=%s\nconsecutive_failures=%s\n' \
+    "${status}" "${alert_active}" "${last_alert_at}" "${consecutive_failures}" \
+    > "${temporary_file}"
   chmod 644 "${temporary_file}"
   mv "${temporary_file}" "${STATE_FILE}"
 }
@@ -166,14 +168,22 @@ now_epoch="$(date +%s)"
 previous_status="$(read_state_value status)"
 alert_active="$(read_state_value alert_active)"
 last_alert_at="$(read_state_value last_alert_at)"
+consecutive_failures="$(read_state_value consecutive_failures)"
 [[ "${previous_status}" =~ ^(healthy|unhealthy)$ ]] || previous_status="unknown"
 [[ "${alert_active}" =~ ^[01]$ ]] || alert_active="0"
 [[ "${last_alert_at}" =~ ^[0-9]+$ ]] || last_alert_at="0"
+[[ "${consecutive_failures}" =~ ^[0-9]+$ ]] || consecutive_failures="0"
 
 if check_health; then
   current_status="healthy"
+  current_consecutive_failures="0"
 else
   current_status="unhealthy"
+  if [[ "${previous_status}" == "unhealthy" ]]; then
+    current_consecutive_failures="$((consecutive_failures + 1))"
+  else
+    current_consecutive_failures="1"
+  fi
 fi
 action="$(
   decide_action \
@@ -187,25 +197,26 @@ action="$(
 
 case "${action}" in
   failure|failure_repeat)
-    if dispatch_alert failure "공개 health API 장애 (${health_detail})"; then
-      write_state unhealthy 1 "${now_epoch}"
-      echo "$(date --iso-8601=seconds) Manager 외부 장애 알림 요청 완료 (${health_detail})"
+    if dispatch_alert failure "공개 health API 장애 (${health_detail}, 연속 실패 ${current_consecutive_failures}회)"; then
+      write_state unhealthy 1 "${now_epoch}" "${current_consecutive_failures}"
+      echo "$(date --iso-8601=seconds) Manager 외부 장애 알림 요청 완료 (${health_detail}, 연속 실패 ${current_consecutive_failures}회)"
     else
-      write_state unhealthy 0 "${last_alert_at}"
+      write_state unhealthy 0 "${last_alert_at}" "${current_consecutive_failures}"
       echo "Manager 외부 장애 알림 요청에 실패했습니다" >&2
       exit 1
     fi
     ;;
   recovery)
-    if dispatch_alert recovery "공개 health API 복구 (${health_detail})"; then
-      write_state healthy 0 "${last_alert_at}"
-      echo "$(date --iso-8601=seconds) Manager 외부 복구 알림 요청 완료 (${health_detail})"
+    if dispatch_alert recovery "공개 health API 복구 (${health_detail}, 장애 중 연속 실패 ${consecutive_failures}회)"; then
+      write_state healthy 0 "${last_alert_at}" 0
+      echo "$(date --iso-8601=seconds) Manager 외부 복구 알림 요청 완료 (${health_detail}, 장애 중 연속 실패 ${consecutive_failures}회)"
     else
+      write_state unhealthy 1 "${last_alert_at}" "${consecutive_failures}"
       echo "Manager 외부 복구 알림 요청에 실패했습니다" >&2
       exit 1
     fi
     ;;
   none)
-    write_state "${current_status}" "${alert_active}" "${last_alert_at}"
+    write_state "${current_status}" "${alert_active}" "${last_alert_at}" "${current_consecutive_failures}"
     ;;
 esac
