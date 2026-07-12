@@ -81,7 +81,8 @@ export function SmokeRotationStatusCard({
   const scheduleTime = status?.monitoring_schedule_time ?? "03:17";
   const scheduleTimezone = status?.monitoring_schedule_timezone ?? "Asia/Seoul";
   const recentRuns = status?.monitoring_recent_runs ?? [];
-  const latestFailure = recentRuns.find((run) => run.status === "failure");
+  const latestFailure =
+    status?.monitoring_latest_failure ?? recentRuns.find((run) => run.status === "failure");
   const suppressedRuns = recentRuns.filter((run) => run.notification_suppressed);
   const latestSuppressed = suppressedRuns[0];
 
@@ -156,12 +157,29 @@ export function SmokeRotationStatusCard({
               ) : status.monitoring_history_error ? (
                 "확인 불가"
               ) : (
-                "최근 5회 없음"
+                "기록 없음"
               )
             }
           />
           {latestFailure?.summary ? (
             <SettingsSummaryRow label="최근 실패 요약" value={latestFailure.summary} />
+          ) : null}
+          {latestFailure?.artifact_url ? (
+            <SettingsSummaryRow
+              label="최근 실패 화면"
+              value={
+                <a
+                  className="inline-flex items-center gap-1 font-medium text-rose-700 underline-offset-2 hover:underline dark:text-rose-300"
+                  href={latestFailure.artifact_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="GitHub 로그인 후 실패 화면 ZIP 다운로드"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  artifact 받기
+                </a>
+              }
+            />
           ) : null}
           <SettingsSummaryRow
             label="반복 실패 알림 억제"
@@ -195,7 +213,8 @@ export function SmokeRotationStatusCard({
           ) : null}
           <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-950">
             <p className="text-xs text-gray-500 dark:text-slate-400">
-              GitHub 실행 이력은 10분간 캐시됩니다.
+              GitHub 이력 확인 {formatDateTime(status.monitoring_history_checked_at, timezone)} ·
+              10분간 캐시
             </p>
             {canManage ? (
               <button

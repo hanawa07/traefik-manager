@@ -28,6 +28,8 @@ export interface SmokeRotationStatus {
   monitoring_last_run_url: string | null;
   monitoring_workflow_url: string;
   monitoring_recent_runs: SmokeMonitoringRecentRun[];
+  monitoring_latest_failure: SmokeMonitoringRecentRun | null;
+  monitoring_history_checked_at: string | null;
   monitoring_history_error: string | null;
   status: SmokeRotationState;
   last_attempt_at: string | null;
