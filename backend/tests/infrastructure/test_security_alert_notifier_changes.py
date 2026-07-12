@@ -245,6 +245,44 @@ async def test_notify_if_needed_posts_certificate_recovered_when_enabled(monkeyp
 
 
 @pytest.mark.asyncio
+async def test_notify_if_needed_posts_manager_health_to_telegram(monkeypatch):
+    posted = []
+    audit_log = make_audit_log(
+        "manager_docker_unhealthy",
+        resource_type="manager_component",
+        resource_id="frontend",
+        resource_name="frontend",
+    )
+    audit_log.detail.update(
+        {
+            "health_status": "unhealthy",
+            "failing_streak": 3,
+            "last_exit_code": 1,
+            "health_checked_at": "2026-07-12T18:00:00Z",
+            "cooldown_minutes": 60,
+        }
+    )
+    patch_settings(
+        monkeypatch,
+        {
+            "change_alerts_enabled": "true",
+            "security_alert_provider": "telegram",
+            "security_alert_telegram_bot_token": "telegram-secret",
+            "security_alert_telegram_chat_id": "10001",
+            "security_alert_change_route_manager_health": "default",
+        },
+    )
+    patch_http_client(monkeypatch, posted)
+
+    result = await security_alert_notifier.notify_if_needed(object(), audit_log)
+
+    assert result is True
+    assert "Manager Docker 이상: frontend" in posted[0][1]["text"]
+    assert "연속 실패: 3회" in posted[0][1]["text"]
+    assert "재발 알림 cooldown: 60분" in posted[0][1]["text"]
+
+
+@pytest.mark.asyncio
 async def test_notify_if_needed_posts_certificate_preflight_repeated_failure_when_enabled(monkeypatch):
     posted = []
     audit_log = make_audit_log(

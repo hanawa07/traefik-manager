@@ -29,6 +29,7 @@ export function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
       user_change: "default",
       certificate_status_change: "default",
       certificate_preflight_failure: "default",
+      manager_health: "default",
       rollback: "default",
     },
   };

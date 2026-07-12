@@ -39,6 +39,7 @@ async def test_get_security_alert_settings_returns_defaults(monkeypatch):
         "user_change": "default",
         "certificate_status_change": "default",
         "certificate_preflight_failure": "default",
+        "manager_health": "default",
         "rollback": "default",
     }
 

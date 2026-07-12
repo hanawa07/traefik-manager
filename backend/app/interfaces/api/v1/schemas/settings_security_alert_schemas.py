@@ -119,6 +119,7 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
             "user_change",
             "certificate_status_change",
             "certificate_preflight_failure",
+            "manager_health",
             "rollback",
         }
         normalized: dict[str, SecurityAlertRoute] = {}

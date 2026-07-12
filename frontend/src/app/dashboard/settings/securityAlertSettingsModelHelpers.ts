@@ -24,8 +24,8 @@ export function createSecurityAlertFormFromSettings(
     email_password: defaults.email_password,
     email_from: settings?.email_from ?? defaults.email_from,
     email_recipients: settings?.email_recipients ?? defaults.email_recipients,
-    event_routes: settings?.event_routes ?? defaults.event_routes,
-    change_event_routes: settings?.change_event_routes ?? defaults.change_event_routes,
+    event_routes: { ...defaults.event_routes, ...settings?.event_routes },
+    change_event_routes: { ...defaults.change_event_routes, ...settings?.change_event_routes },
   };
 }
 

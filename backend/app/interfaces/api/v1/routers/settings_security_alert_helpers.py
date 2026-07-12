@@ -12,6 +12,7 @@ CHANGE_ALERT_EVENTS = [
     "user_change",
     "certificate_status_change",
     "certificate_preflight_failure",
+    "manager_health",
     "rollback",
 ]
 SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"}

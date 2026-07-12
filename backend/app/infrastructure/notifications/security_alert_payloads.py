@@ -61,6 +61,10 @@ def build_message(event: str, resource_name: str, client_ip: Any, category: str)
         return f"인증서 발급 반복 실패: {resource_name}"
     if event == "smoke_rotation_failed":
         return f"스모크 viewer 비밀번호 회전 실패: {resource_name}"
+    if event == "manager_docker_unhealthy":
+        return f"Manager Docker 이상: {resource_name}"
+    if event == "manager_docker_recovered":
+        return f"Manager Docker 회복: {resource_name}"
     return f"롤백 실행: {resource_name}"
 
 
@@ -196,6 +200,16 @@ def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
             lines.append(f"원본 변경 로그: {detail.get('source_audit_id')}")
         if event == "smoke_rotation_failed" and detail.get("step"):
             lines.append(f"실패 단계: {detail.get('step')}")
+        if event in {"manager_docker_unhealthy", "manager_docker_recovered"}:
+            lines.append(f"Docker 상태: {detail.get('health_status') or '-'}")
+            if detail.get("failing_streak") is not None:
+                lines.append(f"연속 실패: {detail.get('failing_streak')}회")
+            if detail.get("last_exit_code") is not None:
+                lines.append(f"종료 코드: {detail.get('last_exit_code')}")
+            if detail.get("health_checked_at"):
+                lines.append(f"Health 검사 시각: {detail.get('health_checked_at')}")
+            if detail.get("cooldown_minutes") is not None:
+                lines.append(f"재발 알림 cooldown: {detail.get('cooldown_minutes')}분")
     return "\n".join(lines)
 
 

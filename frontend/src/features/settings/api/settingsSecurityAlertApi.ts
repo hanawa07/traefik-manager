@@ -13,6 +13,7 @@ export type ChangeAlertRouteEvent =
   | "user_change"
   | "certificate_status_change"
   | "certificate_preflight_failure"
+  | "manager_health"
   | "rollback";
 export type ChangeAlertEventRoutes = Record<ChangeAlertRouteEvent, SecurityAlertRouteTarget>;
 
