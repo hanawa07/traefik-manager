@@ -39,6 +39,8 @@ class DockerDeploymentComponentResponse(BaseModel):
     name: str
     container_name: str
     status: str
+    runtime_status: str | None = None
+    health_status: str | None = None
     container_id: str | None = None
     image: str | None = None
     image_id: str | None = None

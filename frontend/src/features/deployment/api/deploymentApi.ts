@@ -4,6 +4,8 @@ export interface DeploymentComponent {
   name: string;
   container_name: string;
   status: string;
+  runtime_status: string | null;
+  health_status: string | null;
   container_id: string | null;
   image: string | null;
   image_id: string | null;

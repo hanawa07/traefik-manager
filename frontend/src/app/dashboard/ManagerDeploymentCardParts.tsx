@@ -103,6 +103,7 @@ export function DeploymentComponentRow({
     revision: component.revision,
     source: component.source,
   });
+  const dockerStatus = getDockerStatus(component);
 
   return (
     <div
@@ -118,8 +119,8 @@ export function DeploymentComponentRow({
               불일치
             </span>
           ) : null}
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusClassName(component.status)}`}>
-            {getStatusLabel(component.status)}
+          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${dockerStatus.className}`}>
+            {dockerStatus.label}
           </span>
         </div>
       </div>
@@ -169,14 +170,51 @@ function getComponentLabel(name: string) {
   return name;
 }
 
-function getStatusLabel(status: string) {
-  if (status === "ok") return "정상";
-  if (status === "local_env") return "환경값";
-  return "조회 실패";
-}
-
-function getStatusClassName(status: string) {
-  if (status === "ok") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200";
-  if (status === "local_env") return "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200";
-  return "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-100";
+function getDockerStatus(component: DeploymentComponent) {
+  if (component.status === "unavailable") {
+    return {
+      label: "조회 실패",
+      className: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-100",
+    };
+  }
+  if (component.runtime_status && component.runtime_status !== "running") {
+    return {
+      label: "Docker 중지",
+      className: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200",
+    };
+  }
+  if (component.health_status === "healthy") {
+    return {
+      label: "Docker 정상",
+      className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200",
+    };
+  }
+  if (component.health_status === "unhealthy") {
+    return {
+      label: "Docker 이상",
+      className: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200",
+    };
+  }
+  if (component.health_status === "starting") {
+    return {
+      label: "점검 중",
+      className: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200",
+    };
+  }
+  if (component.runtime_status === "running") {
+    return {
+      label: "실행 중",
+      className: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200",
+    };
+  }
+  if (component.status === "local_env") {
+    return {
+      label: "환경값",
+      className: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200",
+    };
+  }
+  return {
+    label: "상태 미확인",
+    className: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-100",
+  };
 }

@@ -194,6 +194,8 @@ class DockerClient:
                 "name": name,
                 "container_name": container_name,
                 "status": "unavailable",
+                "runtime_status": None,
+                "health_status": None,
                 "container_id": None,
                 "image": None,
                 "image_id": None,
@@ -206,6 +208,8 @@ class DockerClient:
             }
 
         config = container.get("Config") if isinstance(container.get("Config"), dict) else {}
+        state = container.get("State") if isinstance(container.get("State"), dict) else {}
+        health = state.get("Health") if isinstance(state.get("Health"), dict) else {}
         image_ref = container.get("Image") or config.get("Image")
         image = await self._inspect_image(str(image_ref)) if image_ref else {}
         image_config = image.get("Config") if isinstance(image.get("Config"), dict) else {}
@@ -218,6 +222,8 @@ class DockerClient:
             "name": name,
             "container_name": container_name,
             "status": "ok",
+            "runtime_status": self._normalize_value(state.get("Status")),
+            "health_status": self._normalize_value(health.get("Status")),
             "container_id": self._normalize_value(container.get("Id")),
             "image": self._normalize_value(config.get("Image")),
             "image_id": self._normalize_value(image.get("Id")) or self._normalize_value(image_ref),
@@ -248,6 +254,8 @@ class DockerClient:
             "name": name,
             "container_name": settings.TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME,
             "status": "local_env",
+            "runtime_status": None,
+            "health_status": None,
             "container_id": None,
             "image": None,
             "image_id": None,

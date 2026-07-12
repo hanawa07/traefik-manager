@@ -107,3 +107,30 @@ async def test_connect_container_to_network_posts_docker_network_connect(monkeyp
             {"Container": "english-app-1"},
         )
     ]
+
+
+@pytest.mark.asyncio
+async def test_inspect_manager_component_includes_runtime_health(monkeypatch):
+    client = DockerClient()
+
+    async def fake_get_object_json(_path: str, params=None):
+        return {
+            "Id": "container-1",
+            "Image": "sha256:image-1",
+            "Config": {"Image": "traefik-manager-backend"},
+            "State": {
+                "Status": "running",
+                "Health": {"Status": "healthy"},
+            },
+        }
+
+    async def fake_inspect_image(_image_ref: str):
+        return {"Id": "sha256:image-1", "Config": {"Labels": {}}}
+
+    monkeypatch.setattr(client, "_get_object_json", fake_get_object_json)
+    monkeypatch.setattr(client, "_inspect_image", fake_inspect_image)
+
+    component = await client._inspect_manager_component("backend", "traefik-manager-backend")
+
+    assert component["runtime_status"] == "running"
+    assert component["health_status"] == "healthy"
