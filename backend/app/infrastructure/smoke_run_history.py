@@ -18,7 +18,12 @@ class GitHubSmokeRunHistoryReader:
     _cache: dict[str, tuple[datetime, dict[str, Any]]] = {}
     _lock = asyncio.Lock()
 
-    async def get_history(self, source_url: str | None) -> dict[str, Any]:
+    async def get_history(
+        self,
+        source_url: str | None,
+        *,
+        force_refresh: bool = False,
+    ) -> dict[str, Any]:
         repository_urls = _resolve_repository_urls(source_url)
         if repository_urls is None:
             return _history_error("GitHub 저장소 주소를 확인하지 못했습니다")
@@ -26,12 +31,12 @@ class GitHubSmokeRunHistoryReader:
         api_url, public_url = repository_urls
         now = datetime.now(timezone.utc)
         cached = self._cache.get(api_url)
-        if cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
+        if not force_refresh and cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
             return _copy_history(cached[1])
 
         async with self._lock:
             cached = self._cache.get(api_url)
-            if cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
+            if not force_refresh and cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
                 return _copy_history(cached[1])
 
             history = await self._fetch_history(api_url, public_url)
@@ -58,20 +63,38 @@ class GitHubSmokeRunHistoryReader:
                 payload = response.json()
                 raw_runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
                 runs = _select_recent_runs(raw_runs)
-                jobs = await asyncio.gather(
-                    *(
-                        self._read_job_steps(client, api_url, run["id"])
-                        if _needs_job_details(run)
-                        else _empty_steps()
-                        for run in runs
+                artifact_run_ids = {
+                    run["id"] for run in runs if run.get("conclusion") != "success"
+                }
+                jobs, artifact_urls = await asyncio.gather(
+                    asyncio.gather(
+                        *(
+                            self._read_job_steps(client, api_url, run["id"])
+                            if _needs_job_details(run)
+                            else _empty_steps()
+                            for run in runs
+                        )
+                    ),
+                    self._read_artifact_urls(
+                        client,
+                        api_url,
+                        public_url,
+                        artifact_run_ids,
                     )
+                    if artifact_run_ids
+                    else _empty_artifact_urls(),
                 )
         except (httpx.HTTPError, ValueError, TypeError):
             return _history_error("GitHub 실행 이력을 확인하지 못했습니다")
 
         return {
             "runs": [
-                build_smoke_run_item(run, steps, public_url=public_url)
+                build_smoke_run_item(
+                    run,
+                    steps,
+                    public_url=public_url,
+                    artifact_url=artifact_urls.get(run["id"]),
+                )
                 for run, steps in zip(runs, jobs, strict=True)
             ],
             "error": None,
@@ -104,12 +127,37 @@ class GitHubSmokeRunHistoryReader:
             if isinstance(step, dict)
         ]
 
+    async def _read_artifact_urls(
+        self,
+        client: httpx.AsyncClient,
+        api_url: str,
+        public_url: str,
+        run_ids: set[int],
+    ) -> dict[int, str]:
+        try:
+            response = await client.get(
+                f"{api_url}/actions/artifacts",
+                params={"per_page": 100},
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except (httpx.HTTPError, ValueError, TypeError):
+            return {}
+
+        artifacts = payload.get("artifacts") if isinstance(payload, dict) else None
+        return build_smoke_artifact_urls(
+            artifacts,
+            run_ids=run_ids,
+            public_url=public_url,
+        )
+
 
 def build_smoke_run_item(
     run: dict[str, Any],
     steps: list[dict[str, Any]],
     *,
     public_url: str,
+    artifact_url: str | None = None,
 ) -> dict[str, Any]:
     smoke_step = _find_step(steps, "운영 로그인·화면 검사")
     conclusion = _clean_text(run.get("conclusion"))
@@ -151,11 +199,44 @@ def build_smoke_run_item(
         "commit_sha": head_sha[:7] if head_sha else None,
         "summary": summary,
         "notification_suppressed": suppressed,
+        "artifact_url": artifact_url if status == "failure" else None,
     }
+
+
+def build_smoke_artifact_urls(
+    raw_artifacts: object,
+    *,
+    run_ids: set[int],
+    public_url: str,
+) -> dict[int, str]:
+    if not isinstance(raw_artifacts, list):
+        return {}
+    urls: dict[int, str] = {}
+    for artifact in raw_artifacts:
+        workflow_run = artifact.get("workflow_run") if isinstance(artifact, dict) else None
+        run_id = workflow_run.get("id") if isinstance(workflow_run, dict) else None
+        artifact_id = artifact.get("id") if isinstance(artifact, dict) else None
+        if (
+            not isinstance(run_id, int)
+            or run_id not in run_ids
+            or not isinstance(artifact_id, int)
+            or artifact.get("name") != f"dashboard-visual-smoke-{run_id}"
+            or artifact.get("expired") is not False
+        ):
+            continue
+        urls.setdefault(
+            run_id,
+            f"{public_url}/actions/runs/{run_id}/artifacts/{artifact_id}",
+        )
+    return urls
 
 
 async def _empty_steps() -> list[dict[str, Any]]:
     return []
+
+
+async def _empty_artifact_urls() -> dict[int, str]:
+    return {}
 
 
 def _select_recent_runs(raw_runs: object) -> list[dict[str, Any]]:

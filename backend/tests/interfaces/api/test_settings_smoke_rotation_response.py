@@ -18,7 +18,10 @@ class StubRepository:
 
 
 class StubHistoryReader:
-    async def get_history(self, _source_url: str) -> dict:
+    force_refresh = False
+
+    async def get_history(self, _source_url: str, *, force_refresh: bool = False) -> dict:
+        self.force_refresh = force_refresh
         return {
             "runs": [
                 {
@@ -29,6 +32,7 @@ class StubHistoryReader:
                     "commit_sha": "b3a4642",
                     "summary": "실패 단계: 운영 로그인·화면 검사",
                     "notification_suppressed": True,
+                    "artifact_url": "https://github.com/example/artifact",
                 }
             ],
             "error": None,
@@ -148,14 +152,18 @@ async def test_get_smoke_rotation_status_includes_logs_for_admin(tmp_path, monke
 @pytest.mark.asyncio
 async def test_get_smoke_rotation_status_includes_remote_history_for_admin() -> None:
     StubRepository.values = {}
+    history_reader = StubHistoryReader()
 
     result = await get_smoke_rotation_status_response(
         object(),
         settings_repository_factory=StubRepository,
         include_monitoring_history=True,
-        history_reader=StubHistoryReader(),
+        force_refresh_monitoring_history=True,
+        history_reader=history_reader,
     )
 
     assert result.monitoring_recent_runs[0].status == "failure"
     assert result.monitoring_recent_runs[0].notification_suppressed is True
+    assert result.monitoring_recent_runs[0].artifact_url.endswith("/artifact")
     assert result.monitoring_history_error is None
+    assert history_reader.force_refresh is True

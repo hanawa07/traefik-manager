@@ -2,6 +2,7 @@ import pytest
 
 from app.infrastructure.smoke_run_history import (
     GitHubSmokeRunHistoryReader,
+    build_smoke_artifact_urls,
     build_smoke_run_item,
 )
 
@@ -35,6 +36,37 @@ def test_build_smoke_run_item_reports_failure_step_and_suppression() -> None:
     assert result["run_url"].endswith("/actions/runs/123")
 
 
+def test_build_smoke_artifact_urls_accepts_only_active_matching_artifact() -> None:
+    artifact_urls = build_smoke_artifact_urls(
+        [
+            {
+                "id": 1,
+                "name": "other",
+                "expired": False,
+                "workflow_run": {"id": 123},
+            },
+            {
+                "id": 2,
+                "name": "dashboard-visual-smoke-123",
+                "expired": True,
+                "workflow_run": {"id": 123},
+            },
+            {
+                "id": 3,
+                "name": "dashboard-visual-smoke-123",
+                "expired": False,
+                "workflow_run": {"id": 123},
+            },
+        ],
+        run_ids={123},
+        public_url="https://github.com/hanawa07/traefik-manager",
+    )
+
+    assert artifact_urls == {
+        123: "https://github.com/hanawa07/traefik-manager/actions/runs/123/artifacts/3"
+    }
+
+
 def test_build_smoke_run_item_distinguishes_skipped_schedule() -> None:
     result = build_smoke_run_item(
         _run(),
@@ -55,3 +87,22 @@ async def test_history_reader_rejects_non_github_source_without_request() -> Non
         "runs": [],
         "error": "GitHub 저장소 주소를 확인하지 못했습니다",
     }
+
+
+@pytest.mark.asyncio
+async def test_history_reader_force_refresh_bypasses_cache() -> None:
+    class CountingReader(GitHubSmokeRunHistoryReader):
+        calls = 0
+
+        async def _fetch_history(self, _api_url: str, _public_url: str) -> dict:
+            self.calls += 1
+            return {"runs": [], "error": None}
+
+    reader = CountingReader()
+    source_url = "https://github.com/hanawa07/traefik-manager-force-refresh-test"
+
+    await reader.get_history(source_url)
+    await reader.get_history(source_url)
+    await reader.get_history(source_url, force_refresh=True)
+
+    assert reader.calls == 2

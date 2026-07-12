@@ -37,6 +37,7 @@ async def get_smoke_rotation_status_response(
     now: datetime | None = None,
     include_recent_logs: bool = False,
     include_monitoring_history: bool = False,
+    force_refresh_monitoring_history: bool = False,
     history_reader: Any = smoke_run_history_reader,
 ) -> SmokeRotationStatusResponse:
     repo = settings_repository_factory(db)
@@ -54,7 +55,10 @@ async def get_smoke_rotation_status_response(
     run_status = await read_smoke_run_status(repo)
     run_history = {"runs": [], "error": None}
     if include_monitoring_history:
-        run_history = await history_reader.get_history(settings.TRAEFIK_MANAGER_IMAGE_SOURCE)
+        run_history = await history_reader.get_history(
+            settings.TRAEFIK_MANAGER_IMAGE_SOURCE,
+            force_refresh=force_refresh_monitoring_history,
+        )
     return SmokeRotationStatusResponse(
         status=status,
         last_attempt_at=await repo.get(SMOKE_ROTATION_LAST_ATTEMPT_AT_KEY),

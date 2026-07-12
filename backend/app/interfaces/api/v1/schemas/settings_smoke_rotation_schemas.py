@@ -13,6 +13,7 @@ class SmokeMonitoringRecentRunResponse(BaseModel):
     commit_sha: str | None = None
     summary: str | None = None
     notification_suppressed: bool = False
+    artifact_url: str | None = None
 
 
 class SmokeRotationStatusResponse(BaseModel):
