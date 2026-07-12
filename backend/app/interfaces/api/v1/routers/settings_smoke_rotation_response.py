@@ -53,7 +53,12 @@ async def get_smoke_rotation_status_response(
         )
     monitoring = await read_smoke_monitoring_values(repo)
     run_status = await read_smoke_run_status(repo)
-    run_history = {"runs": [], "error": None}
+    run_history = {
+        "runs": [],
+        "latest_failure": None,
+        "checked_at": None,
+        "error": None,
+    }
     if include_monitoring_history:
         run_history = await history_reader.get_history(
             settings.TRAEFIK_MANAGER_IMAGE_SOURCE,
@@ -71,5 +76,7 @@ async def get_smoke_rotation_status_response(
         **monitoring,
         **run_status,
         monitoring_recent_runs=run_history["runs"],
+        monitoring_latest_failure=run_history["latest_failure"],
+        monitoring_history_checked_at=run_history["checked_at"],
         monitoring_history_error=run_history["error"],
     )

@@ -40,8 +40,10 @@ class GitHubSmokeRunHistoryReader:
                 return _copy_history(cached[1])
 
             history = await self._fetch_history(api_url, public_url)
+            history["checked_at"] = datetime.now(timezone.utc).isoformat()
             if history["error"] and cached and cached[1]["runs"]:
                 history["runs"] = cached[1]["runs"]
+                history["latest_failure"] = cached[1]["latest_failure"]
             GitHubSmokeRunHistoryReader._cache[api_url] = (now, _copy_history(history))
             return history
 
@@ -57,14 +59,21 @@ class GitHubSmokeRunHistoryReader:
             ) as client:
                 response = await client.get(
                     f"{api_url}/actions/workflows/{WORKFLOW_FILE}/runs",
-                    params={"per_page": 20},
+                    params={"per_page": 100},
                 )
                 response.raise_for_status()
                 payload = response.json()
                 raw_runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
-                runs = _select_recent_runs(raw_runs)
+                runs, latest_failure_run = select_smoke_run_groups(raw_runs)
+                detail_runs = list(runs)
+                if latest_failure_run and all(
+                    run["id"] != latest_failure_run["id"] for run in detail_runs
+                ):
+                    detail_runs.append(latest_failure_run)
                 artifact_run_ids = {
-                    run["id"] for run in runs if run.get("conclusion") != "success"
+                    run["id"]
+                    for run in detail_runs
+                    if run.get("conclusion") != "success"
                 }
                 jobs, artifact_urls = await asyncio.gather(
                     asyncio.gather(
@@ -72,7 +81,7 @@ class GitHubSmokeRunHistoryReader:
                             self._read_job_steps(client, api_url, run["id"])
                             if _needs_job_details(run)
                             else _empty_steps()
-                            for run in runs
+                            for run in detail_runs
                         )
                     ),
                     self._read_artifact_urls(
@@ -87,16 +96,23 @@ class GitHubSmokeRunHistoryReader:
         except (httpx.HTTPError, ValueError, TypeError):
             return _history_error("GitHub 실행 이력을 확인하지 못했습니다")
 
+        job_steps = {
+            run["id"]: steps for run, steps in zip(detail_runs, jobs, strict=True)
+        }
+        items = {
+            run["id"]: build_smoke_run_item(
+                run,
+                job_steps[run["id"]],
+                public_url=public_url,
+                artifact_url=artifact_urls.get(run["id"]),
+            )
+            for run in detail_runs
+        }
         return {
-            "runs": [
-                build_smoke_run_item(
-                    run,
-                    steps,
-                    public_url=public_url,
-                    artifact_url=artifact_urls.get(run["id"]),
-                )
-                for run, steps in zip(runs, jobs, strict=True)
-            ],
+            "runs": [items[run["id"]] for run in runs],
+            "latest_failure": items.get(latest_failure_run["id"])
+            if latest_failure_run
+            else None,
             "error": None,
         }
 
@@ -239,10 +255,12 @@ async def _empty_artifact_urls() -> dict[int, str]:
     return {}
 
 
-def _select_recent_runs(raw_runs: object) -> list[dict[str, Any]]:
+def select_smoke_run_groups(
+    raw_runs: object,
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
     if not isinstance(raw_runs, list):
         raise ValueError("workflow_runs must be a list")
-    return [
+    operational_runs = [
         run
         for run in raw_runs
         if isinstance(run, dict)
@@ -250,7 +268,12 @@ def _select_recent_runs(raw_runs: object) -> list[dict[str, Any]]:
         and isinstance(run.get("updated_at"), str)
         and run.get("status") == "completed"
         and not str(run.get("display_title") or "").startswith("[테스트]")
-    ][:RECENT_RUN_LIMIT]
+    ]
+    latest_failure = next(
+        (run for run in operational_runs if run.get("conclusion") != "success"),
+        None,
+    )
+    return operational_runs[:RECENT_RUN_LIMIT], latest_failure
 
 
 def _needs_job_details(run: dict[str, Any]) -> bool:
@@ -293,11 +316,20 @@ def _clean_text(value: object) -> str | None:
 
 
 def _history_error(message: str) -> dict[str, Any]:
-    return {"runs": [], "error": message}
+    return {
+        "runs": [],
+        "latest_failure": None,
+        "checked_at": None,
+        "error": message,
+    }
 
 
 def _copy_history(history: dict[str, Any]) -> dict[str, Any]:
     return {
         "runs": [run.copy() for run in history["runs"]],
+        "latest_failure": history["latest_failure"].copy()
+        if history["latest_failure"]
+        else None,
+        "checked_at": history["checked_at"],
         "error": history["error"],
     }

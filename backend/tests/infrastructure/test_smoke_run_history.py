@@ -4,6 +4,7 @@ from app.infrastructure.smoke_run_history import (
     GitHubSmokeRunHistoryReader,
     build_smoke_artifact_urls,
     build_smoke_run_item,
+    select_smoke_run_groups,
 )
 
 
@@ -79,12 +80,27 @@ def test_build_smoke_run_item_distinguishes_skipped_schedule() -> None:
     assert result["notification_suppressed"] is False
 
 
+def test_select_smoke_run_groups_keeps_latest_failure_outside_recent_five() -> None:
+    runs = [
+        _run(id=run_id, run_number=run_id, conclusion="success")
+        for run_id in range(10, 4, -1)
+    ]
+    runs.append(_run(id=4, run_number=4, conclusion="failure"))
+
+    recent, latest_failure = select_smoke_run_groups(runs)
+
+    assert [run["id"] for run in recent] == [10, 9, 8, 7, 6]
+    assert latest_failure["id"] == 4
+
+
 @pytest.mark.asyncio
 async def test_history_reader_rejects_non_github_source_without_request() -> None:
     history = await GitHubSmokeRunHistoryReader().get_history("https://example.com/repository")
 
     assert history == {
         "runs": [],
+        "latest_failure": None,
+        "checked_at": None,
         "error": "GitHub 저장소 주소를 확인하지 못했습니다",
     }
 
@@ -96,13 +112,14 @@ async def test_history_reader_force_refresh_bypasses_cache() -> None:
 
         async def _fetch_history(self, _api_url: str, _public_url: str) -> dict:
             self.calls += 1
-            return {"runs": [], "error": None}
+            return {"runs": [], "latest_failure": None, "error": None}
 
     reader = CountingReader()
     source_url = "https://github.com/hanawa07/traefik-manager-force-refresh-test"
 
-    await reader.get_history(source_url)
+    first = await reader.get_history(source_url)
     await reader.get_history(source_url)
     await reader.get_history(source_url, force_refresh=True)
 
     assert reader.calls == 2
+    assert first["checked_at"] is not None

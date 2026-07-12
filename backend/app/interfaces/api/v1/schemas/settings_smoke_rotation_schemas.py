@@ -33,6 +33,8 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_last_run_url: str | None = None
     monitoring_workflow_url: str
     monitoring_recent_runs: list[SmokeMonitoringRecentRunResponse] = Field(default_factory=list)
+    monitoring_latest_failure: SmokeMonitoringRecentRunResponse | None = None
+    monitoring_history_checked_at: str | None = None
     monitoring_history_error: str | None = None
 
 
