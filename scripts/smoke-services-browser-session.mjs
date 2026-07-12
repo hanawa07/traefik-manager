@@ -21,6 +21,11 @@ const DEFAULT_TIMEOUT_MS = 40_000;
 
 const CHECKS = [
   {
+    label: "애플리케이션 헬스",
+    path: "/api/health",
+    validate: (data) => data?.status === "정상",
+  },
+  {
     label: "현재 세션",
     path: "/api/v1/auth/me",
     validate: (data) => typeof data?.username === "string" && typeof data?.role === "string",

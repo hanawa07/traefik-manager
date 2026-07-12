@@ -19,7 +19,15 @@ export async function proxyRequest(
   context: { params: Promise<{ path: string[] }> },
 ): Promise<NextResponse> {
   const { path } = await context.params;
-  const upstreamUrl = buildUpstreamUrl(request, path);
+  return proxyUpstreamPath(request, `/api/v1/${path.join("/")}`);
+}
+
+export async function proxyUpstreamPath(
+  request: NextRequest,
+  upstreamPath: string,
+  signal?: AbortSignal,
+): Promise<NextResponse> {
+  const upstreamUrl = buildUpstreamUrl(request, upstreamPath);
   const method = request.method.toUpperCase();
   const headers = buildUpstreamHeaders(request);
 
@@ -28,6 +36,7 @@ export async function proxyRequest(
     headers,
     cache: "no-store",
     redirect: "manual",
+    signal,
   };
 
   if (!["GET", "HEAD"].includes(method)) {
@@ -41,9 +50,8 @@ export async function proxyRequest(
   return buildProxyResponse(upstreamResponse);
 }
 
-function buildUpstreamUrl(request: NextRequest, path: string[]): URL {
+function buildUpstreamUrl(request: NextRequest, upstreamPath: string): URL {
   const upstreamBase = new URL(backendUpstream);
-  const upstreamPath = `/api/v1/${path.join("/")}`;
   const upstreamUrl = new URL(upstreamPath, upstreamBase);
   upstreamUrl.search = request.nextUrl.search;
   return upstreamUrl;
