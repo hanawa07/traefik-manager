@@ -196,6 +196,9 @@ class DockerClient:
                 "status": "unavailable",
                 "runtime_status": None,
                 "health_status": None,
+                "health_failing_streak": 0,
+                "health_last_checked_at": None,
+                "health_last_exit_code": None,
                 "container_id": None,
                 "image": None,
                 "image_id": None,
@@ -210,6 +213,11 @@ class DockerClient:
         config = container.get("Config") if isinstance(container.get("Config"), dict) else {}
         state = container.get("State") if isinstance(container.get("State"), dict) else {}
         health = state.get("Health") if isinstance(state.get("Health"), dict) else {}
+        health_logs = health.get("Log") if isinstance(health.get("Log"), list) else []
+        last_health_log = next(
+            (item for item in reversed(health_logs) if isinstance(item, dict)),
+            {},
+        )
         image_ref = container.get("Image") or config.get("Image")
         image = await self._inspect_image(str(image_ref)) if image_ref else {}
         image_config = image.get("Config") if isinstance(image.get("Config"), dict) else {}
@@ -224,6 +232,15 @@ class DockerClient:
             "status": "ok",
             "runtime_status": self._normalize_value(state.get("Status")),
             "health_status": self._normalize_value(health.get("Status")),
+            "health_failing_streak": health.get("FailingStreak")
+            if isinstance(health.get("FailingStreak"), int)
+            else 0,
+            "health_last_checked_at": self._normalize_value(
+                last_health_log.get("End") or last_health_log.get("Start")
+            ),
+            "health_last_exit_code": last_health_log.get("ExitCode")
+            if isinstance(last_health_log.get("ExitCode"), int)
+            else None,
             "container_id": self._normalize_value(container.get("Id")),
             "image": self._normalize_value(config.get("Image")),
             "image_id": self._normalize_value(image.get("Id")) or self._normalize_value(image_ref),
@@ -256,6 +273,9 @@ class DockerClient:
             "status": "local_env",
             "runtime_status": None,
             "health_status": None,
+            "health_failing_streak": 0,
+            "health_last_checked_at": None,
+            "health_last_exit_code": None,
             "container_id": None,
             "image": None,
             "image_id": None,

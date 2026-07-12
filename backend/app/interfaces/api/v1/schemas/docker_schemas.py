@@ -41,6 +41,9 @@ class DockerDeploymentComponentResponse(BaseModel):
     status: str
     runtime_status: str | None = None
     health_status: str | None = None
+    health_failing_streak: int = 0
+    health_last_checked_at: str | None = None
+    health_last_exit_code: int | None = None
     container_id: str | None = None
     image: str | None = None
     image_id: str | None = None

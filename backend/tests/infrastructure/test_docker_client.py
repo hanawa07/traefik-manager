@@ -120,7 +120,18 @@ async def test_inspect_manager_component_includes_runtime_health(monkeypatch):
             "Config": {"Image": "traefik-manager-backend"},
             "State": {
                 "Status": "running",
-                "Health": {"Status": "healthy"},
+                "Health": {
+                    "Status": "unhealthy",
+                    "FailingStreak": 3,
+                    "Log": [
+                        {
+                            "Start": "2026-07-12T17:48:32Z",
+                            "End": "2026-07-12T17:48:33Z",
+                            "ExitCode": 1,
+                            "Output": "민감할 수 있는 원문",
+                        }
+                    ],
+                },
             },
         }
 
@@ -133,4 +144,8 @@ async def test_inspect_manager_component_includes_runtime_health(monkeypatch):
     component = await client._inspect_manager_component("backend", "traefik-manager-backend")
 
     assert component["runtime_status"] == "running"
-    assert component["health_status"] == "healthy"
+    assert component["health_status"] == "unhealthy"
+    assert component["health_failing_streak"] == 3
+    assert component["health_last_checked_at"] == "2026-07-12T17:48:33Z"
+    assert component["health_last_exit_code"] == 1
+    assert "Output" not in component
