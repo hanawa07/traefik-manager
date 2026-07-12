@@ -33,9 +33,9 @@ export function ManagerHealthHistoryCard({
         </div>
         <Link
           className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
-          href="/dashboard/audit"
+          href="/dashboard/audit?filter=manager_health"
         >
-          감사 로그 전체 보기
+          Manager 이력만 보기
           <ExternalLink className="h-3.5 w-3.5" />
         </Link>
       </div>

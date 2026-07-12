@@ -9,6 +9,7 @@ export const auditFilters = [
   { key: "login_suspicious", label: "이상 징후" },
   { key: "login_blocked_ip", label: "IP 차단" },
   { key: "login_failure", label: "로그인 실패" },
+  { key: "manager_health", label: "Manager 상태" },
   { key: "certificate_warning", label: "인증서 만료 임박" },
   { key: "certificate_error", label: "인증서 만료" },
   { key: "certificate_recovered", label: "인증서 복구" },
@@ -36,3 +37,7 @@ export const deliveryProviderOptions = [
 export type AuditFilterKey = (typeof auditFilters)[number]["key"];
 export type DeliveryStatusKey = (typeof deliveryStatusOptions)[number]["key"];
 export type DeliveryProviderKey = (typeof deliveryProviderOptions)[number]["key"];
+
+export function isAuditFilterKey(value: string | null): value is AuditFilterKey {
+  return auditFilters.some((filter) => filter.key === value);
+}

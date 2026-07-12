@@ -1,4 +1,5 @@
 import {
+  Activity,
   ArrowRightLeft,
   Server,
   Shield,
@@ -29,6 +30,7 @@ export const resourceTypeConfig: Record<string, ResourceTypeConfig> = {
   user: { icon: User, label: "사용자", color: "border border-emerald-200 bg-emerald-50 text-emerald-700" },
   settings: { icon: SlidersHorizontal, label: "설정", color: "border border-cyan-200 bg-cyan-50 text-cyan-700" },
   certificate: { icon: Shield, label: "인증서", color: "border border-amber-200 bg-amber-50 text-amber-700" },
+  manager_component: { icon: Activity, label: "Manager", color: "border border-slate-200 bg-slate-50 text-slate-700" },
 };
 
 export const actionConfig: Record<string, BadgeConfig> = {
@@ -74,6 +76,8 @@ export const securityEventConfig: Record<string, BadgeConfig> = {
   security_alert_delivery_failure: { label: "보안 알림 전송 실패", color: "bg-rose-50 text-rose-700 border-rose-200" },
   change_alert_delivery_success: { label: "운영 변경 알림 전송 성공", color: "bg-teal-50 text-teal-700 border-teal-200" },
   change_alert_delivery_failure: { label: "운영 변경 알림 전송 실패", color: "bg-red-50 text-red-700 border-red-200" },
+  manager_docker_unhealthy: { label: "Manager Docker 이상", color: "bg-rose-50 text-rose-700 border-rose-200" },
+  manager_docker_recovered: { label: "Manager Docker 복구", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   service_create: { label: "서비스 생성", color: "bg-sky-50 text-sky-700 border-sky-200" },
   service_update: { label: "서비스 변경", color: "bg-blue-50 text-blue-700 border-blue-200" },
   service_delete: { label: "서비스 삭제", color: "bg-red-50 text-red-700 border-red-200" },

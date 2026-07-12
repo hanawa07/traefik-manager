@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, Loader2 } from "lucide-react";
+import { Suspense } from "react";
 import { AuditFeedbackBanner } from "./AuditFeedbackBanner";
 import { AuditLogFilters } from "./AuditLogFilters";
 import { AuditLogPageHeader } from "./AuditLogPageHeader";
@@ -8,16 +9,19 @@ import { AuditLogTable } from "./AuditLogTable";
 import { useAuditLogPageModel } from "./useAuditLogPageModel";
 
 export default function AuditLogPage() {
+  return (
+    <Suspense fallback={<AuditLogLoading />}>
+      <AuditLogPageContent />
+    </Suspense>
+  );
+}
+
+function AuditLogPageContent() {
   const { deliveryFeedback, errorMessage, filters, isError, isLoading, rollbackFeedback, table } =
     useAuditLogPageModel();
 
   if (isLoading) {
-    return (
-      <div className="flex h-[60vh] flex-col items-center justify-center text-slate-400">
-        <Loader2 className="mb-4 h-8 w-8 animate-spin" />
-        <p>감사 로그를 불러오는 중입니다...</p>
-      </div>
-    );
+    return <AuditLogLoading />;
   }
 
   if (isError) {
@@ -40,6 +44,15 @@ export default function AuditLogPage() {
       <AuditFeedbackBanner feedback={deliveryFeedback} />
 
       <AuditLogTable {...table} />
+    </div>
+  );
+}
+
+function AuditLogLoading() {
+  return (
+    <div className="flex h-[60vh] flex-col items-center justify-center text-slate-400">
+      <Loader2 className="mb-4 h-8 w-8 animate-spin" />
+      <p>감사 로그를 불러오는 중입니다...</p>
     </div>
   );
 }

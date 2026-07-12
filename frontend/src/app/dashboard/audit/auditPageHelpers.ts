@@ -8,6 +8,7 @@ export {
   auditFilters,
   deliveryProviderOptions,
   deliveryStatusOptions,
+  isAuditFilterKey,
   type AuditFilterKey,
   type DeliveryProviderKey,
   type DeliveryStatusKey,

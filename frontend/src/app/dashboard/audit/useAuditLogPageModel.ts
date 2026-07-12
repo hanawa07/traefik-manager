@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { useAudit } from "@/features/audit/hooks/useAudit";
@@ -9,6 +10,7 @@ import {
   type AuditFilterKey,
   type DeliveryProviderKey,
   type DeliveryStatusKey,
+  isAuditFilterKey,
 } from "./auditPageHelpers";
 import { useAuditLogActions } from "./useAuditLogActions";
 import { buildAuditLogQuery } from "./auditPageQuery";
@@ -16,7 +18,9 @@ import { buildAuditLogQuery } from "./auditPageQuery";
 const FALLBACK_AUDIT_LOAD_ERROR = "감사 로그를 불러오지 못했습니다. 서버 연결 상태를 확인해주세요.";
 
 export function useAuditLogPageModel() {
-  const [selectedFilter, setSelectedFilter] = useState<AuditFilterKey>("all");
+  const requestedFilter = useSearchParams().get("filter");
+  const initialFilter = isAuditFilterKey(requestedFilter) ? requestedFilter : "all";
+  const [selectedFilter, setSelectedFilter] = useState<AuditFilterKey>(initialFilter);
   const [selectedDeliveryStatus, setSelectedDeliveryStatus] = useState<DeliveryStatusKey>("all");
   const [selectedDeliveryProvider, setSelectedDeliveryProvider] =
     useState<DeliveryProviderKey>("all");

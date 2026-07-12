@@ -34,6 +34,7 @@ export function AuditLogFilters({
           return (
             <button
               key={filter.key}
+              aria-pressed={active}
               type="button"
               onClick={() => onFilterChange(filter.key)}
               className={clsx(

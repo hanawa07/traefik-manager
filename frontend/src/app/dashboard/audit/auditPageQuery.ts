@@ -37,6 +37,9 @@ function buildFilterQuery(selectedFilter: AuditFilterKey): AuditLogQuery {
   if (selectedFilter === "all") return { limit: 50 };
   if (selectedFilter === "security") return { limit: 50, security_only: true };
   if (selectedFilter === "alert_delivery") return { limit: 50, action: "alert" };
+  if (selectedFilter === "manager_health") {
+    return { limit: 50, resource_type: "manager_component" };
+  }
   if (selectedFilter === "settings_update") {
     return { limit: 50, resource_type: "settings", action: "update" };
   }
