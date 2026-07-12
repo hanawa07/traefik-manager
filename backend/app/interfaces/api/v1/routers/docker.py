@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.core.manager_watchdog_state import read_manager_watchdog_state
 from app.infrastructure.docker.client import DockerClient, DockerClientError
 from app.interfaces.api.dependencies import get_current_user
 from app.interfaces.api.v1.schemas.docker_schemas import (
@@ -35,7 +36,8 @@ async def get_deployment_info(
     _: dict = Depends(get_current_user),
 ):
     try:
-        return await docker_client.get_manager_deployment_info(refresh_latest=refresh_latest)
+        deployment = await docker_client.get_manager_deployment_info(refresh_latest=refresh_latest)
+        return {**deployment, **read_manager_watchdog_state()}
     except DockerClientError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

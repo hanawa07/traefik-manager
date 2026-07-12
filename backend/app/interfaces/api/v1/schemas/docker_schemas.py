@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -67,4 +68,6 @@ class DockerDeploymentInfoResponse(BaseModel):
     latest_version_checked_at: datetime | None = None
     latest_version_error: str | None = None
     update_available: bool | None = None
+    external_watchdog_status: Literal["healthy", "unhealthy", "unknown"] = "unknown"
+    external_watchdog_checked_at: datetime | None = None
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)

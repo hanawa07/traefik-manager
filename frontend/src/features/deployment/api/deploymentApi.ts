@@ -32,6 +32,8 @@ export interface DeploymentInfo {
   latest_version_checked_at: string | null;
   latest_version_error: string | null;
   update_available: boolean | null;
+  external_watchdog_status: "healthy" | "unhealthy" | "unknown";
+  external_watchdog_checked_at: string | null;
   components: DeploymentComponent[];
 }
 

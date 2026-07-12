@@ -38,6 +38,10 @@ export function ManagerDeploymentCard({
   const latestVersion = deployment?.latest_version || "-";
   const buildDate = formatDateTime(deployment?.build_date, timezone);
   const latestCheckedAt = formatDateTime(deployment?.latest_version_checked_at, timezone);
+  const externalWatchdogCheckedAt = formatDateTime(
+    deployment?.external_watchdog_checked_at,
+    timezone,
+  );
   const componentConsistency = buildDeploymentComponentConsistency(deployment?.components);
   const deploymentLinks = buildManagerDeploymentLinks({
     latestReleaseUrl: deployment?.latest_release_url,
@@ -122,6 +126,9 @@ export function ManagerDeploymentCard({
           {deployment?.latest_version_error ? ` · ${deployment.latest_version_error}` : ""}
         </p>
         <p className="mt-1">마지막 상태 갱신: {formatDateTime(statusUpdatedAt, timezone)} · 30초 자동 갱신</p>
+        <p className="mt-1">
+          외부 watchdog: {getExternalWatchdogLabel(deployment?.external_watchdog_status)} · 마지막 실행: {externalWatchdogCheckedAt}
+        </p>
       </div>
 
       <DeploymentLinkBar
@@ -143,6 +150,12 @@ export function ManagerDeploymentCard({
       </div>
     </div>
   );
+}
+
+function getExternalWatchdogLabel(status?: DeploymentInfo["external_watchdog_status"]) {
+  if (status === "healthy") return "정상";
+  if (status === "unhealthy") return "장애 감지";
+  return "확인 불가";
 }
 
 function getReleaseTone(state: ReturnType<typeof buildDeploymentVersionDisplay>["state"], hasMismatch: boolean) {
