@@ -100,7 +100,7 @@ providers:
 - `curl -Ik https://<FRONTEND_DOMAIN>` 응답이 `200` 또는 `302`입니다.
 - 서비스 목록과 의존 API, 모바일 다크모드 주요 화면을 함께 확인하려면 `TM_SMOKE_COOKIE='tm_session=...; tm_csrf=...' ./scripts/check-services.sh`를 실행합니다. `TM_SMOKE_BASE_URL`이 없으면 `.env`의 `FRONTEND_DOMAIN`을 사용합니다.
 - 운영 세션 쿠키 대신 테스트 계정으로 확인하려면 `TM_SMOKE_USERNAME`과 `TM_SMOKE_PASSWORD`를 사용합니다. Turnstile이 필요한 환경에서는 기존 세션 쿠키 방식이 더 안전합니다.
-- GitHub Actions의 `대시보드 인증 시각 스모크`는 매일 03:17(KST)에 실행되며 수동 실행도 지원합니다.
+- GitHub Actions의 `운영 로그인·화면 스모크`는 매일 03:17(KST)에 실행되며 수동 실행도 지원합니다.
 - 저장소 비밀값에 `TM_SMOKE_BASE_URL`과 `TM_SMOKE_COOKIE`를 등록하거나, 쿠키 대신 `TM_SMOKE_USERNAME`과 `TM_SMOKE_PASSWORD`를 등록하면 실제 인증 화면을 검사합니다.
 - 인증 비밀값이 아직 없으면 예약 작업은 브라우저 스모크 self-test만 실행하고 정상 종료합니다.
 - 인증 화면 검사에 실패하면 모바일 화면 PNG를 GitHub Actions 아티팩트로 7일간 보관합니다.
@@ -115,7 +115,8 @@ providers:
 - 일일 인증 스모크도 35일 미회전을 실패로 처리해 Telegram으로 능동 통지합니다.
 - 운영 로그인·화면 스모크는 보안 공격 검사가 아니라 viewer 로그인, 주요 API, 화면 로딩을 확인하는 가용성 점검입니다. 로그인 공격 방어는 별도 `로그인 보안 방어` 설정에서 관리합니다.
 - 관리자 설정 화면에서 예약 자동 점검을 끄거나 `매일`/`매주 일요일`로 조정할 수 있습니다. GitHub Actions는 매일 03:17(Asia/Seoul)에 설정을 확인하며, 수동 실행과 월간 비밀번호 회전 후 검증은 항상 실행합니다.
-- 원격 스모크가 성공하면 전용 viewer 세션으로 GitHub run ID를 기록하며, 설정 카드에서 최근 성공 시각·실행 링크와 수동 실행 workflow 링크를 확인할 수 있습니다.
+- 원격 스모크가 성공하면 전용 viewer 세션으로 GitHub run ID를 기록합니다. 관리자 설정 카드는 공개 GitHub Actions 메타데이터를 10분간 캐시해 최근 5회의 성공·실패·예약 건너뜀, 실패 단계, 중복 Telegram 억제 여부를 함께 표시합니다.
+- GitHub 이력 조회가 실패해도 설정 API 전체를 실패시키지 않으며, 앱에 저장된 최근 성공 시각과 실행 링크는 계속 표시합니다.
 - 같은 커밋의 원격 스모크 실패가 6시간 안에 반복되면 GitHub 실패 기록과 아티팩트는 유지하되 중복 Telegram 알림만 억제합니다.
 - backend 상태 기록 자체가 실패하면 호스트 스크립트가 `host-operation-alert.yml`을 호출해 GitHub Actions의 Telegram secret으로 우회 통지합니다.
 - 최근 24시간의 실패 알림은 5분 간격으로 최대 3회 자동 재시도하며, 각 재시도 결과도 감사 로그에 남깁니다.

@@ -27,6 +27,18 @@ const STATUS_STYLES: Record<SmokeRotationState, string> = {
   failure: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
 };
 
+const RUN_STATUS_LABELS = {
+  success: "성공",
+  failure: "실패",
+  skipped: "건너뜀",
+} as const;
+
+const RUN_STATUS_STYLES = {
+  success: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  failure: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
+  skipped: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+} as const;
+
 interface SmokeRotationStatusCardProps {
   canManage: boolean;
   isLoading: boolean;
@@ -64,6 +76,10 @@ export function SmokeRotationStatusCard({
   const monitoringFrequency = status?.monitoring_frequency ?? "daily";
   const scheduleTime = status?.monitoring_schedule_time ?? "03:17";
   const scheduleTimezone = status?.monitoring_schedule_timezone ?? "Asia/Seoul";
+  const recentRuns = status?.monitoring_recent_runs ?? [];
+  const latestFailure = recentRuns.find((run) => run.status === "failure");
+  const suppressedRuns = recentRuns.filter((run) => run.notification_suppressed);
+  const latestSuppressed = suppressedRuns[0];
 
   return (
     <div className="card order-6 p-6" data-testid="smoke-rotation-status-card">
@@ -122,6 +138,40 @@ export function SmokeRotationStatusCard({
             }
           />
           <SettingsSummaryRow
+            label="최근 원격 점검 실패"
+            value={
+              latestFailure ? (
+                <a
+                  className="text-rose-700 underline-offset-2 hover:underline dark:text-rose-300"
+                  href={latestFailure.run_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {formatDateTime(latestFailure.completed_at, timezone)}
+                </a>
+              ) : status.monitoring_history_error ? (
+                "확인 불가"
+              ) : (
+                "최근 5회 없음"
+              )
+            }
+          />
+          {latestFailure?.summary ? (
+            <SettingsSummaryRow label="최근 실패 요약" value={latestFailure.summary} />
+          ) : null}
+          <SettingsSummaryRow
+            label="반복 실패 알림 억제"
+            value={
+              status.monitoring_history_error && recentRuns.length === 0
+                ? "확인 불가"
+                : suppressedRuns.length > 0 && latestSuppressed
+                  ? `최근 ${recentRuns.length}회 중 ${suppressedRuns.length}회 · 마지막 ${formatDateTime(latestSuppressed.completed_at, timezone)}`
+                  : recentRuns.length > 0
+                    ? `최근 ${recentRuns.length}회 중 없음`
+                    : "최근 실행 없음"
+            }
+          />
+          <SettingsSummaryRow
             label="수동 점검"
             value={
               <a
@@ -134,6 +184,58 @@ export function SmokeRotationStatusCard({
               </a>
             }
           />
+          {status.monitoring_history_error ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
+              {status.monitoring_history_error}. 저장된 최근 성공 기록은 그대로 표시됩니다.
+            </div>
+          ) : null}
+          <details className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-950">
+            <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
+              최근 GitHub 원격 실행 {recentRuns.length}건
+            </summary>
+            {recentRuns.length ? (
+              <ol className="mt-3 space-y-2">
+                {recentRuns.map((run) => (
+                  <li
+                    key={run.run_url}
+                    className="rounded-md border border-gray-200 bg-white p-3 text-xs dark:border-slate-700 dark:bg-slate-900"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded-full px-2 py-0.5 font-semibold ${RUN_STATUS_STYLES[run.status]}`}
+                      >
+                        {RUN_STATUS_LABELS[run.status]}
+                      </span>
+                      <a
+                        className="font-medium text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+                        href={run.run_url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {run.run_number ? `#${run.run_number}` : "실행 보기"}
+                      </a>
+                      <span className="text-gray-500 dark:text-slate-400">
+                        {formatDateTime(run.completed_at, timezone)}
+                      </span>
+                      {run.commit_sha ? (
+                        <code className="text-gray-500 dark:text-slate-400">{run.commit_sha}</code>
+                      ) : null}
+                    </div>
+                    {run.summary ? (
+                      <p className="mt-2 text-gray-600 dark:text-slate-300">{run.summary}</p>
+                    ) : null}
+                    {run.notification_suppressed ? (
+                      <p className="mt-2 font-medium text-amber-700 dark:text-amber-300">
+                        중복 Telegram 알림 억제
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">표시할 원격 실행이 없습니다.</p>
+            )}
+          </details>
 
           <div className="my-3 border-t border-gray-200 dark:border-slate-700" />
           <SettingsSummaryRow

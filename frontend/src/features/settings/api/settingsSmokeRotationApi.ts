@@ -8,6 +8,16 @@ export interface SmokeMonitoringSettingsInput {
   monitoring_frequency: SmokeMonitoringFrequency;
 }
 
+export interface SmokeMonitoringRecentRun {
+  status: "success" | "failure" | "skipped";
+  completed_at: string;
+  run_url: string;
+  run_number: number | null;
+  commit_sha: string | null;
+  summary: string | null;
+  notification_suppressed: boolean;
+}
+
 export interface SmokeRotationStatus {
   monitoring_enabled: boolean;
   monitoring_frequency: SmokeMonitoringFrequency;
@@ -16,6 +26,8 @@ export interface SmokeRotationStatus {
   monitoring_last_success_at: string | null;
   monitoring_last_run_url: string | null;
   monitoring_workflow_url: string;
+  monitoring_recent_runs: SmokeMonitoringRecentRun[];
+  monitoring_history_error: string | null;
   status: SmokeRotationState;
   last_attempt_at: string | null;
   last_success_at: string | null;
