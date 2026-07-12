@@ -105,7 +105,7 @@ write_state() {
   temporary_file="$(mktemp "${STATE_FILE}.tmp.XXXXXX")"
   printf 'status=%s\nalert_active=%s\nlast_alert_at=%s\n' \
     "${status}" "${alert_active}" "${last_alert_at}" > "${temporary_file}"
-  chmod 600 "${temporary_file}"
+  chmod 644 "${temporary_file}"
   mv "${temporary_file}" "${STATE_FILE}"
 }
 

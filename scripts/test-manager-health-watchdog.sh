@@ -52,6 +52,7 @@ assert_state() {
 printf 'healthy' > "${STATUS_FILE}"
 run_watchdog
 assert_state healthy 0
+[[ "$(stat --format='%a' "${STATE_DIR}/manager-health-watchdog.state")" == "644" ]]
 [[ ! -s "${DISPATCH_LOG}" ]]
 
 printf 'unhealthy' > "${STATUS_FILE}"
