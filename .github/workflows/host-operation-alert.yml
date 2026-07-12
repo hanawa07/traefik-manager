@@ -1,4 +1,5 @@
 name: 호스트 운영 장애 알림
+run-name: ${{ inputs.status == 'recovery' && '호스트 운영 복구 알림' || '호스트 운영 장애 알림' }}
 
 on:
   workflow_dispatch:
@@ -11,6 +12,14 @@ on:
         description: "안전한 장애 단계 또는 요약"
         required: true
         type: string
+      status:
+        description: "장애 또는 복구 상태"
+        required: false
+        default: failure
+        type: choice
+        options:
+          - failure
+          - recovery
       dry_run:
         description: "Telegram 전송 없이 workflow만 점검"
         required: false
@@ -27,6 +36,7 @@ jobs:
       ALERT_SOURCE: ${{ inputs.source }}
       ALERT_DETAIL: ${{ inputs.detail }}
       DRY_RUN: ${{ inputs.dry_run }}
+      ALERT_STATUS: ${{ inputs.status }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TM_SMOKE_TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TM_SMOKE_TELEGRAM_CHAT_ID }}
     steps:
@@ -42,7 +52,11 @@ jobs:
             echo "::error::Telegram 비밀값이 없습니다."
             exit 1
           fi
-          message="[호스트] Traefik Manager 운영 장애
+          title="[호스트] Traefik Manager 운영 장애"
+          if [[ "$ALERT_STATUS" == "recovery" ]]; then
+            title="[호스트] Traefik Manager 운영 복구"
+          fi
+          message="${title}
           작업: ${ALERT_SOURCE}
           단계: ${ALERT_DETAIL:0:500}
           실행: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
