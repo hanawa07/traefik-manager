@@ -33,6 +33,7 @@ class StubHistoryReader:
                     "summary": "실패 단계: 운영 로그인·화면 검사",
                     "notification_suppressed": True,
                     "artifact_url": "https://github.com/example/artifact",
+                    "artifact_expires_at": "2026-07-18T06:54:58Z",
                 }
             ],
             "latest_failure": {
@@ -44,6 +45,7 @@ class StubHistoryReader:
                 "summary": "실패 단계: 운영 로그인·화면 검사",
                 "notification_suppressed": True,
                 "artifact_url": "https://github.com/example/artifact",
+                "artifact_expires_at": "2026-07-18T06:54:58Z",
             },
             "checked_at": "2026-07-13T01:00:00+00:00",
             "error": None,
@@ -176,6 +178,7 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin() -> 
     assert result.monitoring_recent_runs[0].status == "failure"
     assert result.monitoring_recent_runs[0].notification_suppressed is True
     assert result.monitoring_recent_runs[0].artifact_url.endswith("/artifact")
+    assert result.monitoring_recent_runs[0].artifact_expires_at == "2026-07-18T06:54:58Z"
     assert result.monitoring_latest_failure.run_number == 78
     assert result.monitoring_history_checked_at == "2026-07-13T01:00:00+00:00"
     assert result.monitoring_history_error is None

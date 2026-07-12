@@ -181,6 +181,12 @@ export function SmokeRotationStatusCard({
               }
             />
           ) : null}
+          {latestFailure?.artifact_expires_at ? (
+            <SettingsSummaryRow
+              label="Artifact 만료"
+              value={formatDateTime(latestFailure.artifact_expires_at, timezone)}
+            />
+          ) : null}
           <SettingsSummaryRow
             label="반복 실패 알림 억제"
             value={
@@ -266,6 +272,11 @@ export function SmokeRotationStatusCard({
                           <Download className="h-3.5 w-3.5" />
                           실패 화면
                         </a>
+                      ) : null}
+                      {run.artifact_expires_at ? (
+                        <span className="font-medium text-amber-700 dark:text-amber-300">
+                          만료 {formatDateTime(run.artifact_expires_at, timezone)}
+                        </span>
                       ) : null}
                       <span className="text-gray-500 dark:text-slate-400">
                         {formatDateTime(run.completed_at, timezone)}

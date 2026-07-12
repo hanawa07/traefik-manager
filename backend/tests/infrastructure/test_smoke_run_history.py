@@ -2,7 +2,7 @@ import pytest
 
 from app.infrastructure.smoke_run_history import (
     GitHubSmokeRunHistoryReader,
-    build_smoke_artifact_urls,
+    build_smoke_artifacts,
     build_smoke_run_item,
     select_smoke_run_groups,
 )
@@ -29,16 +29,22 @@ def test_build_smoke_run_item_reports_failure_step_and_suppression() -> None:
             {"name": "Telegram 실패 알림", "conclusion": "skipped"},
         ],
         public_url="https://github.com/hanawa07/traefik-manager",
+        artifact={
+            "url": "https://github.com/example/artifact",
+            "expires_at": "2026-07-18T06:54:58Z",
+        },
     )
 
     assert result["status"] == "failure"
     assert result["summary"] == "실패 단계: 운영 로그인·화면 검사"
     assert result["notification_suppressed"] is True
     assert result["run_url"].endswith("/actions/runs/123")
+    assert result["artifact_url"].endswith("/artifact")
+    assert result["artifact_expires_at"] == "2026-07-18T06:54:58Z"
 
 
-def test_build_smoke_artifact_urls_accepts_only_active_matching_artifact() -> None:
-    artifact_urls = build_smoke_artifact_urls(
+def test_build_smoke_artifacts_accepts_only_active_matching_artifact() -> None:
+    artifacts = build_smoke_artifacts(
         [
             {
                 "id": 1,
@@ -56,6 +62,7 @@ def test_build_smoke_artifact_urls_accepts_only_active_matching_artifact() -> No
                 "id": 3,
                 "name": "dashboard-visual-smoke-123",
                 "expired": False,
+                "expires_at": "2026-07-18T06:54:58Z",
                 "workflow_run": {"id": 123},
             },
         ],
@@ -63,8 +70,11 @@ def test_build_smoke_artifact_urls_accepts_only_active_matching_artifact() -> No
         public_url="https://github.com/hanawa07/traefik-manager",
     )
 
-    assert artifact_urls == {
-        123: "https://github.com/hanawa07/traefik-manager/actions/runs/123/artifacts/3"
+    assert artifacts == {
+        123: {
+            "url": "https://github.com/hanawa07/traefik-manager/actions/runs/123/artifacts/3",
+            "expires_at": "2026-07-18T06:54:58Z",
+        }
     }
 
 

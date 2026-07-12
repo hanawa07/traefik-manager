@@ -75,7 +75,7 @@ class GitHubSmokeRunHistoryReader:
                     for run in detail_runs
                     if run.get("conclusion") != "success"
                 }
-                jobs, artifact_urls = await asyncio.gather(
+                jobs, artifacts = await asyncio.gather(
                     asyncio.gather(
                         *(
                             self._read_job_steps(client, api_url, run["id"])
@@ -84,14 +84,14 @@ class GitHubSmokeRunHistoryReader:
                             for run in detail_runs
                         )
                     ),
-                    self._read_artifact_urls(
+                    self._read_artifacts(
                         client,
                         api_url,
                         public_url,
                         artifact_run_ids,
                     )
                     if artifact_run_ids
-                    else _empty_artifact_urls(),
+                    else _empty_artifacts(),
                 )
         except (httpx.HTTPError, ValueError, TypeError):
             return _history_error("GitHub 실행 이력을 확인하지 못했습니다")
@@ -104,7 +104,7 @@ class GitHubSmokeRunHistoryReader:
                 run,
                 job_steps[run["id"]],
                 public_url=public_url,
-                artifact_url=artifact_urls.get(run["id"]),
+                artifact=artifacts.get(run["id"]),
             )
             for run in detail_runs
         }
@@ -143,13 +143,13 @@ class GitHubSmokeRunHistoryReader:
             if isinstance(step, dict)
         ]
 
-    async def _read_artifact_urls(
+    async def _read_artifacts(
         self,
         client: httpx.AsyncClient,
         api_url: str,
         public_url: str,
         run_ids: set[int],
-    ) -> dict[int, str]:
+    ) -> dict[int, dict[str, str | None]]:
         try:
             response = await client.get(
                 f"{api_url}/actions/artifacts",
@@ -161,7 +161,7 @@ class GitHubSmokeRunHistoryReader:
             return {}
 
         artifacts = payload.get("artifacts") if isinstance(payload, dict) else None
-        return build_smoke_artifact_urls(
+        return build_smoke_artifacts(
             artifacts,
             run_ids=run_ids,
             public_url=public_url,
@@ -173,7 +173,7 @@ def build_smoke_run_item(
     steps: list[dict[str, Any]],
     *,
     public_url: str,
-    artifact_url: str | None = None,
+    artifact: dict[str, str | None] | None = None,
 ) -> dict[str, Any]:
     smoke_step = _find_step(steps, "운영 로그인·화면 검사")
     conclusion = _clean_text(run.get("conclusion"))
@@ -215,19 +215,20 @@ def build_smoke_run_item(
         "commit_sha": head_sha[:7] if head_sha else None,
         "summary": summary,
         "notification_suppressed": suppressed,
-        "artifact_url": artifact_url if status == "failure" else None,
+        "artifact_url": artifact.get("url") if status == "failure" and artifact else None,
+        "artifact_expires_at": artifact.get("expires_at") if status == "failure" and artifact else None,
     }
 
 
-def build_smoke_artifact_urls(
+def build_smoke_artifacts(
     raw_artifacts: object,
     *,
     run_ids: set[int],
     public_url: str,
-) -> dict[int, str]:
+) -> dict[int, dict[str, str | None]]:
     if not isinstance(raw_artifacts, list):
         return {}
-    urls: dict[int, str] = {}
+    details: dict[int, dict[str, str | None]] = {}
     for artifact in raw_artifacts:
         workflow_run = artifact.get("workflow_run") if isinstance(artifact, dict) else None
         run_id = workflow_run.get("id") if isinstance(workflow_run, dict) else None
@@ -240,18 +241,21 @@ def build_smoke_artifact_urls(
             or artifact.get("expired") is not False
         ):
             continue
-        urls.setdefault(
+        details.setdefault(
             run_id,
-            f"{public_url}/actions/runs/{run_id}/artifacts/{artifact_id}",
+            {
+                "url": f"{public_url}/actions/runs/{run_id}/artifacts/{artifact_id}",
+                "expires_at": _clean_text(artifact.get("expires_at")),
+            },
         )
-    return urls
+    return details
 
 
 async def _empty_steps() -> list[dict[str, Any]]:
     return []
 
 
-async def _empty_artifact_urls() -> dict[int, str]:
+async def _empty_artifacts() -> dict[int, dict[str, str | None]]:
     return {}
 
 

@@ -14,6 +14,7 @@ class SmokeMonitoringRecentRunResponse(BaseModel):
     summary: str | None = None
     notification_suppressed: bool = False
     artifact_url: str | None = None
+    artifact_expires_at: str | None = None
 
 
 class SmokeRotationStatusResponse(BaseModel):

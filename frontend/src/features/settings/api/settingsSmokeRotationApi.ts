@@ -17,6 +17,7 @@ export interface SmokeMonitoringRecentRun {
   summary: string | null;
   notification_suppressed: boolean;
   artifact_url: string | null;
+  artifact_expires_at: string | null;
 }
 
 export interface SmokeRotationStatus {
