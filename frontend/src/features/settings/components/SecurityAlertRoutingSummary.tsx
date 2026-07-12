@@ -17,6 +17,18 @@ export function SecurityAlertRoutingSummary({
 }: SecurityAlertRoutingSummaryProps) {
   return (
     <>
+      <SettingsSummaryRow
+        label="Manager Docker 감지"
+        value={settings?.manager_health_monitoring_enabled === false ? "비활성화" : "활성화"}
+      />
+      <SettingsSummaryRow
+        label="Manager 장애 재알림"
+        value={
+          settings?.manager_health_monitoring_enabled === false
+            ? "감지 비활성화"
+            : `${settings?.manager_health_alert_cooldown_minutes ?? 60}분 후`
+        }
+      />
       <SettingsSummaryRow label="전송 이벤트" value={(settings?.alert_events ?? []).join(", ")} />
       {SECURITY_ALERT_EVENT_OPTIONS.map((eventOption) => (
         <SettingsSummaryRow

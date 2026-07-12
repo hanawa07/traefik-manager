@@ -27,6 +27,8 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
                 "login_blocked_ip": "pagerduty",
             },
             change_alerts_enabled=True,
+            manager_health_monitoring_enabled=False,
+            manager_health_alert_cooldown_minutes=15,
             change_event_routes={
                 "settings_change": "email",
                 "service_change": "default",
@@ -50,6 +52,8 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     assert StubSettingsRepository.store["security_alert_route_login_suspicious"] == "email"
     assert StubSettingsRepository.store["security_alert_route_login_blocked_ip"] == "pagerduty"
     assert StubSettingsRepository.store["change_alerts_enabled"] == "true"
+    assert StubSettingsRepository.store["manager_health_monitoring_enabled"] == "false"
+    assert StubSettingsRepository.store["manager_health_alert_cooldown_minutes"] == "15"
     assert StubSettingsRepository.store["security_alert_change_route_settings_change"] == "email"
     assert StubSettingsRepository.store["security_alert_change_route_redirect_change"] == "disabled"
     assert StubSettingsRepository.store["security_alert_change_route_user_change"] == "telegram"
@@ -63,6 +67,8 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     assert response.event_routes["login_suspicious"] == "email"
     assert response.event_routes["login_blocked_ip"] == "pagerduty"
     assert response.change_alerts_enabled is True
+    assert response.manager_health_monitoring_enabled is False
+    assert response.manager_health_alert_cooldown_minutes == 15
     assert response.change_event_routes["settings_change"] == "email"
     assert response.change_event_routes["user_change"] == "telegram"
     assert response.change_event_routes["certificate_status_change"] == "email"

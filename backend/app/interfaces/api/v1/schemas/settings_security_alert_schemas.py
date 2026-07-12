@@ -3,6 +3,13 @@ from typing import Literal
 
 from pydantic import AnyHttpUrl, BaseModel, Field, field_validator
 
+from app.application.manager_health_monitoring import (
+    DEFAULT_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
+    DEFAULT_MANAGER_HEALTH_MONITORING_ENABLED,
+    MAX_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
+    MIN_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
+)
+
 
 SecurityAlertRoute = Literal["default", "disabled", "telegram", "pagerduty", "email"]
 
@@ -33,6 +40,12 @@ def normalize_email_address(value: str) -> str:
 class SecurityAlertSettingsResponse(BaseModel):
     enabled: bool
     change_alerts_enabled: bool = False
+    manager_health_monitoring_enabled: bool = DEFAULT_MANAGER_HEALTH_MONITORING_ENABLED
+    manager_health_alert_cooldown_minutes: int = Field(
+        default=DEFAULT_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
+        ge=MIN_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
+        le=MAX_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
+    )
     provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"]
     webhook_url: str | None = None
     telegram_bot_token_configured: bool = False
@@ -54,6 +67,12 @@ class SecurityAlertSettingsResponse(BaseModel):
 class SecurityAlertSettingsUpdateRequest(BaseModel):
     enabled: bool = False
     change_alerts_enabled: bool = False
+    manager_health_monitoring_enabled: bool = DEFAULT_MANAGER_HEALTH_MONITORING_ENABLED
+    manager_health_alert_cooldown_minutes: int = Field(
+        default=DEFAULT_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
+        ge=MIN_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
+        le=MAX_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
+    )
     provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"] = "generic"
     webhook_url: str = ""
     telegram_bot_token: str = ""

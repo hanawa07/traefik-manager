@@ -12,6 +12,11 @@ export function createSecurityAlertFormFromSettings(
   return {
     enabled: settings?.enabled ?? defaults.enabled,
     change_alerts_enabled: settings?.change_alerts_enabled ?? defaults.change_alerts_enabled,
+    manager_health_monitoring_enabled:
+      settings?.manager_health_monitoring_enabled ?? defaults.manager_health_monitoring_enabled,
+    manager_health_alert_cooldown_minutes:
+      settings?.manager_health_alert_cooldown_minutes ??
+      defaults.manager_health_alert_cooldown_minutes,
     provider: settings?.provider ?? defaults.provider,
     webhook_url: settings?.webhook_url ?? defaults.webhook_url,
     telegram_bot_token: defaults.telegram_bot_token,
@@ -35,6 +40,8 @@ export function buildSecurityAlertSettingsPayload(
   return {
     enabled: formValue.enabled,
     change_alerts_enabled: formValue.change_alerts_enabled,
+    manager_health_monitoring_enabled: formValue.manager_health_monitoring_enabled,
+    manager_health_alert_cooldown_minutes: formValue.manager_health_alert_cooldown_minutes,
     provider: formValue.provider,
     webhook_url: formValue.webhook_url.trim(),
     telegram_bot_token: formValue.telegram_bot_token.trim(),

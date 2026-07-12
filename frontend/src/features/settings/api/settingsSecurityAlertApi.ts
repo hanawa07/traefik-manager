@@ -20,6 +20,8 @@ export type ChangeAlertEventRoutes = Record<ChangeAlertRouteEvent, SecurityAlert
 export interface SecurityAlertSettingsStatus {
   enabled: boolean;
   change_alerts_enabled: boolean;
+  manager_health_monitoring_enabled: boolean;
+  manager_health_alert_cooldown_minutes: number;
   provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty" | "email";
   webhook_url: string | null;
   telegram_bot_token_configured: boolean;
@@ -41,6 +43,8 @@ export interface SecurityAlertSettingsStatus {
 export interface SecurityAlertSettingsInput {
   enabled: boolean;
   change_alerts_enabled: boolean;
+  manager_health_monitoring_enabled: boolean;
+  manager_health_alert_cooldown_minutes: number;
   provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty" | "email";
   webhook_url: string;
   telegram_bot_token: string;

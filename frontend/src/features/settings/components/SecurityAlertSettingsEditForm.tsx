@@ -7,6 +7,7 @@ import type {
   SecurityAlertSettingsInput,
   SecurityAlertSettingsStatus,
 } from "@/features/settings/api/settingsApi";
+import { ManagerHealthMonitoringFields } from "@/features/settings/components/ManagerHealthMonitoringFields";
 import { SecurityAlertEnablementFields } from "@/features/settings/components/SecurityAlertEnablementFields";
 import {
   SecurityAlertProviderFields,
@@ -58,6 +59,7 @@ export function SecurityAlertSettingsEditForm({
   return (
     <div className="space-y-4">
       <SecurityAlertEnablementFields formValue={formValue} updateForm={updateForm} />
+      <ManagerHealthMonitoringFields formValue={formValue} updateForm={updateForm} />
 
       <SecurityAlertProviderPicker value={formValue.provider} onChange={(provider) => updateForm({ provider })} />
       <SecurityAlertProviderFields

@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
+from app.application.manager_health_monitoring import read_manager_health_monitoring_values
 from app.application.audit import audit_service
 from app.infrastructure.docker.client import DockerClient
 from app.infrastructure.persistence.database import AsyncSessionLocal
@@ -15,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 MANAGER_HEALTH_STATE_KEY = "manager_docker_health_alert_state"
 MANAGER_HEALTH_CHECK_INTERVAL_SECONDS = 30
-MANAGER_HEALTH_ALERT_COOLDOWN_SECONDS = 3600
 
 
 def _to_utc(value: datetime | None) -> datetime:
@@ -57,7 +57,7 @@ async def check_manager_health_once(
     session_factory: Callable[[], Any] | None = None,
     client_factory: Callable[[], DockerClient] | None = None,
     now: datetime | None = None,
-    cooldown_seconds: int = MANAGER_HEALTH_ALERT_COOLDOWN_SECONDS,
+    cooldown_seconds: int | None = None,
     raise_on_error: bool = False,
 ) -> dict[str, Any]:
     current_time = _to_utc(now)
@@ -66,13 +66,27 @@ async def check_manager_health_once(
     async with session_factory() as session:
         repo = SQLiteSystemSettingsRepository(session)
         previous_state = _deserialize_state(await repo.get(MANAGER_HEALTH_STATE_KEY))
+        monitoring_enabled, configured_cooldown_minutes = (
+            await read_manager_health_monitoring_values(repo)
+        )
+        if not monitoring_enabled:
+            if previous_state:
+                await repo.set(MANAGER_HEALTH_STATE_KEY, None)
+                await session.commit()
+            return _summary(current_time, 0, 0, 0, enabled=False)
+
+        effective_cooldown_seconds = (
+            cooldown_seconds
+            if cooldown_seconds is not None
+            else configured_cooldown_minutes * 60
+        )
         try:
             components = await client_factory().inspect_manager_components()
         except Exception:
             logger.warning("Manager Docker health 점검 실패", exc_info=True)
             if raise_on_error:
                 raise
-            return _summary(current_time, 0, 0, 0)
+            return _summary(current_time, 0, 0, 0, enabled=True)
 
         next_state = dict(previous_state)
         recorded_event_count = 0
@@ -91,7 +105,11 @@ async def check_manager_health_once(
             event = None
 
             if health_status == "unhealthy":
-                if (transitioned or not alert_active) and _alert_due(previous, current_time, cooldown_seconds):
+                if (transitioned or not alert_active) and _alert_due(
+                    previous,
+                    current_time,
+                    effective_cooldown_seconds,
+                ):
                     event = "manager_docker_unhealthy"
                     alert_active = True
                 elif transitioned:
@@ -132,7 +150,7 @@ async def check_manager_health_once(
                     "last_exit_code": component.get("health_last_exit_code"),
                     "health_checked_at": component.get("health_last_checked_at"),
                     "checked_at": current_time.isoformat(),
-                    "cooldown_minutes": cooldown_seconds // 60,
+                    "cooldown_minutes": effective_cooldown_seconds // 60,
                 },
             )
             recorded_event_count += 1
@@ -142,7 +160,13 @@ async def check_manager_health_once(
             json.dumps(next_state, ensure_ascii=False, sort_keys=True),
         )
         await session.commit()
-        return _summary(current_time, unhealthy_count, recorded_event_count, suppressed_count)
+        return _summary(
+            current_time,
+            unhealthy_count,
+            recorded_event_count,
+            suppressed_count,
+            enabled=True,
+        )
 
 
 async def run_periodic_manager_health_check(
@@ -160,8 +184,11 @@ def _summary(
     unhealthy_count: int,
     recorded_event_count: int,
     suppressed_count: int,
+    *,
+    enabled: bool,
 ) -> dict[str, Any]:
     return {
+        "enabled": enabled,
         "checked_at": current_time.isoformat(),
         "unhealthy_count": unhealthy_count,
         "recorded_event_count": recorded_event_count,

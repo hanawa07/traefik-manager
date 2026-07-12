@@ -75,6 +75,7 @@ async def test_manager_health_baseline_healthy_does_not_alert(monkeypatch):
     )
 
     assert result["unhealthy_count"] == 0
+    assert result["enabled"] is True
     assert result["recorded_event_count"] == 0
     assert recorded == []
     state = json.loads(StubSettingsRepository.store[manager_health_monitor.MANAGER_HEALTH_STATE_KEY])
@@ -151,3 +152,63 @@ async def test_manager_health_cooldown_delays_flapping_alert(monkeypatch):
     assert suppressed["recorded_event_count"] == 0
     assert delayed["recorded_event_count"] == 1
     assert recorded[0]["detail"]["event"] == "manager_docker_unhealthy"
+
+
+@pytest.mark.asyncio
+async def test_manager_health_uses_configured_cooldown(monkeypatch):
+    StubSettingsRepository.store = {
+        "manager_health_alert_cooldown_minutes": "15",
+        manager_health_monitor.MANAGER_HEALTH_STATE_KEY: json.dumps(
+            {
+                "frontend": {
+                    "status": "healthy",
+                    "alert_active": False,
+                    "last_unhealthy_alert_at": "2026-07-12T18:00:00+00:00",
+                }
+            }
+        ),
+    }
+    StubDockerClient.components = [_component("unhealthy", failing_streak=2, exit_code=1)]
+    recorded: list[dict] = []
+    _patch_dependencies(monkeypatch, recorded)
+
+    result = await manager_health_monitor.check_manager_health_once(
+        session_factory=make_session,
+        client_factory=StubDockerClient,
+        now=datetime(2026, 7, 12, 18, 16, tzinfo=timezone.utc),
+    )
+
+    assert result["recorded_event_count"] == 1
+    assert recorded[0]["detail"]["cooldown_minutes"] == 15
+
+
+@pytest.mark.asyncio
+async def test_manager_health_disabled_clears_state_without_inspecting_docker(monkeypatch):
+    StubSettingsRepository.store = {
+        "manager_health_monitoring_enabled": "false",
+        manager_health_monitor.MANAGER_HEALTH_STATE_KEY: json.dumps(
+            {"frontend": {"status": "unhealthy", "alert_active": True}}
+        ),
+    }
+    recorded: list[dict] = []
+    _patch_dependencies(monkeypatch, recorded)
+
+    class UnexpectedDockerClient:
+        async def inspect_manager_components(self):
+            raise AssertionError("비활성 상태에서는 Docker를 조회하면 안 됩니다")
+
+    result = await manager_health_monitor.check_manager_health_once(
+        session_factory=make_session,
+        client_factory=UnexpectedDockerClient,
+        now=datetime(2026, 7, 12, 18, 0, tzinfo=timezone.utc),
+    )
+
+    assert result == {
+        "enabled": False,
+        "checked_at": "2026-07-12T18:00:00+00:00",
+        "unhealthy_count": 0,
+        "recorded_event_count": 0,
+        "suppressed_count": 0,
+    }
+    assert manager_health_monitor.MANAGER_HEALTH_STATE_KEY not in StubSettingsRepository.store
+    assert recorded == []

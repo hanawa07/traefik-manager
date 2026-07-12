@@ -76,6 +76,8 @@ def security_alert_summary(response: SecurityAlertSettingsResponse) -> dict[str,
     return {
         "enabled": response.enabled,
         "change_alerts_enabled": response.change_alerts_enabled,
+        "manager_health_monitoring_enabled": response.manager_health_monitoring_enabled,
+        "manager_health_alert_cooldown_minutes": response.manager_health_alert_cooldown_minutes,
         "provider": response.provider,
         "event_routes": response.event_routes,
         "change_event_routes": response.change_event_routes,

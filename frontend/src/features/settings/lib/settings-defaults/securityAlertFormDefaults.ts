@@ -4,6 +4,8 @@ export function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
   return {
     enabled: false,
     change_alerts_enabled: false,
+    manager_health_monitoring_enabled: true,
+    manager_health_alert_cooldown_minutes: 60,
     provider: "generic",
     webhook_url: "",
     telegram_bot_token: "",
