@@ -129,9 +129,11 @@ async def get_smoke_rotation_status(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
+    is_admin = current_user["role"] == "admin"
     return await _get_smoke_rotation_status_response(
         db,
-        include_recent_logs=current_user["role"] == "admin",
+        include_recent_logs=is_admin,
+        include_monitoring_history=is_admin,
     )
 
 

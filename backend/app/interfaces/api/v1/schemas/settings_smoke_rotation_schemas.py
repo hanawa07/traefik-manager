@@ -5,6 +5,16 @@ from pydantic import BaseModel, Field
 SmokeMonitoringFrequency = Literal["daily", "weekly"]
 
 
+class SmokeMonitoringRecentRunResponse(BaseModel):
+    status: Literal["success", "failure", "skipped"]
+    completed_at: str
+    run_url: str
+    run_number: int | None = None
+    commit_sha: str | None = None
+    summary: str | None = None
+    notification_suppressed: bool = False
+
+
 class SmokeRotationStatusResponse(BaseModel):
     status: Literal["never", "running", "success", "failure"]
     last_attempt_at: str | None = None
@@ -21,6 +31,8 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_last_success_at: str | None = None
     monitoring_last_run_url: str | None = None
     monitoring_workflow_url: str
+    monitoring_recent_runs: list[SmokeMonitoringRecentRunResponse] = Field(default_factory=list)
+    monitoring_history_error: str | None = None
 
 
 class SmokeMonitoringSettingsUpdateRequest(BaseModel):

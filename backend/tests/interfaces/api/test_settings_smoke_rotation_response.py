@@ -17,6 +17,24 @@ class StubRepository:
         return self.values.get(key)
 
 
+class StubHistoryReader:
+    async def get_history(self, _source_url: str) -> dict:
+        return {
+            "runs": [
+                {
+                    "status": "failure",
+                    "completed_at": "2026-07-11T06:54:58Z",
+                    "run_url": "https://github.com/hanawa07/traefik-manager/actions/runs/456",
+                    "run_number": 78,
+                    "commit_sha": "b3a4642",
+                    "summary": "실패 단계: 운영 로그인·화면 검사",
+                    "notification_suppressed": True,
+                }
+            ],
+            "error": None,
+        }
+
+
 @pytest.mark.asyncio
 async def test_get_smoke_rotation_status_returns_saved_result() -> None:
     StubRepository.values = {
@@ -125,3 +143,19 @@ async def test_get_smoke_rotation_status_includes_logs_for_admin(tmp_path, monke
 
     assert result.recent_log_lines == ["회전 완료"]
     assert result.log_updated_at is not None
+
+
+@pytest.mark.asyncio
+async def test_get_smoke_rotation_status_includes_remote_history_for_admin() -> None:
+    StubRepository.values = {}
+
+    result = await get_smoke_rotation_status_response(
+        object(),
+        settings_repository_factory=StubRepository,
+        include_monitoring_history=True,
+        history_reader=StubHistoryReader(),
+    )
+
+    assert result.monitoring_recent_runs[0].status == "failure"
+    assert result.monitoring_recent_runs[0].notification_suppressed is True
+    assert result.monitoring_history_error is None
