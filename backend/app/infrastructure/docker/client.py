@@ -90,16 +90,7 @@ class DockerClient:
                 "components": [fallback_component],
             }
 
-        components = [
-            await self._inspect_manager_component(
-                name="backend",
-                container_name=settings.TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME,
-            ),
-            await self._inspect_manager_component(
-                name="frontend",
-                container_name=settings.TRAEFIK_MANAGER_FRONTEND_CONTAINER_NAME,
-            ),
-        ]
+        components = await self.inspect_manager_components()
         ok_count = sum(1 for item in components if item["status"] == "ok")
         version = self._select_component_value(components, "version") or fallback_component["version"]
         source = self._select_component_value(components, "source") or fallback_component["source"]
@@ -118,6 +109,20 @@ class DockerClient:
             **release_info,
             "components": components,
         }
+
+    async def inspect_manager_components(self) -> list[dict]:
+        if not self.enabled:
+            return []
+        return [
+            await self._inspect_manager_component(
+                name="backend",
+                container_name=settings.TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME,
+            ),
+            await self._inspect_manager_component(
+                name="frontend",
+                container_name=settings.TRAEFIK_MANAGER_FRONTEND_CONTAINER_NAME,
+            ),
+        ]
 
     async def connect_container_to_network(self, *, container_name: str, network_name: str) -> dict:
         if not self.enabled:

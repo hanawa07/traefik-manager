@@ -117,6 +117,27 @@ async def certificate_alert_loop() -> None:
     )
 
 
+async def check_manager_health_once() -> None:
+    from app.infrastructure.docker.manager_health_monitor import check_manager_health_once as check_once
+
+    try:
+        await check_once()
+    except Exception:
+        logger.warning("Manager Docker health 점검 실패 (다음 주기에 재시도)", exc_info=True)
+
+
+async def manager_health_loop() -> None:
+    from app.infrastructure.docker.manager_health_monitor import (
+        MANAGER_HEALTH_CHECK_INTERVAL_SECONDS,
+        run_periodic_manager_health_check,
+    )
+
+    await run_periodic_manager_health_check(
+        interval_seconds=MANAGER_HEALTH_CHECK_INTERVAL_SECONDS,
+        check_once=check_manager_health_once,
+    )
+
+
 async def check_certificate_preflight_once() -> None:
     from app.infrastructure.certificates import run_certificate_preflight_checks_once
 

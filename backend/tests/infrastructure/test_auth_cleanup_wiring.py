@@ -43,3 +43,11 @@ def test_main_lifespan_runs_startup_checks_and_background_loops():
         and node.func.attr == "create_task"
     ]
     assert create_task_calls, "lifespan must start auth cleanup background task"
+    task_targets = {
+        call.args[0].func.id
+        for call in create_task_calls
+        if call.args
+        and isinstance(call.args[0], ast.Call)
+        and isinstance(call.args[0].func, ast.Name)
+    }
+    assert "_manager_health_loop" in task_targets

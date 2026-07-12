@@ -15,6 +15,7 @@ from app.app_lifespan import (
     ensure_authentik_middleware_file as _ensure_authentik_middleware_file,
     ensure_service_route_files as _ensure_service_route_files,
     ensure_traefik_dashboard_public_route as _ensure_traefik_dashboard_public_route,
+    manager_health_loop as _manager_health_loop,
 )
 from app.core.logging_config import setup_logging
 from app.infrastructure.persistence.database import init_db
@@ -34,6 +35,7 @@ async def lifespan(app: FastAPI):
     certificate_task = asyncio.create_task(_certificate_alert_loop())
     certificate_preflight_task = asyncio.create_task(_certificate_preflight_loop())
     alert_retry_task = asyncio.create_task(_alert_retry_loop())
+    manager_health_task = asyncio.create_task(_manager_health_loop())
     try:
         yield
     finally:
@@ -41,6 +43,7 @@ async def lifespan(app: FastAPI):
         certificate_task.cancel()
         certificate_preflight_task.cancel()
         alert_retry_task.cancel()
+        manager_health_task.cancel()
         with suppress(asyncio.CancelledError):
             await cleanup_task
         with suppress(asyncio.CancelledError):
@@ -49,6 +52,8 @@ async def lifespan(app: FastAPI):
             await certificate_preflight_task
         with suppress(asyncio.CancelledError):
             await alert_retry_task
+        with suppress(asyncio.CancelledError):
+            await manager_health_task
 
 
 app = create_app(lifespan=lifespan)
