@@ -20,7 +20,7 @@ This repository is split into a FastAPI backend and a Next.js frontend.
 - `cd frontend && npm ci && npm run dev`: run frontend locally.
 - `cd frontend && npm run lint`: run frontend lint checks.
 - `cd frontend && npm run build`: production build check.
-- `curl http://localhost:8000/api/health`: quick backend health check.
+- `curl https://<FRONTEND_DOMAIN>/api/health`: frontend를 통해 backend까지 확인하는 운영 health check.
 
 ## Coding Style & Naming Conventions
 - Python: PEP 8, 4-space indentation, type hints, `snake_case` module/function names.
