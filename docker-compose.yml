@@ -22,6 +22,12 @@ services:
     depends_on:
       init-traefik-config:
         condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4).close()"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     volumes:
       - ./traefik-config:/traefik-config
       - backend-data:/app/data
@@ -68,7 +74,8 @@ services:
       retries: 3
       start_period: 20s
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - proxy_net
     security_opt:

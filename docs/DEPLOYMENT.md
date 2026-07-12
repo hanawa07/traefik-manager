@@ -97,7 +97,7 @@ providers:
 ## 검증 체크리스트
 
 - `curl https://<FRONTEND_DOMAIN>/api/health`가 `{"status":"정상"}`을 반환하며, 이 경로는 frontend를 거쳐 backend까지 확인합니다.
-- frontend 컨테이너의 Docker healthcheck도 같은 `/api/health`를 사용하므로 `docker compose ps`에서 `healthy`인지 확인합니다.
+- backend는 자체 `/api/health`, frontend는 backend까지 이어지는 `/api/health`를 Docker healthcheck로 사용하므로 `docker compose ps`에서 둘 다 `healthy`인지 확인합니다. frontend는 backend가 `healthy`가 된 뒤 시작합니다.
 - 브라우저에서 `https://<FRONTEND_DOMAIN>` 접속 시 로그인 페이지가 보입니다.
 - `curl -Ik https://<FRONTEND_DOMAIN>` 응답이 `200` 또는 `302`입니다.
 - 서비스 목록과 의존 API, 모바일 다크모드 주요 화면을 함께 확인하려면 `TM_SMOKE_COOKIE='tm_session=...; tm_csrf=...' ./scripts/check-services.sh`를 실행합니다. `TM_SMOKE_BASE_URL`이 없으면 `.env`의 `FRONTEND_DOMAIN`을 사용합니다.
@@ -118,7 +118,7 @@ providers:
 - 운영 로그인·화면 스모크는 보안 공격 검사가 아니라 viewer 로그인, 주요 API, 화면 로딩을 확인하는 가용성 점검입니다. 로그인 공격 방어는 별도 `로그인 보안 방어` 설정에서 관리합니다.
 - 관리자 설정 화면에서 예약 자동 점검을 끄거나 `매일`/`매주 일요일`로 조정할 수 있습니다. GitHub Actions는 매일 03:17(Asia/Seoul)에 설정을 확인하며, 수동 실행과 월간 비밀번호 회전 후 검증은 항상 실행합니다.
 - 원격 스모크가 성공하면 전용 viewer 세션으로 GitHub run ID를 기록합니다. 관리자 설정 카드는 공개 GitHub Actions 메타데이터를 10분간 캐시해 최근 5회의 성공·실패·예약 건너뜀, 실패 단계, 중복 Telegram 억제 여부를 함께 표시합니다.
-- 관리자는 마지막 GitHub 확인 시각을 확인하고 `지금 새로고침`으로 10분 캐시를 우회할 수 있습니다. 최근 5건 밖으로 밀린 마지막 실패도 별도로 유지되며, 보관 기간이 지나지 않았다면 GitHub 로그인 후 `실패 화면` artifact를 바로 받을 수 있습니다.
+- 관리자는 마지막 GitHub 확인 시각을 확인하고 `지금 새로고침`으로 10분 캐시를 우회할 수 있습니다. 최근 5건 밖으로 밀린 마지막 실패도 별도로 유지되며, 보관 기간이 지나지 않았다면 만료 시각과 함께 `실패 화면` artifact를 바로 받을 수 있습니다.
 - GitHub 이력 조회가 실패해도 설정 API 전체를 실패시키지 않으며, 앱에 저장된 최근 성공 시각과 실행 링크는 계속 표시합니다.
 - 같은 커밋의 원격 스모크 실패가 6시간 안에 반복되면 GitHub 실패 기록과 아티팩트는 유지하되 중복 Telegram 알림만 억제합니다.
 - backend 상태 기록 자체가 실패하면 호스트 스크립트가 `host-operation-alert.yml`을 호출해 GitHub Actions의 Telegram secret으로 우회 통지합니다.
