@@ -3,7 +3,8 @@
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-import { useAudit } from "@/features/audit/hooks/useAudit";
+import type { AuditLogItem } from "@/features/audit/api/auditApi";
+import { useAudit, useManagerHealthAudit } from "@/features/audit/hooks/useAudit";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 
 import {
@@ -32,6 +33,7 @@ export function useAuditLogPageModel() {
     selectedFilter,
   });
   const { data: logs, isLoading, isError, error } = useAudit(auditQuery);
+  const { data: managerHealthLogs } = useManagerHealthAudit(100);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const auditActions = useAuditLogActions();
 
@@ -42,6 +44,9 @@ export function useAuditLogPageModel() {
       selectedDeliveryProvider,
       selectedDeliveryStatus,
       selectedFilter,
+      managerHealthCounts: managerHealthLogs
+        ? countManagerHealthEvents(managerHealthLogs)
+        : undefined,
       onDeliveryProviderChange: setSelectedDeliveryProvider,
       onDeliveryStatusChange: setSelectedDeliveryStatus,
       onFilterChange: setSelectedFilter,
@@ -62,4 +67,13 @@ export function useAuditLogPageModel() {
       onRollback: auditActions.onRollback,
     },
   };
+}
+
+function countManagerHealthEvents(logs: AuditLogItem[]) {
+  const counts = { unhealthy: 0, recovered: 0 };
+  for (const log of logs) {
+    if (log.event === "manager_docker_unhealthy") counts.unhealthy += 1;
+    if (log.event === "manager_docker_recovered") counts.recovered += 1;
+  }
+  return counts;
 }

@@ -49,6 +49,7 @@ const DASHBOARD_ROUTES = [
       "Docker 정상",
       "Docker 상태 전이 이력",
       "외부 watchdog",
+      "연속 실패 0회",
       "마지막 상태 갱신",
       "상태 새로고침",
     ],
@@ -58,7 +59,7 @@ const DASHBOARD_ROUTES = [
     label: "감사 로그",
     path: "/dashboard/audit",
     marker: "시스템의 모든 변경 사항을 추적합니다",
-    requiredMarkers: ["Manager 상태"],
+    requiredMarkers: ["Manager 상태", "이상", "복구"],
   },
   { label: "미들웨어", path: "/dashboard/middlewares", marker: "공용 템플릿" },
   { label: "리다이렉트", path: "/dashboard/redirects", marker: "도메인 리다이렉트 호스트 관리" },
@@ -360,16 +361,19 @@ export function runDashboardVisualSmokeSelfTest() {
   const desktopProfile = VISUAL_PROFILES[1];
   const serviceRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/services");
   const dashboardRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard");
+  const auditRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/audit");
   const settingsRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/settings");
   const loginRoute = { label: "로그인", path: "/login", marker: "로그인" };
   assert.ok(serviceRoute);
   assert.ok(dashboardRoute);
+  assert.deepEqual(auditRoute?.requiredMarkers, ["Manager 상태", "이상", "복구"]);
   assert.deepEqual(dashboardRoute.requiredMarkers, [
     "Backend",
     "Frontend",
     "Docker 정상",
     "Docker 상태 전이 이력",
     "외부 watchdog",
+    "연속 실패 0회",
     "마지막 상태 갱신",
     "상태 새로고침",
   ]);

@@ -13,6 +13,7 @@ interface AuditLogFiltersProps {
   selectedFilter: AuditFilterKey;
   selectedDeliveryStatus: DeliveryStatusKey;
   selectedDeliveryProvider: DeliveryProviderKey;
+  managerHealthCounts?: { unhealthy: number; recovered: number };
   onFilterChange: (filter: AuditFilterKey) => void;
   onDeliveryStatusChange: (status: DeliveryStatusKey) => void;
   onDeliveryProviderChange: (provider: DeliveryProviderKey) => void;
@@ -22,6 +23,7 @@ export function AuditLogFilters({
   selectedFilter,
   selectedDeliveryStatus,
   selectedDeliveryProvider,
+  managerHealthCounts,
   onFilterChange,
   onDeliveryStatusChange,
   onDeliveryProviderChange,
@@ -44,7 +46,19 @@ export function AuditLogFilters({
                   : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800",
               )}
             >
-              {filter.label}
+              <span className="inline-flex items-center gap-1.5">
+                {filter.label}
+                {filter.key === "manager_health" && managerHealthCounts ? (
+                  <>
+                    <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] text-rose-700 dark:bg-rose-500/20 dark:text-rose-200">
+                      이상 {managerHealthCounts.unhealthy}
+                    </span>
+                    <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
+                      복구 {managerHealthCounts.recovered}
+                    </span>
+                  </>
+                ) : null}
+              </span>
             </button>
           );
         })}
