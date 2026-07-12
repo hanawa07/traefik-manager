@@ -15,6 +15,7 @@ import {
 import { CertificateAlertSummaryCard } from "./CertificateAlertSummaryCard";
 import { DashboardServicesTable } from "./DashboardServicesTable";
 import { ManagerDeploymentCard } from "./ManagerDeploymentCard";
+import { ManagerHealthAlertBanner } from "./ManagerHealthAlertBanner";
 import { SecurityAlertSummaryCard } from "./SecurityAlertSummaryCard";
 import { ServiceOverviewStats } from "./ServiceOverviewStats";
 import { TraefikStatusBanner } from "./TraefikStatusBanner";
@@ -32,7 +33,12 @@ export default function DashboardPage() {
   const { data: certificateSummary } = useAuditCertificateSummary({ recent_limit: 3 });
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const { data: certificates = [] } = useCertificates();
-  const { data: deploymentInfo } = useDeploymentInfo();
+  const {
+    data: deploymentInfo,
+    dataUpdatedAt: deploymentUpdatedAt,
+    isFetching: isRefreshingDeploymentStatus,
+    refetch: refreshDeploymentStatus,
+  } = useDeploymentInfo();
   const refreshDeploymentLatest = useRefreshDeploymentLatest();
 
   const totalServices = services.length;
@@ -41,6 +47,9 @@ export default function DashboardPage() {
   const noAuth = services.filter((s) => s.auth_mode === "none" && !s.basic_auth_enabled).length;
   const upStreamUpCount = Object.values(healthData).filter((h) => h.status === "up").length;
   const displayTimezone = timeDisplaySettings?.display_timezone;
+  const deploymentUpdatedAtIso = deploymentUpdatedAt
+    ? new Date(deploymentUpdatedAt).toISOString()
+    : undefined;
 
   return (
     <div>
@@ -49,6 +58,11 @@ export default function DashboardPage() {
         <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Traefik 서비스 현황</p>
       </div>
 
+      <ManagerHealthAlertBanner
+        components={deploymentInfo?.components}
+        updatedAt={deploymentUpdatedAtIso}
+        timezone={displayTimezone}
+      />
       <TraefikStatusBanner
         deployment={traefikDeployment}
         health={traefikHealth}
@@ -60,8 +74,11 @@ export default function DashboardPage() {
       <ManagerDeploymentCard
         deployment={deploymentInfo}
         isRefreshingLatest={refreshDeploymentLatest.isPending}
+        isRefreshingStatus={isRefreshingDeploymentStatus}
         onRefreshLatest={() => refreshDeploymentLatest.mutate()}
+        onRefreshStatus={() => void refreshDeploymentStatus()}
         refreshLatestError={refreshDeploymentLatest.isError ? "최신 릴리즈를 다시 확인하지 못했습니다" : null}
+        statusUpdatedAt={deploymentUpdatedAtIso}
         timezone={displayTimezone}
       />
       <SecurityAlertSummaryCard summary={securitySummary} timezone={displayTimezone} />

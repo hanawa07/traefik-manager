@@ -43,7 +43,13 @@ const DASHBOARD_ROUTES = [
     path: "/dashboard",
     marker: "Traefik 서비스 현황",
     pendingMarkers: ["Traefik 상태: 확인 중", "배포 정보를 확인하는 중입니다"],
-    requiredMarkers: ["Backend", "Frontend", "Docker 정상"],
+    requiredMarkers: [
+      "Backend",
+      "Frontend",
+      "Docker 정상",
+      "마지막 상태 갱신",
+      "상태 새로고침",
+    ],
   },
   { label: "인증서", path: "/dashboard/certificates", marker: "Traefik API 기반 TLS 인증서 상태" },
   { label: "감사 로그", path: "/dashboard/audit", marker: "시스템의 모든 변경 사항을 추적합니다" },
@@ -351,7 +357,13 @@ export function runDashboardVisualSmokeSelfTest() {
   const loginRoute = { label: "로그인", path: "/login", marker: "로그인" };
   assert.ok(serviceRoute);
   assert.ok(dashboardRoute);
-  assert.deepEqual(dashboardRoute.requiredMarkers, ["Backend", "Frontend", "Docker 정상"]);
+  assert.deepEqual(dashboardRoute.requiredMarkers, [
+    "Backend",
+    "Frontend",
+    "Docker 정상",
+    "마지막 상태 갱신",
+    "상태 새로고침",
+  ]);
   assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");
   assert.deepEqual(settingsRoute.requiredMarkers, ["Artifact 만료"]);
   assert.equal(screenshotName(mobileProfile, "/dashboard/services"), "mobile-dark-dashboard-services");

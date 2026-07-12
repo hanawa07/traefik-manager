@@ -16,16 +16,22 @@ import {
 interface ManagerDeploymentCardProps {
   deployment?: DeploymentInfo;
   isRefreshingLatest?: boolean;
+  isRefreshingStatus?: boolean;
   onRefreshLatest?: () => void;
+  onRefreshStatus?: () => void;
   refreshLatestError?: string | null;
+  statusUpdatedAt?: string;
   timezone?: string;
 }
 
 export function ManagerDeploymentCard({
   deployment,
   isRefreshingLatest = false,
+  isRefreshingStatus = false,
   onRefreshLatest,
+  onRefreshStatus,
   refreshLatestError,
+  statusUpdatedAt,
   timezone,
 }: ManagerDeploymentCardProps) {
   const revision = formatDeploymentRevision(deployment?.revision);
@@ -61,6 +67,17 @@ export function ManagerDeploymentCard({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {onRefreshStatus ? (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600 hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-300"
+              disabled={isRefreshingStatus}
+              onClick={onRefreshStatus}
+              type="button"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingStatus ? "animate-spin" : ""}`} />
+              {isRefreshingStatus ? "갱신 중" : "상태 새로고침"}
+            </button>
+          ) : null}
           {onRefreshLatest ? (
             <button
               className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600 hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-300"
@@ -104,6 +121,7 @@ export function ManagerDeploymentCard({
           최신 릴리즈 확인: {latestCheckedAt}
           {deployment?.latest_version_error ? ` · ${deployment.latest_version_error}` : ""}
         </p>
+        <p className="mt-1">마지막 상태 갱신: {formatDateTime(statusUpdatedAt, timezone)} · 30초 자동 갱신</p>
       </div>
 
       <DeploymentLinkBar
