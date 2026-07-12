@@ -16,6 +16,7 @@ export interface SmokeMonitoringRecentRun {
   commit_sha: string | null;
   summary: string | null;
   notification_suppressed: boolean;
+  artifact_url: string | null;
 }
 
 export interface SmokeRotationStatus {
@@ -41,6 +42,12 @@ export interface SmokeRotationStatus {
 export const smokeRotationSettingsApi = {
   getSmokeRotationStatus: async (): Promise<SmokeRotationStatus> => {
     const response = await apiClient.get<SmokeRotationStatus>("/settings/smoke-rotation");
+    return response.data;
+  },
+  refreshSmokeMonitoringHistory: async (): Promise<SmokeRotationStatus> => {
+    const response = await apiClient.get<SmokeRotationStatus>(
+      "/settings/smoke-rotation?refresh_monitoring_history=true",
+    );
     return response.data;
   },
   updateSmokeMonitoringSettings: async (

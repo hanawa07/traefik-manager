@@ -43,3 +43,10 @@ export function useUpdateSmokeMonitoringSettings() {
     settingsQueryKeys.smokeRotation,
   );
 }
+
+export function useRefreshSmokeMonitoringHistory() {
+  return useSettingsMutationForQuery(
+    settingsApi.refreshSmokeMonitoringHistory,
+    settingsQueryKeys.smokeRotation,
+  );
+}

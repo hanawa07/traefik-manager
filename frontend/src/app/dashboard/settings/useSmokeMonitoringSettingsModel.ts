@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import type { SmokeMonitoringSettingsInput } from "@/features/settings/api/settingsApi";
 import {
+  useRefreshSmokeMonitoringHistory,
   useSmokeRotationStatus,
   useUpdateSmokeMonitoringSettings,
 } from "@/features/settings/hooks/useSettings";
@@ -20,6 +21,7 @@ export function useSmokeMonitoringSettingsModel(
 ) {
   const query = useSmokeRotationStatus();
   const update = useUpdateSmokeMonitoringSettings();
+  const refreshHistory = useRefreshSmokeMonitoringHistory();
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState(DEFAULT_FORM);
   const [errorMessage, setErrorMessage] = useState("");
@@ -50,6 +52,31 @@ export function useSmokeMonitoringSettingsModel(
     }
   };
 
+  const handleRefreshHistory = async () => {
+    try {
+      const refreshed = await refreshHistory.mutateAsync();
+      if (refreshed.monitoring_history_error) {
+        onToast({
+          tone: "warning",
+          message: "원격 실행 이력을 갱신하지 못했습니다",
+          detail: refreshed.monitoring_history_error,
+        });
+        return;
+      }
+      onToast({
+        tone: "success",
+        message: "원격 실행 이력 새로고침 완료",
+        detail: `최근 실행 ${refreshed.monitoring_recent_runs.length}건을 확인했습니다.`,
+      });
+    } catch (error) {
+      onToast({
+        tone: "error",
+        message: "원격 실행 이력 새로고침 실패",
+        detail: getSettingsModelErrorMessage(error, "GitHub 실행 이력을 확인하지 못했습니다"),
+      });
+    }
+  };
+
   return {
     canManage,
     isLoading: query.isLoading,
@@ -60,8 +87,10 @@ export function useSmokeMonitoringSettingsModel(
     formValue,
     errorMessage,
     isSaving: update.isPending,
+    isRefreshingHistory: refreshHistory.isPending,
     onEdit: handleEdit,
     onSave: handleSave,
+    onRefreshHistory: handleRefreshHistory,
     onCancel: () => setIsEditing(false),
     onFormChange: setFormValue,
   };

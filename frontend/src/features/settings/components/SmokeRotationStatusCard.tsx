@@ -1,4 +1,4 @@
-import { MonitorCheck } from "lucide-react";
+import { Download, MonitorCheck, RefreshCw } from "lucide-react";
 
 import type {
   SmokeMonitoringSettingsInput,
@@ -49,8 +49,10 @@ interface SmokeRotationStatusCardProps {
   formValue: SmokeMonitoringSettingsInput;
   errorMessage: string;
   isSaving: boolean;
+  isRefreshingHistory: boolean;
   onEdit: () => void;
   onSave: () => void;
+  onRefreshHistory: () => void;
   onCancel: () => void;
   onFormChange: (value: SmokeMonitoringSettingsInput) => void;
 }
@@ -65,8 +67,10 @@ export function SmokeRotationStatusCard({
   formValue,
   errorMessage,
   isSaving,
+  isRefreshingHistory,
   onEdit,
   onSave,
+  onRefreshHistory,
   onCancel,
   onFormChange,
 }: SmokeRotationStatusCardProps) {
@@ -189,6 +193,24 @@ export function SmokeRotationStatusCard({
               {status.monitoring_history_error}. 저장된 최근 성공 기록은 그대로 표시됩니다.
             </div>
           ) : null}
+          <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-950">
+            <p className="text-xs text-gray-500 dark:text-slate-400">
+              GitHub 실행 이력은 10분간 캐시됩니다.
+            </p>
+            {canManage ? (
+              <button
+                type="button"
+                className="btn-secondary flex items-center justify-center gap-1.5 py-1.5 text-xs"
+                onClick={onRefreshHistory}
+                disabled={isRefreshingHistory}
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${isRefreshingHistory ? "animate-spin" : ""}`}
+                />
+                {isRefreshingHistory ? "확인 중" : "지금 새로고침"}
+              </button>
+            ) : null}
+          </div>
           <details className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-950">
             <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
               최근 GitHub 원격 실행 {recentRuns.length}건
@@ -214,6 +236,18 @@ export function SmokeRotationStatusCard({
                       >
                         {run.run_number ? `#${run.run_number}` : "실행 보기"}
                       </a>
+                      {run.artifact_url ? (
+                        <a
+                          className="inline-flex items-center gap-1 font-medium text-rose-700 underline-offset-2 hover:underline dark:text-rose-300"
+                          href={run.artifact_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="GitHub 로그인 후 실패 화면 ZIP 다운로드"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          실패 화면
+                        </a>
+                      ) : null}
                       <span className="text-gray-500 dark:text-slate-400">
                         {formatDateTime(run.completed_at, timezone)}
                       </span>

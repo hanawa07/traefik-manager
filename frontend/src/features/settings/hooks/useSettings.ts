@@ -15,6 +15,7 @@ export {
   useImportBackup,
   usePreviewBackup,
   useReconcileCloudflareDns,
+  useRefreshSmokeMonitoringHistory,
   useRollbackSettingsChange,
   useTestCloudflareConnection,
   useTestSecurityAlertSettings,
