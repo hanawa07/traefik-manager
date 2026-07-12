@@ -181,12 +181,16 @@ export function SmokeRotationStatusCard({
               }
             />
           ) : null}
-          {latestFailure?.artifact_expires_at ? (
-            <SettingsSummaryRow
-              label="Artifact 만료"
-              value={formatDateTime(latestFailure.artifact_expires_at, timezone)}
-            />
-          ) : null}
+          <SettingsSummaryRow
+            label="Artifact 만료"
+            value={
+              latestFailure?.artifact_expires_at
+                ? formatDateTime(latestFailure.artifact_expires_at, timezone)
+                : canManage
+                  ? "활성 artifact 없음"
+                  : "관리자만 확인 가능"
+            }
+          />
           <SettingsSummaryRow
             label="반복 실패 알림 억제"
             value={

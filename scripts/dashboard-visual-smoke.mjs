@@ -43,13 +43,19 @@ const DASHBOARD_ROUTES = [
     path: "/dashboard",
     marker: "Traefik 서비스 현황",
     pendingMarkers: ["Traefik 상태: 확인 중", "배포 정보를 확인하는 중입니다"],
+    requiredMarkers: ["Backend", "Frontend", "Docker 정상"],
   },
   { label: "인증서", path: "/dashboard/certificates", marker: "Traefik API 기반 TLS 인증서 상태" },
   { label: "감사 로그", path: "/dashboard/audit", marker: "시스템의 모든 변경 사항을 추적합니다" },
   { label: "미들웨어", path: "/dashboard/middlewares", marker: "공용 템플릿" },
   { label: "리다이렉트", path: "/dashboard/redirects", marker: "도메인 리다이렉트 호스트 관리" },
   { label: "서비스", path: "/dashboard/services", marker: "Traefik 라우팅 서비스 관리" },
-  { label: "설정", path: "/dashboard/settings", marker: "운영 로그인·화면 점검" },
+  {
+    label: "설정",
+    path: "/dashboard/settings",
+    marker: "운영 로그인·화면 점검",
+    requiredMarkers: ["Artifact 만료"],
+  },
 ];
 
 export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeoutMs }) {
@@ -74,6 +80,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
     });
     labels.push(`${profile.label} ${DASHBOARD_ROUTES.length}개 화면`);
   }
+  labels.push("Docker 정상 표시", "Artifact 만료 표시");
 
   await cdp.send("Network.clearBrowserCookies");
   await evaluate(cdp, `localStorage.removeItem("auth")`);
@@ -256,13 +263,14 @@ async function waitForRoute(cdp, route, timeoutMs) {
       hasSurface: Boolean(document.querySelector('.card, [data-visual-surface], [data-testid="login-form-card"]')),
       isLoading: Boolean(document.querySelector('.animate-pulse')),
       path: location.pathname,
-      text: document.body.innerText.slice(0, 5000),
+      text: document.body.innerText.slice(0, 20000),
     })`);
     if (
       lastSnapshot.path === route.path &&
       lastSnapshot.hasSurface &&
       !lastSnapshot.isLoading &&
       !route.pendingMarkers?.some((marker) => lastSnapshot.text.includes(marker)) &&
+      !route.requiredMarkers?.some((marker) => !lastSnapshot.text.includes(marker)) &&
       lastSnapshot.text.includes(route.marker)
     ) {
       return;
@@ -343,7 +351,9 @@ export function runDashboardVisualSmokeSelfTest() {
   const loginRoute = { label: "로그인", path: "/login", marker: "로그인" };
   assert.ok(serviceRoute);
   assert.ok(dashboardRoute);
+  assert.deepEqual(dashboardRoute.requiredMarkers, ["Backend", "Frontend", "Docker 정상"]);
   assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");
+  assert.deepEqual(settingsRoute.requiredMarkers, ["Artifact 만료"]);
   assert.equal(screenshotName(mobileProfile, "/dashboard/services"), "mobile-dark-dashboard-services");
   assert.equal(screenshotName(desktopProfile, "/login"), "desktop-light-login");
   const valid = {

@@ -98,11 +98,13 @@ providers:
 
 - `curl https://<FRONTEND_DOMAIN>/api/health`가 `{"status":"정상"}`을 반환하며, 이 경로는 frontend를 거쳐 backend까지 확인합니다.
 - backend는 자체 `/api/health`, frontend는 backend까지 이어지는 `/api/health`를 Docker healthcheck로 사용하므로 `docker compose ps`에서 둘 다 `healthy`인지 확인합니다. frontend는 backend가 `healthy`가 된 뒤 시작합니다.
+- 대시보드 Manager 배포 카드는 Docker 상태를 30초마다 갱신하며, `unhealthy`이면 연속 실패 횟수와 마지막 검사 시각·종료 코드를 표시합니다. healthcheck 원문 출력은 노출하지 않습니다.
 - 브라우저에서 `https://<FRONTEND_DOMAIN>` 접속 시 로그인 페이지가 보입니다.
 - `curl -Ik https://<FRONTEND_DOMAIN>` 응답이 `200` 또는 `302`입니다.
 - 서비스 목록과 의존 API, 모바일 다크모드 주요 화면을 함께 확인하려면 `TM_SMOKE_COOKIE='tm_session=...; tm_csrf=...' ./scripts/check-services.sh`를 실행합니다. `TM_SMOKE_BASE_URL`이 없으면 `.env`의 `FRONTEND_DOMAIN`을 사용합니다.
 - 운영 세션 쿠키 대신 테스트 계정으로 확인하려면 `TM_SMOKE_USERNAME`과 `TM_SMOKE_PASSWORD`를 사용합니다. Turnstile이 필요한 환경에서는 기존 세션 쿠키 방식이 더 안전합니다.
 - GitHub Actions의 `운영 로그인·화면 스모크`는 매일 03:17(KST)에 실행되며 수동 실행도 지원합니다.
+- 운영 로그인·화면 스모크는 대시보드의 `Docker 정상`과 설정 화면의 `Artifact 만료` 표시도 명시적으로 확인합니다.
 - 저장소 비밀값에 `TM_SMOKE_BASE_URL`과 `TM_SMOKE_COOKIE`를 등록하거나, 쿠키 대신 `TM_SMOKE_USERNAME`과 `TM_SMOKE_PASSWORD`를 등록하면 실제 인증 화면을 검사합니다.
 - 인증 비밀값이 아직 없으면 예약 작업은 브라우저 스모크 self-test만 실행하고 정상 종료합니다.
 - 인증 화면 검사에 실패하면 모바일 화면 PNG를 GitHub Actions 아티팩트로 7일간 보관합니다.
