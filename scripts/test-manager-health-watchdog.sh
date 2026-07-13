@@ -62,6 +62,7 @@ assert_state() {
   local expected_dispatch_event="$4"
   local expected_dispatch_success="$5"
   local expected_dispatch_run_url="$6"
+  local expected_dispatch_history_regex="$7"
   grep -qx "status=${expected_status}" "${STATE_DIR}/manager-health-watchdog.state"
   grep -qx "alert_active=${expected_alert_active}" "${STATE_DIR}/manager-health-watchdog.state"
   grep -qx "consecutive_failures=${expected_consecutive_failures}" "${STATE_DIR}/manager-health-watchdog.state"
@@ -69,27 +70,28 @@ assert_state() {
   grep -qx "last_dispatch_success=${expected_dispatch_success}" "${STATE_DIR}/manager-health-watchdog.state"
   grep -Eq '^last_dispatch_at=[0-9]+$' "${STATE_DIR}/manager-health-watchdog.state"
   grep -qx "last_dispatch_run_url=${expected_dispatch_run_url}" "${STATE_DIR}/manager-health-watchdog.state"
+  grep -Eq "^dispatch_history=${expected_dispatch_history_regex}$" "${STATE_DIR}/manager-health-watchdog.state"
 }
 
 printf '0' > "${RUN_COUNTER_FILE}"
 printf 'success' > "${DISPATCH_STATUS_FILE}"
 printf 'healthy' > "${STATUS_FILE}"
 run_watchdog
-assert_state healthy 0 0 "" "" ""
+assert_state healthy 0 0 "" "" "" ""
 [[ "$(stat --format='%a' "${STATE_DIR}/manager-health-watchdog.state")" == "644" ]]
 [[ ! -s "${DISPATCH_LOG}" ]]
 
 printf 'unhealthy' > "${STATUS_FILE}"
 run_watchdog
-assert_state unhealthy 1 1 failure 1 "https://github.com/hanawa07/traefik-manager/actions/runs/101"
+assert_state unhealthy 1 1 failure 1 "https://github.com/hanawa07/traefik-manager/actions/runs/101" 'failure\|[0-9]+\|https://github.com/hanawa07/traefik-manager/actions/runs/101'
 grep -q -- '-f status=failure' "${DISPATCH_LOG}"
 
 run_watchdog
-assert_state unhealthy 1 2 failure 1 "https://github.com/hanawa07/traefik-manager/actions/runs/101"
+assert_state unhealthy 1 2 failure 1 "https://github.com/hanawa07/traefik-manager/actions/runs/101" 'failure\|[0-9]+\|https://github.com/hanawa07/traefik-manager/actions/runs/101'
 
 printf 'healthy' > "${STATUS_FILE}"
 run_watchdog
-assert_state healthy 0 0 recovery 1 "https://github.com/hanawa07/traefik-manager/actions/runs/102"
+assert_state healthy 0 0 recovery 1 "https://github.com/hanawa07/traefik-manager/actions/runs/102" 'recovery\|[0-9]+\|https://github.com/hanawa07/traefik-manager/actions/runs/102,failure\|[0-9]+\|https://github.com/hanawa07/traefik-manager/actions/runs/101'
 grep -q -- '-f status=recovery' "${DISPATCH_LOG}"
 grep -q -- '장애 중 연속 실패 2회' "${DISPATCH_LOG}"
 
@@ -100,7 +102,7 @@ if run_watchdog; then
   echo "watchdog 통합 시험이 알림 요청 실패를 성공으로 처리했습니다" >&2
   exit 1
 fi
-assert_state unhealthy 0 1 failure 0 ""
+assert_state unhealthy 0 1 failure 0 "" ""
 
 [[ "$(wc -l < "${CURL_LOG}")" -eq 5 ]]
 [[ "$(wc -l < "${DISPATCH_LOG}")" -eq 3 ]]

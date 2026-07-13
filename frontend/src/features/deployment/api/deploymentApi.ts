@@ -20,6 +20,12 @@ export interface DeploymentComponent {
   oci_labels: Record<string, string>;
 }
 
+export interface ExternalWatchdogAlertRun {
+  event: "failure" | "recovery";
+  requested_at: string;
+  run_url: string;
+}
+
 export interface DeploymentInfo {
   enabled: boolean;
   message: string;
@@ -45,6 +51,7 @@ export interface DeploymentInfo {
   external_watchdog_last_alert_run_conclusion: string | null;
   external_watchdog_last_alert_run_checked_at: string | null;
   external_watchdog_last_alert_run_error: string | null;
+  external_watchdog_alert_runs: ExternalWatchdogAlertRun[];
   components: DeploymentComponent[];
 }
 

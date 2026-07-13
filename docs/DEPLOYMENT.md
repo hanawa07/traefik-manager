@@ -98,10 +98,10 @@ providers:
 
 - `curl https://<FRONTEND_DOMAIN>/api/health`가 `{"status":"정상"}`을 반환하며, 이 경로는 frontend를 거쳐 backend까지 확인합니다.
 - backend는 자체 `/api/health`, frontend는 backend까지 이어지는 `/api/health`를 Docker healthcheck로 사용하므로 `docker compose ps`에서 둘 다 `healthy`인지 확인합니다. frontend는 backend가 `healthy`가 된 뒤 시작합니다.
-- 대시보드 Manager 배포 카드는 Docker 상태를 30초마다 갱신하며, `unhealthy`이면 연속 실패 횟수와 마지막 검사 시각·종료 코드를 표시합니다. 외부 watchdog 상태·연속 실패·마지막 실행과 최근 알림 워크플로 요청 결과·실행 링크·최종 실행 상태도 표시하고, 설정한 지연 판정 시간이 지나면 상단 경고를 노출하며 healthcheck 원문 출력은 노출하지 않습니다.
+- 대시보드 Manager 배포 카드는 Docker 상태를 30초마다 갱신하며, `unhealthy`이면 연속 실패 횟수와 마지막 검사 시각·종료 코드를 표시합니다. 외부 watchdog 상태·연속 실패·마지막 실행과 최근 알림 워크플로 요청 결과·실행 링크·최종 실행 상태 및 최근 실행 5건도 표시하고, 설정한 지연 판정 시간이 지나면 상단 경고를 노출하며 healthcheck 원문 출력은 노출하지 않습니다.
 - 배포 카드에는 마지막 상태 갱신 시각과 수동 새로고침 버튼이 있으며, unavailable·중지·unhealthy 컴포넌트가 있으면 대시보드 상단에 경고 배너를 표시합니다.
 - backend는 30초마다 Manager 컨테이너 health 전이를 확인합니다. 설정의 `Manager Docker 상태 감지`에서 활성화 여부와 5~1440분 재알림 cooldown을 조정할 수 있습니다. `unhealthy`와 회복은 감사 로그에 남고 `Manager Docker 상태` 운영 알림 route로 전송됩니다.
-- 대시보드의 `Manager 상태 전이 이력`은 Docker 및 외부 watchdog의 최근 이상·복구 감사 기록을 30초마다 갱신합니다. watchdog 실행이 설정 기준보다 늦거나 다시 정상 갱신되면 각각 감사 로그에 기록합니다. 감사 로그는 `Manager 전체`, `Manager Docker`, `Watchdog`, `Manager 이상`, `Manager 복구` 필터와 새로고침 후에도 유지되는 `24시간`, `7일`, `30일` 집계 기간을 제공합니다.
+- 대시보드의 `Manager 상태 전이 이력`은 Docker 및 외부 watchdog의 최근 이상·복구 감사 기록을 30초마다 갱신합니다. watchdog 실행이 설정 기준보다 늦거나 다시 정상 갱신되면 각각 감사 로그에 기록합니다. 감사 로그는 `Manager 전체`, `Manager Docker`, `Watchdog`, `Manager 이상`, `Manager 복구` 필터와 소스별 집계 수치를 제공하며, 선택한 필터·전송 상태·채널·집계 기간은 URL에 저장되어 새로고침 후에도 유지됩니다.
 - 브라우저에서 `https://<FRONTEND_DOMAIN>` 접속 시 로그인 페이지가 보입니다.
 - `curl -Ik https://<FRONTEND_DOMAIN>` 응답이 `200` 또는 `302`입니다.
 - 서비스 목록과 의존 API, 모바일 다크모드 주요 화면을 함께 확인하려면 `TM_SMOKE_COOKIE='tm_session=...; tm_csrf=...' ./scripts/check-services.sh`를 실행합니다. `TM_SMOKE_BASE_URL`이 없으면 `.env`의 `FRONTEND_DOMAIN`을 사용합니다.
@@ -127,7 +127,7 @@ providers:
 - GitHub 이력 조회가 실패해도 설정 API 전체를 실패시키지 않으며, 앱에 저장된 최근 성공 시각과 실행 링크는 계속 표시합니다.
 - 같은 커밋의 원격 스모크 실패가 6시간 안에 반복되면 GitHub 실패 기록과 아티팩트는 유지하되 중복 Telegram 알림만 억제합니다.
 - backend 상태 기록 자체가 실패하면 호스트 스크립트가 `host-operation-alert.yml`을 호출해 GitHub Actions의 Telegram secret으로 우회 통지합니다.
-- backend 자체 중단은 호스트의 `scripts/manager-health-watchdog.sh`가 공개 `/api/health`를 5분마다 확인해 감지합니다. 장애·60분 지속 장애·복구 때 연속 실패 횟수를 포함해 `host-operation-alert.yml`을 호출하므로 Telegram 비밀값을 호스트에 저장하지 않습니다. 지연 판정 기준은 설정 화면에서 5~1440분으로 조정할 수 있습니다.
+- backend 자체 중단은 호스트의 `scripts/manager-health-watchdog.sh`가 공개 `/api/health`를 5분마다 확인해 감지합니다. 장애·60분 지속 장애·복구 때 연속 실패 횟수를 포함해 `host-operation-alert.yml`을 호출하므로 Telegram 비밀값을 호스트에 저장하지 않습니다. 성공적으로 요청한 최근 실행 URL 5개는 호스트 상태 파일에 보존하며, 지연 판정 기준은 설정 화면에서 5~1440분으로 조정할 수 있습니다.
 - watchdog 설치 예시는 `*/5 * * * * cd /path/to/traefik-manager && /usr/bin/bash scripts/manager-health-watchdog.sh >> ~/.local/state/traefik-manager/manager-health-watchdog.log 2>&1`입니다. 적용 전 `scripts/manager-health-watchdog.sh --self-test`와 정상 상태 1회 실행으로 기준 상태를 생성합니다.
 - 공개 주소나 cooldown을 바꿔야 하면 cron 앞에 `TM_MANAGER_WATCHDOG_URL=https://manager.example.com` 또는 `TM_MANAGER_WATCHDOG_COOLDOWN_SECONDS=3600`을 지정합니다.
 - `scripts/test-manager-health-watchdog.sh`는 가짜 health 응답과 가짜 GitHub CLI로 정상→장애→복구 및 알림 요청 실패 기록을 검증하므로 운영 컨테이너와 실제 알림을 중단하거나 호출하지 않습니다.

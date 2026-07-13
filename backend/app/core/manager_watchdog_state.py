@@ -20,6 +20,19 @@ def _parse_run_url(value: str | None) -> str | None:
     return None
 
 
+def _parse_alert_runs(value: str | None) -> list[dict[str, object]]:
+    runs = []
+    for record in (value or "").split(",")[:5]:
+        parts = record.split("|", 2)
+        if len(parts) != 3 or parts[0] not in {"failure", "recovery"}:
+            continue
+        requested_at = _parse_epoch(parts[1])
+        run_url = _parse_run_url(parts[2])
+        if requested_at and run_url:
+            runs.append({"event": parts[0], "requested_at": requested_at, "run_url": run_url})
+    return runs
+
+
 def read_manager_watchdog_state(
     path: str = MANAGER_WATCHDOG_STATE_PATH,
     *,
@@ -45,6 +58,7 @@ def read_manager_watchdog_state(
             "external_watchdog_last_alert_success": None,
             "external_watchdog_last_alert_at": None,
             "external_watchdog_last_alert_run_url": None,
+            "external_watchdog_alert_runs": [],
         }
 
     status = values.get("status")
@@ -64,6 +78,15 @@ def read_manager_watchdog_state(
         last_alert_success = None
         last_alert_at = None
         last_alert_run_url = None
+    alert_runs = _parse_alert_runs(values.get("dispatch_history"))
+    if not alert_runs and last_alert_event and last_alert_at and last_alert_run_url:
+        alert_runs = [
+            {
+                "event": last_alert_event,
+                "requested_at": last_alert_at,
+                "run_url": last_alert_run_url,
+            }
+        ]
     stale = (now or datetime.now(timezone.utc)) - checked_at >= timedelta(
         minutes=stale_after_minutes
     )
@@ -77,4 +100,5 @@ def read_manager_watchdog_state(
         "external_watchdog_last_alert_success": last_alert_success,
         "external_watchdog_last_alert_at": last_alert_at,
         "external_watchdog_last_alert_run_url": last_alert_run_url,
+        "external_watchdog_alert_runs": alert_runs,
     }

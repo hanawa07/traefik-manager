@@ -18,6 +18,7 @@ import {
   DeploymentLinkBar,
   formatDeploymentRevision,
 } from "./ManagerDeploymentCardParts";
+import { ManagerWatchdogAlertHistory } from "./ManagerWatchdogAlertHistory";
 
 interface ManagerDeploymentCardProps {
   deployment?: DeploymentInfo;
@@ -190,6 +191,8 @@ export function ManagerDeploymentCard({
             : ""}
         </p>
       </div>
+
+      <ManagerWatchdogAlertHistory deployment={deployment} timezone={timezone} />
 
       <DeploymentLinkBar
         commitUrl={deploymentLinks.commitUrl}

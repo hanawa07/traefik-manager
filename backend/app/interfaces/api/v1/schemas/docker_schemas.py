@@ -56,6 +56,12 @@ class DockerDeploymentComponentResponse(BaseModel):
     oci_labels: dict[str, str] = Field(default_factory=dict)
 
 
+class ExternalWatchdogAlertRunResponse(BaseModel):
+    event: Literal["failure", "recovery"]
+    requested_at: datetime
+    run_url: str
+
+
 class DockerDeploymentInfoResponse(BaseModel):
     enabled: bool
     message: str
@@ -81,4 +87,5 @@ class DockerDeploymentInfoResponse(BaseModel):
     external_watchdog_last_alert_run_conclusion: str | None = None
     external_watchdog_last_alert_run_checked_at: datetime | None = None
     external_watchdog_last_alert_run_error: str | None = None
+    external_watchdog_alert_runs: list[ExternalWatchdogAlertRunResponse] = Field(default_factory=list)
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)

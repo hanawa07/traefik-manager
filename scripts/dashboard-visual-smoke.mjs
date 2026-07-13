@@ -1,12 +1,7 @@
 import assert from "node:assert/strict";
 
 import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
-import {
-  checkAuditPeriodPersistence,
-  checkCertificateDrawer,
-  checkMobileSidebar,
-  checkOptionalAdminModal,
-} from "./dashboard-visual-interactions.mjs";
+import { checkAuditFilterPersistence, checkCertificateDrawer, checkMobileSidebar, checkOptionalAdminModal } from "./dashboard-visual-interactions.mjs";
 import { assertDashboardShell } from "./dashboard-visual-shell.mjs";
 
 const MOBILE_VIEWPORT = {
@@ -52,6 +47,7 @@ const DASHBOARD_ROUTES = [
       "외부 watchdog",
       "연속 실패 0회",
       "최근 watchdog 알림 요청",
+      "최근 watchdog 알림 실행",
       "알림 워크플로 결과",
       "마지막 상태 갱신",
       "상태 새로고침",
@@ -90,8 +86,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
           if (opened) labels.push(`${profile.label} 인증서 drawer`);
         }
         if (route.path === "/dashboard/audit") {
-          await checkAuditPeriodPersistence({ cdp, timeoutMs });
-          labels.push(`${profile.label} Manager 집계 기간 유지`);
+          await checkAuditFilterPersistence({ cdp, timeoutMs });
+          labels.push(`${profile.label} 감사 필터 URL 유지`);
         }
         if (route.path === "/dashboard/settings") {
           const opened = await checkOptionalAdminModal({ artifactDir, cdp, profile, timeoutMs });
@@ -382,6 +378,7 @@ export function runDashboardVisualSmokeSelfTest() {
     "외부 watchdog",
     "연속 실패 0회",
     "최근 watchdog 알림 요청",
+    "최근 watchdog 알림 실행",
     "알림 워크플로 결과",
     "마지막 상태 갱신",
     "상태 새로고침",
