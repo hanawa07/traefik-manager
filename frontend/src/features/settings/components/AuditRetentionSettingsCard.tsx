@@ -1,9 +1,11 @@
 import { Archive, DatabaseZap } from "lucide-react";
 
 import type {
+  AuditArchiveItem,
   AuditRetentionSettingsInput,
   AuditRetentionSettingsStatus,
 } from "@/features/settings/api/settingsApi";
+import { AuditArchiveList } from "./AuditArchiveList";
 import {
   SettingsActionRow,
   SettingsCardHeader,
@@ -23,9 +25,14 @@ interface AuditRetentionSettingsCardProps {
   errorMessage: string;
   isSaving: boolean;
   isCleaning: boolean;
+  archives?: AuditArchiveItem[];
+  isArchivesLoading: boolean;
+  isArchivesError: boolean;
+  restoringFilename: string | null;
   onEdit: () => void;
   onSave: () => void;
   onCleanup: () => void;
+  onRestore: (filename: string) => void;
   onCancel: () => void;
   onFormChange: (value: AuditRetentionSettingsInput) => void;
 }
@@ -41,9 +48,14 @@ export function AuditRetentionSettingsCard({
   errorMessage,
   isSaving,
   isCleaning,
+  archives,
+  isArchivesLoading,
+  isArchivesError,
+  restoringFilename,
   onEdit,
   onSave,
   onCleanup,
+  onRestore,
   onCancel,
   onFormChange,
 }: AuditRetentionSettingsCardProps) {
@@ -123,6 +135,16 @@ export function AuditRetentionSettingsCard({
           ) : null}
         </SettingsSummary>
       )}
+      {canManage && status && !isEditing ? (
+        <AuditArchiveList
+          archives={archives}
+          isError={isArchivesError}
+          isLoading={isArchivesLoading}
+          onRestore={onRestore}
+          restoringFilename={restoringFilename}
+          timezone={timezone}
+        />
+      ) : null}
     </div>
   );
 }

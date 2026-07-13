@@ -1,4 +1,8 @@
 export {
+  useAuditArchives,
+  useRestoreAuditArchive,
+} from "./useAuditArchiveHooks";
+export {
   useAuditRetentionSettings,
   useCertificateDiagnosticsSettings,
   useCloudflareStatus,

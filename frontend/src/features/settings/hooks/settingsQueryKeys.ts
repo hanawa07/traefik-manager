@@ -1,4 +1,5 @@
 export const settingsQueryKeys = {
+  auditArchives: ["settings", "audit-retention", "archives"] as const,
   auditRetention: ["settings", "audit-retention"] as const,
   auditLogs: ["audit-logs"] as const,
   certificateDiagnostics: ["settings", "certificate-diagnostics"] as const,

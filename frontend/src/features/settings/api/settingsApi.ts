@@ -7,6 +7,9 @@ import { settingsHistoryApi } from "./settingsHistoryApi";
 import { smokeRotationSettingsApi } from "./settingsSmokeRotationApi";
 
 export type {
+  AuditArchiveItem,
+  AuditArchiveListStatus,
+  AuditArchiveRestoreResult,
   AuditRetentionSettingsInput,
   AuditRetentionSettingsStatus,
 } from "./settingsAuditRetentionApi";

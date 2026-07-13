@@ -13,3 +13,20 @@ class AuditRetentionSettingsResponse(AuditRetentionSettingsUpdateRequest):
     last_archived_count: int = 0
     last_deleted_count: int = 0
     last_archive_file: str | None = None
+
+
+class AuditArchiveResponse(BaseModel):
+    filename: str
+    size_bytes: int = Field(ge=0)
+    modified_at: datetime
+
+
+class AuditArchiveListResponse(BaseModel):
+    archives: list[AuditArchiveResponse] = Field(default_factory=list)
+
+
+class AuditArchiveRestoreResponse(BaseModel):
+    filename: str
+    total_count: int = Field(ge=0)
+    restored_count: int = Field(ge=0)
+    skipped_count: int = Field(ge=0)
