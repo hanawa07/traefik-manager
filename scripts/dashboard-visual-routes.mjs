@@ -39,6 +39,7 @@ export const DASHBOARD_ROUTES = [
       "Docker 정상",
       "Manager API 404·5xx 추이",
       "최근 24시간",
+      "경로 필터",
       "404 Not Found",
       "5xx 서버 오류",
       "Manager 상태 전이 이력",
@@ -90,6 +91,7 @@ export const DASHBOARD_ROUTES = [
     requiredMarkers: [
       "Artifact 만료",
       "Manager Docker 감지",
+      "Manager API 오류 감지",
       "외부 watchdog 지연 판정",
       "감사 로그 보존",
       "오래된 감사 로그를 매일 정리합니다",

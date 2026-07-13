@@ -14,7 +14,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
       for (const route of DASHBOARD_ROUTES) {
         await checkRoute({ artifactDir, baseUrl, cdp, profile, route, timeoutMs });
         if (route.path === "/dashboard") {
-          await checkManagerHttpErrorTrend({ cdp });
+          await checkManagerHttpErrorTrend({ cdp, timeoutMs });
           const opened = await checkMobileSidebar({ artifactDir, cdp, profile, timeoutMs });
           if (opened) labels.push(`${profile.label} 사이드바`);
           await checkWatchdogFilterPersistence({ cdp, timeoutMs });
@@ -310,8 +310,10 @@ export function runDashboardVisualSmokeSelfTest() {
   assert.ok(dashboardRoute);
   assert.ok(auditRoute?.requiredMarkers.includes("현재 조건 CSV"));
   assert.ok(dashboardRoute.requiredMarkers.includes("Manager API 404·5xx 추이"));
+  assert.ok(dashboardRoute.requiredMarkers.includes("경로 필터"));
   assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");
   assert.ok(settingsRoute.requiredMarkers.includes("감사 로그 보존"));
+  assert.ok(settingsRoute.requiredMarkers.includes("Manager API 오류 감지"));
   assert.equal(screenshotName(mobileProfile, "/dashboard/services"), "mobile-dark-dashboard-services");
   assert.equal(screenshotName(desktopProfile, "/login"), "desktop-light-login");
   const valid = {
