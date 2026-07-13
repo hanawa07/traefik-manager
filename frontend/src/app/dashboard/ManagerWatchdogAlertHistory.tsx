@@ -35,9 +35,9 @@ export function ManagerWatchdogAlertHistory({
           {runs.map((run) => {
             const failed = isExternalWatchdogRunFailure(run.conclusion);
             return (
-              <li className="flex flex-wrap items-center gap-2 py-2 text-xs" key={run.run_url}>
+              <li className="flex flex-wrap items-start gap-2 py-3 text-xs" key={run.run_url}>
                 <span
-                  className={`rounded-full px-2 py-0.5 font-semibold ${
+                  className={`shrink-0 rounded-full px-2 py-0.5 font-semibold ${
                     run.event === "failure"
                       ? "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200"
                       : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200"
@@ -45,17 +45,30 @@ export function ManagerWatchdogAlertHistory({
                 >
                   {run.event === "failure" ? "장애" : "복구"}
                 </span>
-                <span className="text-gray-600 dark:text-slate-300">
-                  {formatDateTime(run.requested_at, timezone)}
-                </span>
-                <span
-                  className={failed ? "font-semibold text-rose-700 dark:text-rose-200" : "text-gray-500 dark:text-slate-400"}
-                  title={run.error || undefined}
-                >
-                  {getExternalWatchdogRunLabel(run.status, run.conclusion, run.error)}
-                </span>
+                <div className="min-w-0 flex-[1_1_14rem]">
+                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    <span className="text-gray-600 dark:text-slate-300">
+                      요청: {formatDateTime(run.requested_at, timezone)}
+                    </span>
+                    <span
+                      className={failed ? "font-semibold text-rose-700 dark:text-rose-200" : "text-gray-500 dark:text-slate-400"}
+                    >
+                      결과: {getExternalWatchdogRunLabel(run.status, run.conclusion, run.error)}
+                    </span>
+                    {run.checked_at ? (
+                      <span className="text-gray-500 dark:text-slate-400">
+                        결과 확인: {formatDateTime(run.checked_at, timezone)}
+                      </span>
+                    ) : null}
+                  </div>
+                  {run.error ? (
+                    <p className="mt-1 break-words text-rose-700 dark:text-rose-200">
+                      조회 오류: {run.error}
+                    </p>
+                  ) : null}
+                </div>
                 <a
-                  className="ml-auto inline-flex items-center gap-1 font-semibold text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+                  className="ml-auto inline-flex shrink-0 items-center gap-1 font-semibold text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
                   href={run.run_url}
                   rel="noreferrer"
                   target="_blank"
