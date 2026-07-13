@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import {
   useAuditCertificateSummary,
   useAuditSecuritySummary,
@@ -26,6 +28,7 @@ import { ServiceOverviewStats } from "./ServiceOverviewStats";
 import { TraefikStatusBanner } from "./TraefikStatusBanner";
 
 export default function DashboardPage() {
+  const [lastDeploymentManualRefreshAt, setLastDeploymentManualRefreshAt] = useState<string>();
   const role = useAuthStore((state) => state.role);
   const canManage = role === "admin";
   const { data: services = [], isLoading } = useServices();
@@ -60,6 +63,10 @@ export default function DashboardPage() {
   const deploymentUpdatedAtIso = deploymentUpdatedAt
     ? new Date(deploymentUpdatedAt).toISOString()
     : undefined;
+  const handleRefreshDeploymentStatus = async () => {
+    const result = await refreshDeploymentStatus();
+    if (result.isSuccess) setLastDeploymentManualRefreshAt(new Date().toISOString());
+  };
 
   return (
     <div>
@@ -85,8 +92,9 @@ export default function DashboardPage() {
         deployment={deploymentInfo}
         isRefreshingLatest={refreshDeploymentLatest.isPending}
         isRefreshingStatus={isRefreshingDeploymentStatus}
+        lastManualRefreshAt={lastDeploymentManualRefreshAt}
         onRefreshLatest={() => refreshDeploymentLatest.mutate()}
-        onRefreshStatus={() => void refreshDeploymentStatus()}
+        onRefreshStatus={() => void handleRefreshDeploymentStatus()}
         refreshLatestError={refreshDeploymentLatest.isError ? "최신 릴리즈를 다시 확인하지 못했습니다" : null}
         statusUpdatedAt={deploymentUpdatedAtIso}
         timezone={displayTimezone}

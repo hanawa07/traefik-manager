@@ -1,7 +1,8 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { ExternalLink, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { Suspense } from "react";
 
 import type { DeploymentInfo } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
@@ -15,20 +16,33 @@ type WatchdogEventFilter = "all" | "failure" | "recovery";
 type WatchdogResult = "success" | "failure" | "pending" | "other";
 type WatchdogResultFilter = "all" | WatchdogResult;
 
-export function ManagerWatchdogAlertHistory({
-  deployment,
-  isRefreshing = false,
-  onRefresh,
-  timezone,
-}: {
+interface ManagerWatchdogAlertHistoryProps {
   deployment?: DeploymentInfo;
   isRefreshing?: boolean;
+  lastManualRefreshAt?: string;
   onRefresh?: () => void;
   timezone?: string;
-}) {
+}
+
+export function ManagerWatchdogAlertHistory(props: ManagerWatchdogAlertHistoryProps) {
+  return (
+    <Suspense fallback={null}>
+      <ManagerWatchdogAlertHistoryContent {...props} />
+    </Suspense>
+  );
+}
+
+function ManagerWatchdogAlertHistoryContent({
+  deployment,
+  isRefreshing = false,
+  lastManualRefreshAt,
+  onRefresh,
+  timezone,
+}: ManagerWatchdogAlertHistoryProps) {
+  const searchParams = useSearchParams();
   const runs = deployment?.external_watchdog_alert_runs || [];
-  const [eventFilter, setEventFilter] = useState<WatchdogEventFilter>("all");
-  const [resultFilter, setResultFilter] = useState<WatchdogResultFilter>("all");
+  const eventFilter = parseWatchdogEventFilter(searchParams.get("watchdog_event"));
+  const resultFilter = parseWatchdogResultFilter(searchParams.get("watchdog_result"));
   const filteredRuns = runs.filter(
     (run) =>
       (eventFilter === "all" || run.event === eventFilter) &&
@@ -52,18 +66,23 @@ export function ManagerWatchdogAlertHistory({
             외부 가용성 watchdog이 요청한 최근 GitHub Actions 실행 5건입니다.
           </p>
         </div>
-        {onRefresh ? (
-          <button
-            aria-label="watchdog 실행 이력 새로고침"
-            className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600 hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-300"
-            disabled={isRefreshing}
-            onClick={onRefresh}
-            type="button"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-            {isRefreshing ? "이력 갱신 중" : "이력 새로고침"}
-          </button>
-        ) : null}
+        <div className="grid justify-items-end gap-1">
+          {onRefresh ? (
+            <button
+              aria-label="watchdog 실행 이력 새로고침"
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600 hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-300"
+              disabled={isRefreshing}
+              onClick={onRefresh}
+              type="button"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+              {isRefreshing ? "이력 갱신 중" : "이력 새로고침"}
+            </button>
+          ) : null}
+          <span aria-live="polite" className="text-[11px] text-gray-500 dark:text-slate-400">
+            수동 갱신: {lastManualRefreshAt ? formatDateTime(lastManualRefreshAt, timezone) : "아직 없음"}
+          </span>
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg bg-slate-50 p-2 dark:bg-slate-900">
@@ -73,7 +92,9 @@ export function ManagerWatchdogAlertHistory({
             aria-label="watchdog 알림 종류 필터"
             className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             disabled={runs.length === 0}
-            onChange={(event) => setEventFilter(event.target.value as WatchdogEventFilter)}
+            onChange={(event) =>
+              replaceWatchdogQueryParam("watchdog_event", event.target.value)
+            }
             value={eventFilter}
           >
             <option value="all">전체</option>
@@ -87,7 +108,9 @@ export function ManagerWatchdogAlertHistory({
             aria-label="watchdog 실행 결과 필터"
             className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             disabled={runs.length === 0}
-            onChange={(event) => setResultFilter(event.target.value as WatchdogResultFilter)}
+            onChange={(event) =>
+              replaceWatchdogQueryParam("watchdog_result", event.target.value)
+            }
             value={resultFilter}
           >
             <option value="all">전체</option>
@@ -177,6 +200,24 @@ function matchesResultFilter(
   filter: WatchdogResultFilter,
 ) {
   return filter === "all" || getWatchdogResult(run) === filter;
+}
+
+function parseWatchdogEventFilter(value: string | null): WatchdogEventFilter {
+  return value === "failure" || value === "recovery" ? value : "all";
+}
+
+function parseWatchdogResultFilter(value: string | null): WatchdogResultFilter {
+  return value === "success" || value === "failure" || value === "pending" || value === "other"
+    ? value
+    : "all";
+}
+
+function replaceWatchdogQueryParam(key: string, value: string) {
+  const params = new URLSearchParams(window.location.search);
+  if (value === "all") params.delete(key);
+  else params.set(key, value);
+  const query = params.toString();
+  window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
 }
 
 function getWatchdogResult(

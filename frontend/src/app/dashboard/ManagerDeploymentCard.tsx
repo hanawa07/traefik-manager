@@ -24,6 +24,7 @@ interface ManagerDeploymentCardProps {
   deployment?: DeploymentInfo;
   isRefreshingLatest?: boolean;
   isRefreshingStatus?: boolean;
+  lastManualRefreshAt?: string;
   onRefreshLatest?: () => void;
   onRefreshStatus?: () => void;
   refreshLatestError?: string | null;
@@ -35,6 +36,7 @@ export function ManagerDeploymentCard({
   deployment,
   isRefreshingLatest = false,
   isRefreshingStatus = false,
+  lastManualRefreshAt,
   onRefreshLatest,
   onRefreshStatus,
   refreshLatestError,
@@ -195,6 +197,7 @@ export function ManagerDeploymentCard({
       <ManagerWatchdogAlertHistory
         deployment={deployment}
         isRefreshing={isRefreshingStatus}
+        lastManualRefreshAt={lastManualRefreshAt}
         onRefresh={onRefreshStatus}
         timezone={timezone}
       />
