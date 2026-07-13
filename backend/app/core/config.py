@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
 
     DATABASE_URL: str = "sqlite+aiosqlite:///./data/traefik_manager.db"
+    AUDIT_ARCHIVE_DIR: str = "/app/data/audit-archives"
 
     TRAEFIK_CONFIG_PATH: str = "/traefik-config/dynamic"
     TRAEFIK_API_URL: str = "http://traefik:8080"
@@ -36,6 +37,7 @@ class Settings(BaseSettings):
     TRAEFIK_MANAGER_LATEST_RELEASE_CACHE_SECONDS: int = 3600
     TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME: str = "traefik-manager-backend"
     TRAEFIK_MANAGER_FRONTEND_CONTAINER_NAME: str = "traefik-manager-frontend"
+    TRAEFIK_MANAGER_LOG_TAIL_LINES: int = 5000
     SMOKE_ROTATION_LOG_PATH: str = "/host-state/traefik-manager/smoke-password-rotation.log"
 
     CLOUDFLARE_API_TOKEN: str | None = None
