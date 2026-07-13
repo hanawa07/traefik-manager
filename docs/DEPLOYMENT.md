@@ -98,10 +98,10 @@ providers:
 
 - `curl https://<FRONTEND_DOMAIN>/api/health`가 `{"status":"정상"}`을 반환하며, 이 경로는 frontend를 거쳐 backend까지 확인합니다.
 - backend는 자체 `/api/health`, frontend는 backend까지 이어지는 `/api/health`를 Docker healthcheck로 사용하므로 `docker compose ps`에서 둘 다 `healthy`인지 확인합니다. frontend는 backend가 `healthy`가 된 뒤 시작합니다.
-- 대시보드 Manager 배포 카드는 Docker 상태를 30초마다 갱신하며, `unhealthy`이면 연속 실패 횟수와 마지막 검사 시각·종료 코드를 표시합니다. 외부 watchdog 상태·연속 실패·마지막 실행과 최근 알림 워크플로 요청 결과·실행 링크·최근 실행 5건의 최종 상태, 결과 확인 시각, 조회 오류도 표시하고, 최근 실행은 장애·복구와 실행 결과로 즉시 필터링할 수 있습니다. 설정한 지연 판정 시간이 지나면 상단 경고를 노출하며 healthcheck 원문 출력은 노출하지 않습니다.
+- 대시보드 Manager 배포 카드는 Docker 상태를 30초마다 갱신하며, `unhealthy`이면 연속 실패 횟수와 마지막 검사 시각·종료 코드를 표시합니다. 외부 watchdog 상태·연속 실패·마지막 실행과 최근 알림 워크플로 요청 결과·실행 링크·최근 실행 5건의 최종 상태, 결과 확인 시각, 조회 오류도 표시합니다. 최근 실행은 장애·복구와 실행 결과로 즉시 필터링하고 성공·실패·진행·기타 완료 건수를 집계하며 카드에서 직접 새로고침할 수 있습니다. 설정한 지연 판정 시간이 지나면 상단 경고를 노출하며 healthcheck 원문 출력은 노출하지 않습니다.
 - 배포 카드에는 마지막 상태 갱신 시각과 수동 새로고침 버튼이 있으며, unavailable·중지·unhealthy 컴포넌트가 있으면 대시보드 상단에 경고 배너를 표시합니다.
 - backend는 30초마다 Manager 컨테이너 health 전이를 확인합니다. 설정의 `Manager Docker 상태 감지`에서 활성화 여부와 5~1440분 재알림 cooldown을 조정할 수 있습니다. `unhealthy`와 회복은 감사 로그에 남고 `Manager Docker 상태` 운영 알림 route로 전송됩니다.
-- 대시보드의 `Manager 상태 전이 이력`은 Docker 및 외부 watchdog의 최근 이상·복구 감사 기록을 30초마다 갱신합니다. watchdog 실행이 설정 기준보다 늦거나 다시 정상 갱신되면 각각 감사 로그에 기록합니다. 감사 로그는 행위자·대상 이름·대상 ID 검색과 `Manager 소스`·`Manager 상태` 조합, 반대 축 기준 교차 집계 수치를 지원하며 적용 조건 요약과 전체 초기화를 제공합니다. 필터 변경 중에도 화면을 닫지 않고 표만 갱신하고, 모바일에서는 필터 필드를 한 열로 배치합니다. 검색어와 선택한 필터·Manager 소스·Manager 상태·전송 상태·채널·집계 기간은 URL에 저장되어 새로고침 후에도 유지됩니다.
+- 대시보드의 `Manager 상태 전이 이력`은 Docker 및 외부 watchdog의 최근 이상·복구 감사 기록을 30초마다 갱신합니다. watchdog 실행이 설정 기준보다 늦거나 다시 정상 갱신되면 각각 감사 로그에 기록합니다. 감사 로그는 행위자·대상 이름·대상 ID 검색과 `Manager 소스`·`Manager 상태` 조합, 반대 축 기준 교차 집계 수치를 지원합니다. 결과 총 건수와 50건 단위 페이지를 표시하고 적용 조건은 개별 제거하거나 전체 초기화할 수 있습니다. 필터 변경 중에도 화면을 닫지 않고 표만 갱신하고, 모바일에서는 필터 필드를 한 열로 배치합니다. 검색어와 선택한 필터·Manager 소스·Manager 상태·전송 상태·채널·집계 기간·페이지는 URL에 저장되어 새로고침 후에도 유지됩니다.
 - 브라우저에서 `https://<FRONTEND_DOMAIN>` 접속 시 로그인 페이지가 보입니다.
 - `curl -Ik https://<FRONTEND_DOMAIN>` 응답이 `200` 또는 `302`입니다.
 - 서비스 목록과 의존 API, 모바일 다크모드 주요 화면을 함께 확인하려면 `TM_SMOKE_COOKIE='tm_session=...; tm_csrf=...' ./scripts/check-services.sh`를 실행합니다. `TM_SMOKE_BASE_URL`이 없으면 `.env`의 `FRONTEND_DOMAIN`을 사용합니다.
