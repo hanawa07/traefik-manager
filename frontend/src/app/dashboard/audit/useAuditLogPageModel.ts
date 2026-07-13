@@ -19,6 +19,7 @@ import {
   isDeliveryStatusKey,
   isManagerSourceKey,
   isManagerStatusKey,
+  parseAuditDate,
   parseAuditPeriodDays,
   parseManagerHealthWindowMinutes,
 } from "./auditPageHelpers";
@@ -40,6 +41,8 @@ export function useAuditLogPageModel() {
     : isLegacyManagerFilter(requestedFilter)
       ? "manager_health"
       : "all";
+  const initialStartDate = parseAuditDate(searchParams.get("start_date"));
+  const initialEndDate = parseAuditDate(searchParams.get("end_date"));
   const [selectedFilter, setSelectedFilter] = useState<AuditFilterKey>(initialFilter);
   const [searchText, setSearchText] = useState(() =>
     (searchParams.get("q") || "").slice(0, 100),
@@ -49,8 +52,10 @@ export function useAuditLogPageModel() {
     parseAuditPageSize(searchParams.get("page_size")),
   );
   const [selectedPeriod, setSelectedPeriod] = useState<AuditPeriodDays>(() =>
-    parseAuditPeriodDays(searchParams.get("period")),
+    initialStartDate || initialEndDate ? "all" : parseAuditPeriodDays(searchParams.get("period")),
   );
+  const [startDate, setStartDate] = useState(initialStartDate);
+  const [endDate, setEndDate] = useState(initialEndDate);
   const [selectedManagerSource, setSelectedManagerSource] = useState<ManagerSourceKey>(() => {
     const value = searchParams.get("manager_source");
     if (isManagerSourceKey(value)) return value;
@@ -86,12 +91,14 @@ export function useAuditLogPageModel() {
   const deferredSearchText = useDeferredValue(searchText.trim());
 
   const auditQuery = buildAuditLogQuery({
+    endDate,
     selectedDeliveryProvider,
     selectedDeliveryStatus,
     selectedFilter,
     selectedManagerSource,
     selectedManagerStatus,
     selectedPeriod,
+    startDate,
     searchText: deferredSearchText,
     page: currentPage,
     pageSize,
@@ -155,7 +162,24 @@ export function useAuditLogPageModel() {
   };
   const handlePeriodChange = (period: AuditPeriodDays) => {
     setSelectedPeriod(period);
-    replaceFilterQueryParams([["period", String(period), "all"]]);
+    setStartDate("");
+    setEndDate("");
+    replaceFilterQueryParams([
+      ["period", String(period), "all"],
+      ["start_date", "", ""],
+      ["end_date", "", ""],
+    ]);
+  };
+  const handleDateRangeChange = (start: string, end: string) => {
+    if (start && end && start > end) return;
+    setStartDate(start);
+    setEndDate(end);
+    setSelectedPeriod("all");
+    replaceFilterQueryParams([
+      ["start_date", start, ""],
+      ["end_date", end, ""],
+      ["period", "all", "all"],
+    ]);
   };
   const handlePageSizeChange = (nextPageSize: AuditPageSize) => {
     setPageSize(nextPageSize);
@@ -169,6 +193,8 @@ export function useAuditLogPageModel() {
     setSelectedDeliveryProvider("all");
     setManagerHealthWindowMinutes(10080);
     setSelectedPeriod("all");
+    setStartDate("");
+    setEndDate("");
     setPageSize(AUDIT_PAGE_SIZE);
     setSearchText("");
     setCurrentPage(1);
@@ -191,6 +217,8 @@ export function useAuditLogPageModel() {
       selectedManagerSource,
       selectedManagerStatus,
       selectedPeriod,
+      startDate,
+      endDate,
       searchText,
       managerHealthCounts: managerHealthSummary,
       managerHealthWindowMinutes,
@@ -200,6 +228,7 @@ export function useAuditLogPageModel() {
       onManagerSourceChange: handleManagerSourceChange,
       onManagerStatusChange: handleManagerStatusChange,
       onManagerHealthWindowChange: handleManagerHealthWindowChange,
+      onDateRangeChange: handleDateRangeChange,
       onPeriodChange: handlePeriodChange,
       onResetFilters: handleResetFilters,
       onSearchTextChange: handleSearchTextChange,

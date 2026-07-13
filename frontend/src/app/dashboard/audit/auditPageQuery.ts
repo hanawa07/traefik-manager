@@ -14,24 +14,28 @@ export type AuditPageSize = (typeof AUDIT_PAGE_SIZES)[number];
 export const AUDIT_PAGE_SIZE: AuditPageSize = 50;
 
 interface BuildAuditLogQueryArgs {
+  endDate: string;
   selectedDeliveryProvider: DeliveryProviderKey;
   selectedDeliveryStatus: DeliveryStatusKey;
   selectedFilter: AuditFilterKey;
   selectedManagerSource: ManagerSourceKey;
   selectedManagerStatus: ManagerStatusKey;
   selectedPeriod: AuditPeriodDays;
+  startDate: string;
   searchText: string;
   page: number;
   pageSize: AuditPageSize;
 }
 
 export function buildAuditLogQuery({
+  endDate,
   selectedDeliveryProvider,
   selectedDeliveryStatus,
   selectedFilter,
   selectedManagerSource,
   selectedManagerStatus,
   selectedPeriod,
+  startDate,
   searchText,
   page,
   pageSize,
@@ -40,7 +44,10 @@ export function buildAuditLogQuery({
     ...buildFilterQuery(selectedFilter, selectedManagerSource, selectedManagerStatus),
     limit: pageSize,
     offset: (page - 1) * pageSize,
-    period_days: selectedPeriod === "all" ? undefined : selectedPeriod,
+    period_days:
+      startDate || endDate || selectedPeriod === "all" ? undefined : selectedPeriod,
+    start_date: startDate || undefined,
+    end_date: endDate || undefined,
     provider: selectedDeliveryProvider === "all" ? undefined : selectedDeliveryProvider,
     delivery_success:
       selectedDeliveryStatus === "all" ? undefined : selectedDeliveryStatus === "success",

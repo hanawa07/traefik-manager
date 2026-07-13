@@ -104,3 +104,11 @@ export function parseAuditPeriodDays(value: string | null): AuditPeriodDays {
     ? (days as AuditPeriodDays)
     : "all";
 }
+
+export function parseAuditDate(value: string | null): string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
+    ? value
+    : "";
+}

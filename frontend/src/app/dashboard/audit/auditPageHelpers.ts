@@ -17,6 +17,7 @@ export {
   isDeliveryStatusKey,
   isManagerSourceKey,
   isManagerStatusKey,
+  parseAuditDate,
   parseAuditPeriodDays,
   parseManagerHealthWindowMinutes,
   type AuditFilterKey,

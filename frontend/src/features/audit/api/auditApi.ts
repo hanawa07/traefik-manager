@@ -25,6 +25,8 @@ export interface AuditLogQueryParams {
   manager_status?: "unhealthy" | "recovered";
   manager_source?: "docker" | "watchdog";
   period_days?: 1 | 7 | 30 | 90;
+  start_date?: string;
+  end_date?: string;
   search?: string;
   security_only?: boolean;
   provider?: string;

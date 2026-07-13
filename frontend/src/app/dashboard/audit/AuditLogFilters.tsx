@@ -28,6 +28,8 @@ interface AuditLogFiltersProps {
   selectedManagerSource: ManagerSourceKey;
   selectedManagerStatus: ManagerStatusKey;
   selectedPeriod: AuditPeriodDays;
+  startDate: string;
+  endDate: string;
   managerHealthCounts?: AuditManagerHealthSummary;
   managerHealthWindowMinutes: ManagerHealthWindowMinutes;
   searchText: string;
@@ -35,6 +37,7 @@ interface AuditLogFiltersProps {
   onManagerSourceChange: (source: ManagerSourceKey) => void;
   onManagerStatusChange: (status: ManagerStatusKey) => void;
   onManagerHealthWindowChange: (minutes: ManagerHealthWindowMinutes) => void;
+  onDateRangeChange: (startDate: string, endDate: string) => void;
   onPeriodChange: (period: AuditPeriodDays) => void;
   onResetFilters: () => void;
   onSearchTextChange: (value: string) => void;
@@ -55,6 +58,8 @@ export function AuditLogFilters({
   selectedManagerSource,
   selectedManagerStatus,
   selectedPeriod,
+  startDate,
+  endDate,
   managerHealthCounts,
   managerHealthWindowMinutes,
   searchText,
@@ -62,6 +67,7 @@ export function AuditLogFilters({
   onManagerSourceChange,
   onManagerStatusChange,
   onManagerHealthWindowChange,
+  onDateRangeChange,
   onPeriodChange,
   onResetFilters,
   onSearchTextChange,
@@ -85,6 +91,13 @@ export function AuditLogFilters({
         onRemove: () => onPeriodChange("all"),
       });
     }
+  }
+  if (startDate || endDate) {
+    activeConditions.push({
+      key: "date-range",
+      label: `기간: ${startDate || "처음"} ~ ${endDate || "현재"}`,
+      onRemove: () => onDateRangeChange("", ""),
+    });
   }
   if (selectedFilter !== "all") {
     const label = auditFilters.find((filter) => filter.key === selectedFilter)?.label;
@@ -224,7 +237,7 @@ export function AuditLogFilters({
         )}
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
           <span className="text-slate-500 dark:text-slate-400">감사 기간</span>
           <select
@@ -239,6 +252,28 @@ export function AuditLogFilters({
               </option>
             ))}
           </select>
+        </label>
+        <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
+          <span className="text-slate-500 dark:text-slate-400">시작일 (UTC)</span>
+          <input
+            aria-label="감사 시작일"
+            className="w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:[color-scheme:dark]"
+            max={endDate || undefined}
+            onChange={(event) => onDateRangeChange(event.target.value, endDate)}
+            type="date"
+            value={startDate}
+          />
+        </label>
+        <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
+          <span className="text-slate-500 dark:text-slate-400">종료일 (UTC)</span>
+          <input
+            aria-label="감사 종료일"
+            className="w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:[color-scheme:dark]"
+            min={startDate || undefined}
+            onChange={(event) => onDateRangeChange(startDate, event.target.value)}
+            type="date"
+            value={endDate}
+          />
         </label>
         <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
           <span className="text-slate-500 dark:text-slate-400">Manager 소스</span>
