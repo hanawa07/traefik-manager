@@ -24,11 +24,11 @@ export function ManagerHealthHistoryCard({
           <div className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-slate-500 dark:text-slate-400" />
             <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">
-              Docker 상태 전이 이력
+              Manager 상태 전이 이력
             </h2>
           </div>
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-            Manager Backend·Frontend에서 감지한 최근 이상과 복구 기록입니다.
+            Backend·Frontend Docker와 외부 watchdog에서 감지한 최근 이상과 복구 기록입니다.
           </p>
         </div>
         <Link
@@ -44,7 +44,7 @@ export function ManagerHealthHistoryCard({
         {isLoading ? <HistoryNotice text="상태 전이 이력을 불러오는 중입니다" /> : null}
         {isError ? <HistoryNotice error text="상태 전이 이력을 불러오지 못했습니다" /> : null}
         {!isLoading && !isError && logs.length === 0 ? (
-          <HistoryNotice text="아직 기록된 Docker 이상·복구 전이가 없습니다" />
+          <HistoryNotice text="아직 기록된 Manager 이상·복구 전이가 없습니다" />
         ) : null}
         {!isLoading && !isError
           ? logs.map((log) => (
@@ -58,7 +58,11 @@ export function ManagerHealthHistoryCard({
 
 function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezone?: string }) {
   const event = getDetailString(log, "event") ?? log.event;
-  const isRecovery = event === "manager_docker_recovered";
+  const isWatchdog = event === "manager_watchdog_stale" || event === "manager_watchdog_recovered";
+  const isRecovery = event === "manager_docker_recovered" || event === "manager_watchdog_recovered";
+  const statusLabel = isWatchdog
+    ? `갱신 ${isRecovery ? "복구" : "지연"}`
+    : `Docker ${isRecovery ? "복구" : "이상"}`;
   const component = getComponentLabel(log.resource_name || log.resource_id);
   const failingStreak = getDetailNumber(log, "failing_streak");
   const exitCode = getDetailNumber(log, "last_exit_code");
@@ -73,10 +77,10 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
             }`}
           />
           <p className="truncate text-sm font-semibold text-gray-900 dark:text-slate-100">
-            {component} {isRecovery ? "Docker 복구" : "Docker 이상"}
+            {component} {statusLabel}
           </p>
         </div>
-        {!isRecovery ? (
+        {!isRecovery && !isWatchdog ? (
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
             연속 실패 {failingStreak ?? "-"}회 · 종료 코드 {exitCode ?? "-"}
           </p>
@@ -116,5 +120,6 @@ function getDetailNumber(log: AuditLogItem, key: string) {
 function getComponentLabel(name: string) {
   if (name === "backend") return "Backend";
   if (name === "frontend") return "Frontend";
+  if (name === "external-watchdog") return "외부 watchdog";
   return name;
 }
