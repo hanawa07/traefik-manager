@@ -41,6 +41,10 @@ export interface DeploymentInfo {
   external_watchdog_last_alert_success: boolean | null;
   external_watchdog_last_alert_at: string | null;
   external_watchdog_last_alert_run_url: string | null;
+  external_watchdog_last_alert_run_status: string | null;
+  external_watchdog_last_alert_run_conclusion: string | null;
+  external_watchdog_last_alert_run_checked_at: string | null;
+  external_watchdog_last_alert_run_error: string | null;
   components: DeploymentComponent[];
 }
 

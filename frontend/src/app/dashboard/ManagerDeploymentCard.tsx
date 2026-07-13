@@ -9,6 +9,8 @@ import { buildDeploymentVersionDisplay } from "./managerDeploymentVersionDisplay
 import {
   getExternalWatchdogAlertLabel,
   getExternalWatchdogLabel,
+  getExternalWatchdogRunLabel,
+  isExternalWatchdogRunFailure,
 } from "./managerWatchdogStatus";
 import {
   DeploymentComponentRow,
@@ -49,6 +51,10 @@ export function ManagerDeploymentCard({
   const externalWatchdogStaleMinutes = deployment?.external_watchdog_stale_after_minutes ?? 10;
   const externalWatchdogLastAlertAt = formatDateTime(
     deployment?.external_watchdog_last_alert_at,
+    timezone,
+  );
+  const externalWatchdogRunCheckedAt = formatDateTime(
+    deployment?.external_watchdog_last_alert_run_checked_at,
     timezone,
   );
   const componentConsistency = buildDeploymentComponentConsistency(deployment?.components);
@@ -166,6 +172,22 @@ export function ManagerDeploymentCard({
               </a>
             </>
           ) : null}
+        </p>
+        <p
+          className={`mt-1 ${
+            isExternalWatchdogRunFailure(deployment?.external_watchdog_last_alert_run_conclusion)
+              ? "font-semibold text-red-700 dark:text-red-200"
+              : ""
+          }`}
+        >
+          알림 워크플로 결과: {getExternalWatchdogRunLabel(
+            deployment?.external_watchdog_last_alert_run_status,
+            deployment?.external_watchdog_last_alert_run_conclusion,
+            deployment?.external_watchdog_last_alert_run_error,
+          )} · 확인 시각: {externalWatchdogRunCheckedAt}
+          {deployment?.external_watchdog_last_alert_run_error
+            ? ` · ${deployment.external_watchdog_last_alert_run_error}`
+            : ""}
         </p>
       </div>
 

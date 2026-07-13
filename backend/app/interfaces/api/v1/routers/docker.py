@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.manager_health_monitoring import read_external_watchdog_stale_minutes
 from app.core.manager_watchdog_state import read_manager_watchdog_state
 from app.infrastructure.docker.client import DockerClient, DockerClientError
+from app.infrastructure.github_actions_run import GitHubActionsRunStatusReader
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.interfaces.api.dependencies import get_current_user
@@ -45,9 +46,14 @@ async def get_deployment_info(
         stale_after_minutes = await read_external_watchdog_stale_minutes(
             SQLiteSystemSettingsRepository(db)
         )
+        watchdog_state = read_manager_watchdog_state(stale_after_minutes=stale_after_minutes)
+        run_status = await GitHubActionsRunStatusReader().get_status(
+            watchdog_state["external_watchdog_last_alert_run_url"]
+        )
         return {
             **deployment,
-            **read_manager_watchdog_state(stale_after_minutes=stale_after_minutes),
+            **watchdog_state,
+            **run_status,
         }
     except DockerClientError as exc:
         raise HTTPException(

@@ -77,4 +77,8 @@ class DockerDeploymentInfoResponse(BaseModel):
     external_watchdog_last_alert_success: bool | None = None
     external_watchdog_last_alert_at: datetime | None = None
     external_watchdog_last_alert_run_url: str | None = None
+    external_watchdog_last_alert_run_status: str | None = None
+    external_watchdog_last_alert_run_conclusion: str | None = None
+    external_watchdog_last_alert_run_checked_at: datetime | None = None
+    external_watchdog_last_alert_run_error: str | None = None
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)
