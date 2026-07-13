@@ -16,6 +16,25 @@ export interface AuditLogItem {
   created_at: string;
 }
 
+export interface AuditLogQueryParams {
+  limit?: number;
+  offset?: number;
+  resource_type?: string;
+  action?: string;
+  event?: string;
+  manager_status?: "unhealthy" | "recovered";
+  manager_source?: "docker" | "watchdog";
+  search?: string;
+  security_only?: boolean;
+  provider?: string;
+  delivery_success?: boolean;
+}
+
+export interface AuditLogPage {
+  items: AuditLogItem[];
+  total: number;
+}
+
 export interface AuditSecurityEventItem {
   id: string;
   event: string;
@@ -73,21 +92,15 @@ export interface AuditDeliveryRetryResult {
 }
 
 export const auditApi = {
-  getLogs: async (params?: {
-    limit?: number;
-    offset?: number;
-    resource_type?: string;
-    action?: string;
-    event?: string;
-    manager_status?: "unhealthy" | "recovered";
-    manager_source?: "docker" | "watchdog";
-    search?: string;
-    security_only?: boolean;
-    provider?: string;
-    delivery_success?: boolean;
-  }): Promise<AuditLogItem[]> => {
+  getLogs: async (params?: AuditLogQueryParams): Promise<AuditLogItem[]> => {
     const res = await apiClient.get<AuditLogItem[]>("/audit", { params });
     return res.data;
+  },
+
+  getLogPage: async (params: AuditLogQueryParams): Promise<AuditLogPage> => {
+    const res = await apiClient.get<AuditLogItem[]>("/audit", { params });
+    const total = Number(res.headers["x-total-count"]);
+    return { items: res.data, total: Number.isFinite(total) ? total : res.data.length };
   },
 
   getSecuritySummary: async (params?: {

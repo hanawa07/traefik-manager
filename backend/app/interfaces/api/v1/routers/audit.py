@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Literal, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +28,7 @@ router = APIRouter()
 
 @router.get("", response_model=list[AuditLogResponse], summary="감사 로그 조회")
 async def list_audit_logs(
+    response: Response,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     resource_type: Optional[str] = Query(None),
@@ -65,6 +66,7 @@ async def list_audit_logs(
         provider=provider,
         delivery_success=delivery_success,
     )
+    response.headers["X-Total-Count"] = str(len(filtered_logs))
     paged_logs = filtered_logs[offset : offset + limit]
     return [to_audit_log_response(log) for log in paged_logs]
 

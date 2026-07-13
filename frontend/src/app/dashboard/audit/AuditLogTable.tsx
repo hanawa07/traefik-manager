@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import type { AuditLogItem } from "@/features/audit/api/auditApi";
 
 import { AuditLogEmptyRow } from "./AuditLogEmptyRow";
+import { AuditLogPagination } from "./AuditLogPagination";
 import { AuditLogRow } from "./AuditLogRow";
 import { AuditLogTableHeader } from "./AuditLogTableHeader";
 import type { RollbackResourceType } from "./auditPageHelpers";
@@ -16,9 +17,13 @@ interface AuditLogTableProps {
   isRollbackPending: boolean;
   isRetryPending: boolean;
   isRefreshing: boolean;
+  currentPage: number;
+  pageSize: number;
+  totalCount: number;
   onExpandedLogChange: (logId: string | null) => void;
   onRollback: (resourceType: RollbackResourceType, auditLogId: string) => void;
   onRetryDelivery: (auditLogId: string) => void;
+  onPageChange: (page: number) => void;
 }
 
 export function AuditLogTable({
@@ -30,9 +35,13 @@ export function AuditLogTable({
   isRollbackPending,
   isRetryPending,
   isRefreshing,
+  currentPage,
+  pageSize,
+  totalCount,
   onExpandedLogChange,
   onRollback,
   onRetryDelivery,
+  onPageChange,
 }: AuditLogTableProps) {
   return (
     <div
@@ -72,6 +81,13 @@ export function AuditLogTable({
           </tbody>
         </table>
       </div>
+      <AuditLogPagination
+        currentPage={currentPage}
+        isRefreshing={isRefreshing}
+        onPageChange={onPageChange}
+        pageSize={pageSize}
+        totalCount={totalCount}
+      />
     </div>
   );
 }

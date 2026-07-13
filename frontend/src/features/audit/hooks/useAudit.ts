@@ -1,22 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AuditDeliveryRetryResult, auditApi } from "../api/auditApi";
+import {
+  type AuditDeliveryRetryResult,
+  type AuditLogQueryParams,
+  auditApi,
+} from "../api/auditApi";
 
-export const useAudit = (params?: {
-  limit?: number;
-  offset?: number;
-  resource_type?: string;
-  action?: string;
-  event?: string;
-  manager_status?: "unhealthy" | "recovered";
-  manager_source?: "docker" | "watchdog";
-  search?: string;
-  security_only?: boolean;
-  provider?: string;
-  delivery_success?: boolean;
-}) => {
+export const useAudit = (params?: AuditLogQueryParams) => {
   return useQuery({
     queryKey: ["audit-logs", params],
     queryFn: () => auditApi.getLogs(params),
+    placeholderData: (previousData) => previousData,
+  });
+};
+
+export const useAuditPage = (params: AuditLogQueryParams) => {
+  return useQuery({
+    queryKey: ["audit-logs", "page", params],
+    queryFn: () => auditApi.getLogPage(params),
     placeholderData: (previousData) => previousData,
   });
 };

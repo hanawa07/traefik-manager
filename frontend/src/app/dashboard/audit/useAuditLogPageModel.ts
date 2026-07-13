@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useDeferredValue, useState } from "react";
 
-import { useAudit, useManagerHealthSummary } from "@/features/audit/hooks/useAudit";
+import { useAuditPage, useManagerHealthSummary } from "@/features/audit/hooks/useAudit";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 
 import {
@@ -21,7 +21,7 @@ import {
   parseManagerHealthWindowMinutes,
 } from "./auditPageHelpers";
 import { useAuditLogActions } from "./useAuditLogActions";
-import { buildAuditLogQuery } from "./auditPageQuery";
+import { AUDIT_PAGE_SIZE, buildAuditLogQuery } from "./auditPageQuery";
 
 const FALLBACK_AUDIT_LOAD_ERROR = "감사 로그를 불러오지 못했습니다. 서버 연결 상태를 확인해주세요.";
 
@@ -37,6 +37,7 @@ export function useAuditLogPageModel() {
   const [searchText, setSearchText] = useState(() =>
     (searchParams.get("q") || "").slice(0, 100),
   );
+  const [currentPage, setCurrentPage] = useState(() => parseAuditPage(searchParams.get("page")));
   const [selectedManagerSource, setSelectedManagerSource] = useState<ManagerSourceKey>(() => {
     const value = searchParams.get("manager_source");
     if (isManagerSourceKey(value)) return value;
@@ -78,19 +79,27 @@ export function useAuditLogPageModel() {
     selectedManagerSource,
     selectedManagerStatus,
     searchText: deferredSearchText,
+    page: currentPage,
   });
-  const { data: logs, isLoading, isFetching, isError, error } = useAudit(auditQuery);
+  const { data: logPage, isLoading, isFetching, isError, error } = useAuditPage(auditQuery);
   const { data: managerHealthSummary } = useManagerHealthSummary(managerHealthWindowMinutes);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const auditActions = useAuditLogActions();
 
+  const replaceFilterQueryParams = (
+    values: [key: string, value: string, defaultValue: string][],
+  ) => {
+    setCurrentPage(1);
+    setExpandedLogId(null);
+    replaceAuditQueryParams([...values, ["page", "1", "1"]]);
+  };
   const handleFilterChange = (filter: AuditFilterKey) => {
     setSelectedFilter(filter);
     if (filter !== "manager_health") {
       setSelectedManagerSource("all");
       setSelectedManagerStatus("all");
     }
-    replaceAuditQueryParams([
+    replaceFilterQueryParams([
       ["filter", filter, "all"],
       ["manager_source", filter === "manager_health" ? selectedManagerSource : "all", "all"],
       ["manager_status", filter === "manager_health" ? selectedManagerStatus : "all", "all"],
@@ -99,7 +108,7 @@ export function useAuditLogPageModel() {
   const handleManagerSourceChange = (source: ManagerSourceKey) => {
     setSelectedFilter("manager_health");
     setSelectedManagerSource(source);
-    replaceAuditQueryParams([
+    replaceFilterQueryParams([
       ["filter", "manager_health", "all"],
       ["manager_source", source, "all"],
     ]);
@@ -107,27 +116,27 @@ export function useAuditLogPageModel() {
   const handleManagerStatusChange = (status: ManagerStatusKey) => {
     setSelectedFilter("manager_health");
     setSelectedManagerStatus(status);
-    replaceAuditQueryParams([
+    replaceFilterQueryParams([
       ["filter", "manager_health", "all"],
       ["manager_status", status, "all"],
     ]);
   };
   const handleDeliveryStatusChange = (status: DeliveryStatusKey) => {
     setSelectedDeliveryStatus(status);
-    replaceAuditQueryParam("delivery_status", status, "all");
+    replaceFilterQueryParams([["delivery_status", status, "all"]]);
   };
   const handleDeliveryProviderChange = (provider: DeliveryProviderKey) => {
     setSelectedDeliveryProvider(provider);
-    replaceAuditQueryParam("delivery_provider", provider, "all");
+    replaceFilterQueryParams([["delivery_provider", provider, "all"]]);
   };
   const handleManagerHealthWindowChange = (minutes: ManagerHealthWindowMinutes) => {
     setManagerHealthWindowMinutes(minutes);
-    replaceAuditQueryParam("manager_window", String(minutes), "10080");
+    replaceFilterQueryParams([["manager_window", String(minutes), "10080"]]);
   };
   const handleSearchTextChange = (value: string) => {
     const nextValue = value.slice(0, 100);
     setSearchText(nextValue);
-    replaceAuditQueryParam("q", nextValue, "");
+    replaceFilterQueryParams([["q", nextValue, ""]]);
   };
   const handleResetFilters = () => {
     setSelectedFilter("all");
@@ -137,8 +146,14 @@ export function useAuditLogPageModel() {
     setSelectedDeliveryProvider("all");
     setManagerHealthWindowMinutes(10080);
     setSearchText("");
+    setCurrentPage(1);
     setExpandedLogId(null);
     window.history.replaceState(null, "", window.location.pathname);
+  };
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    setExpandedLogId(null);
+    replaceAuditQueryParam("page", String(page), "1");
   };
 
   return {
@@ -166,19 +181,28 @@ export function useAuditLogPageModel() {
     isLoading,
     rollbackFeedback: auditActions.rollbackFeedback,
     table: {
+      currentPage,
       expandedLogId,
       isRetryPending: auditActions.isRetryPending,
       isRefreshing: isFetching && !isLoading,
       isRollbackPending: auditActions.isRollbackPending,
-      logs,
+      logs: logPage?.items,
+      pageSize: AUDIT_PAGE_SIZE,
       retryTargetId: auditActions.retryTargetId,
       rollbackTargetId: auditActions.rollbackTargetId,
       timezone: timeDisplaySettings?.display_timezone,
+      totalCount: logPage?.total || 0,
       onExpandedLogChange: setExpandedLogId,
       onRetryDelivery: auditActions.onRetryDelivery,
       onRollback: auditActions.onRollback,
+      onPageChange: handlePageChange,
     },
   };
+}
+
+function parseAuditPage(value: string | null) {
+  const page = Number(value);
+  return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
 function isLegacyManagerFilter(value: string | null) {

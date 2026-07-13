@@ -1,3 +1,5 @@
+import type { AuditLogQueryParams } from "@/features/audit/api/auditApi";
+
 import type {
   AuditFilterKey,
   DeliveryProviderKey,
@@ -6,18 +8,7 @@ import type {
   ManagerStatusKey,
 } from "./auditPageHelpers";
 
-interface AuditLogQuery {
-  action?: string;
-  delivery_success?: boolean;
-  event?: string;
-  limit: number;
-  manager_status?: "unhealthy" | "recovered";
-  manager_source?: "docker" | "watchdog";
-  provider?: string;
-  resource_type?: string;
-  search?: string;
-  security_only?: boolean;
-}
+export const AUDIT_PAGE_SIZE = 50;
 
 interface BuildAuditLogQueryArgs {
   selectedDeliveryProvider: DeliveryProviderKey;
@@ -26,6 +17,7 @@ interface BuildAuditLogQueryArgs {
   selectedManagerSource: ManagerSourceKey;
   selectedManagerStatus: ManagerStatusKey;
   searchText: string;
+  page: number;
 }
 
 export function buildAuditLogQuery({
@@ -35,9 +27,12 @@ export function buildAuditLogQuery({
   selectedManagerSource,
   selectedManagerStatus,
   searchText,
-}: BuildAuditLogQueryArgs): AuditLogQuery {
+  page,
+}: BuildAuditLogQueryArgs): AuditLogQueryParams {
   return {
     ...buildFilterQuery(selectedFilter, selectedManagerSource, selectedManagerStatus),
+    limit: AUDIT_PAGE_SIZE,
+    offset: (page - 1) * AUDIT_PAGE_SIZE,
     provider: selectedDeliveryProvider === "all" ? undefined : selectedDeliveryProvider,
     delivery_success:
       selectedDeliveryStatus === "all" ? undefined : selectedDeliveryStatus === "success",
@@ -49,27 +44,26 @@ function buildFilterQuery(
   selectedFilter: AuditFilterKey,
   selectedManagerSource: ManagerSourceKey,
   selectedManagerStatus: ManagerStatusKey,
-): AuditLogQuery {
-  if (selectedFilter === "all") return { limit: 50 };
-  if (selectedFilter === "security") return { limit: 50, security_only: true };
-  if (selectedFilter === "alert_delivery") return { limit: 50, action: "alert" };
+): AuditLogQueryParams {
+  if (selectedFilter === "all") return {};
+  if (selectedFilter === "security") return { security_only: true };
+  if (selectedFilter === "alert_delivery") return { action: "alert" };
   if (selectedFilter === "manager_health") {
     return {
-      limit: 50,
       resource_type: "manager_component",
       manager_source: selectedManagerSource === "all" ? undefined : selectedManagerSource,
       manager_status: selectedManagerStatus === "all" ? undefined : selectedManagerStatus,
     };
   }
   if (selectedFilter === "settings_update") {
-    return { limit: 50, resource_type: "settings", action: "update" };
+    return { resource_type: "settings", action: "update" };
   }
   if (selectedFilter === "settings_test") {
-    return { limit: 50, resource_type: "settings", action: "test" };
+    return { resource_type: "settings", action: "test" };
   }
   if (selectedFilter === "settings_rollback") {
-    return { limit: 50, resource_type: "settings", action: "rollback" };
+    return { resource_type: "settings", action: "rollback" };
   }
 
-  return { limit: 50, event: selectedFilter };
+  return { event: selectedFilter };
 }

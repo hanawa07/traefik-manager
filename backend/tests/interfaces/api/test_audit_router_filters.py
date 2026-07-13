@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from fastapi import Response
 
 from app.interfaces.api.v1.routers import audit as audit_router
 from tests.interfaces.api.audit_router_fakes import StubAuditDb, make_log
@@ -18,7 +19,9 @@ async def test_list_audit_logs_filters_by_event_and_applies_pagination():
         ]
     )
 
+    response = Response()
     result = await audit_router.list_audit_logs(
+        response=response,
         limit=1,
         offset=1,
         resource_type=None,
@@ -35,6 +38,7 @@ async def test_list_audit_logs_filters_by_event_and_applies_pagination():
     )
 
     assert len(result) == 1
+    assert response.headers["x-total-count"] == "2"
     assert result[0].event == "login_locked"
     assert result[0].resource_name == "bob"
 
@@ -69,6 +73,7 @@ async def test_list_audit_logs_filters_by_resource_type_and_action():
     )
 
     result = await audit_router.list_audit_logs(
+        response=Response(),
         limit=10,
         offset=0,
         resource_type="settings",
@@ -123,6 +128,7 @@ async def test_list_audit_logs_filters_by_delivery_status_and_provider():
     )
 
     result = await audit_router.list_audit_logs(
+        response=Response(),
         limit=10,
         offset=0,
         resource_type=None,
@@ -162,6 +168,7 @@ async def test_list_audit_logs_filters_manager_status(manager_status, expected_e
     )
 
     result = await audit_router.list_audit_logs(
+        response=Response(),
         limit=10,
         offset=0,
         resource_type=None,
@@ -204,6 +211,7 @@ async def test_list_audit_logs_filters_manager_source(manager_source, expected_e
     )
 
     result = await audit_router.list_audit_logs(
+        response=Response(),
         limit=10,
         offset=0,
         resource_type=None,
@@ -239,6 +247,7 @@ async def test_list_audit_logs_searches_actor_and_target(search):
     )
 
     result = await audit_router.list_audit_logs(
+        response=Response(),
         limit=10,
         offset=0,
         resource_type=None,
