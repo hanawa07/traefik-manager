@@ -18,6 +18,7 @@ import {
   DeploymentLinkBar,
   formatDeploymentRevision,
 } from "./ManagerDeploymentCardParts";
+import { ManagerHttpErrorTrend } from "./ManagerHttpErrorTrend";
 import { ManagerWatchdogAlertHistory } from "./ManagerWatchdogAlertHistory";
 
 interface ManagerDeploymentCardProps {
@@ -193,6 +194,8 @@ export function ManagerDeploymentCard({
             : ""}
         </p>
       </div>
+
+      <ManagerHttpErrorTrend summary={deployment?.http_error_summary} timezone={timezone} />
 
       <ManagerWatchdogAlertHistory
         deployment={deployment}

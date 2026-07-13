@@ -30,6 +30,31 @@ export interface ExternalWatchdogAlertRun {
   error: string | null;
 }
 
+export interface ManagerHttpErrorBucket {
+  started_at: string;
+  not_found_count: number;
+  server_error_count: number;
+}
+
+export interface ManagerHttpErrorPath {
+  path: string;
+  not_found_count: number;
+  server_error_count: number;
+  last_seen_at: string;
+}
+
+export interface ManagerHttpErrorSummary {
+  available: boolean;
+  message: string;
+  window_hours: number;
+  checked_at: string;
+  observed_since: string | null;
+  not_found_count: number;
+  server_error_count: number;
+  buckets: ManagerHttpErrorBucket[];
+  top_paths: ManagerHttpErrorPath[];
+}
+
 export interface DeploymentInfo {
   enabled: boolean;
   message: string;
@@ -56,6 +81,7 @@ export interface DeploymentInfo {
   external_watchdog_last_alert_run_checked_at: string | null;
   external_watchdog_last_alert_run_error: string | null;
   external_watchdog_alert_runs: ExternalWatchdogAlertRun[];
+  http_error_summary: ManagerHttpErrorSummary | null;
   components: DeploymentComponent[];
 }
 

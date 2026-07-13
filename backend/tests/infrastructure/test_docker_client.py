@@ -1,5 +1,6 @@
 import pytest
 
+from app.infrastructure.docker import client as docker_client_module
 from app.infrastructure.docker.client import DockerClient
 
 
@@ -149,3 +150,24 @@ async def test_inspect_manager_component_includes_runtime_health(monkeypatch):
     assert component["health_last_checked_at"] == "2026-07-12T17:48:33Z"
     assert component["health_last_exit_code"] == 1
     assert "Output" not in component
+
+
+@pytest.mark.asyncio
+async def test_manager_http_error_summary_reads_backend_container_logs(monkeypatch):
+    client = DockerClient()
+    client.socket_path = "/etc/hosts"
+    captured = {}
+
+    async def fake_read_logs(**kwargs):
+        captured.update(kwargs)
+        return ""
+
+    monkeypatch.setattr(docker_client_module, "read_docker_container_logs_text", fake_read_logs)
+
+    summary = await client.get_manager_http_error_summary()
+
+    assert captured["container_name"] == "traefik-manager-backend"
+    assert captured["tail_lines"] == 5000
+    assert isinstance(captured["since"], int)
+    assert summary["available"] is True
+    assert summary["not_found_count"] == 0

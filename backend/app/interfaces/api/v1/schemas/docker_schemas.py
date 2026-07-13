@@ -66,6 +66,31 @@ class ExternalWatchdogAlertRunResponse(BaseModel):
     error: str | None = None
 
 
+class ManagerHttpErrorBucketResponse(BaseModel):
+    started_at: datetime
+    not_found_count: int = Field(default=0, ge=0)
+    server_error_count: int = Field(default=0, ge=0)
+
+
+class ManagerHttpErrorPathResponse(BaseModel):
+    path: str
+    not_found_count: int = Field(default=0, ge=0)
+    server_error_count: int = Field(default=0, ge=0)
+    last_seen_at: datetime
+
+
+class ManagerHttpErrorSummaryResponse(BaseModel):
+    available: bool
+    message: str
+    window_hours: int = Field(default=24, ge=1)
+    checked_at: datetime
+    observed_since: datetime | None = None
+    not_found_count: int = Field(default=0, ge=0)
+    server_error_count: int = Field(default=0, ge=0)
+    buckets: list[ManagerHttpErrorBucketResponse] = Field(default_factory=list)
+    top_paths: list[ManagerHttpErrorPathResponse] = Field(default_factory=list)
+
+
 class DockerDeploymentInfoResponse(BaseModel):
     enabled: bool
     message: str
@@ -92,4 +117,5 @@ class DockerDeploymentInfoResponse(BaseModel):
     external_watchdog_last_alert_run_checked_at: datetime | None = None
     external_watchdog_last_alert_run_error: str | None = None
     external_watchdog_alert_runs: list[ExternalWatchdogAlertRunResponse] = Field(default_factory=list)
+    http_error_summary: ManagerHttpErrorSummaryResponse | None = None
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)

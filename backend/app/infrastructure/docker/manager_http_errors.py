@@ -1,0 +1,149 @@
+import json
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+
+
+MANAGER_HTTP_ERROR_WINDOW_HOURS = 24
+MANAGER_HTTP_ERROR_TOP_PATHS = 5
+
+
+def build_manager_http_error_summary(
+    log_text: str | None,
+    *,
+    checked_at: datetime | None = None,
+) -> dict[str, object]:
+    current = _as_utc(checked_at or datetime.now(timezone.utc))
+    window_start = current - timedelta(hours=MANAGER_HTTP_ERROR_WINDOW_HOURS)
+    buckets = [
+        {
+            "started_at": window_start + timedelta(hours=index),
+            "not_found_count": 0,
+            "server_error_count": 0,
+        }
+        for index in range(MANAGER_HTTP_ERROR_WINDOW_HOURS)
+    ]
+    if log_text is None:
+        return _build_summary(
+            available=False,
+            message="backend 컨테이너 요청 로그를 읽지 못했습니다",
+            checked_at=current,
+            observed_since=None,
+            buckets=buckets,
+            path_counts={},
+        )
+
+    observed_since: datetime | None = None
+    path_counts: dict[str, dict[str, object]] = defaultdict(
+        lambda: {
+            "not_found_count": 0,
+            "server_error_count": 0,
+            "last_seen_at": window_start,
+        }
+    )
+    for line in log_text.splitlines():
+        request = _parse_request_log(line)
+        if request is None:
+            continue
+        occurred_at, path, status_code = request
+        if observed_since is None or occurred_at < observed_since:
+            observed_since = occurred_at
+        if occurred_at < window_start or occurred_at > current:
+            continue
+        if status_code != 404 and not 500 <= status_code <= 599:
+            continue
+
+        bucket_index = min(
+            int((occurred_at - window_start).total_seconds() // 3600),
+            MANAGER_HTTP_ERROR_WINDOW_HOURS - 1,
+        )
+        count_key = "not_found_count" if status_code == 404 else "server_error_count"
+        buckets[bucket_index][count_key] += 1
+        path_counts[path][count_key] += 1
+        path_counts[path]["last_seen_at"] = max(
+            path_counts[path]["last_seen_at"],
+            occurred_at,
+        )
+
+    return _build_summary(
+        available=True,
+        message="backend 컨테이너 요청 로그의 최근 24시간을 집계했습니다",
+        checked_at=current,
+        observed_since=observed_since,
+        buckets=buckets,
+        path_counts=path_counts,
+    )
+
+
+def _build_summary(
+    *,
+    available: bool,
+    message: str,
+    checked_at: datetime,
+    observed_since: datetime | None,
+    buckets: list[dict[str, object]],
+    path_counts: dict[str, dict[str, object]],
+) -> dict[str, object]:
+    total_not_found = sum(int(bucket["not_found_count"]) for bucket in buckets)
+    total_server_error = sum(int(bucket["server_error_count"]) for bucket in buckets)
+    top_paths = [
+        {"path": path, **counts}
+        for path, counts in sorted(
+            path_counts.items(),
+            key=lambda item: (
+                -int(item[1]["not_found_count"]) - int(item[1]["server_error_count"]),
+                -_as_utc(item[1]["last_seen_at"]).timestamp(),
+                item[0],
+            ),
+        )[:MANAGER_HTTP_ERROR_TOP_PATHS]
+    ]
+    return {
+        "available": available,
+        "message": message,
+        "window_hours": MANAGER_HTTP_ERROR_WINDOW_HOURS,
+        "checked_at": checked_at,
+        "observed_since": observed_since,
+        "not_found_count": total_not_found,
+        "server_error_count": total_server_error,
+        "buckets": buckets,
+        "top_paths": top_paths,
+    }
+
+
+def _parse_request_log(line: str) -> tuple[datetime, str, int] | None:
+    json_start = line.find("{")
+    if json_start < 0:
+        return None
+    try:
+        payload = json.loads(line[json_start:])
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(payload, dict) or payload.get("message") != "요청 완료":
+        return None
+
+    path = payload.get("path")
+    status_code = payload.get("status_code")
+    occurred_at = _parse_timestamp(payload.get("time"))
+    if (
+        occurred_at is None
+        or not isinstance(path, str)
+        or not path.startswith("/api/")
+        or isinstance(status_code, bool)
+        or not isinstance(status_code, int)
+    ):
+        return None
+    return occurred_at, path, status_code
+
+
+def _parse_timestamp(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return _as_utc(datetime.fromisoformat(value.replace("Z", "+00:00")))
+    except ValueError:
+        return None
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)

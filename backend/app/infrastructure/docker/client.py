@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
 
@@ -6,6 +7,11 @@ import httpx
 
 from app.core.config import settings
 from app.infrastructure.docker.deployment_release import ManagerReleaseChecker
+from app.infrastructure.docker.logs import read_docker_container_logs_text
+from app.infrastructure.docker.manager_http_errors import (
+    MANAGER_HTTP_ERROR_WINDOW_HOURS,
+    build_manager_http_error_summary,
+)
 
 
 class DockerClientError(Exception):
@@ -87,10 +93,12 @@ class DockerClient:
                 "build_date": fallback_component["build_date"],
                 "source": source,
                 **release_info,
+                "http_error_summary": build_manager_http_error_summary(None),
                 "components": [fallback_component],
             }
 
         components = await self.inspect_manager_components()
+        http_error_summary = await self.get_manager_http_error_summary()
         ok_count = sum(1 for item in components if item["status"] == "ok")
         version = self._select_component_value(components, "version") or fallback_component["version"]
         source = self._select_component_value(components, "source") or fallback_component["source"]
@@ -107,8 +115,24 @@ class DockerClient:
             "build_date": self._select_component_value(components, "build_date") or fallback_component["build_date"],
             "source": source,
             **release_info,
+            "http_error_summary": http_error_summary,
             "components": components,
         }
+
+    async def get_manager_http_error_summary(self) -> dict[str, object]:
+        checked_at = datetime.now(timezone.utc)
+        if not self.enabled:
+            return build_manager_http_error_summary(None, checked_at=checked_at)
+        log_text = await read_docker_container_logs_text(
+            container_name=settings.TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME,
+            tail_lines=settings.TRAEFIK_MANAGER_LOG_TAIL_LINES,
+            since=int(
+                (
+                    checked_at - timedelta(hours=MANAGER_HTTP_ERROR_WINDOW_HOURS)
+                ).timestamp()
+            ),
+        )
+        return build_manager_http_error_summary(log_text, checked_at=checked_at)
 
     async def inspect_manager_components(self) -> list[dict]:
         if not self.enabled:
