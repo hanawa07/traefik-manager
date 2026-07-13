@@ -90,6 +90,7 @@ def count_manager_http_errors(
     *,
     checked_at: datetime | None = None,
     window_minutes: int,
+    excluded_paths: tuple[str, ...] = (),
 ) -> dict[str, object]:
     current = _as_utc(checked_at or datetime.now(timezone.utc))
     window_start = current - timedelta(minutes=max(1, window_minutes))
@@ -110,6 +111,8 @@ def count_manager_http_errors(
             occurred_at, path, status_code = request
             if occurred_at < window_start or occurred_at > current:
                 continue
+            if _is_excluded_path(path, excluded_paths):
+                continue
             if status_code != 404 and not 500 <= status_code <= 599:
                 continue
             count_key = "not_found_count" if status_code == 404 else "server_error_count"
@@ -129,6 +132,14 @@ def count_manager_http_errors(
         "server_error_count": server_error_count,
         "top_paths": _build_top_paths(path_counts),
     }
+
+
+def _is_excluded_path(path: str, excluded_paths: tuple[str, ...]) -> bool:
+    for excluded_path in excluded_paths:
+        prefix = excluded_path.rstrip("/")
+        if path == prefix or path.startswith(f"{prefix}/"):
+            return True
+    return False
 
 
 def _build_summary(

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.manager_health_monitoring import read_external_watchdog_stale_minutes
+from app.application.manager_http_error_monitoring import read_manager_http_error_monitor_status
 from app.core.manager_watchdog_state import read_manager_watchdog_state
 from app.infrastructure.docker.client import DockerClient, DockerClientError
 from app.infrastructure.github_actions_run import GitHubActionsRunStatusReader
@@ -73,9 +74,9 @@ async def get_deployment_info(
 ):
     try:
         deployment = await docker_client.get_manager_deployment_info(refresh_latest=refresh_latest)
-        stale_after_minutes = await read_external_watchdog_stale_minutes(
-            SQLiteSystemSettingsRepository(db)
-        )
+        settings_repo = SQLiteSystemSettingsRepository(db)
+        stale_after_minutes = await read_external_watchdog_stale_minutes(settings_repo)
+        http_error_monitor = await read_manager_http_error_monitor_status(settings_repo)
         watchdog_state = read_manager_watchdog_state(stale_after_minutes=stale_after_minutes)
         alert_runs = watchdog_state["external_watchdog_alert_runs"]
         last_run_url = watchdog_state["external_watchdog_last_alert_run_url"]
@@ -107,6 +108,7 @@ async def get_deployment_info(
             **deployment,
             **watchdog_state,
             **run_status,
+            "http_error_monitor": http_error_monitor,
             "external_watchdog_alert_runs": enriched_alert_runs,
         }
     except DockerClientError as exc:

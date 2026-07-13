@@ -52,6 +52,7 @@ async def build_security_alert_response(
         manager_http_error_window_minutes=manager_http_errors.window_minutes,
         manager_http_not_found_threshold=manager_http_errors.not_found_threshold,
         manager_http_server_error_threshold=manager_http_errors.server_error_threshold,
+        manager_http_excluded_paths=list(manager_http_errors.excluded_paths),
         provider=provider if provider in SECURITY_ALERT_PROVIDERS else "generic",
         webhook_url=await repo.get("security_alert_webhook_url"),
         telegram_bot_token_configured=bool(telegram_bot_token),

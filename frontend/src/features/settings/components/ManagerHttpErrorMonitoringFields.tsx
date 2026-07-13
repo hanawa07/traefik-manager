@@ -59,6 +59,24 @@ export function ManagerHttpErrorMonitoringFields({
           onChange={(value) => updateForm({ manager_http_server_error_threshold: value })}
         />
       </div>
+      <label className="mt-3 block text-xs font-medium text-gray-700 dark:text-slate-300">
+        임계치 제외 경로
+        <textarea
+          aria-label="임계치 제외 경로"
+          className="mt-1 block min-h-24 w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 placeholder:font-sans placeholder:text-gray-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
+          disabled={disabled}
+          maxLength={10049}
+          onChange={(event) =>
+            updateForm({ manager_http_excluded_paths: event.target.value.split("\n") })
+          }
+          placeholder={"/api/v1/example\n/api/v1/health"}
+          rows={3}
+          value={formValue.manager_http_excluded_paths.join("\n")}
+        />
+        <span className="mt-1 block font-normal text-gray-500 dark:text-slate-400">
+          한 줄에 하나씩 입력합니다. 해당 경로와 하위 경로는 임계치 계산에서만 제외됩니다.
+        </span>
+      </label>
     </div>
   );
 }

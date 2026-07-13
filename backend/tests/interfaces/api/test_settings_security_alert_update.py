@@ -34,6 +34,7 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
             manager_http_error_window_minutes=30,
             manager_http_not_found_threshold=50,
             manager_http_server_error_threshold=3,
+            manager_http_excluded_paths=[" /api/v1/health/ ", "/api/v1/health", "/api/v1/auth/me"],
             change_event_routes={
                 "settings_change": "email",
                 "service_change": "default",
@@ -64,6 +65,9 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     assert StubSettingsRepository.store["manager_http_error_window_minutes"] == "30"
     assert StubSettingsRepository.store["manager_http_not_found_threshold"] == "50"
     assert StubSettingsRepository.store["manager_http_server_error_threshold"] == "3"
+    assert StubSettingsRepository.store["manager_http_excluded_paths"] == (
+        "/api/v1/health\n/api/v1/auth/me"
+    )
     assert StubSettingsRepository.store["security_alert_change_route_settings_change"] == "email"
     assert StubSettingsRepository.store["security_alert_change_route_redirect_change"] == "disabled"
     assert StubSettingsRepository.store["security_alert_change_route_user_change"] == "telegram"
@@ -84,6 +88,7 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     assert response.manager_http_error_window_minutes == 30
     assert response.manager_http_not_found_threshold == 50
     assert response.manager_http_server_error_threshold == 3
+    assert response.manager_http_excluded_paths == ["/api/v1/health", "/api/v1/auth/me"]
     assert response.change_event_routes["settings_change"] == "email"
     assert response.change_event_routes["user_change"] == "telegram"
     assert response.change_event_routes["certificate_status_change"] == "email"

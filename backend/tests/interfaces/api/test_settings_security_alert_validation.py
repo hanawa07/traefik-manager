@@ -120,3 +120,20 @@ def test_security_alert_settings_update_request_normalizes_email_recipients():
     )
 
     assert request.email_recipients == ["ops@example.com", "admin@example.com"]
+
+
+def test_security_alert_settings_update_request_normalizes_manager_http_excluded_paths():
+    request = SecurityAlertSettingsUpdateRequest(
+        manager_http_excluded_paths=[" /api/v1/health/ ", "/api/v1/health", "/api/v1/auth/me"],
+    )
+
+    assert request.manager_http_excluded_paths == ["/api/v1/health", "/api/v1/auth/me"]
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/dashboard/missing", "/api/", "/api/v1/health?deep=true", "/api/v1/bad path"],
+)
+def test_security_alert_settings_update_request_rejects_invalid_excluded_path(path):
+    with pytest.raises(ValidationError):
+        SecurityAlertSettingsUpdateRequest(manager_http_excluded_paths=[path])

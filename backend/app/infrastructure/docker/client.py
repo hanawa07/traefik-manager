@@ -136,11 +136,13 @@ class DockerClient:
         *,
         window_minutes: int,
         checked_at: datetime | None = None,
+        excluded_paths: tuple[str, ...] = (),
     ) -> dict[str, object]:
         return await read_manager_http_error_counts(
             docker_enabled=self.enabled,
             checked_at=checked_at,
             window_minutes=window_minutes,
+            excluded_paths=excluded_paths,
         )
 
     async def inspect_manager_components(self) -> list[dict]:

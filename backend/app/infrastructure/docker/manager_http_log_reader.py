@@ -35,6 +35,7 @@ async def read_manager_http_error_counts(
     docker_enabled: bool,
     window_minutes: int,
     checked_at: datetime | None = None,
+    excluded_paths: tuple[str, ...] = (),
 ) -> dict[str, object]:
     current = checked_at or datetime.now(timezone.utc)
     log_text = None
@@ -48,4 +49,5 @@ async def read_manager_http_error_counts(
         log_text,
         checked_at=current,
         window_minutes=window_minutes,
+        excluded_paths=excluded_paths,
     )

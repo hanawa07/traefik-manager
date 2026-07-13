@@ -6,6 +6,8 @@ from typing import Any, Callable
 from app.application.audit import audit_service
 from app.application.manager_health_monitoring import read_manager_health_monitoring_values
 from app.application.manager_http_error_monitoring import (
+    MANAGER_HTTP_ERROR_STATE_KEY,
+    parse_manager_http_error_state,
     read_manager_http_error_monitoring_values,
 )
 from app.infrastructure.docker.client import DockerClient
@@ -15,8 +17,6 @@ from app.infrastructure.persistence.repositories.sqlite_system_settings_reposito
 )
 
 logger = logging.getLogger(__name__)
-
-MANAGER_HTTP_ERROR_STATE_KEY = "manager_http_error_alert_state"
 
 
 async def check_manager_http_errors_once(
@@ -33,7 +33,7 @@ async def check_manager_http_errors_once(
     async with session_factory() as session:
         repo = SQLiteSystemSettingsRepository(session)
         monitoring = await read_manager_http_error_monitoring_values(repo)
-        previous = _read_state(await repo.get(MANAGER_HTTP_ERROR_STATE_KEY))
+        previous = parse_manager_http_error_state(await repo.get(MANAGER_HTTP_ERROR_STATE_KEY))
         if not monitoring.enabled:
             if previous:
                 await repo.set(MANAGER_HTTP_ERROR_STATE_KEY, None)
@@ -46,17 +46,31 @@ async def check_manager_http_errors_once(
             if cooldown_seconds is not None
             else health_cooldown_minutes * 60
         )
+        counts: dict[str, object] | None = None
         try:
             counts = await client_factory().get_manager_http_error_counts(
                 window_minutes=monitoring.window_minutes,
                 checked_at=current,
+                excluded_paths=monitoring.excluded_paths,
             )
         except Exception:
             logger.warning("Manager API 오류 임계치 점검 실패", exc_info=True)
             if raise_on_error:
                 raise
-            return _summary(current, enabled=True, available=False)
-        if not counts["available"]:
+        if not counts or not counts.get("available"):
+            await repo.set(
+                MANAGER_HTTP_ERROR_STATE_KEY,
+                json.dumps(
+                    {
+                        **previous,
+                        "available": False,
+                        "checked_at": current.isoformat(),
+                    },
+                    ensure_ascii=False,
+                    sort_keys=True,
+                ),
+            )
+            await session.commit()
             return _summary(current, enabled=True, available=False)
 
         not_found_count = int(counts["not_found_count"])
@@ -79,6 +93,7 @@ async def check_manager_http_errors_once(
             event = "manager_http_errors_recovered"
 
         state = {
+            "available": True,
             "alert_active": breached,
             "last_alert_at": current.isoformat()
             if event == "manager_http_errors_high"
@@ -106,6 +121,7 @@ async def check_manager_http_errors_once(
                     "not_found_threshold": monitoring.not_found_threshold,
                     "server_error_count": server_error_count,
                     "server_error_threshold": monitoring.server_error_threshold,
+                    "excluded_paths": list(monitoring.excluded_paths),
                     "top_paths": _serialize_top_paths(counts.get("top_paths")),
                     "checked_at": current.isoformat(),
                     "cooldown_minutes": effective_cooldown_seconds // 60,
@@ -122,16 +138,6 @@ async def check_manager_http_errors_once(
             recorded_event_count=int(event is not None),
             suppressed_count=suppressed_count,
         )
-
-
-def _read_state(raw: str | None) -> dict[str, object]:
-    if not raw:
-        return {}
-    try:
-        value = json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
-    return value if isinstance(value, dict) else {}
 
 
 def _alert_due(previous: dict[str, object], now: datetime, cooldown_seconds: int) -> bool:

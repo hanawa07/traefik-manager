@@ -92,6 +92,20 @@ class ManagerHttpErrorSummaryResponse(BaseModel):
     top_paths: list[ManagerHttpErrorPathResponse] = Field(default_factory=list)
 
 
+class ManagerHttpErrorMonitorResponse(BaseModel):
+    enabled: bool
+    available: bool
+    checked_at: datetime | None = None
+    last_alert_at: datetime | None = None
+    breached: bool
+    window_minutes: int = Field(ge=5, le=60)
+    not_found_count: int = Field(default=0, ge=0)
+    not_found_threshold: int = Field(ge=1, le=10_000)
+    server_error_count: int = Field(default=0, ge=0)
+    server_error_threshold: int = Field(ge=1, le=10_000)
+    excluded_paths: list[str] = Field(default_factory=list, max_length=50)
+
+
 class DockerDeploymentInfoResponse(BaseModel):
     enabled: bool
     message: str
@@ -119,4 +133,5 @@ class DockerDeploymentInfoResponse(BaseModel):
     external_watchdog_last_alert_run_error: str | None = None
     external_watchdog_alert_runs: list[ExternalWatchdogAlertRunResponse] = Field(default_factory=list)
     http_error_summary: ManagerHttpErrorSummaryResponse | None = None
+    http_error_monitor: ManagerHttpErrorMonitorResponse | None = None
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)

@@ -120,3 +120,24 @@ def test_count_manager_http_errors_uses_minute_window() -> None:
     assert counts["not_found_count"] == 1
     assert counts["server_error_count"] == 1
     assert counts["top_paths"][0]["path"] == "/api/v1/services"
+
+
+def test_count_manager_http_errors_excludes_configured_path_prefixes() -> None:
+    log_text = "\n".join(
+        [
+            _request_log(hours_ago=0.1, path="/api/v1/health", status_code=404),
+            _request_log(hours_ago=0.1, path="/api/v1/health/deep", status_code=500),
+            _request_log(hours_ago=0.1, path="/api/v1/services", status_code=503),
+        ]
+    )
+
+    counts = count_manager_http_errors(
+        log_text,
+        checked_at=CHECKED_AT,
+        window_minutes=15,
+        excluded_paths=("/api/v1/health",),
+    )
+
+    assert counts["not_found_count"] == 0
+    assert counts["server_error_count"] == 1
+    assert [item["path"] for item in counts["top_paths"]] == ["/api/v1/services"]

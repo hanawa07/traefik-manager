@@ -11,6 +11,7 @@ export function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
     manager_http_error_window_minutes: 15,
     manager_http_not_found_threshold: 20,
     manager_http_server_error_threshold: 1,
+    manager_http_excluded_paths: [],
     provider: "generic",
     webhook_url: "",
     telegram_bot_token: "",

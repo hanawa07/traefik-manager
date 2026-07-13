@@ -39,6 +39,14 @@ export function SecurityAlertRoutingSummary({
         }
       />
       <SettingsSummaryRow
+        label="API 오류 제외 경로"
+        value={
+          settings?.manager_http_excluded_paths.length
+            ? `${settings.manager_http_excluded_paths.length}개`
+            : "없음"
+        }
+      />
+      <SettingsSummaryRow
         label="외부 watchdog 지연 판정"
         value={`${settings?.external_watchdog_stale_minutes ?? 10}분`}
       />

@@ -56,6 +56,20 @@ export interface ManagerHttpErrorSummary {
   top_paths: ManagerHttpErrorPath[];
 }
 
+export interface ManagerHttpErrorMonitorStatus {
+  enabled: boolean;
+  available: boolean;
+  checked_at: string | null;
+  last_alert_at: string | null;
+  breached: boolean;
+  window_minutes: number;
+  not_found_count: number;
+  not_found_threshold: number;
+  server_error_count: number;
+  server_error_threshold: number;
+  excluded_paths: string[];
+}
+
 export interface DeploymentInfo {
   enabled: boolean;
   message: string;
@@ -83,6 +97,7 @@ export interface DeploymentInfo {
   external_watchdog_last_alert_run_error: string | null;
   external_watchdog_alert_runs: ExternalWatchdogAlertRun[];
   http_error_summary: ManagerHttpErrorSummary | null;
+  http_error_monitor: ManagerHttpErrorMonitorStatus | null;
   components: DeploymentComponent[];
 }
 

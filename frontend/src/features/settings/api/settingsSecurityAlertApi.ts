@@ -27,6 +27,7 @@ export interface SecurityAlertSettingsStatus {
   manager_http_error_window_minutes: number;
   manager_http_not_found_threshold: number;
   manager_http_server_error_threshold: number;
+  manager_http_excluded_paths: string[];
   provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty" | "email";
   webhook_url: string | null;
   telegram_bot_token_configured: boolean;
@@ -55,6 +56,7 @@ export interface SecurityAlertSettingsInput {
   manager_http_error_window_minutes: number;
   manager_http_not_found_threshold: number;
   manager_http_server_error_threshold: number;
+  manager_http_excluded_paths: string[];
   provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty" | "email";
   webhook_url: string;
   telegram_bot_token: string;

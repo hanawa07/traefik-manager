@@ -35,8 +35,10 @@ async def make_session():
 
 class StubDockerClient:
     counts: dict[str, object] = {}
+    last_kwargs: dict[str, object] = {}
 
-    async def get_manager_http_error_counts(self, **_kwargs) -> dict[str, object]:
+    async def get_manager_http_error_counts(self, **kwargs) -> dict[str, object]:
+        StubDockerClient.last_kwargs = kwargs
         return self.counts
 
 
@@ -64,6 +66,7 @@ async def test_manager_http_error_monitor_alerts_cools_down_and_recovers(monkeyp
         "manager_http_error_window_minutes": "15",
         "manager_http_not_found_threshold": "2",
         "manager_http_server_error_threshold": "1",
+        "manager_http_excluded_paths": "/api/v1/health",
     }
     StubDockerClient.counts = {
         "available": True,
@@ -115,6 +118,8 @@ async def test_manager_http_error_monitor_alerts_cools_down_and_recovers(monkeyp
         "manager_http_errors_recovered",
     ]
     assert {item["resource_type"] for item in recorded} == {"manager_component"}
+    assert StubDockerClient.last_kwargs["excluded_paths"] == ("/api/v1/health",)
+    assert recorded[0]["detail"]["excluded_paths"] == ["/api/v1/health"]
     state = json.loads(
         StubSettingsRepository.store[
             manager_http_error_monitor.MANAGER_HTTP_ERROR_STATE_KEY
@@ -147,4 +152,26 @@ async def test_manager_http_error_monitor_disabled_clears_state(monkeypatch):
     assert manager_http_error_monitor.MANAGER_HTTP_ERROR_STATE_KEY not in (
         StubSettingsRepository.store
     )
+    assert recorded == []
+
+
+@pytest.mark.asyncio
+async def test_manager_http_error_monitor_saves_unavailable_check(monkeypatch):
+    StubSettingsRepository.store = {"manager_http_error_monitoring_enabled": "true"}
+    StubDockerClient.counts = {"available": False}
+    recorded: list[dict] = []
+    _patch_dependencies(monkeypatch, recorded)
+
+    result = await manager_http_error_monitor.check_manager_http_errors_once(
+        session_factory=make_session,
+        client_factory=StubDockerClient,
+        now=datetime(2026, 7, 14, 18, 0, tzinfo=timezone.utc),
+    )
+
+    state = json.loads(
+        StubSettingsRepository.store[manager_http_error_monitor.MANAGER_HTTP_ERROR_STATE_KEY]
+    )
+    assert result["available"] is False
+    assert state["available"] is False
+    assert state["checked_at"] == "2026-07-14T18:00:00+00:00"
     assert recorded == []

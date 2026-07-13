@@ -195,7 +195,11 @@ export function ManagerDeploymentCard({
         </p>
       </div>
 
-      <ManagerHttpErrorTrend summary={deployment?.http_error_summary} timezone={timezone} />
+      <ManagerHttpErrorTrend
+        monitor={deployment?.http_error_monitor}
+        summary={deployment?.http_error_summary}
+        timezone={timezone}
+      />
 
       <ManagerWatchdogAlertHistory
         deployment={deployment}

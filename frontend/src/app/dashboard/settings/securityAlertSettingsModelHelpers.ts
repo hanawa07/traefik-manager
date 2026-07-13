@@ -31,6 +31,8 @@ export function createSecurityAlertFormFromSettings(
     manager_http_server_error_threshold:
       settings?.manager_http_server_error_threshold ??
       defaults.manager_http_server_error_threshold,
+    manager_http_excluded_paths:
+      settings?.manager_http_excluded_paths ?? defaults.manager_http_excluded_paths,
     provider: settings?.provider ?? defaults.provider,
     webhook_url: settings?.webhook_url ?? defaults.webhook_url,
     telegram_bot_token: defaults.telegram_bot_token,
@@ -61,6 +63,7 @@ export function buildSecurityAlertSettingsPayload(
     manager_http_error_window_minutes: formValue.manager_http_error_window_minutes,
     manager_http_not_found_threshold: formValue.manager_http_not_found_threshold,
     manager_http_server_error_threshold: formValue.manager_http_server_error_threshold,
+    manager_http_excluded_paths: formValue.manager_http_excluded_paths,
     provider: formValue.provider,
     webhook_url: formValue.webhook_url.trim(),
     telegram_bot_token: formValue.telegram_bot_token.trim(),

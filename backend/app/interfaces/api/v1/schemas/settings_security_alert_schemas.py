@@ -17,10 +17,12 @@ from app.application.manager_http_error_monitoring import (
     DEFAULT_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
     DEFAULT_MANAGER_HTTP_NOT_FOUND_THRESHOLD,
     DEFAULT_MANAGER_HTTP_SERVER_ERROR_THRESHOLD,
+    MAX_MANAGER_HTTP_EXCLUDED_PATHS,
     MAX_MANAGER_HTTP_ERROR_THRESHOLD,
     MAX_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
     MIN_MANAGER_HTTP_ERROR_THRESHOLD,
     MIN_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
+    normalize_manager_http_excluded_paths,
 )
 
 
@@ -82,6 +84,10 @@ class SecurityAlertSettingsResponse(BaseModel):
         ge=MIN_MANAGER_HTTP_ERROR_THRESHOLD,
         le=MAX_MANAGER_HTTP_ERROR_THRESHOLD,
     )
+    manager_http_excluded_paths: list[str] = Field(
+        default_factory=list,
+        max_length=MAX_MANAGER_HTTP_EXCLUDED_PATHS,
+    )
     provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"]
     webhook_url: str | None = None
     telegram_bot_token_configured: bool = False
@@ -132,6 +138,10 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
         ge=MIN_MANAGER_HTTP_ERROR_THRESHOLD,
         le=MAX_MANAGER_HTTP_ERROR_THRESHOLD,
     )
+    manager_http_excluded_paths: list[str] = Field(
+        default_factory=list,
+        max_length=MAX_MANAGER_HTTP_EXCLUDED_PATHS,
+    )
     provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"] = "generic"
     webhook_url: str = ""
     telegram_bot_token: str = ""
@@ -146,6 +156,11 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
     email_recipients: list[str] = Field(default_factory=list)
     event_routes: dict[str, SecurityAlertRoute] = Field(default_factory=dict)
     change_event_routes: dict[str, SecurityAlertRoute] = Field(default_factory=dict)
+
+    @field_validator("manager_http_excluded_paths")
+    @classmethod
+    def validate_manager_http_excluded_paths(cls, value: list[str]) -> list[str]:
+        return list(normalize_manager_http_excluded_paths(value))
 
     @field_validator("webhook_url")
     @classmethod

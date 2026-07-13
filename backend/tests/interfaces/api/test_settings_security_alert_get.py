@@ -38,6 +38,7 @@ async def test_get_security_alert_settings_returns_defaults(monkeypatch):
     assert response.manager_http_error_window_minutes == 15
     assert response.manager_http_not_found_threshold == 20
     assert response.manager_http_server_error_threshold == 1
+    assert response.manager_http_excluded_paths == []
     assert response.change_event_routes == {
         "settings_change": "default",
         "service_change": "default",

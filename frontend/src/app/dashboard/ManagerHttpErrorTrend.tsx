@@ -5,17 +5,19 @@ import { Activity, CircleAlert, Search, X } from "lucide-react";
 
 import type {
   ManagerHttpErrorSummary,
+  ManagerHttpErrorMonitorStatus,
   ManagerHttpErrorWindowHours,
 } from "@/features/deployment/api/deploymentApi";
 import { useManagerHttpErrors } from "@/features/deployment/hooks/useDeploymentInfo";
 import { formatDateTime, resolveDisplayTimeZone } from "@/shared/lib/dateTimeFormat";
 
 interface ManagerHttpErrorTrendProps {
+  monitor?: ManagerHttpErrorMonitorStatus | null;
   summary?: ManagerHttpErrorSummary | null;
   timezone?: string;
 }
 
-export function ManagerHttpErrorTrend({ summary, timezone }: ManagerHttpErrorTrendProps) {
+export function ManagerHttpErrorTrend({ monitor, summary, timezone }: ManagerHttpErrorTrendProps) {
   const [windowHours, setWindowHours] = useState<ManagerHttpErrorWindowHours>(24);
   const [pathFilter, setPathFilter] = useState("");
   const deferredPathFilter = useDeferredValue(pathFilter.trim());
@@ -54,6 +56,8 @@ export function ManagerHttpErrorTrend({ summary, timezone }: ManagerHttpErrorTre
           <ErrorTotal label="5xx 서버 오류" tone="rose" value={displayedSummary?.server_error_count ?? 0} />
         </div>
       </div>
+
+      <HttpErrorMonitorStatus monitor={monitor} timezone={timezone} />
 
       <div className="grid gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700 sm:grid-cols-[9rem_minmax(0,1fr)]">
         <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
@@ -194,6 +198,60 @@ export function ManagerHttpErrorTrend({ summary, timezone }: ManagerHttpErrorTre
         </div>
       )}
     </section>
+  );
+}
+
+function HttpErrorMonitorStatus({
+  monitor,
+  timezone,
+}: {
+  monitor?: ManagerHttpErrorMonitorStatus | null;
+  timezone?: string;
+}) {
+  const status = !monitor
+    ? "loading"
+    : !monitor.enabled
+      ? "disabled"
+      : !monitor.checked_at
+        ? "pending"
+        : !monitor.available
+          ? "unavailable"
+          : monitor.breached
+            ? "breached"
+            : "healthy";
+  const statusLabel = {
+    loading: "확인 중",
+    disabled: "비활성",
+    pending: "첫 점검 대기",
+    unavailable: "점검 실패",
+    breached: "임계치 초과",
+    healthy: "정상",
+  }[status];
+  const statusClass =
+    status === "healthy"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100"
+      : status === "breached" || status === "unavailable"
+        ? "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100"
+        : "border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200";
+
+  return (
+    <div
+      className={`border-b px-4 py-3 text-xs ${statusClass}`}
+      data-http-error-monitor-status={status}
+      data-testid="manager-http-error-monitor-status"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <strong>임계치 감지 상태: {statusLabel}</strong>
+        <span>마지막 점검: {formatDateTime(monitor?.checked_at, timezone)}</span>
+      </div>
+      {monitor ? (
+        <p className="mt-1">
+          최근 {monitor.window_minutes}분 · 404 {monitor.not_found_count}/
+          {monitor.not_found_threshold} · 5xx {monitor.server_error_count}/
+          {monitor.server_error_threshold} · 제외 경로 {monitor.excluded_paths.length}개
+        </p>
+      ) : null}
+    </div>
   );
 }
 

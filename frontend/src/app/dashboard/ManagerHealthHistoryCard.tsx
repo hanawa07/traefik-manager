@@ -77,6 +77,7 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
   const notFoundThreshold = getDetailNumber(log, "not_found_threshold");
   const serverErrorCount = getDetailNumber(log, "server_error_count");
   const serverErrorThreshold = getDetailNumber(log, "server_error_threshold");
+  const topPaths = getTopPaths(log);
 
   return (
     <div className="flex flex-col gap-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-950">
@@ -92,10 +93,24 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
           </p>
         </div>
         {!isRecovery && isApi ? (
-          <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-            404 {notFoundCount ?? "-"}/{notFoundThreshold ?? "-"} · 5xx {serverErrorCount ?? "-"}/
-            {serverErrorThreshold ?? "-"} · 최근 {windowMinutes ?? "-"}분
-          </p>
+          <>
+            <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+              404 {notFoundCount ?? "-"}/{notFoundThreshold ?? "-"} · 5xx {serverErrorCount ?? "-"}/
+              {serverErrorThreshold ?? "-"} · 최근 {windowMinutes ?? "-"}분
+            </p>
+            {topPaths.length > 0 ? (
+              <details className="mt-2 text-xs text-gray-600 dark:text-slate-300">
+                <summary className="cursor-pointer font-medium">상위 발생 경로 {topPaths.length}개</summary>
+                <div className="mt-1 space-y-1 border-l border-gray-200 pl-2 dark:border-slate-700">
+                  {topPaths.map((item) => (
+                    <p className="break-all" key={item.path}>
+                      <code>{item.path}</code> · 404 {item.notFoundCount} · 5xx {item.serverErrorCount}
+                    </p>
+                  ))}
+                </div>
+              </details>
+            ) : null}
+          </>
         ) : null}
         {!isRecovery && !isWatchdog && !isApi ? (
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
@@ -132,6 +147,26 @@ function getDetailString(log: AuditLogItem, key: string) {
 function getDetailNumber(log: AuditLogItem, key: string) {
   const value = log.detail?.[key];
   return typeof value === "number" ? value : null;
+}
+
+function getTopPaths(log: AuditLogItem) {
+  const value = log.detail?.top_paths;
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const path = "path" in item ? item.path : null;
+    if (typeof path !== "string") return [];
+    return [{
+      path,
+      notFoundCount: getRecordNumber(item, "not_found_count"),
+      serverErrorCount: getRecordNumber(item, "server_error_count"),
+    }];
+  });
+}
+
+function getRecordNumber(value: object, key: string) {
+  const item = (value as Record<string, unknown>)[key];
+  return typeof item === "number" ? item : 0;
 }
 
 function getComponentLabel(name: string) {

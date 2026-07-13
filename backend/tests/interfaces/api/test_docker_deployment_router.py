@@ -110,7 +110,11 @@ async def test_deployment_info_enriches_each_watchdog_run(monkeypatch) -> None:
     async def read_stale_minutes(_repository):
         return 10
 
+    async def read_http_monitor(_repository):
+        return {"enabled": False, "available": False}
+
     monkeypatch.setattr(docker, "read_external_watchdog_stale_minutes", read_stale_minutes)
+    monkeypatch.setattr(docker, "read_manager_http_error_monitor_status", read_http_monitor)
     monkeypatch.setattr(
         docker,
         "read_manager_watchdog_state",
@@ -132,6 +136,7 @@ async def test_deployment_info_enriches_each_watchdog_run(monkeypatch) -> None:
     )
 
     assert result["external_watchdog_last_alert_run_conclusion"] == "success"
+    assert result["http_error_monitor"] == {"enabled": False, "available": False}
     assert [run["conclusion"] for run in result["external_watchdog_alert_runs"]] == [
         "success",
         "failure",
