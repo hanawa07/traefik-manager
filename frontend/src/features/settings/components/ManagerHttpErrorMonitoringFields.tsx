@@ -140,6 +140,7 @@ function HttpErrorPreviewResult({
       </p>
     );
   }
+  const coverage = getSampleCoverage(preview);
 
   return (
     <div
@@ -152,6 +153,24 @@ function HttpErrorPreviewResult({
       <p className="mt-1 text-gray-500 dark:text-slate-400">
         로그 관측 시작: {formatDateTime(preview.observed_since)}
       </p>
+      <div className="mt-2" data-sample-coverage={coverage.percent} data-testid="manager-http-sample-coverage">
+        <div className="flex items-center justify-between gap-3 text-gray-500 dark:text-slate-400">
+          <span>표본 충족률</span>
+          <span>
+            {coverage.percent}% ({coverage.duration} / {preview.window_hours}시간)
+          </span>
+        </div>
+        <div
+          aria-label="Manager API 로그 표본 충족률"
+          aria-valuemax={100}
+          aria-valuemin={0}
+          aria-valuenow={coverage.percent}
+          className="mt-1 h-1.5 overflow-hidden rounded-full bg-amber-100 dark:bg-amber-500/20"
+          role="progressbar"
+        >
+          <div className="h-full rounded-full bg-amber-500" style={{ width: `${coverage.percent}%` }} />
+        </div>
+      </div>
       <p className="mt-1">
         최고 {preview.window_minutes}분 구간: 404 {preview.peak_not_found_count}건 · 5xx {preview.peak_server_error_count}건
       </p>
@@ -181,6 +200,23 @@ function HttpErrorPreviewResult({
       </button>
     </div>
   );
+}
+
+function getSampleCoverage(preview: ManagerHttpErrorPreview) {
+  const targetMinutes = preview.window_hours * 60;
+  const checkedAt = Date.parse(preview.checked_at);
+  const observedSince = preview.observed_since ? Date.parse(preview.observed_since) : Number.NaN;
+  const elapsedMinutes =
+    Number.isFinite(checkedAt) && Number.isFinite(observedSince)
+      ? Math.floor((checkedAt - observedSince) / 60_000)
+      : 0;
+  const coveredMinutes = Math.max(0, Math.min(targetMinutes, elapsedMinutes));
+  const hours = Math.floor(coveredMinutes / 60);
+  const minutes = coveredMinutes % 60;
+  return {
+    duration: hours > 0 ? `${hours}시간${minutes > 0 ? ` ${minutes}분` : ""}` : `${minutes}분`,
+    percent: Math.floor((coveredMinutes / targetMinutes) * 100),
+  };
 }
 
 function NumberField({
