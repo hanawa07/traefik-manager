@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME: str = "traefik-manager-backend"
     TRAEFIK_MANAGER_FRONTEND_CONTAINER_NAME: str = "traefik-manager-frontend"
     TRAEFIK_MANAGER_LOG_TAIL_LINES: int = 5000
+    TRAEFIK_MANAGER_REQUEST_LOG_PATH: str = "./data/manager-http-requests.jsonl"
     SMOKE_ROTATION_LOG_PATH: str = "/host-state/traefik-manager/smoke-password-rotation.log"
 
     CLOUDFLARE_API_TOKEN: str | None = None

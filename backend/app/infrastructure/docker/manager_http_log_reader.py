@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
+from app.core.manager_http_request_log import read_manager_http_request_logs
 from app.infrastructure.docker.logs import read_docker_container_logs_text
 from app.infrastructure.docker.manager_http_errors import (
     MANAGER_HTTP_ERROR_WINDOW_HOURS,
@@ -17,8 +18,8 @@ async def read_manager_http_error_summary(
     path_filter: str | None = None,
 ) -> dict[str, object]:
     checked_at = datetime.now(timezone.utc)
-    log_text = None
-    if docker_enabled:
+    log_text = read_manager_http_request_logs(settings.TRAEFIK_MANAGER_REQUEST_LOG_PATH)
+    if log_text is None and docker_enabled:
         log_text = await read_docker_container_logs_text(
             container_name=settings.TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME,
             tail_lines=settings.TRAEFIK_MANAGER_LOG_TAIL_LINES,
@@ -40,8 +41,8 @@ async def read_manager_http_error_counts(
     excluded_paths: tuple[str, ...] = (),
 ) -> dict[str, object]:
     current = checked_at or datetime.now(timezone.utc)
-    log_text = None
-    if docker_enabled:
+    log_text = read_manager_http_request_logs(settings.TRAEFIK_MANAGER_REQUEST_LOG_PATH)
+    if log_text is None and docker_enabled:
         log_text = await read_docker_container_logs_text(
             container_name=settings.TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME,
             tail_lines=settings.TRAEFIK_MANAGER_LOG_TAIL_LINES,
@@ -63,8 +64,8 @@ async def read_manager_http_error_preview(
     checked_at: datetime | None = None,
 ) -> dict[str, object]:
     current = checked_at or datetime.now(timezone.utc)
-    log_text = None
-    if docker_enabled:
+    log_text = read_manager_http_request_logs(settings.TRAEFIK_MANAGER_REQUEST_LOG_PATH)
+    if log_text is None and docker_enabled:
         log_text = await read_docker_container_logs_text(
             container_name=settings.TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME,
             tail_lines=settings.TRAEFIK_MANAGER_LOG_TAIL_LINES,

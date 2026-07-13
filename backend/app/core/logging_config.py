@@ -5,6 +5,8 @@ import sys
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from app.core.manager_http_request_log import create_manager_http_request_log_handler
+
 if TYPE_CHECKING:
     from fastapi import Request
 
@@ -53,6 +55,21 @@ def setup_logging() -> None:
     root_logger.handlers.clear()
     root_logger.setLevel(log_level)
     root_logger.addHandler(handler)
+
+    request_logger = logging.getLogger("app.request")
+    request_logger.handlers.clear()
+    request_logger.setLevel(log_level)
+    request_logger.propagate = True
+    try:
+        request_handler = create_manager_http_request_log_handler(
+            settings.TRAEFIK_MANAGER_REQUEST_LOG_PATH
+        )
+    except OSError:
+        logging.getLogger(__name__).warning("Manager API 요청 영속 로그를 열지 못했습니다")
+    else:
+        request_handler.setLevel(log_level)
+        request_handler.setFormatter(JsonFormatter())
+        request_logger.addHandler(request_handler)
 
     for logger_name in ("uvicorn", "uvicorn.error", "fastapi"):
         logger = logging.getLogger(logger_name)

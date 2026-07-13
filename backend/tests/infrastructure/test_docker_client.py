@@ -164,6 +164,11 @@ async def test_manager_http_error_summary_reads_backend_container_logs(monkeypat
 
     monkeypatch.setattr(
         manager_http_log_reader,
+        "read_manager_http_request_logs",
+        lambda _path: None,
+    )
+    monkeypatch.setattr(
+        manager_http_log_reader,
         "read_docker_container_logs_text",
         fake_read_logs,
     )
@@ -173,5 +178,30 @@ async def test_manager_http_error_summary_reads_backend_container_logs(monkeypat
     assert captured["container_name"] == "traefik-manager-backend"
     assert captured["tail_lines"] == 5000
     assert isinstance(captured["since"], int)
+    assert summary["available"] is True
+    assert summary["not_found_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_manager_http_error_summary_prefers_persistent_request_logs(monkeypatch):
+    client = DockerClient()
+    client.socket_path = "/etc/hosts"
+    monkeypatch.setattr(
+        manager_http_log_reader,
+        "read_manager_http_request_logs",
+        lambda _path: "",
+    )
+
+    async def unexpected_docker_logs(**_kwargs):
+        raise AssertionError("영속 로그가 있으면 Docker 로그를 읽지 않아야 합니다")
+
+    monkeypatch.setattr(
+        manager_http_log_reader,
+        "read_docker_container_logs_text",
+        unexpected_docker_logs,
+    )
+
+    summary = await client.get_manager_http_error_summary()
+
     assert summary["available"] is True
     assert summary["not_found_count"] == 0
