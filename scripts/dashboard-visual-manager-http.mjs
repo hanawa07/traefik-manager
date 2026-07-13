@@ -129,6 +129,7 @@ export async function checkManagerHttpErrorPreviewForm({
   assert.match(snapshot.text, /권장 임계치/, "Manager API 오류 권장 임계치가 없습니다");
   assert.match(snapshot.text, /로그 관측 시작:/, "Manager API 오류 로그 표본 시작 시각이 없습니다");
   assert.match(snapshot.text, /\/api\/health/, "제외 경로별 오류 미리보기가 없습니다");
+  assert.match(snapshot.text, /최근 오류:/, "제외 경로의 최근 오류 시각이 없습니다");
   assert.ok(snapshot.documentWidth <= snapshot.viewportWidth + 1, "권장값 결과가 화면 폭을 넘습니다");
   await captureVisualScreenshot({
     artifactDir,
@@ -196,6 +197,10 @@ async function checkManagerHttpErrorPreviewApi(cdp) {
     "Manager API 오류 권장 임계치가 올바르지 않습니다",
   );
   assert.equal(preview.body.excluded_paths?.[0]?.path, "/api/health");
+  assert.ok(
+    Object.hasOwn(preview.body.excluded_paths?.[0] || {}, "last_seen_at"),
+    "제외 경로의 최근 오류 시각 필드가 없습니다",
+  );
 }
 
 async function setSelectValue(cdp, selector, value) {

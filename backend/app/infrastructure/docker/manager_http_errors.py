@@ -159,7 +159,12 @@ def build_manager_http_error_preview(
     not_found_times: list[datetime] = []
     server_error_times: list[datetime] = []
     excluded_counts = {
-        path: {"path": path, "not_found_count": 0, "server_error_count": 0}
+        path: {
+            "path": path,
+            "not_found_count": 0,
+            "server_error_count": 0,
+            "last_seen_at": None,
+        }
         for path in excluded_paths
     }
 
@@ -179,7 +184,11 @@ def build_manager_http_error_preview(
             excluded_path = _match_excluded_path(path, excluded_paths)
             count_key = "not_found_count" if status_code == 404 else "server_error_count"
             if excluded_path is not None:
-                excluded_counts[excluded_path][count_key] += 1
+                excluded_count = excluded_counts[excluded_path]
+                excluded_count[count_key] += 1
+                last_seen_at = excluded_count["last_seen_at"]
+                if last_seen_at is None or occurred_at > last_seen_at:
+                    excluded_count["last_seen_at"] = occurred_at
             elif status_code == 404:
                 not_found_times.append(occurred_at)
             else:

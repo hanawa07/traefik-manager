@@ -121,6 +121,7 @@ class ManagerHttpExcludedPathPreviewResponse(BaseModel):
     path: str
     not_found_count: int = Field(default=0, ge=0)
     server_error_count: int = Field(default=0, ge=0)
+    last_seen_at: datetime | None = None
 
 
 class ManagerHttpErrorPreviewResponse(BaseModel):

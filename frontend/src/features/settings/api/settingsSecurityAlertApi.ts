@@ -82,6 +82,7 @@ export interface ManagerHttpExcludedPathPreview {
   path: string;
   not_found_count: number;
   server_error_count: number;
+  last_seen_at: string | null;
 }
 
 export interface ManagerHttpErrorPreview {

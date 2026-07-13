@@ -166,7 +166,8 @@ function HttpErrorPreviewResult({
           <p className="font-medium text-gray-900 dark:text-slate-100">제외 경로별 오류</p>
           {preview.excluded_paths.map((item) => (
             <p className="break-all" key={item.path}>
-              <code>{item.path}</code> · 404 {item.not_found_count}건 · 5xx {item.server_error_count}건
+              <code>{item.path}</code> · 404 {item.not_found_count}건 · 5xx {item.server_error_count}건 · 최근 오류:{" "}
+              {item.last_seen_at ? formatDateTime(item.last_seen_at) : "없음"}
             </p>
           ))}
         </div>

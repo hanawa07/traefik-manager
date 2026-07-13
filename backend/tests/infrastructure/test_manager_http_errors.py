@@ -175,11 +175,17 @@ def test_build_manager_http_error_preview_recommends_thresholds_and_counts_exclu
     assert preview["recommended_not_found_threshold"] == 30
     assert preview["recommended_server_error_threshold"] == 3
     assert preview["excluded_paths"] == [
-        {"path": "/api/v1/health", "not_found_count": 1, "server_error_count": 0},
+        {
+            "path": "/api/v1/health",
+            "not_found_count": 1,
+            "server_error_count": 0,
+            "last_seen_at": CHECKED_AT - timedelta(hours=0.5),
+        },
         {
             "path": "/api/v1/health/deep",
             "not_found_count": 0,
             "server_error_count": 1,
+            "last_seen_at": CHECKED_AT - timedelta(hours=0.4),
         },
     ]
 
@@ -196,5 +202,10 @@ def test_build_manager_http_error_preview_uses_safe_defaults_without_logs() -> N
     assert preview["recommended_not_found_threshold"] == 20
     assert preview["recommended_server_error_threshold"] == 1
     assert preview["excluded_paths"] == [
-        {"path": "/api/v1/health", "not_found_count": 0, "server_error_count": 0}
+        {
+            "path": "/api/v1/health",
+            "not_found_count": 0,
+            "server_error_count": 0,
+            "last_seen_at": None,
+        }
     ]
