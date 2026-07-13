@@ -10,14 +10,20 @@ _RUN_URL_RE = re.compile(
     r"^https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/actions/runs/([1-9][0-9]*)/?$"
 )
 _ACTIVE_CACHE_SECONDS = 30
-_SETTLED_CACHE_SECONDS = 600
+_ERROR_CACHE_SECONDS = 600
+_SETTLED_CACHE_SECONDS = 3600
 
 
 class GitHubActionsRunStatusReader:
     """Read one public GitHub Actions run without delaying the host watchdog."""
 
     _cache: dict[str, tuple[datetime, dict[str, Any]]] = {}
-    _lock = asyncio.Lock()
+    _locks: dict[str, asyncio.Lock] = {}
+
+    async def get_statuses(self, run_urls: list[str]) -> dict[str, dict[str, Any]]:
+        unique_urls = list(dict.fromkeys(run_urls))
+        results = await asyncio.gather(*(self.get_status(run_url) for run_url in unique_urls))
+        return dict(zip(unique_urls, results))
 
     async def get_status(self, run_url: str | None) -> dict[str, Any]:
         api_url = build_actions_run_api_url(run_url)
@@ -29,7 +35,8 @@ class GitHubActionsRunStatusReader:
         if _is_cache_fresh(cached, now):
             return cached[1].copy()
 
-        async with self._lock:
+        lock = self._locks.setdefault(api_url, asyncio.Lock())
+        async with lock:
             cached = self._cache.get(api_url)
             if _is_cache_fresh(cached, now):
                 return cached[1].copy()
@@ -85,7 +92,12 @@ def _is_cache_fresh(
     if not cached:
         return False
     status = cached[1].get("external_watchdog_last_alert_run_status")
-    max_age = _ACTIVE_CACHE_SECONDS if status and status != "completed" else _SETTLED_CACHE_SECONDS
+    if status == "completed":
+        max_age = _SETTLED_CACHE_SECONDS
+    elif status:
+        max_age = _ACTIVE_CACHE_SECONDS
+    else:
+        max_age = _ERROR_CACHE_SECONDS
     return (now - cached[0]).total_seconds() < max_age
 
 

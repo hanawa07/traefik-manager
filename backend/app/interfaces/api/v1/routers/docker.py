@@ -47,13 +47,37 @@ async def get_deployment_info(
             SQLiteSystemSettingsRepository(db)
         )
         watchdog_state = read_manager_watchdog_state(stale_after_minutes=stale_after_minutes)
-        run_status = await GitHubActionsRunStatusReader().get_status(
-            watchdog_state["external_watchdog_last_alert_run_url"]
-        )
+        alert_runs = watchdog_state["external_watchdog_alert_runs"]
+        last_run_url = watchdog_state["external_watchdog_last_alert_run_url"]
+        run_urls = list(dict.fromkeys([run["run_url"] for run in alert_runs]))
+        if last_run_url and last_run_url not in run_urls:
+            run_urls.append(last_run_url)
+        reader = GitHubActionsRunStatusReader()
+        run_statuses = await reader.get_statuses(run_urls)
+        run_status = run_statuses.get(last_run_url) or await reader.get_status(last_run_url)
+        enriched_alert_runs = [
+            {
+                **run,
+                "status": run_statuses[run["run_url"]][
+                    "external_watchdog_last_alert_run_status"
+                ],
+                "conclusion": run_statuses[run["run_url"]][
+                    "external_watchdog_last_alert_run_conclusion"
+                ],
+                "checked_at": run_statuses[run["run_url"]][
+                    "external_watchdog_last_alert_run_checked_at"
+                ],
+                "error": run_statuses[run["run_url"]][
+                    "external_watchdog_last_alert_run_error"
+                ],
+            }
+            for run in alert_runs
+        ]
         return {
             **deployment,
             **watchdog_state,
             **run_status,
+            "external_watchdog_alert_runs": enriched_alert_runs,
         }
     except DockerClientError as exc:
         raise HTTPException(

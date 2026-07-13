@@ -60,6 +60,10 @@ class ExternalWatchdogAlertRunResponse(BaseModel):
     event: Literal["failure", "recovery"]
     requested_at: datetime
     run_url: str
+    status: str | None = None
+    conclusion: str | None = None
+    checked_at: datetime | None = None
+    error: str | None = None
 
 
 class DockerDeploymentInfoResponse(BaseModel):

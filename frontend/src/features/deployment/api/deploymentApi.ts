@@ -24,6 +24,10 @@ export interface ExternalWatchdogAlertRun {
   event: "failure" | "recovery";
   requested_at: string;
   run_url: string;
+  status: string | null;
+  conclusion: string | null;
+  checked_at: string | null;
+  error: string | null;
 }
 
 export interface DeploymentInfo {

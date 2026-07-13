@@ -33,10 +33,7 @@ export function ManagerWatchdogAlertHistory({
       ) : (
         <ul className="mt-3 divide-y divide-gray-100 dark:divide-slate-800">
           {runs.map((run) => {
-            const isLatest = run.run_url === deployment?.external_watchdog_last_alert_run_url;
-            const failed =
-              isLatest &&
-              isExternalWatchdogRunFailure(deployment?.external_watchdog_last_alert_run_conclusion);
+            const failed = isExternalWatchdogRunFailure(run.conclusion);
             return (
               <li className="flex flex-wrap items-center gap-2 py-2 text-xs" key={run.run_url}>
                 <span
@@ -51,15 +48,12 @@ export function ManagerWatchdogAlertHistory({
                 <span className="text-gray-600 dark:text-slate-300">
                   {formatDateTime(run.requested_at, timezone)}
                 </span>
-                {isLatest ? (
-                  <span className={failed ? "font-semibold text-rose-700 dark:text-rose-200" : "text-gray-500 dark:text-slate-400"}>
-                    {getExternalWatchdogRunLabel(
-                      deployment?.external_watchdog_last_alert_run_status,
-                      deployment?.external_watchdog_last_alert_run_conclusion,
-                      deployment?.external_watchdog_last_alert_run_error,
-                    )}
-                  </span>
-                ) : null}
+                <span
+                  className={failed ? "font-semibold text-rose-700 dark:text-rose-200" : "text-gray-500 dark:text-slate-400"}
+                  title={run.error || undefined}
+                >
+                  {getExternalWatchdogRunLabel(run.status, run.conclusion, run.error)}
+                </span>
                 <a
                   className="ml-auto inline-flex items-center gap-1 font-semibold text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
                   href={run.run_url}

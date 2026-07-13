@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 import pytest
@@ -7,6 +8,12 @@ from app.infrastructure.github_actions_run import (
     GitHubActionsRunStatusReader,
     build_actions_run_api_url,
 )
+
+
+@pytest.fixture(autouse=True)
+def reset_reader_state():
+    GitHubActionsRunStatusReader._cache = {}
+    GitHubActionsRunStatusReader._locks = {}
 
 
 def test_build_actions_run_api_url_accepts_only_github_run_url() -> None:
@@ -19,7 +26,6 @@ def test_build_actions_run_api_url_accepts_only_github_run_url() -> None:
 
 @pytest.mark.asyncio
 async def test_actions_run_reader_returns_final_conclusion(monkeypatch) -> None:
-    GitHubActionsRunStatusReader._cache = {}
     captured: dict[str, object] = {"count": 0}
 
     class FakeResponse:
@@ -60,6 +66,50 @@ async def test_actions_run_reader_returns_final_conclusion(monkeypatch) -> None:
     assert result["external_watchdog_last_alert_run_error"] is None
     assert cached_result == result
     assert captured["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_actions_run_reader_fetches_distinct_runs_in_parallel(monkeypatch) -> None:
+    captured = {"active": 0, "max_active": 0}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"status": "completed", "conclusion": "success"}
+
+    class FakeAsyncClient:
+        def __init__(self, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url: str):
+            captured["active"] += 1
+            captured["max_active"] = max(captured["max_active"], captured["active"])
+            await asyncio.sleep(0.01)
+            captured["active"] -= 1
+            return FakeResponse()
+
+    monkeypatch.setattr(github_actions_run.httpx, "AsyncClient", FakeAsyncClient)
+    run_urls = [
+        "https://github.com/hanawa07/traefik-manager/actions/runs/123",
+        "https://github.com/hanawa07/traefik-manager/actions/runs/456",
+    ]
+
+    results = await GitHubActionsRunStatusReader().get_statuses(run_urls)
+
+    assert list(results) == run_urls
+    assert captured["max_active"] == 2
+    assert all(
+        result["external_watchdog_last_alert_run_conclusion"] == "success"
+        for result in results.values()
+    )
 
 
 @pytest.mark.asyncio
