@@ -49,6 +49,27 @@ export function ManagerHealthMonitoringFields({
           <span className="text-xs font-normal text-gray-500 dark:text-slate-400">분 (5~1440)</span>
         </span>
       </label>
+
+      <label className="mt-3 block text-sm font-medium text-gray-700 dark:text-slate-300">
+        외부 watchdog 지연 판정 시간
+        <span className="mt-1 flex items-center gap-2">
+          <input
+            className="w-28 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
+            max={1440}
+            min={5}
+            onChange={(event) => {
+              if (Number.isFinite(event.target.valueAsNumber)) {
+                updateForm({ external_watchdog_stale_minutes: event.target.valueAsNumber });
+              }
+            }}
+            type="number"
+            value={formValue.external_watchdog_stale_minutes}
+          />
+          <span className="text-xs font-normal text-gray-500 dark:text-slate-400">
+            분 (5~1440, cron은 5분 간격)
+          </span>
+        </span>
+      </label>
     </div>
   );
 }

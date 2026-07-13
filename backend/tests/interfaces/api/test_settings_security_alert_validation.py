@@ -100,6 +100,12 @@ def test_security_alert_settings_update_request_rejects_invalid_provider():
         )
 
 
+@pytest.mark.parametrize("value", [4, 1441])
+def test_security_alert_settings_update_request_rejects_invalid_watchdog_stale_minutes(value):
+    with pytest.raises(ValidationError):
+        SecurityAlertSettingsUpdateRequest(external_watchdog_stale_minutes=value)
+
+
 def test_security_alert_settings_update_request_normalizes_email_recipients():
     request = SecurityAlertSettingsUpdateRequest(
         enabled=True,

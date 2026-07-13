@@ -72,4 +72,8 @@ class DockerDeploymentInfoResponse(BaseModel):
     external_watchdog_checked_at: datetime | None = None
     external_watchdog_consecutive_failures: int = Field(default=0, ge=0)
     external_watchdog_stale: bool = False
+    external_watchdog_stale_after_minutes: int = Field(default=10, ge=5, le=1440)
+    external_watchdog_last_alert_event: Literal["failure", "recovery"] | None = None
+    external_watchdog_last_alert_success: bool | None = None
+    external_watchdog_last_alert_at: datetime | None = None
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)

@@ -6,7 +6,10 @@ from pydantic import AnyHttpUrl, BaseModel, Field, field_validator
 from app.application.manager_health_monitoring import (
     DEFAULT_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
     DEFAULT_MANAGER_HEALTH_MONITORING_ENABLED,
+    DEFAULT_EXTERNAL_WATCHDOG_STALE_MINUTES,
+    MAX_EXTERNAL_WATCHDOG_STALE_MINUTES,
     MAX_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
+    MIN_EXTERNAL_WATCHDOG_STALE_MINUTES,
     MIN_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
 )
 
@@ -46,6 +49,11 @@ class SecurityAlertSettingsResponse(BaseModel):
         ge=MIN_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
         le=MAX_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
     )
+    external_watchdog_stale_minutes: int = Field(
+        default=DEFAULT_EXTERNAL_WATCHDOG_STALE_MINUTES,
+        ge=MIN_EXTERNAL_WATCHDOG_STALE_MINUTES,
+        le=MAX_EXTERNAL_WATCHDOG_STALE_MINUTES,
+    )
     provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"]
     webhook_url: str | None = None
     telegram_bot_token_configured: bool = False
@@ -72,6 +80,11 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
         default=DEFAULT_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
         ge=MIN_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
         le=MAX_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
+    )
+    external_watchdog_stale_minutes: int = Field(
+        default=DEFAULT_EXTERNAL_WATCHDOG_STALE_MINUTES,
+        ge=MIN_EXTERNAL_WATCHDOG_STALE_MINUTES,
+        le=MAX_EXTERNAL_WATCHDOG_STALE_MINUTES,
     )
     provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"] = "generic"
     webhook_url: str = ""

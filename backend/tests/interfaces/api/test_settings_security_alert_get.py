@@ -33,6 +33,7 @@ async def test_get_security_alert_settings_returns_defaults(monkeypatch):
     assert response.change_alerts_enabled is False
     assert response.manager_health_monitoring_enabled is True
     assert response.manager_health_alert_cooldown_minutes == 60
+    assert response.external_watchdog_stale_minutes == 10
     assert response.change_event_routes == {
         "settings_change": "default",
         "service_change": "default",

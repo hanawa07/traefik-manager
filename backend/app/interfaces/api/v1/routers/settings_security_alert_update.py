@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 
 from app.application.manager_health_monitoring import (
+    EXTERNAL_WATCHDOG_STALE_MINUTES_KEY,
     MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES_KEY,
     MANAGER_HEALTH_MONITORING_ENABLED_KEY,
 )
@@ -79,6 +80,10 @@ async def update_security_alert_settings_values(
     await repo.set(
         MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES_KEY,
         str(request.manager_health_alert_cooldown_minutes),
+    )
+    await repo.set(
+        EXTERNAL_WATCHDOG_STALE_MINUTES_KEY,
+        str(request.external_watchdog_stale_minutes),
     )
     await repo.set("security_alert_provider", request.provider)
     await repo.set("security_alert_webhook_url", request.webhook_url or None)

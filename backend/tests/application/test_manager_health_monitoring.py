@@ -1,6 +1,7 @@
 import pytest
 
 from app.application.manager_health_monitoring import (
+    read_external_watchdog_stale_minutes,
     read_manager_health_monitoring_values,
 )
 
@@ -46,3 +47,18 @@ async def test_load_manager_health_monitoring_settings_reads_disabled_state():
     )
 
     assert enabled is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("stored_value", "expected"),
+    [(None, 10), ("invalid", 10), ("1", 5), ("30", 30), ("9999", 1440)],
+)
+async def test_load_external_watchdog_stale_minutes_normalizes_value(stored_value, expected):
+    values = {}
+    if stored_value is not None:
+        values["external_watchdog_stale_minutes"] = stored_value
+
+    minutes = await read_external_watchdog_stale_minutes(StubSettingsReader(values))
+
+    assert minutes == expected

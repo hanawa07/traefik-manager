@@ -22,6 +22,7 @@ export interface SecurityAlertSettingsStatus {
   change_alerts_enabled: boolean;
   manager_health_monitoring_enabled: boolean;
   manager_health_alert_cooldown_minutes: number;
+  external_watchdog_stale_minutes: number;
   provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty" | "email";
   webhook_url: string | null;
   telegram_bot_token_configured: boolean;
@@ -45,6 +46,7 @@ export interface SecurityAlertSettingsInput {
   change_alerts_enabled: boolean;
   manager_health_monitoring_enabled: boolean;
   manager_health_alert_cooldown_minutes: number;
+  external_watchdog_stale_minutes: number;
   provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty" | "email";
   webhook_url: string;
   telegram_bot_token: string;

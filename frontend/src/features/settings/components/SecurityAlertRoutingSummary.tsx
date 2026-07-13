@@ -29,6 +29,10 @@ export function SecurityAlertRoutingSummary({
             : `${settings?.manager_health_alert_cooldown_minutes ?? 60}분 후`
         }
       />
+      <SettingsSummaryRow
+        label="외부 watchdog 지연 판정"
+        value={`${settings?.external_watchdog_stale_minutes ?? 10}분`}
+      />
       <SettingsSummaryRow label="전송 이벤트" value={(settings?.alert_events ?? []).join(", ")} />
       {SECURITY_ALERT_EVENT_OPTIONS.map((eventOption) => (
         <SettingsSummaryRow

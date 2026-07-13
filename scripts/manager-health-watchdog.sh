@@ -102,10 +102,14 @@ write_state() {
   local alert_active="$2"
   local last_alert_at="$3"
   local consecutive_failures="$4"
+  local last_dispatch_event="$5"
+  local last_dispatch_success="$6"
+  local last_dispatch_at="$7"
   local temporary_file
   temporary_file="$(mktemp "${STATE_FILE}.tmp.XXXXXX")"
-  printf 'status=%s\nalert_active=%s\nlast_alert_at=%s\nconsecutive_failures=%s\n' \
+  printf 'status=%s\nalert_active=%s\nlast_alert_at=%s\nconsecutive_failures=%s\nlast_dispatch_event=%s\nlast_dispatch_success=%s\nlast_dispatch_at=%s\n' \
     "${status}" "${alert_active}" "${last_alert_at}" "${consecutive_failures}" \
+    "${last_dispatch_event}" "${last_dispatch_success}" "${last_dispatch_at}" \
     > "${temporary_file}"
   chmod 644 "${temporary_file}"
   mv "${temporary_file}" "${STATE_FILE}"
@@ -169,10 +173,16 @@ previous_status="$(read_state_value status)"
 alert_active="$(read_state_value alert_active)"
 last_alert_at="$(read_state_value last_alert_at)"
 consecutive_failures="$(read_state_value consecutive_failures)"
+last_dispatch_event="$(read_state_value last_dispatch_event)"
+last_dispatch_success="$(read_state_value last_dispatch_success)"
+last_dispatch_at="$(read_state_value last_dispatch_at)"
 [[ "${previous_status}" =~ ^(healthy|unhealthy)$ ]] || previous_status="unknown"
 [[ "${alert_active}" =~ ^[01]$ ]] || alert_active="0"
 [[ "${last_alert_at}" =~ ^[0-9]+$ ]] || last_alert_at="0"
 [[ "${consecutive_failures}" =~ ^[0-9]+$ ]] || consecutive_failures="0"
+[[ "${last_dispatch_event}" =~ ^(failure|recovery)$ ]] || last_dispatch_event=""
+[[ "${last_dispatch_success}" =~ ^[01]$ ]] || last_dispatch_success=""
+[[ "${last_dispatch_at}" =~ ^[0-9]+$ ]] || last_dispatch_at="0"
 
 if check_health; then
   current_status="healthy"
@@ -198,25 +208,32 @@ action="$(
 case "${action}" in
   failure|failure_repeat)
     if dispatch_alert failure "공개 health API 장애 (${health_detail}, 연속 실패 ${current_consecutive_failures}회)"; then
-      write_state unhealthy 1 "${now_epoch}" "${current_consecutive_failures}"
+      write_state unhealthy 1 "${now_epoch}" "${current_consecutive_failures}" failure 1 "${now_epoch}"
       echo "$(date --iso-8601=seconds) Manager 외부 장애 알림 요청 완료 (${health_detail}, 연속 실패 ${current_consecutive_failures}회)"
     else
-      write_state unhealthy 0 "${last_alert_at}" "${current_consecutive_failures}"
+      write_state unhealthy 0 "${last_alert_at}" "${current_consecutive_failures}" failure 0 "${now_epoch}"
       echo "Manager 외부 장애 알림 요청에 실패했습니다" >&2
       exit 1
     fi
     ;;
   recovery)
     if dispatch_alert recovery "공개 health API 복구 (${health_detail}, 장애 중 연속 실패 ${consecutive_failures}회)"; then
-      write_state healthy 0 "${last_alert_at}" 0
+      write_state healthy 0 "${last_alert_at}" 0 recovery 1 "${now_epoch}"
       echo "$(date --iso-8601=seconds) Manager 외부 복구 알림 요청 완료 (${health_detail}, 장애 중 연속 실패 ${consecutive_failures}회)"
     else
-      write_state unhealthy 1 "${last_alert_at}" "${consecutive_failures}"
+      write_state unhealthy 1 "${last_alert_at}" "${consecutive_failures}" recovery 0 "${now_epoch}"
       echo "Manager 외부 복구 알림 요청에 실패했습니다" >&2
       exit 1
     fi
     ;;
   none)
-    write_state "${current_status}" "${alert_active}" "${last_alert_at}" "${current_consecutive_failures}"
+    write_state \
+      "${current_status}" \
+      "${alert_active}" \
+      "${last_alert_at}" \
+      "${current_consecutive_failures}" \
+      "${last_dispatch_event}" \
+      "${last_dispatch_success}" \
+      "${last_dispatch_at}"
     ;;
 esac

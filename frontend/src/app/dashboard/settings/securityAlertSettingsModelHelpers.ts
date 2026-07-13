@@ -17,6 +17,8 @@ export function createSecurityAlertFormFromSettings(
     manager_health_alert_cooldown_minutes:
       settings?.manager_health_alert_cooldown_minutes ??
       defaults.manager_health_alert_cooldown_minutes,
+    external_watchdog_stale_minutes:
+      settings?.external_watchdog_stale_minutes ?? defaults.external_watchdog_stale_minutes,
     provider: settings?.provider ?? defaults.provider,
     webhook_url: settings?.webhook_url ?? defaults.webhook_url,
     telegram_bot_token: defaults.telegram_bot_token,
@@ -42,6 +44,7 @@ export function buildSecurityAlertSettingsPayload(
     change_alerts_enabled: formValue.change_alerts_enabled,
     manager_health_monitoring_enabled: formValue.manager_health_monitoring_enabled,
     manager_health_alert_cooldown_minutes: formValue.manager_health_alert_cooldown_minutes,
+    external_watchdog_stale_minutes: formValue.external_watchdog_stale_minutes,
     provider: formValue.provider,
     webhook_url: formValue.webhook_url.trim(),
     telegram_bot_token: formValue.telegram_bot_token.trim(),

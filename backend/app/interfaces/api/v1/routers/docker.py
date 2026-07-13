@@ -1,7 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.manager_health_monitoring import read_external_watchdog_stale_minutes
 from app.core.manager_watchdog_state import read_manager_watchdog_state
 from app.infrastructure.docker.client import DockerClient, DockerClientError
+from app.infrastructure.persistence.database import get_db
+from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.interfaces.api.dependencies import get_current_user
 from app.interfaces.api.v1.schemas.docker_schemas import (
     DockerContainerListResponse,
@@ -33,11 +37,18 @@ async def list_containers(
 async def get_deployment_info(
     refresh_latest: bool = False,
     docker_client: DockerClient = Depends(get_docker_client),
+    db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
     try:
         deployment = await docker_client.get_manager_deployment_info(refresh_latest=refresh_latest)
-        return {**deployment, **read_manager_watchdog_state()}
+        stale_after_minutes = await read_external_watchdog_stale_minutes(
+            SQLiteSystemSettingsRepository(db)
+        )
+        return {
+            **deployment,
+            **read_manager_watchdog_state(stale_after_minutes=stale_after_minutes),
+        }
     except DockerClientError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

@@ -5,7 +5,6 @@ import type {
   DeploymentInfo,
 } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
-import { EXTERNAL_WATCHDOG_STALE_MINUTES } from "./managerWatchdogStatus";
 
 interface ManagerHealthAlertBannerProps {
   deployment?: DeploymentInfo;
@@ -21,6 +20,7 @@ export function ManagerHealthAlertBanner({
   const unhealthyComponents = (deployment?.components ?? []).filter(isUnhealthy);
   const watchdogUnhealthy = deployment?.external_watchdog_status === "unhealthy";
   const watchdogStale = deployment?.external_watchdog_stale === true;
+  const watchdogStaleMinutes = deployment?.external_watchdog_stale_after_minutes ?? 10;
   if (unhealthyComponents.length === 0 && !watchdogUnhealthy && !watchdogStale) return null;
 
   const critical = unhealthyComponents.length > 0 || watchdogUnhealthy;
@@ -31,7 +31,7 @@ export function ManagerHealthAlertBanner({
     );
   }
   if (watchdogStale) {
-    details.push(`외부 watchdog 실행이 ${EXTERNAL_WATCHDOG_STALE_MINUTES}분 이상 지연됨`);
+    details.push(`외부 watchdog 실행이 ${watchdogStaleMinutes}분 이상 지연됨`);
   }
 
   return (

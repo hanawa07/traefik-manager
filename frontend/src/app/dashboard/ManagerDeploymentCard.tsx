@@ -7,7 +7,7 @@ import { buildDeploymentComponentConsistency } from "./managerDeploymentConsiste
 import { buildManagerDeploymentLinks } from "./managerDeploymentLinks";
 import { buildDeploymentVersionDisplay } from "./managerDeploymentVersionDisplay";
 import {
-  EXTERNAL_WATCHDOG_STALE_MINUTES,
+  getExternalWatchdogAlertLabel,
   getExternalWatchdogLabel,
 } from "./managerWatchdogStatus";
 import {
@@ -44,6 +44,11 @@ export function ManagerDeploymentCard({
   const latestCheckedAt = formatDateTime(deployment?.latest_version_checked_at, timezone);
   const externalWatchdogCheckedAt = formatDateTime(
     deployment?.external_watchdog_checked_at,
+    timezone,
+  );
+  const externalWatchdogStaleMinutes = deployment?.external_watchdog_stale_after_minutes ?? 10;
+  const externalWatchdogLastAlertAt = formatDateTime(
+    deployment?.external_watchdog_last_alert_at,
     timezone,
   );
   const componentConsistency = buildDeploymentComponentConsistency(deployment?.components);
@@ -133,9 +138,21 @@ export function ManagerDeploymentCard({
         <p className="mt-1">
           외부 watchdog: {getExternalWatchdogLabel(deployment?.external_watchdog_status)}
           {deployment?.external_watchdog_stale
-            ? ` (${EXTERNAL_WATCHDOG_STALE_MINUTES}분 이상 갱신 없음)`
+            ? ` (${externalWatchdogStaleMinutes}분 이상 갱신 없음)`
             : ""}
           {" · "}연속 실패 {deployment?.external_watchdog_consecutive_failures ?? 0}회 · 마지막 실행: {externalWatchdogCheckedAt}
+        </p>
+        <p
+          className={`mt-1 ${
+            deployment?.external_watchdog_last_alert_success === false
+              ? "font-semibold text-red-700 dark:text-red-200"
+              : ""
+          }`}
+        >
+          최근 watchdog 알림 요청: {getExternalWatchdogAlertLabel(
+            deployment?.external_watchdog_last_alert_event,
+            deployment?.external_watchdog_last_alert_success,
+          )} · 요청 시각: {externalWatchdogLastAlertAt}
         </p>
       </div>
 

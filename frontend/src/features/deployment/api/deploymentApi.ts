@@ -36,6 +36,10 @@ export interface DeploymentInfo {
   external_watchdog_checked_at: string | null;
   external_watchdog_consecutive_failures: number;
   external_watchdog_stale: boolean;
+  external_watchdog_stale_after_minutes: number;
+  external_watchdog_last_alert_event: "failure" | "recovery" | null;
+  external_watchdog_last_alert_success: boolean | null;
+  external_watchdog_last_alert_at: string | null;
   components: DeploymentComponent[];
 }
 
