@@ -24,6 +24,7 @@ async def test_list_audit_logs_filters_by_event_and_applies_pagination():
         resource_type=None,
         action=None,
         event="login_locked",
+        manager_status=None,
         security_only=False,
         provider=None,
         delivery_success=None,
@@ -71,6 +72,7 @@ async def test_list_audit_logs_filters_by_resource_type_and_action():
         resource_type="settings",
         action="update",
         event=None,
+        manager_status=None,
         security_only=False,
         provider=None,
         delivery_success=None,
@@ -122,6 +124,7 @@ async def test_list_audit_logs_filters_by_delivery_status_and_provider():
         resource_type=None,
         action="alert",
         event=None,
+        manager_status=None,
         security_only=False,
         provider="pagerduty",
         delivery_success=False,
@@ -132,3 +135,38 @@ async def test_list_audit_logs_filters_by_delivery_status_and_provider():
     assert len(result) == 1
     assert result[0].event == "security_alert_delivery_failure"
     assert result[0].detail["provider"] == "pagerduty"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("manager_status", "expected_events"),
+    [
+        ("unhealthy", {"manager_docker_unhealthy", "manager_watchdog_stale"}),
+        ("recovered", {"manager_docker_recovered", "manager_watchdog_recovered"}),
+    ],
+)
+async def test_list_audit_logs_filters_manager_status(manager_status, expected_events):
+    now = datetime.now(timezone.utc)
+    db = StubAuditDb(
+        [
+            make_log(event=event, resource_type="manager_component", created_at=now)
+            for event in expected_events
+        ]
+        + [make_log(event="service_updated", resource_type="service", created_at=now)]
+    )
+
+    result = await audit_router.list_audit_logs(
+        limit=10,
+        offset=0,
+        resource_type=None,
+        action=None,
+        event=None,
+        manager_status=manager_status,
+        security_only=False,
+        provider=None,
+        delivery_success=None,
+        db=db,
+        _={"username": "admin"},
+    )
+
+    assert {item.event for item in result} == expected_events

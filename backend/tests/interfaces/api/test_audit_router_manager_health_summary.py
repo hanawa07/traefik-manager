@@ -1,0 +1,35 @@
+from datetime import datetime, timedelta, timezone
+
+import pytest
+
+from app.interfaces.api.v1.routers import audit as audit_router
+from tests.interfaces.api.audit_router_fakes import StubAuditDb, make_log
+
+
+@pytest.mark.asyncio
+async def test_manager_health_summary_counts_selected_window(monkeypatch):
+    now = datetime(2026, 7, 13, 3, 0, tzinfo=timezone.utc)
+    db = StubAuditDb(
+        [
+            make_log(event="manager_docker_unhealthy", created_at=now - timedelta(hours=1)),
+            make_log(event="manager_watchdog_stale", created_at=now - timedelta(hours=2)),
+            make_log(event="manager_docker_recovered", created_at=now - timedelta(hours=3)),
+            make_log(event="manager_watchdog_recovered", created_at=now - timedelta(days=2)),
+        ]
+    )
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now
+
+    monkeypatch.setattr(audit_router, "datetime", FixedDatetime)
+    result = await audit_router.get_manager_health_summary(
+        window_minutes=1440,
+        db=db,
+        _={"username": "admin"},
+    )
+
+    assert result.window_minutes == 1440
+    assert result.unhealthy_count == 2
+    assert result.recovered_count == 1

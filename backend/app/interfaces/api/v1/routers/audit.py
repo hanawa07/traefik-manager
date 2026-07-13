@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -13,11 +13,13 @@ from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.routers.audit_certificate_summary import build_certificate_summary
 from app.interfaces.api.v1.routers.audit_log_filters import filter_audit_logs
 from app.interfaces.api.v1.routers.audit_log_helpers import to_audit_log_response
+from app.interfaces.api.v1.routers.audit_manager_health_summary import build_manager_health_summary
 from app.interfaces.api.v1.routers.audit_security_summary import build_security_summary
 from app.interfaces.api.v1.schemas.audit_schemas import (
     AuditCertificateSummaryResponse,
     AuditDeliveryRetryResponse,
     AuditLogResponse,
+    AuditManagerHealthSummaryResponse,
     AuditSecuritySummaryResponse,
 )
 
@@ -31,6 +33,7 @@ async def list_audit_logs(
     resource_type: Optional[str] = Query(None),
     action: Optional[str] = Query(None),
     event: Optional[str] = Query(None),
+    manager_status: Optional[Literal["unhealthy", "recovered"]] = Query(None),
     security_only: bool = Query(False),
     provider: Optional[str] = Query(None),
     delivery_success: Optional[bool] = Query(None),
@@ -53,12 +56,31 @@ async def list_audit_logs(
         resource_type=resource_type,
         action=action,
         event=event,
+        manager_status=manager_status,
         security_only=security_only,
         provider=provider,
         delivery_success=delivery_success,
     )
     paged_logs = filtered_logs[offset : offset + limit]
     return [to_audit_log_response(log) for log in paged_logs]
+
+
+@router.get(
+    "/manager-health-summary",
+    response_model=AuditManagerHealthSummaryResponse,
+    summary="Manager 상태 이벤트 요약",
+)
+async def get_manager_health_summary(
+    window_minutes: int = Query(10080, ge=60, le=525600),
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    result = await db.execute(select(AuditLogModel).order_by(desc(AuditLogModel.created_at)))
+    return build_manager_health_summary(
+        logs=result.scalars().all(),
+        window_minutes=window_minutes,
+        now=datetime.now(timezone.utc),
+    )
 
 
 @router.get("/security-summary", response_model=AuditSecuritySummaryResponse, summary="보안 이벤트 요약")

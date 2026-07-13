@@ -4,9 +4,11 @@ import {
   auditFilters,
   deliveryProviderOptions,
   deliveryStatusOptions,
+  managerHealthWindowOptions,
   type AuditFilterKey,
   type DeliveryProviderKey,
   type DeliveryStatusKey,
+  type ManagerHealthWindowMinutes,
 } from "./auditPageHelpers";
 
 interface AuditLogFiltersProps {
@@ -14,7 +16,9 @@ interface AuditLogFiltersProps {
   selectedDeliveryStatus: DeliveryStatusKey;
   selectedDeliveryProvider: DeliveryProviderKey;
   managerHealthCounts?: { unhealthy: number; recovered: number };
+  managerHealthWindowMinutes: ManagerHealthWindowMinutes;
   onFilterChange: (filter: AuditFilterKey) => void;
+  onManagerHealthWindowChange: (minutes: ManagerHealthWindowMinutes) => void;
   onDeliveryStatusChange: (status: DeliveryStatusKey) => void;
   onDeliveryProviderChange: (provider: DeliveryProviderKey) => void;
 }
@@ -24,7 +28,9 @@ export function AuditLogFilters({
   selectedDeliveryStatus,
   selectedDeliveryProvider,
   managerHealthCounts,
+  managerHealthWindowMinutes,
   onFilterChange,
+  onManagerHealthWindowChange,
   onDeliveryStatusChange,
   onDeliveryProviderChange,
 }: AuditLogFiltersProps) {
@@ -65,6 +71,24 @@ export function AuditLogFilters({
       </div>
 
       <div className="mb-6 flex flex-wrap gap-3">
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
+          <span className="text-slate-500 dark:text-slate-400">Manager 집계 기간</span>
+          <select
+            value={managerHealthWindowMinutes}
+            onChange={(event) =>
+              onManagerHealthWindowChange(
+                Number(event.target.value) as ManagerHealthWindowMinutes,
+              )
+            }
+            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          >
+            {managerHealthWindowOptions.map((option) => (
+              <option key={option.minutes} value={option.minutes}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
           <span className="text-slate-500 dark:text-slate-400">전송 상태</span>
           <select

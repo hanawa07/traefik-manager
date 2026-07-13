@@ -3,14 +3,14 @@
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-import type { AuditLogItem } from "@/features/audit/api/auditApi";
-import { useAudit, useManagerHealthAudit } from "@/features/audit/hooks/useAudit";
+import { useAudit, useManagerHealthSummary } from "@/features/audit/hooks/useAudit";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 
 import {
   type AuditFilterKey,
   type DeliveryProviderKey,
   type DeliveryStatusKey,
+  type ManagerHealthWindowMinutes,
   isAuditFilterKey,
 } from "./auditPageHelpers";
 import { useAuditLogActions } from "./useAuditLogActions";
@@ -25,6 +25,8 @@ export function useAuditLogPageModel() {
   const [selectedDeliveryStatus, setSelectedDeliveryStatus] = useState<DeliveryStatusKey>("all");
   const [selectedDeliveryProvider, setSelectedDeliveryProvider] =
     useState<DeliveryProviderKey>("all");
+  const [managerHealthWindowMinutes, setManagerHealthWindowMinutes] =
+    useState<ManagerHealthWindowMinutes>(10080);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   const auditQuery = buildAuditLogQuery({
@@ -33,7 +35,7 @@ export function useAuditLogPageModel() {
     selectedFilter,
   });
   const { data: logs, isLoading, isError, error } = useAudit(auditQuery);
-  const { data: managerHealthLogs } = useManagerHealthAudit(100);
+  const { data: managerHealthSummary } = useManagerHealthSummary(managerHealthWindowMinutes);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const auditActions = useAuditLogActions();
 
@@ -44,12 +46,17 @@ export function useAuditLogPageModel() {
       selectedDeliveryProvider,
       selectedDeliveryStatus,
       selectedFilter,
-      managerHealthCounts: managerHealthLogs
-        ? countManagerHealthEvents(managerHealthLogs)
+      managerHealthCounts: managerHealthSummary
+        ? {
+            unhealthy: managerHealthSummary.unhealthy_count,
+            recovered: managerHealthSummary.recovered_count,
+          }
         : undefined,
+      managerHealthWindowMinutes,
       onDeliveryProviderChange: setSelectedDeliveryProvider,
       onDeliveryStatusChange: setSelectedDeliveryStatus,
       onFilterChange: setSelectedFilter,
+      onManagerHealthWindowChange: setManagerHealthWindowMinutes,
     },
     isError,
     isLoading,
@@ -67,13 +74,4 @@ export function useAuditLogPageModel() {
       onRollback: auditActions.onRollback,
     },
   };
-}
-
-function countManagerHealthEvents(logs: AuditLogItem[]) {
-  const counts = { unhealthy: 0, recovered: 0 };
-  for (const log of logs) {
-    if (log.event === "manager_docker_unhealthy") counts.unhealthy += 1;
-    if (log.event === "manager_docker_recovered") counts.recovered += 1;
-  }
-  return counts;
 }

@@ -36,9 +36,16 @@ export const deliveryProviderOptions = [
   { key: "email", label: "Email" },
 ] as const;
 
+export const managerHealthWindowOptions = [
+  { minutes: 1440, label: "24시간" },
+  { minutes: 10080, label: "7일" },
+  { minutes: 43200, label: "30일" },
+] as const;
+
 export type AuditFilterKey = (typeof auditFilters)[number]["key"];
 export type DeliveryStatusKey = (typeof deliveryStatusOptions)[number]["key"];
 export type DeliveryProviderKey = (typeof deliveryProviderOptions)[number]["key"];
+export type ManagerHealthWindowMinutes = (typeof managerHealthWindowOptions)[number]["minutes"];
 
 export function isAuditFilterKey(value: string | null): value is AuditFilterKey {
   return auditFilters.some((filter) => filter.key === value);

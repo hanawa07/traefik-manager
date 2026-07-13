@@ -54,6 +54,12 @@ class AuditCertificateSummaryResponse(BaseModel):
     recent_events: list[AuditCertificateEventResponse]
 
 
+class AuditManagerHealthSummaryResponse(BaseModel):
+    window_minutes: int
+    unhealthy_count: int
+    recovered_count: int
+
+
 class AuditDeliveryRetryResponse(BaseModel):
     success: bool
     message: str

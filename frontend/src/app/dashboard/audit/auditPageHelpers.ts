@@ -8,10 +8,12 @@ export {
   auditFilters,
   deliveryProviderOptions,
   deliveryStatusOptions,
+  managerHealthWindowOptions,
   isAuditFilterKey,
   type AuditFilterKey,
   type DeliveryProviderKey,
   type DeliveryStatusKey,
+  type ManagerHealthWindowMinutes,
 } from "./audit-page-helpers/auditFilterOptions";
 export {
   getAuditDiffRows,

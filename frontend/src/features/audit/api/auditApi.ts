@@ -54,6 +54,12 @@ export interface AuditCertificateSummary {
   recent_events: AuditCertificateEventItem[];
 }
 
+export interface AuditManagerHealthSummary {
+  window_minutes: number;
+  unhealthy_count: number;
+  recovered_count: number;
+}
+
 export interface AuditDeliveryRetryResult {
   success: boolean;
   message: string;
@@ -69,6 +75,7 @@ export const auditApi = {
     resource_type?: string;
     action?: string;
     event?: string;
+    manager_status?: "unhealthy" | "recovered";
     security_only?: boolean;
     provider?: string;
     delivery_success?: boolean;
@@ -90,6 +97,13 @@ export const auditApi = {
     recent_limit?: number;
   }): Promise<AuditCertificateSummary> => {
     const res = await apiClient.get<AuditCertificateSummary>("/audit/certificate-summary", { params });
+    return res.data;
+  },
+
+  getManagerHealthSummary: async (windowMinutes: number): Promise<AuditManagerHealthSummary> => {
+    const res = await apiClient.get<AuditManagerHealthSummary>("/audit/manager-health-summary", {
+      params: { window_minutes: windowMinutes },
+    });
     return res.data;
   },
 

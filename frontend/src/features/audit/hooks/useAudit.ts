@@ -7,6 +7,7 @@ export const useAudit = (params?: {
   resource_type?: string;
   action?: string;
   event?: string;
+  manager_status?: "unhealthy" | "recovered";
   security_only?: boolean;
   provider?: string;
   delivery_success?: boolean;
@@ -44,6 +45,15 @@ export const useManagerHealthAudit = (limit = 5) => {
   return useQuery({
     queryKey: ["audit-logs", params],
     queryFn: () => auditApi.getLogs(params),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+};
+
+export const useManagerHealthSummary = (windowMinutes: number) => {
+  return useQuery({
+    queryKey: ["audit-manager-health-summary", windowMinutes],
+    queryFn: () => auditApi.getManagerHealthSummary(windowMinutes),
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
