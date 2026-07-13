@@ -10,6 +10,7 @@ export {
   deliveryStatusOptions,
   managerHealthWindowOptions,
   isAuditFilterKey,
+  parseManagerHealthWindowMinutes,
   type AuditFilterKey,
   type DeliveryProviderKey,
   type DeliveryStatusKey,

@@ -25,6 +25,7 @@ async def test_list_audit_logs_filters_by_event_and_applies_pagination():
         action=None,
         event="login_locked",
         manager_status=None,
+        manager_source=None,
         security_only=False,
         provider=None,
         delivery_success=None,
@@ -73,6 +74,7 @@ async def test_list_audit_logs_filters_by_resource_type_and_action():
         action="update",
         event=None,
         manager_status=None,
+        manager_source=None,
         security_only=False,
         provider=None,
         delivery_success=None,
@@ -125,6 +127,7 @@ async def test_list_audit_logs_filters_by_delivery_status_and_provider():
         action="alert",
         event=None,
         manager_status=None,
+        manager_source=None,
         security_only=False,
         provider="pagerduty",
         delivery_success=False,
@@ -162,6 +165,48 @@ async def test_list_audit_logs_filters_manager_status(manager_status, expected_e
         action=None,
         event=None,
         manager_status=manager_status,
+        manager_source=None,
+        security_only=False,
+        provider=None,
+        delivery_success=None,
+        db=db,
+        _={"username": "admin"},
+    )
+
+    assert {item.event for item in result} == expected_events
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("manager_source", "expected_events"),
+    [
+        ("docker", {"manager_docker_unhealthy", "manager_docker_recovered"}),
+        ("watchdog", {"manager_watchdog_stale", "manager_watchdog_recovered"}),
+    ],
+)
+async def test_list_audit_logs_filters_manager_source(manager_source, expected_events):
+    now = datetime.now(timezone.utc)
+    all_events = {
+        "manager_docker_unhealthy",
+        "manager_docker_recovered",
+        "manager_watchdog_stale",
+        "manager_watchdog_recovered",
+    }
+    db = StubAuditDb(
+        [
+            make_log(event=event, resource_type="manager_component", created_at=now)
+            for event in all_events
+        ]
+    )
+
+    result = await audit_router.list_audit_logs(
+        limit=10,
+        offset=0,
+        resource_type=None,
+        action=None,
+        event=None,
+        manager_status=None,
+        manager_source=manager_source,
         security_only=False,
         provider=None,
         delivery_success=None,

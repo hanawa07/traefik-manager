@@ -74,6 +74,7 @@ export function AuditLogFilters({
         <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
           <span className="text-slate-500 dark:text-slate-400">Manager 집계 기간</span>
           <select
+            aria-label="Manager 집계 기간"
             value={managerHealthWindowMinutes}
             onChange={(event) =>
               onManagerHealthWindowChange(

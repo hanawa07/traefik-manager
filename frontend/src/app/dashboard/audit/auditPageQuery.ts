@@ -10,6 +10,7 @@ interface AuditLogQuery {
   event?: string;
   limit: number;
   manager_status?: "unhealthy" | "recovered";
+  manager_source?: "docker" | "watchdog";
   provider?: string;
   resource_type?: string;
   security_only?: boolean;
@@ -40,6 +41,12 @@ function buildFilterQuery(selectedFilter: AuditFilterKey): AuditLogQuery {
   if (selectedFilter === "alert_delivery") return { limit: 50, action: "alert" };
   if (selectedFilter === "manager_health") {
     return { limit: 50, resource_type: "manager_component" };
+  }
+  if (selectedFilter === "manager_docker") {
+    return { limit: 50, manager_source: "docker" };
+  }
+  if (selectedFilter === "manager_watchdog") {
+    return { limit: 50, manager_source: "watchdog" };
   }
   if (selectedFilter === "manager_unhealthy") {
     return { limit: 50, manager_status: "unhealthy" };

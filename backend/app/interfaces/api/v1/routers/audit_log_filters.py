@@ -8,6 +8,10 @@ from app.interfaces.api.v1.routers.audit_log_helpers import (
 SECURITY_EVENTS = {"login_failure", "login_locked", "login_suspicious", "login_blocked_ip"}
 MANAGER_UNHEALTHY_EVENTS = {"manager_docker_unhealthy", "manager_watchdog_stale"}
 MANAGER_RECOVERED_EVENTS = {"manager_docker_recovered", "manager_watchdog_recovered"}
+MANAGER_SOURCE_EVENTS = {
+    "docker": {"manager_docker_unhealthy", "manager_docker_recovered"},
+    "watchdog": {"manager_watchdog_stale", "manager_watchdog_recovered"},
+}
 
 
 def filter_audit_logs(
@@ -17,6 +21,7 @@ def filter_audit_logs(
     action: str | None,
     event: str | None,
     manager_status: str | None,
+    manager_source: str | None,
     security_only: bool,
     provider: str | None,
     delivery_success: bool | None,
@@ -35,6 +40,10 @@ def filter_audit_logs(
             MANAGER_UNHEALTHY_EVENTS if manager_status == "unhealthy" else MANAGER_RECOVERED_EVENTS
         )
         filtered = [log for log in filtered if get_event(log) in manager_events]
+    if manager_source:
+        filtered = [
+            log for log in filtered if get_event(log) in MANAGER_SOURCE_EVENTS[manager_source]
+        ]
     if provider:
         filtered = [log for log in filtered if get_detail_str(log, "provider") == provider]
     if delivery_success is not None:

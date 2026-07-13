@@ -34,6 +34,31 @@ export async function checkOptionalAdminModal({ artifactDir, cdp, profile, timeo
   return true;
 }
 
+export async function checkAuditPeriodPersistence({ cdp, timeoutMs }) {
+  const changed = await evaluate(cdp, `(() => {
+    const select = document.querySelector('select[aria-label="Manager 집계 기간"]');
+    if (!select) return false;
+    select.value = '1440';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(changed, true, "Manager 집계 기간 선택기를 찾지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `new URLSearchParams(location.search).get('manager_window') === '1440'`,
+    timeoutMs,
+    "Manager 집계 기간이 URL에 저장되지 않았습니다",
+  );
+  await cdp.send("Page.reload", { ignoreCache: true });
+  await waitForCondition(
+    cdp,
+    `document.querySelector('select[aria-label="Manager 집계 기간"]')?.value === '1440'`,
+    timeoutMs,
+    "새로고침 후 Manager 집계 기간이 복원되지 않았습니다",
+  );
+  return true;
+}
+
 export async function checkMobileSidebar({ artifactDir, cdp, profile, timeoutMs }) {
   if (!profile.mobile) return false;
 

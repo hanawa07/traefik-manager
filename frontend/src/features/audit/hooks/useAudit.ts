@@ -8,6 +8,7 @@ export const useAudit = (params?: {
   action?: string;
   event?: string;
   manager_status?: "unhealthy" | "recovered";
+  manager_source?: "docker" | "watchdog";
   security_only?: boolean;
   provider?: string;
   delivery_success?: boolean;

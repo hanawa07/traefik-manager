@@ -10,6 +10,8 @@ export const auditFilters = [
   { key: "login_blocked_ip", label: "IP 차단" },
   { key: "login_failure", label: "로그인 실패" },
   { key: "manager_health", label: "Manager 전체" },
+  { key: "manager_docker", label: "Manager Docker" },
+  { key: "manager_watchdog", label: "Watchdog" },
   { key: "manager_unhealthy", label: "Manager 이상" },
   { key: "manager_recovered", label: "Manager 복구" },
   { key: "certificate_warning", label: "인증서 만료 임박" },
@@ -49,4 +51,13 @@ export type ManagerHealthWindowMinutes = (typeof managerHealthWindowOptions)[num
 
 export function isAuditFilterKey(value: string | null): value is AuditFilterKey {
   return auditFilters.some((filter) => filter.key === value);
+}
+
+export function parseManagerHealthWindowMinutes(
+  value: string | null,
+): ManagerHealthWindowMinutes {
+  const minutes = Number(value);
+  return managerHealthWindowOptions.some((option) => option.minutes === minutes)
+    ? (minutes as ManagerHealthWindowMinutes)
+    : 10080;
 }
