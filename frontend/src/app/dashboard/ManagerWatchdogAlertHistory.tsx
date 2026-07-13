@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { ExternalLink, RefreshCw, RotateCcw, X } from "lucide-react";
 import { Suspense } from "react";
 
 import type { DeploymentInfo } from "@/features/deployment/api/deploymentApi";
@@ -43,6 +43,17 @@ function ManagerWatchdogAlertHistoryContent({
   const runs = deployment?.external_watchdog_alert_runs || [];
   const eventFilter = parseWatchdogEventFilter(searchParams.get("watchdog_event"));
   const resultFilter = parseWatchdogResultFilter(searchParams.get("watchdog_result"));
+  const eventFilterLabel = eventFilter === "failure" ? "장애 알림" : "복구 알림";
+  const resultFilterLabel =
+    resultFilter === "all"
+      ? ""
+      : {
+          success: "성공",
+          failure: "실패",
+          pending: "진행·확인 중",
+          other: "기타 완료",
+        }[resultFilter];
+  const hasActiveFilters = eventFilter !== "all" || resultFilter !== "all";
   const filteredRuns = runs.filter(
     (run) =>
       (eventFilter === "all" || run.event === eventFilter) &&
@@ -123,6 +134,50 @@ function ManagerWatchdogAlertHistoryContent({
         <span className="ml-auto text-[11px] text-gray-500 dark:text-slate-400">
           {filteredRuns.length}/{runs.length}건
         </span>
+        <div
+          aria-live="polite"
+          className="flex w-full flex-wrap items-center gap-1.5 border-t border-slate-200 pt-2 text-[11px] dark:border-slate-800"
+        >
+          <span className="font-semibold text-slate-600 dark:text-slate-300">적용 조건</span>
+          {!hasActiveFilters ? (
+            <span className="text-slate-500 dark:text-slate-400">전체 실행</span>
+          ) : (
+            <>
+              {eventFilter !== "all" ? (
+                <button
+                  aria-label={`watchdog ${eventFilterLabel} 조건 제거`}
+                  className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 font-medium text-blue-800 hover:bg-blue-200 dark:bg-blue-500/15 dark:text-blue-200 dark:hover:bg-blue-500/25"
+                  onClick={() => replaceWatchdogQueryParam("watchdog_event", "all")}
+                  type="button"
+                >
+                  {eventFilterLabel}
+                  <X aria-hidden="true" className="h-3 w-3" />
+                </button>
+              ) : null}
+              {resultFilter !== "all" ? (
+                <button
+                  aria-label={`watchdog ${resultFilterLabel} 조건 제거`}
+                  className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 font-medium text-blue-800 hover:bg-blue-200 dark:bg-blue-500/15 dark:text-blue-200 dark:hover:bg-blue-500/25"
+                  onClick={() => replaceWatchdogQueryParam("watchdog_result", "all")}
+                  type="button"
+                >
+                  {resultFilterLabel}
+                  <X aria-hidden="true" className="h-3 w-3" />
+                </button>
+              ) : null}
+            </>
+          )}
+          <button
+            aria-label="watchdog 필터 전체 초기화"
+            className="ml-auto inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 font-semibold text-slate-600 hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
+            disabled={!hasActiveFilters}
+            onClick={resetWatchdogQueryParams}
+            type="button"
+          >
+            <RotateCcw className="h-3 w-3" />
+            전체 초기화
+          </button>
+        </div>
         <div
           aria-label="watchdog 실행 결과 집계"
           className="flex w-full flex-wrap gap-1.5 border-t border-slate-200 pt-2 dark:border-slate-800"
@@ -213,9 +268,22 @@ function parseWatchdogResultFilter(value: string | null): WatchdogResultFilter {
 }
 
 function replaceWatchdogQueryParam(key: string, value: string) {
+  replaceWatchdogQueryParams([[key, value]]);
+}
+
+function resetWatchdogQueryParams() {
+  replaceWatchdogQueryParams([
+    ["watchdog_event", "all"],
+    ["watchdog_result", "all"],
+  ]);
+}
+
+function replaceWatchdogQueryParams(values: [key: string, value: string][]) {
   const params = new URLSearchParams(window.location.search);
-  if (value === "all") params.delete(key);
-  else params.set(key, value);
+  values.forEach(([key, value]) => {
+    if (value === "all") params.delete(key);
+    else params.set(key, value);
+  });
   const query = params.toString();
   window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
 }
