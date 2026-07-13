@@ -13,6 +13,10 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
       bucketCount: card.querySelectorAll('[data-http-error-bucket="true"]').length,
       chartScrollWidth: chart?.scrollWidth ?? 0,
       chartWidth: chart?.clientWidth ?? 0,
+      managerApiAlert: document.querySelector('[data-testid="manager-health-alert-banner"]')
+        ?.getAttribute('data-manager-api-alert'),
+      managerApiAuditHref: document.querySelector('[data-testid="manager-api-audit-link"]')
+        ?.getAttribute('href'),
       monitorStatus: monitor?.getAttribute('data-http-error-monitor-status'),
       text: card.textContent || '',
     } : null;
@@ -27,6 +31,13 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
     ["disabled", "pending", "unavailable", "breached", "healthy"].includes(snapshot.monitorStatus),
     "Manager API 오류 임계치 감지 상태가 올바르지 않습니다",
   );
+  if (["breached", "unavailable"].includes(snapshot.managerApiAlert)) {
+    assert.equal(
+      snapshot.managerApiAuditHref,
+      "/dashboard/audit?filter=manager_health&manager_source=api&period=1",
+      "Manager API 상단 경고가 관련 감사 로그로 연결되지 않습니다",
+    );
+  }
   await checkManagerHttpErrorPreviewApi(cdp);
 
   await setSelectValue(cdp, '[data-testid="manager-http-error-window"]', "6");
