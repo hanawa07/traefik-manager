@@ -8,6 +8,7 @@ import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 
 import {
   type AuditFilterKey,
+  type AuditPeriodDays,
   type DeliveryProviderKey,
   type DeliveryStatusKey,
   type ManagerHealthWindowMinutes,
@@ -18,10 +19,16 @@ import {
   isDeliveryStatusKey,
   isManagerSourceKey,
   isManagerStatusKey,
+  parseAuditPeriodDays,
   parseManagerHealthWindowMinutes,
 } from "./auditPageHelpers";
 import { useAuditLogActions } from "./useAuditLogActions";
-import { AUDIT_PAGE_SIZE, buildAuditLogQuery } from "./auditPageQuery";
+import {
+  AUDIT_PAGE_SIZE,
+  buildAuditLogQuery,
+  parseAuditPageSize,
+  type AuditPageSize,
+} from "./auditPageQuery";
 
 const FALLBACK_AUDIT_LOAD_ERROR = "감사 로그를 불러오지 못했습니다. 서버 연결 상태를 확인해주세요.";
 
@@ -38,6 +45,12 @@ export function useAuditLogPageModel() {
     (searchParams.get("q") || "").slice(0, 100),
   );
   const [currentPage, setCurrentPage] = useState(() => parseAuditPage(searchParams.get("page")));
+  const [pageSize, setPageSize] = useState<AuditPageSize>(() =>
+    parseAuditPageSize(searchParams.get("page_size")),
+  );
+  const [selectedPeriod, setSelectedPeriod] = useState<AuditPeriodDays>(() =>
+    parseAuditPeriodDays(searchParams.get("period")),
+  );
   const [selectedManagerSource, setSelectedManagerSource] = useState<ManagerSourceKey>(() => {
     const value = searchParams.get("manager_source");
     if (isManagerSourceKey(value)) return value;
@@ -78,8 +91,10 @@ export function useAuditLogPageModel() {
     selectedFilter,
     selectedManagerSource,
     selectedManagerStatus,
+    selectedPeriod,
     searchText: deferredSearchText,
     page: currentPage,
+    pageSize,
   });
   const { data: logPage, isLoading, isFetching, isError, error } = useAuditPage(auditQuery);
   const { data: managerHealthSummary } = useManagerHealthSummary(managerHealthWindowMinutes);
@@ -138,6 +153,14 @@ export function useAuditLogPageModel() {
     setSearchText(nextValue);
     replaceFilterQueryParams([["q", nextValue, ""]]);
   };
+  const handlePeriodChange = (period: AuditPeriodDays) => {
+    setSelectedPeriod(period);
+    replaceFilterQueryParams([["period", String(period), "all"]]);
+  };
+  const handlePageSizeChange = (nextPageSize: AuditPageSize) => {
+    setPageSize(nextPageSize);
+    replaceFilterQueryParams([["page_size", String(nextPageSize), String(AUDIT_PAGE_SIZE)]]);
+  };
   const handleResetFilters = () => {
     setSelectedFilter("all");
     setSelectedManagerSource("all");
@@ -145,6 +168,8 @@ export function useAuditLogPageModel() {
     setSelectedDeliveryStatus("all");
     setSelectedDeliveryProvider("all");
     setManagerHealthWindowMinutes(10080);
+    setSelectedPeriod("all");
+    setPageSize(AUDIT_PAGE_SIZE);
     setSearchText("");
     setCurrentPage(1);
     setExpandedLogId(null);
@@ -165,6 +190,7 @@ export function useAuditLogPageModel() {
       selectedFilter,
       selectedManagerSource,
       selectedManagerStatus,
+      selectedPeriod,
       searchText,
       managerHealthCounts: managerHealthSummary,
       managerHealthWindowMinutes,
@@ -174,6 +200,7 @@ export function useAuditLogPageModel() {
       onManagerSourceChange: handleManagerSourceChange,
       onManagerStatusChange: handleManagerStatusChange,
       onManagerHealthWindowChange: handleManagerHealthWindowChange,
+      onPeriodChange: handlePeriodChange,
       onResetFilters: handleResetFilters,
       onSearchTextChange: handleSearchTextChange,
     },
@@ -187,7 +214,7 @@ export function useAuditLogPageModel() {
       isRefreshing: isFetching && !isLoading,
       isRollbackPending: auditActions.isRollbackPending,
       logs: logPage?.items,
-      pageSize: AUDIT_PAGE_SIZE,
+      pageSize,
       retryTargetId: auditActions.retryTargetId,
       rollbackTargetId: auditActions.rollbackTargetId,
       timezone: timeDisplaySettings?.display_timezone,
@@ -196,6 +223,7 @@ export function useAuditLogPageModel() {
       onRetryDelivery: auditActions.onRetryDelivery,
       onRollback: auditActions.onRollback,
       onPageChange: handlePageChange,
+      onPageSizeChange: handlePageSizeChange,
     },
   };
 }

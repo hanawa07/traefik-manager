@@ -29,6 +29,7 @@ async def test_list_audit_logs_filters_by_event_and_applies_pagination():
         event="login_locked",
         manager_status=None,
         manager_source=None,
+        period_days=None,
         search=None,
         security_only=False,
         provider=None,
@@ -81,6 +82,7 @@ async def test_list_audit_logs_filters_by_resource_type_and_action():
         event=None,
         manager_status=None,
         manager_source=None,
+        period_days=None,
         search=None,
         security_only=False,
         provider=None,
@@ -136,6 +138,7 @@ async def test_list_audit_logs_filters_by_delivery_status_and_provider():
         event=None,
         manager_status=None,
         manager_source=None,
+        period_days=None,
         search=None,
         security_only=False,
         provider="pagerduty",
@@ -176,6 +179,7 @@ async def test_list_audit_logs_filters_manager_status(manager_status, expected_e
         event=None,
         manager_status=manager_status,
         manager_source=None,
+        period_days=None,
         search=None,
         security_only=False,
         provider=None,
@@ -219,6 +223,7 @@ async def test_list_audit_logs_filters_manager_source(manager_source, expected_e
         event=None,
         manager_status=None,
         manager_source=manager_source,
+        period_days=None,
         search=None,
         security_only=False,
         provider=None,
@@ -255,6 +260,7 @@ async def test_list_audit_logs_searches_actor_and_target(search):
         event=None,
         manager_status=None,
         manager_source=None,
+        period_days=None,
         search=search,
         security_only=False,
         provider=None,
@@ -265,3 +271,40 @@ async def test_list_audit_logs_searches_actor_and_target(search):
 
     assert len(result) == 1
     assert result[0].resource_name == "English Service"
+
+
+@pytest.mark.asyncio
+async def test_list_audit_logs_filters_period_with_naive_and_aware_datetimes():
+    now = datetime.now(timezone.utc)
+    db = StubAuditDb(
+        [
+            make_log(resource_name="aware", created_at=now - timedelta(hours=1)),
+            make_log(
+                resource_name="naive",
+                created_at=(now - timedelta(hours=2)).replace(tzinfo=None),
+            ),
+            make_log(resource_name="old", created_at=now - timedelta(days=2)),
+        ]
+    )
+
+    response = Response()
+    result = await audit_router.list_audit_logs(
+        response=response,
+        limit=10,
+        offset=0,
+        resource_type=None,
+        action=None,
+        event=None,
+        manager_status=None,
+        manager_source=None,
+        period_days=1,
+        search=None,
+        security_only=False,
+        provider=None,
+        delivery_success=None,
+        db=db,
+        _={"username": "admin"},
+    )
+
+    assert {item.resource_name for item in result} == {"aware", "naive"}
+    assert response.headers["x-total-count"] == "2"

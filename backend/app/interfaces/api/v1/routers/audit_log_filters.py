@@ -1,8 +1,11 @@
+from datetime import datetime, timedelta, timezone
+
 from app.infrastructure.persistence.models import AuditLogModel
 from app.interfaces.api.v1.routers.audit_log_helpers import (
     get_detail_bool,
     get_detail_str,
     get_event,
+    normalize_utc,
 )
 
 SECURITY_EVENTS = {"login_failure", "login_locked", "login_suspicious", "login_blocked_ip"}
@@ -22,12 +25,16 @@ def filter_audit_logs(
     event: str | None,
     manager_status: str | None,
     manager_source: str | None,
+    period_days: int | None,
     search: str | None,
     security_only: bool,
     provider: str | None,
     delivery_success: bool | None,
 ) -> list[AuditLogModel]:
     filtered = logs
+    if period_days:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=period_days)
+        filtered = [log for log in filtered if normalize_utc(log.created_at) >= cutoff]
     if resource_type:
         filtered = [log for log in filtered if log.resource_type == resource_type]
     if security_only:

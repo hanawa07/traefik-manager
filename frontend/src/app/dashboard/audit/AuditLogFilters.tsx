@@ -5,17 +5,20 @@ import type { AuditManagerHealthSummary } from "@/features/audit/api/auditApi";
 
 import {
   auditFilters,
+  auditPeriodOptions,
   deliveryProviderOptions,
   deliveryStatusOptions,
   managerHealthWindowOptions,
   managerSourceOptions,
   managerStatusOptions,
   type AuditFilterKey,
+  type AuditPeriodDays,
   type DeliveryProviderKey,
   type DeliveryStatusKey,
   type ManagerHealthWindowMinutes,
   type ManagerSourceKey,
   type ManagerStatusKey,
+  parseAuditPeriodDays,
 } from "./auditPageHelpers";
 
 interface AuditLogFiltersProps {
@@ -24,6 +27,7 @@ interface AuditLogFiltersProps {
   selectedDeliveryProvider: DeliveryProviderKey;
   selectedManagerSource: ManagerSourceKey;
   selectedManagerStatus: ManagerStatusKey;
+  selectedPeriod: AuditPeriodDays;
   managerHealthCounts?: AuditManagerHealthSummary;
   managerHealthWindowMinutes: ManagerHealthWindowMinutes;
   searchText: string;
@@ -31,6 +35,7 @@ interface AuditLogFiltersProps {
   onManagerSourceChange: (source: ManagerSourceKey) => void;
   onManagerStatusChange: (status: ManagerStatusKey) => void;
   onManagerHealthWindowChange: (minutes: ManagerHealthWindowMinutes) => void;
+  onPeriodChange: (period: AuditPeriodDays) => void;
   onResetFilters: () => void;
   onSearchTextChange: (value: string) => void;
   onDeliveryStatusChange: (status: DeliveryStatusKey) => void;
@@ -49,6 +54,7 @@ export function AuditLogFilters({
   selectedDeliveryProvider,
   selectedManagerSource,
   selectedManagerStatus,
+  selectedPeriod,
   managerHealthCounts,
   managerHealthWindowMinutes,
   searchText,
@@ -56,6 +62,7 @@ export function AuditLogFilters({
   onManagerSourceChange,
   onManagerStatusChange,
   onManagerHealthWindowChange,
+  onPeriodChange,
   onResetFilters,
   onSearchTextChange,
   onDeliveryStatusChange,
@@ -68,6 +75,16 @@ export function AuditLogFilters({
       label: `검색: ${searchText.trim()}`,
       onRemove: () => onSearchTextChange(""),
     });
+  }
+  if (selectedPeriod !== "all") {
+    const label = auditPeriodOptions.find((option) => option.days === selectedPeriod)?.label;
+    if (label) {
+      activeConditions.push({
+        key: "period",
+        label: `기간: ${label}`,
+        onRemove: () => onPeriodChange("all"),
+      });
+    }
   }
   if (selectedFilter !== "all") {
     const label = auditFilters.find((filter) => filter.key === selectedFilter)?.label;
@@ -207,7 +224,22 @@ export function AuditLogFilters({
         )}
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
+          <span className="text-slate-500 dark:text-slate-400">감사 기간</span>
+          <select
+            aria-label="감사 기간"
+            value={selectedPeriod}
+            onChange={(event) => onPeriodChange(parseAuditPeriodDays(event.target.value))}
+            className="w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          >
+            {auditPeriodOptions.map((option) => (
+              <option key={option.days} value={option.days}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
           <span className="text-slate-500 dark:text-slate-400">Manager 소스</span>
           <select

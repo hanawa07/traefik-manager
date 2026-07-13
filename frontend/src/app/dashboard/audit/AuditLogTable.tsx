@@ -6,6 +6,7 @@ import { AuditLogEmptyRow } from "./AuditLogEmptyRow";
 import { AuditLogPagination } from "./AuditLogPagination";
 import { AuditLogRow } from "./AuditLogRow";
 import { AuditLogTableHeader } from "./AuditLogTableHeader";
+import type { AuditPageSize } from "./auditPageQuery";
 import type { RollbackResourceType } from "./auditPageHelpers";
 
 interface AuditLogTableProps {
@@ -18,12 +19,13 @@ interface AuditLogTableProps {
   isRetryPending: boolean;
   isRefreshing: boolean;
   currentPage: number;
-  pageSize: number;
+  pageSize: AuditPageSize;
   totalCount: number;
   onExpandedLogChange: (logId: string | null) => void;
   onRollback: (resourceType: RollbackResourceType, auditLogId: string) => void;
   onRetryDelivery: (auditLogId: string) => void;
   onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: AuditPageSize) => void;
 }
 
 export function AuditLogTable({
@@ -42,6 +44,7 @@ export function AuditLogTable({
   onRollback,
   onRetryDelivery,
   onPageChange,
+  onPageSizeChange,
 }: AuditLogTableProps) {
   return (
     <div
@@ -85,6 +88,7 @@ export function AuditLogTable({
         currentPage={currentPage}
         isRefreshing={isRefreshing}
         onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
         pageSize={pageSize}
         totalCount={totalCount}
       />

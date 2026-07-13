@@ -52,7 +52,16 @@ export const managerHealthWindowOptions = [
   { minutes: 43200, label: "30일" },
 ] as const;
 
+export const auditPeriodOptions = [
+  { days: "all", label: "전체 기간" },
+  { days: 1, label: "24시간" },
+  { days: 7, label: "7일" },
+  { days: 30, label: "30일" },
+  { days: 90, label: "90일" },
+] as const;
+
 export type AuditFilterKey = (typeof auditFilters)[number]["key"];
+export type AuditPeriodDays = (typeof auditPeriodOptions)[number]["days"];
 export type DeliveryStatusKey = (typeof deliveryStatusOptions)[number]["key"];
 export type DeliveryProviderKey = (typeof deliveryProviderOptions)[number]["key"];
 export type ManagerSourceKey = (typeof managerSourceOptions)[number]["key"];
@@ -86,4 +95,12 @@ export function parseManagerHealthWindowMinutes(
   return managerHealthWindowOptions.some((option) => option.minutes === minutes)
     ? (minutes as ManagerHealthWindowMinutes)
     : 10080;
+}
+
+export function parseAuditPeriodDays(value: string | null): AuditPeriodDays {
+  if (!value || value === "all") return "all";
+  const days = Number(value);
+  return auditPeriodOptions.some((option) => option.days === days)
+    ? (days as AuditPeriodDays)
+    : "all";
 }

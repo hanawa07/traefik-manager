@@ -2,13 +2,16 @@ import type { AuditLogQueryParams } from "@/features/audit/api/auditApi";
 
 import type {
   AuditFilterKey,
+  AuditPeriodDays,
   DeliveryProviderKey,
   DeliveryStatusKey,
   ManagerSourceKey,
   ManagerStatusKey,
 } from "./auditPageHelpers";
 
-export const AUDIT_PAGE_SIZE = 50;
+export const AUDIT_PAGE_SIZES = [25, 50, 100] as const;
+export type AuditPageSize = (typeof AUDIT_PAGE_SIZES)[number];
+export const AUDIT_PAGE_SIZE: AuditPageSize = 50;
 
 interface BuildAuditLogQueryArgs {
   selectedDeliveryProvider: DeliveryProviderKey;
@@ -16,8 +19,10 @@ interface BuildAuditLogQueryArgs {
   selectedFilter: AuditFilterKey;
   selectedManagerSource: ManagerSourceKey;
   selectedManagerStatus: ManagerStatusKey;
+  selectedPeriod: AuditPeriodDays;
   searchText: string;
   page: number;
+  pageSize: AuditPageSize;
 }
 
 export function buildAuditLogQuery({
@@ -26,13 +31,16 @@ export function buildAuditLogQuery({
   selectedFilter,
   selectedManagerSource,
   selectedManagerStatus,
+  selectedPeriod,
   searchText,
   page,
+  pageSize,
 }: BuildAuditLogQueryArgs): AuditLogQueryParams {
   return {
     ...buildFilterQuery(selectedFilter, selectedManagerSource, selectedManagerStatus),
-    limit: AUDIT_PAGE_SIZE,
-    offset: (page - 1) * AUDIT_PAGE_SIZE,
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
+    period_days: selectedPeriod === "all" ? undefined : selectedPeriod,
     provider: selectedDeliveryProvider === "all" ? undefined : selectedDeliveryProvider,
     delivery_success:
       selectedDeliveryStatus === "all" ? undefined : selectedDeliveryStatus === "success",
@@ -66,4 +74,11 @@ function buildFilterQuery(
   }
 
   return { event: selectedFilter };
+}
+
+export function parseAuditPageSize(value: string | null): AuditPageSize {
+  const pageSize = Number(value);
+  return AUDIT_PAGE_SIZES.includes(pageSize as AuditPageSize)
+    ? (pageSize as AuditPageSize)
+    : AUDIT_PAGE_SIZE;
 }
