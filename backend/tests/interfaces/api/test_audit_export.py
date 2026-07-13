@@ -9,12 +9,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.infrastructure.persistence.models import AuditLogModel
 from app.interfaces.api.v1.routers import audit as audit_router
+from app.interfaces.api.v1.routers import audit_export as audit_export_router
 from app.interfaces.api.v1.routers.audit_export import _safe_cell
 from tests.interfaces.api.audit_router_fakes import make_log
 
 
 @pytest.mark.asyncio
-async def test_export_audit_logs_uses_date_and_search_filters():
+async def test_export_audit_logs_uses_date_and_search_filters(monkeypatch):
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
         await connection.run_sync(AuditLogModel.__table__.create)
@@ -35,23 +36,23 @@ async def test_export_audit_logs_uses_date_and_search_filters():
         )
         await db.commit()
 
-        app = FastAPI()
-        app.include_router(audit_router.router, prefix="/audit")
-        app.dependency_overrides[audit_router.get_db] = lambda: db
-        app.dependency_overrides[audit_router.get_current_user] = lambda: {"username": "admin"}
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.get(
-                "/audit/export.csv",
-                params={
-                    "start_date": "2026-07-02",
-                    "end_date": "2026-07-02",
-                    "search": "English",
-                },
-            )
-            invalid = await client.get(
-                "/audit/export.csv",
-                params={"period_days": "7", "start_date": "2026-07-02"},
-            )
+    monkeypatch.setattr(audit_export_router, "AsyncSessionLocal", session_factory)
+    app = FastAPI()
+    app.include_router(audit_router.router, prefix="/audit")
+    app.dependency_overrides[audit_router.get_current_user] = lambda: {"username": "admin"}
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(
+            "/audit/export.csv",
+            params={
+                "start_date": "2026-07-02",
+                "end_date": "2026-07-02",
+                "search": "English",
+            },
+        )
+        invalid = await client.get(
+            "/audit/export.csv",
+            params={"period_days": "7", "start_date": "2026-07-02"},
+        )
 
     await engine.dispose()
     rows = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig"))))

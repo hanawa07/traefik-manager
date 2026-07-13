@@ -7,9 +7,8 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import desc, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.persistence.database import get_db
+from app.infrastructure.persistence.database import AsyncSessionLocal
 from app.infrastructure.persistence.models import AuditLogModel
 from app.interfaces.api.dependencies import get_current_user
 from app.interfaces.api.v1.routers.audit_log_filters import (
@@ -44,7 +43,6 @@ async def export_audit_logs(
     security_only: bool = Query(False),
     provider: str | None = Query(None),
     delivery_success: bool | None = Query(None),
-    db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
     validate_audit_log_filters(
@@ -66,42 +64,43 @@ async def export_audit_logs(
         provider=provider,
         delivery_success=delivery_success,
     )
-    rows = await db.stream_scalars(
-        select(AuditLogModel)
-        .where(*conditions)
-        .order_by(desc(AuditLogModel.created_at), desc(AuditLogModel.id))
-    )
     filename = f"audit-logs-{datetime.now(timezone.utc):%Y%m%d}.csv"
     return StreamingResponse(
-        _iter_csv(rows),
+        _iter_csv(conditions),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
-async def _iter_csv(rows):
+async def _iter_csv(conditions):
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(CSV_COLUMNS)
     yield "\ufeff" + output.getvalue()
 
-    async for log in rows:
-        output.seek(0)
-        output.truncate(0)
-        detail = log.detail if isinstance(log.detail, dict) else {}
-        writer.writerow(
-            (
-                log.created_at.isoformat(),
-                _safe_cell(log.actor),
-                _safe_cell(log.action),
-                _safe_cell(log.resource_type),
-                _safe_cell(log.resource_id),
-                _safe_cell(log.resource_name),
-                _safe_cell(detail.get("event")),
-                _safe_cell(json.dumps(detail, ensure_ascii=False, separators=(",", ":"))),
-            )
+    async with AsyncSessionLocal() as db:
+        rows = await db.stream_scalars(
+            select(AuditLogModel)
+            .where(*conditions)
+            .order_by(desc(AuditLogModel.created_at), desc(AuditLogModel.id))
         )
-        yield output.getvalue()
+        async for log in rows:
+            output.seek(0)
+            output.truncate(0)
+            detail = log.detail if isinstance(log.detail, dict) else {}
+            writer.writerow(
+                (
+                    log.created_at.isoformat(),
+                    _safe_cell(log.actor),
+                    _safe_cell(log.action),
+                    _safe_cell(log.resource_type),
+                    _safe_cell(log.resource_id),
+                    _safe_cell(log.resource_name),
+                    _safe_cell(detail.get("event")),
+                    _safe_cell(json.dumps(detail, ensure_ascii=False, separators=(",", ":"))),
+                )
+            )
+            yield output.getvalue()
 
 
 def _safe_cell(value: object) -> str:
