@@ -83,6 +83,7 @@ class ManagerHttpErrorSummaryResponse(BaseModel):
     available: bool
     message: str
     window_hours: int = Field(default=24, ge=1)
+    path_filter: str | None = None
     checked_at: datetime
     observed_since: datetime | None = None
     not_found_count: int = Field(default=0, ge=0)

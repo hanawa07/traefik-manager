@@ -31,11 +31,14 @@ export function ManagerHealthMonitoringFields({
       </label>
 
       <label className="mt-3 block text-sm font-medium text-gray-700 dark:text-slate-300">
-        같은 장애 재알림 대기 시간
+        Manager 이상 재알림 대기 시간
         <span className="mt-1 flex items-center gap-2">
           <input
             className="w-28 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
-            disabled={!formValue.manager_health_monitoring_enabled}
+            disabled={
+              !formValue.manager_health_monitoring_enabled &&
+              !formValue.manager_http_error_monitoring_enabled
+            }
             max={1440}
             min={5}
             onChange={(event) => {
@@ -46,7 +49,9 @@ export function ManagerHealthMonitoringFields({
             type="number"
             value={formValue.manager_health_alert_cooldown_minutes}
           />
-          <span className="text-xs font-normal text-gray-500 dark:text-slate-400">분 (5~1440)</span>
+          <span className="text-xs font-normal text-gray-500 dark:text-slate-400">
+            분 (Docker·API 공통)
+          </span>
         </span>
       </label>
 

@@ -5,6 +5,12 @@ from app.application.manager_health_monitoring import (
     MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES_KEY,
     MANAGER_HEALTH_MONITORING_ENABLED_KEY,
 )
+from app.application.manager_http_error_monitoring import (
+    MANAGER_HTTP_ERROR_MONITORING_ENABLED_KEY,
+    MANAGER_HTTP_ERROR_WINDOW_MINUTES_KEY,
+    MANAGER_HTTP_NOT_FOUND_THRESHOLD_KEY,
+    MANAGER_HTTP_SERVER_ERROR_THRESHOLD_KEY,
+)
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.interfaces.api.v1.routers.settings_security_alert_response import build_security_alert_response
 from app.interfaces.api.v1.routers.settings_security_alert_helpers import (
@@ -84,6 +90,22 @@ async def update_security_alert_settings_values(
     await repo.set(
         EXTERNAL_WATCHDOG_STALE_MINUTES_KEY,
         str(request.external_watchdog_stale_minutes),
+    )
+    await repo.set(
+        MANAGER_HTTP_ERROR_MONITORING_ENABLED_KEY,
+        "true" if request.manager_http_error_monitoring_enabled else "false",
+    )
+    await repo.set(
+        MANAGER_HTTP_ERROR_WINDOW_MINUTES_KEY,
+        str(request.manager_http_error_window_minutes),
+    )
+    await repo.set(
+        MANAGER_HTTP_NOT_FOUND_THRESHOLD_KEY,
+        str(request.manager_http_not_found_threshold),
+    )
+    await repo.set(
+        MANAGER_HTTP_SERVER_ERROR_THRESHOLD_KEY,
+        str(request.manager_http_server_error_threshold),
     )
     await repo.set("security_alert_provider", request.provider)
     await repo.set("security_alert_webhook_url", request.webhook_url or None)

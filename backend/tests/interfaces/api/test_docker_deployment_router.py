@@ -6,6 +6,25 @@ from app.interfaces.api.v1.routers import docker
 
 
 @pytest.mark.asyncio
+async def test_manager_http_errors_forwards_period_and_path_filter() -> None:
+    class FakeDockerClient:
+        async def get_manager_http_error_summary(self, **kwargs):
+            return kwargs
+
+    result = await docker.get_manager_http_errors(
+        window_hours=6,
+        path="/api/v1/services",
+        docker_client=FakeDockerClient(),
+        _={},
+    )
+
+    assert result == {
+        "window_hours": 6,
+        "path_filter": "/api/v1/services",
+    }
+
+
+@pytest.mark.asyncio
 async def test_deployment_info_enriches_each_watchdog_run(monkeypatch) -> None:
     run_urls = [
         "https://github.com/hanawa07/traefik-manager/actions/runs/123",

@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.manager_health_monitoring import read_external_watchdog_stale_minutes
@@ -11,6 +13,7 @@ from app.interfaces.api.dependencies import get_current_user
 from app.interfaces.api.v1.schemas.docker_schemas import (
     DockerContainerListResponse,
     DockerDeploymentInfoResponse,
+    ManagerHttpErrorSummaryResponse,
 )
 
 router = APIRouter()
@@ -31,6 +34,29 @@ async def list_containers(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Docker 컨테이너 목록을 가져오지 못했습니다",
+        ) from exc
+
+
+@router.get(
+    "/http-errors",
+    response_model=ManagerHttpErrorSummaryResponse,
+    summary="Traefik Manager API 오류 추이",
+)
+async def get_manager_http_errors(
+    window_hours: Literal[6, 12, 24] = 24,
+    path: str | None = Query(default=None, max_length=200),
+    docker_client: DockerClient = Depends(get_docker_client),
+    _: dict = Depends(get_current_user),
+):
+    try:
+        return await docker_client.get_manager_http_error_summary(
+            window_hours=window_hours,
+            path_filter=path,
+        )
+    except DockerClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Manager API 오류 추이를 가져오지 못했습니다",
         ) from exc
 
 

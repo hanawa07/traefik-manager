@@ -23,6 +23,10 @@ export interface SecurityAlertSettingsStatus {
   manager_health_monitoring_enabled: boolean;
   manager_health_alert_cooldown_minutes: number;
   external_watchdog_stale_minutes: number;
+  manager_http_error_monitoring_enabled: boolean;
+  manager_http_error_window_minutes: number;
+  manager_http_not_found_threshold: number;
+  manager_http_server_error_threshold: number;
   provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty" | "email";
   webhook_url: string | null;
   telegram_bot_token_configured: boolean;
@@ -47,6 +51,10 @@ export interface SecurityAlertSettingsInput {
   manager_health_monitoring_enabled: boolean;
   manager_health_alert_cooldown_minutes: number;
   external_watchdog_stale_minutes: number;
+  manager_http_error_monitoring_enabled: boolean;
+  manager_http_error_window_minutes: number;
+  manager_http_not_found_threshold: number;
+  manager_http_server_error_threshold: number;
   provider: "generic" | "slack" | "discord" | "telegram" | "teams" | "pagerduty" | "email";
   webhook_url: string;
   telegram_bot_token: string;

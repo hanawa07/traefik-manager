@@ -1,6 +1,6 @@
 import pytest
 
-from app.infrastructure.docker import client as docker_client_module
+from app.infrastructure.docker import manager_http_log_reader
 from app.infrastructure.docker.client import DockerClient
 
 
@@ -162,7 +162,11 @@ async def test_manager_http_error_summary_reads_backend_container_logs(monkeypat
         captured.update(kwargs)
         return ""
 
-    monkeypatch.setattr(docker_client_module, "read_docker_container_logs_text", fake_read_logs)
+    monkeypatch.setattr(
+        manager_http_log_reader,
+        "read_docker_container_logs_text",
+        fake_read_logs,
+    )
 
     summary = await client.get_manager_http_error_summary()
 

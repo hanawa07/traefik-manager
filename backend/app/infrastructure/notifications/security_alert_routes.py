@@ -65,7 +65,12 @@ def get_alert_category_and_group(event: str) -> tuple[str, str] | None:
         return "change", "certificate_status_change"
     if event == "certificate_preflight_repeated_failure":
         return "change", "certificate_preflight_failure"
-    if event in {"manager_docker_unhealthy", "manager_docker_recovered"}:
+    if event in {
+        "manager_docker_unhealthy",
+        "manager_docker_recovered",
+        "manager_http_errors_high",
+        "manager_http_errors_recovered",
+    }:
         return "change", "manager_health"
     if event.endswith("_rollback") or event.startswith("settings_rollback_"):
         return "change", "rollback"

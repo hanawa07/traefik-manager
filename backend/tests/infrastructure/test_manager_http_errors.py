@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from app.infrastructure.docker.manager_http_errors import (
     build_manager_http_error_summary,
+    count_manager_http_errors,
 )
 
 
@@ -75,3 +76,47 @@ def test_build_manager_http_error_summary_marks_unavailable_logs() -> None:
     assert summary["available"] is False
     assert summary["observed_since"] is None
     assert len(summary["buckets"]) == 24
+
+
+def test_build_manager_http_error_summary_filters_period_and_path() -> None:
+    log_text = "\n".join(
+        [
+            _request_log(hours_ago=5, path="/api/v1/services", status_code=404),
+            _request_log(hours_ago=4, path="/api/v1/middlewares", status_code=500),
+            _request_log(hours_ago=8, path="/api/v1/services", status_code=404),
+        ]
+    )
+
+    summary = build_manager_http_error_summary(
+        log_text,
+        checked_at=CHECKED_AT,
+        window_hours=6,
+        path_filter=" SERVICES ",
+    )
+
+    assert summary["window_hours"] == 6
+    assert summary["path_filter"] == "services"
+    assert summary["not_found_count"] == 1
+    assert summary["server_error_count"] == 0
+    assert len(summary["buckets"]) == 6
+    assert [item["path"] for item in summary["top_paths"]] == ["/api/v1/services"]
+
+
+def test_count_manager_http_errors_uses_minute_window() -> None:
+    log_text = "\n".join(
+        [
+            _request_log(hours_ago=0.1, path="/api/v1/services", status_code=404),
+            _request_log(hours_ago=0.2, path="/api/v1/services", status_code=503),
+            _request_log(hours_ago=0.5, path="/api/v1/old", status_code=500),
+        ]
+    )
+
+    counts = count_manager_http_errors(
+        log_text,
+        checked_at=CHECKED_AT,
+        window_minutes=15,
+    )
+
+    assert counts["not_found_count"] == 1
+    assert counts["server_error_count"] == 1
+    assert counts["top_paths"][0]["path"] == "/api/v1/services"

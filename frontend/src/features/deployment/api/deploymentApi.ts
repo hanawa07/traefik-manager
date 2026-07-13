@@ -47,6 +47,7 @@ export interface ManagerHttpErrorSummary {
   available: boolean;
   message: string;
   window_hours: number;
+  path_filter: string | null;
   checked_at: string;
   observed_since: string | null;
   not_found_count: number;
@@ -89,10 +90,26 @@ export interface DeploymentInfoRequest {
   refreshLatest?: boolean;
 }
 
+export type ManagerHttpErrorWindowHours = 6 | 12 | 24;
+
+export interface ManagerHttpErrorRequest {
+  windowHours: ManagerHttpErrorWindowHours;
+  path?: string;
+}
+
 export const deploymentApi = {
   getInfo: async (request: DeploymentInfoRequest = {}): Promise<DeploymentInfo> => {
     const res = await apiClient.get<DeploymentInfo>("/docker/deployment", {
       params: request.refreshLatest ? { refresh_latest: true } : undefined,
+    });
+    return res.data;
+  },
+  getHttpErrors: async (request: ManagerHttpErrorRequest): Promise<ManagerHttpErrorSummary> => {
+    const res = await apiClient.get<ManagerHttpErrorSummary>("/docker/http-errors", {
+      params: {
+        window_hours: request.windowHours,
+        path: request.path || undefined,
+      },
     });
     return res.data;
   },

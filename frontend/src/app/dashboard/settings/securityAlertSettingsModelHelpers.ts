@@ -19,6 +19,18 @@ export function createSecurityAlertFormFromSettings(
       defaults.manager_health_alert_cooldown_minutes,
     external_watchdog_stale_minutes:
       settings?.external_watchdog_stale_minutes ?? defaults.external_watchdog_stale_minutes,
+    manager_http_error_monitoring_enabled:
+      settings?.manager_http_error_monitoring_enabled ??
+      defaults.manager_http_error_monitoring_enabled,
+    manager_http_error_window_minutes:
+      settings?.manager_http_error_window_minutes ??
+      defaults.manager_http_error_window_minutes,
+    manager_http_not_found_threshold:
+      settings?.manager_http_not_found_threshold ??
+      defaults.manager_http_not_found_threshold,
+    manager_http_server_error_threshold:
+      settings?.manager_http_server_error_threshold ??
+      defaults.manager_http_server_error_threshold,
     provider: settings?.provider ?? defaults.provider,
     webhook_url: settings?.webhook_url ?? defaults.webhook_url,
     telegram_bot_token: defaults.telegram_bot_token,
@@ -45,6 +57,10 @@ export function buildSecurityAlertSettingsPayload(
     manager_health_monitoring_enabled: formValue.manager_health_monitoring_enabled,
     manager_health_alert_cooldown_minutes: formValue.manager_health_alert_cooldown_minutes,
     external_watchdog_stale_minutes: formValue.external_watchdog_stale_minutes,
+    manager_http_error_monitoring_enabled: formValue.manager_http_error_monitoring_enabled,
+    manager_http_error_window_minutes: formValue.manager_http_error_window_minutes,
+    manager_http_not_found_threshold: formValue.manager_http_not_found_threshold,
+    manager_http_server_error_threshold: formValue.manager_http_server_error_threshold,
     provider: formValue.provider,
     webhook_url: formValue.webhook_url.trim(),
     telegram_bot_token: formValue.telegram_bot_token.trim(),

@@ -24,9 +24,18 @@ export function SecurityAlertRoutingSummary({
       <SettingsSummaryRow
         label="Manager 장애 재알림"
         value={
-          settings?.manager_health_monitoring_enabled === false
+          settings?.manager_health_monitoring_enabled === false &&
+          !settings?.manager_http_error_monitoring_enabled
             ? "감지 비활성화"
             : `${settings?.manager_health_alert_cooldown_minutes ?? 60}분 후`
+        }
+      />
+      <SettingsSummaryRow
+        label="Manager API 오류 감지"
+        value={
+          settings?.manager_http_error_monitoring_enabled
+            ? `${settings.manager_http_error_window_minutes}분 · 404 ${settings.manager_http_not_found_threshold}건 · 5xx ${settings.manager_http_server_error_threshold}건`
+            : "비활성화"
         }
       />
       <SettingsSummaryRow

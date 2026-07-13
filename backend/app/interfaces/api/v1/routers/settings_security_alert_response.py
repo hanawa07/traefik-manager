@@ -2,6 +2,9 @@ from app.application.manager_health_monitoring import (
     read_external_watchdog_stale_minutes,
     read_manager_health_monitoring_values,
 )
+from app.application.manager_http_error_monitoring import (
+    read_manager_http_error_monitoring_values,
+)
 from app.core.config import settings
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.interfaces.api.v1.routers.settings_security_alert_helpers import (
@@ -21,6 +24,7 @@ async def build_security_alert_response(
         await read_manager_health_monitoring_values(repo)
     )
     external_watchdog_stale_minutes = await read_external_watchdog_stale_minutes(repo)
+    manager_http_errors = await read_manager_http_error_monitoring_values(repo)
     provider = await repo.get("security_alert_provider") or "generic"
     telegram_bot_token = await repo.get("security_alert_telegram_bot_token")
     pagerduty_routing_key = await repo.get("security_alert_pagerduty_routing_key")
@@ -44,6 +48,10 @@ async def build_security_alert_response(
         manager_health_monitoring_enabled=manager_health_enabled,
         manager_health_alert_cooldown_minutes=manager_health_cooldown_minutes,
         external_watchdog_stale_minutes=external_watchdog_stale_minutes,
+        manager_http_error_monitoring_enabled=manager_http_errors.enabled,
+        manager_http_error_window_minutes=manager_http_errors.window_minutes,
+        manager_http_not_found_threshold=manager_http_errors.not_found_threshold,
+        manager_http_server_error_threshold=manager_http_errors.server_error_threshold,
         provider=provider if provider in SECURITY_ALERT_PROVIDERS else "generic",
         webhook_url=await repo.get("security_alert_webhook_url"),
         telegram_bot_token_configured=bool(telegram_bot_token),

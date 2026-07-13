@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -7,10 +7,10 @@ import httpx
 
 from app.core.config import settings
 from app.infrastructure.docker.deployment_release import ManagerReleaseChecker
-from app.infrastructure.docker.logs import read_docker_container_logs_text
-from app.infrastructure.docker.manager_http_errors import (
-    MANAGER_HTTP_ERROR_WINDOW_HOURS,
-    build_manager_http_error_summary,
+from app.infrastructure.docker.manager_http_errors import MANAGER_HTTP_ERROR_WINDOW_HOURS
+from app.infrastructure.docker.manager_http_log_reader import (
+    read_manager_http_error_counts,
+    read_manager_http_error_summary,
 )
 
 
@@ -93,7 +93,7 @@ class DockerClient:
                 "build_date": fallback_component["build_date"],
                 "source": source,
                 **release_info,
-                "http_error_summary": build_manager_http_error_summary(None),
+                "http_error_summary": await self.get_manager_http_error_summary(),
                 "components": [fallback_component],
             }
 
@@ -119,20 +119,29 @@ class DockerClient:
             "components": components,
         }
 
-    async def get_manager_http_error_summary(self) -> dict[str, object]:
-        checked_at = datetime.now(timezone.utc)
-        if not self.enabled:
-            return build_manager_http_error_summary(None, checked_at=checked_at)
-        log_text = await read_docker_container_logs_text(
-            container_name=settings.TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME,
-            tail_lines=settings.TRAEFIK_MANAGER_LOG_TAIL_LINES,
-            since=int(
-                (
-                    checked_at - timedelta(hours=MANAGER_HTTP_ERROR_WINDOW_HOURS)
-                ).timestamp()
-            ),
+    async def get_manager_http_error_summary(
+        self,
+        *,
+        window_hours: int = MANAGER_HTTP_ERROR_WINDOW_HOURS,
+        path_filter: str | None = None,
+    ) -> dict[str, object]:
+        return await read_manager_http_error_summary(
+            docker_enabled=self.enabled,
+            window_hours=window_hours,
+            path_filter=path_filter,
         )
-        return build_manager_http_error_summary(log_text, checked_at=checked_at)
+
+    async def get_manager_http_error_counts(
+        self,
+        *,
+        window_minutes: int,
+        checked_at: datetime | None = None,
+    ) -> dict[str, object]:
+        return await read_manager_http_error_counts(
+            docker_enabled=self.enabled,
+            checked_at=checked_at,
+            window_minutes=window_minutes,
+        )
 
     async def inspect_manager_components(self) -> list[dict]:
         if not self.enabled:

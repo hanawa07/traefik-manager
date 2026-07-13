@@ -12,6 +12,16 @@ from app.application.manager_health_monitoring import (
     MIN_EXTERNAL_WATCHDOG_STALE_MINUTES,
     MIN_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
 )
+from app.application.manager_http_error_monitoring import (
+    DEFAULT_MANAGER_HTTP_ERROR_MONITORING_ENABLED,
+    DEFAULT_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
+    DEFAULT_MANAGER_HTTP_NOT_FOUND_THRESHOLD,
+    DEFAULT_MANAGER_HTTP_SERVER_ERROR_THRESHOLD,
+    MAX_MANAGER_HTTP_ERROR_THRESHOLD,
+    MAX_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
+    MIN_MANAGER_HTTP_ERROR_THRESHOLD,
+    MIN_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
+)
 
 
 SecurityAlertRoute = Literal["default", "disabled", "telegram", "pagerduty", "email"]
@@ -54,6 +64,24 @@ class SecurityAlertSettingsResponse(BaseModel):
         ge=MIN_EXTERNAL_WATCHDOG_STALE_MINUTES,
         le=MAX_EXTERNAL_WATCHDOG_STALE_MINUTES,
     )
+    manager_http_error_monitoring_enabled: bool = (
+        DEFAULT_MANAGER_HTTP_ERROR_MONITORING_ENABLED
+    )
+    manager_http_error_window_minutes: int = Field(
+        default=DEFAULT_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
+        ge=MIN_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
+        le=MAX_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
+    )
+    manager_http_not_found_threshold: int = Field(
+        default=DEFAULT_MANAGER_HTTP_NOT_FOUND_THRESHOLD,
+        ge=MIN_MANAGER_HTTP_ERROR_THRESHOLD,
+        le=MAX_MANAGER_HTTP_ERROR_THRESHOLD,
+    )
+    manager_http_server_error_threshold: int = Field(
+        default=DEFAULT_MANAGER_HTTP_SERVER_ERROR_THRESHOLD,
+        ge=MIN_MANAGER_HTTP_ERROR_THRESHOLD,
+        le=MAX_MANAGER_HTTP_ERROR_THRESHOLD,
+    )
     provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"]
     webhook_url: str | None = None
     telegram_bot_token_configured: bool = False
@@ -85,6 +113,24 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
         default=DEFAULT_EXTERNAL_WATCHDOG_STALE_MINUTES,
         ge=MIN_EXTERNAL_WATCHDOG_STALE_MINUTES,
         le=MAX_EXTERNAL_WATCHDOG_STALE_MINUTES,
+    )
+    manager_http_error_monitoring_enabled: bool = (
+        DEFAULT_MANAGER_HTTP_ERROR_MONITORING_ENABLED
+    )
+    manager_http_error_window_minutes: int = Field(
+        default=DEFAULT_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
+        ge=MIN_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
+        le=MAX_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
+    )
+    manager_http_not_found_threshold: int = Field(
+        default=DEFAULT_MANAGER_HTTP_NOT_FOUND_THRESHOLD,
+        ge=MIN_MANAGER_HTTP_ERROR_THRESHOLD,
+        le=MAX_MANAGER_HTTP_ERROR_THRESHOLD,
+    )
+    manager_http_server_error_threshold: int = Field(
+        default=DEFAULT_MANAGER_HTTP_SERVER_ERROR_THRESHOLD,
+        ge=MIN_MANAGER_HTTP_ERROR_THRESHOLD,
+        le=MAX_MANAGER_HTTP_ERROR_THRESHOLD,
     )
     provider: Literal["generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"] = "generic"
     webhook_url: str = ""

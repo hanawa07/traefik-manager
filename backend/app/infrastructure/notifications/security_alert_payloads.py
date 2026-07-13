@@ -65,6 +65,10 @@ def build_message(event: str, resource_name: str, client_ip: Any, category: str)
         return f"Manager Docker 이상: {resource_name}"
     if event == "manager_docker_recovered":
         return f"Manager Docker 회복: {resource_name}"
+    if event == "manager_http_errors_high":
+        return f"Manager API 오류 임계치 초과: {resource_name}"
+    if event == "manager_http_errors_recovered":
+        return f"Manager API 오류 정상화: {resource_name}"
     return f"롤백 실행: {resource_name}"
 
 
@@ -208,6 +212,16 @@ def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
                 lines.append(f"종료 코드: {detail.get('last_exit_code')}")
             if detail.get("health_checked_at"):
                 lines.append(f"Health 검사 시각: {detail.get('health_checked_at')}")
+            if detail.get("cooldown_minutes") is not None:
+                lines.append(f"재발 알림 cooldown: {detail.get('cooldown_minutes')}분")
+        if event in {"manager_http_errors_high", "manager_http_errors_recovered"}:
+            lines.append(f"집계 구간: 최근 {detail.get('window_minutes')}분")
+            lines.append(
+                f"404: {detail.get('not_found_count')}건 / 임계치 {detail.get('not_found_threshold')}건"
+            )
+            lines.append(
+                f"5xx: {detail.get('server_error_count')}건 / 임계치 {detail.get('server_error_threshold')}건"
+            )
             if detail.get("cooldown_minutes") is not None:
                 lines.append(f"재발 알림 cooldown: {detail.get('cooldown_minutes')}분")
     return "\n".join(lines)
