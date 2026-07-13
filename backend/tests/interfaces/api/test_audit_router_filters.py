@@ -1,45 +1,74 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from fastapi import FastAPI, Response
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.infrastructure.persistence.models import AuditLogModel
 from app.interfaces.api.v1.routers import audit as audit_router
-from tests.interfaces.api.audit_router_fakes import StubAuditDb, make_log
+from tests.interfaces.api.audit_router_fakes import make_log
 
 
-def test_list_audit_logs_parses_period_days_from_http_query():
+@pytest.fixture
+async def audit_db():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(AuditLogModel.__table__.create)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
+        yield session
+    await engine.dispose()
+
+
+async def seed_logs(db, logs):
+    db.add_all(logs)
+    await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_list_audit_logs_parses_period_days_from_http_query(audit_db):
     now = datetime.now(timezone.utc)
-    db = StubAuditDb(
+    await seed_logs(
+        audit_db,
         [
             make_log(resource_name="recent", created_at=now - timedelta(days=1)),
             make_log(resource_name="old", created_at=now - timedelta(days=8)),
-        ]
+        ],
     )
     app = FastAPI()
     app.include_router(audit_router.router, prefix="/audit")
-    app.dependency_overrides[audit_router.get_db] = lambda: db
+    app.dependency_overrides[audit_router.get_db] = lambda: audit_db
     app.dependency_overrides[audit_router.get_current_user] = lambda: {"username": "admin"}
 
-    with TestClient(app) as client:
-        response = client.get("/audit", params={"period_days": "7"})
-        invalid_response = client.get("/audit", params={"period_days": "2"})
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/audit", params={"period_days": "7"})
+        invalid_response = await client.get("/audit", params={"period_days": "2"})
+        mixed_response = await client.get(
+            "/audit", params={"period_days": "7", "start_date": "2026-07-01"}
+        )
+        reversed_response = await client.get(
+            "/audit", params={"start_date": "2026-07-02", "end_date": "2026-07-01"}
+        )
 
     assert response.status_code == 200
     assert [item["resource_name"] for item in response.json()] == ["recent"]
     assert invalid_response.status_code == 422
+    assert mixed_response.status_code == 422
+    assert reversed_response.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_list_audit_logs_filters_by_event_and_applies_pagination():
+async def test_list_audit_logs_filters_by_event_and_applies_pagination(audit_db):
     now = datetime.now(timezone.utc)
-    db = StubAuditDb(
+    await seed_logs(
+        audit_db,
         [
             make_log(event="login_failure", resource_name="alice", created_at=now - timedelta(minutes=1)),
             make_log(event="login_locked", resource_name="alice", created_at=now - timedelta(minutes=2)),
             make_log(event="login_locked", resource_name="bob", created_at=now - timedelta(minutes=3)),
             make_log(event="service_updated", resource_type="service", resource_name="svc", created_at=now - timedelta(minutes=4)),
-        ]
+        ],
     )
 
     response = Response()
@@ -53,11 +82,13 @@ async def test_list_audit_logs_filters_by_event_and_applies_pagination():
         manager_status=None,
         manager_source=None,
         period_days=None,
+        start_date=None,
+        end_date=None,
         search=None,
         security_only=False,
         provider=None,
         delivery_success=None,
-        db=db,
+        db=audit_db,
         _={"username": "admin"},
     )
 
@@ -68,9 +99,10 @@ async def test_list_audit_logs_filters_by_event_and_applies_pagination():
 
 
 @pytest.mark.asyncio
-async def test_list_audit_logs_filters_by_resource_type_and_action():
+async def test_list_audit_logs_filters_by_resource_type_and_action(audit_db):
     now = datetime.now(timezone.utc)
-    db = StubAuditDb(
+    await seed_logs(
+        audit_db,
         [
             make_log(
                 action="update",
@@ -93,7 +125,7 @@ async def test_list_audit_logs_filters_by_resource_type_and_action():
                 event="service_updated",
                 created_at=now - timedelta(minutes=3),
             ),
-        ]
+        ],
     )
 
     result = await audit_router.list_audit_logs(
@@ -106,11 +138,13 @@ async def test_list_audit_logs_filters_by_resource_type_and_action():
         manager_status=None,
         manager_source=None,
         period_days=None,
+        start_date=None,
+        end_date=None,
         search=None,
         security_only=False,
         provider=None,
         delivery_success=None,
-        db=db,
+        db=audit_db,
         _={"username": "admin"},
     )
 
@@ -121,9 +155,10 @@ async def test_list_audit_logs_filters_by_resource_type_and_action():
 
 
 @pytest.mark.asyncio
-async def test_list_audit_logs_filters_by_delivery_status_and_provider():
+async def test_list_audit_logs_filters_by_delivery_status_and_provider(audit_db):
     now = datetime.now(timezone.utc)
-    db = StubAuditDb(
+    await seed_logs(
+        audit_db,
         [
             make_log(
                 action="alert",
@@ -149,7 +184,7 @@ async def test_list_audit_logs_filters_by_delivery_status_and_provider():
                 created_at=now - timedelta(minutes=3),
                 detail_extra={"success": False, "provider": "email"},
             ),
-        ]
+        ],
     )
 
     result = await audit_router.list_audit_logs(
@@ -162,11 +197,13 @@ async def test_list_audit_logs_filters_by_delivery_status_and_provider():
         manager_status=None,
         manager_source=None,
         period_days=None,
+        start_date=None,
+        end_date=None,
         search=None,
         security_only=False,
         provider="pagerduty",
         delivery_success=False,
-        db=db,
+        db=audit_db,
         _={"username": "admin"},
     )
 
@@ -183,14 +220,15 @@ async def test_list_audit_logs_filters_by_delivery_status_and_provider():
         ("recovered", {"manager_docker_recovered", "manager_watchdog_recovered"}),
     ],
 )
-async def test_list_audit_logs_filters_manager_status(manager_status, expected_events):
+async def test_list_audit_logs_filters_manager_status(audit_db, manager_status, expected_events):
     now = datetime.now(timezone.utc)
-    db = StubAuditDb(
+    await seed_logs(
+        audit_db,
         [
             make_log(event=event, resource_type="manager_component", created_at=now)
             for event in expected_events
         ]
-        + [make_log(event="service_updated", resource_type="service", created_at=now)]
+        + [make_log(event="service_updated", resource_type="service", created_at=now)],
     )
 
     result = await audit_router.list_audit_logs(
@@ -203,11 +241,13 @@ async def test_list_audit_logs_filters_manager_status(manager_status, expected_e
         manager_status=manager_status,
         manager_source=None,
         period_days=None,
+        start_date=None,
+        end_date=None,
         search=None,
         security_only=False,
         provider=None,
         delivery_success=None,
-        db=db,
+        db=audit_db,
         _={"username": "admin"},
     )
 
@@ -222,7 +262,7 @@ async def test_list_audit_logs_filters_manager_status(manager_status, expected_e
         ("watchdog", {"manager_watchdog_stale", "manager_watchdog_recovered"}),
     ],
 )
-async def test_list_audit_logs_filters_manager_source(manager_source, expected_events):
+async def test_list_audit_logs_filters_manager_source(audit_db, manager_source, expected_events):
     now = datetime.now(timezone.utc)
     all_events = {
         "manager_docker_unhealthy",
@@ -230,11 +270,12 @@ async def test_list_audit_logs_filters_manager_source(manager_source, expected_e
         "manager_watchdog_stale",
         "manager_watchdog_recovered",
     }
-    db = StubAuditDb(
+    await seed_logs(
+        audit_db,
         [
             make_log(event=event, resource_type="manager_component", created_at=now)
             for event in all_events
-        ]
+        ],
     )
 
     result = await audit_router.list_audit_logs(
@@ -247,11 +288,13 @@ async def test_list_audit_logs_filters_manager_source(manager_source, expected_e
         manager_status=None,
         manager_source=manager_source,
         period_days=None,
+        start_date=None,
+        end_date=None,
         search=None,
         security_only=False,
         provider=None,
         delivery_success=None,
-        db=db,
+        db=audit_db,
         _={"username": "admin"},
     )
 
@@ -260,9 +303,10 @@ async def test_list_audit_logs_filters_manager_source(manager_source, expected_e
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("search", ["LIZSTUDIO", "english", "3011"])
-async def test_list_audit_logs_searches_actor_and_target(search):
+async def test_list_audit_logs_searches_actor_and_target(audit_db, search):
     now = datetime.now(timezone.utc)
-    db = StubAuditDb(
+    await seed_logs(
+        audit_db,
         [
             make_log(
                 actor="lizstudio",
@@ -271,7 +315,7 @@ async def test_list_audit_logs_searches_actor_and_target(search):
                 created_at=now,
             ),
             make_log(actor="viewer", resource_name="다른 서비스", created_at=now),
-        ]
+        ],
     )
 
     result = await audit_router.list_audit_logs(
@@ -284,11 +328,13 @@ async def test_list_audit_logs_searches_actor_and_target(search):
         manager_status=None,
         manager_source=None,
         period_days=None,
+        start_date=None,
+        end_date=None,
         search=search,
         security_only=False,
         provider=None,
         delivery_success=None,
-        db=db,
+        db=audit_db,
         _={"username": "admin"},
     )
 
@@ -297,9 +343,10 @@ async def test_list_audit_logs_searches_actor_and_target(search):
 
 
 @pytest.mark.asyncio
-async def test_list_audit_logs_filters_period_with_naive_and_aware_datetimes():
+async def test_list_audit_logs_filters_period_with_naive_and_aware_datetimes(audit_db):
     now = datetime.now(timezone.utc)
-    db = StubAuditDb(
+    await seed_logs(
+        audit_db,
         [
             make_log(resource_name="aware", created_at=now - timedelta(hours=1)),
             make_log(
@@ -307,7 +354,7 @@ async def test_list_audit_logs_filters_period_with_naive_and_aware_datetimes():
                 created_at=(now - timedelta(hours=2)).replace(tzinfo=None),
             ),
             make_log(resource_name="old", created_at=now - timedelta(days=2)),
-        ]
+        ],
     )
 
     response = Response()
@@ -321,13 +368,51 @@ async def test_list_audit_logs_filters_period_with_naive_and_aware_datetimes():
         manager_status=None,
         manager_source=None,
         period_days=1,
+        start_date=None,
+        end_date=None,
         search=None,
         security_only=False,
         provider=None,
         delivery_success=None,
-        db=db,
+        db=audit_db,
         _={"username": "admin"},
     )
 
     assert {item.resource_name for item in result} == {"aware", "naive"}
     assert response.headers["x-total-count"] == "2"
+
+
+@pytest.mark.asyncio
+async def test_list_audit_logs_filters_utc_date_range(audit_db):
+    await seed_logs(
+        audit_db,
+        [
+            make_log(resource_name="before", created_at=datetime(2026, 7, 1, 23, 59, 59)),
+            make_log(resource_name="inside", created_at=datetime(2026, 7, 2, 12, 0, 0)),
+            make_log(resource_name="after", created_at=datetime(2026, 7, 3, 0, 0, 0)),
+        ],
+    )
+
+    response = Response()
+    result = await audit_router.list_audit_logs(
+        response=response,
+        limit=10,
+        offset=0,
+        resource_type=None,
+        action=None,
+        event=None,
+        manager_status=None,
+        manager_source=None,
+        period_days=None,
+        start_date=date(2026, 7, 2),
+        end_date=date(2026, 7, 2),
+        search=None,
+        security_only=False,
+        provider=None,
+        delivery_success=None,
+        db=audit_db,
+        _={"username": "admin"},
+    )
+
+    assert [item.resource_name for item in result] == ["inside"]
+    assert response.headers["x-total-count"] == "1"

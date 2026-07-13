@@ -119,7 +119,7 @@ class AuditLogModel(Base):
     resource_id: Mapped[str] = mapped_column(String(36), nullable=False)
     resource_name: Mapped[str] = mapped_column(String(255), nullable=False)
     detail: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), index=True)
 
 
 class SystemSettingModel(Base):

@@ -1,9 +1,9 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Literal, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.notifications import security_alert_notifier
@@ -11,7 +11,7 @@ from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.models import AuditLogModel
 from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.routers.audit_certificate_summary import build_certificate_summary
-from app.interfaces.api.v1.routers.audit_log_filters import filter_audit_logs
+from app.interfaces.api.v1.routers.audit_log_filters import build_audit_log_conditions
 from app.interfaces.api.v1.routers.audit_log_helpers import to_audit_log_response
 from app.interfaces.api.v1.routers.audit_manager_health_summary import build_manager_health_summary
 from app.interfaces.api.v1.routers.audit_security_summary import build_security_summary
@@ -37,6 +37,8 @@ async def list_audit_logs(
     manager_status: Optional[Literal["unhealthy", "recovered"]] = Query(None),
     manager_source: Optional[Literal["docker", "watchdog"]] = Query(None),
     period_days: Optional[int] = Query(None),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
     search: Optional[str] = Query(None, max_length=100),
     security_only: bool = Query(False),
     provider: Optional[str] = Query(None),
@@ -49,31 +51,36 @@ async def list_audit_logs(
     """
     if period_days is not None and period_days not in {1, 7, 30, 90}:
         raise HTTPException(status_code=422, detail="기간은 1, 7, 30, 90일 중 하나여야 합니다")
+    if period_days and (start_date or end_date):
+        raise HTTPException(status_code=422, detail="상대 기간과 사용자 지정 날짜는 함께 쓸 수 없습니다")
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(status_code=422, detail="시작일은 종료일보다 늦을 수 없습니다")
 
-    query = select(AuditLogModel).order_by(desc(AuditLogModel.created_at))
-
-    if resource_type:
-        query = query.where(AuditLogModel.resource_type == resource_type)
-
-    result = await db.execute(query)
-    logs = result.scalars().all()
-
-    filtered_logs = filter_audit_logs(
-        logs,
+    conditions = build_audit_log_conditions(
         resource_type=resource_type,
         action=action,
         event=event,
         manager_status=manager_status,
         manager_source=manager_source,
         period_days=period_days,
+        start_date=start_date,
+        end_date=end_date,
         search=search,
         security_only=security_only,
         provider=provider,
         delivery_success=delivery_success,
     )
-    response.headers["X-Total-Count"] = str(len(filtered_logs))
-    paged_logs = filtered_logs[offset : offset + limit]
-    return [to_audit_log_response(log) for log in paged_logs]
+    total_result = await db.execute(select(func.count(AuditLogModel.id)).where(*conditions))
+    response.headers["X-Total-Count"] = str(total_result.scalar_one())
+    query = (
+        select(AuditLogModel)
+        .where(*conditions)
+        .order_by(desc(AuditLogModel.created_at), desc(AuditLogModel.id))
+        .offset(offset)
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    return [to_audit_log_response(log) for log in result.scalars().all()]
 
 
 @router.get(

@@ -1,6 +1,7 @@
 from datetime import datetime
-from types import SimpleNamespace
 from uuid import uuid4
+
+from app.infrastructure.persistence.models import AuditLogModel
 
 
 class StubScalarResult:
@@ -51,8 +52,8 @@ def make_log(
             detail["client_ip"] = client_ip
         if detail_extra:
             detail.update(detail_extra)
-    return SimpleNamespace(
-        id=uuid4(),
+    return AuditLogModel(
+        id=str(uuid4()),
         actor=actor,
         action=action,
         resource_type=resource_type,
