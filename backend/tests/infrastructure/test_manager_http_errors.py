@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timedelta, timezone
 
 from app.infrastructure.docker.manager_http_errors import (
+    build_manager_http_error_preview,
     build_manager_http_error_summary,
     count_manager_http_errors,
 )
@@ -141,3 +142,59 @@ def test_count_manager_http_errors_excludes_configured_path_prefixes() -> None:
     assert counts["not_found_count"] == 0
     assert counts["server_error_count"] == 1
     assert [item["path"] for item in counts["top_paths"]] == ["/api/v1/services"]
+
+
+def test_build_manager_http_error_preview_recommends_thresholds_and_counts_exclusions() -> None:
+    log_text = "\n".join(
+        [
+            *[
+                _request_log(hours_ago=0.1, path="/api/v1/services", status_code=404)
+                for _ in range(25)
+            ],
+            _request_log(hours_ago=0.1, path="/api/v1/services", status_code=500),
+            _request_log(hours_ago=0.2, path="/api/v1/services", status_code=503),
+            _request_log(hours_ago=2, path="/api/v1/services", status_code=502),
+            _request_log(hours_ago=0.5, path="/api/v1/health", status_code=404),
+            _request_log(hours_ago=0.4, path="/api/v1/health/deep", status_code=500),
+            _request_log(hours_ago=3, path="/api/v1/session", status_code=200),
+            _request_log(hours_ago=25, path="/api/v1/old", status_code=404),
+        ]
+    )
+
+    preview = build_manager_http_error_preview(
+        log_text,
+        checked_at=CHECKED_AT,
+        window_minutes=15,
+        excluded_paths=("/api/v1/health", "/api/v1/health/deep"),
+    )
+
+    assert preview["available"] is True
+    assert preview["observed_since"] == CHECKED_AT - timedelta(hours=3)
+    assert preview["peak_not_found_count"] == 25
+    assert preview["peak_server_error_count"] == 2
+    assert preview["recommended_not_found_threshold"] == 30
+    assert preview["recommended_server_error_threshold"] == 3
+    assert preview["excluded_paths"] == [
+        {"path": "/api/v1/health", "not_found_count": 1, "server_error_count": 0},
+        {
+            "path": "/api/v1/health/deep",
+            "not_found_count": 0,
+            "server_error_count": 1,
+        },
+    ]
+
+
+def test_build_manager_http_error_preview_uses_safe_defaults_without_logs() -> None:
+    preview = build_manager_http_error_preview(
+        None,
+        checked_at=CHECKED_AT,
+        window_minutes=15,
+        excluded_paths=("/api/v1/health",),
+    )
+
+    assert preview["available"] is False
+    assert preview["recommended_not_found_threshold"] == 20
+    assert preview["recommended_server_error_threshold"] == 1
+    assert preview["excluded_paths"] == [
+        {"path": "/api/v1/health", "not_found_count": 0, "server_error_count": 0}
+    ]

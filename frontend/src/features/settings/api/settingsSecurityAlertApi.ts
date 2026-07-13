@@ -73,6 +73,31 @@ export interface SecurityAlertSettingsInput {
   change_event_routes: ChangeAlertEventRoutes;
 }
 
+export interface ManagerHttpErrorPreviewInput {
+  window_minutes: number;
+  excluded_paths: string[];
+}
+
+export interface ManagerHttpExcludedPathPreview {
+  path: string;
+  not_found_count: number;
+  server_error_count: number;
+}
+
+export interface ManagerHttpErrorPreview {
+  available: boolean;
+  message: string;
+  window_hours: number;
+  window_minutes: number;
+  checked_at: string;
+  observed_since: string | null;
+  peak_not_found_count: number;
+  peak_server_error_count: number;
+  recommended_not_found_threshold: number;
+  recommended_server_error_threshold: number;
+  excluded_paths: ManagerHttpExcludedPathPreview[];
+}
+
 export const securityAlertSettingsApi = {
   getSecurityAlertSettings: async (): Promise<SecurityAlertSettingsStatus> => {
     const res = await apiClient.get<SecurityAlertSettingsStatus>("/settings/security-alerts");
@@ -88,6 +113,16 @@ export const securityAlertSettingsApi = {
 
   testSecurityAlertSettings: async (): Promise<SettingsActionTestResult> => {
     const res = await apiClient.post<SettingsActionTestResult>("/settings/security-alerts/test");
+    return res.data;
+  },
+
+  previewManagerHttpErrors: async (
+    payload: ManagerHttpErrorPreviewInput,
+  ): Promise<ManagerHttpErrorPreview> => {
+    const res = await apiClient.post<ManagerHttpErrorPreview>(
+      "/docker/http-errors/preview",
+      payload,
+    );
     return res.data;
   },
 };

@@ -80,6 +80,79 @@ async def test_manager_http_errors_rejects_unsupported_period() -> None:
 
 
 @pytest.mark.asyncio
+async def test_manager_http_error_preview_normalizes_and_forwards_inputs(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    async def read_preview(**kwargs):
+        captured.update(kwargs)
+        return {
+            "available": True,
+            "message": "계산 완료",
+            "window_hours": 24,
+            "window_minutes": kwargs["window_minutes"],
+            "checked_at": datetime(2026, 7, 14, tzinfo=timezone.utc),
+            "observed_since": None,
+            "peak_not_found_count": 2,
+            "peak_server_error_count": 1,
+            "recommended_not_found_threshold": 20,
+            "recommended_server_error_threshold": 2,
+            "excluded_paths": [
+                {
+                    "path": kwargs["excluded_paths"][0],
+                    "not_found_count": 1,
+                    "server_error_count": 0,
+                }
+            ],
+        }
+
+    class FakeDockerClient:
+        enabled = True
+
+    monkeypatch.setattr(docker, "read_manager_http_error_preview", read_preview)
+    app = FastAPI()
+    app.include_router(docker.router)
+    app.dependency_overrides[docker.get_current_user] = lambda: {"username": "admin"}
+    app.dependency_overrides[docker.get_docker_client] = FakeDockerClient
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/http-errors/preview",
+            json={
+                "window_minutes": 30,
+                "excluded_paths": [" /api/v1/health/ "],
+            },
+        )
+
+    assert response.status_code == 200
+    assert captured == {
+        "docker_enabled": True,
+        "window_minutes": 30,
+        "excluded_paths": ("/api/v1/health",),
+    }
+    assert response.json()["recommended_server_error_threshold"] == 2
+
+
+@pytest.mark.asyncio
+async def test_manager_http_error_preview_rejects_non_api_exclusion() -> None:
+    app = FastAPI()
+    app.include_router(docker.router)
+    app.dependency_overrides[docker.get_current_user] = lambda: {"username": "admin"}
+    app.dependency_overrides[docker.get_docker_client] = lambda: object()
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/http-errors/preview",
+            json={"window_minutes": 15, "excluded_paths": ["/dashboard"]},
+        )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_deployment_info_enriches_each_watchdog_run(monkeypatch) -> None:
     run_urls = [
         "https://github.com/hanawa07/traefik-manager/actions/runs/123",

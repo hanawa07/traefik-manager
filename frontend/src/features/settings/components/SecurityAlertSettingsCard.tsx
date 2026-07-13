@@ -66,7 +66,7 @@ export function SecurityAlertSettingsCard({
   onFormChange,
 }: SecurityAlertSettingsCardProps) {
   return (
-    <div className="card p-6 h-full order-9">
+    <div className="card p-6 h-full order-9" data-testid="security-alert-settings-card">
       <SettingsCardHeader
         icon={<Cloud className="w-5 h-5 text-sky-600" />}
         title="보안 알림"

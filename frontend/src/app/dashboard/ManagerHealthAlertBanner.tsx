@@ -21,9 +21,22 @@ export function ManagerHealthAlertBanner({
   const watchdogUnhealthy = deployment?.external_watchdog_status === "unhealthy";
   const watchdogStale = deployment?.external_watchdog_stale === true;
   const watchdogStaleMinutes = deployment?.external_watchdog_stale_after_minutes ?? 10;
-  if (unhealthyComponents.length === 0 && !watchdogUnhealthy && !watchdogStale) return null;
+  const httpMonitor = deployment?.http_error_monitor;
+  const httpErrorsBreached = Boolean(
+    httpMonitor?.enabled && httpMonitor.available && httpMonitor.breached,
+  );
+  const httpMonitorUnavailable = Boolean(
+    httpMonitor?.enabled && httpMonitor.checked_at && !httpMonitor.available,
+  );
+  if (
+    unhealthyComponents.length === 0 &&
+    !watchdogUnhealthy &&
+    !watchdogStale &&
+    !httpErrorsBreached &&
+    !httpMonitorUnavailable
+  ) return null;
 
-  const critical = unhealthyComponents.length > 0 || watchdogUnhealthy;
+  const critical = unhealthyComponents.length > 0 || watchdogUnhealthy || httpErrorsBreached;
   const details = unhealthyComponents.map(getFailureDetail);
   if (watchdogUnhealthy) {
     details.push(
@@ -33,6 +46,14 @@ export function ManagerHealthAlertBanner({
   if (watchdogStale) {
     details.push(`외부 watchdog 실행이 ${watchdogStaleMinutes}분 이상 지연됨`);
   }
+  if (httpErrorsBreached && httpMonitor) {
+    details.push(
+      `Manager API 임계치 초과 (404 ${httpMonitor.not_found_count}/${httpMonitor.not_found_threshold} · 5xx ${httpMonitor.server_error_count}/${httpMonitor.server_error_threshold})`,
+    );
+  }
+  if (httpMonitorUnavailable) {
+    details.push("Manager API 오류 점검 실패");
+  }
 
   return (
     <div
@@ -41,19 +62,25 @@ export function ManagerHealthAlertBanner({
           ? "border-rose-300 bg-rose-50 text-rose-900 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-100"
           : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100"
       }`}
+      data-manager-api-alert={
+        httpErrorsBreached ? "breached" : httpMonitorUnavailable ? "unavailable" : "none"
+      }
       data-testid="manager-health-alert-banner"
     >
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
         <div className="min-w-0">
           <p className="text-sm font-semibold">
-            {critical ? "Manager 상태 이상" : "외부 watchdog 갱신 지연"}
+            {critical ? "Manager 상태 이상" : "Manager 상태 확인 필요"}
           </p>
           <p className="mt-1 text-xs">{details.join(" / ")}</p>
           <p className="mt-1 text-xs opacity-80">
             마지막 상태 갱신: {formatDateTime(updatedAt, timezone)}
             {deployment?.external_watchdog_checked_at
               ? ` · watchdog 실행: ${formatDateTime(deployment.external_watchdog_checked_at, timezone)}`
+              : ""}
+            {httpMonitor?.checked_at
+              ? ` · API 점검: ${formatDateTime(httpMonitor.checked_at, timezone)}`
               : ""}
           </p>
         </div>

@@ -20,6 +20,7 @@ export {
   useExportBackup,
   useImportBackup,
   usePreviewBackup,
+  usePreviewManagerHttpErrors,
   useReconcileCloudflareDns,
   useRefreshSmokeMonitoringHistory,
   useRollbackSettingsChange,

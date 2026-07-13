@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 
+import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
@@ -26,6 +27,7 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
     ["disabled", "pending", "unavailable", "breached", "healthy"].includes(snapshot.monitorStatus),
     "Manager API 오류 임계치 감지 상태가 올바르지 않습니다",
   );
+  await checkManagerHttpErrorPreviewApi(cdp);
 
   await setSelectValue(cdp, '[data-testid="manager-http-error-window"]', "6");
   await waitForCondition(
@@ -49,6 +51,150 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
     timeoutMs,
     "Manager API 오류 추이가 기본 24시간 조건으로 복원되지 않았습니다",
   );
+}
+
+export async function checkManagerHttpErrorPreviewForm({
+  artifactDir,
+  cdp,
+  profile,
+  timeoutMs = 15_000,
+}) {
+  const opened = await evaluate(cdp, `(() => {
+    const card = document.querySelector('[data-testid="security-alert-settings-card"]');
+    const edit = Array.from(card?.querySelectorAll('button') || []).find(
+      (button) => button.textContent?.includes('편집')
+    );
+    edit?.click();
+    return Boolean(edit);
+  })()`);
+  if (!opened) return false;
+
+  await waitForCondition(
+    cdp,
+    `Boolean(document.querySelector('[data-testid="manager-http-error-preview-button"]'))`,
+    timeoutMs,
+    "Manager API 오류 권장값 계산 버튼이 표시되지 않았습니다",
+  );
+  const enabled = await evaluate(cdp, `(() => {
+    const labels = Array.from(document.querySelectorAll('[data-testid="security-alert-settings-card"] label'));
+    const checkbox = labels.find((label) => label.textContent?.includes('Manager API 오류 임계치 감지'))
+      ?.querySelector('input[type="checkbox"]');
+    if (checkbox && !checkbox.checked) checkbox.click();
+    return Boolean(checkbox);
+  })()`);
+  assert.equal(enabled, true, "Manager API 오류 임계치 감지 체크박스를 찾지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `document.querySelector('[data-testid="manager-http-error-preview-button"]')?.disabled === false`,
+    timeoutMs,
+    "Manager API 오류 권장값 계산 버튼이 활성화되지 않았습니다",
+  );
+  const pathSet = await evaluate(cdp, `(() => {
+    const textarea = document.querySelector('textarea[aria-label="임계치 제외 경로"]');
+    if (!(textarea instanceof HTMLTextAreaElement)) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+    setter?.call(textarea, '/api/health');
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(pathSet, true, "Manager API 오류 제외 경로를 입력하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `document.querySelector('textarea[aria-label="임계치 제외 경로"]')?.value === '/api/health'`,
+    timeoutMs,
+    "Manager API 오류 제외 경로 입력이 반영되지 않았습니다",
+  );
+  const requested = await evaluate(cdp, `(() => {
+    const button = document.querySelector('[data-testid="manager-http-error-preview-button"]');
+    button?.click();
+    return Boolean(button);
+  })()`);
+  assert.equal(requested, true, "Manager API 오류 권장값 계산을 실행하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `Boolean(document.querySelector('[data-testid="manager-http-error-preview"]'))`,
+    timeoutMs,
+    "Manager API 오류 권장값 계산 결과가 표시되지 않았습니다",
+  );
+  const snapshot = await evaluate(cdp, `(() => {
+    const result = document.querySelector('[data-testid="manager-http-error-preview"]');
+    return {
+      documentWidth: document.documentElement.scrollWidth,
+      expected404: result?.getAttribute('data-recommended-not-found'),
+      expected5xx: result?.getAttribute('data-recommended-server-error'),
+      text: result?.textContent || '',
+      viewportWidth: window.innerWidth,
+    };
+  })()`);
+  assert.match(snapshot.text, /권장 임계치/, "Manager API 오류 권장 임계치가 없습니다");
+  assert.match(snapshot.text, /\/api\/health/, "제외 경로별 오류 미리보기가 없습니다");
+  assert.ok(snapshot.documentWidth <= snapshot.viewportWidth + 1, "권장값 결과가 화면 폭을 넘습니다");
+  await captureVisualScreenshot({
+    artifactDir,
+    cdp,
+    name: `${profile.id}-manager-http-error-preview`,
+  });
+
+  const applied = await evaluate(cdp, `(() => {
+    const card = document.querySelector('[data-testid="security-alert-settings-card"]');
+    const button = Array.from(card?.querySelectorAll('button') || []).find(
+      (item) => item.textContent?.includes('권장값 적용')
+    );
+    button?.click();
+    return Boolean(button);
+  })()`);
+  assert.equal(applied, true, "Manager API 오류 권장값 적용 버튼을 찾지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const card = document.querySelector('[data-testid="security-alert-settings-card"]');
+      const labels = Array.from(card?.querySelectorAll('label') || []);
+      const notFound = labels.find((label) => label.textContent?.includes('404 임계치'))?.querySelector('input');
+      const serverError = labels.find((label) => label.textContent?.includes('5xx 임계치'))?.querySelector('input');
+      return notFound?.value === ${JSON.stringify(snapshot.expected404)} &&
+        serverError?.value === ${JSON.stringify(snapshot.expected5xx)};
+    })()`,
+    timeoutMs,
+    "Manager API 오류 권장값이 입력 필드에 적용되지 않았습니다",
+  );
+  await evaluate(cdp, `(() => {
+    const card = document.querySelector('[data-testid="security-alert-settings-card"]');
+    const cancel = Array.from(card?.querySelectorAll('button') || []).find(
+      (button) => button.textContent?.includes('취소')
+    );
+    cancel?.click();
+  })()`);
+  await waitForCondition(
+    cdp,
+    `!document.querySelector('[data-testid="manager-http-error-preview-button"]')`,
+    timeoutMs,
+    "Manager API 오류 설정 편집이 닫히지 않았습니다",
+  );
+  return true;
+}
+
+async function checkManagerHttpErrorPreviewApi(cdp) {
+  const preview = await evaluate(cdp, `(async () => {
+    const pair = document.cookie.split('; ').find((item) => item.startsWith('tm_csrf='));
+    const csrf = pair ? decodeURIComponent(pair.slice('tm_csrf='.length)) : '';
+    const response = await fetch('/api/v1/docker/http-errors/preview', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+      body: JSON.stringify({ window_minutes: 15, excluded_paths: ['/api/health'] }),
+    });
+    const body = await response.json();
+    return { body, ok: response.ok };
+  })()`);
+  assert.equal(preview.ok, true, "Manager API 오류 권장값 API 요청에 실패했습니다");
+  assert.equal(preview.body.available, true, "Manager API 오류 권장값 로그를 읽지 못했습니다");
+  assert.equal(preview.body.window_minutes, 15, "Manager API 오류 권장값 구간이 다릅니다");
+  assert.ok(
+    Number.isInteger(preview.body.recommended_not_found_threshold) &&
+      Number.isInteger(preview.body.recommended_server_error_threshold),
+    "Manager API 오류 권장 임계치가 올바르지 않습니다",
+  );
+  assert.equal(preview.body.excluded_paths?.[0]?.path, "/api/health");
 }
 
 async function setSelectValue(cdp, selector, value) {

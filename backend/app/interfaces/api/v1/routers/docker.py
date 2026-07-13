@@ -5,6 +5,7 @@ from app.application.manager_health_monitoring import read_external_watchdog_sta
 from app.application.manager_http_error_monitoring import read_manager_http_error_monitor_status
 from app.core.manager_watchdog_state import read_manager_watchdog_state
 from app.infrastructure.docker.client import DockerClient, DockerClientError
+from app.infrastructure.docker.manager_http_log_reader import read_manager_http_error_preview
 from app.infrastructure.github_actions_run import GitHubActionsRunStatusReader
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
@@ -12,6 +13,8 @@ from app.interfaces.api.dependencies import get_current_user
 from app.interfaces.api.v1.schemas.docker_schemas import (
     DockerContainerListResponse,
     DockerDeploymentInfoResponse,
+    ManagerHttpErrorPreviewRequest,
+    ManagerHttpErrorPreviewResponse,
     ManagerHttpErrorSummaryResponse,
 )
 
@@ -63,6 +66,23 @@ async def get_manager_http_errors(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Manager API 오류 추이를 가져오지 못했습니다",
         ) from exc
+
+
+@router.post(
+    "/http-errors/preview",
+    response_model=ManagerHttpErrorPreviewResponse,
+    summary="Traefik Manager API 오류 임계치 미리보기",
+)
+async def preview_manager_http_errors(
+    request: ManagerHttpErrorPreviewRequest,
+    docker_client: DockerClient = Depends(get_docker_client),
+    _: dict = Depends(get_current_user),
+):
+    return await read_manager_http_error_preview(
+        docker_enabled=docker_client.enabled,
+        window_minutes=request.window_minutes,
+        excluded_paths=tuple(request.excluded_paths),
+    )
 
 
 @router.get("/deployment", response_model=DockerDeploymentInfoResponse, summary="Traefik Manager 배포 정보")

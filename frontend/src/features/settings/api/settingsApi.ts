@@ -49,6 +49,8 @@ export type {
 export type {
   ChangeAlertEventRoutes,
   ChangeAlertRouteEvent,
+  ManagerHttpErrorPreview,
+  ManagerHttpErrorPreviewInput,
   SecurityAlertEventRoutes,
   SecurityAlertRouteEvent,
   SecurityAlertRouteTarget,

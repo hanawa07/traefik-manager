@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 
 import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
 import { checkAuditFilterPersistence, checkCertificateDrawer, checkMobileSidebar, checkOptionalAdminModal } from "./dashboard-visual-interactions.mjs";
-import { checkManagerHttpErrorTrend } from "./dashboard-visual-manager-http.mjs";
+import {
+  checkManagerHttpErrorPreviewForm,
+  checkManagerHttpErrorTrend,
+} from "./dashboard-visual-manager-http.mjs";
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
 import { checkWatchdogFilterPersistence } from "./dashboard-visual-watchdog.mjs";
 import { assertDashboardShell } from "./dashboard-visual-shell.mjs";
@@ -29,6 +32,13 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
           labels.push(`${profile.label} 감사 필터 조합·레이아웃`);
         }
         if (route.path === "/dashboard/settings") {
+          const previewed = await checkManagerHttpErrorPreviewForm({
+            artifactDir,
+            cdp,
+            profile,
+            timeoutMs,
+          });
+          if (previewed) labels.push(`${profile.label} API 오류 권장값 계산`);
           const opened = await checkOptionalAdminModal({ artifactDir, cdp, profile, timeoutMs });
           if (opened) labels.push(`${profile.label} 사용자 추가 모달`);
         }
