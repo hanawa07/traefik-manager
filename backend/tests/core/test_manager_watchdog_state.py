@@ -8,7 +8,8 @@ def test_read_manager_watchdog_state_uses_status_and_file_mtime(tmp_path) -> Non
     state_path = tmp_path / "manager-health-watchdog.state"
     state_path.write_text(
         "status=healthy\nalert_active=0\nlast_alert_at=0\nconsecutive_failures=3\n"
-        "last_dispatch_event=recovery\nlast_dispatch_success=1\nlast_dispatch_at=1783913580\n",
+        "last_dispatch_event=recovery\nlast_dispatch_success=1\nlast_dispatch_at=1783913580\n"
+        "last_dispatch_run_url=https://github.com/hanawa07/traefik-manager/actions/runs/123\n",
         encoding="utf-8",
     )
     checked_at = datetime(2026, 7, 13, 3, 35, tzinfo=timezone.utc)
@@ -28,6 +29,7 @@ def test_read_manager_watchdog_state_uses_status_and_file_mtime(tmp_path) -> Non
         "external_watchdog_last_alert_event": "recovery",
         "external_watchdog_last_alert_success": True,
         "external_watchdog_last_alert_at": datetime.fromtimestamp(1783913580, timezone.utc),
+        "external_watchdog_last_alert_run_url": "https://github.com/hanawa07/traefik-manager/actions/runs/123",
     }
 
 
@@ -43,6 +45,7 @@ def test_read_manager_watchdog_state_handles_missing_file(tmp_path) -> None:
         "external_watchdog_last_alert_event": None,
         "external_watchdog_last_alert_success": None,
         "external_watchdog_last_alert_at": None,
+        "external_watchdog_last_alert_run_url": None,
     }
 
 

@@ -14,6 +14,12 @@ def _parse_epoch(value: str | None) -> datetime | None:
         return None
 
 
+def _parse_run_url(value: str | None) -> str | None:
+    if value and value.startswith("https://github.com/") and "/actions/runs/" in value:
+        return value
+    return None
+
+
 def read_manager_watchdog_state(
     path: str = MANAGER_WATCHDOG_STATE_PATH,
     *,
@@ -38,6 +44,7 @@ def read_manager_watchdog_state(
             "external_watchdog_last_alert_event": None,
             "external_watchdog_last_alert_success": None,
             "external_watchdog_last_alert_at": None,
+            "external_watchdog_last_alert_run_url": None,
         }
 
     status = values.get("status")
@@ -52,9 +59,11 @@ def read_manager_watchdog_state(
         last_alert_event = None
     last_alert_success = {"1": True, "0": False}.get(values.get("last_dispatch_success"))
     last_alert_at = _parse_epoch(values.get("last_dispatch_at"))
+    last_alert_run_url = _parse_run_url(values.get("last_dispatch_run_url"))
     if last_alert_event is None:
         last_alert_success = None
         last_alert_at = None
+        last_alert_run_url = None
     stale = (now or datetime.now(timezone.utc)) - checked_at >= timedelta(
         minutes=stale_after_minutes
     )
@@ -67,4 +76,5 @@ def read_manager_watchdog_state(
         "external_watchdog_last_alert_event": last_alert_event,
         "external_watchdog_last_alert_success": last_alert_success,
         "external_watchdog_last_alert_at": last_alert_at,
+        "external_watchdog_last_alert_run_url": last_alert_run_url,
     }

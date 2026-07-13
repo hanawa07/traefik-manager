@@ -153,6 +153,19 @@ export function ManagerDeploymentCard({
             deployment?.external_watchdog_last_alert_event,
             deployment?.external_watchdog_last_alert_success,
           )} · 요청 시각: {externalWatchdogLastAlertAt}
+          {deployment?.external_watchdog_last_alert_run_url ? (
+            <>
+              {" · "}
+              <a
+                className="font-semibold underline underline-offset-2"
+                href={deployment.external_watchdog_last_alert_run_url}
+                rel="noreferrer"
+                target="_blank"
+              >
+                실행 보기
+              </a>
+            </>
+          ) : null}
         </p>
       </div>
 

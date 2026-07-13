@@ -40,6 +40,7 @@ export interface DeploymentInfo {
   external_watchdog_last_alert_event: "failure" | "recovery" | null;
   external_watchdog_last_alert_success: boolean | null;
   external_watchdog_last_alert_at: string | null;
+  external_watchdog_last_alert_run_url: string | null;
   components: DeploymentComponent[];
 }
 

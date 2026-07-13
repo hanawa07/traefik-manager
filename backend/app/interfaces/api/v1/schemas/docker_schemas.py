@@ -76,4 +76,5 @@ class DockerDeploymentInfoResponse(BaseModel):
     external_watchdog_last_alert_event: Literal["failure", "recovery"] | None = None
     external_watchdog_last_alert_success: bool | None = None
     external_watchdog_last_alert_at: datetime | None = None
+    external_watchdog_last_alert_run_url: str | None = None
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)
