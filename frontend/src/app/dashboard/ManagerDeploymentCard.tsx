@@ -192,7 +192,12 @@ export function ManagerDeploymentCard({
         </p>
       </div>
 
-      <ManagerWatchdogAlertHistory deployment={deployment} timezone={timezone} />
+      <ManagerWatchdogAlertHistory
+        deployment={deployment}
+        isRefreshing={isRefreshingStatus}
+        onRefresh={onRefreshStatus}
+        timezone={timezone}
+      />
 
       <DeploymentLinkBar
         commitUrl={deploymentLinks.commitUrl}

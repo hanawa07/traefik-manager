@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
 import type { DeploymentInfo } from "@/features/deployment/api/deploymentApi";
@@ -12,13 +12,18 @@ import {
 } from "./managerWatchdogStatus";
 
 type WatchdogEventFilter = "all" | "failure" | "recovery";
-type WatchdogResultFilter = "all" | "success" | "failure" | "pending";
+type WatchdogResult = "success" | "failure" | "pending" | "other";
+type WatchdogResultFilter = "all" | WatchdogResult;
 
 export function ManagerWatchdogAlertHistory({
   deployment,
+  isRefreshing = false,
+  onRefresh,
   timezone,
 }: {
   deployment?: DeploymentInfo;
+  isRefreshing?: boolean;
+  onRefresh?: () => void;
   timezone?: string;
 }) {
   const runs = deployment?.external_watchdog_alert_runs || [];
@@ -29,16 +34,36 @@ export function ManagerWatchdogAlertHistory({
       (eventFilter === "all" || run.event === eventFilter) &&
       matchesResultFilter(run, resultFilter),
   );
+  const resultCounts = {
+    success: runs.filter((run) => getWatchdogResult(run) === "success").length,
+    failure: runs.filter((run) => getWatchdogResult(run) === "failure").length,
+    pending: runs.filter((run) => getWatchdogResult(run) === "pending").length,
+    other: runs.filter((run) => getWatchdogResult(run) === "other").length,
+  };
 
   return (
     <div className="mt-3 rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-          최근 watchdog 알림 실행
-        </h3>
-        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-          외부 가용성 watchdog이 요청한 최근 GitHub Actions 실행 5건입니다.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+            최근 watchdog 알림 실행
+          </h3>
+          <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+            외부 가용성 watchdog이 요청한 최근 GitHub Actions 실행 5건입니다.
+          </p>
+        </div>
+        {onRefresh ? (
+          <button
+            aria-label="watchdog 실행 이력 새로고침"
+            className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600 hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-300"
+            disabled={isRefreshing}
+            onClick={onRefresh}
+            type="button"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            {isRefreshing ? "이력 갱신 중" : "이력 새로고침"}
+          </button>
+        ) : null}
       </div>
 
       <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg bg-slate-50 p-2 dark:bg-slate-900">
@@ -69,11 +94,21 @@ export function ManagerWatchdogAlertHistory({
             <option value="success">성공</option>
             <option value="failure">실패</option>
             <option value="pending">진행·확인 중</option>
+            <option value="other">기타 완료</option>
           </select>
         </label>
         <span className="ml-auto text-[11px] text-gray-500 dark:text-slate-400">
           {filteredRuns.length}/{runs.length}건
         </span>
+        <div
+          aria-label="watchdog 실행 결과 집계"
+          className="flex w-full flex-wrap gap-1.5 border-t border-slate-200 pt-2 dark:border-slate-800"
+        >
+          <ResultCount label="성공" count={resultCounts.success} tone="success" />
+          <ResultCount label="실패" count={resultCounts.failure} tone="failure" />
+          <ResultCount label="진행·확인" count={resultCounts.pending} tone="pending" />
+          <ResultCount label="기타 완료" count={resultCounts.other} tone="other" />
+        </div>
       </div>
 
       {runs.length === 0 ? (
@@ -85,7 +120,7 @@ export function ManagerWatchdogAlertHistory({
       ) : (
         <ul className="mt-3 divide-y divide-gray-100 dark:divide-slate-800">
           {filteredRuns.map((run) => {
-            const failed = isExternalWatchdogRunFailure(run.conclusion);
+            const failed = getWatchdogResult(run) === "failure";
             return (
               <li className="flex flex-wrap items-start gap-2 py-3 text-xs" key={run.run_url}>
                 <span
@@ -141,8 +176,32 @@ function matchesResultFilter(
   run: DeploymentInfo["external_watchdog_alert_runs"][number],
   filter: WatchdogResultFilter,
 ) {
-  if (filter === "all") return true;
-  if (filter === "success") return run.conclusion === "success";
-  if (filter === "failure") return isExternalWatchdogRunFailure(run.conclusion);
-  return run.status !== "completed";
+  return filter === "all" || getWatchdogResult(run) === filter;
+}
+
+function getWatchdogResult(
+  run: DeploymentInfo["external_watchdog_alert_runs"][number],
+): WatchdogResult {
+  if (run.error || isExternalWatchdogRunFailure(run.conclusion)) return "failure";
+  if (run.status !== "completed") return "pending";
+  if (run.conclusion === "success") return "success";
+  return "other";
+}
+
+function ResultCount({
+  count,
+  label,
+  tone,
+}: {
+  count: number;
+  label: string;
+  tone: WatchdogResult;
+}) {
+  const tones: Record<WatchdogResult, string> = {
+    success: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200",
+    failure: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200",
+    pending: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200",
+    other: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  };
+  return <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${tones[tone]}`}>{label} {count}건</span>;
 }
