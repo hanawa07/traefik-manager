@@ -35,36 +35,38 @@ export async function checkOptionalAdminModal({ artifactDir, cdp, profile, timeo
 }
 
 export async function checkAuditFilterPersistence({ cdp, timeoutMs }) {
-  const changed = await evaluate(cdp, `(() => {
-    const changeSelect = (label, value) => {
-      const select = document.querySelector('select[aria-label="' + label + '"]');
-      if (!select) return false;
-      select.value = value;
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-      return true;
-    };
+  const watchdogFound = await evaluate(cdp, `(() => {
     const watchdog = Array.from(document.querySelectorAll('button')).find(
       (button) => button.textContent?.includes('Watchdog')
     );
     watchdog?.click();
-    return Boolean(watchdog) &&
-      changeSelect('전송 상태', 'failure') &&
-      changeSelect('알림 채널', 'telegram') &&
-      changeSelect('Manager 집계 기간', '1440');
+    return Boolean(watchdog);
   })()`);
-  assert.equal(changed, true, "감사 로그 필터를 변경하지 못했습니다");
-  await waitForCondition(
-    cdp,
-    `(() => {
-      const params = new URLSearchParams(location.search);
-      return params.get('filter') === 'manager_watchdog' &&
-        params.get('delivery_status') === 'failure' &&
-        params.get('delivery_provider') === 'telegram' &&
-        params.get('manager_window') === '1440';
-    })()`,
-    timeoutMs,
-    "감사 로그 필터가 URL에 저장되지 않았습니다",
-  );
+  assert.equal(watchdogFound, true, "감사 로그 Watchdog 필터를 찾지 못했습니다");
+  await waitForQueryParam(cdp, "filter", "manager_watchdog", timeoutMs);
+
+  const selectChanges = [
+    ["전송 상태", "failure", "delivery_status"],
+    ["알림 채널", "telegram", "delivery_provider"],
+    ["Manager 집계 기간", "1440", "manager_window"],
+  ];
+  for (const [label, value, queryKey] of selectChanges) {
+    await waitForCondition(
+      cdp,
+      `Boolean(document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)}))`,
+      timeoutMs,
+      `감사 로그 ${label} 필터가 다시 표시되지 않았습니다`,
+    );
+    const changed = await evaluate(cdp, `(() => {
+      const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)});
+      if (!select) return false;
+      select.value = ${JSON.stringify(value)};
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    })()`);
+    assert.equal(changed, true, `감사 로그 ${label} 필터를 찾지 못했습니다`);
+    await waitForQueryParam(cdp, queryKey, value, timeoutMs);
+  }
   await cdp.send("Page.reload", { ignoreCache: true });
   await waitForCondition(
     cdp,
@@ -81,6 +83,15 @@ export async function checkAuditFilterPersistence({ cdp, timeoutMs }) {
     "새로고침 후 감사 로그 필터가 복원되지 않았습니다",
   );
   return true;
+}
+
+async function waitForQueryParam(cdp, key, value, timeoutMs) {
+  await waitForCondition(
+    cdp,
+    `new URLSearchParams(location.search).get(${JSON.stringify(key)}) === ${JSON.stringify(value)}`,
+    timeoutMs,
+    `감사 로그 ${key} 필터가 URL에 저장되지 않았습니다`,
+  );
 }
 
 export async function checkMobileSidebar({ artifactDir, cdp, profile, timeoutMs }) {
