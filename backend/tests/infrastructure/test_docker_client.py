@@ -180,6 +180,7 @@ async def test_manager_http_error_summary_reads_backend_container_logs(monkeypat
     assert isinstance(captured["since"], int)
     assert summary["available"] is True
     assert summary["not_found_count"] == 0
+    assert summary["log_storage"]["source"] == "docker"
 
 
 @pytest.mark.asyncio
@@ -205,3 +206,4 @@ async def test_manager_http_error_summary_prefers_persistent_request_logs(monkey
 
     assert summary["available"] is True
     assert summary["not_found_count"] == 0
+    assert summary["log_storage"]["source"] == "persistent"

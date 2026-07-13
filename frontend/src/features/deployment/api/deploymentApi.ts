@@ -43,6 +43,15 @@ export interface ManagerHttpErrorPath {
   last_seen_at: string;
 }
 
+export interface ManagerHttpRequestLogStorage {
+  source: "persistent" | "docker" | "unavailable";
+  size_bytes: number;
+  capacity_bytes: number;
+  file_count: number;
+  max_file_count: number;
+  rotated_file_count: number;
+}
+
 export interface ManagerHttpErrorSummary {
   available: boolean;
   message: string;
@@ -55,6 +64,7 @@ export interface ManagerHttpErrorSummary {
   server_error_count: number;
   buckets: ManagerHttpErrorBucket[];
   top_paths: ManagerHttpErrorPath[];
+  log_storage: ManagerHttpRequestLogStorage;
 }
 
 export interface ManagerHttpErrorMonitorStatus {

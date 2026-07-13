@@ -7,6 +7,7 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
   const snapshot = await evaluate(cdp, `(() => {
     const card = document.querySelector('[data-testid="manager-http-error-trend"]');
     const chart = document.querySelector('[data-testid="manager-http-error-chart-scroll"]');
+    const logStorage = document.querySelector('[data-testid="manager-http-log-storage"]');
     const monitor = document.querySelector('[data-testid="manager-http-error-monitor-status"]');
     return card ? {
       available: card.getAttribute('data-http-error-available'),
@@ -20,6 +21,15 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
       sampleCoverage: Number(card.getAttribute('data-http-sample-coverage')),
       sampleReady: Boolean(document.querySelector('[data-testid="manager-http-sample-ready"]')),
       monitorStatus: monitor?.getAttribute('data-http-error-monitor-status'),
+      logStorage: logStorage ? {
+        capacityBytes: Number(logStorage.getAttribute('data-log-capacity-bytes')),
+        fileCount: Number(logStorage.getAttribute('data-log-file-count')),
+        maxFileCount: Number(logStorage.getAttribute('data-log-max-file-count')),
+        rotatedFileCount: Number(logStorage.getAttribute('data-log-rotated-file-count')),
+        sizeBytes: Number(logStorage.getAttribute('data-log-size-bytes')),
+        source: logStorage.getAttribute('data-log-source'),
+        text: logStorage.textContent || '',
+      } : null,
       text: card.textContent || '',
     } : null;
   })()`);
@@ -29,6 +39,30 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
   assert.equal(snapshot.bucketCount, 24, "Manager API 오류 추이가 24개 시간 구간이 아닙니다");
   assert.ok(snapshot.chartScrollWidth >= snapshot.chartWidth, "Manager API 오류 차트 폭이 올바르지 않습니다");
   assert.match(snapshot.text, /관측 시작:/, "Manager API 오류 로그 관측 시각이 없습니다");
+  assert.ok(snapshot.logStorage, "Manager API 요청 로그 보관 상태가 없습니다");
+  assert.ok(
+    ["persistent", "docker", "unavailable"].includes(snapshot.logStorage.source),
+    "Manager API 요청 로그 보관 소스가 올바르지 않습니다",
+  );
+  assert.ok(
+    Number.isInteger(snapshot.logStorage.sizeBytes) &&
+      snapshot.logStorage.sizeBytes >= 0 &&
+      snapshot.logStorage.sizeBytes <= snapshot.logStorage.capacityBytes,
+    "Manager API 요청 로그 사용량이 올바르지 않습니다",
+  );
+  assert.ok(
+    Number.isInteger(snapshot.logStorage.fileCount) &&
+      snapshot.logStorage.fileCount >= 0 &&
+      snapshot.logStorage.fileCount <= snapshot.logStorage.maxFileCount,
+    "Manager API 요청 로그 파일 수가 올바르지 않습니다",
+  );
+  assert.ok(
+    Number.isInteger(snapshot.logStorage.rotatedFileCount) &&
+      snapshot.logStorage.rotatedFileCount >= 0 &&
+      snapshot.logStorage.rotatedFileCount <= snapshot.logStorage.fileCount,
+    "Manager API 요청 로그 회전 파일 수가 올바르지 않습니다",
+  );
+  assert.match(snapshot.logStorage.text, /사용량.*회전 파일/, "Manager API 요청 로그 상태 설명이 없습니다");
   assert.ok(
     Number.isInteger(snapshot.sampleCoverage) &&
       snapshot.sampleCoverage >= 0 &&

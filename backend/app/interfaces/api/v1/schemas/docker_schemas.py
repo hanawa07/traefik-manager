@@ -87,6 +87,15 @@ class ManagerHttpErrorPathResponse(BaseModel):
     last_seen_at: datetime
 
 
+class ManagerHttpRequestLogStorageResponse(BaseModel):
+    source: Literal["persistent", "docker", "unavailable"] = "unavailable"
+    size_bytes: int = Field(default=0, ge=0)
+    capacity_bytes: int = Field(default=0, ge=0)
+    file_count: int = Field(default=0, ge=0)
+    max_file_count: int = Field(default=0, ge=0)
+    rotated_file_count: int = Field(default=0, ge=0)
+
+
 class ManagerHttpErrorSummaryResponse(BaseModel):
     available: bool
     message: str
@@ -99,6 +108,9 @@ class ManagerHttpErrorSummaryResponse(BaseModel):
     server_error_count: int = Field(default=0, ge=0)
     buckets: list[ManagerHttpErrorBucketResponse] = Field(default_factory=list)
     top_paths: list[ManagerHttpErrorPathResponse] = Field(default_factory=list)
+    log_storage: ManagerHttpRequestLogStorageResponse = Field(
+        default_factory=ManagerHttpRequestLogStorageResponse
+    )
 
 
 class ManagerHttpErrorPreviewRequest(BaseModel):

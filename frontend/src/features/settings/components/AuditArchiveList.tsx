@@ -3,6 +3,7 @@ import { Download, RotateCcw } from "lucide-react";
 import type { AuditArchiveItem } from "@/features/settings/api/settingsApi";
 import { getAuditArchiveDownloadUrl } from "@/features/settings/api/settingsAuditRetentionApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { formatBytes } from "@/shared/lib/formatBytes";
 
 interface AuditArchiveListProps {
   archives?: AuditArchiveItem[];
@@ -72,10 +73,4 @@ export function AuditArchiveList({
       )}
     </div>
   );
-}
-
-function formatBytes(value: number): string {
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }

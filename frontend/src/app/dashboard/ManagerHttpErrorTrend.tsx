@@ -12,6 +12,8 @@ import type {
 import { useManagerHttpErrors } from "@/features/deployment/hooks/useDeploymentInfo";
 import { formatDateTime, resolveDisplayTimeZone } from "@/shared/lib/dateTimeFormat";
 
+import { ManagerHttpLogStorageStatus } from "./ManagerHttpLogStorageStatus";
+
 interface ManagerHttpErrorTrendProps {
   monitor?: ManagerHttpErrorMonitorStatus | null;
   summary?: ManagerHttpErrorSummary | null;
@@ -60,6 +62,10 @@ export function ManagerHttpErrorTrend({ monitor, summary, timezone }: ManagerHtt
       </div>
 
       <HttpErrorMonitorStatus monitor={monitor} timezone={timezone} />
+
+      {displayedSummary?.log_storage ? (
+        <ManagerHttpLogStorageStatus storage={displayedSummary.log_storage} />
+      ) : null}
 
       <div className="grid gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700 sm:grid-cols-[9rem_minmax(0,1fr)]">
         <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
