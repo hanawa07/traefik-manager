@@ -45,7 +45,7 @@ export const DASHBOARD_ROUTES = [
       "5xx 서버 오류",
       "Manager 상태 전이 이력",
       "외부 watchdog",
-      "연속 실패 0회",
+      "연속 실패",
       "최근 watchdog 알림 요청",
       "최근 watchdog 알림 실행",
       "알림 종류",

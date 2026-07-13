@@ -247,8 +247,17 @@ async function waitForRoute(cdp, route, timeoutMs) {
     await sleep(250);
   }
 
+  const missingMarkers = route.requiredMarkers?.filter(
+    (marker) => !lastSnapshot?.text.includes(marker),
+  );
+  const pendingMarkers = route.pendingMarkers?.filter((marker) =>
+    lastSnapshot?.text.includes(marker),
+  );
   throw new Error(
-    `${route.label}: 렌더링 대기 시간 초과 (${lastSnapshot?.path ?? "경로 없음"})`,
+    `${route.label}: 렌더링 대기 시간 초과 (${lastSnapshot?.path ?? "경로 없음"})` +
+      ` · 로딩=${lastSnapshot?.isLoading ? "예" : "아니오"}` +
+      ` · 누락=${missingMarkers?.join(", ") || "없음"}` +
+      ` · 대기=${pendingMarkers?.join(", ") || "없음"}`,
   );
 }
 
@@ -321,6 +330,7 @@ export function runDashboardVisualSmokeSelfTest() {
   assert.ok(auditRoute?.requiredMarkers.includes("현재 조건 CSV"));
   assert.ok(dashboardRoute.requiredMarkers.includes("Manager API 404·5xx 추이"));
   assert.ok(dashboardRoute.requiredMarkers.includes("경로 필터"));
+  assert.ok(dashboardRoute.requiredMarkers.includes("연속 실패"));
   assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");
   assert.ok(settingsRoute.requiredMarkers.includes("감사 로그 보존"));
   assert.ok(settingsRoute.requiredMarkers.includes("Manager API 오류 감지"));
