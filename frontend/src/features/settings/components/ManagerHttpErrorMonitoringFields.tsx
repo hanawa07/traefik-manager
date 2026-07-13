@@ -3,6 +3,7 @@ import type {
   SecurityAlertSettingsInput,
 } from "@/features/settings/api/settingsApi";
 import { usePreviewManagerHttpErrors } from "@/features/settings/hooks/useSettings";
+import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 interface ManagerHttpErrorMonitoringFieldsProps {
   formValue: SecurityAlertSettingsInput;
@@ -100,7 +101,7 @@ export function ManagerHttpErrorMonitoringFields({
           }
           type="button"
         >
-          {preview.isPending ? "최근 로그 계산 중" : "24시간 권장값 계산"}
+          {preview.isPending ? "최근 로그 계산 중" : "최대 24시간 권장값 계산"}
         </button>
         {preview.isError ? (
           <p className="mt-2 text-xs text-rose-700 dark:text-rose-200">
@@ -147,7 +148,10 @@ function HttpErrorPreviewResult({
       data-recommended-server-error={preview.recommended_server_error_threshold}
       data-testid="manager-http-error-preview"
     >
-      <p className="font-semibold text-gray-900 dark:text-slate-100">24시간 권장값</p>
+      <p className="font-semibold text-gray-900 dark:text-slate-100">최대 24시간 권장값</p>
+      <p className="mt-1 text-gray-500 dark:text-slate-400">
+        로그 관측 시작: {formatDateTime(preview.observed_since)}
+      </p>
       <p className="mt-1">
         최고 {preview.window_minutes}분 구간: 404 {preview.peak_not_found_count}건 · 5xx {preview.peak_server_error_count}건
       </p>
