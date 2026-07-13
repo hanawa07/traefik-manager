@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 
 import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
-import { checkAuditFilterPersistence, checkCertificateDrawer, checkMobileSidebar, checkOptionalAdminModal, checkWatchdogFilterPersistence } from "./dashboard-visual-interactions.mjs";
+import { checkAuditFilterPersistence, checkCertificateDrawer, checkMobileSidebar, checkOptionalAdminModal } from "./dashboard-visual-interactions.mjs";
+import { checkWatchdogFilterPersistence } from "./dashboard-visual-watchdog.mjs";
 import { assertDashboardShell } from "./dashboard-visual-shell.mjs";
 
 const MOBILE_VIEWPORT = {
@@ -47,7 +48,7 @@ const DASHBOARD_ROUTES = [
       "외부 watchdog",
       "연속 실패 0회",
       "최근 watchdog 알림 요청",
-      "최근 watchdog 알림 실행", "알림 종류", "실행 결과", "이력 새로고침", "기타 완료", "수동 갱신:",
+      "최근 watchdog 알림 실행", "알림 종류", "실행 결과", "이력 새로고침", "기타 완료", "수동 갱신:", "적용 조건", "전체 실행", "전체 초기화",
       "알림 워크플로 결과",
       "마지막 상태 갱신",
       "상태 새로고침",
@@ -58,7 +59,7 @@ const DASHBOARD_ROUTES = [
     label: "감사 로그",
     path: "/dashboard/audit",
     marker: "시스템의 모든 변경 사항을 추적합니다",
-    requiredMarkers: ["감사 로그 검색", "적용 조건", "전체 초기화", "건 표시", "페이지당", "감사 기간", "Manager 전체", "Manager 소스", "Manager 상태", "Manager 집계 기간"],
+    requiredMarkers: ["감사 로그 검색", "적용 조건", "전체 초기화", "건 표시", "페이지당", "감사 기간", "시작일 (UTC)", "종료일 (UTC)", "Manager 전체", "Manager 소스", "Manager 상태", "Manager 집계 기간"],
   },
   { label: "미들웨어", path: "/dashboard/middlewares", marker: "공용 템플릿" },
   { label: "리다이렉트", path: "/dashboard/redirects", marker: "도메인 리다이렉트 호스트 관리" },
@@ -371,7 +372,7 @@ export function runDashboardVisualSmokeSelfTest() {
   const loginRoute = { label: "로그인", path: "/login", marker: "로그인" };
   assert.ok(serviceRoute);
   assert.ok(dashboardRoute);
-  assert.deepEqual(auditRoute?.requiredMarkers, ["감사 로그 검색", "적용 조건", "전체 초기화", "건 표시", "페이지당", "감사 기간", "Manager 전체", "Manager 소스", "Manager 상태", "Manager 집계 기간"]);
+  assert.deepEqual(auditRoute?.requiredMarkers, ["감사 로그 검색", "적용 조건", "전체 초기화", "건 표시", "페이지당", "감사 기간", "시작일 (UTC)", "종료일 (UTC)", "Manager 전체", "Manager 소스", "Manager 상태", "Manager 집계 기간"]);
   assert.deepEqual(dashboardRoute.requiredMarkers, [
     "Backend",
     "Frontend",
@@ -380,7 +381,7 @@ export function runDashboardVisualSmokeSelfTest() {
     "외부 watchdog",
     "연속 실패 0회",
     "최근 watchdog 알림 요청",
-    "최근 watchdog 알림 실행", "알림 종류", "실행 결과", "이력 새로고침", "기타 완료", "수동 갱신:",
+    "최근 watchdog 알림 실행", "알림 종류", "실행 결과", "이력 새로고침", "기타 완료", "수동 갱신:", "적용 조건", "전체 실행", "전체 초기화",
     "알림 워크플로 결과",
     "마지막 상태 갱신",
     "상태 새로고침",

@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 
 import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
+import {
+  clickAriaLabel,
+  evaluate,
+  reloadPage,
+  waitForCondition,
+} from "./dashboard-visual-runtime.mjs";
 
 export async function checkCertificateDrawer({ artifactDir, cdp, profile, timeoutMs }) {
   const opened = await clickButton(cdp, "상세 보기");
@@ -113,6 +119,29 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
     timeoutMs,
     "감사 로그 검색 조건만 개별 제거되지 않았습니다",
   );
+  const today = await evaluate(cdp, `new Date().toISOString().slice(0, 10)`);
+  await changeTextInput(cdp, "감사 시작일", today);
+  await waitForQueryParam(cdp, "start_date", today, timeoutMs);
+  await waitForQueryParamAbsent(cdp, "period", timeoutMs);
+  await changeTextInput(cdp, "감사 종료일", today);
+  await waitForQueryParam(cdp, "end_date", today, timeoutMs);
+  await waitForCondition(
+    cdp,
+    `document.querySelector('input[aria-label="감사 시작일"]')?.value === '${today}' &&
+      document.querySelector('input[aria-label="감사 종료일"]')?.value === '${today}' &&
+      document.querySelector('select[aria-label="감사 기간"]')?.value === 'all' &&
+      document.body.textContent?.includes('기간: ${today} ~ ${today}')`,
+    timeoutMs,
+    "감사 로그 사용자 지정 날짜 범위가 적용되지 않았습니다",
+  );
+  await reloadPage(cdp, timeoutMs);
+  await waitForCondition(
+    cdp,
+    `document.querySelector('input[aria-label="감사 시작일"]')?.value === '${today}' &&
+      document.querySelector('input[aria-label="감사 종료일"]')?.value === '${today}'`,
+    timeoutMs,
+    "새로고침 후 감사 로그 날짜 범위가 복원되지 않았습니다",
+  );
   await clickAriaLabel(cdp, "감사 필터 전체 초기화");
   await waitForCondition(
     cdp,
@@ -129,6 +158,8 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
         document.querySelector('select[aria-label="알림 채널"]')?.value === 'all' &&
         document.querySelector('select[aria-label="Manager 집계 기간"]')?.value === '10080' &&
         document.querySelector('select[aria-label="감사 기간"]')?.value === 'all' &&
+        document.querySelector('input[aria-label="감사 시작일"]')?.value === '' &&
+        document.querySelector('input[aria-label="감사 종료일"]')?.value === '' &&
         document.querySelector('select[aria-label="감사 로그 페이지 크기"]')?.value === '50' &&
         document.body.textContent?.includes('전체 로그');
     })()`,
@@ -206,11 +237,11 @@ async function assertAuditPagination(cdp, timeoutMs) {
 }
 
 async function assertAuditFilterLayout(cdp, mobile) {
-  const labels = ["감사 기간", "Manager 소스", "Manager 상태", "Manager 집계 기간", "전송 상태", "알림 채널"];
+  const labels = ["감사 기간", "감사 시작일", "감사 종료일", "Manager 소스", "Manager 상태", "Manager 집계 기간", "전송 상태", "알림 채널"];
   const snapshot = await evaluate(cdp, `(() => {
     const fields = ${JSON.stringify(labels)}.map((name) => {
-      const select = document.querySelector('select[aria-label="' + name + '"]');
-      const label = select?.closest('label');
+      const field = document.querySelector('[aria-label="' + name + '"]');
+      const label = field?.closest('label');
       const rect = label?.getBoundingClientRect();
       return rect ? { top: Math.round(rect.top), width: rect.width } : null;
     }).filter(Boolean);
@@ -244,45 +275,8 @@ async function assertAuditFilterLayout(cdp, mobile) {
       "모바일 감사 로그 검색과 초기화 버튼 너비가 너무 좁습니다",
     );
   } else {
-    assert.equal(rowCount, 1, "데스크톱 감사 로그 필터가 한 행으로 배치되지 않았습니다");
+    assert.equal(rowCount, 2, "데스크톱 감사 로그 필터가 네 열로 배치되지 않았습니다");
   }
-}
-
-export async function checkWatchdogFilterPersistence({ cdp, timeoutMs }) {
-  await evaluate(cdp, `(() => {
-    const params = new URLSearchParams(location.search);
-    params.set('watchdog_event', 'failure');
-    params.set('watchdog_result', 'pending');
-    history.replaceState(null, '', location.pathname + '?' + params);
-    return true;
-  })()`);
-  const filtersRestored = `document.querySelector('select[aria-label="watchdog 알림 종류 필터"]')?.value === 'failure' &&
-    document.querySelector('select[aria-label="watchdog 실행 결과 필터"]')?.value === 'pending'`;
-  await waitForCondition(cdp, filtersRestored, timeoutMs, "watchdog 필터가 URL 상태를 반영하지 못했습니다");
-  await reloadPage(cdp, timeoutMs);
-  await waitForCondition(cdp, filtersRestored, timeoutMs, "새로고침 후 watchdog 필터가 복원되지 않았습니다");
-  await waitForCondition(
-    cdp,
-    `document.querySelector('button[aria-label="watchdog 실행 이력 새로고침"]')?.disabled === false`,
-    timeoutMs,
-    "watchdog 실행 이력 새로고침 버튼이 활성화되지 않았습니다",
-  );
-  await clickAriaLabel(cdp, "watchdog 실행 이력 새로고침");
-  await waitForCondition(
-    cdp,
-    `document.body.textContent?.includes('수동 갱신:') && !document.body.textContent?.includes('수동 갱신: 아직 없음')`,
-    timeoutMs,
-    "watchdog 마지막 수동 갱신 시각이 표시되지 않았습니다",
-  );
-  await evaluate(cdp, `history.replaceState(null, '', location.pathname)`);
-  await waitForCondition(
-    cdp,
-    `document.querySelector('select[aria-label="watchdog 알림 종류 필터"]')?.value === 'all' &&
-      document.querySelector('select[aria-label="watchdog 실행 결과 필터"]')?.value === 'all'`,
-    timeoutMs,
-    "watchdog 필터 URL 초기화가 화면에 반영되지 않았습니다",
-  );
-  return true;
 }
 
 async function assertManagerCrossCount(cdp, timeoutMs) {
@@ -428,18 +422,6 @@ async function clickButton(cdp, text) {
   );
 }
 
-async function clickAriaLabel(cdp, label) {
-  const clicked = await evaluate(
-    cdp,
-    `(() => {
-      const button = document.querySelector(${JSON.stringify(`[aria-label="${label}"]`)});
-      button?.click();
-      return Boolean(button);
-    })()`,
-  );
-  assert.equal(clicked, true, `${label}: 버튼을 찾지 못했습니다`);
-}
-
 async function waitForDialog(cdp, label, timeoutMs) {
   await waitForCondition(
     cdp,
@@ -459,31 +441,4 @@ async function waitForDialogClosed(cdp, label, timeoutMs) {
     timeoutMs,
     `${label}: 대화상자가 닫히지 않았습니다`,
   );
-}
-
-async function waitForCondition(cdp, expression, timeoutMs, message) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (await evaluate(cdp, expression)) return;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  throw new Error(message);
-}
-
-async function reloadPage(cdp, timeoutMs) {
-  const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
-  await cdp.send("Page.reload", { ignoreCache: true });
-  await loaded;
-}
-
-async function evaluate(cdp, expression) {
-  const response = await cdp.send("Runtime.evaluate", {
-    expression,
-    awaitPromise: true,
-    returnByValue: true,
-  });
-  if (response.exceptionDetails) {
-    throw new Error(response.exceptionDetails.text || "대화상자 검사 실패");
-  }
-  return response.result.value;
 }
