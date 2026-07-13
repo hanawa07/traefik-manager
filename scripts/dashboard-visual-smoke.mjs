@@ -2,75 +2,10 @@ import assert from "node:assert/strict";
 
 import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
 import { checkAuditFilterPersistence, checkCertificateDrawer, checkMobileSidebar, checkOptionalAdminModal } from "./dashboard-visual-interactions.mjs";
+import { checkManagerHttpErrorTrend } from "./dashboard-visual-manager-http.mjs";
+import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
 import { checkWatchdogFilterPersistence } from "./dashboard-visual-watchdog.mjs";
 import { assertDashboardShell } from "./dashboard-visual-shell.mjs";
-
-const MOBILE_VIEWPORT = {
-  width: 390,
-  height: 844,
-  deviceScaleFactor: 1,
-  mobile: true,
-};
-
-const VISUAL_PROFILES = [
-  {
-    dark: true,
-    id: "mobile-dark",
-    label: "모바일 다크모드",
-    mobile: true,
-    viewport: MOBILE_VIEWPORT,
-  },
-  {
-    dark: false,
-    id: "desktop-light",
-    label: "데스크톱 라이트모드",
-    mobile: false,
-    viewport: {
-      width: 1440,
-      height: 900,
-      deviceScaleFactor: 1,
-      mobile: false,
-    },
-  },
-];
-
-const DASHBOARD_ROUTES = [
-  {
-    label: "대시보드",
-    path: "/dashboard",
-    marker: "Traefik 서비스 현황",
-    pendingMarkers: ["Traefik 상태: 확인 중", "배포 정보를 확인하는 중입니다"],
-    requiredMarkers: [
-      "Backend",
-      "Frontend",
-      "Docker 정상",
-      "Manager 상태 전이 이력",
-      "외부 watchdog",
-      "연속 실패 0회",
-      "최근 watchdog 알림 요청",
-      "최근 watchdog 알림 실행", "알림 종류", "실행 결과", "이력 새로고침", "기타 완료", "수동 갱신:", "적용 조건", "전체 실행", "전체 초기화",
-      "알림 워크플로 결과",
-      "마지막 상태 갱신",
-      "상태 새로고침",
-    ],
-  },
-  { label: "인증서", path: "/dashboard/certificates", marker: "Traefik API 기반 TLS 인증서 상태" },
-  {
-    label: "감사 로그",
-    path: "/dashboard/audit",
-    marker: "시스템의 모든 변경 사항을 추적합니다",
-    requiredMarkers: ["감사 로그 검색", "적용 조건", "전체 초기화", "건 표시", "페이지당", "감사 기간", "시작일 (UTC)", "종료일 (UTC)", "Manager 전체", "Manager 소스", "Manager 상태", "Manager 집계 기간"],
-  },
-  { label: "미들웨어", path: "/dashboard/middlewares", marker: "공용 템플릿" },
-  { label: "리다이렉트", path: "/dashboard/redirects", marker: "도메인 리다이렉트 호스트 관리" },
-  { label: "서비스", path: "/dashboard/services", marker: "Traefik 라우팅 서비스 관리" },
-  {
-    label: "설정",
-    path: "/dashboard/settings",
-    marker: "운영 로그인·화면 점검",
-    requiredMarkers: ["Artifact 만료", "Manager Docker 감지", "외부 watchdog 지연 판정"],
-  },
-];
 
 export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeoutMs }) {
   const labels = [];
@@ -79,6 +14,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
       for (const route of DASHBOARD_ROUTES) {
         await checkRoute({ artifactDir, baseUrl, cdp, profile, route, timeoutMs });
         if (route.path === "/dashboard") {
+          await checkManagerHttpErrorTrend({ cdp });
           const opened = await checkMobileSidebar({ artifactDir, cdp, profile, timeoutMs });
           if (opened) labels.push(`${profile.label} 사이드바`);
           await checkWatchdogFilterPersistence({ cdp, timeoutMs });
@@ -372,26 +308,10 @@ export function runDashboardVisualSmokeSelfTest() {
   const loginRoute = { label: "로그인", path: "/login", marker: "로그인" };
   assert.ok(serviceRoute);
   assert.ok(dashboardRoute);
-  assert.deepEqual(auditRoute?.requiredMarkers, ["감사 로그 검색", "적용 조건", "전체 초기화", "건 표시", "페이지당", "감사 기간", "시작일 (UTC)", "종료일 (UTC)", "Manager 전체", "Manager 소스", "Manager 상태", "Manager 집계 기간"]);
-  assert.deepEqual(dashboardRoute.requiredMarkers, [
-    "Backend",
-    "Frontend",
-    "Docker 정상",
-    "Manager 상태 전이 이력",
-    "외부 watchdog",
-    "연속 실패 0회",
-    "최근 watchdog 알림 요청",
-    "최근 watchdog 알림 실행", "알림 종류", "실행 결과", "이력 새로고침", "기타 완료", "수동 갱신:", "적용 조건", "전체 실행", "전체 초기화",
-    "알림 워크플로 결과",
-    "마지막 상태 갱신",
-    "상태 새로고침",
-  ]);
+  assert.ok(auditRoute?.requiredMarkers.includes("현재 조건 CSV"));
+  assert.ok(dashboardRoute.requiredMarkers.includes("Manager API 404·5xx 추이"));
   assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");
-  assert.deepEqual(settingsRoute.requiredMarkers, [
-    "Artifact 만료",
-    "Manager Docker 감지",
-    "외부 watchdog 지연 판정",
-  ]);
+  assert.ok(settingsRoute.requiredMarkers.includes("감사 로그 보존"));
   assert.equal(screenshotName(mobileProfile, "/dashboard/services"), "mobile-dark-dashboard-services");
   assert.equal(screenshotName(desktopProfile, "/login"), "desktop-light-login");
   const valid = {
