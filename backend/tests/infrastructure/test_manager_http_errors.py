@@ -48,6 +48,7 @@ def test_build_manager_http_error_summary_groups_recent_404_and_5xx() -> None:
         "/api/v1/services",
     ]
     assert summary["observed_since"] == CHECKED_AT - timedelta(hours=25)
+    assert summary["sample_coverage_percent"] == 100
 
 
 def test_build_manager_http_error_summary_rejects_non_request_and_frontend_paths() -> None:
@@ -76,6 +77,7 @@ def test_build_manager_http_error_summary_marks_unavailable_logs() -> None:
 
     assert summary["available"] is False
     assert summary["observed_since"] is None
+    assert summary["sample_coverage_percent"] == 0
     assert len(summary["buckets"]) == 24
 
 
@@ -169,7 +171,8 @@ def test_build_manager_http_error_preview_recommends_thresholds_and_counts_exclu
     )
 
     assert preview["available"] is True
-    assert preview["observed_since"] == CHECKED_AT - timedelta(hours=3)
+    assert preview["observed_since"] == CHECKED_AT - timedelta(hours=25)
+    assert preview["sample_coverage_percent"] == 100
     assert preview["peak_not_found_count"] == 25
     assert preview["peak_server_error_count"] == 2
     assert preview["recommended_not_found_threshold"] == 30
@@ -199,6 +202,7 @@ def test_build_manager_http_error_preview_uses_safe_defaults_without_logs() -> N
     )
 
     assert preview["available"] is False
+    assert preview["sample_coverage_percent"] == 0
     assert preview["recommended_not_found_threshold"] == 20
     assert preview["recommended_server_error_threshold"] == 1
     assert preview["excluded_paths"] == [

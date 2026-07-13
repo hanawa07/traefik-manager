@@ -171,6 +171,19 @@ function HttpErrorPreviewResult({
           <div className="h-full rounded-full bg-amber-500" style={{ width: `${coverage.percent}%` }} />
         </div>
       </div>
+      <p
+        className={`mt-2 rounded-md px-2.5 py-2 font-medium ${
+          coverage.complete
+            ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200"
+            : "bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-100"
+        }`}
+        data-sample-complete={coverage.complete ? "true" : "false"}
+        data-testid="manager-http-sample-guidance"
+      >
+        {coverage.complete
+          ? "24시간 표본이 충족됐습니다. 현재 권장값을 재검토하고 적용하세요."
+          : "아직 초기 표본입니다. 24시간 충족 후 권장값을 다시 계산하세요."}
+      </p>
       <p className="mt-1">
         최고 {preview.window_minutes}분 구간: 404 {preview.peak_not_found_count}건 · 5xx {preview.peak_server_error_count}건
       </p>
@@ -214,8 +227,9 @@ function getSampleCoverage(preview: ManagerHttpErrorPreview) {
   const hours = Math.floor(coveredMinutes / 60);
   const minutes = coveredMinutes % 60;
   return {
+    complete: preview.sample_coverage_percent === 100,
     duration: hours > 0 ? `${hours}시간${minutes > 0 ? ` ${minutes}분` : ""}` : `${minutes}분`,
-    percent: Math.floor((coveredMinutes / targetMinutes) * 100),
+    percent: Math.max(0, Math.min(100, preview.sample_coverage_percent)),
   };
 }
 

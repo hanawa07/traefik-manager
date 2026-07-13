@@ -92,6 +92,7 @@ export interface ManagerHttpErrorPreview {
   window_minutes: number;
   checked_at: string;
   observed_since: string | null;
+  sample_coverage_percent: number;
   peak_not_found_count: number;
   peak_server_error_count: number;
   recommended_not_found_threshold: number;

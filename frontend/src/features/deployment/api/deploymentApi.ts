@@ -50,6 +50,7 @@ export interface ManagerHttpErrorSummary {
   path_filter: string | null;
   checked_at: string;
   observed_since: string | null;
+  sample_coverage_percent: number;
   not_found_count: number;
   server_error_count: number;
   buckets: ManagerHttpErrorBucket[];

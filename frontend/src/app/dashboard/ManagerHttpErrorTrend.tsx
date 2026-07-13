@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import { Activity, CircleAlert, Search, X } from "lucide-react";
 
@@ -36,6 +37,7 @@ export function ManagerHttpErrorTrend({ monitor, summary, timezone }: ManagerHtt
       className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-950/60"
       data-http-error-available={displayedSummary?.available ? "true" : "false"}
       data-http-error-path-filter={displayedSummary?.path_filter ?? ""}
+      data-http-sample-coverage={displayedSummary?.sample_coverage_percent ?? ""}
       data-http-error-window-hours={displayedSummary?.window_hours ?? ""}
       data-testid="manager-http-error-trend"
     >
@@ -120,6 +122,15 @@ export function ManagerHttpErrorTrend({ monitor, summary, timezone }: ManagerHtt
         </div>
       ) : (
         <div className="space-y-4 p-4">
+          {displayedSummary.sample_coverage_percent === 100 ? (
+            <Link
+              className="block rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/15"
+              data-testid="manager-http-sample-ready"
+              href="/dashboard/settings"
+            >
+              24시간 표본 충족 · 설정에서 권장 임계치를 다시 검토할 수 있습니다.
+            </Link>
+          ) : null}
           <div className="overflow-x-auto pb-1" data-testid="manager-http-error-chart-scroll">
             <div
               aria-label={`최근 ${displayedSummary.window_hours}시간 Manager API 오류 막대 차트`}

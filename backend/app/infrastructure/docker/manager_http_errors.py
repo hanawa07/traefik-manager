@@ -60,9 +60,11 @@ def build_manager_http_error_summary(
         if request is None:
             continue
         occurred_at, path, status_code = request
+        if occurred_at > current:
+            continue
         if observed_since is None or occurred_at < observed_since:
             observed_since = occurred_at
-        if occurred_at < window_start or occurred_at > current:
+        if occurred_at < window_start:
             continue
         if normalized_path_filter and normalized_path_filter not in path.lower():
             continue
@@ -174,10 +176,12 @@ def build_manager_http_error_preview(
             if request is None:
                 continue
             occurred_at, path, status_code = request
-            if occurred_at < window_start or occurred_at > current:
+            if occurred_at > current:
                 continue
             if observed_since is None or occurred_at < observed_since:
                 observed_since = occurred_at
+            if occurred_at < window_start:
+                continue
             if status_code != 404 and not 500 <= status_code <= 599:
                 continue
 
@@ -207,6 +211,7 @@ def build_manager_http_error_preview(
         "window_minutes": effective_window_minutes,
         "checked_at": current,
         "observed_since": observed_since,
+        "sample_coverage_percent": _sample_coverage_percent(current, observed_since),
         "peak_not_found_count": peak_not_found_count,
         "peak_server_error_count": peak_server_error_count,
         "recommended_not_found_threshold": _recommend_threshold(
@@ -248,6 +253,14 @@ def _recommend_threshold(peak: int, default: int) -> int:
     return min(MAX_MANAGER_HTTP_ERROR_THRESHOLD, max(default, peak + margin))
 
 
+def _sample_coverage_percent(checked_at: datetime, observed_since: datetime | None) -> int:
+    if observed_since is None:
+        return 0
+    elapsed_seconds = max(0.0, (checked_at - observed_since).total_seconds())
+    target_seconds = MANAGER_HTTP_ERROR_WINDOW_HOURS * 60 * 60
+    return min(100, int(elapsed_seconds / target_seconds * 100))
+
+
 def _build_summary(
     *,
     available: bool,
@@ -269,6 +282,7 @@ def _build_summary(
         "path_filter": path_filter,
         "checked_at": checked_at,
         "observed_since": observed_since,
+        "sample_coverage_percent": _sample_coverage_percent(checked_at, observed_since),
         "not_found_count": total_not_found,
         "server_error_count": total_server_error,
         "buckets": buckets,

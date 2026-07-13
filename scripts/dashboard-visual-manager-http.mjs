@@ -17,6 +17,8 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
         ?.getAttribute('data-manager-api-alert'),
       managerApiAuditHref: document.querySelector('[data-testid="manager-api-audit-link"]')
         ?.getAttribute('href'),
+      sampleCoverage: Number(card.getAttribute('data-http-sample-coverage')),
+      sampleReady: Boolean(document.querySelector('[data-testid="manager-http-sample-ready"]')),
       monitorStatus: monitor?.getAttribute('data-http-error-monitor-status'),
       text: card.textContent || '',
     } : null;
@@ -27,6 +29,13 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
   assert.equal(snapshot.bucketCount, 24, "Manager API 오류 추이가 24개 시간 구간이 아닙니다");
   assert.ok(snapshot.chartScrollWidth >= snapshot.chartWidth, "Manager API 오류 차트 폭이 올바르지 않습니다");
   assert.match(snapshot.text, /관측 시작:/, "Manager API 오류 로그 관측 시각이 없습니다");
+  assert.ok(
+    Number.isInteger(snapshot.sampleCoverage) &&
+      snapshot.sampleCoverage >= 0 &&
+      snapshot.sampleCoverage <= 100,
+    "Manager API 오류 로그 표본 충족률이 올바르지 않습니다",
+  );
+  assert.equal(snapshot.sampleReady, snapshot.sampleCoverage === 100, "24시간 표본 안내 상태가 다릅니다");
   assert.ok(
     ["disabled", "pending", "unavailable", "breached", "healthy"].includes(snapshot.monitorStatus),
     "Manager API 오류 임계치 감지 상태가 올바르지 않습니다",
@@ -142,6 +151,7 @@ export async function checkManagerHttpErrorPreviewForm({
   assert.match(snapshot.text, /권장 임계치/, "Manager API 오류 권장 임계치가 없습니다");
   assert.match(snapshot.text, /로그 관측 시작:/, "Manager API 오류 로그 표본 시작 시각이 없습니다");
   assert.match(snapshot.text, /표본 충족률/, "Manager API 오류 로그 표본 충족률이 없습니다");
+  assert.match(snapshot.text, /24시간 충족 후|24시간 표본이 충족/, "Manager API 오류 표본 안내가 없습니다");
   assert.match(snapshot.text, /\/api\/health/, "제외 경로별 오류 미리보기가 없습니다");
   assert.match(snapshot.text, /최근 오류:/, "제외 경로의 최근 오류 시각이 없습니다");
   assert.ok(
@@ -211,6 +221,12 @@ async function checkManagerHttpErrorPreviewApi(cdp) {
   assert.equal(preview.ok, true, "Manager API 오류 권장값 API 요청에 실패했습니다");
   assert.equal(preview.body.available, true, "Manager API 오류 권장값 로그를 읽지 못했습니다");
   assert.equal(preview.body.window_minutes, 15, "Manager API 오류 권장값 구간이 다릅니다");
+  assert.ok(
+    Number.isInteger(preview.body.sample_coverage_percent) &&
+      preview.body.sample_coverage_percent >= 0 &&
+      preview.body.sample_coverage_percent <= 100,
+    "Manager API 오류 권장값 표본 충족률이 올바르지 않습니다",
+  );
   assert.ok(
     Number.isInteger(preview.body.recommended_not_found_threshold) &&
       Number.isInteger(preview.body.recommended_server_error_threshold),

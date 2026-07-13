@@ -94,6 +94,7 @@ class ManagerHttpErrorSummaryResponse(BaseModel):
     path_filter: str | None = None
     checked_at: datetime
     observed_since: datetime | None = None
+    sample_coverage_percent: int = Field(default=0, ge=0, le=100)
     not_found_count: int = Field(default=0, ge=0)
     server_error_count: int = Field(default=0, ge=0)
     buckets: list[ManagerHttpErrorBucketResponse] = Field(default_factory=list)
@@ -131,6 +132,7 @@ class ManagerHttpErrorPreviewResponse(BaseModel):
     window_minutes: int = Field(ge=5, le=60)
     checked_at: datetime
     observed_since: datetime | None = None
+    sample_coverage_percent: int = Field(default=0, ge=0, le=100)
     peak_not_found_count: int = Field(default=0, ge=0)
     peak_server_error_count: int = Field(default=0, ge=0)
     recommended_not_found_threshold: int = Field(ge=1, le=10_000)
