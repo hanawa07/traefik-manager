@@ -88,7 +88,7 @@ export function ManagerHealthAlertBanner({
             <Link
               className="mt-2 inline-flex text-xs font-semibold underline underline-offset-2 hover:no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               data-testid="manager-api-audit-link"
-              href="/dashboard/audit?filter=manager_health&manager_source=api&period=1"
+              href="/dashboard/audit?filter=manager_health&manager_source=api&period=1&expand=latest"
             >
               관련 감사 로그 보기
             </Link>

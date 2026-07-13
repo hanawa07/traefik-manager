@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useDeferredValue, useState } from "react";
 
-import { buildAuditExportUrl } from "@/features/audit/api/auditApi";
+import { buildAuditExportUrl, type AuditLogItem } from "@/features/audit/api/auditApi";
 import { useAuditPage, useManagerHealthSummary } from "@/features/audit/hooks/useAudit";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 
@@ -20,6 +20,7 @@ import {
   isDeliveryStatusKey,
   isManagerSourceKey,
   isManagerStatusKey,
+  isManagerHttpErrorEvent,
   parseAuditDate,
   parseAuditPeriodDays,
   parseManagerHealthWindowMinutes,
@@ -89,7 +90,7 @@ export function useAuditLogPageModel() {
     useState<ManagerHealthWindowMinutes>(() =>
       parseManagerHealthWindowMinutes(searchParams.get("manager_window")),
     );
-  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [expandedLogId, setExpandedLogId] = useState<string | null | undefined>(undefined);
   const deferredSearchText = useDeferredValue(searchText.trim());
 
   const auditQuery = buildAuditLogQuery({
@@ -110,6 +111,11 @@ export function useAuditLogPageModel() {
   const { data: managerHealthSummary } = useManagerHealthSummary(managerHealthWindowMinutes);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const auditActions = useAuditLogActions();
+  const autoExpandedLogId =
+    searchParams.get("expand") === "latest"
+      ? logPage?.items.find(isManagerHttpErrorLog)?.id
+      : undefined;
+  const visibleExpandedLogId = expandedLogId === undefined ? autoExpandedLogId ?? null : expandedLogId;
 
   const replaceFilterQueryParams = (
     values: [key: string, value: string, defaultValue: string][],
@@ -242,7 +248,7 @@ export function useAuditLogPageModel() {
     rollbackFeedback: auditActions.rollbackFeedback,
     table: {
       currentPage,
-      expandedLogId,
+      expandedLogId: visibleExpandedLogId,
       isRetryPending: auditActions.isRetryPending,
       isRefreshing: isFetching && !isLoading,
       isRollbackPending: auditActions.isRollbackPending,
@@ -259,6 +265,10 @@ export function useAuditLogPageModel() {
       onPageSizeChange: handlePageSizeChange,
     },
   };
+}
+
+function isManagerHttpErrorLog(log: AuditLogItem) {
+  return isManagerHttpErrorEvent(log.event) || isManagerHttpErrorEvent(log.detail?.event);
 }
 
 function parseAuditPage(value: string | null) {

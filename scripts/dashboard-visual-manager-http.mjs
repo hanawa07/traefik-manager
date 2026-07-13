@@ -34,7 +34,7 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
   if (["breached", "unavailable"].includes(snapshot.managerApiAlert)) {
     assert.equal(
       snapshot.managerApiAuditHref,
-      "/dashboard/audit?filter=manager_health&manager_source=api&period=1",
+      "/dashboard/audit?filter=manager_health&manager_source=api&period=1&expand=latest",
       "Manager API 상단 경고가 관련 감사 로그로 연결되지 않습니다",
     );
   }

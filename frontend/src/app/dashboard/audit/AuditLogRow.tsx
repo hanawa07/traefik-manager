@@ -12,6 +12,7 @@ import {
   actionConfig,
   getAuditDiffRows,
   getDeliveryDetailRows,
+  getManagerHttpErrorDetailRows,
   isRecord,
   isRollbackResourceType,
   securityEventConfig,
@@ -48,15 +49,20 @@ export function AuditLogRow({
   const detail = isRecord(log.detail) ? log.detail : null;
   const diffRows = getAuditDiffRows(detail);
   const deliveryRows = getDeliveryDetailRows(detail);
+  const managerHttpRows = getManagerHttpErrorDetailRows(log.event ?? detail?.event, detail);
   const retrySupported = log.event?.endsWith("_delivery_failure") === true;
-  const canExpand = diffRows.length > 0 || deliveryRows.length > 0;
+  const canExpand = diffRows.length > 0 || deliveryRows.length > 0 || managerHttpRows.length > 0;
   const rollbackResourceType = isRollbackResourceType(log.resource_type) ? log.resource_type : null;
   const rollbackSupported =
     detail?.rollback_supported === true && log.action === "update" && rollbackResourceType !== null;
 
   return (
     <Fragment>
-      <tr className="group transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/70">
+      <tr
+        className="group transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/70"
+        data-audit-event={log.event || undefined}
+        data-audit-log-id={log.id}
+      >
         <td className="px-6 py-4">
           <AuditActorCell actor={log.actor} />
         </td>
@@ -98,6 +104,7 @@ export function AuditLogRow({
               logId={log.id}
               diffRows={diffRows}
               deliveryRows={deliveryRows}
+              managerHttpRows={managerHttpRows}
               rollbackSupported={rollbackSupported}
               rollbackResourceType={rollbackResourceType}
               retrySupported={retrySupported}

@@ -31,6 +31,8 @@ export {
 export {
   getAuditDiffRows,
   getDeliveryDetailRows,
+  getManagerHttpErrorDetailRows,
+  isManagerHttpErrorEvent,
 } from "./audit-page-helpers/auditDetailRows";
 export {
   isRollbackResourceType,
