@@ -34,7 +34,8 @@ export async function checkOptionalAdminModal({ artifactDir, cdp, profile, timeo
   return true;
 }
 
-export async function checkAuditFilterPersistence({ cdp, timeoutMs }) {
+export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
+  await assertAuditFilterLayout(cdp, profile.mobile);
   const managerFound = await evaluate(cdp, `(() => {
     const manager = Array.from(document.querySelectorAll('button')).find(
       (button) => button.textContent?.includes('Manager 전체')
@@ -69,6 +70,7 @@ export async function checkAuditFilterPersistence({ cdp, timeoutMs }) {
     assert.equal(changed, true, `감사 로그 ${label} 필터를 찾지 못했습니다`);
     await waitForQueryParam(cdp, queryKey, value, timeoutMs);
   }
+  await assertManagerCrossCount(cdp, timeoutMs);
   await cdp.send("Page.reload", { ignoreCache: true });
   await waitForCondition(
     cdp,
@@ -87,6 +89,61 @@ export async function checkAuditFilterPersistence({ cdp, timeoutMs }) {
     "새로고침 후 감사 로그 필터가 복원되지 않았습니다",
   );
   return true;
+}
+
+async function assertAuditFilterLayout(cdp, mobile) {
+  const labels = ["Manager 소스", "Manager 상태", "Manager 집계 기간", "전송 상태", "알림 채널"];
+  const snapshot = await evaluate(cdp, `(() => {
+    const fields = ${JSON.stringify(labels)}.map((name) => {
+      const select = document.querySelector('select[aria-label="' + name + '"]');
+      const label = select?.closest('label');
+      const rect = label?.getBoundingClientRect();
+      return rect ? { top: Math.round(rect.top), width: rect.width } : null;
+    }).filter(Boolean);
+    return {
+      documentWidth: document.documentElement.scrollWidth,
+      fields,
+      viewportWidth: window.innerWidth,
+    };
+  })()`);
+  assert.equal(snapshot.fields.length, labels.length, "감사 로그 필터 필드가 누락됐습니다");
+  assert.ok(
+    snapshot.documentWidth <= snapshot.viewportWidth + 1,
+    "감사 로그 필터가 화면 너비를 넘습니다",
+  );
+  const rowCount = new Set(snapshot.fields.map((field) => field.top)).size;
+  if (mobile) {
+    assert.equal(rowCount, labels.length, "모바일 감사 로그 필터가 한 열로 배치되지 않았습니다");
+    assert.ok(
+      snapshot.fields.every((field) => field.width >= snapshot.viewportWidth * 0.8),
+      "모바일 감사 로그 필터 너비가 너무 좁습니다",
+    );
+  } else {
+    assert.equal(rowCount, 1, "데스크톱 감사 로그 필터가 한 행으로 배치되지 않았습니다");
+  }
+}
+
+async function assertManagerCrossCount(cdp, timeoutMs) {
+  const count = await evaluate(cdp, `(async () => {
+    const response = await fetch('/api/v1/audit/manager-health-summary?window_minutes=1440');
+    if (!response.ok) return null;
+    const summary = await response.json();
+    return summary.watchdog_unhealthy_count;
+  })()`);
+  assert.equal(typeof count, "number", "Manager 교차 집계 API 수치를 확인하지 못했습니다");
+  const expected = `(${count})`;
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const source = document.querySelector('select[aria-label="Manager 소스"]');
+      const status = document.querySelector('select[aria-label="Manager 상태"]');
+      const sourceText = Array.from(source?.options || []).find((option) => option.value === 'watchdog')?.textContent || '';
+      const statusText = Array.from(status?.options || []).find((option) => option.value === 'unhealthy')?.textContent || '';
+      return sourceText.includes(${JSON.stringify(expected)}) && statusText.includes(${JSON.stringify(expected)});
+    })()`,
+    timeoutMs,
+    "Manager 소스와 상태의 교차 집계 수치가 일치하지 않습니다",
+  );
 }
 
 async function waitForQueryParam(cdp, key, value, timeoutMs) {

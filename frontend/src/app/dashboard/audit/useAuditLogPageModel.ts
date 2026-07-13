@@ -129,18 +129,7 @@ export function useAuditLogPageModel() {
       selectedFilter,
       selectedManagerSource,
       selectedManagerStatus,
-      managerHealthCounts: managerHealthSummary
-        ? {
-            unhealthy: managerHealthSummary.unhealthy_count,
-            recovered: managerHealthSummary.recovered_count,
-            docker:
-              managerHealthSummary.docker_unhealthy_count +
-              managerHealthSummary.docker_recovered_count,
-            watchdog:
-              managerHealthSummary.watchdog_unhealthy_count +
-              managerHealthSummary.watchdog_recovered_count,
-          }
-        : undefined,
+      managerHealthCounts: managerHealthSummary,
       managerHealthWindowMinutes,
       onDeliveryProviderChange: handleDeliveryProviderChange,
       onDeliveryStatusChange: handleDeliveryStatusChange,

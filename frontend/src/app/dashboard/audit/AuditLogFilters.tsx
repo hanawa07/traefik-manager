@@ -1,5 +1,7 @@
 import { clsx } from "clsx";
 
+import type { AuditManagerHealthSummary } from "@/features/audit/api/auditApi";
+
 import {
   auditFilters,
   deliveryProviderOptions,
@@ -21,7 +23,7 @@ interface AuditLogFiltersProps {
   selectedDeliveryProvider: DeliveryProviderKey;
   selectedManagerSource: ManagerSourceKey;
   selectedManagerStatus: ManagerStatusKey;
-  managerHealthCounts?: { unhealthy: number; recovered: number; docker: number; watchdog: number };
+  managerHealthCounts?: AuditManagerHealthSummary;
   managerHealthWindowMinutes: ManagerHealthWindowMinutes;
   onFilterChange: (filter: AuditFilterKey) => void;
   onManagerSourceChange: (source: ManagerSourceKey) => void;
@@ -70,44 +72,48 @@ export function AuditLogFilters({
         })}
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-3">
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
           <span className="text-slate-500 dark:text-slate-400">Manager 소스</span>
           <select
             aria-label="Manager 소스"
             value={selectedManagerSource}
             onChange={(event) => onManagerSourceChange(event.target.value as ManagerSourceKey)}
-            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
             {managerSourceOptions.map((option) => (
               <option key={option.key} value={option.key}>
                 {option.label}
-                {managerHealthCounts && option.key !== "all"
-                  ? ` (${managerHealthCounts[option.key]})`
-                  : ""}
+                {getManagerCountLabel(
+                  managerHealthCounts,
+                  option.key,
+                  selectedManagerStatus,
+                )}
               </option>
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
+        <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
           <span className="text-slate-500 dark:text-slate-400">Manager 상태</span>
           <select
             aria-label="Manager 상태"
             value={selectedManagerStatus}
             onChange={(event) => onManagerStatusChange(event.target.value as ManagerStatusKey)}
-            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
             {managerStatusOptions.map((option) => (
               <option key={option.key} value={option.key}>
                 {option.label}
-                {managerHealthCounts && option.key !== "all"
-                  ? ` (${managerHealthCounts[option.key]})`
-                  : ""}
+                {getManagerCountLabel(
+                  managerHealthCounts,
+                  selectedManagerSource,
+                  option.key,
+                )}
               </option>
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
+        <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
           <span className="text-slate-500 dark:text-slate-400">Manager 집계 기간</span>
           <select
             aria-label="Manager 집계 기간"
@@ -117,7 +123,7 @@ export function AuditLogFilters({
                 Number(event.target.value) as ManagerHealthWindowMinutes,
               )
             }
-            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
             {managerHealthWindowOptions.map((option) => (
               <option key={option.minutes} value={option.minutes}>
@@ -126,13 +132,13 @@ export function AuditLogFilters({
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
+        <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
           <span className="text-slate-500 dark:text-slate-400">전송 상태</span>
           <select
             aria-label="전송 상태"
             value={selectedDeliveryStatus}
             onChange={(event) => onDeliveryStatusChange(event.target.value as DeliveryStatusKey)}
-            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
             {deliveryStatusOptions.map((option) => (
               <option key={option.key} value={option.key}>
@@ -141,13 +147,13 @@ export function AuditLogFilters({
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
+        <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
           <span className="text-slate-500 dark:text-slate-400">채널</span>
           <select
             aria-label="알림 채널"
             value={selectedDeliveryProvider}
             onChange={(event) => onDeliveryProviderChange(event.target.value as DeliveryProviderKey)}
-            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
             {deliveryProviderOptions.map((option) => (
               <option key={option.key} value={option.key}>
@@ -159,4 +165,29 @@ export function AuditLogFilters({
       </div>
     </>
   );
+}
+
+function getManagerCountLabel(
+  counts: AuditManagerHealthSummary | undefined,
+  source: ManagerSourceKey,
+  status: ManagerStatusKey,
+) {
+  if (!counts) return "";
+  const sourceCounts = {
+    docker:
+      status === "all"
+        ? counts.docker_unhealthy_count + counts.docker_recovered_count
+        : status === "unhealthy"
+          ? counts.docker_unhealthy_count
+          : counts.docker_recovered_count,
+    watchdog:
+      status === "all"
+        ? counts.watchdog_unhealthy_count + counts.watchdog_recovered_count
+        : status === "unhealthy"
+          ? counts.watchdog_unhealthy_count
+          : counts.watchdog_recovered_count,
+  };
+  const total =
+    source === "all" ? sourceCounts.docker + sourceCounts.watchdog : sourceCounts[source];
+  return ` (${total})`;
 }

@@ -86,8 +86,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
           if (opened) labels.push(`${profile.label} 인증서 drawer`);
         }
         if (route.path === "/dashboard/audit") {
-          await checkAuditFilterPersistence({ cdp, timeoutMs });
-          labels.push(`${profile.label} 감사 필터 URL 유지`);
+          await checkAuditFilterPersistence({ cdp, profile, timeoutMs });
+          labels.push(`${profile.label} 감사 필터 조합·레이아웃`);
         }
         if (route.path === "/dashboard/settings") {
           const opened = await checkOptionalAdminModal({ artifactDir, cdp, profile, timeoutMs });
