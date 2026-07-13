@@ -36,6 +36,7 @@ export async function checkOptionalAdminModal({ artifactDir, cdp, profile, timeo
 
 export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
   await assertAuditFilterLayout(cdp, profile.mobile);
+  await assertAuditPagination(cdp, timeoutMs);
   const managerFound = await evaluate(cdp, `(() => {
     const manager = Array.from(document.querySelectorAll('button')).find(
       (button) => button.textContent?.includes('Manager 전체')
@@ -45,6 +46,7 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
   })()`);
   assert.equal(managerFound, true, "감사 로그 Manager 필터를 찾지 못했습니다");
   await waitForQueryParam(cdp, "filter", "manager_health", timeoutMs);
+  await waitForQueryParamAbsent(cdp, "page", timeoutMs);
   await changeTextInput(cdp, "감사 로그 검색", "lizstudio");
   await waitForQueryParam(cdp, "q", "lizstudio", timeoutMs);
 
@@ -97,6 +99,17 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
     timeoutMs,
     "새로고침 후 감사 로그 필터가 복원되지 않았습니다",
   );
+  await clickAriaLabel(cdp, "검색: lizstudio 조건 제거");
+  await waitForQueryParamAbsent(cdp, "q", timeoutMs);
+  await waitForCondition(
+    cdp,
+    `document.querySelector('input[aria-label="감사 로그 검색"]')?.value === '' &&
+      !document.querySelector('button[aria-label="검색: lizstudio 조건 제거"]') &&
+      document.querySelector('select[aria-label="Manager 상태"]')?.value === 'unhealthy' &&
+      document.querySelector('select[aria-label="알림 채널"]')?.value === 'telegram'`,
+    timeoutMs,
+    "감사 로그 검색 조건만 개별 제거되지 않았습니다",
+  );
   await clickAriaLabel(cdp, "감사 필터 전체 초기화");
   await waitForCondition(
     cdp,
@@ -118,6 +131,34 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
     "감사 로그 전체 초기화가 기본값을 복원하지 못했습니다",
   );
   return true;
+}
+
+async function assertAuditPagination(cdp, timeoutMs) {
+  await waitForCondition(
+    cdp,
+    `Boolean(document.querySelector('nav[aria-label="감사 로그 페이지"]'))`,
+    timeoutMs,
+    "감사 로그 페이지네이션이 표시되지 않았습니다",
+  );
+  const snapshot = await evaluate(cdp, `(() => {
+    const nav = document.querySelector('nav[aria-label="감사 로그 페이지"]');
+    const total = Number(nav?.getAttribute('data-audit-total'));
+    const next = document.querySelector('button[aria-label="다음 감사 로그 페이지"]');
+    return { nextDisabled: next?.disabled, total };
+  })()`);
+  assert.ok(Number.isInteger(snapshot.total) && snapshot.total >= 0, "감사 로그 총 건수가 올바르지 않습니다");
+  assert.equal(snapshot.nextDisabled, snapshot.total <= 50, "감사 로그 다음 페이지 상태가 총 건수와 맞지 않습니다");
+  if (snapshot.total <= 50) return;
+
+  await clickAriaLabel(cdp, "다음 감사 로그 페이지");
+  await waitForQueryParam(cdp, "page", "2", timeoutMs);
+  await waitForCondition(
+    cdp,
+    `document.querySelector('nav[aria-label="감사 로그 페이지"]')?.getAttribute('data-audit-page') === '2' &&
+      document.querySelector('[data-visual-surface]')?.getAttribute('aria-busy') === 'false'`,
+    timeoutMs,
+    "감사 로그 2페이지 결과가 로드되지 않았습니다",
+  );
 }
 
 async function assertAuditFilterLayout(cdp, mobile) {
@@ -192,6 +233,15 @@ async function waitForQueryParam(cdp, key, value, timeoutMs) {
     `new URLSearchParams(location.search).get(${JSON.stringify(key)}) === ${JSON.stringify(value)}`,
     timeoutMs,
     `감사 로그 ${key} 필터가 URL에 저장되지 않았습니다`,
+  );
+}
+
+async function waitForQueryParamAbsent(cdp, key, timeoutMs) {
+  await waitForCondition(
+    cdp,
+    `!new URLSearchParams(location.search).has(${JSON.stringify(key)})`,
+    timeoutMs,
+    `감사 로그 ${key} 값이 URL에서 제거되지 않았습니다`,
   );
 }
 
