@@ -23,6 +23,16 @@ def test_main_lifespan_runs_startup_checks_and_background_loops():
     ]
     assert cleanup_once_calls, "lifespan must run auth cleanup once on startup"
 
+    audit_cleanup_calls = [
+        node
+        for node in ast.walk(lifespan)
+        if isinstance(node, ast.Await)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "_cleanup_audit_logs_once"
+    ]
+    assert audit_cleanup_calls, "lifespan must run audit retention once on startup"
+
     certificate_check_calls = [
         node
         for node in ast.walk(lifespan)
@@ -51,3 +61,4 @@ def test_main_lifespan_runs_startup_checks_and_background_loops():
         and isinstance(call.args[0].func, ast.Name)
     }
     assert "_manager_health_loop" in task_targets
+    assert "_audit_retention_loop" in task_targets

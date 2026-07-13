@@ -5,6 +5,7 @@ import { useBackupRestoreSettings } from "@/features/settings/hooks/useBackupRes
 import { useCloudflareDnsSettingsSection } from "@/features/settings/hooks/useCloudflareDnsSettingsSection";
 import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
 import { useCertificateDiagnosticsSettingsModel } from "./useCertificateDiagnosticsSettingsModel";
+import { useAuditRetentionSettingsModel } from "./useAuditRetentionSettingsModel";
 import { useLoginDefenseSettingsModel } from "./useLoginDefenseSettingsModel";
 import { useSecurityAlertSettingsModel } from "./useSecurityAlertSettingsModel";
 import { useSmokeMonitoringSettingsModel } from "./useSmokeMonitoringSettingsModel";
@@ -27,6 +28,7 @@ export function useSettingsPageModel() {
     handleRevokeSession,
   } = useSettingsSessionActions();
   const displayTimezone = timeDisplay.displayTimezone;
+  const auditRetention = useAuditRetentionSettingsModel(canManage, displayTimezone, setToastNotice);
   const certificateDiagnostics = useCertificateDiagnosticsSettingsModel(canManage, setToastNotice);
   const upstreamSecurity = useUpstreamSecuritySettingsModel(canManage, setToastNotice);
   const loginDefense = useLoginDefenseSettingsModel(canManage, setToastNotice);
@@ -45,6 +47,7 @@ export function useSettingsPageModel() {
     toastNotice,
     onDismissToast: () => setToastNotice(null),
     timeDisplay: timeDisplay.card,
+    auditRetention,
     certificateDiagnostics,
     upstreamSecurity,
     loginDefense,

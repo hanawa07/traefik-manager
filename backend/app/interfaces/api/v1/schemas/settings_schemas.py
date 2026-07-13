@@ -8,6 +8,10 @@ from app.interfaces.api.v1.schemas.settings_cloudflare_schemas import (
     CloudflareZoneStatusResponse,
     CloudflareZoneUpdateRequest,
 )
+from app.interfaces.api.v1.schemas.settings_audit_retention_schemas import (
+    AuditRetentionSettingsResponse,
+    AuditRetentionSettingsUpdateRequest,
+)
 from app.interfaces.api.v1.schemas.settings_dashboard_schemas import (
     TraefikDashboardSettingsResponse,
     TraefikDashboardSettingsUpdateRequest,
@@ -47,6 +51,8 @@ from app.interfaces.api.v1.schemas.settings_test_schemas import (
 )
 
 __all__ = [
+    "AuditRetentionSettingsResponse",
+    "AuditRetentionSettingsUpdateRequest",
     "CertificateDiagnosticsSettingsResponse",
     "CertificateDiagnosticsSettingsUpdateRequest",
     "CloudflareDriftCheckResponse",

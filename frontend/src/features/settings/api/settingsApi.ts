@@ -1,10 +1,15 @@
 import { cloudflareSettingsApi } from "./settingsCloudflareApi";
+import { auditRetentionSettingsApi } from "./settingsAuditRetentionApi";
 import { policySettingsApi } from "./settingsPolicyApi";
 import { securityAlertSettingsApi } from "./settingsSecurityAlertApi";
 import { settingsBackupApi } from "./settingsBackupApi";
 import { settingsHistoryApi } from "./settingsHistoryApi";
 import { smokeRotationSettingsApi } from "./settingsSmokeRotationApi";
 
+export type {
+  AuditRetentionSettingsInput,
+  AuditRetentionSettingsStatus,
+} from "./settingsAuditRetentionApi";
 export type {
   BackupImportResult,
   BackupPayload,
@@ -61,6 +66,7 @@ export type {
 } from "./settingsSmokeRotationApi";
 
 export const settingsApi = {
+  ...auditRetentionSettingsApi,
   ...cloudflareSettingsApi,
   ...policySettingsApi,
   ...securityAlertSettingsApi,

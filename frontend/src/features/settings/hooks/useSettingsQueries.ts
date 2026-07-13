@@ -9,6 +9,13 @@ export function useCloudflareStatus() {
   return useSettingsQuery(settingsQueryKeys.cloudflare, settingsApi.getCloudflareStatus);
 }
 
+export function useAuditRetentionSettings() {
+  return useSettingsQuery(
+    settingsQueryKeys.auditRetention,
+    settingsApi.getAuditRetentionSettings,
+  );
+}
+
 export function useTimeDisplaySettings() {
   return useSettingsQuery(settingsQueryKeys.timeDisplay, settingsApi.getTimeDisplaySettings);
 }

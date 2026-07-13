@@ -1,4 +1,5 @@
 export {
+  useAuditRetentionSettings,
   useCertificateDiagnosticsSettings,
   useCloudflareStatus,
   useLoginDefenseSettings,
@@ -10,6 +11,7 @@ export {
   useUpstreamSecuritySettings,
 } from "./useSettingsQueries";
 export {
+  useRunAuditRetentionCleanup,
   useDiagnoseCloudflareDnsDrift,
   useExportBackup,
   useImportBackup,
@@ -20,6 +22,7 @@ export {
   useTestCloudflareConnection,
   useTestSecurityAlertSettings,
   useUpdateCertificateDiagnosticsSettings,
+  useUpdateAuditRetentionSettings,
   useUpdateCloudflareSettings,
   useUpdateLoginDefenseSettings,
   useUpdateSecurityAlertSettings,

@@ -99,6 +99,37 @@ async def auth_cleanup_loop() -> None:
     )
 
 
+async def cleanup_audit_logs_once() -> None:
+    from app.infrastructure.persistence.audit_retention import run_audit_retention_once
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await run_audit_retention_once(
+                session,
+                archive_dir=settings.AUDIT_ARCHIVE_DIR,
+            )
+            if result["last_deleted_count"]:
+                logger.info(
+                    "감사 로그 보존 정리 완료 (아카이브 %d개, 삭제 %d개)",
+                    result["last_archived_count"],
+                    result["last_deleted_count"],
+                )
+    except Exception:
+        logger.warning("감사 로그 보존 정리 실패 (다음 주기에 재시도)", exc_info=True)
+
+
+async def audit_retention_loop() -> None:
+    from app.infrastructure.persistence.audit_retention import (
+        AUDIT_RETENTION_INTERVAL_SECONDS,
+        run_periodic_audit_retention,
+    )
+
+    await run_periodic_audit_retention(
+        interval_seconds=AUDIT_RETENTION_INTERVAL_SECONDS,
+        cleanup_once=cleanup_audit_logs_once,
+    )
+
+
 async def check_certificate_alerts_once() -> None:
     from app.infrastructure.certificates import check_certificate_alerts_once as check_once
 

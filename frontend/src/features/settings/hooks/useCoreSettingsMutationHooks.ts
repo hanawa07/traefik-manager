@@ -9,6 +9,20 @@ export function useUpdateTimeDisplaySettings() {
   );
 }
 
+export function useUpdateAuditRetentionSettings() {
+  return useSettingsMutationForQuery(
+    settingsApi.updateAuditRetentionSettings,
+    settingsQueryKeys.auditRetention,
+  );
+}
+
+export function useRunAuditRetentionCleanup() {
+  return useSettingsMutationForQuery(
+    settingsApi.runAuditRetentionCleanup,
+    settingsQueryKeys.auditRetention,
+  );
+}
+
 export function useUpdateCertificateDiagnosticsSettings() {
   return useSettingsMutationForQuery(
     settingsApi.updateCertificateDiagnosticsSettings,

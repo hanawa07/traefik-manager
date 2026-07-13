@@ -12,7 +12,9 @@ export {
 } from "./useCloudflareMutationHooks";
 export {
   useRefreshSmokeMonitoringHistory,
+  useRunAuditRetentionCleanup,
   useUpdateCertificateDiagnosticsSettings,
+  useUpdateAuditRetentionSettings,
   useUpdateLoginDefenseSettings,
   useUpdateSmokeMonitoringSettings,
   useUpdateTimeDisplaySettings,

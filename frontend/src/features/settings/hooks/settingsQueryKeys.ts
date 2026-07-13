@@ -1,4 +1,5 @@
 export const settingsQueryKeys = {
+  auditRetention: ["settings", "audit-retention"] as const,
   auditLogs: ["audit-logs"] as const,
   certificateDiagnostics: ["settings", "certificate-diagnostics"] as const,
   cloudflare: ["settings", "cloudflare"] as const,
@@ -24,6 +25,7 @@ export const backupImportInvalidationKeys = [
 
 export const settingsRollbackInvalidationKeys = [
   settingsQueryKeys.auditLogs,
+  settingsQueryKeys.auditRetention,
   settingsQueryKeys.timeDisplay,
   settingsQueryKeys.certificateDiagnostics,
   settingsQueryKeys.traefikDashboard,

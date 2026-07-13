@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 
 import { BackupRestoreSettingsCard } from "@/features/settings/components/BackupRestoreSettingsCard";
+import { AuditRetentionSettingsCard } from "@/features/settings/components/AuditRetentionSettingsCard";
 import { CertificateDiagnosticsSettingsCard } from "@/features/settings/components/CertificateDiagnosticsSettingsCard";
 import { CloudflareDnsSettingsCard } from "@/features/settings/components/CloudflareDnsSettingsCard";
 import { LoginDefenseSettingsCard } from "@/features/settings/components/LoginDefenseSettingsCard";
@@ -15,6 +16,7 @@ import UserManagementSection from "@/features/users/components/UserManagementSec
 interface SettingsPageSectionsProps {
   canManage: boolean;
   timeDisplay: ComponentProps<typeof TimeDisplaySettingsCard>;
+  auditRetention: ComponentProps<typeof AuditRetentionSettingsCard>;
   certificateDiagnostics: ComponentProps<typeof CertificateDiagnosticsSettingsCard>;
   upstreamSecurity: ComponentProps<typeof UpstreamSecuritySettingsCard>;
   loginDefense: ComponentProps<typeof LoginDefenseSettingsCard>;
@@ -29,6 +31,7 @@ interface SettingsPageSectionsProps {
 export function SettingsPageSections({
   canManage,
   timeDisplay,
+  auditRetention,
   certificateDiagnostics,
   upstreamSecurity,
   loginDefense,
@@ -42,6 +45,7 @@ export function SettingsPageSections({
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
       <TimeDisplaySettingsCard {...timeDisplay} />
+      <AuditRetentionSettingsCard {...auditRetention} />
       <CertificateDiagnosticsSettingsCard {...certificateDiagnostics} />
       <UpstreamSecuritySettingsCard {...upstreamSecurity} />
       <LoginDefenseSettingsCard {...loginDefense} />

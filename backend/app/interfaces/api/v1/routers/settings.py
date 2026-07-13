@@ -13,6 +13,9 @@ from app.infrastructure.persistence.repositories.sqlite_service_repository impor
 from app.infrastructure.traefik.file_provider_writer import FileProviderWriter
 from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.routers.settings_cloudflare_router import router as cloudflare_router
+from app.interfaces.api.v1.routers.settings_audit_retention_router import (
+    router as audit_retention_router,
+)
 from app.interfaces.api.v1.routers.settings_rollback_action import (
     rollback_settings_change_action as _rollback_settings_change_action,
 )
@@ -54,6 +57,7 @@ from app.interfaces.api.v1.schemas.settings_schemas import (
 
 router = APIRouter()
 router.include_router(cloudflare_router)
+router.include_router(audit_retention_router)
 
 SETTINGS_ROUTES = build_default_settings_routes(
     server_time_context_getter_provider=lambda: get_server_time_context,
