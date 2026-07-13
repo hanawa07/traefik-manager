@@ -36,7 +36,7 @@ async def list_audit_logs(
     event: Optional[str] = Query(None),
     manager_status: Optional[Literal["unhealthy", "recovered"]] = Query(None),
     manager_source: Optional[Literal["docker", "watchdog"]] = Query(None),
-    period_days: Optional[Literal[1, 7, 30, 90]] = Query(None),
+    period_days: Optional[int] = Query(None),
     search: Optional[str] = Query(None, max_length=100),
     security_only: bool = Query(False),
     provider: Optional[str] = Query(None),
@@ -47,6 +47,9 @@ async def list_audit_logs(
     """
     시스템 변경 이력(감사 로그)을 최신순으로 조회합니다.
     """
+    if period_days is not None and period_days not in {1, 7, 30, 90}:
+        raise HTTPException(status_code=422, detail="기간은 1, 7, 30, 90일 중 하나여야 합니다")
+
     query = select(AuditLogModel).order_by(desc(AuditLogModel.created_at))
 
     if resource_type:

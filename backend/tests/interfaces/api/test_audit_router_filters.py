@@ -1,10 +1,33 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from fastapi import Response
+from fastapi import FastAPI, Response
+from fastapi.testclient import TestClient
 
 from app.interfaces.api.v1.routers import audit as audit_router
 from tests.interfaces.api.audit_router_fakes import StubAuditDb, make_log
+
+
+def test_list_audit_logs_parses_period_days_from_http_query():
+    now = datetime.now(timezone.utc)
+    db = StubAuditDb(
+        [
+            make_log(resource_name="recent", created_at=now - timedelta(days=1)),
+            make_log(resource_name="old", created_at=now - timedelta(days=8)),
+        ]
+    )
+    app = FastAPI()
+    app.include_router(audit_router.router, prefix="/audit")
+    app.dependency_overrides[audit_router.get_db] = lambda: db
+    app.dependency_overrides[audit_router.get_current_user] = lambda: {"username": "admin"}
+
+    with TestClient(app) as client:
+        response = client.get("/audit", params={"period_days": "7"})
+        invalid_response = client.get("/audit", params={"period_days": "2"})
+
+    assert response.status_code == 200
+    assert [item["resource_name"] for item in response.json()] == ["recent"]
+    assert invalid_response.status_code == 422
 
 
 @pytest.mark.asyncio
