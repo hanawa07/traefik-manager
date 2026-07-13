@@ -1,3 +1,5 @@
+import { Loader2 } from "lucide-react";
+
 import type { AuditLogItem } from "@/features/audit/api/auditApi";
 
 import { AuditLogEmptyRow } from "./AuditLogEmptyRow";
@@ -13,6 +15,7 @@ interface AuditLogTableProps {
   retryTargetId: string | null;
   isRollbackPending: boolean;
   isRetryPending: boolean;
+  isRefreshing: boolean;
   onExpandedLogChange: (logId: string | null) => void;
   onRollback: (resourceType: RollbackResourceType, auditLogId: string) => void;
   onRetryDelivery: (auditLogId: string) => void;
@@ -26,6 +29,7 @@ export function AuditLogTable({
   retryTargetId,
   isRollbackPending,
   isRetryPending,
+  isRefreshing,
   onExpandedLogChange,
   onRollback,
   onRetryDelivery,
@@ -34,7 +38,14 @@ export function AuditLogTable({
     <div
       className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
       data-visual-surface
+      aria-busy={isRefreshing}
     >
+      {isRefreshing ? (
+        <div className="flex items-center gap-2 border-b border-blue-100 bg-blue-50 px-4 py-2 text-xs font-medium text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          필터 결과 갱신 중...
+        </div>
+      ) : null}
       <div className="overflow-x-auto" data-table-scroll="audit-log">
         <table className="w-full min-w-[1040px] border-collapse text-left">
           <AuditLogTableHeader />

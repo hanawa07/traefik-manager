@@ -2,6 +2,8 @@ import type {
   AuditFilterKey,
   DeliveryProviderKey,
   DeliveryStatusKey,
+  ManagerSourceKey,
+  ManagerStatusKey,
 } from "./auditPageHelpers";
 
 interface AuditLogQuery {
@@ -20,39 +22,40 @@ interface BuildAuditLogQueryArgs {
   selectedDeliveryProvider: DeliveryProviderKey;
   selectedDeliveryStatus: DeliveryStatusKey;
   selectedFilter: AuditFilterKey;
+  selectedManagerSource: ManagerSourceKey;
+  selectedManagerStatus: ManagerStatusKey;
 }
 
 export function buildAuditLogQuery({
   selectedDeliveryProvider,
   selectedDeliveryStatus,
   selectedFilter,
+  selectedManagerSource,
+  selectedManagerStatus,
 }: BuildAuditLogQueryArgs): AuditLogQuery {
   return {
-    ...buildFilterQuery(selectedFilter),
+    ...buildFilterQuery(selectedFilter, selectedManagerSource, selectedManagerStatus),
     provider: selectedDeliveryProvider === "all" ? undefined : selectedDeliveryProvider,
     delivery_success:
       selectedDeliveryStatus === "all" ? undefined : selectedDeliveryStatus === "success",
   };
 }
 
-function buildFilterQuery(selectedFilter: AuditFilterKey): AuditLogQuery {
+function buildFilterQuery(
+  selectedFilter: AuditFilterKey,
+  selectedManagerSource: ManagerSourceKey,
+  selectedManagerStatus: ManagerStatusKey,
+): AuditLogQuery {
   if (selectedFilter === "all") return { limit: 50 };
   if (selectedFilter === "security") return { limit: 50, security_only: true };
   if (selectedFilter === "alert_delivery") return { limit: 50, action: "alert" };
   if (selectedFilter === "manager_health") {
-    return { limit: 50, resource_type: "manager_component" };
-  }
-  if (selectedFilter === "manager_docker") {
-    return { limit: 50, manager_source: "docker" };
-  }
-  if (selectedFilter === "manager_watchdog") {
-    return { limit: 50, manager_source: "watchdog" };
-  }
-  if (selectedFilter === "manager_unhealthy") {
-    return { limit: 50, manager_status: "unhealthy" };
-  }
-  if (selectedFilter === "manager_recovered") {
-    return { limit: 50, manager_status: "recovered" };
+    return {
+      limit: 50,
+      resource_type: "manager_component",
+      manager_source: selectedManagerSource === "all" ? undefined : selectedManagerSource,
+      manager_status: selectedManagerStatus === "all" ? undefined : selectedManagerStatus,
+    };
   }
   if (selectedFilter === "settings_update") {
     return { limit: 50, resource_type: "settings", action: "update" };

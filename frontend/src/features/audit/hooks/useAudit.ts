@@ -16,6 +16,7 @@ export const useAudit = (params?: {
   return useQuery({
     queryKey: ["audit-logs", params],
     queryFn: () => auditApi.getLogs(params),
+    placeholderData: (previousData) => previousData,
   });
 };
 

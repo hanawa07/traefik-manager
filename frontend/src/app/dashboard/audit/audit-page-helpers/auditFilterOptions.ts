@@ -10,15 +10,23 @@ export const auditFilters = [
   { key: "login_blocked_ip", label: "IP 차단" },
   { key: "login_failure", label: "로그인 실패" },
   { key: "manager_health", label: "Manager 전체" },
-  { key: "manager_docker", label: "Manager Docker" },
-  { key: "manager_watchdog", label: "Watchdog" },
-  { key: "manager_unhealthy", label: "Manager 이상" },
-  { key: "manager_recovered", label: "Manager 복구" },
   { key: "certificate_warning", label: "인증서 만료 임박" },
   { key: "certificate_error", label: "인증서 만료" },
   { key: "certificate_recovered", label: "인증서 복구" },
   { key: "certificate_preflight", label: "인증서 사전 진단" },
   { key: "certificate_preflight_repeated_failure", label: "인증서 반복 실패" },
+] as const;
+
+export const managerSourceOptions = [
+  { key: "all", label: "소스 전체" },
+  { key: "docker", label: "Docker" },
+  { key: "watchdog", label: "Watchdog" },
+] as const;
+
+export const managerStatusOptions = [
+  { key: "all", label: "상태 전체" },
+  { key: "unhealthy", label: "이상" },
+  { key: "recovered", label: "복구" },
 ] as const;
 
 export const deliveryStatusOptions = [
@@ -47,6 +55,8 @@ export const managerHealthWindowOptions = [
 export type AuditFilterKey = (typeof auditFilters)[number]["key"];
 export type DeliveryStatusKey = (typeof deliveryStatusOptions)[number]["key"];
 export type DeliveryProviderKey = (typeof deliveryProviderOptions)[number]["key"];
+export type ManagerSourceKey = (typeof managerSourceOptions)[number]["key"];
+export type ManagerStatusKey = (typeof managerStatusOptions)[number]["key"];
 export type ManagerHealthWindowMinutes = (typeof managerHealthWindowOptions)[number]["minutes"];
 
 export function isAuditFilterKey(value: string | null): value is AuditFilterKey {
@@ -59,6 +69,14 @@ export function isDeliveryStatusKey(value: string | null): value is DeliveryStat
 
 export function isDeliveryProviderKey(value: string | null): value is DeliveryProviderKey {
   return deliveryProviderOptions.some((option) => option.key === value);
+}
+
+export function isManagerSourceKey(value: string | null): value is ManagerSourceKey {
+  return managerSourceOptions.some((option) => option.key === value);
+}
+
+export function isManagerStatusKey(value: string | null): value is ManagerStatusKey {
+  return managerStatusOptions.some((option) => option.key === value);
 }
 
 export function parseManagerHealthWindowMinutes(

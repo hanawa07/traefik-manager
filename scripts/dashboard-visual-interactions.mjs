@@ -35,17 +35,19 @@ export async function checkOptionalAdminModal({ artifactDir, cdp, profile, timeo
 }
 
 export async function checkAuditFilterPersistence({ cdp, timeoutMs }) {
-  const watchdogFound = await evaluate(cdp, `(() => {
-    const watchdog = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.includes('Watchdog')
+  const managerFound = await evaluate(cdp, `(() => {
+    const manager = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Manager 전체')
     );
-    watchdog?.click();
-    return Boolean(watchdog);
+    manager?.click();
+    return Boolean(manager);
   })()`);
-  assert.equal(watchdogFound, true, "감사 로그 Watchdog 필터를 찾지 못했습니다");
-  await waitForQueryParam(cdp, "filter", "manager_watchdog", timeoutMs);
+  assert.equal(managerFound, true, "감사 로그 Manager 필터를 찾지 못했습니다");
+  await waitForQueryParam(cdp, "filter", "manager_health", timeoutMs);
 
   const selectChanges = [
+    ["Manager 소스", "watchdog", "manager_source"],
+    ["Manager 상태", "unhealthy", "manager_status"],
     ["전송 상태", "failure", "delivery_status"],
     ["알림 채널", "telegram", "delivery_provider"],
     ["Manager 집계 기간", "1440", "manager_window"],
@@ -71,10 +73,12 @@ export async function checkAuditFilterPersistence({ cdp, timeoutMs }) {
   await waitForCondition(
     cdp,
     `(() => {
-      const watchdog = Array.from(document.querySelectorAll('button')).find(
-        (button) => button.textContent?.includes('Watchdog')
+      const manager = Array.from(document.querySelectorAll('button')).find(
+        (button) => button.textContent?.includes('Manager 전체')
       );
-      return watchdog?.getAttribute('aria-pressed') === 'true' &&
+      return manager?.getAttribute('aria-pressed') === 'true' &&
+        document.querySelector('select[aria-label="Manager 소스"]')?.value === 'watchdog' &&
+        document.querySelector('select[aria-label="Manager 상태"]')?.value === 'unhealthy' &&
         document.querySelector('select[aria-label="전송 상태"]')?.value === 'failure' &&
         document.querySelector('select[aria-label="알림 채널"]')?.value === 'telegram' &&
         document.querySelector('select[aria-label="Manager 집계 기간"]')?.value === '1440';

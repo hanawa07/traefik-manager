@@ -11,9 +11,13 @@ import {
   type DeliveryProviderKey,
   type DeliveryStatusKey,
   type ManagerHealthWindowMinutes,
+  type ManagerSourceKey,
+  type ManagerStatusKey,
   isAuditFilterKey,
   isDeliveryProviderKey,
   isDeliveryStatusKey,
+  isManagerSourceKey,
+  isManagerStatusKey,
   parseManagerHealthWindowMinutes,
 } from "./auditPageHelpers";
 import { useAuditLogActions } from "./useAuditLogActions";
@@ -24,8 +28,30 @@ const FALLBACK_AUDIT_LOAD_ERROR = "감사 로그를 불러오지 못했습니다
 export function useAuditLogPageModel() {
   const searchParams = useSearchParams();
   const requestedFilter = searchParams.get("filter");
-  const initialFilter = isAuditFilterKey(requestedFilter) ? requestedFilter : "all";
+  const initialFilter = isAuditFilterKey(requestedFilter)
+    ? requestedFilter
+    : isLegacyManagerFilter(requestedFilter)
+      ? "manager_health"
+      : "all";
   const [selectedFilter, setSelectedFilter] = useState<AuditFilterKey>(initialFilter);
+  const [selectedManagerSource, setSelectedManagerSource] = useState<ManagerSourceKey>(() => {
+    const value = searchParams.get("manager_source");
+    if (isManagerSourceKey(value)) return value;
+    return requestedFilter === "manager_docker"
+      ? "docker"
+      : requestedFilter === "manager_watchdog"
+        ? "watchdog"
+        : "all";
+  });
+  const [selectedManagerStatus, setSelectedManagerStatus] = useState<ManagerStatusKey>(() => {
+    const value = searchParams.get("manager_status");
+    if (isManagerStatusKey(value)) return value;
+    return requestedFilter === "manager_unhealthy"
+      ? "unhealthy"
+      : requestedFilter === "manager_recovered"
+        ? "recovered"
+        : "all";
+  });
   const [selectedDeliveryStatus, setSelectedDeliveryStatus] = useState<DeliveryStatusKey>(() => {
     const value = searchParams.get("delivery_status");
     return isDeliveryStatusKey(value) ? value : "all";
@@ -45,15 +71,41 @@ export function useAuditLogPageModel() {
     selectedDeliveryProvider,
     selectedDeliveryStatus,
     selectedFilter,
+    selectedManagerSource,
+    selectedManagerStatus,
   });
-  const { data: logs, isLoading, isError, error } = useAudit(auditQuery);
+  const { data: logs, isLoading, isFetching, isError, error } = useAudit(auditQuery);
   const { data: managerHealthSummary } = useManagerHealthSummary(managerHealthWindowMinutes);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const auditActions = useAuditLogActions();
 
   const handleFilterChange = (filter: AuditFilterKey) => {
     setSelectedFilter(filter);
-    replaceAuditQueryParam("filter", filter, "all");
+    if (filter !== "manager_health") {
+      setSelectedManagerSource("all");
+      setSelectedManagerStatus("all");
+    }
+    replaceAuditQueryParams([
+      ["filter", filter, "all"],
+      ["manager_source", filter === "manager_health" ? selectedManagerSource : "all", "all"],
+      ["manager_status", filter === "manager_health" ? selectedManagerStatus : "all", "all"],
+    ]);
+  };
+  const handleManagerSourceChange = (source: ManagerSourceKey) => {
+    setSelectedFilter("manager_health");
+    setSelectedManagerSource(source);
+    replaceAuditQueryParams([
+      ["filter", "manager_health", "all"],
+      ["manager_source", source, "all"],
+    ]);
+  };
+  const handleManagerStatusChange = (status: ManagerStatusKey) => {
+    setSelectedFilter("manager_health");
+    setSelectedManagerStatus(status);
+    replaceAuditQueryParams([
+      ["filter", "manager_health", "all"],
+      ["manager_status", status, "all"],
+    ]);
   };
   const handleDeliveryStatusChange = (status: DeliveryStatusKey) => {
     setSelectedDeliveryStatus(status);
@@ -75,6 +127,8 @@ export function useAuditLogPageModel() {
       selectedDeliveryProvider,
       selectedDeliveryStatus,
       selectedFilter,
+      selectedManagerSource,
+      selectedManagerStatus,
       managerHealthCounts: managerHealthSummary
         ? {
             unhealthy: managerHealthSummary.unhealthy_count,
@@ -91,6 +145,8 @@ export function useAuditLogPageModel() {
       onDeliveryProviderChange: handleDeliveryProviderChange,
       onDeliveryStatusChange: handleDeliveryStatusChange,
       onFilterChange: handleFilterChange,
+      onManagerSourceChange: handleManagerSourceChange,
+      onManagerStatusChange: handleManagerStatusChange,
       onManagerHealthWindowChange: handleManagerHealthWindowChange,
     },
     isError,
@@ -99,6 +155,7 @@ export function useAuditLogPageModel() {
     table: {
       expandedLogId,
       isRetryPending: auditActions.isRetryPending,
+      isRefreshing: isFetching && !isLoading,
       isRollbackPending: auditActions.isRollbackPending,
       logs,
       retryTargetId: auditActions.retryTargetId,
@@ -111,10 +168,22 @@ export function useAuditLogPageModel() {
   };
 }
 
+function isLegacyManagerFilter(value: string | null) {
+  return ["manager_docker", "manager_watchdog", "manager_unhealthy", "manager_recovered"].includes(
+    value || "",
+  );
+}
+
 function replaceAuditQueryParam(key: string, value: string, defaultValue: string) {
+  replaceAuditQueryParams([[key, value, defaultValue]]);
+}
+
+function replaceAuditQueryParams(values: [key: string, value: string, defaultValue: string][]) {
   const params = new URLSearchParams(window.location.search);
-  if (value === defaultValue) params.delete(key);
-  else params.set(key, value);
+  values.forEach(([key, value, defaultValue]) => {
+    if (value === defaultValue) params.delete(key);
+    else params.set(key, value);
+  });
   const query = params.toString();
   window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
 }

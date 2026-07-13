@@ -5,19 +5,27 @@ import {
   deliveryProviderOptions,
   deliveryStatusOptions,
   managerHealthWindowOptions,
+  managerSourceOptions,
+  managerStatusOptions,
   type AuditFilterKey,
   type DeliveryProviderKey,
   type DeliveryStatusKey,
   type ManagerHealthWindowMinutes,
+  type ManagerSourceKey,
+  type ManagerStatusKey,
 } from "./auditPageHelpers";
 
 interface AuditLogFiltersProps {
   selectedFilter: AuditFilterKey;
   selectedDeliveryStatus: DeliveryStatusKey;
   selectedDeliveryProvider: DeliveryProviderKey;
+  selectedManagerSource: ManagerSourceKey;
+  selectedManagerStatus: ManagerStatusKey;
   managerHealthCounts?: { unhealthy: number; recovered: number; docker: number; watchdog: number };
   managerHealthWindowMinutes: ManagerHealthWindowMinutes;
   onFilterChange: (filter: AuditFilterKey) => void;
+  onManagerSourceChange: (source: ManagerSourceKey) => void;
+  onManagerStatusChange: (status: ManagerStatusKey) => void;
   onManagerHealthWindowChange: (minutes: ManagerHealthWindowMinutes) => void;
   onDeliveryStatusChange: (status: DeliveryStatusKey) => void;
   onDeliveryProviderChange: (provider: DeliveryProviderKey) => void;
@@ -27,9 +35,13 @@ export function AuditLogFilters({
   selectedFilter,
   selectedDeliveryStatus,
   selectedDeliveryProvider,
+  selectedManagerSource,
+  selectedManagerStatus,
   managerHealthCounts,
   managerHealthWindowMinutes,
   onFilterChange,
+  onManagerSourceChange,
+  onManagerStatusChange,
   onManagerHealthWindowChange,
   onDeliveryStatusChange,
   onDeliveryProviderChange,
@@ -52,35 +64,49 @@ export function AuditLogFilters({
                   : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800",
               )}
             >
-              <span className="inline-flex items-center gap-1.5">
-                {filter.label}
-                {filter.key === "manager_unhealthy" && managerHealthCounts ? (
-                  <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] text-rose-700 dark:bg-rose-500/20 dark:text-rose-200">
-                    {managerHealthCounts.unhealthy}
-                  </span>
-                ) : null}
-                {filter.key === "manager_recovered" && managerHealthCounts ? (
-                  <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
-                    {managerHealthCounts.recovered}
-                  </span>
-                ) : null}
-                {filter.key === "manager_docker" && managerHealthCounts ? (
-                  <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-700 dark:bg-sky-500/20 dark:text-sky-200">
-                    {managerHealthCounts.docker}
-                  </span>
-                ) : null}
-                {filter.key === "manager_watchdog" && managerHealthCounts ? (
-                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-500/20 dark:text-amber-200">
-                    {managerHealthCounts.watchdog}
-                  </span>
-                ) : null}
-              </span>
+              {filter.label}
             </button>
           );
         })}
       </div>
 
       <div className="mb-6 flex flex-wrap gap-3">
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
+          <span className="text-slate-500 dark:text-slate-400">Manager 소스</span>
+          <select
+            aria-label="Manager 소스"
+            value={selectedManagerSource}
+            onChange={(event) => onManagerSourceChange(event.target.value as ManagerSourceKey)}
+            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          >
+            {managerSourceOptions.map((option) => (
+              <option key={option.key} value={option.key}>
+                {option.label}
+                {managerHealthCounts && option.key !== "all"
+                  ? ` (${managerHealthCounts[option.key]})`
+                  : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
+          <span className="text-slate-500 dark:text-slate-400">Manager 상태</span>
+          <select
+            aria-label="Manager 상태"
+            value={selectedManagerStatus}
+            onChange={(event) => onManagerStatusChange(event.target.value as ManagerStatusKey)}
+            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          >
+            {managerStatusOptions.map((option) => (
+              <option key={option.key} value={option.key}>
+                {option.label}
+                {managerHealthCounts && option.key !== "all"
+                  ? ` (${managerHealthCounts[option.key]})`
+                  : ""}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
           <span className="text-slate-500 dark:text-slate-400">Manager 집계 기간</span>
           <select

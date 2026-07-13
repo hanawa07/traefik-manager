@@ -58,7 +58,7 @@ const DASHBOARD_ROUTES = [
     label: "감사 로그",
     path: "/dashboard/audit",
     marker: "시스템의 모든 변경 사항을 추적합니다",
-    requiredMarkers: ["Manager 전체", "Manager Docker", "Watchdog", "Manager 이상", "Manager 복구", "Manager 집계 기간"],
+    requiredMarkers: ["Manager 전체", "Manager 소스", "Manager 상태", "Manager 집계 기간"],
   },
   { label: "미들웨어", path: "/dashboard/middlewares", marker: "공용 템플릿" },
   { label: "리다이렉트", path: "/dashboard/redirects", marker: "도메인 리다이렉트 호스트 관리" },
@@ -369,7 +369,7 @@ export function runDashboardVisualSmokeSelfTest() {
   const loginRoute = { label: "로그인", path: "/login", marker: "로그인" };
   assert.ok(serviceRoute);
   assert.ok(dashboardRoute);
-  assert.deepEqual(auditRoute?.requiredMarkers, ["Manager 전체", "Manager Docker", "Watchdog", "Manager 이상", "Manager 복구", "Manager 집계 기간"]);
+  assert.deepEqual(auditRoute?.requiredMarkers, ["Manager 전체", "Manager 소스", "Manager 상태", "Manager 집계 기간"]);
   assert.deepEqual(dashboardRoute.requiredMarkers, [
     "Backend",
     "Frontend",
