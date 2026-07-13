@@ -48,15 +48,15 @@ export function AuditLogFilters({
             >
               <span className="inline-flex items-center gap-1.5">
                 {filter.label}
-                {filter.key === "manager_health" && managerHealthCounts ? (
-                  <>
-                    <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] text-rose-700 dark:bg-rose-500/20 dark:text-rose-200">
-                      이상 {managerHealthCounts.unhealthy}
-                    </span>
-                    <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
-                      복구 {managerHealthCounts.recovered}
-                    </span>
-                  </>
+                {filter.key === "manager_unhealthy" && managerHealthCounts ? (
+                  <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] text-rose-700 dark:bg-rose-500/20 dark:text-rose-200">
+                    {managerHealthCounts.unhealthy}
+                  </span>
+                ) : null}
+                {filter.key === "manager_recovered" && managerHealthCounts ? (
+                  <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
+                    {managerHealthCounts.recovered}
+                  </span>
                 ) : null}
               </span>
             </button>

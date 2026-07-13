@@ -40,6 +40,12 @@ function buildFilterQuery(selectedFilter: AuditFilterKey): AuditLogQuery {
   if (selectedFilter === "manager_health") {
     return { limit: 50, resource_type: "manager_component" };
   }
+  if (selectedFilter === "manager_unhealthy") {
+    return { limit: 50, event: "manager_docker_unhealthy" };
+  }
+  if (selectedFilter === "manager_recovered") {
+    return { limit: 50, event: "manager_docker_recovered" };
+  }
   if (selectedFilter === "settings_update") {
     return { limit: 50, resource_type: "settings", action: "update" };
   }
