@@ -1,5 +1,5 @@
 import { clsx } from "clsx";
-import { RotateCcw, Search } from "lucide-react";
+import { RotateCcw, Search, X } from "lucide-react";
 
 import type { AuditManagerHealthSummary } from "@/features/audit/api/auditApi";
 
@@ -37,6 +37,12 @@ interface AuditLogFiltersProps {
   onDeliveryProviderChange: (provider: DeliveryProviderKey) => void;
 }
 
+interface ActiveCondition {
+  key: string;
+  label: string;
+  onRemove: () => void;
+}
+
 export function AuditLogFilters({
   selectedFilter,
   selectedDeliveryStatus,
@@ -55,34 +61,73 @@ export function AuditLogFilters({
   onDeliveryStatusChange,
   onDeliveryProviderChange,
 }: AuditLogFiltersProps) {
-  const activeConditions: string[] = [];
-  if (searchText.trim()) activeConditions.push(`검색: ${searchText.trim()}`);
+  const activeConditions: ActiveCondition[] = [];
+  if (searchText.trim()) {
+    activeConditions.push({
+      key: "search",
+      label: `검색: ${searchText.trim()}`,
+      onRemove: () => onSearchTextChange(""),
+    });
+  }
   if (selectedFilter !== "all") {
-    activeConditions.push(auditFilters.find((filter) => filter.key === selectedFilter)?.label || "");
+    const label = auditFilters.find((filter) => filter.key === selectedFilter)?.label;
+    if (label) {
+      activeConditions.push({ key: "filter", label, onRemove: () => onFilterChange("all") });
+    }
   }
   if (selectedManagerSource !== "all") {
     const label = managerSourceOptions.find((option) => option.key === selectedManagerSource)?.label;
-    if (label) activeConditions.push(`소스: ${label}`);
+    if (label) {
+      activeConditions.push({
+        key: "manager-source",
+        label: `소스: ${label}`,
+        onRemove: () => onManagerSourceChange("all"),
+      });
+    }
   }
   if (selectedManagerStatus !== "all") {
     const label = managerStatusOptions.find((option) => option.key === selectedManagerStatus)?.label;
-    if (label) activeConditions.push(`상태: ${label}`);
+    if (label) {
+      activeConditions.push({
+        key: "manager-status",
+        label: `상태: ${label}`,
+        onRemove: () => onManagerStatusChange("all"),
+      });
+    }
   }
   if (managerHealthWindowMinutes !== 10080) {
     const label = managerHealthWindowOptions.find(
       (option) => option.minutes === managerHealthWindowMinutes,
     )?.label;
-    if (label) activeConditions.push(`집계: ${label}`);
+    if (label) {
+      activeConditions.push({
+        key: "manager-window",
+        label: `집계: ${label}`,
+        onRemove: () => onManagerHealthWindowChange(10080),
+      });
+    }
   }
   if (selectedDeliveryStatus !== "all") {
     const label = deliveryStatusOptions.find((option) => option.key === selectedDeliveryStatus)?.label;
-    if (label) activeConditions.push(label);
+    if (label) {
+      activeConditions.push({
+        key: "delivery-status",
+        label,
+        onRemove: () => onDeliveryStatusChange("all"),
+      });
+    }
   }
   if (selectedDeliveryProvider !== "all") {
     const label = deliveryProviderOptions.find(
       (option) => option.key === selectedDeliveryProvider,
     )?.label;
-    if (label) activeConditions.push(`채널: ${label}`);
+    if (label) {
+      activeConditions.push({
+        key: "delivery-provider",
+        label: `채널: ${label}`,
+        onRemove: () => onDeliveryProviderChange("all"),
+      });
+    }
   }
 
   return (
@@ -148,12 +193,16 @@ export function AuditLogFilters({
           <span className="text-slate-500 dark:text-slate-400">전체 로그</span>
         ) : (
           activeConditions.map((condition) => (
-            <span
-              className="rounded-full bg-blue-100 px-2 py-1 font-medium text-blue-800 dark:bg-blue-500/15 dark:text-blue-200"
-              key={condition}
+            <button
+              aria-label={`${condition.label} 조건 제거`}
+              className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 font-medium text-blue-800 hover:bg-blue-200 dark:bg-blue-500/15 dark:text-blue-200 dark:hover:bg-blue-500/25"
+              key={condition.key}
+              onClick={condition.onRemove}
+              type="button"
             >
-              {condition}
-            </span>
+              {condition.label}
+              <X aria-hidden="true" className="h-3 w-3" />
+            </button>
           ))
         )}
       </div>
