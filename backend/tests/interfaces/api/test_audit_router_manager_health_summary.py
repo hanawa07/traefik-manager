@@ -33,3 +33,7 @@ async def test_manager_health_summary_counts_selected_window(monkeypatch):
     assert result.window_minutes == 1440
     assert result.unhealthy_count == 2
     assert result.recovered_count == 1
+    assert result.docker_unhealthy_count == 1
+    assert result.docker_recovered_count == 1
+    assert result.watchdog_unhealthy_count == 1
+    assert result.watchdog_recovered_count == 0

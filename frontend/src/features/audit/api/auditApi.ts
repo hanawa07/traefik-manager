@@ -58,6 +58,10 @@ export interface AuditManagerHealthSummary {
   window_minutes: number;
   unhealthy_count: number;
   recovered_count: number;
+  docker_unhealthy_count: number;
+  docker_recovered_count: number;
+  watchdog_unhealthy_count: number;
+  watchdog_recovered_count: number;
 }
 
 export interface AuditDeliveryRetryResult {

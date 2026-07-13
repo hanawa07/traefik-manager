@@ -58,6 +58,10 @@ class AuditManagerHealthSummaryResponse(BaseModel):
     window_minutes: int
     unhealthy_count: int
     recovered_count: int
+    docker_unhealthy_count: int
+    docker_recovered_count: int
+    watchdog_unhealthy_count: int
+    watchdog_recovered_count: int
 
 
 class AuditDeliveryRetryResponse(BaseModel):

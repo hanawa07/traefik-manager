@@ -53,6 +53,14 @@ export function isAuditFilterKey(value: string | null): value is AuditFilterKey 
   return auditFilters.some((filter) => filter.key === value);
 }
 
+export function isDeliveryStatusKey(value: string | null): value is DeliveryStatusKey {
+  return deliveryStatusOptions.some((option) => option.key === value);
+}
+
+export function isDeliveryProviderKey(value: string | null): value is DeliveryProviderKey {
+  return deliveryProviderOptions.some((option) => option.key === value);
+}
+
 export function parseManagerHealthWindowMinutes(
   value: string | null,
 ): ManagerHealthWindowMinutes {

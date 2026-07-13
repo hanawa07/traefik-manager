@@ -15,7 +15,7 @@ interface AuditLogFiltersProps {
   selectedFilter: AuditFilterKey;
   selectedDeliveryStatus: DeliveryStatusKey;
   selectedDeliveryProvider: DeliveryProviderKey;
-  managerHealthCounts?: { unhealthy: number; recovered: number };
+  managerHealthCounts?: { unhealthy: number; recovered: number; docker: number; watchdog: number };
   managerHealthWindowMinutes: ManagerHealthWindowMinutes;
   onFilterChange: (filter: AuditFilterKey) => void;
   onManagerHealthWindowChange: (minutes: ManagerHealthWindowMinutes) => void;
@@ -64,6 +64,16 @@ export function AuditLogFilters({
                     {managerHealthCounts.recovered}
                   </span>
                 ) : null}
+                {filter.key === "manager_docker" && managerHealthCounts ? (
+                  <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-700 dark:bg-sky-500/20 dark:text-sky-200">
+                    {managerHealthCounts.docker}
+                  </span>
+                ) : null}
+                {filter.key === "manager_watchdog" && managerHealthCounts ? (
+                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-500/20 dark:text-amber-200">
+                    {managerHealthCounts.watchdog}
+                  </span>
+                ) : null}
               </span>
             </button>
           );
@@ -93,6 +103,7 @@ export function AuditLogFilters({
         <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
           <span className="text-slate-500 dark:text-slate-400">전송 상태</span>
           <select
+            aria-label="전송 상태"
             value={selectedDeliveryStatus}
             onChange={(event) => onDeliveryStatusChange(event.target.value as DeliveryStatusKey)}
             className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
@@ -107,6 +118,7 @@ export function AuditLogFilters({
         <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
           <span className="text-slate-500 dark:text-slate-400">채널</span>
           <select
+            aria-label="알림 채널"
             value={selectedDeliveryProvider}
             onChange={(event) => onDeliveryProviderChange(event.target.value as DeliveryProviderKey)}
             className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"

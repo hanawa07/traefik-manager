@@ -34,27 +34,51 @@ export async function checkOptionalAdminModal({ artifactDir, cdp, profile, timeo
   return true;
 }
 
-export async function checkAuditPeriodPersistence({ cdp, timeoutMs }) {
+export async function checkAuditFilterPersistence({ cdp, timeoutMs }) {
   const changed = await evaluate(cdp, `(() => {
-    const select = document.querySelector('select[aria-label="Manager 집계 기간"]');
-    if (!select) return false;
-    select.value = '1440';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    return true;
+    const changeSelect = (label, value) => {
+      const select = document.querySelector('select[aria-label="' + label + '"]');
+      if (!select) return false;
+      select.value = value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    };
+    const watchdog = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Watchdog')
+    );
+    watchdog?.click();
+    return Boolean(watchdog) &&
+      changeSelect('전송 상태', 'failure') &&
+      changeSelect('알림 채널', 'telegram') &&
+      changeSelect('Manager 집계 기간', '1440');
   })()`);
-  assert.equal(changed, true, "Manager 집계 기간 선택기를 찾지 못했습니다");
+  assert.equal(changed, true, "감사 로그 필터를 변경하지 못했습니다");
   await waitForCondition(
     cdp,
-    `new URLSearchParams(location.search).get('manager_window') === '1440'`,
+    `(() => {
+      const params = new URLSearchParams(location.search);
+      return params.get('filter') === 'manager_watchdog' &&
+        params.get('delivery_status') === 'failure' &&
+        params.get('delivery_provider') === 'telegram' &&
+        params.get('manager_window') === '1440';
+    })()`,
     timeoutMs,
-    "Manager 집계 기간이 URL에 저장되지 않았습니다",
+    "감사 로그 필터가 URL에 저장되지 않았습니다",
   );
   await cdp.send("Page.reload", { ignoreCache: true });
   await waitForCondition(
     cdp,
-    `document.querySelector('select[aria-label="Manager 집계 기간"]')?.value === '1440'`,
+    `(() => {
+      const watchdog = Array.from(document.querySelectorAll('button')).find(
+        (button) => button.textContent?.includes('Watchdog')
+      );
+      return watchdog?.getAttribute('aria-pressed') === 'true' &&
+        document.querySelector('select[aria-label="전송 상태"]')?.value === 'failure' &&
+        document.querySelector('select[aria-label="알림 채널"]')?.value === 'telegram' &&
+        document.querySelector('select[aria-label="Manager 집계 기간"]')?.value === '1440';
+    })()`,
     timeoutMs,
-    "새로고침 후 Manager 집계 기간이 복원되지 않았습니다",
+    "새로고침 후 감사 로그 필터가 복원되지 않았습니다",
   );
   return true;
 }
