@@ -29,7 +29,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
         }
         if (route.path === "/dashboard/audit") {
           await checkAuditFilterPersistence({ cdp, profile, timeoutMs });
-          labels.push(`${profile.label} 감사 필터 조합·레이아웃`);
+          labels.push(`${profile.label} 감사 필터 조합·자동 펼침·레이아웃`);
         }
         if (route.path === "/dashboard/settings") {
           const previewed = await checkManagerHttpErrorPreviewForm({
