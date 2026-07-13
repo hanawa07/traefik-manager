@@ -1,4 +1,7 @@
+"use client";
+
 import { ExternalLink } from "lucide-react";
+import { useState } from "react";
 
 import type { DeploymentInfo } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
@@ -8,6 +11,9 @@ import {
   isExternalWatchdogRunFailure,
 } from "./managerWatchdogStatus";
 
+type WatchdogEventFilter = "all" | "failure" | "recovery";
+type WatchdogResultFilter = "all" | "success" | "failure" | "pending";
+
 export function ManagerWatchdogAlertHistory({
   deployment,
   timezone,
@@ -16,6 +22,13 @@ export function ManagerWatchdogAlertHistory({
   timezone?: string;
 }) {
   const runs = deployment?.external_watchdog_alert_runs || [];
+  const [eventFilter, setEventFilter] = useState<WatchdogEventFilter>("all");
+  const [resultFilter, setResultFilter] = useState<WatchdogResultFilter>("all");
+  const filteredRuns = runs.filter(
+    (run) =>
+      (eventFilter === "all" || run.event === eventFilter) &&
+      matchesResultFilter(run, resultFilter),
+  );
 
   return (
     <div className="mt-3 rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
@@ -28,11 +41,50 @@ export function ManagerWatchdogAlertHistory({
         </p>
       </div>
 
+      <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg bg-slate-50 p-2 dark:bg-slate-900">
+        <label className="grid gap-1 text-[11px] text-gray-500 dark:text-slate-400">
+          알림 종류
+          <select
+            aria-label="watchdog 알림 종류 필터"
+            className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            disabled={runs.length === 0}
+            onChange={(event) => setEventFilter(event.target.value as WatchdogEventFilter)}
+            value={eventFilter}
+          >
+            <option value="all">전체</option>
+            <option value="failure">장애 알림</option>
+            <option value="recovery">복구 알림</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-[11px] text-gray-500 dark:text-slate-400">
+          실행 결과
+          <select
+            aria-label="watchdog 실행 결과 필터"
+            className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            disabled={runs.length === 0}
+            onChange={(event) => setResultFilter(event.target.value as WatchdogResultFilter)}
+            value={resultFilter}
+          >
+            <option value="all">전체</option>
+            <option value="success">성공</option>
+            <option value="failure">실패</option>
+            <option value="pending">진행·확인 중</option>
+          </select>
+        </label>
+        <span className="ml-auto text-[11px] text-gray-500 dark:text-slate-400">
+          {filteredRuns.length}/{runs.length}건
+        </span>
+      </div>
+
       {runs.length === 0 ? (
         <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">아직 실행 기록이 없습니다.</p>
+      ) : filteredRuns.length === 0 ? (
+        <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
+          선택한 조건에 맞는 실행 기록이 없습니다.
+        </p>
       ) : (
         <ul className="mt-3 divide-y divide-gray-100 dark:divide-slate-800">
-          {runs.map((run) => {
+          {filteredRuns.map((run) => {
             const failed = isExternalWatchdogRunFailure(run.conclusion);
             return (
               <li className="flex flex-wrap items-start gap-2 py-3 text-xs" key={run.run_url}>
@@ -83,4 +135,14 @@ export function ManagerWatchdogAlertHistory({
       )}
     </div>
   );
+}
+
+function matchesResultFilter(
+  run: DeploymentInfo["external_watchdog_alert_runs"][number],
+  filter: WatchdogResultFilter,
+) {
+  if (filter === "all") return true;
+  if (filter === "success") return run.conclusion === "success";
+  if (filter === "failure") return isExternalWatchdogRunFailure(run.conclusion);
+  return run.status !== "completed";
 }
