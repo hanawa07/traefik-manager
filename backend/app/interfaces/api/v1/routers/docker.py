@@ -1,5 +1,3 @@
-from typing import Literal
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +15,7 @@ from app.interfaces.api.v1.schemas.docker_schemas import (
 )
 
 router = APIRouter()
+MANAGER_HTTP_ERROR_WINDOW_OPTIONS = {6, 12, 24}
 
 
 def get_docker_client() -> DockerClient:
@@ -43,11 +42,16 @@ async def list_containers(
     summary="Traefik Manager API 오류 추이",
 )
 async def get_manager_http_errors(
-    window_hours: Literal[6, 12, 24] = 24,
+    window_hours: int = Query(default=24, ge=6, le=24),
     path: str | None = Query(default=None, max_length=200),
     docker_client: DockerClient = Depends(get_docker_client),
     _: dict = Depends(get_current_user),
 ):
+    if window_hours not in MANAGER_HTTP_ERROR_WINDOW_OPTIONS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="조회 기간은 6, 12, 24시간만 선택할 수 있습니다",
+        )
     try:
         return await docker_client.get_manager_http_error_summary(
             window_hours=window_hours,

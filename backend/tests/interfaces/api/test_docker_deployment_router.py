@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 
 import pytest
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 
 from app.interfaces.api.v1.routers import docker
 
@@ -22,6 +24,59 @@ async def test_manager_http_errors_forwards_period_and_path_filter() -> None:
         "window_hours": 6,
         "path_filter": "/api/v1/services",
     }
+
+
+@pytest.mark.asyncio
+async def test_manager_http_errors_accepts_integer_query_value() -> None:
+    captured: dict[str, object] = {}
+
+    class FakeDockerClient:
+        async def get_manager_http_error_summary(self, **kwargs):
+            captured.update(kwargs)
+            return {
+                "available": True,
+                "message": "집계 완료",
+                "window_hours": kwargs["window_hours"],
+                "path_filter": kwargs["path_filter"],
+                "checked_at": datetime(2026, 7, 14, tzinfo=timezone.utc),
+                "observed_since": None,
+                "not_found_count": 0,
+                "server_error_count": 0,
+                "buckets": [],
+                "top_paths": [],
+            }
+
+    app = FastAPI()
+    app.include_router(docker.router)
+    app.dependency_overrides[docker.get_current_user] = lambda: {"username": "admin"}
+    app.dependency_overrides[docker.get_docker_client] = FakeDockerClient
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.get(
+            "/http-errors",
+            params={"window_hours": "6", "path": "services"},
+        )
+
+    assert response.status_code == 200
+    assert captured == {"window_hours": 6, "path_filter": "services"}
+
+
+@pytest.mark.asyncio
+async def test_manager_http_errors_rejects_unsupported_period() -> None:
+    app = FastAPI()
+    app.include_router(docker.router)
+    app.dependency_overrides[docker.get_current_user] = lambda: {"username": "admin"}
+    app.dependency_overrides[docker.get_docker_client] = lambda: object()
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.get("/http-errors", params={"window_hours": "7"})
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "조회 기간은 6, 12, 24시간만 선택할 수 있습니다"
 
 
 @pytest.mark.asyncio
