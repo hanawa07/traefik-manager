@@ -7,10 +7,19 @@ from sqlalchemy.sql.elements import ColumnElement
 from app.infrastructure.persistence.models import AuditLogModel
 
 SECURITY_EVENTS = {"login_failure", "login_locked", "login_suspicious", "login_blocked_ip"}
-MANAGER_UNHEALTHY_EVENTS = {"manager_docker_unhealthy", "manager_watchdog_stale"}
-MANAGER_RECOVERED_EVENTS = {"manager_docker_recovered", "manager_watchdog_recovered"}
+MANAGER_UNHEALTHY_EVENTS = {
+    "manager_docker_unhealthy",
+    "manager_http_errors_high",
+    "manager_watchdog_stale",
+}
+MANAGER_RECOVERED_EVENTS = {
+    "manager_docker_recovered",
+    "manager_http_errors_recovered",
+    "manager_watchdog_recovered",
+}
 MANAGER_SOURCE_EVENTS = {
     "docker": {"manager_docker_unhealthy", "manager_docker_recovered"},
+    "api": {"manager_http_errors_high", "manager_http_errors_recovered"},
     "watchdog": {"manager_watchdog_stale", "manager_watchdog_recovered"},
 }
 

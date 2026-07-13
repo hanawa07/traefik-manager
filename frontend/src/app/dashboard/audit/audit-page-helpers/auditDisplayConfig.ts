@@ -78,6 +78,8 @@ export const securityEventConfig: Record<string, BadgeConfig> = {
   change_alert_delivery_failure: { label: "운영 변경 알림 전송 실패", color: "bg-red-50 text-red-700 border-red-200" },
   manager_docker_unhealthy: { label: "Manager Docker 이상", color: "bg-rose-50 text-rose-700 border-rose-200" },
   manager_docker_recovered: { label: "Manager Docker 복구", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  manager_http_errors_high: { label: "Manager API 오류 임계치 초과", color: "bg-rose-50 text-rose-700 border-rose-200" },
+  manager_http_errors_recovered: { label: "Manager API 오류 정상화", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   manager_watchdog_stale: { label: "Manager Watchdog 지연", color: "bg-amber-50 text-amber-700 border-amber-200" },
   manager_watchdog_recovered: { label: "Manager Watchdog 복구", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   service_create: { label: "서비스 생성", color: "bg-sky-50 text-sky-700 border-sky-200" },

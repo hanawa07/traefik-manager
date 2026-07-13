@@ -28,7 +28,7 @@ export function ManagerHealthHistoryCard({
             </h2>
           </div>
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-            Backend·Frontend Docker와 외부 watchdog에서 감지한 최근 이상과 복구 기록입니다.
+            Backend·Frontend Docker, Manager API와 외부 watchdog의 최근 이상·복구 기록입니다.
           </p>
         </div>
         <Link
@@ -59,13 +59,24 @@ export function ManagerHealthHistoryCard({
 function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezone?: string }) {
   const event = getDetailString(log, "event") ?? log.event;
   const isWatchdog = event === "manager_watchdog_stale" || event === "manager_watchdog_recovered";
-  const isRecovery = event === "manager_docker_recovered" || event === "manager_watchdog_recovered";
-  const statusLabel = isWatchdog
-    ? `갱신 ${isRecovery ? "복구" : "지연"}`
-    : `Docker ${isRecovery ? "복구" : "이상"}`;
+  const isApi = event === "manager_http_errors_high" || event === "manager_http_errors_recovered";
+  const isRecovery =
+    event === "manager_docker_recovered" ||
+    event === "manager_http_errors_recovered" ||
+    event === "manager_watchdog_recovered";
+  const statusLabel = isApi
+    ? `오류 ${isRecovery ? "정상화" : "임계치 초과"}`
+    : isWatchdog
+      ? `갱신 ${isRecovery ? "복구" : "지연"}`
+      : `Docker ${isRecovery ? "복구" : "이상"}`;
   const component = getComponentLabel(log.resource_name || log.resource_id);
   const failingStreak = getDetailNumber(log, "failing_streak");
   const exitCode = getDetailNumber(log, "last_exit_code");
+  const windowMinutes = getDetailNumber(log, "window_minutes");
+  const notFoundCount = getDetailNumber(log, "not_found_count");
+  const notFoundThreshold = getDetailNumber(log, "not_found_threshold");
+  const serverErrorCount = getDetailNumber(log, "server_error_count");
+  const serverErrorThreshold = getDetailNumber(log, "server_error_threshold");
 
   return (
     <div className="flex flex-col gap-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-950">
@@ -80,7 +91,13 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
             {component} {statusLabel}
           </p>
         </div>
-        {!isRecovery && !isWatchdog ? (
+        {!isRecovery && isApi ? (
+          <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+            404 {notFoundCount ?? "-"}/{notFoundThreshold ?? "-"} · 5xx {serverErrorCount ?? "-"}/
+            {serverErrorThreshold ?? "-"} · 최근 {windowMinutes ?? "-"}분
+          </p>
+        ) : null}
+        {!isRecovery && !isWatchdog && !isApi ? (
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
             연속 실패 {failingStreak ?? "-"}회 · 종료 코드 {exitCode ?? "-"}
           </p>

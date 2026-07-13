@@ -60,6 +60,8 @@ class AuditManagerHealthSummaryResponse(BaseModel):
     recovered_count: int
     docker_unhealthy_count: int
     docker_recovered_count: int
+    api_unhealthy_count: int
+    api_recovered_count: int
     watchdog_unhealthy_count: int
     watchdog_recovered_count: int
 

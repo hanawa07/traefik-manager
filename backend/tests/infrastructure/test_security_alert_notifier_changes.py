@@ -287,7 +287,7 @@ async def test_notify_if_needed_posts_manager_http_error_threshold_to_telegram(m
     posted = []
     audit_log = make_audit_log(
         "manager_http_errors_high",
-        resource_type="manager_http",
+        resource_type="manager_component",
         resource_id="backend-api",
         resource_name="Manager API",
     )

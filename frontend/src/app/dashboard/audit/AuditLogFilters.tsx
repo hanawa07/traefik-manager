@@ -382,6 +382,12 @@ function getManagerCountLabel(
         : status === "unhealthy"
           ? counts.docker_unhealthy_count
           : counts.docker_recovered_count,
+    api:
+      status === "all"
+        ? counts.api_unhealthy_count + counts.api_recovered_count
+        : status === "unhealthy"
+          ? counts.api_unhealthy_count
+          : counts.api_recovered_count,
     watchdog:
       status === "all"
         ? counts.watchdog_unhealthy_count + counts.watchdog_recovered_count
@@ -390,6 +396,8 @@ function getManagerCountLabel(
           : counts.watchdog_recovered_count,
   };
   const total =
-    source === "all" ? sourceCounts.docker + sourceCounts.watchdog : sourceCounts[source];
+    source === "all"
+      ? sourceCounts.docker + sourceCounts.api + sourceCounts.watchdog
+      : sourceCounts[source];
   return ` (${total})`;
 }

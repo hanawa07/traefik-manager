@@ -58,7 +58,7 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
 
   const selectChanges = [
     ["감사 기간", "7", "period"],
-    ["Manager 소스", "watchdog", "manager_source"],
+    ["Manager 소스", "api", "manager_source"],
     ["Manager 상태", "unhealthy", "manager_status"],
     ["전송 상태", "failure", "delivery_status"],
     ["알림 채널", "telegram", "delivery_provider"],
@@ -97,7 +97,7 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
       );
       return manager?.getAttribute('aria-pressed') === 'true' &&
         document.querySelector('input[aria-label="감사 로그 검색"]')?.value === 'lizstudio' &&
-        document.querySelector('select[aria-label="Manager 소스"]')?.value === 'watchdog' &&
+        document.querySelector('select[aria-label="Manager 소스"]')?.value === 'api' &&
         document.querySelector('select[aria-label="Manager 상태"]')?.value === 'unhealthy' &&
         document.querySelector('select[aria-label="전송 상태"]')?.value === 'failure' &&
         document.querySelector('select[aria-label="알림 채널"]')?.value === 'telegram' &&
@@ -308,7 +308,7 @@ async function assertManagerCrossCount(cdp, timeoutMs) {
     const response = await fetch('/api/v1/audit/manager-health-summary?window_minutes=1440');
     if (!response.ok) return null;
     const summary = await response.json();
-    return summary.watchdog_unhealthy_count;
+    return summary.api_unhealthy_count;
   })()`);
   assert.equal(typeof count, "number", "Manager 교차 집계 API 수치를 확인하지 못했습니다");
   const expected = `(${count})`;
@@ -317,7 +317,7 @@ async function assertManagerCrossCount(cdp, timeoutMs) {
     `(() => {
       const source = document.querySelector('select[aria-label="Manager 소스"]');
       const status = document.querySelector('select[aria-label="Manager 상태"]');
-      const sourceText = Array.from(source?.options || []).find((option) => option.value === 'watchdog')?.textContent || '';
+      const sourceText = Array.from(source?.options || []).find((option) => option.value === 'api')?.textContent || '';
       const statusText = Array.from(status?.options || []).find((option) => option.value === 'unhealthy')?.textContent || '';
       return sourceText.includes(${JSON.stringify(expected)}) && statusText.includes(${JSON.stringify(expected)});
     })()`,

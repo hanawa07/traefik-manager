@@ -114,6 +114,7 @@ async def test_manager_http_error_monitor_alerts_cools_down_and_recovers(monkeyp
         "manager_http_errors_high",
         "manager_http_errors_recovered",
     ]
+    assert {item["resource_type"] for item in recorded} == {"manager_component"}
     state = json.loads(
         StubSettingsRepository.store[
             manager_http_error_monitor.MANAGER_HTTP_ERROR_STATE_KEY

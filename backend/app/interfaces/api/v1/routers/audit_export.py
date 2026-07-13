@@ -35,7 +35,7 @@ async def export_audit_logs(
     action: str | None = Query(None),
     event: str | None = Query(None),
     manager_status: Literal["unhealthy", "recovered"] | None = Query(None),
-    manager_source: Literal["docker", "watchdog"] | None = Query(None),
+    manager_source: Literal["docker", "api", "watchdog"] | None = Query(None),
     period_days: int | None = Query(None),
     start_date: date | None = Query(None),
     end_date: date | None = Query(None),

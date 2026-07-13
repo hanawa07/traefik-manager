@@ -23,7 +23,7 @@ export interface AuditLogQueryParams {
   action?: string;
   event?: string;
   manager_status?: "unhealthy" | "recovered";
-  manager_source?: "docker" | "watchdog";
+  manager_source?: "docker" | "api" | "watchdog";
   period_days?: 1 | 7 | 30 | 90;
   start_date?: string;
   end_date?: string;
@@ -90,6 +90,8 @@ export interface AuditManagerHealthSummary {
   recovered_count: number;
   docker_unhealthy_count: number;
   docker_recovered_count: number;
+  api_unhealthy_count: number;
+  api_recovered_count: number;
   watchdog_unhealthy_count: number;
   watchdog_recovered_count: number;
 }

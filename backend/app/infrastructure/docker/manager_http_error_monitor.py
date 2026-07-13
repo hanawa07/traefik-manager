@@ -96,7 +96,7 @@ async def check_manager_http_errors_once(
                 db=session,
                 actor="system",
                 action="alert",
-                resource_type="manager_http",
+                resource_type="manager_component",
                 resource_id="backend-api",
                 resource_name="Manager API",
                 detail={

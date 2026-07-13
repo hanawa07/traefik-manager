@@ -40,7 +40,7 @@ async def list_audit_logs(
     action: Optional[str] = Query(None),
     event: Optional[str] = Query(None),
     manager_status: Optional[Literal["unhealthy", "recovered"]] = Query(None),
-    manager_source: Optional[Literal["docker", "watchdog"]] = Query(None),
+    manager_source: Optional[Literal["docker", "api", "watchdog"]] = Query(None),
     period_days: Optional[int] = Query(None),
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),

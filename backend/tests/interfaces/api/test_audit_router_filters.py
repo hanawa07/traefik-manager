@@ -59,6 +59,38 @@ async def test_list_audit_logs_parses_period_days_from_http_query(audit_db):
 
 
 @pytest.mark.asyncio
+async def test_list_audit_logs_accepts_api_manager_source_from_http_query(audit_db):
+    now = datetime.now(timezone.utc)
+    await seed_logs(
+        audit_db,
+        [
+            make_log(
+                event="manager_http_errors_high",
+                resource_type="manager_component",
+                created_at=now,
+            ),
+            make_log(
+                event="manager_docker_unhealthy",
+                resource_type="manager_component",
+                created_at=now,
+            ),
+        ],
+    )
+    app = FastAPI()
+    app.include_router(audit_router.router, prefix="/audit")
+    app.dependency_overrides[audit_router.get_db] = lambda: audit_db
+    app.dependency_overrides[audit_router.get_current_user] = lambda: {"username": "admin"}
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/audit", params={"manager_source": "api"})
+        invalid_response = await client.get("/audit", params={"manager_source": "http"})
+
+    assert response.status_code == 200
+    assert [item["event"] for item in response.json()] == ["manager_http_errors_high"]
+    assert invalid_response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_list_audit_logs_filters_by_event_and_applies_pagination(audit_db):
     now = datetime.now(timezone.utc)
     await seed_logs(
@@ -216,8 +248,22 @@ async def test_list_audit_logs_filters_by_delivery_status_and_provider(audit_db)
 @pytest.mark.parametrize(
     ("manager_status", "expected_events"),
     [
-        ("unhealthy", {"manager_docker_unhealthy", "manager_watchdog_stale"}),
-        ("recovered", {"manager_docker_recovered", "manager_watchdog_recovered"}),
+        (
+            "unhealthy",
+            {
+                "manager_docker_unhealthy",
+                "manager_http_errors_high",
+                "manager_watchdog_stale",
+            },
+        ),
+        (
+            "recovered",
+            {
+                "manager_docker_recovered",
+                "manager_http_errors_recovered",
+                "manager_watchdog_recovered",
+            },
+        ),
     ],
 )
 async def test_list_audit_logs_filters_manager_status(audit_db, manager_status, expected_events):
@@ -259,6 +305,7 @@ async def test_list_audit_logs_filters_manager_status(audit_db, manager_status, 
     ("manager_source", "expected_events"),
     [
         ("docker", {"manager_docker_unhealthy", "manager_docker_recovered"}),
+        ("api", {"manager_http_errors_high", "manager_http_errors_recovered"}),
         ("watchdog", {"manager_watchdog_stale", "manager_watchdog_recovered"}),
     ],
 )
@@ -267,6 +314,8 @@ async def test_list_audit_logs_filters_manager_source(audit_db, manager_source, 
     all_events = {
         "manager_docker_unhealthy",
         "manager_docker_recovered",
+        "manager_http_errors_high",
+        "manager_http_errors_recovered",
         "manager_watchdog_stale",
         "manager_watchdog_recovered",
     }

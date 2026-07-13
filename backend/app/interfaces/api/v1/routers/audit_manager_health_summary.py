@@ -27,6 +27,8 @@ def build_manager_health_summary(
         recovered_count=sum(event in MANAGER_RECOVERED_EVENTS for event in events),
         docker_unhealthy_count=events.count("manager_docker_unhealthy"),
         docker_recovered_count=events.count("manager_docker_recovered"),
+        api_unhealthy_count=events.count("manager_http_errors_high"),
+        api_recovered_count=events.count("manager_http_errors_recovered"),
         watchdog_unhealthy_count=events.count("manager_watchdog_stale"),
         watchdog_recovered_count=events.count("manager_watchdog_recovered"),
     )
