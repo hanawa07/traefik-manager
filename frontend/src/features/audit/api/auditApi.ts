@@ -81,6 +81,7 @@ export const auditApi = {
     event?: string;
     manager_status?: "unhealthy" | "recovered";
     manager_source?: "docker" | "watchdog";
+    search?: string;
     security_only?: boolean;
     provider?: string;
     delivery_success?: boolean;

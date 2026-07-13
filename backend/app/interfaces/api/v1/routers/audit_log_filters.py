@@ -22,6 +22,7 @@ def filter_audit_logs(
     event: str | None,
     manager_status: str | None,
     manager_source: str | None,
+    search: str | None,
     security_only: bool,
     provider: str | None,
     delivery_success: bool | None,
@@ -43,6 +44,15 @@ def filter_audit_logs(
     if manager_source:
         filtered = [
             log for log in filtered if get_event(log) in MANAGER_SOURCE_EVENTS[manager_source]
+        ]
+    if search_text := (search or "").strip().casefold():
+        filtered = [
+            log
+            for log in filtered
+            if any(
+                search_text in str(value or "").casefold()
+                for value in (log.actor, log.resource_name, log.resource_id)
+            )
         ]
     if provider:
         filtered = [log for log in filtered if get_detail_str(log, "provider") == provider]

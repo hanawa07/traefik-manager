@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 
 import { useAudit, useManagerHealthSummary } from "@/features/audit/hooks/useAudit";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
@@ -34,6 +34,9 @@ export function useAuditLogPageModel() {
       ? "manager_health"
       : "all";
   const [selectedFilter, setSelectedFilter] = useState<AuditFilterKey>(initialFilter);
+  const [searchText, setSearchText] = useState(() =>
+    (searchParams.get("q") || "").slice(0, 100),
+  );
   const [selectedManagerSource, setSelectedManagerSource] = useState<ManagerSourceKey>(() => {
     const value = searchParams.get("manager_source");
     if (isManagerSourceKey(value)) return value;
@@ -66,6 +69,7 @@ export function useAuditLogPageModel() {
       parseManagerHealthWindowMinutes(searchParams.get("manager_window")),
     );
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const deferredSearchText = useDeferredValue(searchText.trim());
 
   const auditQuery = buildAuditLogQuery({
     selectedDeliveryProvider,
@@ -73,6 +77,7 @@ export function useAuditLogPageModel() {
     selectedFilter,
     selectedManagerSource,
     selectedManagerStatus,
+    searchText: deferredSearchText,
   });
   const { data: logs, isLoading, isFetching, isError, error } = useAudit(auditQuery);
   const { data: managerHealthSummary } = useManagerHealthSummary(managerHealthWindowMinutes);
@@ -119,6 +124,22 @@ export function useAuditLogPageModel() {
     setManagerHealthWindowMinutes(minutes);
     replaceAuditQueryParam("manager_window", String(minutes), "10080");
   };
+  const handleSearchTextChange = (value: string) => {
+    const nextValue = value.slice(0, 100);
+    setSearchText(nextValue);
+    replaceAuditQueryParam("q", nextValue, "");
+  };
+  const handleResetFilters = () => {
+    setSelectedFilter("all");
+    setSelectedManagerSource("all");
+    setSelectedManagerStatus("all");
+    setSelectedDeliveryStatus("all");
+    setSelectedDeliveryProvider("all");
+    setManagerHealthWindowMinutes(10080);
+    setSearchText("");
+    setExpandedLogId(null);
+    window.history.replaceState(null, "", window.location.pathname);
+  };
 
   return {
     deliveryFeedback: auditActions.deliveryFeedback,
@@ -129,6 +150,7 @@ export function useAuditLogPageModel() {
       selectedFilter,
       selectedManagerSource,
       selectedManagerStatus,
+      searchText,
       managerHealthCounts: managerHealthSummary,
       managerHealthWindowMinutes,
       onDeliveryProviderChange: handleDeliveryProviderChange,
@@ -137,6 +159,8 @@ export function useAuditLogPageModel() {
       onManagerSourceChange: handleManagerSourceChange,
       onManagerStatusChange: handleManagerStatusChange,
       onManagerHealthWindowChange: handleManagerHealthWindowChange,
+      onResetFilters: handleResetFilters,
+      onSearchTextChange: handleSearchTextChange,
     },
     isError,
     isLoading,

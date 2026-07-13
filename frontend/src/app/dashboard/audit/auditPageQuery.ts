@@ -15,6 +15,7 @@ interface AuditLogQuery {
   manager_source?: "docker" | "watchdog";
   provider?: string;
   resource_type?: string;
+  search?: string;
   security_only?: boolean;
 }
 
@@ -24,6 +25,7 @@ interface BuildAuditLogQueryArgs {
   selectedFilter: AuditFilterKey;
   selectedManagerSource: ManagerSourceKey;
   selectedManagerStatus: ManagerStatusKey;
+  searchText: string;
 }
 
 export function buildAuditLogQuery({
@@ -32,12 +34,14 @@ export function buildAuditLogQuery({
   selectedFilter,
   selectedManagerSource,
   selectedManagerStatus,
+  searchText,
 }: BuildAuditLogQueryArgs): AuditLogQuery {
   return {
     ...buildFilterQuery(selectedFilter, selectedManagerSource, selectedManagerStatus),
     provider: selectedDeliveryProvider === "all" ? undefined : selectedDeliveryProvider,
     delivery_success:
       selectedDeliveryStatus === "all" ? undefined : selectedDeliveryStatus === "success",
+    search: searchText || undefined,
   };
 }
 

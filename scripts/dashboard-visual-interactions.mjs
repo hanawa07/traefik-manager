@@ -45,6 +45,8 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
   })()`);
   assert.equal(managerFound, true, "감사 로그 Manager 필터를 찾지 못했습니다");
   await waitForQueryParam(cdp, "filter", "manager_health", timeoutMs);
+  await changeTextInput(cdp, "감사 로그 검색", "lizstudio");
+  await waitForQueryParam(cdp, "q", "lizstudio", timeoutMs);
 
   const selectChanges = [
     ["Manager 소스", "watchdog", "manager_source"],
@@ -71,6 +73,12 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
     await waitForQueryParam(cdp, queryKey, value, timeoutMs);
   }
   await assertManagerCrossCount(cdp, timeoutMs);
+  await waitForCondition(
+    cdp,
+    `document.body.textContent?.includes('검색: lizstudio') && document.body.textContent?.includes('상태: 이상')`,
+    timeoutMs,
+    "감사 로그 적용 조건 요약이 표시되지 않았습니다",
+  );
   await cdp.send("Page.reload", { ignoreCache: true });
   await waitForCondition(
     cdp,
@@ -79,6 +87,7 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
         (button) => button.textContent?.includes('Manager 전체')
       );
       return manager?.getAttribute('aria-pressed') === 'true' &&
+        document.querySelector('input[aria-label="감사 로그 검색"]')?.value === 'lizstudio' &&
         document.querySelector('select[aria-label="Manager 소스"]')?.value === 'watchdog' &&
         document.querySelector('select[aria-label="Manager 상태"]')?.value === 'unhealthy' &&
         document.querySelector('select[aria-label="전송 상태"]')?.value === 'failure' &&
@@ -87,6 +96,26 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
     })()`,
     timeoutMs,
     "새로고침 후 감사 로그 필터가 복원되지 않았습니다",
+  );
+  await clickAriaLabel(cdp, "감사 필터 전체 초기화");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const all = Array.from(document.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '전체'
+      );
+      return location.search === '' &&
+        all?.getAttribute('aria-pressed') === 'true' &&
+        document.querySelector('input[aria-label="감사 로그 검색"]')?.value === '' &&
+        document.querySelector('select[aria-label="Manager 소스"]')?.value === 'all' &&
+        document.querySelector('select[aria-label="Manager 상태"]')?.value === 'all' &&
+        document.querySelector('select[aria-label="전송 상태"]')?.value === 'all' &&
+        document.querySelector('select[aria-label="알림 채널"]')?.value === 'all' &&
+        document.querySelector('select[aria-label="Manager 집계 기간"]')?.value === '10080' &&
+        document.body.textContent?.includes('전체 로그');
+    })()`,
+    timeoutMs,
+    "감사 로그 전체 초기화가 기본값을 복원하지 못했습니다",
   );
   return true;
 }
@@ -100,9 +129,15 @@ async function assertAuditFilterLayout(cdp, mobile) {
       const rect = label?.getBoundingClientRect();
       return rect ? { top: Math.round(rect.top), width: rect.width } : null;
     }).filter(Boolean);
+    const searchRect = document.querySelector('input[aria-label="감사 로그 검색"]')
+      ?.closest('label')?.getBoundingClientRect();
+    const resetRect = document.querySelector('button[aria-label="감사 필터 전체 초기화"]')
+      ?.getBoundingClientRect();
     return {
       documentWidth: document.documentElement.scrollWidth,
       fields,
+      resetWidth: resetRect?.width || 0,
+      searchWidth: searchRect?.width || 0,
       viewportWidth: window.innerWidth,
     };
   })()`);
@@ -117,6 +152,11 @@ async function assertAuditFilterLayout(cdp, mobile) {
     assert.ok(
       snapshot.fields.every((field) => field.width >= snapshot.viewportWidth * 0.8),
       "모바일 감사 로그 필터 너비가 너무 좁습니다",
+    );
+    assert.ok(
+      snapshot.searchWidth >= snapshot.viewportWidth * 0.8 &&
+        snapshot.resetWidth >= snapshot.viewportWidth * 0.8,
+      "모바일 감사 로그 검색과 초기화 버튼 너비가 너무 좁습니다",
     );
   } else {
     assert.equal(rowCount, 1, "데스크톱 감사 로그 필터가 한 행으로 배치되지 않았습니다");
@@ -153,6 +193,18 @@ async function waitForQueryParam(cdp, key, value, timeoutMs) {
     timeoutMs,
     `감사 로그 ${key} 필터가 URL에 저장되지 않았습니다`,
   );
+}
+
+async function changeTextInput(cdp, label, value) {
+  const changed = await evaluate(cdp, `(() => {
+    const input = document.querySelector(${JSON.stringify(`input[aria-label="${label}"]`)});
+    if (!input) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, ${JSON.stringify(value)});
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(changed, true, `${label}: 입력 필드를 찾지 못했습니다`);
 }
 
 export async function checkMobileSidebar({ artifactDir, cdp, profile, timeoutMs }) {
