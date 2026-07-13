@@ -55,6 +55,13 @@ export function buildAuditLogQuery({
   };
 }
 
+export function withoutAuditPagination(params: AuditLogQueryParams): AuditLogQueryParams {
+  const filters = { ...params };
+  delete filters.limit;
+  delete filters.offset;
+  return filters;
+}
+
 function buildFilterQuery(
   selectedFilter: AuditFilterKey,
   selectedManagerSource: ManagerSourceKey,

@@ -17,7 +17,7 @@ export default function AuditLogPage() {
 }
 
 function AuditLogPageContent() {
-  const { deliveryFeedback, errorMessage, filters, isError, isLoading, rollbackFeedback, table } =
+  const { deliveryFeedback, errorMessage, exportUrl, filters, isError, isLoading, rollbackFeedback, table } =
     useAuditLogPageModel();
 
   if (isLoading) {
@@ -36,7 +36,7 @@ function AuditLogPageContent() {
 
   return (
     <div className="mx-auto max-w-[1600px]">
-      <AuditLogPageHeader />
+      <AuditLogPageHeader exportUrl={exportUrl} />
 
       <AuditLogFilters {...filters} />
 

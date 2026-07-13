@@ -38,6 +38,14 @@ export interface AuditLogPage {
   total: number;
 }
 
+export function buildAuditExportUrl(params: AuditLogQueryParams): string {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined) query.set(key, String(value));
+  });
+  return `${process.env.NEXT_PUBLIC_API_URL || "/api/v1"}/audit/export.csv?${query}`;
+}
+
 export interface AuditSecurityEventItem {
   id: string;
   event: string;

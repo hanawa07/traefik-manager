@@ -10,8 +10,12 @@ from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.models import AuditLogModel
 from app.interfaces.api.dependencies import get_current_user, require_admin
+from app.interfaces.api.v1.routers.audit_export import router as audit_export_router
 from app.interfaces.api.v1.routers.audit_certificate_summary import build_certificate_summary
-from app.interfaces.api.v1.routers.audit_log_filters import build_audit_log_conditions
+from app.interfaces.api.v1.routers.audit_log_filters import (
+    build_audit_log_conditions,
+    validate_audit_log_filters,
+)
 from app.interfaces.api.v1.routers.audit_log_helpers import to_audit_log_response
 from app.interfaces.api.v1.routers.audit_manager_health_summary import build_manager_health_summary
 from app.interfaces.api.v1.routers.audit_security_summary import build_security_summary
@@ -24,6 +28,7 @@ from app.interfaces.api.v1.schemas.audit_schemas import (
 )
 
 router = APIRouter()
+router.include_router(audit_export_router)
 
 
 @router.get("", response_model=list[AuditLogResponse], summary="감사 로그 조회")
@@ -49,12 +54,11 @@ async def list_audit_logs(
     """
     시스템 변경 이력(감사 로그)을 최신순으로 조회합니다.
     """
-    if period_days is not None and period_days not in {1, 7, 30, 90}:
-        raise HTTPException(status_code=422, detail="기간은 1, 7, 30, 90일 중 하나여야 합니다")
-    if period_days and (start_date or end_date):
-        raise HTTPException(status_code=422, detail="상대 기간과 사용자 지정 날짜는 함께 쓸 수 없습니다")
-    if start_date and end_date and start_date > end_date:
-        raise HTTPException(status_code=422, detail="시작일은 종료일보다 늦을 수 없습니다")
+    validate_audit_log_filters(
+        period_days=period_days,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
     conditions = build_audit_log_conditions(
         resource_type=resource_type,

@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useDeferredValue, useState } from "react";
 
+import { buildAuditExportUrl } from "@/features/audit/api/auditApi";
 import { useAuditPage, useManagerHealthSummary } from "@/features/audit/hooks/useAudit";
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 
@@ -29,6 +30,7 @@ import {
   buildAuditLogQuery,
   parseAuditPageSize,
   type AuditPageSize,
+  withoutAuditPagination,
 } from "./auditPageQuery";
 
 const FALLBACK_AUDIT_LOAD_ERROR = "감사 로그를 불러오지 못했습니다. 서버 연결 상태를 확인해주세요.";
@@ -103,6 +105,7 @@ export function useAuditLogPageModel() {
     page: currentPage,
     pageSize,
   });
+  const exportUrl = buildAuditExportUrl(withoutAuditPagination(auditQuery));
   const { data: logPage, isLoading, isFetching, isError, error } = useAuditPage(auditQuery);
   const { data: managerHealthSummary } = useManagerHealthSummary(managerHealthWindowMinutes);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
@@ -210,6 +213,7 @@ export function useAuditLogPageModel() {
   return {
     deliveryFeedback: auditActions.deliveryFeedback,
     errorMessage: error instanceof Error ? error.message : FALLBACK_AUDIT_LOAD_ERROR,
+    exportUrl,
     filters: {
       selectedDeliveryProvider,
       selectedDeliveryStatus,

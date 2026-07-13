@@ -1,5 +1,6 @@
 from datetime import date, datetime, time, timedelta, timezone
 
+from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -12,6 +13,20 @@ MANAGER_SOURCE_EVENTS = {
     "docker": {"manager_docker_unhealthy", "manager_docker_recovered"},
     "watchdog": {"manager_watchdog_stale", "manager_watchdog_recovered"},
 }
+
+
+def validate_audit_log_filters(
+    *,
+    period_days: int | None,
+    start_date: date | None,
+    end_date: date | None,
+) -> None:
+    if period_days is not None and period_days not in {1, 7, 30, 90}:
+        raise HTTPException(status_code=422, detail="기간은 1, 7, 30, 90일 중 하나여야 합니다")
+    if period_days and (start_date or end_date):
+        raise HTTPException(status_code=422, detail="상대 기간과 사용자 지정 날짜는 함께 쓸 수 없습니다")
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(status_code=422, detail="시작일은 종료일보다 늦을 수 없습니다")
 
 
 def build_audit_log_conditions(
