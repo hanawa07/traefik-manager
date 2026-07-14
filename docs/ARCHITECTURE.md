@@ -279,6 +279,7 @@ traefik-manager/
 - 안전한 설정(`시간 표시`, `업스트림 보안`)은 audit detail에 롤백 payload를 함께 저장하고, `settings/rollback` 액션으로 복구합니다.
 - 선택적으로 보안 이벤트를 외부 채널(generic/slack/discord/telegram/teams/pagerduty/email)로 전송할 수 있으며, 기본 채널 위에 이벤트별 override(telegram/pagerduty/email/disabled)를 둘 수 있습니다. 전송 실패는 원래 로그인 방어 흐름을 막지 않습니다.
 - Traefik 내장 dashboard는 Manager 설정에서 public route만 생성/삭제하도록 제어합니다. 실제 구현은 file-provider에 `api@internal` 라우터와 basicAuth 미들웨어를 쓰는 방식이고, 정적 Traefik의 `api.dashboard=true`는 별도로 유지되어야 합니다.
+- Manager frontend의 자체 라우터도 `init-traefik-config`가 file-provider YAML로 원자 생성합니다. 라우터 수명을 frontend 컨테이너의 Docker 라벨과 분리해 재배포 중 `Not Found` 공백을 막고, backend까지 이어지는 frontend healthcheck로 실제 준비 상태를 별도로 판정합니다.
 - 컨테이너 비루트 사용자 실행
 - `no-new-privileges` 보안 옵션
 - 프론트엔드-백엔드 내부 네트워크 격리 (`traefik-manager-internal`)

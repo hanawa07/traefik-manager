@@ -2,10 +2,13 @@ services:
   init-traefik-config:
     image: alpine:3.20
     container_name: traefik-manager-init-traefik-config
-    command: ["sh", "-c", "mkdir -p /traefik-config/dynamic && chown -R 10001:10001 /traefik-config"]
+    command: ["sh", "/init-traefik-config.sh"]
+    environment:
+      FRONTEND_DOMAIN: ${FRONTEND_DOMAIN}
     restart: "no"
     volumes:
       - ./traefik-config:/traefik-config
+      - ./scripts/init-traefik-config.sh:/init-traefik-config.sh:ro
 
   backend:
     build:
@@ -89,18 +92,7 @@ services:
       - /app/.next/cache:noexec,nosuid,size=64m,uid=100,gid=101,mode=0755
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
-      - traefik.enable=true
-      - traefik.docker.network=proxy_net
-      - traefik.http.routers.traefik-manager-frontend.rule=Host(`${FRONTEND_DOMAIN}`)
-      - traefik.http.routers.traefik-manager-frontend.entrypoints=websecure
-      - traefik.http.routers.traefik-manager-frontend.tls=true
-      - traefik.http.routers.traefik-manager-frontend.tls.certresolver=letsencrypt
-      - traefik.http.services.traefik-manager-frontend.loadbalancer.server.port=3000
-      - traefik.http.routers.traefik-manager-frontend-http.rule=Host(`${FRONTEND_DOMAIN}`)
-      - traefik.http.routers.traefik-manager-frontend-http.entrypoints=web
-      - traefik.http.routers.traefik-manager-frontend-http.middlewares=traefik-manager-frontend-https
-      - traefik.http.middlewares.traefik-manager-frontend-https.redirectscheme.scheme=https
-      - traefik.http.middlewares.traefik-manager-frontend-https.redirectscheme.permanent=true
+      - traefik.enable=false
 
 volumes:
   backend-data:
