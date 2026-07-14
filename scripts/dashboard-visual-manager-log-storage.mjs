@@ -67,7 +67,12 @@ async function showWarningFixture({
   windowHours,
 }) {
   await cdp.send("Fetch.enable", {
-    patterns: [{ requestStage: "Request", urlPattern: "*/api/v1/docker/http-errors?*" }],
+    patterns: [
+      {
+        requestStage: "Request",
+        urlPattern: `*/api/v1/docker/http-errors\\?window_hours=${windowHours}*`,
+      },
+    ],
   });
   try {
     const requestPaused = cdp.waitFor("Fetch.requestPaused", timeoutMs);
