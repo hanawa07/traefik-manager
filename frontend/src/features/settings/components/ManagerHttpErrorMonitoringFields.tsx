@@ -110,6 +110,8 @@ export function ManagerHttpErrorMonitoringFields({
         ) : null}
         {previewData ? (
           <HttpErrorPreviewResult
+            currentNotFoundThreshold={formValue.manager_http_not_found_threshold}
+            currentServerErrorThreshold={formValue.manager_http_server_error_threshold}
             onApply={() =>
               updateForm({
                 manager_http_not_found_threshold:
@@ -127,9 +129,13 @@ export function ManagerHttpErrorMonitoringFields({
 }
 
 function HttpErrorPreviewResult({
+  currentNotFoundThreshold,
+  currentServerErrorThreshold,
   onApply,
   preview,
 }: {
+  currentNotFoundThreshold: number;
+  currentServerErrorThreshold: number;
   onApply: () => void;
   preview: ManagerHttpErrorPreview;
 }) {
@@ -190,6 +196,19 @@ function HttpErrorPreviewResult({
       <p className="mt-1 font-medium text-amber-800 dark:text-amber-100">
         권장 임계치: 404 {preview.recommended_not_found_threshold}건 · 5xx {preview.recommended_server_error_threshold}건
       </p>
+      {coverage.complete ? (
+        <p
+          className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-2 font-medium text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200"
+          data-current-not-found={currentNotFoundThreshold}
+          data-current-server-error={currentServerErrorThreshold}
+          data-testid="manager-http-threshold-comparison"
+        >
+          현재 설정 대비: 404 {currentNotFoundThreshold}건 → {preview.recommended_not_found_threshold}건 (
+          {formatThresholdDelta(currentNotFoundThreshold, preview.recommended_not_found_threshold)}) · 5xx{" "}
+          {currentServerErrorThreshold}건 → {preview.recommended_server_error_threshold}건 (
+          {formatThresholdDelta(currentServerErrorThreshold, preview.recommended_server_error_threshold)})
+        </p>
+      ) : null}
       <p className="mt-1 text-gray-500 dark:text-slate-400">
         최고치에 20% 여유를 두고 기존 기본값보다 낮지 않게 계산합니다.
       </p>
@@ -213,6 +232,12 @@ function HttpErrorPreviewResult({
       </button>
     </div>
   );
+}
+
+function formatThresholdDelta(current: number, recommended: number) {
+  const delta = recommended - current;
+  if (delta === 0) return "변경 없음";
+  return `${Math.abs(delta)}건 ${delta > 0 ? "상향" : "하향"}`;
 }
 
 function getSampleCoverage(preview: ManagerHttpErrorPreview) {

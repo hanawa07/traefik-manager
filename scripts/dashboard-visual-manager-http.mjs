@@ -3,6 +3,32 @@ import assert from "node:assert/strict";
 import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
+const MANAGER_HTTP_PREVIEW_CHECKED_AT = "2026-07-14T00:00:00Z";
+
+function buildManagerHttpPreviewFixture(complete) {
+  return {
+    available: true,
+    message: "Manager API 요청 로그 기준 권장값입니다.",
+    window_hours: 24,
+    window_minutes: 15,
+    checked_at: MANAGER_HTTP_PREVIEW_CHECKED_AT,
+    observed_since: complete ? "2026-07-13T00:00:00Z" : "2026-07-13T12:00:00Z",
+    sample_coverage_percent: complete ? 100 : 50,
+    peak_not_found_count: 26,
+    peak_server_error_count: 6,
+    recommended_not_found_threshold: 32,
+    recommended_server_error_threshold: 8,
+    excluded_paths: [
+      {
+        path: "/api/health",
+        not_found_count: 1,
+        server_error_count: 0,
+        last_seen_at: "2026-07-13T23:00:00Z",
+      },
+    ],
+  };
+}
+
 export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
   const snapshot = await evaluate(cdp, `(() => {
     const card = document.querySelector('[data-testid="manager-http-error-trend"]');
@@ -143,6 +169,19 @@ export async function checkManagerHttpErrorPreviewForm({
     timeoutMs,
     "Manager API 오류 권장값 계산 버튼이 활성화되지 않았습니다",
   );
+  await setLabeledNumberValue(cdp, "404 임계치", 20);
+  await setLabeledNumberValue(cdp, "5xx 임계치", 10);
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const labels = Array.from(document.querySelectorAll('[data-testid="security-alert-settings-card"] label'));
+      const notFound = labels.find((label) => label.textContent?.includes('404 임계치'))?.querySelector('input');
+      const serverError = labels.find((label) => label.textContent?.includes('5xx 임계치'))?.querySelector('input');
+      return notFound?.value === '20' && serverError?.value === '10';
+    })()`,
+    timeoutMs,
+    "Manager API 오류 현재 임계치를 시험값으로 바꾸지 못했습니다",
+  );
   const pathSet = await evaluate(cdp, `(() => {
     const textarea = document.querySelector('textarea[aria-label="임계치 제외 경로"]');
     if (!(textarea instanceof HTMLTextAreaElement)) return false;
@@ -158,12 +197,31 @@ export async function checkManagerHttpErrorPreviewForm({
     timeoutMs,
     "Manager API 오류 제외 경로 입력이 반영되지 않았습니다",
   );
-  const requested = await evaluate(cdp, `(() => {
-    const button = document.querySelector('[data-testid="manager-http-error-preview-button"]');
-    button?.click();
-    return Boolean(button);
-  })()`);
-  assert.equal(requested, true, "Manager API 오류 권장값 계산을 실행하지 못했습니다");
+  const complete = profile.id === "mobile-dark";
+  const fixture = buildManagerHttpPreviewFixture(complete);
+  await cdp.send("Fetch.enable", {
+    patterns: [{ requestStage: "Request", urlPattern: "*/api/v1/docker/http-errors/preview" }],
+  });
+  try {
+    const requestPaused = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+    const requested = await evaluate(cdp, `(() => {
+      const button = document.querySelector('[data-testid="manager-http-error-preview-button"]');
+      button?.click();
+      return Boolean(button);
+    })()`);
+    assert.equal(requested, true, "Manager API 오류 권장값 계산을 실행하지 못했습니다");
+    const request = await requestPaused;
+    const requestBody = JSON.parse(request.request.postData || "{}");
+    assert.deepEqual(requestBody.excluded_paths, ["/api/health"]);
+    await cdp.send("Fetch.fulfillRequest", {
+      requestId: request.requestId,
+      responseCode: 200,
+      responseHeaders: [{ name: "Content-Type", value: "application/json" }],
+      body: Buffer.from(JSON.stringify(fixture)).toString("base64"),
+    });
+  } finally {
+    await cdp.send("Fetch.disable");
+  }
   await waitForCondition(
     cdp,
     `Boolean(document.querySelector('[data-testid="manager-http-error-preview"]'))`,
@@ -172,10 +230,16 @@ export async function checkManagerHttpErrorPreviewForm({
   );
   const snapshot = await evaluate(cdp, `(() => {
     const result = document.querySelector('[data-testid="manager-http-error-preview"]');
+    const comparison = document.querySelector('[data-testid="manager-http-threshold-comparison"]');
+    const guidance = document.querySelector('[data-testid="manager-http-sample-guidance"]');
     return {
+      comparisonCurrent404: comparison?.getAttribute('data-current-not-found'),
+      comparisonCurrent5xx: comparison?.getAttribute('data-current-server-error'),
+      comparisonText: comparison?.textContent || '',
       documentWidth: document.documentElement.scrollWidth,
       expected404: result?.getAttribute('data-recommended-not-found'),
       expected5xx: result?.getAttribute('data-recommended-server-error'),
+      sampleComplete: guidance?.getAttribute('data-sample-complete'),
       sampleCoverage: Number(document.querySelector('[data-testid="manager-http-sample-coverage"]')
         ?.getAttribute('data-sample-coverage')),
       text: result?.textContent || '',
@@ -194,6 +258,15 @@ export async function checkManagerHttpErrorPreviewForm({
       snapshot.sampleCoverage <= 100,
     "Manager API 오류 로그 표본 충족률이 올바르지 않습니다",
   );
+  assert.equal(snapshot.sampleComplete, complete ? "true" : "false");
+  if (complete) {
+    assert.equal(snapshot.comparisonCurrent404, "20");
+    assert.equal(snapshot.comparisonCurrent5xx, "10");
+    assert.match(snapshot.comparisonText, /404 20건 → 32건 \(12건 상향\)/);
+    assert.match(snapshot.comparisonText, /5xx 10건 → 8건 \(2건 하향\)/);
+  } else {
+    assert.equal(snapshot.comparisonText, "", "초기 표본에 현재·권장 임계치 비교가 표시됐습니다");
+  }
   assert.ok(snapshot.documentWidth <= snapshot.viewportWidth + 1, "권장값 결과가 화면 폭을 넘습니다");
   await captureVisualScreenshot({
     artifactDir,
@@ -295,4 +368,18 @@ async function setInputValue(cdp, selector, value) {
     return true;
   })()`);
   assert.equal(changed, true, `${selector}: input을 찾지 못했습니다`);
+}
+
+async function setLabeledNumberValue(cdp, label, value) {
+  const changed = await evaluate(cdp, `(() => {
+    const labels = Array.from(document.querySelectorAll('[data-testid="security-alert-settings-card"] label'));
+    const input = labels.find((item) => item.textContent?.includes(${JSON.stringify(label)}))
+      ?.querySelector('input[type="number"]');
+    if (!(input instanceof HTMLInputElement)) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, ${JSON.stringify(String(value))});
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(changed, true, `${label}: 숫자 입력을 찾지 못했습니다`);
 }
