@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
+import { checkManagerHttpLogStorageWarnings } from "./dashboard-visual-manager-log-storage.mjs";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 const MANAGER_HTTP_PREVIEW_CHECKED_AT = "2026-07-14T00:00:00Z";
@@ -55,6 +56,7 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
         sizeBytes: Number(logStorage.getAttribute('data-log-size-bytes')),
         source: logStorage.getAttribute('data-log-source'),
         text: logStorage.textContent || '',
+        warning: logStorage.getAttribute('data-log-warning'),
       } : null,
       text: card.textContent || '',
     } : null;
@@ -89,6 +91,17 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
     "Manager API 요청 로그 회전 파일 수가 올바르지 않습니다",
   );
   assert.match(snapshot.logStorage.text, /사용량.*회전 파일/, "Manager API 요청 로그 상태 설명이 없습니다");
+  assert.equal(
+    snapshot.logStorage.warning,
+    snapshot.logStorage.source === "docker"
+      ? "docker"
+      : snapshot.logStorage.source === "persistent" &&
+          snapshot.logStorage.capacityBytes > 0 &&
+          snapshot.logStorage.sizeBytes / snapshot.logStorage.capacityBytes >= 0.8
+        ? "capacity"
+        : "none",
+    "Manager API 요청 로그 경고 상태가 현재 보관 상태와 다릅니다",
+  );
   assert.ok(
     Number.isInteger(snapshot.sampleCoverage) &&
       snapshot.sampleCoverage >= 0 &&
@@ -108,6 +121,7 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
     );
   }
   await checkManagerHttpErrorPreviewApi(cdp);
+  await checkManagerHttpLogStorageWarnings({ cdp, timeoutMs });
 
   await setSelectValue(cdp, '[data-testid="manager-http-error-window"]', "6");
   await waitForCondition(
