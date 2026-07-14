@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from app.core.config import settings
 from app.core.manager_http_request_log import (
     get_manager_http_request_log_status,
+    manager_http_request_logs_available,
     read_manager_http_request_logs,
 )
 from app.infrastructure.docker.logs import read_docker_container_logs_text
@@ -73,6 +74,20 @@ async def read_manager_http_error_preview(
         window_minutes=window_minutes,
         excluded_paths=excluded_paths,
     )
+
+
+async def read_manager_http_log_storage(*, docker_enabled: bool) -> dict[str, object]:
+    status = get_manager_http_request_log_status(settings.TRAEFIK_MANAGER_REQUEST_LOG_PATH)
+    if manager_http_request_logs_available(settings.TRAEFIK_MANAGER_REQUEST_LOG_PATH):
+        return {"source": "persistent", **status}
+    if docker_enabled:
+        log_text = await read_docker_container_logs_text(
+            container_name=settings.TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME,
+            tail_lines=1,
+        )
+        if log_text is not None:
+            return {"source": "docker", **status}
+    return {"source": "unavailable", **status}
 
 
 async def _read_request_logs(*, docker_enabled: bool, since: int) -> tuple[str | None, dict[str, object]]:

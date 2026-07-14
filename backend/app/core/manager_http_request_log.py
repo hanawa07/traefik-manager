@@ -32,6 +32,18 @@ def read_manager_http_request_logs(path: str) -> str | None:
     return "\n".join(chunks) if found else None
 
 
+def manager_http_request_logs_available(path: str) -> bool:
+    for candidate in _request_log_paths(Path(path)):
+        try:
+            if not candidate.is_file():
+                continue
+            with candidate.open("r", encoding="utf-8", errors="ignore"):
+                return True
+        except OSError:
+            continue
+    return False
+
+
 def get_manager_http_request_log_status(path: str) -> dict[str, int]:
     target = Path(path)
     size_bytes = 0

@@ -11,6 +11,7 @@ from app.infrastructure.docker.manager_http_errors import MANAGER_HTTP_ERROR_WIN
 from app.infrastructure.docker.manager_http_log_reader import (
     read_manager_http_error_counts,
     read_manager_http_error_summary,
+    read_manager_http_log_storage,
 )
 
 
@@ -144,6 +145,9 @@ class DockerClient:
             window_minutes=window_minutes,
             excluded_paths=excluded_paths,
         )
+
+    async def get_manager_http_log_storage(self) -> dict[str, object]:
+        return await read_manager_http_log_storage(docker_enabled=self.enabled)
 
     async def inspect_manager_components(self) -> list[dict]:
         if not self.enabled:

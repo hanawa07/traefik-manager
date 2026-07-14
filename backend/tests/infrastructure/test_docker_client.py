@@ -207,3 +207,31 @@ async def test_manager_http_error_summary_prefers_persistent_request_logs(monkey
     assert summary["available"] is True
     assert summary["not_found_count"] == 0
     assert summary["log_storage"]["source"] == "persistent"
+
+
+@pytest.mark.asyncio
+async def test_manager_http_log_storage_uses_lightweight_source_check(monkeypatch):
+    client = DockerClient()
+    client.socket_path = "/etc/hosts"
+    monkeypatch.setattr(
+        manager_http_log_reader,
+        "manager_http_request_logs_available",
+        lambda _path: False,
+    )
+    captured = {}
+
+    async def fake_read_logs(**kwargs):
+        captured.update(kwargs)
+        return ""
+
+    monkeypatch.setattr(
+        manager_http_log_reader,
+        "read_docker_container_logs_text",
+        fake_read_logs,
+    )
+
+    storage = await client.get_manager_http_log_storage()
+
+    assert storage["source"] == "docker"
+    assert captured["tail_lines"] == 1
+    assert "since" not in captured

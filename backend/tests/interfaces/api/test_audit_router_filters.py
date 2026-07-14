@@ -253,6 +253,7 @@ async def test_list_audit_logs_filters_by_delivery_status_and_provider(audit_db)
             {
                 "manager_docker_unhealthy",
                 "manager_http_errors_high",
+                "manager_http_log_storage_warning",
                 "manager_watchdog_stale",
             },
         ),
@@ -261,6 +262,7 @@ async def test_list_audit_logs_filters_by_delivery_status_and_provider(audit_db)
             {
                 "manager_docker_recovered",
                 "manager_http_errors_recovered",
+                "manager_http_log_storage_recovered",
                 "manager_watchdog_recovered",
             },
         ),
@@ -305,7 +307,15 @@ async def test_list_audit_logs_filters_manager_status(audit_db, manager_status, 
     ("manager_source", "expected_events"),
     [
         ("docker", {"manager_docker_unhealthy", "manager_docker_recovered"}),
-        ("api", {"manager_http_errors_high", "manager_http_errors_recovered"}),
+        (
+            "api",
+            {
+                "manager_http_errors_high",
+                "manager_http_errors_recovered",
+                "manager_http_log_storage_warning",
+                "manager_http_log_storage_recovered",
+            },
+        ),
         ("watchdog", {"manager_watchdog_stale", "manager_watchdog_recovered"}),
     ],
 )
@@ -316,6 +326,8 @@ async def test_list_audit_logs_filters_manager_source(audit_db, manager_source, 
         "manager_docker_recovered",
         "manager_http_errors_high",
         "manager_http_errors_recovered",
+        "manager_http_log_storage_warning",
+        "manager_http_log_storage_recovered",
         "manager_watchdog_stale",
         "manager_watchdog_recovered",
     }

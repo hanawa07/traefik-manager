@@ -69,6 +69,10 @@ def build_message(event: str, resource_name: str, client_ip: Any, category: str)
         return f"Manager API 오류 임계치 초과: {resource_name}"
     if event == "manager_http_errors_recovered":
         return f"Manager API 오류 정상화: {resource_name}"
+    if event == "manager_http_log_storage_warning":
+        return f"Manager 요청 로그 보관 경고: {resource_name}"
+    if event == "manager_http_log_storage_recovered":
+        return f"Manager 요청 로그 보관 복구: {resource_name}"
     return f"롤백 실행: {resource_name}"
 
 
@@ -221,6 +225,19 @@ def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
             )
             lines.append(
                 f"5xx: {detail.get('server_error_count')}건 / 임계치 {detail.get('server_error_threshold')}건"
+            )
+            if detail.get("cooldown_minutes") is not None:
+                lines.append(f"재발 알림 cooldown: {detail.get('cooldown_minutes')}분")
+        if event in {"manager_http_log_storage_warning", "manager_http_log_storage_recovered"}:
+            lines.append(f"보관 상태: {detail.get('status') or '-'}")
+            lines.append(f"보관 소스: {detail.get('source') or '-'}")
+            lines.append(
+                f"사용량: {detail.get('size_bytes')} / {detail.get('capacity_bytes')} bytes "
+                f"({detail.get('usage_percent')}%)"
+            )
+            lines.append(
+                f"파일: {detail.get('file_count')}/{detail.get('max_file_count')}개 · "
+                f"회전 파일 {detail.get('rotated_file_count')}개"
             )
             if detail.get("cooldown_minutes") is not None:
                 lines.append(f"재발 알림 cooldown: {detail.get('cooldown_minutes')}분")

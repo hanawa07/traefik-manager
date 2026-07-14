@@ -5,6 +5,7 @@ from app.core.logging_config import JsonFormatter
 from app.core.manager_http_request_log import (
     create_manager_http_request_log_handler,
     get_manager_http_request_log_status,
+    manager_http_request_logs_available,
     read_manager_http_request_logs,
 )
 
@@ -39,9 +40,11 @@ def test_request_log_handler_writes_json_and_reader_keeps_rotation_order(tmp_pat
     assert status["rotated_file_count"] == 2
     assert status["size_bytes"] > 0
     assert status["capacity_bytes"] == 30 * 1024 * 1024
+    assert manager_http_request_logs_available(str(target)) is True
 
 
 def test_request_log_reader_returns_none_without_files(tmp_path):
     target = str(tmp_path / "missing.jsonl")
     assert read_manager_http_request_logs(target) is None
     assert get_manager_http_request_log_status(target)["file_count"] == 0
+    assert manager_http_request_logs_available(target) is False

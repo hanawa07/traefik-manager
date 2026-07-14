@@ -322,6 +322,48 @@ async def test_notify_if_needed_posts_manager_http_error_threshold_to_telegram(m
 
 
 @pytest.mark.asyncio
+async def test_notify_if_needed_posts_manager_log_storage_warning_to_telegram(monkeypatch):
+    posted = []
+    audit_log = make_audit_log(
+        "manager_http_log_storage_warning",
+        resource_type="manager_component",
+        resource_id="request-log-storage",
+        resource_name="Manager 요청 로그",
+    )
+    audit_log.detail.update(
+        {
+            "status": "capacity",
+            "source": "persistent",
+            "size_bytes": 800,
+            "capacity_bytes": 1_000,
+            "usage_percent": 80.0,
+            "file_count": 5,
+            "max_file_count": 6,
+            "rotated_file_count": 4,
+            "cooldown_minutes": 60,
+        }
+    )
+    patch_settings(
+        monkeypatch,
+        {
+            "change_alerts_enabled": "true",
+            "security_alert_provider": "telegram",
+            "security_alert_telegram_bot_token": "telegram-secret",
+            "security_alert_telegram_chat_id": "10001",
+            "security_alert_change_route_manager_health": "default",
+        },
+    )
+    patch_http_client(monkeypatch, posted)
+
+    result = await security_alert_notifier.notify_if_needed(object(), audit_log)
+
+    assert result is True
+    assert "Manager 요청 로그 보관 경고" in posted[0][1]["text"]
+    assert "보관 상태: capacity" in posted[0][1]["text"]
+    assert "사용량: 800 / 1000 bytes (80.0%)" in posted[0][1]["text"]
+
+
+@pytest.mark.asyncio
 async def test_notify_if_needed_posts_certificate_preflight_repeated_failure_when_enabled(monkeypatch):
     posted = []
     audit_log = make_audit_log(
