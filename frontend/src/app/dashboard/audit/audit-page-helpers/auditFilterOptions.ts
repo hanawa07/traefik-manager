@@ -20,7 +20,7 @@ export const auditFilters = [
 export const managerSourceOptions = [
   { key: "all", label: "소스 전체" },
   { key: "docker", label: "Docker" },
-  { key: "api", label: "API 오류" },
+  { key: "api", label: "API·로그" },
   { key: "watchdog", label: "Watchdog" },
 ] as const;
 

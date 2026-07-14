@@ -32,7 +32,9 @@ export {
   getAuditDiffRows,
   getDeliveryDetailRows,
   getManagerHttpErrorDetailRows,
+  getManagerHttpLogStorageDetailRows,
   isManagerHttpErrorEvent,
+  isManagerHttpLogStorageEvent,
 } from "./audit-page-helpers/auditDetailRows";
 export {
   isRollbackResourceType,

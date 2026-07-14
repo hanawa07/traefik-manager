@@ -45,7 +45,7 @@ export function AuditLogDetailPanel({
         logId={logId}
         rows={managerHttpRows}
         testId="manager-http-audit-detail"
-        title="Manager API 상세"
+        title="Manager API·로그 상세"
       />
       <AuditDiffDetails logId={logId} diffRows={diffRows} />
       <AuditDetailList logId={logId} rows={deliveryRows} title="전송 상세" />

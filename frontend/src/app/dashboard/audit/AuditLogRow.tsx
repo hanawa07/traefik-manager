@@ -13,6 +13,7 @@ import {
   getAuditDiffRows,
   getDeliveryDetailRows,
   getManagerHttpErrorDetailRows,
+  getManagerHttpLogStorageDetailRows,
   isRecord,
   isRollbackResourceType,
   securityEventConfig,
@@ -49,7 +50,11 @@ export function AuditLogRow({
   const detail = isRecord(log.detail) ? log.detail : null;
   const diffRows = getAuditDiffRows(detail);
   const deliveryRows = getDeliveryDetailRows(detail);
-  const managerHttpRows = getManagerHttpErrorDetailRows(log.event ?? detail?.event, detail);
+  const managerEvent = log.event ?? detail?.event;
+  const managerHttpRows = [
+    ...getManagerHttpErrorDetailRows(managerEvent, detail),
+    ...getManagerHttpLogStorageDetailRows(managerEvent, detail),
+  ];
   const retrySupported = log.event?.endsWith("_delivery_failure") === true;
   const canExpand = diffRows.length > 0 || deliveryRows.length > 0 || managerHttpRows.length > 0;
   const rollbackResourceType = isRollbackResourceType(log.resource_type) ? log.resource_type : null;

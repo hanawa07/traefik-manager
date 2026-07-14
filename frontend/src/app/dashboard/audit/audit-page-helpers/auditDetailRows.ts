@@ -56,8 +56,55 @@ export function getManagerHttpErrorDetailRows(
   return rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== "");
 }
 
+export function isManagerHttpLogStorageEvent(value: unknown): value is string {
+  return (
+    value === "manager_http_log_storage_warning" ||
+    value === "manager_http_log_storage_recovered"
+  );
+}
+
+export function getManagerHttpLogStorageDetailRows(
+  event: unknown,
+  detail: Record<string, unknown> | null,
+) {
+  if (!isManagerHttpLogStorageEvent(event) || !detail) return [];
+  const rows = [
+    { key: "status", label: "보관 상태", value: formatStorageStatus(detail.status) },
+    { key: "source", label: "보관 소스", value: formatStorageSource(detail.source) },
+    { key: "usage_percent", label: "용량 사용률", value: withUnit(detail.usage_percent, "%") },
+    { key: "size_bytes", label: "사용량", value: withUnit(detail.size_bytes, " bytes") },
+    { key: "capacity_bytes", label: "총 용량", value: withUnit(detail.capacity_bytes, " bytes") },
+    { key: "file_count", label: "현재 파일", value: withUnit(detail.file_count, "개") },
+    { key: "max_file_count", label: "최대 파일", value: withUnit(detail.max_file_count, "개") },
+    { key: "rotated_file_count", label: "회전 파일", value: withUnit(detail.rotated_file_count, "개") },
+    { key: "warning_threshold_percent", label: "경고 기준", value: withUnit(detail.warning_threshold_percent, "%") },
+    { key: "checked_at", label: "점검 시각", value: detail.checked_at },
+    { key: "cooldown_minutes", label: "재알림 대기", value: withUnit(detail.cooldown_minutes, "분") },
+  ];
+  return rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== "");
+}
+
 function withUnit(value: unknown, unit: string) {
   return typeof value === "number" ? `${value}${unit}` : value;
+}
+
+function formatStorageStatus(value: unknown) {
+  const labels: Record<string, string> = {
+    healthy: "정상",
+    capacity: "용량 경고",
+    docker: "Docker 폴백",
+    unavailable: "사용 불가",
+  };
+  return typeof value === "string" ? (labels[value] ?? value) : value;
+}
+
+function formatStorageSource(value: unknown) {
+  const labels: Record<string, string> = {
+    persistent: "영속 볼륨",
+    docker: "Docker 로그 폴백",
+    unavailable: "사용 불가",
+  };
+  return typeof value === "string" ? (labels[value] ?? value) : value;
 }
 
 function formatTopPaths(value: unknown) {

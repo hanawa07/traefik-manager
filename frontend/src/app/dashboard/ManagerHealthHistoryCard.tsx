@@ -28,7 +28,7 @@ export function ManagerHealthHistoryCard({
             </h2>
           </div>
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-            Backend·Frontend Docker, Manager API와 외부 watchdog의 최근 이상·복구 기록입니다.
+            Backend·Frontend Docker, Manager API 오류·요청 로그 보관과 외부 watchdog의 최근 이상·복구 기록입니다.
           </p>
         </div>
         <Link
@@ -59,12 +59,18 @@ export function ManagerHealthHistoryCard({
 function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezone?: string }) {
   const event = getDetailString(log, "event") ?? log.event;
   const isWatchdog = event === "manager_watchdog_stale" || event === "manager_watchdog_recovered";
-  const isApi = event === "manager_http_errors_high" || event === "manager_http_errors_recovered";
+  const isApiError = event === "manager_http_errors_high" || event === "manager_http_errors_recovered";
+  const isLogStorage =
+    event === "manager_http_log_storage_warning" ||
+    event === "manager_http_log_storage_recovered";
   const isRecovery =
     event === "manager_docker_recovered" ||
     event === "manager_http_errors_recovered" ||
+    event === "manager_http_log_storage_recovered" ||
     event === "manager_watchdog_recovered";
-  const statusLabel = isApi
+  const statusLabel = isLogStorage
+    ? `로그 보관 ${isRecovery ? "복구" : "경고"}`
+    : isApiError
     ? `오류 ${isRecovery ? "정상화" : "임계치 초과"}`
     : isWatchdog
       ? `갱신 ${isRecovery ? "복구" : "지연"}`
@@ -77,6 +83,10 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
   const notFoundThreshold = getDetailNumber(log, "not_found_threshold");
   const serverErrorCount = getDetailNumber(log, "server_error_count");
   const serverErrorThreshold = getDetailNumber(log, "server_error_threshold");
+  const storageSource = getDetailString(log, "source");
+  const usagePercent = getDetailNumber(log, "usage_percent");
+  const fileCount = getDetailNumber(log, "file_count");
+  const maxFileCount = getDetailNumber(log, "max_file_count");
   const topPaths = getTopPaths(log);
 
   return (
@@ -85,14 +95,14 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
         <div className="flex items-center gap-2">
           <span
             className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-              isRecovery ? "bg-emerald-500" : "bg-rose-500"
+              isRecovery ? "bg-emerald-500" : isLogStorage ? "bg-amber-500" : "bg-rose-500"
             }`}
           />
           <p className="truncate text-sm font-semibold text-gray-900 dark:text-slate-100">
             {component} {statusLabel}
           </p>
         </div>
-        {!isRecovery && isApi ? (
+        {!isRecovery && isApiError ? (
           <>
             <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
               404 {notFoundCount ?? "-"}/{notFoundThreshold ?? "-"} · 5xx {serverErrorCount ?? "-"}/
@@ -112,7 +122,13 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
             ) : null}
           </>
         ) : null}
-        {!isRecovery && !isWatchdog && !isApi ? (
+        {!isRecovery && isLogStorage ? (
+          <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+            {getStorageSourceLabel(storageSource)} · 사용률 {usagePercent ?? "-"}% · 파일 {fileCount ?? "-"}/
+            {maxFileCount ?? "-"}개
+          </p>
+        ) : null}
+        {!isRecovery && !isWatchdog && !isApiError && !isLogStorage ? (
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
             연속 실패 {failingStreak ?? "-"}회 · 종료 코드 {exitCode ?? "-"}
           </p>
@@ -174,4 +190,10 @@ function getComponentLabel(name: string) {
   if (name === "frontend") return "Frontend";
   if (name === "external-watchdog") return "외부 watchdog";
   return name;
+}
+
+function getStorageSourceLabel(source: string | null) {
+  if (source === "persistent") return "영속 볼륨";
+  if (source === "docker") return "Docker 로그 폴백";
+  return "로그 사용 불가";
 }

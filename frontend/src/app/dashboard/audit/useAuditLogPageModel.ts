@@ -21,6 +21,7 @@ import {
   isManagerSourceKey,
   isManagerStatusKey,
   isManagerHttpErrorEvent,
+  isManagerHttpLogStorageEvent,
   parseAuditDate,
   parseAuditPeriodDays,
   parseManagerHealthWindowMinutes,
@@ -113,7 +114,7 @@ export function useAuditLogPageModel() {
   const auditActions = useAuditLogActions();
   const autoExpandedLogId =
     searchParams.get("expand") === "latest"
-      ? logPage?.items.find(isManagerHttpErrorLog)?.id
+      ? logPage?.items.find(isManagerHttpLog)?.id
       : undefined;
   const visibleExpandedLogId = expandedLogId === undefined ? autoExpandedLogId ?? null : expandedLogId;
 
@@ -267,8 +268,13 @@ export function useAuditLogPageModel() {
   };
 }
 
-function isManagerHttpErrorLog(log: AuditLogItem) {
-  return isManagerHttpErrorEvent(log.event) || isManagerHttpErrorEvent(log.detail?.event);
+function isManagerHttpLog(log: AuditLogItem) {
+  return (
+    isManagerHttpErrorEvent(log.event) ||
+    isManagerHttpErrorEvent(log.detail?.event) ||
+    isManagerHttpLogStorageEvent(log.event) ||
+    isManagerHttpLogStorageEvent(log.detail?.event)
+  );
 }
 
 function parseAuditPage(value: string | null) {

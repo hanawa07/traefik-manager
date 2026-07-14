@@ -95,6 +95,15 @@ async function showWarningFixture({
       `document.querySelector('[data-testid="manager-http-log-storage-warning"]')?.textContent || ''`,
     );
     assert.match(warningText, new RegExp(expectedText));
+    const auditHref = await evaluate(
+      cdp,
+      `document.querySelector('[data-testid="manager-http-log-storage-audit-link"]')?.getAttribute('href') || ''`,
+    );
+    assert.equal(
+      auditHref,
+      "/dashboard/audit?filter=manager_health&manager_source=api&period=1&q=request-log-storage&expand=latest",
+      "Manager 요청 로그 보관 경고의 감사 이력 링크가 올바르지 않습니다",
+    );
   } finally {
     await cdp.send("Fetch.disable");
   }
