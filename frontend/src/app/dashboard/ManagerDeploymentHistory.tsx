@@ -97,7 +97,7 @@ export function ManagerDeploymentHistory({
             {showArchive ? "회전 보관" : "최근"} {visibleEntries.length}건
           </span>
         </div>
-        {archiveEntries.length > 0 ? (
+        {archiveEntries.length > 0 || showArchive ? (
           <button
             className="rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
             data-history-source-toggle
