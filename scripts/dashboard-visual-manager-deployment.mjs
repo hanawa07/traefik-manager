@@ -56,6 +56,12 @@ export async function checkManagerDeploymentHistory({ cdp, timeoutMs }) {
       failureDetails: section?.querySelectorAll('[data-deployment-failure-detail]').length || 0,
       failureStats: Boolean(section?.querySelector('[data-deployment-failure-stats]')),
       exports: section?.querySelectorAll('button[data-history-export]').length || 0,
+      durations: entries.map((entry) =>
+        entry.querySelector('[data-deployment-duration]')?.getAttribute('data-deployment-duration'),
+      ),
+      slotSummaries: entries.map((entry) =>
+        entry.querySelector('[data-deployment-slot-summary]')?.textContent?.trim(),
+      ),
       linksValid: entries.every((entry) => {
         const links = Array.from(entry.querySelectorAll('a')).map((link) => link.href);
         const release = links.find((href) => href.includes('/releases/tag/'))?.split('/releases/tag/')[1];
@@ -72,6 +78,18 @@ export async function checkManagerDeploymentHistory({ cdp, timeoutMs }) {
     assert.equal(snapshot.filters, 5, "Manager 배포 이력 상태 필터 수가 다릅니다");
     assert.equal(snapshot.exports, 2, "Manager 배포 이력 내보내기 버튼 수가 다릅니다");
     assert.equal(snapshot.linksValid, true, "Manager 배포 이력의 커밋·릴리즈 링크가 올바르지 않습니다");
+    assert.equal(
+      snapshot.durations.every((duration) => duration),
+      true,
+      "Manager 배포 이력 소요시간이 보이지 않습니다",
+    );
+    assert.equal(
+      snapshot.slotSummaries.every((summary) =>
+        summary?.includes('전환') && summary.includes('최종 활성'),
+      ),
+      true,
+      "Manager 배포 이력 슬롯 전환 요약이 보이지 않습니다",
+    );
     if (snapshot.statuses.some((status) => status !== "success")) {
       assert.ok(snapshot.failureDetails > 0, "Manager 실패 배포 이력의 단계·원인이 보이지 않습니다");
       assert.equal(snapshot.failureStats, true, "Manager 배포 실패 단계 통계가 보이지 않습니다");
@@ -146,11 +164,32 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
     timeoutMs,
     "Manager .1 보관 이력 fixture로 전환되지 않았습니다",
   );
+  const transitionSummary = await evaluate(cdp, `(() => {
+    const entries = Array.from(document.querySelectorAll(
+      '[data-history-source="archive"] li[data-deployment-status]',
+    ));
+    return {
+      durations: entries.map((entry) =>
+        entry.querySelector('[data-deployment-duration]')?.getAttribute('data-deployment-duration'),
+      ),
+      slots: entries.map((entry) =>
+        entry.querySelector('[data-deployment-slot-summary]')?.textContent?.trim(),
+      ),
+    };
+  })()`);
+  assert.deepEqual(transitionSummary.durations, ["1분", "1분"]);
+  assert.match(transitionSummary.slots[0], /blue → green · 최종 활성 blue/);
+  assert.match(transitionSummary.slots[1], /green → blue · 최종 활성 green/);
   await checkHistorySearchAndFilters({ cdp, timeoutMs });
   await reloadWithDeploymentFixture({ cdp, fixture, timeoutMs });
   await waitForHistoryQueryRestore({ cdp, timeoutMs });
   await checkHistoryExports({ cdp, timeoutMs });
-  await evaluate(cdp, `document.querySelector('[data-history-source-toggle]')?.click()`);
+  const sourceConditionRemoved = await evaluate(cdp, `(() => {
+    const button = document.querySelector('[data-history-condition="source"]');
+    button?.click();
+    return Boolean(button);
+  })()`);
+  assert.equal(sourceConditionRemoved, true, "Manager 회전 보관 적용 조건을 찾지 못했습니다");
   await waitForCondition(
     cdp,
     `(() => {
@@ -204,6 +243,46 @@ async function checkHistorySearchAndFilters({ cdp, timeoutMs }) {
     timeoutMs,
     "Manager 배포 검색·상태·실패 단계 URL 조건이 적용되지 않았습니다",
   );
+  await checkActiveConditionRemoval({ cdp, timeoutMs });
+}
+
+async function checkActiveConditionRemoval({ cdp, timeoutMs }) {
+  const conditions = await evaluate(cdp, `Array.from(document.querySelectorAll(
+    '[data-history-active-conditions] [data-history-condition]',
+  )).map((condition) => condition.getAttribute('data-history-condition'))`);
+  assert.deepEqual(
+    conditions,
+    ["source", "status", "stage", "search"],
+    "Manager 배포 이력 적용 조건 칩 구성이 다릅니다",
+  );
+
+  const searchRemoved = await evaluate(cdp, `(() => {
+    const button = document.querySelector('[data-history-condition="search"]');
+    button?.click();
+    return Boolean(button);
+  })()`);
+  assert.equal(searchRemoved, true, "Manager 배포 검색 조건 제거 버튼을 찾지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const params = new URLSearchParams(location.search);
+      const conditions = Array.from(document.querySelectorAll('[data-history-condition]'))
+        .map((condition) => condition.getAttribute('data-history-condition'));
+      return !params.has('deployment_q') &&
+        params.get('deployment_source') === 'archive' &&
+        params.get('deployment_status') === 'rolled_back' &&
+        params.get('deployment_stage') === 'public_probe' &&
+        conditions.join(',') === 'source,status,stage';
+    })()`,
+    timeoutMs,
+    "Manager 배포 검색 조건만 개별 제거되지 않았습니다",
+  );
+  await setHistorySearch({
+    cdp,
+    expectedText: "v1.38.70",
+    timeoutMs,
+    value: "probe failure",
+  });
 }
 
 async function checkHistoryExports({ cdp, timeoutMs }) {
@@ -226,7 +305,7 @@ async function checkHistoryExports({ cdp, timeoutMs }) {
         params.get('deployment_source') === 'archive';
     })()`,
     timeoutMs,
-    "Manager 배포 이력 조건 초기화가 적용되지 않았습니다",
+    "Manager 배포 이력 필터 초기화가 적용되지 않았습니다",
   );
   const csv = await captureHistoryDownload(cdp, "csv");
   assert.match(csv.filename, /deployments-archive-\d{4}-\d{2}-\d{2}\.csv$/);
@@ -274,7 +353,10 @@ async function setHistorySearch({ cdp, expectedText, timeoutMs, value }) {
       const section = document.querySelector('[data-history-source="archive"]');
       return section?.querySelectorAll('li[data-deployment-status]').length === 1 &&
         section.textContent?.includes(${JSON.stringify(expectedText)}) &&
-        document.querySelector('[data-history-search]')?.value === ${JSON.stringify(value)};
+        document.querySelector('[data-history-search]')?.value === ${JSON.stringify(value)} &&
+        Array.from(section.querySelectorAll('[data-history-search-highlight]')).some(
+          (highlight) => highlight.textContent?.toLowerCase() === ${JSON.stringify(value.toLowerCase())},
+        );
     })()`,
     timeoutMs,
     `Manager 배포 이력 ${value} 검색이 적용되지 않았습니다`,
@@ -294,6 +376,8 @@ async function waitForHistoryQueryRestore({ cdp, timeoutMs }) {
         document.querySelector('[data-failure-stage-filter="public_probe"]')?.getAttribute('aria-pressed') === 'true' &&
         entry?.getAttribute('data-deployment-status') === 'rolled_back' &&
         entry.getAttribute('data-deployment-failure-stage') === 'public_probe' &&
+        document.querySelectorAll('[data-history-condition]').length === 4 &&
+        document.querySelector('[data-history-search-highlight]')?.textContent === 'probe failure' &&
         params.get('deployment_source') === 'archive' &&
         params.get('deployment_q') === 'probe failure';
     })()`,
