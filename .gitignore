@@ -33,5 +33,6 @@ out/
 
 # Traefik 동적 설정 (생성된 파일들)
 traefik-config/dynamic/*.yml
+traefik-config/.background-tasks.lock
 # 정적 설정 파일은 추적
 !traefik-config/dynamic/security-headers.yml
