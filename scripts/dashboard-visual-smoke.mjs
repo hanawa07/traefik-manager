@@ -21,7 +21,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
           await checkManagerHttpErrorTrend({ cdp, timeoutMs });
           labels.push(`${profile.label} Manager file-provider 라우터`);
           const deploymentHistory = await checkManagerDeploymentHistory({ cdp, timeoutMs });
-          if (deploymentHistory) labels.push(`${profile.label} 배포 이력 필터·링크·실패 통계`);
+          if (deploymentHistory) labels.push(`${profile.label} 배포 이력 필터·보관 전환·내보내기`);
           const opened = await checkMobileSidebar({ artifactDir, cdp, profile, timeoutMs });
           if (opened) labels.push(`${profile.label} 사이드바`);
           await checkWatchdogFilterPersistence({ cdp, timeoutMs });
