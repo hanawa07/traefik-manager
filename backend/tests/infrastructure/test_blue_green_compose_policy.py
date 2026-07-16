@@ -17,3 +17,5 @@ def test_candidate_backends_join_proxy_network_only_after_health_checks():
         assert "traefik-manager-app" in services[f"frontend-{slot}"]["networks"]
     assert "docker network connect" in deploy_script
     assert "--alias traefik-manager-backend" in deploy_script
+    assert 'history_status="rollback_failed"' in deploy_script
+    assert 'notify_rollback_failure "${history_active_slot}"' in deploy_script

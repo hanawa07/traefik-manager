@@ -10,6 +10,7 @@ readonly STATE_FILE="${STATE_DIR}/blue-green-deployment.state"
 readonly LOCK_FILE="${STATE_DIR}/blue-green-deployment.lock"
 readonly HISTORY_FILE="${STATE_DIR}/blue-green-deployments.jsonl"
 readonly PROBE_SCRIPT="${SCRIPT_DIR}/manager-deployment-probe.sh"
+readonly HOST_ALERT_SCRIPT="${TM_HOST_OPERATION_ALERT_SCRIPT:-${SCRIPT_DIR}/request-host-operation-alert.sh}"
 readonly PROBE_INTERVAL_SECONDS="${TM_DEPLOY_PROBE_INTERVAL_SECONDS:-0.2}"
 readonly HEALTH_TIMEOUT_SECONDS="${TM_BLUE_GREEN_HEALTH_TIMEOUT_SECONDS:-180}"
 readonly DRAIN_SECONDS="${TM_BLUE_GREEN_DRAIN_SECONDS:-2}"
@@ -284,6 +285,14 @@ record_deployment_history() {
   history_recorded=1
 }
 
+notify_rollback_failure() {
+  local active_slot="$1"
+  "${HOST_ALERT_SCRIPT}" \
+    "Manager blue-green rollback" \
+    "자동 rollback 실패: previous=${previous_slot}, candidate=${candidate_slot}, active=${active_slot}, version=${version}, revision=${revision}" \
+    failure
+}
+
 snapshot_state() {
   if [[ ! -f "${STATE_FILE}" ]]; then
     return
@@ -340,6 +349,8 @@ rollback() {
       history_status="rollback_failed"
       history_active_slot="$(infer_active_slot "${ROUTE_FILE}")"
       echo "자동 rollback이 완료되지 않아 후보 슬롯을 유지합니다" >&2
+      notify_rollback_failure "${history_active_slot}" || \
+        echo "rollback 실패 운영 알림을 요청하지 못했습니다" >&2
     else
       history_status="rolled_back"
     fi
