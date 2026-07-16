@@ -121,7 +121,7 @@ scripts/blue-green-deploy.sh vX.Y.Z
 - 배포 시작 시 `dockerproxy`가 healthy인지 먼저 확인하며 backend 컨테이너에는 Docker socket을 마운트하지 않습니다.
 - 대시보드 Manager 라우터 카드에서 active 슬롯과 file-provider upstream `UP`을 확인합니다.
 
-배포 전 `scripts/blue-green-deploy.sh --self-test`, `scripts/manager-deployment-history.sh --self-test`, `scripts/request-host-operation-alert.sh --self-test`와 `scripts/manager-deployment-probe.sh --self-test`를 실행할 수 있습니다. GitHub의 `운영 로그인·화면 스모크`도 배포 관련 self-test를 매번 수행합니다.
+배포 전 `scripts/blue-green-deploy.sh --self-test`, `scripts/test-blue-green-rollback-failure.sh`, `scripts/manager-deployment-history.sh --self-test`, `scripts/request-host-operation-alert.sh --self-test`와 `scripts/manager-deployment-probe.sh --self-test`를 실행할 수 있습니다. 격리 rollback 시험은 운영 route나 Docker를 건드리지 않고 실제 상태 머신에 복구 실패를 주입합니다. GitHub의 `운영 로그인·화면 스모크`도 배포 관련 self-test를 매번 수행합니다.
 
 ## 검증 체크리스트
 

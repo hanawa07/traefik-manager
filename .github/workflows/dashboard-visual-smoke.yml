@@ -46,6 +46,7 @@ jobs:
       - name: Blue-green 배포 회귀 시험
         run: |
           scripts/blue-green-deploy.sh --self-test
+          scripts/test-blue-green-rollback-failure.sh
           scripts/manager-deployment-probe.sh --self-test
           scripts/request-host-operation-alert.sh --self-test
 

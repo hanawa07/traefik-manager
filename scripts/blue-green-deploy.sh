@@ -395,6 +395,10 @@ run_self_test() {
   echo "Manager blue-green 배포 self-test 통과"
 }
 
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  return 0
+fi
+
 if [[ "${1:-}" == "--self-test" ]]; then
   run_self_test
   exit 0
