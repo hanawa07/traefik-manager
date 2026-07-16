@@ -7,6 +7,16 @@ export type ManagerDeploymentHistorySourceFilter = "all" | "archive" | "current"
 export type ManagerDeploymentHistoryRecordSource = Exclude<ManagerDeploymentHistorySourceFilter, "all">;
 export type ManagerDeploymentHistoryPeriodFilter = "all" | "1" | "7" | "30" | "90";
 
+export interface ManagerDeploymentHistoryFilters {
+  dateFrom: string;
+  dateTo: string;
+  period: ManagerDeploymentHistoryPeriodFilter;
+  search: string;
+  source: ManagerDeploymentHistorySourceFilter;
+  stage: ManagerDeploymentHistoryStageFilter;
+  status: ManagerDeploymentHistoryStatusFilter;
+}
+
 export const MANAGER_DEPLOYMENT_HISTORY_QUERY = {
   dateFrom: "deployment_from",
   dateTo: "deployment_to",

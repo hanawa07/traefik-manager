@@ -3,10 +3,12 @@ import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/de
 import type { ManagerDeploymentHistoryStatusFilter } from "./managerDeploymentHistoryQuery";
 
 export function ManagerDeploymentOutcomeSummary({
+  currentSourceCount,
   entries,
   onStatusChange,
   selectedStatus,
 }: {
+  currentSourceCount?: number;
   entries: ManagerDeploymentHistoryEntry[];
   onStatusChange: (status: ManagerDeploymentHistoryStatusFilter) => void;
   selectedStatus: ManagerDeploymentHistoryStatusFilter;
@@ -37,6 +39,16 @@ export function ManagerDeploymentOutcomeSummary({
       <span className="font-semibold text-gray-600 dark:text-slate-300">
         선택 기간 {entries.length}건
       </span>
+      {currentSourceCount !== undefined ? (
+        <span
+          className="rounded-full bg-blue-50 px-2 py-1 font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-200"
+          data-deployment-archive-count={entries.length - currentSourceCount}
+          data-deployment-current-count={currentSourceCount}
+          data-deployment-source-counts
+        >
+          현재 {currentSourceCount} · 보관 {entries.length - currentSourceCount}
+        </span>
+      ) : null}
       <button
         aria-pressed={selectedStatus === "success"}
         className={`rounded-full bg-emerald-100 px-2 py-1 font-semibold text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:hover:bg-emerald-500/25 ${
@@ -62,6 +74,16 @@ export function ManagerDeploymentOutcomeSummary({
       >
         롤백률 {rollbackRate}% ({rollbackCount}/{entries.length})
       </button>
+      <details className="basis-full text-gray-500 dark:text-slate-400" data-deployment-rate-help>
+        <summary className="w-fit cursor-pointer font-semibold text-gray-600 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-200">
+          산정 기준
+        </summary>
+        <p className="mt-1 leading-relaxed">
+          선택한 소스와 기간·날짜의 전체 배포가 분모입니다. 성공률은 success, 롤백률은
+          rolled_back·rollback_failed 상태를 집계하며 상태·실패 단계·검색 필터는 비율에
+          반영하지 않습니다.
+        </p>
+      </details>
     </div>
   );
 }

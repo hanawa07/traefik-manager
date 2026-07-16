@@ -11,24 +11,13 @@ import {
 import type { ManagerDeploymentHistoryExportFormat } from "./managerDeploymentHistoryExport";
 import {
   matchesManagerDeploymentHistoryStatus,
+  type ManagerDeploymentHistoryFilters,
   type ManagerDeploymentHistoryPeriodFilter,
   type ManagerDeploymentHistorySourceFilter,
-  type ManagerDeploymentHistoryStageFilter,
-  type ManagerDeploymentHistoryStatusFilter,
 } from "./managerDeploymentHistoryQuery";
 import { ManagerDeploymentDateRange } from "./ManagerDeploymentDateRange";
 import { ManagerDeploymentFailureSummary } from "./ManagerDeploymentFailureSummary";
 import { ManagerDeploymentOutcomeSummary } from "./ManagerDeploymentOutcomeSummary";
-
-export interface ManagerDeploymentHistoryFilters {
-  dateFrom: string;
-  dateTo: string;
-  period: ManagerDeploymentHistoryPeriodFilter;
-  search: string;
-  source: ManagerDeploymentHistorySourceFilter;
-  stage: ManagerDeploymentHistoryStageFilter;
-  status: ManagerDeploymentHistoryStatusFilter;
-}
 
 interface ManagerDeploymentHistoryControlsProps {
   archiveCount: number;
@@ -38,6 +27,7 @@ interface ManagerDeploymentHistoryControlsProps {
   filters: ManagerDeploymentHistoryFilters;
   onExport: (format: ManagerDeploymentHistoryExportFormat) => void;
   onFiltersChange: (updates: Partial<ManagerDeploymentHistoryFilters>) => void;
+  summaryCurrentCount: number;
   summaryEntries: ManagerDeploymentHistoryEntry[];
 }
 
@@ -49,6 +39,7 @@ export function ManagerDeploymentHistoryControls({
   filters,
   onExport,
   onFiltersChange,
+  summaryCurrentCount,
   summaryEntries,
 }: ManagerDeploymentHistoryControlsProps) {
   const sourceLabel = filters.source === "all"
@@ -195,6 +186,7 @@ export function ManagerDeploymentHistoryControls({
 
       {entries.length > 0 ? (
         <ManagerDeploymentOutcomeSummary
+          currentSourceCount={filters.source === "all" ? summaryCurrentCount : undefined}
           entries={summaryEntries}
           onStatusChange={(status) => onFiltersChange({ status })}
           selectedStatus={filters.status}

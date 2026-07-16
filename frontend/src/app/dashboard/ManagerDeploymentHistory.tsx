@@ -8,7 +8,6 @@ import ToastNotice, { type ToastNoticeValue } from "@/shared/components/ToastNot
 
 import {
   ManagerDeploymentHistoryControls,
-  type ManagerDeploymentHistoryFilters,
 } from "./ManagerDeploymentHistoryControls";
 import { ManagerDeploymentHistoryItem } from "./ManagerDeploymentHistoryItem";
 import {
@@ -24,6 +23,7 @@ import {
   parseManagerDeploymentHistoryStage,
   parseManagerDeploymentHistoryStatus,
   replaceManagerDeploymentHistoryQueryParams,
+  type ManagerDeploymentHistoryFilters,
   type ManagerDeploymentHistoryPeriodFilter,
   type ManagerDeploymentHistoryRecordSource,
   type ManagerDeploymentHistorySourceFilter,
@@ -106,6 +106,9 @@ function ManagerDeploymentHistoryContent({
       && (dateToCutoff === null || completedAt < dateToCutoff);
     return matchesPeriod && matchesDateRange;
   });
+  const summaryCurrentCount = summaryEntries.filter(
+    (entry) => resolveEntrySource(entry) === "current",
+  ).length;
   const filteredEntries = summaryEntries.filter((entry) => {
     const matchesStatus = matchesManagerDeploymentHistoryStatus(entry, status);
     const matchesFailureStage = stage === "all"
@@ -156,7 +159,7 @@ function ManagerDeploymentHistoryContent({
     try {
       const filename = downloadManagerDeploymentHistory(
         filteredEntries,
-        historySource,
+        filters,
         format,
         historySource === "all" ? resolveEntrySource : undefined,
       );
@@ -199,6 +202,7 @@ function ManagerDeploymentHistoryContent({
           filters={filters}
           onExport={handleExport}
           onFiltersChange={updateFilters}
+          summaryCurrentCount={summaryCurrentCount}
           summaryEntries={summaryEntries}
         />
 
