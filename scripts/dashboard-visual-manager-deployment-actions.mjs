@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 export async function checkManagerDeploymentHistoryActions({ cdp, timeoutMs }) {
+  await checkCombinedSource({ cdp, timeoutMs });
   await selectPeriod({ cdp, expectedCount: 1, timeoutMs, value: "7" });
   await selectPeriod({ cdp, expectedCount: 2, timeoutMs, value: "30" });
   await checkCustomDateRange({ cdp, timeoutMs });
@@ -11,6 +12,79 @@ export async function checkManagerDeploymentHistoryActions({ cdp, timeoutMs }) {
   await checkJsonDetails({ cdp, timeoutMs });
   await checkCompareLink(cdp);
   await checkCopyButtons({ cdp, timeoutMs });
+}
+
+async function checkCombinedSource({ cdp, timeoutMs }) {
+  await selectSource({ cdp, expectedCount: 3, source: "all", timeoutMs });
+  await waitForCondition(
+    cdp,
+    `document.querySelector('[data-deployment-success-rate]')?.getAttribute(
+      'data-deployment-success-rate',
+    ) === '33' && document.querySelector('[data-deployment-rollback-rate]')?.getAttribute(
+      'data-deployment-rollback-rate',
+    ) === '33'`,
+    timeoutMs,
+    "Manager 통합 배포 성공률·롤백률이 올바르지 않습니다",
+  );
+  await setCombinedSearch({ cdp, timeoutMs, value: "v1.38" });
+  await setCombinedSearch({ cdp, timeoutMs, value: "" });
+  await selectSource({ cdp, expectedCount: 2, source: "archive", timeoutMs });
+  const archiveRates = await evaluate(cdp, `(() => ({
+    rollback: document.querySelector('[data-deployment-rollback-rate]')?.getAttribute(
+      'data-deployment-rollback-rate',
+    ),
+    success: document.querySelector('[data-deployment-success-rate]')?.getAttribute(
+      'data-deployment-success-rate',
+    ),
+  }))()`);
+  assert.deepEqual(archiveRates, { rollback: "50", success: "0" });
+}
+
+async function selectSource({ cdp, expectedCount, source, timeoutMs }) {
+  const clicked = await evaluate(cdp, `(() => {
+    const button = document.querySelector(${JSON.stringify(
+      `[data-history-source-filter="${source}"]`,
+    )});
+    button?.click();
+    return Boolean(button);
+  })()`);
+  assert.equal(clicked, true, `Manager ${source} 이력 source 버튼을 찾지 못했습니다`);
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const params = new URLSearchParams(location.search);
+      return document.querySelector('[data-history-source="${source}"]') &&
+        document.querySelectorAll(
+          '[data-history-source="${source}"] li[data-deployment-status]',
+        ).length === ${expectedCount} &&
+        params.get('deployment_source') === ${JSON.stringify(source)};
+    })()`,
+    timeoutMs,
+    `Manager ${source} 통합 source가 적용되지 않았습니다`,
+  );
+}
+
+async function setCombinedSearch({ cdp, timeoutMs, value }) {
+  const changed = await evaluate(cdp, `(() => {
+    const input = document.querySelector('[data-history-search]');
+    if (!(input instanceof HTMLInputElement)) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, ${JSON.stringify(value)});
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(changed, true, "Manager 통합 이력 검색어를 입력하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const params = new URLSearchParams(location.search);
+      return document.querySelectorAll(
+        '[data-history-source="all"] li[data-deployment-status]',
+      ).length === 3 && ${value ? `params.get('deployment_q') === ${JSON.stringify(value)}` : "!params.has('deployment_q')"};
+    })()`,
+    timeoutMs,
+    "Manager 현재·보관 통합 검색이 적용되지 않았습니다",
+  );
 }
 
 async function selectPeriod({ cdp, expectedCount, timeoutMs, value }) {
@@ -134,9 +208,10 @@ async function checkCompareLink(cdp) {
 async function checkCopyButtons({ cdp, timeoutMs }) {
   const buttons = await evaluate(cdp, `(() => ({
     failures: document.querySelectorAll('[data-deployment-copy="failure_reason"]').length,
+    json: document.querySelectorAll('[data-deployment-copy="json"]').length,
     revisions: document.querySelectorAll('[data-deployment-copy="revision"]').length,
   }))()`);
-  assert.deepEqual(buttons, { failures: 2, revisions: 2 });
+  assert.deepEqual(buttons, { failures: 2, json: 2, revisions: 2 });
 
   await installClipboardCapture(cdp);
   await clickCopyAndWait({
@@ -151,6 +226,21 @@ async function checkCopyButtons({ cdp, timeoutMs }) {
     expected: "=archive fixture probe failure",
     kind: "failure_reason",
     toast: "실패 원인 복사 완료",
+    timeoutMs,
+  });
+  const expectedJson = await evaluate(
+    cdp,
+    `(() => {
+      const text = document.querySelector('[data-deployment-json]')?.textContent;
+      return text ? JSON.stringify(JSON.parse(text), null, 2) : null;
+    })()`,
+  );
+  assert.ok(expectedJson, "Manager 상세 JSON 원문을 읽지 못했습니다");
+  await clickCopyAndWait({
+    cdp,
+    expected: expectedJson,
+    kind: "json",
+    toast: "상세 JSON 복사 완료",
     timeoutMs,
   });
 }

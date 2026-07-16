@@ -10,6 +10,29 @@ function fixtureTimestamp(daysAgo, extraMilliseconds = 0) {
   return new Date(FIXTURE_NOW - daysAgo * DAY_MS - extraMilliseconds).toISOString();
 }
 
+const CURRENT_FIXTURE_ENTRIES = [
+  {
+    status: "success",
+    from_slot: "green",
+    to_slot: "blue",
+    active_slot: "blue",
+    version: "v1.38.71",
+    revision: "c".repeat(40),
+    started_at: fixtureTimestamp(1, 30_000),
+    completed_at: fixtureTimestamp(1),
+    probe_total: 4,
+    probe_failures: 0,
+    failure_stage: null,
+    failure_reason: null,
+    alert_request_status: "not_needed",
+    alert_run_url: null,
+    alert_run_status: null,
+    alert_run_conclusion: null,
+    alert_run_checked_at: null,
+    alert_run_error: null,
+  },
+];
+
 const ARCHIVE_FIXTURE_ENTRIES = [
   {
     status: "rolled_back",
@@ -154,18 +177,20 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
   assert.equal(response.ok, true, "Manager 배포 보관 이력 fixture 원본을 읽지 못했습니다");
   const fixture = {
     ...response.body,
+    deployment_history: CURRENT_FIXTURE_ENTRIES,
     deployment_history_archive: ARCHIVE_FIXTURE_ENTRIES,
   };
 
   await reloadWithDeploymentFixture({ cdp, fixture, timeoutMs });
   await waitForCondition(
     cdp,
-    `document.querySelector('[data-history-source="current"] [data-history-source-toggle]')?.textContent?.includes('회전 보관 2건 보기')`,
+    `document.querySelector('[data-history-source="current"] [data-history-source-filter="archive"]')?.textContent?.includes('회전 보관 2') &&
+      document.querySelector('[data-history-source="current"] [data-history-source-filter="all"]')?.textContent?.includes('통합 3')`,
     timeoutMs,
-    "Manager .1 보관 이력 fixture 전환 버튼이 표시되지 않았습니다",
+    "Manager 현재·통합·보관 이력 source 버튼이 표시되지 않았습니다",
   );
 
-  await evaluate(cdp, `document.querySelector('[data-history-source-toggle]')?.click()`);
+  await evaluate(cdp, `document.querySelector('[data-history-source-filter="archive"]')?.click()`);
   await waitForCondition(
     cdp,
     `document.querySelectorAll('[data-history-source="archive"] li[data-deployment-status]').length === 2`,
