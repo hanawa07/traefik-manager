@@ -312,7 +312,8 @@ async function checkHistoryExports({ cdp, timeoutMs }) {
       return document.querySelectorAll(
         '[data-history-source="archive"] li[data-deployment-status]',
       ).length === 2 && !params.has('deployment_q') &&
-        !params.has('deployment_period') && !params.has('deployment_status') &&
+        !params.has('deployment_period') && !params.has('deployment_from') &&
+        !params.has('deployment_to') && !params.has('deployment_status') &&
         !params.has('deployment_stage') &&
         params.get('deployment_source') === 'archive';
     })()`,
@@ -393,6 +394,7 @@ async function waitForHistoryQueryRestore({ cdp, timeoutMs }) {
         document.querySelector('[data-history-search-highlight]')?.textContent === 'probe failure' &&
         params.get('deployment_source') === 'archive' &&
         params.get('deployment_period') === '30' &&
+        !params.has('deployment_from') && !params.has('deployment_to') &&
         params.get('deployment_q') === 'probe failure';
     })()`,
     timeoutMs,
