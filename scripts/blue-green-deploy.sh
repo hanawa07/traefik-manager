@@ -9,11 +9,14 @@ readonly STATE_DIR="${TM_MANAGER_DEPLOY_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.lo
 readonly STATE_FILE="${STATE_DIR}/blue-green-deployment.state"
 readonly LOCK_FILE="${STATE_DIR}/blue-green-deployment.lock"
 readonly HISTORY_FILE="${STATE_DIR}/blue-green-deployments.jsonl"
+readonly HISTORY_SCRIPT="${SCRIPT_DIR}/manager-deployment-history.sh"
 readonly PROBE_SCRIPT="${SCRIPT_DIR}/manager-deployment-probe.sh"
 readonly HOST_ALERT_SCRIPT="${TM_HOST_OPERATION_ALERT_SCRIPT:-${SCRIPT_DIR}/request-host-operation-alert.sh}"
 readonly PROBE_INTERVAL_SECONDS="${TM_DEPLOY_PROBE_INTERVAL_SECONDS:-0.2}"
 readonly HEALTH_TIMEOUT_SECONDS="${TM_BLUE_GREEN_HEALTH_TIMEOUT_SECONDS:-180}"
 readonly DRAIN_SECONDS="${TM_BLUE_GREEN_DRAIN_SECONDS:-2}"
+readonly HISTORY_MAX_ENTRIES="${TM_DEPLOY_HISTORY_MAX_ENTRIES:-200}"
+readonly HISTORY_RETAIN_ENTRIES="${TM_DEPLOY_HISTORY_RETAIN_ENTRIES:-100}"
 
 probe_pid=""
 probe_file=""
@@ -246,25 +249,6 @@ write_state() {
   mv "${temporary_file}" "${STATE_FILE}"
 }
 
-append_deployment_history() {
-  local output_file="$1"
-  local status="$2"
-  local from_slot="$3"
-  local to_slot="$4"
-  local active_slot="$5"
-  local deployed_version="$6"
-  local deployed_revision="$7"
-  local started_at="$8"
-  local completed_at="$9"
-  local probe_total="${10}"
-  local probe_failures="${11}"
-  printf '{"status":"%s","from_slot":"%s","to_slot":"%s","active_slot":"%s","version":"%s","revision":"%s","started_at":"%s","completed_at":"%s","probe_total":%s,"probe_failures":%s}\n' \
-    "${status}" "${from_slot}" "${to_slot}" "${active_slot}" \
-    "${deployed_version}" "${deployed_revision}" "${started_at}" "${completed_at}" \
-    "${probe_total}" "${probe_failures}" >> "${output_file}"
-  chmod 644 "${output_file}"
-}
-
 record_deployment_history() {
   local status="$1"
   local active_slot="$2"
@@ -276,7 +260,9 @@ record_deployment_history() {
   if [[ -n "${probe_file}" && -f "${probe_file}" ]]; then
     read -r probe_total probe_failures <<< "$("${PROBE_SCRIPT}" summary "${probe_file}")"
   fi
-  if ! append_deployment_history \
+  if ! TM_DEPLOY_HISTORY_MAX_ENTRIES="${HISTORY_MAX_ENTRIES}" \
+    TM_DEPLOY_HISTORY_RETAIN_ENTRIES="${HISTORY_RETAIN_ENTRIES}" \
+    "${HISTORY_SCRIPT}" append \
     "${HISTORY_FILE}" "${status}" "${previous_slot}" "${candidate_slot}" "${active_slot}" \
     "${version}" "${revision}" "${deployment_started_at}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "${probe_total}" "${probe_failures}"; then
@@ -370,22 +356,17 @@ rollback() {
 }
 
 run_self_test() {
-  local temporary_dir route_file history_file
+  local temporary_dir route_file
   temporary_dir="$(mktemp -d)"
   trap 'rm -rf "${temporary_dir}"' RETURN
   route_file="${temporary_dir}/route.yml"
-  history_file="${temporary_dir}/history.jsonl"
   printf 'url: "http://traefik-manager-frontend-blue:3000"\n' > "${route_file}"
   [[ "$(infer_active_slot "${route_file}")" == "blue" ]]
   [[ "$(opposite_slot blue)" == "green" ]]
   [[ "$(opposite_slot green)" == "blue" ]]
   [[ "$(upstream_for_slot green)" == "http://traefik-manager-frontend-green:3000" ]]
   [[ "$(backend_for_slot single)" == "traefik-manager-backend" ]]
-  append_deployment_history \
-    "${history_file}" success blue green green v1.2.3 \
-    1111111111111111111111111111111111111111 \
-    2026-07-16T00:00:00Z 2026-07-16T00:01:00Z 10 0
-  grep -Fq '"status":"success"' "${history_file}"
+  "${HISTORY_SCRIPT}" --self-test >/dev/null
   echo "Manager blue-green 배포 self-test 통과"
 }
 
