@@ -4,13 +4,23 @@ export type ManagerDeploymentHistoryStatusFilter = "all" | ManagerDeploymentHist
 export type ManagerDeploymentHistoryFailureStage = NonNullable<ManagerDeploymentHistoryEntry["failure_stage"]>;
 export type ManagerDeploymentHistoryStageFilter = "all" | "unknown" | ManagerDeploymentHistoryFailureStage;
 export type ManagerDeploymentHistorySourceFilter = "archive" | "current";
+export type ManagerDeploymentHistoryPeriodFilter = "all" | "1" | "7" | "30" | "90";
 
 export const MANAGER_DEPLOYMENT_HISTORY_QUERY = {
+  period: "deployment_period",
   search: "deployment_q",
   source: "deployment_source",
   stage: "deployment_stage",
   status: "deployment_status",
 } as const;
+
+const PERIOD_FILTERS: readonly ManagerDeploymentHistoryPeriodFilter[] = [
+  "all",
+  "1",
+  "7",
+  "30",
+  "90",
+];
 
 const STATUS_FILTERS: readonly ManagerDeploymentHistoryStatusFilter[] = [
   "all",
@@ -38,6 +48,14 @@ export function parseManagerDeploymentHistoryStatus(
 ): ManagerDeploymentHistoryStatusFilter {
   return STATUS_FILTERS.includes(value as ManagerDeploymentHistoryStatusFilter)
     ? value as ManagerDeploymentHistoryStatusFilter
+    : "all";
+}
+
+export function parseManagerDeploymentHistoryPeriod(
+  value: string | null,
+): ManagerDeploymentHistoryPeriodFilter {
+  return PERIOD_FILTERS.includes(value as ManagerDeploymentHistoryPeriodFilter)
+    ? value as ManagerDeploymentHistoryPeriodFilter
     : "all";
 }
 

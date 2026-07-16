@@ -5,17 +5,20 @@ import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/de
 import {
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
   MANAGER_DEPLOYMENT_FILTER_OPTIONS,
+  MANAGER_DEPLOYMENT_PERIOD_OPTIONS,
   MANAGER_DEPLOYMENT_STATUS_DISPLAY,
 } from "./managerDeploymentHistoryDisplay";
 import type { ManagerDeploymentHistoryExportFormat } from "./managerDeploymentHistoryExport";
 import type {
   ManagerDeploymentHistoryFailureStage,
+  ManagerDeploymentHistoryPeriodFilter,
   ManagerDeploymentHistorySourceFilter,
   ManagerDeploymentHistoryStageFilter,
   ManagerDeploymentHistoryStatusFilter,
 } from "./managerDeploymentHistoryQuery";
 
 export interface ManagerDeploymentHistoryFilters {
+  period: ManagerDeploymentHistoryPeriodFilter;
   search: string;
   source: ManagerDeploymentHistorySourceFilter;
   stage: ManagerDeploymentHistoryStageFilter;
@@ -53,6 +56,7 @@ export function ManagerDeploymentHistoryControls({
   const unknownStageCount = failedEntries.filter((entry) => !entry.failure_stage).length;
   const hasActiveFilters = filters.status !== "all"
     || filters.stage !== "all"
+    || filters.period !== "all"
     || filters.search.trim() !== "";
   const hasActiveConditions = showArchive || hasActiveFilters;
   const selectedStageLabel = filters.stage === "unknown"
@@ -119,6 +123,22 @@ export function ManagerDeploymentHistoryControls({
               value={filters.search}
             />
           </label>
+          <label className="min-w-36 text-[11px] font-medium text-gray-500 dark:text-slate-400">
+            <span className="sr-only">배포 이력 기간</span>
+            <select
+              aria-label="배포 이력 기간"
+              className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs text-gray-700 outline-none focus:border-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              data-history-period
+              onChange={(event) => onFiltersChange({
+                period: event.target.value as ManagerDeploymentHistoryPeriodFilter,
+              })}
+              value={filters.period}
+            >
+              {MANAGER_DEPLOYMENT_PERIOD_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
           <span aria-live="polite" className="text-[11px] text-gray-500 dark:text-slate-400">
             {filteredCount}/{entries.length}건
           </span>
@@ -127,7 +147,12 @@ export function ManagerDeploymentHistoryControls({
             className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
             data-history-filter-reset
             disabled={!hasActiveFilters}
-            onClick={() => onFiltersChange({ search: "", stage: "all", status: "all" })}
+            onClick={() => onFiltersChange({
+              period: "all",
+              search: "",
+              stage: "all",
+              status: "all",
+            })}
             type="button"
           >
             <RotateCcw className="h-3.5 w-3.5" />
@@ -217,6 +242,15 @@ export function ManagerDeploymentHistoryControls({
                   onRemove={() => onFiltersChange({ source: "current" })}
                 />
               ) : null}
+              {filters.period !== "all" ? (
+                <ConditionChip
+                  condition="period"
+                  label={`기간: ${MANAGER_DEPLOYMENT_PERIOD_OPTIONS.find(
+                    (option) => option.value === filters.period,
+                  )?.label}`}
+                  onRemove={() => onFiltersChange({ period: "all" })}
+                />
+              ) : null}
               {filters.status !== "all" ? (
                 <ConditionChip
                   condition="status"
@@ -279,7 +313,7 @@ function ConditionChip({
   label,
   onRemove,
 }: {
-  condition: "search" | "source" | "stage" | "status";
+  condition: "period" | "search" | "source" | "stage" | "status";
   label: string;
   onRemove: () => void;
 }) {

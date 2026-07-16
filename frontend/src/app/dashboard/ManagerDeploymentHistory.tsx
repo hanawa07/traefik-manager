@@ -17,10 +17,12 @@ import {
 } from "./managerDeploymentHistoryExport";
 import {
   MANAGER_DEPLOYMENT_HISTORY_QUERY,
+  parseManagerDeploymentHistoryPeriod,
   parseManagerDeploymentHistorySource,
   parseManagerDeploymentHistoryStage,
   parseManagerDeploymentHistoryStatus,
   replaceManagerDeploymentHistoryQueryParams,
+  type ManagerDeploymentHistoryPeriodFilter,
   type ManagerDeploymentHistorySourceFilter,
   type ManagerDeploymentHistoryStageFilter,
   type ManagerDeploymentHistoryStatusFilter,
@@ -49,6 +51,10 @@ function ManagerDeploymentHistoryContent({
 }: ManagerDeploymentHistoryProps) {
   const searchParams = useSearchParams();
   const [toastNotice, setToastNotice] = useState<ToastNoticeValue | null>(null);
+  const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
+  const [period, setPeriod] = useState<ManagerDeploymentHistoryPeriodFilter>(() =>
+    parseManagerDeploymentHistoryPeriod(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.period)),
+  );
   const [status, setStatus] = useState<ManagerDeploymentHistoryStatusFilter>(() =>
     parseManagerDeploymentHistoryStatus(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.status)),
   );
@@ -62,14 +68,19 @@ function ManagerDeploymentHistoryContent({
     (searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.search) || "").slice(0, 100),
   );
   const filters: ManagerDeploymentHistoryFilters = {
+    period,
     search: searchText,
     source: historySource,
     stage,
     status,
   };
   const normalizedSearchText = searchText.trim().toLowerCase();
+  const periodCutoff = period === "all"
+    ? null
+    : periodReferenceTime - Number(period) * 24 * 60 * 60 * 1_000;
   const visibleEntries = historySource === "archive" ? archiveEntries : entries;
   const filteredEntries = visibleEntries.filter((entry) => {
+    const matchesPeriod = periodCutoff === null || Date.parse(entry.completed_at) >= periodCutoff;
     const matchesStatus = status === "all" || entry.status === status;
     const matchesFailureStage = stage === "all"
       || (stage === "unknown"
@@ -77,11 +88,16 @@ function ManagerDeploymentHistoryContent({
         : entry.failure_stage === stage);
     const matchesSearch = !normalizedSearchText || [entry.version, entry.revision, entry.failure_reason]
       .some((value) => value?.toLowerCase().includes(normalizedSearchText));
-    return matchesStatus && matchesFailureStage && matchesSearch;
+    return matchesPeriod && matchesStatus && matchesFailureStage && matchesSearch;
   });
 
   const updateFilters = (updates: Partial<ManagerDeploymentHistoryFilters>) => {
     const queryUpdates: [key: string, value: string, defaultValue: string][] = [];
+    if (updates.period !== undefined) {
+      setPeriodReferenceTime(Date.now());
+      setPeriod(updates.period);
+      queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.period, updates.period, "all"]);
+    }
     if (updates.search !== undefined) {
       const nextSearch = updates.search.slice(0, 100);
       setSearchText(nextSearch);
@@ -119,6 +135,15 @@ function ManagerDeploymentHistoryContent({
     }
   };
 
+  const handleCopy = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setToastNotice({ message: `${label} 복사 완료`, tone: "success" });
+    } catch {
+      setToastNotice({ message: `${label} 복사 실패`, tone: "error" });
+    }
+  };
+
   return (
     <>
       <ToastNotice notice={toastNotice} onClose={() => setToastNotice(null)} />
@@ -152,6 +177,8 @@ function ManagerDeploymentHistoryContent({
               <ManagerDeploymentHistoryItem
                 entry={entry}
                 key={`${entry.completed_at}-${entry.to_slot}`}
+                onCopy={handleCopy}
+                previousVersion={visibleEntries[visibleEntries.indexOf(entry) + 1]?.version}
                 searchText={searchText}
                 source={source}
                 timezone={timezone}

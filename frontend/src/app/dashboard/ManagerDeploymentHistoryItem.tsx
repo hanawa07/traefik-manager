@@ -1,3 +1,5 @@
+import { Copy, GitCompareArrows } from "lucide-react";
+
 import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
@@ -14,6 +16,8 @@ import {
 
 interface ManagerDeploymentHistoryItemProps {
   entry: ManagerDeploymentHistoryEntry;
+  onCopy: (label: string, value: string) => void;
+  previousVersion?: string;
   searchText: string;
   source?: string | null;
   timezone?: string;
@@ -21,6 +25,8 @@ interface ManagerDeploymentHistoryItemProps {
 
 export function ManagerDeploymentHistoryItem({
   entry,
+  onCopy,
+  previousVersion,
   searchText,
   source,
   timezone,
@@ -29,6 +35,7 @@ export function ManagerDeploymentHistoryItem({
   const duration = formatManagerDeploymentDuration(entry.started_at, entry.completed_at);
   const links = buildManagerDeploymentLinks({
     latestVersion: entry.version,
+    previousVersion,
     revision: entry.revision,
     source,
   });
@@ -51,51 +58,104 @@ export function ManagerDeploymentHistoryItem({
           전환 {entry.from_slot} → {entry.to_slot} · 최종 활성 {entry.active_slot}
         </span>
       </div>
-      <p className="mt-2 text-xs text-gray-600 dark:text-slate-300">
-        {links.releaseUrl ? (
-          <a
-            className="font-semibold underline decoration-gray-300 underline-offset-2 hover:text-blue-700 dark:decoration-slate-600 dark:hover:text-blue-300"
-            href={links.releaseUrl}
-            rel="noreferrer"
-            target="_blank"
-          >
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-gray-600 dark:text-slate-300">
+        <span>
+          {links.releaseUrl ? (
+            <a
+              className="font-semibold underline decoration-gray-300 underline-offset-2 hover:text-blue-700 dark:decoration-slate-600 dark:hover:text-blue-300"
+              href={links.releaseUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <HighlightedText query={searchText} text={entry.version} />
+            </a>
+          ) : (
             <HighlightedText query={searchText} text={entry.version} />
-          </a>
-        ) : (
-          <HighlightedText query={searchText} text={entry.version} />
-        )}
-        {" · "}
-        {links.commitUrl ? (
+          )}
+          {" · "}
+          {links.commitUrl ? (
+            <a
+              className="font-mono underline decoration-gray-300 underline-offset-2 hover:text-blue-700 dark:decoration-slate-600 dark:hover:text-blue-300"
+              href={links.commitUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <HighlightedText query={searchText} text={revision} />
+            </a>
+          ) : (
+            <span className="font-mono">
+              <HighlightedText query={searchText} text={revision} />
+            </span>
+          )}
+        </span>
+        <CopyValueButton
+          kind="revision"
+          label="커밋 SHA"
+          onCopy={onCopy}
+          value={entry.revision}
+        />
+        {links.compareUrl ? (
           <a
-            className="font-mono underline decoration-gray-300 underline-offset-2 hover:text-blue-700 dark:decoration-slate-600 dark:hover:text-blue-300"
-            href={links.commitUrl}
+            className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
+            data-deployment-compare
+            href={links.compareUrl}
             rel="noreferrer"
             target="_blank"
           >
-            <HighlightedText query={searchText} text={revision} />
+            <GitCompareArrows aria-hidden="true" className="h-3 w-3" />
+            이전 버전 비교
           </a>
-        ) : (
-          <span className="font-mono">
-            <HighlightedText query={searchText} text={revision} />
-          </span>
-        )}
-      </p>
+        ) : null}
+      </div>
       <p className="mt-1 text-[11px] text-gray-500 dark:text-slate-400">
         <span data-deployment-duration={duration}>소요 {duration}</span>
         {" · "}
         {formatProbe(entry)} · {formatDateTime(entry.completed_at, timezone)}
       </p>
       {entry.failure_reason ? (
-        <p
-          className="mt-2 rounded-md bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-100"
+        <div
+          className="mt-2 flex items-start gap-2 rounded-md bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-100"
           data-deployment-failure-detail
         >
-          {entry.failure_stage ? `${MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS[entry.failure_stage]} · ` : ""}
-          <HighlightedText query={searchText} text={entry.failure_reason} />
-        </p>
+          <p className="min-w-0 flex-1 break-words">
+            {entry.failure_stage ? `${MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS[entry.failure_stage]} · ` : ""}
+            <HighlightedText query={searchText} text={entry.failure_reason} />
+          </p>
+          <CopyValueButton
+            kind="failure_reason"
+            label="실패 원인"
+            onCopy={onCopy}
+            value={entry.failure_reason}
+          />
+        </div>
       ) : null}
       <DeploymentAlertRun entry={entry} timezone={timezone} />
     </li>
+  );
+}
+
+function CopyValueButton({
+  kind,
+  label,
+  onCopy,
+  value,
+}: {
+  kind: "failure_reason" | "revision";
+  label: string;
+  onCopy: (label: string, value: string) => void;
+  value: string;
+}) {
+  return (
+    <button
+      aria-label={`${label} 복사`}
+      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-current/20 bg-white/70 px-2 py-1 text-[10px] font-semibold hover:bg-white dark:bg-slate-950/60 dark:hover:bg-slate-950"
+      data-deployment-copy={kind}
+      onClick={() => onCopy(label, value)}
+      type="button"
+    >
+      <Copy aria-hidden="true" className="h-3 w-3" />
+      {label === "커밋 SHA" ? "SHA 복사" : "원인 복사"}
+    </button>
   );
 }
 

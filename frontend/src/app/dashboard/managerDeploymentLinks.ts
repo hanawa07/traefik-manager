@@ -1,12 +1,14 @@
 interface ManagerDeploymentLinksInput {
   latestReleaseUrl?: string | null;
   latestVersion?: string | null;
+  previousVersion?: string | null;
   revision?: string | null;
   source?: string | null;
 }
 
 interface ManagerDeploymentLinks {
   commitUrl?: string;
+  compareUrl?: string;
   releaseUrl?: string;
   sourceUrl?: string;
 }
@@ -14,6 +16,7 @@ interface ManagerDeploymentLinks {
 export function buildManagerDeploymentLinks({
   latestReleaseUrl,
   latestVersion,
+  previousVersion,
   revision,
   source,
 }: ManagerDeploymentLinksInput): ManagerDeploymentLinks {
@@ -21,9 +24,22 @@ export function buildManagerDeploymentLinks({
 
   return {
     commitUrl: buildGitHubCommitUrl(sourceUrl, revision),
+    compareUrl: buildGitHubCompareUrl(sourceUrl, previousVersion, latestVersion),
     releaseUrl: normalizeWebUrl(latestReleaseUrl) || buildGitHubReleaseUrl(sourceUrl, latestVersion),
     sourceUrl,
   };
+}
+
+function buildGitHubCompareUrl(
+  sourceUrl?: string,
+  previousVersion?: string | null,
+  latestVersion?: string | null,
+) {
+  const previous = normalizeText(previousVersion);
+  const latest = normalizeText(latestVersion);
+  if (!sourceUrl || !previous || !latest || previous === latest) return undefined;
+
+  return `${sourceUrl}/compare/${encodeURIComponent(previous)}...${encodeURIComponent(latest)}`;
 }
 
 function resolveGitHubSourceUrl(value?: string | null) {

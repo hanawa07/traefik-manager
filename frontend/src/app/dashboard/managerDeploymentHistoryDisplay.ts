@@ -2,6 +2,7 @@ import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/de
 
 import type {
   ManagerDeploymentHistoryFailureStage,
+  ManagerDeploymentHistoryPeriodFilter,
   ManagerDeploymentHistoryStatusFilter,
 } from "./managerDeploymentHistoryQuery";
 
@@ -42,6 +43,17 @@ export const MANAGER_DEPLOYMENT_FILTER_OPTIONS: readonly {
     value: "rollback_failed",
     label: MANAGER_DEPLOYMENT_STATUS_DISPLAY.rollback_failed.label,
   },
+];
+
+export const MANAGER_DEPLOYMENT_PERIOD_OPTIONS: readonly {
+  label: string;
+  value: ManagerDeploymentHistoryPeriodFilter;
+}[] = [
+  { value: "all", label: "전체 기간" },
+  { value: "1", label: "최근 24시간" },
+  { value: "7", label: "최근 7일" },
+  { value: "30", label: "최근 30일" },
+  { value: "90", label: "최근 90일" },
 ];
 
 export const MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS: Record<

@@ -120,7 +120,7 @@ scripts/blue-green-deploy.sh vX.Y.Z
 - 배포 잠금은 같은 상태 디렉터리의 `blue-green-deployment.lock`을 사용합니다.
 - 배포 시작 시 `dockerproxy`가 healthy인지 먼저 확인하며 backend 컨테이너에는 Docker socket을 마운트하지 않습니다.
 - 대시보드 Manager 라우터 카드에서 active 슬롯과 file-provider upstream `UP`을 확인합니다.
-- 대시보드 `배포 전환 이력`은 최근 기록과 회전 보관 기록을 분리해 보여주며 상태·실패 단계·버전·커밋·실패 원인으로 필터링합니다. 적용 조건은 칩에서 개별 제거할 수 있고 검색 일치 부분, 배포 소요시간, 시작·대상·최종 활성 슬롯을 각 기록에서 바로 확인할 수 있습니다. 선택 조건은 URL에 유지되며 현재 결과를 JSON 또는 Excel 호환 CSV로 내보낼 수 있습니다.
+- 대시보드 `배포 전환 이력`은 최근 기록과 회전 보관 기록을 분리해 보여주며 기간·상태·실패 단계·버전·커밋·실패 원인으로 필터링합니다. 적용 조건은 칩에서 개별 제거할 수 있고 검색 일치 부분, 배포 소요시간, 시작·대상·최종 활성 슬롯을 각 기록에서 바로 확인할 수 있습니다. 커밋 SHA와 실패 원인을 복사하거나 연속 배포 버전을 GitHub에서 비교할 수 있으며, 선택 조건은 URL에 유지되고 현재 결과를 JSON 또는 Excel 호환 CSV로 내보낼 수 있습니다.
 
 배포 전 `scripts/blue-green-deploy.sh --self-test`, `scripts/test-blue-green-rollback-failure.sh`, `scripts/manager-deployment-history.sh --self-test`, `scripts/request-host-operation-alert.sh --self-test`와 `scripts/manager-deployment-probe.sh --self-test`를 실행할 수 있습니다. 격리 rollback 시험은 운영 route나 Docker를 건드리지 않고 실제 상태 머신에 복구 실패를 주입합니다. GitHub의 `운영 로그인·화면 스모크`도 배포 관련 self-test를 매번 수행합니다.
 
