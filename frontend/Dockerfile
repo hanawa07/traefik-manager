@@ -15,18 +15,32 @@ COPY . .
 RUN npm run build
 
 FROM node:20-alpine AS runner
+WORKDIR /app
+
+# 보안: 비루트 사용자
+RUN addgroup --system appgroup \
+  && adduser --system --ingroup appgroup appuser \
+  && mkdir -p /app/.next/cache \
+  && chown -R appuser:appgroup /app
+
+COPY --chown=appuser:appgroup --from=builder /app/.next/standalone ./
+COPY --chown=appuser:appgroup --from=builder /app/.next/static ./.next/static
+COPY --chown=appuser:appgroup --from=builder /app/public ./public
+
 ARG NEXT_PUBLIC_API_URL=/api/v1
 ARG FRONTEND_DOMAIN=
 ARG TRAEFIK_MANAGER_VERSION=v1.36.7
 ARG TRAEFIK_MANAGER_GIT_SHA=unknown
 ARG TRAEFIK_MANAGER_BUILD_DATE=unknown
 ARG TRAEFIK_MANAGER_IMAGE_SOURCE=https://github.com/hanawa07/traefik-manager
+
 LABEL org.opencontainers.image.title="Traefik Manager Frontend" \
   org.opencontainers.image.description="Next.js frontend for Traefik Manager" \
   org.opencontainers.image.source="${TRAEFIK_MANAGER_IMAGE_SOURCE}" \
   org.opencontainers.image.version="${TRAEFIK_MANAGER_VERSION}" \
   org.opencontainers.image.revision="${TRAEFIK_MANAGER_GIT_SHA}" \
   org.opencontainers.image.created="${TRAEFIK_MANAGER_BUILD_DATE}"
+
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV FRONTEND_DOMAIN=${FRONTEND_DOMAIN}
@@ -37,17 +51,7 @@ ENV TRAEFIK_MANAGER_BUILD_DATE=${TRAEFIK_MANAGER_BUILD_DATE}
 ENV TRAEFIK_MANAGER_IMAGE_SOURCE=${TRAEFIK_MANAGER_IMAGE_SOURCE}
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
-WORKDIR /app
 
-# 보안: 비루트 사용자
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
-
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-
-RUN mkdir -p /app/.next/cache \
-  && chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 3000
