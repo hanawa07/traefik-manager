@@ -17,6 +17,7 @@ import type {
 } from "./managerDeploymentHistoryQuery";
 import { ManagerDeploymentDateRange } from "./ManagerDeploymentDateRange";
 import { ManagerDeploymentFailureSummary } from "./ManagerDeploymentFailureSummary";
+import { ManagerDeploymentOutcomeSummary } from "./ManagerDeploymentOutcomeSummary";
 
 export interface ManagerDeploymentHistoryFilters {
   dateFrom: string;
@@ -30,29 +31,42 @@ export interface ManagerDeploymentHistoryFilters {
 
 interface ManagerDeploymentHistoryControlsProps {
   archiveCount: number;
+  currentCount: number;
   entries: ManagerDeploymentHistoryEntry[];
   filteredCount: number;
   filters: ManagerDeploymentHistoryFilters;
   onExport: (format: ManagerDeploymentHistoryExportFormat) => void;
   onFiltersChange: (updates: Partial<ManagerDeploymentHistoryFilters>) => void;
+  summaryEntries: ManagerDeploymentHistoryEntry[];
 }
 
 export function ManagerDeploymentHistoryControls({
   archiveCount,
+  currentCount,
   entries,
   filteredCount,
   filters,
   onExport,
   onFiltersChange,
+  summaryEntries,
 }: ManagerDeploymentHistoryControlsProps) {
-  const showArchive = filters.source === "archive";
+  const sourceLabel = filters.source === "all"
+    ? "현재·보관 통합"
+    : filters.source === "archive"
+      ? "회전 보관"
+      : "최근";
+  const sourceOptions: { label: string; value: ManagerDeploymentHistorySourceFilter }[] = [
+    { label: `최근 ${currentCount}`, value: "current" },
+    { label: `통합 ${currentCount + archiveCount}`, value: "all" },
+    { label: `회전 보관 ${archiveCount}`, value: "archive" },
+  ];
   const hasActiveFilters = filters.status !== "all"
     || filters.stage !== "all"
     || filters.period !== "all"
     || filters.dateFrom !== ""
     || filters.dateTo !== ""
     || filters.search.trim() !== "";
-  const hasActiveConditions = showArchive || hasActiveFilters;
+  const hasActiveConditions = filters.source !== "current" || hasActiveFilters;
   const selectedStageLabel = filters.stage === "unknown"
     ? "단계 미기록"
     : filters.stage === "all"
@@ -66,24 +80,30 @@ export function ManagerDeploymentHistoryControls({
           <History className="h-4 w-4 text-slate-500 dark:text-slate-400" />
           <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">배포 전환 이력</h3>
           <span className="text-xs text-gray-500 dark:text-slate-400">
-            {showArchive ? "회전 보관" : "최근"} {entries.length}건
+            {sourceLabel} {entries.length}건
           </span>
         </div>
         <div className="flex flex-wrap gap-1 sm:ml-auto">
-          {archiveCount > 0 || showArchive ? (
+          {archiveCount > 0 || filters.source !== "current" ? sourceOptions.map((option) => (
             <button
-              className="rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
-              data-history-source-toggle
+              aria-pressed={filters.source === option.value}
+              className={`rounded-full border px-2 py-1 text-[11px] font-semibold transition-colors ${
+                filters.source === option.value
+                  ? "border-blue-600 bg-blue-600 text-white dark:border-blue-400 dark:bg-blue-400 dark:text-slate-950"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
+              }`}
+              data-history-source-filter={option.value}
+              key={option.value}
               onClick={() => onFiltersChange({
-                source: showArchive ? "current" : "archive",
+                source: option.value,
                 stage: "all",
                 status: "all",
               })}
               type="button"
             >
-              {showArchive ? "현재 이력 보기" : `회전 보관 ${archiveCount}건 보기`}
+              {option.label}
             </button>
-          ) : null}
+          )) : null}
           {entries.length > 0 ? (["json", "csv"] as const).map((format) => (
             <button
               aria-label={`현재 화면 ${format.toUpperCase()} 내보내기`}
@@ -167,12 +187,14 @@ export function ManagerDeploymentHistoryControls({
         />
       ) : null}
 
+      {entries.length > 0 ? <ManagerDeploymentOutcomeSummary entries={summaryEntries} /> : null}
+
       {entries.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1" role="group" aria-label="배포 이력 상태 필터">
           {MANAGER_DEPLOYMENT_FILTER_OPTIONS.map((option) => {
             const count = option.value === "all"
-              ? entries.length
-              : entries.filter((entry) => entry.status === option.value).length;
+              ? summaryEntries.length
+              : summaryEntries.filter((entry) => entry.status === option.value).length;
             const active = filters.status === option.value;
             return (
               <button
@@ -195,7 +217,7 @@ export function ManagerDeploymentHistoryControls({
       ) : null}
 
       <ManagerDeploymentFailureSummary
-        entries={entries}
+        entries={summaryEntries}
         onStageChange={(stage) => onFiltersChange({ stage })}
         selectedStage={filters.stage}
       />
@@ -211,10 +233,10 @@ export function ManagerDeploymentHistoryControls({
             <span className="text-slate-500 dark:text-slate-400">전체 이력</span>
           ) : (
             <>
-              {showArchive ? (
+              {filters.source !== "current" ? (
                 <ConditionChip
                   condition="source"
-                  label="회전 보관"
+                  label={filters.source === "all" ? "현재·보관 통합" : "회전 보관"}
                   onRemove={() => onFiltersChange({ source: "current" })}
                 />
               ) : null}

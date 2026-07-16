@@ -3,7 +3,7 @@ import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/de
 export type ManagerDeploymentHistoryStatusFilter = "all" | ManagerDeploymentHistoryEntry["status"];
 export type ManagerDeploymentHistoryFailureStage = NonNullable<ManagerDeploymentHistoryEntry["failure_stage"]>;
 export type ManagerDeploymentHistoryStageFilter = "all" | "unknown" | ManagerDeploymentHistoryFailureStage;
-export type ManagerDeploymentHistorySourceFilter = "archive" | "current";
+export type ManagerDeploymentHistorySourceFilter = "all" | "archive" | "current";
 export type ManagerDeploymentHistoryPeriodFilter = "all" | "1" | "7" | "30" | "90";
 
 export const MANAGER_DEPLOYMENT_HISTORY_QUERY = {
@@ -81,7 +81,7 @@ export function parseManagerDeploymentHistoryStage(
 export function parseManagerDeploymentHistorySource(
   value: string | null,
 ): ManagerDeploymentHistorySourceFilter {
-  return value === "archive" ? "archive" : "current";
+  return value === "all" || value === "archive" ? value : "current";
 }
 
 export function replaceManagerDeploymentHistoryQueryParams(

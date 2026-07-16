@@ -131,7 +131,7 @@ export function ManagerDeploymentHistoryItem({
         </div>
       ) : null}
       <DeploymentAlertRun entry={entry} timezone={timezone} />
-      <ManagerDeploymentHistoryJsonDetails entry={entry} />
+      <ManagerDeploymentHistoryJsonDetails entry={entry} onCopy={onCopy} />
     </li>
   );
 }

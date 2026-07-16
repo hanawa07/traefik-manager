@@ -1,6 +1,6 @@
 import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/deploymentApi";
 
-export type ManagerDeploymentHistorySource = "archive" | "current";
+export type ManagerDeploymentHistorySource = "all" | "archive" | "current";
 export type ManagerDeploymentHistoryExportFormat = "csv" | "json";
 
 const CSV_COLUMNS: readonly (keyof ManagerDeploymentHistoryEntry)[] = [

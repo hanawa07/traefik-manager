@@ -89,12 +89,19 @@ function ManagerDeploymentHistoryContent({
     : periodReferenceTime - Number(period) * 24 * 60 * 60 * 1_000;
   const dateFromCutoff = getLocalDateBoundary(dateFrom);
   const dateToCutoff = getLocalDateBoundary(dateTo, true);
-  const visibleEntries = historySource === "archive" ? archiveEntries : entries;
-  const filteredEntries = visibleEntries.filter((entry) => {
+  const visibleEntries = historySource === "archive"
+    ? archiveEntries
+    : historySource === "all"
+      ? [...entries, ...archiveEntries]
+      : entries;
+  const summaryEntries = visibleEntries.filter((entry) => {
     const completedAt = Date.parse(entry.completed_at);
     const matchesPeriod = periodCutoff === null || completedAt >= periodCutoff;
     const matchesDateRange = (dateFromCutoff === null || completedAt >= dateFromCutoff)
       && (dateToCutoff === null || completedAt < dateToCutoff);
+    return matchesPeriod && matchesDateRange;
+  });
+  const filteredEntries = summaryEntries.filter((entry) => {
     const matchesStatus = status === "all" || entry.status === status;
     const matchesFailureStage = stage === "all"
       || (stage === "unknown"
@@ -102,7 +109,7 @@ function ManagerDeploymentHistoryContent({
         : entry.failure_stage === stage);
     const matchesSearch = !normalizedSearchText || [entry.version, entry.revision, entry.failure_reason]
       .some((value) => value?.toLowerCase().includes(normalizedSearchText));
-    return matchesPeriod && matchesDateRange && matchesStatus && matchesFailureStage && matchesSearch;
+    return matchesStatus && matchesFailureStage && matchesSearch;
   });
 
   const updateFilters = (updates: Partial<ManagerDeploymentHistoryFilters>) => {
@@ -176,11 +183,13 @@ function ManagerDeploymentHistoryContent({
       >
         <ManagerDeploymentHistoryControls
           archiveCount={archiveEntries.length}
+          currentCount={entries.length}
           entries={visibleEntries}
           filteredCount={filteredEntries.length}
           filters={filters}
           onExport={handleExport}
           onFiltersChange={updateFilters}
+          summaryEntries={summaryEntries}
         />
 
         {visibleEntries.length === 0 ? (
