@@ -242,3 +242,28 @@ async def load_certificate_preflight_interval_seconds() -> int:
     except Exception:
         logger.warning("인증서 프리플라이트 주기 설정 조회 실패, 기본값 사용", exc_info=True)
         return max(300, settings.CERTIFICATE_PREFLIGHT_AUTO_CHECK_INTERVAL_MINUTES * 60)
+
+
+async def run_active_background_tasks() -> None:
+    await ensure_service_route_files()
+    await ensure_authentik_middleware_file()
+    await ensure_traefik_dashboard_public_route()
+    await cleanup_auth_state_once()
+    await cleanup_audit_logs_once()
+    await check_certificate_alerts_once()
+    await check_certificate_preflight_once()
+
+    tasks = [
+        asyncio.create_task(auth_cleanup_loop()),
+        asyncio.create_task(audit_retention_loop()),
+        asyncio.create_task(certificate_alert_loop()),
+        asyncio.create_task(certificate_preflight_loop()),
+        asyncio.create_task(alert_retry_loop()),
+        asyncio.create_task(manager_health_loop()),
+    ]
+    try:
+        await asyncio.gather(*tasks)
+    finally:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)

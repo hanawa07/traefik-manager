@@ -1,24 +1,13 @@
 import asyncio
 from contextlib import asynccontextmanager, suppress
+from pathlib import Path
 
 from fastapi import FastAPI
 
+from app.background_task_supervisor import supervise_background_tasks
 from app.app_factory import create_app
-from app.app_lifespan import (
-    alert_retry_loop as _alert_retry_loop,
-    audit_retention_loop as _audit_retention_loop,
-    auth_cleanup_loop as _auth_cleanup_loop,
-    certificate_alert_loop as _certificate_alert_loop,
-    certificate_preflight_loop as _certificate_preflight_loop,
-    check_certificate_alerts_once as _check_certificate_alerts_once,
-    check_certificate_preflight_once as _check_certificate_preflight_once,
-    cleanup_auth_state_once as _cleanup_auth_state_once,
-    cleanup_audit_logs_once as _cleanup_audit_logs_once,
-    ensure_authentik_middleware_file as _ensure_authentik_middleware_file,
-    ensure_service_route_files as _ensure_service_route_files,
-    ensure_traefik_dashboard_public_route as _ensure_traefik_dashboard_public_route,
-    manager_health_loop as _manager_health_loop,
-)
+from app.app_lifespan import run_active_background_tasks
+from app.core.config import settings
 from app.core.logging_config import setup_logging
 from app.infrastructure.persistence.database import init_db
 
@@ -27,40 +16,22 @@ from app.infrastructure.persistence.database import init_db
 async def lifespan(app: FastAPI):
     setup_logging()
     await init_db()
-    await _ensure_service_route_files()
-    await _ensure_authentik_middleware_file()
-    await _ensure_traefik_dashboard_public_route()
-    await _cleanup_auth_state_once()
-    await _cleanup_audit_logs_once()
-    await _check_certificate_alerts_once()
-    await _check_certificate_preflight_once()
-    cleanup_task = asyncio.create_task(_auth_cleanup_loop())
-    audit_retention_task = asyncio.create_task(_audit_retention_loop())
-    certificate_task = asyncio.create_task(_certificate_alert_loop())
-    certificate_preflight_task = asyncio.create_task(_certificate_preflight_loop())
-    alert_retry_task = asyncio.create_task(_alert_retry_loop())
-    manager_health_task = asyncio.create_task(_manager_health_loop())
+    config_root = Path(settings.TRAEFIK_CONFIG_PATH).parent
+    background_task = asyncio.create_task(
+        supervise_background_tasks(
+            enabled=settings.TRAEFIK_MANAGER_BACKGROUND_TASKS_ENABLED,
+            slot=settings.TRAEFIK_MANAGER_SLOT,
+            route_path=Path(settings.TRAEFIK_CONFIG_PATH) / "traefik-manager-self.yml",
+            lease_path=config_root / ".background-tasks.lock",
+            run_active=run_active_background_tasks,
+        )
+    )
     try:
         yield
     finally:
-        cleanup_task.cancel()
-        audit_retention_task.cancel()
-        certificate_task.cancel()
-        certificate_preflight_task.cancel()
-        alert_retry_task.cancel()
-        manager_health_task.cancel()
+        background_task.cancel()
         with suppress(asyncio.CancelledError):
-            await cleanup_task
-        with suppress(asyncio.CancelledError):
-            await audit_retention_task
-        with suppress(asyncio.CancelledError):
-            await certificate_task
-        with suppress(asyncio.CancelledError):
-            await certificate_preflight_task
-        with suppress(asyncio.CancelledError):
-            await alert_retry_task
-        with suppress(asyncio.CancelledError):
-            await manager_health_task
+            await background_task
 
 
 app = create_app(lifespan=lifespan)

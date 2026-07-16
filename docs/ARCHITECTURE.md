@@ -279,10 +279,10 @@ traefik-manager/
 - 안전한 설정(`시간 표시`, `업스트림 보안`)은 audit detail에 롤백 payload를 함께 저장하고, `settings/rollback` 액션으로 복구합니다.
 - 선택적으로 보안 이벤트를 외부 채널(generic/slack/discord/telegram/teams/pagerduty/email)로 전송할 수 있으며, 기본 채널 위에 이벤트별 override(telegram/pagerduty/email/disabled)를 둘 수 있습니다. 전송 실패는 원래 로그인 방어 흐름을 막지 않습니다.
 - Traefik 내장 dashboard는 Manager 설정에서 public route만 생성/삭제하도록 제어합니다. 실제 구현은 file-provider에 `api@internal` 라우터와 basicAuth 미들웨어를 쓰는 방식이고, 정적 Traefik의 `api.dashboard=true`는 별도로 유지되어야 합니다.
-- Manager frontend의 자체 라우터도 `init-traefik-config`가 file-provider YAML로 원자 생성합니다. 라우터 수명을 frontend 컨테이너의 Docker 라벨과 분리해 재배포 중 `Not Found` 공백을 막고, backend까지 이어지는 frontend healthcheck로 실제 준비 상태를 별도로 판정합니다. 배포 API는 Traefik runtime의 HTTPS/HTTP router, service, upstream 상태를 읽어 대시보드에 표시하며, 남은 단일 upstream 교체 구간은 [blue-green 배포 설계](plans/2026-07-16-blue-green-deployment.md)로 분리합니다.
+- Manager frontend의 자체 라우터는 `init-traefik-config`가 file-provider YAML로 원자 생성합니다. blue/green 후보는 전용 app 내부망에서 같은 슬롯 backend까지 health를 확인한 뒤 backend에 stable ForwardAuth alias를 붙이고 service upstream만 교체합니다. 0.2초 공개 probe가 비정상 응답을 하나라도 감지하면 이전 슬롯으로 rollback합니다. 두 backend가 함께 떠 있는 동안 startup 정리와 주기 작업은 공유 file lock leader 한 곳에서만 실행되며 route 변경에 맞춰 lease를 승계합니다. 배포 API는 active 슬롯, HTTPS/HTTP router, service, upstream 상태를 대시보드에 표시합니다. 상세 절차와 안전 조건은 [blue-green 배포 설계](plans/2026-07-16-blue-green-deployment.md)를 따릅니다.
 - 컨테이너 비루트 사용자 실행
 - `no-new-privileges` 보안 옵션
-- 프론트엔드-백엔드 내부 네트워크 격리 (`traefik-manager-internal`)
+- backend는 Docker socket을 직접 마운트하지 않고, `traefik-manager-internal`의 allowlist proxy를 통해 조회 API와 네트워크 연결 API만 사용합니다.
 - 프로덕션 환경에서 Swagger UI 비활성화
 - CORS 허용 출처 명시적 설정
 - 업스트림 저장 시 DNS strict mode, allowlist, preset 조합으로 정책을 적용할 수 있습니다.

@@ -5,10 +5,20 @@ config_root=${TRAEFIK_CONFIG_ROOT:-/traefik-config}
 dynamic_dir="${config_root}/dynamic"
 target="${dynamic_dir}/traefik-manager-self.yml"
 temporary="${target}.tmp"
+manager_upstream=${TRAEFIK_MANAGER_FRONTEND_UPSTREAM:-http://traefik-manager-frontend:3000}
 
 case "${FRONTEND_DOMAIN:-}" in
   ""|*[!A-Za-z0-9.-]*)
     echo "FRONTEND_DOMAIN이 올바른 도메인이 아닙니다" >&2
+    exit 1
+    ;;
+esac
+
+case "$manager_upstream" in
+  http://traefik-manager-frontend:3000|http://traefik-manager-frontend-blue:3000|http://traefik-manager-frontend-green:3000)
+    ;;
+  *)
+    echo "TRAEFIK_MANAGER_FRONTEND_UPSTREAM이 허용된 Manager frontend 주소가 아닙니다" >&2
     exit 1
     ;;
 esac
@@ -35,7 +45,7 @@ http:
     traefik-manager-frontend-file:
       loadBalancer:
         servers:
-          - url: "http://traefik-manager-frontend:3000"
+          - url: "${manager_upstream}"
   middlewares:
     traefik-manager-frontend-https-file:
       redirectScheme:

@@ -2,15 +2,16 @@ import ast
 from pathlib import Path
 
 
-def test_main_lifespan_runs_startup_checks_and_background_loops():
+def test_active_background_runtime_runs_startup_checks_and_background_loops():
     backend_root = Path(__file__).resolve().parents[2]
-    source = (backend_root / "app" / "main.py").read_text(encoding="utf-8")
+    source = (backend_root / "app" / "app_lifespan.py").read_text(encoding="utf-8")
     module = ast.parse(source)
 
     lifespan = next(
         node
         for node in module.body
-        if isinstance(node, ast.AsyncFunctionDef) and node.name == "lifespan"
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "run_active_background_tasks"
     )
 
     cleanup_once_calls = [
@@ -19,7 +20,7 @@ def test_main_lifespan_runs_startup_checks_and_background_loops():
         if isinstance(node, ast.Await)
         and isinstance(node.value, ast.Call)
         and isinstance(node.value.func, ast.Name)
-        and node.value.func.id == "_cleanup_auth_state_once"
+        and node.value.func.id == "cleanup_auth_state_once"
     ]
     assert cleanup_once_calls, "lifespan must run auth cleanup once on startup"
 
@@ -29,7 +30,7 @@ def test_main_lifespan_runs_startup_checks_and_background_loops():
         if isinstance(node, ast.Await)
         and isinstance(node.value, ast.Call)
         and isinstance(node.value.func, ast.Name)
-        and node.value.func.id == "_cleanup_audit_logs_once"
+        and node.value.func.id == "cleanup_audit_logs_once"
     ]
     assert audit_cleanup_calls, "lifespan must run audit retention once on startup"
 
@@ -39,7 +40,7 @@ def test_main_lifespan_runs_startup_checks_and_background_loops():
         if isinstance(node, ast.Await)
         and isinstance(node.value, ast.Call)
         and isinstance(node.value.func, ast.Name)
-        and node.value.func.id == "_check_certificate_alerts_once"
+        and node.value.func.id == "check_certificate_alerts_once"
     ]
     assert certificate_check_calls, "lifespan must run certificate alert check once on startup"
 
@@ -52,7 +53,7 @@ def test_main_lifespan_runs_startup_checks_and_background_loops():
         and node.func.value.id == "asyncio"
         and node.func.attr == "create_task"
     ]
-    assert create_task_calls, "lifespan must start auth cleanup background task"
+    assert create_task_calls, "active runtime must start auth cleanup background task"
     task_targets = {
         call.args[0].func.id
         for call in create_task_calls
@@ -60,5 +61,5 @@ def test_main_lifespan_runs_startup_checks_and_background_loops():
         and isinstance(call.args[0], ast.Call)
         and isinstance(call.args[0].func, ast.Name)
     }
-    assert "_manager_health_loop" in task_targets
-    assert "_audit_retention_loop" in task_targets
+    assert "manager_health_loop" in task_targets
+    assert "audit_retention_loop" in task_targets

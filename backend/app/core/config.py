@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     TRAEFIK_MANAGER_LATEST_RELEASE_CACHE_SECONDS: int = 3600
     TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME: str = "traefik-manager-backend"
     TRAEFIK_MANAGER_FRONTEND_CONTAINER_NAME: str = "traefik-manager-frontend"
+    TRAEFIK_MANAGER_SLOT: str = "single"
+    TRAEFIK_MANAGER_BACKGROUND_TASKS_ENABLED: bool = True
     TRAEFIK_MANAGER_LOG_TAIL_LINES: int = 5000
     TRAEFIK_MANAGER_REQUEST_LOG_PATH: str = "./data/manager-http-requests.jsonl"
     SMOKE_ROTATION_LOG_PATH: str = "/host-state/traefik-manager/smoke-password-rotation.log"

@@ -18,6 +18,10 @@ INTERNAL_ALLOWED_HOSTS = [
     "backend:8000",
     "traefik-manager-backend",
     "traefik-manager-backend:8000",
+    "traefik-manager-backend-blue",
+    "traefik-manager-backend-blue:8000",
+    "traefik-manager-backend-green",
+    "traefik-manager-backend-green:8000",
 ]
 
 

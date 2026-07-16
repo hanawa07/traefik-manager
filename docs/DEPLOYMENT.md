@@ -95,10 +95,32 @@ providers:
 8. `docker compose logs -f backend`로 시작 로그와 `/traefik-config/dynamic` 권한 오류 여부를 확인합니다.
 9. `curl -Ik https://<FRONTEND_DOMAIN>` 또는 브라우저로 로그인 페이지 노출을 확인합니다.
 
+## Blue-green 무중단 배포
+
+초기 설치나 비상 복구에는 기존 `docker compose up -d --build`를 사용할 수 있습니다. 정상 운영 업데이트는 아래 명령으로 active 반대편 슬롯을 빌드·검증한 뒤 전환합니다.
+
+```bash
+scripts/blue-green-deploy.sh vX.Y.Z
+```
+
+스크립트는 현재 `traefik-manager-self.yml` upstream을 기준으로 active 슬롯을 판별합니다. 후보 backend/frontend가 모두 healthy이고 후보 frontend에서 후보 backend까지 `/api/health`가 통과한 뒤에만 file-provider upstream을 원자 교체합니다.
+
+- 후보 backend는 준비 중 `traefik-manager-app` 내부망에만 있고, health 통과 후 `proxy_net`에 `traefik-manager-backend` ForwardAuth alias로 연결됩니다.
+- backend의 startup 정리와 주기 작업은 `/traefik-config/.background-tasks.lock` lease를 가진 active 슬롯 하나만 실행합니다.
+- route가 바뀌면 기존 leader가 lease를 반납하고 새 active backend가 자동 승계합니다.
+- route 반영 후 기존 연결을 기본 2초간 drain한 뒤 이전 backend를 종료합니다. 필요하면 `TM_BLUE_GREEN_DRAIN_SECONDS`로 조정합니다.
+- 전환 구간에는 공개 `/api/health`를 0.2초 간격으로 측정하며 한 건이라도 200이 아니면 이전 슬롯으로 자동 rollback합니다.
+- active slot, revision, version은 `~/.local/state/traefik-manager/blue-green-deployment.state`에 원자 기록됩니다.
+- 배포 잠금은 같은 상태 디렉터리의 `blue-green-deployment.lock`을 사용합니다.
+- 배포 시작 시 `dockerproxy`가 healthy인지 먼저 확인하며 backend 컨테이너에는 Docker socket을 마운트하지 않습니다.
+- 대시보드 Manager 라우터 카드에서 active 슬롯과 file-provider upstream `UP`을 확인합니다.
+
+배포 전 `scripts/blue-green-deploy.sh --self-test`와 `scripts/manager-deployment-probe.sh --self-test`를 실행할 수 있습니다. GitHub의 `운영 로그인·화면 스모크`도 두 self-test를 매번 수행합니다.
+
 ## 검증 체크리스트
 
 - `curl https://<FRONTEND_DOMAIN>/api/health`가 `{"status":"정상"}`을 반환하며, 이 경로는 frontend를 거쳐 backend까지 확인합니다.
-- backend는 자체 `/api/health`, frontend는 backend까지 이어지는 `/api/health`를 Docker healthcheck로 사용하므로 `docker compose ps`에서 둘 다 `healthy`인지 확인합니다. frontend는 backend 컨테이너가 시작되면 함께 기동하고 전체 체인 준비 여부는 자체 healthcheck로 판정하며, 시작 유예 구간에는 두 컨테이너를 2초마다 확인합니다. Manager 자체 라우터는 `init-traefik-config`가 `traefik-manager-self.yml`로 원자 생성해 frontend 컨테이너 라벨과 생명주기를 분리하므로 재배포 중 라우터 404 공백을 방지합니다. 대시보드 배포 카드에서 provider가 `file`, HTTPS/HTTP router와 service가 `enabled`, upstream이 `UP`인지 함께 확인합니다. 단일 frontend 교체 중 남는 짧은 503을 없애는 후속 단계는 [blue-green 배포 설계](plans/2026-07-16-blue-green-deployment.md)를 따릅니다.
+- backend는 자체 `/api/health`, frontend는 같은 슬롯 backend까지 이어지는 `/api/health`를 Docker healthcheck로 사용하므로 active backend/frontend가 모두 `healthy`인지 확인합니다. Manager 자체 라우터는 `init-traefik-config`가 `traefik-manager-self.yml`로 원자 생성하고 blue-green 스크립트가 준비된 슬롯으로 upstream만 교체합니다. 대시보드 배포 카드에서 active 슬롯, provider `file`, HTTPS/HTTP router와 service `enabled`, upstream `UP`을 함께 확인합니다.
 - 대시보드 Manager 배포 카드는 Docker 상태를 30초마다 갱신하며, `unhealthy`이면 연속 실패 횟수와 마지막 검사 시각·종료 코드를 표시합니다. 외부 watchdog 상태·연속 실패·마지막 실행과 최근 알림 워크플로 요청 결과·실행 링크·최근 실행 5건의 최종 상태, 결과 확인 시각, 조회 오류도 표시합니다. 최근 실행은 장애·복구와 실행 결과로 즉시 필터링하고 성공·실패·진행·기타 완료 건수를 집계하며 카드에서 직접 새로고침할 수 있습니다. 필터는 URL에 유지되며 적용 조건을 하나씩 제거하거나 전체 초기화할 수 있고, 마지막 수동 갱신 완료 시각을 자동 갱신과 구분해 표시합니다. 설정한 지연 판정 시간이 지나면 상단 경고를 노출하며 healthcheck 원문 출력은 노출하지 않습니다.
 - 배포 카드에는 마지막 상태 갱신 시각과 수동 새로고침 버튼이 있으며, unavailable·중지·unhealthy 컴포넌트가 있으면 대시보드 상단에 경고 배너를 표시합니다.
 - 배포 카드의 `Manager API 404·5xx 추이`는 `TRAEFIK_MANAGER_REQUEST_LOG_PATH`의 구조화 요청 로그를 읽어 최근 6·12·24시간을 시간 단위로 집계하고 경로 부분 검색을 지원합니다. 로그는 `backend-data` 볼륨에서 파일당 5MiB·백업 5개로 회전해 컨테이너 재생성에도 유지되며, 카드에서 영속/Docker 폴백 소스와 총 사용량, 파일 수, 회전 파일 수를 확인할 수 있습니다. 영속 로그 사용량이 80% 이상이면 24시간 표본 보존 여부를 확인하도록 경고하고, Docker 폴백 중이면 재배포 시 이전 표본이 사라질 수 있음을 경고합니다. backend는 이 보관 상태를 30초마다 확인해 경고·복구 전이를 감사 로그와 `Manager 상태` 운영 알림 route에 기록하고 기존 cooldown을 재사용합니다. 파일을 읽지 못하면 backend Docker 로그의 최근 `TRAEFIK_MANAGER_LOG_TAIL_LINES`줄로 폴백합니다. 트래픽이 회전 용량을 넘으면 선택 기간 전체가 남지 않을 수 있으므로 카드의 `관측 시작` 시각을 함께 확인합니다. 이는 Manager API 오류만 다루며 프론트엔드 자체 404는 포함하지 않습니다. 추이 차트는 제외 설정과 무관하게 원본 오류를 유지합니다.
