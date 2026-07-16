@@ -1,12 +1,21 @@
+"use client";
+
+import { useState } from "react";
 import { History } from "lucide-react";
 
 import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
+import { buildManagerDeploymentLinks } from "./managerDeploymentLinks";
+
 interface ManagerDeploymentHistoryProps {
   entries?: ManagerDeploymentHistoryEntry[];
+  source?: string | null;
   timezone?: string;
 }
+
+type HistoryStatus = ManagerDeploymentHistoryEntry["status"];
+type HistoryFilter = "all" | HistoryStatus;
 
 const STATUS_DISPLAY = {
   success: {
@@ -27,29 +36,80 @@ const STATUS_DISPLAY = {
   },
 } as const;
 
+const FILTER_OPTIONS: readonly { value: HistoryFilter; label: string }[] = [
+  { value: "all", label: "전체" },
+  { value: "success", label: STATUS_DISPLAY.success.label },
+  { value: "failed_before_switch", label: STATUS_DISPLAY.failed_before_switch.label },
+  { value: "rolled_back", label: STATUS_DISPLAY.rolled_back.label },
+  { value: "rollback_failed", label: STATUS_DISPLAY.rollback_failed.label },
+];
+
 export function ManagerDeploymentHistory({
   entries = [],
+  source,
   timezone,
 }: ManagerDeploymentHistoryProps) {
+  const [filter, setFilter] = useState<HistoryFilter>("all");
+  const filteredEntries = filter === "all"
+    ? entries
+    : entries.filter((entry) => entry.status === filter);
+
   return (
     <section
       className="mt-4 rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/60"
       data-manager-deployment-history
     >
-      <div className="flex items-center gap-2">
-        <History className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">배포 전환 이력</h3>
-        <span className="text-xs text-gray-500 dark:text-slate-400">최근 {entries.length}건</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
+          <History className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">배포 전환 이력</h3>
+          <span className="text-xs text-gray-500 dark:text-slate-400">최근 {entries.length}건</span>
+        </div>
+        {entries.length > 0 ? (
+          <div className="flex flex-wrap gap-1 sm:ml-auto" role="group" aria-label="배포 이력 상태 필터">
+            {FILTER_OPTIONS.map((option) => {
+              const count = option.value === "all"
+                ? entries.length
+                : entries.filter((entry) => entry.status === option.value).length;
+              const active = filter === option.value;
+              return (
+                <button
+                  aria-pressed={active}
+                  className={`rounded-full border px-2 py-1 text-[11px] font-semibold transition-colors ${
+                    active
+                      ? "border-blue-600 bg-blue-600 text-white dark:border-blue-400 dark:bg-blue-400 dark:text-slate-950"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
+                  }`}
+                  data-history-filter={option.value}
+                  key={option.value}
+                  onClick={() => setFilter(option.value)}
+                  type="button"
+                >
+                  {option.label} {count}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
 
       {entries.length === 0 ? (
         <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
           기록된 blue-green 배포가 없습니다.
         </p>
+      ) : filteredEntries.length === 0 ? (
+        <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
+          선택한 상태의 배포 이력이 없습니다.
+        </p>
       ) : (
         <ol className="mt-3 grid gap-2 lg:grid-cols-2">
-          {entries.map((entry) => {
+          {filteredEntries.map((entry) => {
             const status = STATUS_DISPLAY[entry.status];
+            const links = buildManagerDeploymentLinks({
+              latestVersion: entry.version,
+              revision: entry.revision,
+              source,
+            });
             return (
               <li
                 className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900"
@@ -70,7 +130,29 @@ export function ManagerDeploymentHistory({
                   </span>
                 </div>
                 <p className="mt-2 text-xs text-gray-600 dark:text-slate-300">
-                  {entry.version} · <span className="font-mono">{entry.revision.slice(0, 12)}</span>
+                  {links.releaseUrl ? (
+                    <a
+                      className="font-semibold underline decoration-gray-300 underline-offset-2 hover:text-blue-700 dark:decoration-slate-600 dark:hover:text-blue-300"
+                      href={links.releaseUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {entry.version}
+                    </a>
+                  ) : entry.version}
+                  {" · "}
+                  {links.commitUrl ? (
+                    <a
+                      className="font-mono underline decoration-gray-300 underline-offset-2 hover:text-blue-700 dark:decoration-slate-600 dark:hover:text-blue-300"
+                      href={links.commitUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {entry.revision.slice(0, 12)}
+                    </a>
+                  ) : (
+                    <span className="font-mono">{entry.revision.slice(0, 12)}</span>
+                  )}
                 </p>
                 <p className="mt-1 text-[11px] text-gray-500 dark:text-slate-400">
                   {formatProbe(entry)} · {formatDateTime(entry.completed_at, timezone)}

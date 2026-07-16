@@ -113,7 +113,7 @@ scripts/blue-green-deploy.sh vX.Y.Z
 - route 반영 후 기존 연결을 기본 2초간 drain한 뒤 이전 backend를 종료합니다. 필요하면 `TM_BLUE_GREEN_DRAIN_SECONDS`로 조정합니다.
 - 전환 구간에는 공개 `/api/health`를 0.2초 간격으로 측정하며 한 건이라도 200이 아니면 이전 슬롯으로 자동 rollback합니다.
 - active slot, revision, version은 `~/.local/state/traefik-manager/blue-green-deployment.state`에 원자 기록됩니다.
-- 배포 성공·전환 전 중단·자동 rollback·rollback 실패와 공개 probe 결과는 같은 디렉터리의 `blue-green-deployments.jsonl`에 추가되며 대시보드 배포 전환 이력에서 최근 20건을 확인할 수 있습니다.
+- 배포 성공·전환 전 중단·자동 rollback·rollback 실패와 공개 probe 결과는 같은 디렉터리의 `blue-green-deployments.jsonl`에 추가됩니다. 대시보드에서 최근 20건을 상태별로 필터링하고 해당 커밋과 릴리즈를 바로 열 수 있습니다.
 - 이전 슬롯·route·상태 파일 복원이 완료되지 않은 `rollback_failed`만 `host-operation-alert.yml`을 통해 운영 Telegram 알림으로 요청합니다. 정상 자동 rollback은 이력만 남기고 알림을 보내지 않습니다.
 - 배포 잠금은 같은 상태 디렉터리의 `blue-green-deployment.lock`을 사용합니다.
 - 배포 시작 시 `dockerproxy`가 healthy인지 먼저 확인하며 backend 컨테이너에는 Docker socket을 마운트하지 않습니다.

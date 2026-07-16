@@ -6,6 +6,7 @@ import {
   checkManagerHttpErrorPreviewForm,
   checkManagerHttpErrorTrend,
 } from "./dashboard-visual-manager-http.mjs";
+import { checkManagerDeploymentHistory } from "./dashboard-visual-manager-deployment.mjs";
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
 import { checkWatchdogFilterPersistence } from "./dashboard-visual-watchdog.mjs";
 import { assertDashboardShell } from "./dashboard-visual-shell.mjs";
@@ -19,6 +20,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
         if (route.path === "/dashboard") {
           await checkManagerHttpErrorTrend({ cdp, timeoutMs });
           labels.push(`${profile.label} Manager file-provider 라우터`);
+          const deploymentHistory = await checkManagerDeploymentHistory({ cdp, timeoutMs });
+          if (deploymentHistory) labels.push(`${profile.label} 배포 이력 필터·링크`);
           const opened = await checkMobileSidebar({ artifactDir, cdp, profile, timeoutMs });
           if (opened) labels.push(`${profile.label} 사이드바`);
           await checkWatchdogFilterPersistence({ cdp, timeoutMs });

@@ -201,6 +201,7 @@ export function ManagerDeploymentCard({
 
       <ManagerDeploymentHistory
         entries={deployment?.deployment_history}
+        source={deployment?.source}
         timezone={timezone}
       />
 
