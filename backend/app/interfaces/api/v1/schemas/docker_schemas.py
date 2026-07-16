@@ -173,6 +173,7 @@ class ManagerRouteStatusResponse(BaseModel):
     available: bool
     healthy: bool
     message: str
+    active_slot: str | None = None
     provider: str | None = None
     https_router_status: str | None = None
     http_router_status: str | None = None

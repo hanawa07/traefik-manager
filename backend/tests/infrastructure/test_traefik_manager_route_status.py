@@ -30,9 +30,9 @@ async def test_manager_route_status_reads_file_provider_upstream(monkeypatch):
                 "provider": "file",
                 "status": "enabled",
                 "loadBalancer": {
-                    "servers": [{"url": "http://traefik-manager-frontend:3000"}],
+                    "servers": [{"url": "http://traefik-manager-frontend-blue:3000"}],
                 },
-                "serverStatus": {"http://traefik-manager-frontend:3000": "UP"},
+                "serverStatus": {"http://traefik-manager-frontend-blue:3000": "UP"},
             }
         ]
 
@@ -44,11 +44,12 @@ async def test_manager_route_status_reads_file_provider_upstream(monkeypatch):
         "available": True,
         "healthy": True,
         "message": "Manager file-provider 라우터가 정상입니다",
+        "active_slot": "blue",
         "provider": "file",
         "https_router_status": "enabled",
         "http_router_status": "enabled",
         "service_status": "enabled",
-        "upstream_url": "http://traefik-manager-frontend:3000",
+        "upstream_url": "http://traefik-manager-frontend-blue:3000",
         "upstream_status": "UP",
     }
 

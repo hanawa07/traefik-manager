@@ -50,6 +50,7 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
       sampleReady: Boolean(document.querySelector('[data-testid="manager-http-sample-ready"]')),
       monitorStatus: monitor?.getAttribute('data-http-error-monitor-status'),
       route: route ? {
+        activeSlot: route.getAttribute('data-route-active-slot'),
         healthy: route.getAttribute('data-route-healthy'),
         provider: route.getAttribute('data-route-provider'),
         upstreamStatus: route.getAttribute('data-route-upstream-status'),
@@ -69,11 +70,14 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
   })()`);
 
   assert.ok(snapshot, "Manager API 오류 추이 카드를 찾지 못했습니다");
-  assert.deepEqual(
-    snapshot.route,
-    { healthy: "true", provider: "file", upstreamStatus: "UP" },
-    "Manager file-provider 라우터가 정상 상태가 아닙니다",
+  assert.ok(snapshot.route, "Manager file-provider 라우터 상태가 없습니다");
+  assert.ok(
+    ["single", "blue", "green"].includes(snapshot.route.activeSlot),
+    "Manager 활성 슬롯이 올바르지 않습니다",
   );
+  assert.equal(snapshot.route.healthy, "true", "Manager file-provider 라우터가 정상이 아닙니다");
+  assert.equal(snapshot.route.provider, "file", "Manager 라우터 provider가 file이 아닙니다");
+  assert.equal(snapshot.route.upstreamStatus, "UP", "Manager 라우터 upstream이 UP이 아닙니다");
   assert.equal(snapshot.available, "true", "Manager API 오류 로그를 조회하지 못했습니다");
   assert.equal(snapshot.bucketCount, 24, "Manager API 오류 추이가 24개 시간 구간이 아닙니다");
   assert.ok(snapshot.chartScrollWidth >= snapshot.chartWidth, "Manager API 오류 차트 폭이 올바르지 않습니다");

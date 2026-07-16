@@ -18,6 +18,7 @@ export function ManagerRouteStatusCard({ route }: ManagerRouteStatusCardProps) {
     <section
       className={`mt-4 rounded-xl border p-4 text-xs ${tone}`}
       data-route-healthy={route?.healthy ? "true" : "false"}
+      data-route-active-slot={route?.active_slot ?? "unknown"}
       data-route-provider={route?.provider ?? "unknown"}
       data-route-upstream-status={route?.upstream_status ?? "unknown"}
       data-testid="manager-route-status"
@@ -32,7 +33,8 @@ export function ManagerRouteStatusCard({ route }: ManagerRouteStatusCardProps) {
         </span>
       </div>
 
-      <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <RouteFact label="활성 슬롯" value={route?.active_slot || "-"} />
         <RouteFact label="Provider" value={route?.provider ? `${route.provider} provider` : "-"} />
         <RouteFact
           label="라우터"

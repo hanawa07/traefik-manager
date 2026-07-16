@@ -85,6 +85,7 @@ export interface ManagerRouteStatus {
   available: boolean;
   healthy: boolean;
   message: string;
+  active_slot: string | null;
   provider: string | null;
   https_router_status: string | null;
   http_router_status: string | null;

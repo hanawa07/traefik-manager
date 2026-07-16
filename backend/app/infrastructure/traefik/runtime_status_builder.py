@@ -81,12 +81,14 @@ def build_manager_route_status(
     http_router = _find_runtime_item(routers_payload, MANAGER_HTTP_ROUTER)
     service = _find_runtime_item(services_payload, MANAGER_SERVICE)
     upstream_url, upstream_status = _read_upstream_status(service)
+    active_slot = _read_manager_slot(upstream_url)
     provider = _shared_provider(https_router, http_router, service)
     https_status = _runtime_status(https_router)
     http_status = _runtime_status(http_router)
     service_status = _runtime_status(service)
     healthy = (
         available
+        and active_slot is not None
         and provider == "file"
         and https_status == "enabled"
         and http_status == "enabled"
@@ -105,6 +107,7 @@ def build_manager_route_status(
         "available": available,
         "healthy": healthy,
         "message": message,
+        "active_slot": active_slot,
         "provider": provider,
         "https_router_status": https_status,
         "http_router_status": http_status,
@@ -158,3 +161,12 @@ def _read_upstream_status(service: dict | None) -> tuple[str | None, str | None]
         upstream_url if isinstance(upstream_url, str) else None,
         upstream_status if isinstance(upstream_status, str) else None,
     )
+
+
+def _read_manager_slot(upstream_url: str | None) -> str | None:
+    if upstream_url == "http://traefik-manager-frontend:3000":
+        return "single"
+    for slot in ("blue", "green"):
+        if upstream_url == f"http://traefik-manager-frontend-{slot}:3000":
+            return slot
+    return None
