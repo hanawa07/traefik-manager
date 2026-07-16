@@ -1,6 +1,32 @@
 # PONYTAIL-DEBT(deploy-blue-green): 단일 backend/frontend 교체의 짧은 503 구간은
 # docs/plans/2026-07-16-blue-green-deployment.md의 슬롯 전환으로 분리한다.
 services:
+  dockerproxy:
+    image: tecnativa/docker-socket-proxy@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
+    container_name: traefik-manager-dockerproxy
+    restart: unless-stopped
+    entrypoint: ["/usr/local/sbin/haproxy"]
+    command: ["-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+    user: "65534:${DOCKER_SOCKET_GID:-988}"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:2375/_ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    volumes:
+      - ./deploy/docker-proxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik-manager-internal
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=8m
+
   init-traefik-config:
     image: alpine:3.20
     container_name: traefik-manager-init-traefik-config
@@ -27,8 +53,13 @@ services:
     restart: unless-stopped
     env_file: ${APP_ENV_FILE:-.env}
     depends_on:
+      dockerproxy:
+        condition: service_healthy
       init-traefik-config:
         condition: service_completed_successfully
+    environment:
+      DOCKER_READ_API_URL: http://dockerproxy:2375
+      DOCKER_MUTATION_API_URL: http://dockerproxy:2376
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4).close()"]
       interval: 10s
@@ -39,14 +70,11 @@ services:
     volumes:
       - ./traefik-config:/traefik-config
       - backend-data:/app/data
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /home/lizstudio/docker/traefik/letsencrypt/acme.json:/acme.json:ro
       - ${SMOKE_ROTATION_HOST_STATE_DIR:-/home/lizstudio/.local/state/traefik-manager}:/host-state/traefik-manager:ro
     networks:
       - traefik-manager-internal
       - proxy_net
-    group_add:
-      - "${DOCKER_SOCKET_GID:-988}"
     cap_drop:
       - ALL
     security_opt:

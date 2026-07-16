@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     TRAEFIK_LOG_TAIL_LINES: int = 2000
 
     DOCKER_SOCKET_PATH: str = "/var/run/docker.sock"
+    DOCKER_READ_API_URL: str | None = None
+    DOCKER_MUTATION_API_URL: str | None = None
     DOCKER_API_VERSION: str = "v1.41"
     DOCKER_API_TIMEOUT_SECONDS: float = 5.0
 

@@ -104,7 +104,7 @@ async def connect_service_gateway_network_action(
     if not docker_client.enabled:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Docker 소켓이 없어 네트워크 연결을 실행할 수 없습니다",
+            detail="Docker API 연결 경로가 없어 네트워크 연결을 실행할 수 없습니다",
         )
 
     network_name = settings.TRAEFIK_DOCKER_NETWORK.strip() or "proxy_net"
@@ -264,7 +264,7 @@ async def _check_docker_network(service, docker_client) -> dict:
             "key": "docker_network",
             "label": "Docker 네트워크",
             "status": "warning",
-            "message": "Docker 소켓이 없어 컨테이너 네트워크를 확인하지 못했습니다.",
+            "message": "Docker API 연결 경로가 없어 컨테이너 네트워크를 확인하지 못했습니다.",
             "details": {"enabled": False},
         }
 

@@ -10,8 +10,9 @@
 - 외부 공유 네트워크에 여러 Compose 스택을 붙이는 경우 `backend` 같은 일반 서비스명은 DNS 충돌을 일으킬 수 있으므로, Traefik Manager는 `traefik-manager-backend` 같은 고유 호스트명을 사용하는 구성을 권장합니다.
 - `FRONTEND_DOMAIN`을 바꾸면 프런트 이미지를 다시 빌드해야 메타데이터 절대 URL에도 반영됩니다.
 - 생성되는 HTTPS 라우터는 `TRAEFIK_TLS_CERT_RESOLVER`를 `tls.certResolver`로 사용합니다. 기본값은 `letsencrypt`이며, 빈 값이면 자동 발급을 명시적으로 끕니다.
-- 인증서 만료 모니터는 Traefik API와 ACME 저장소를 함께 읽습니다. backend가 `/acme.json`을 직접 못 읽는 경우에는 Docker socket을 통해 `TRAEFIK_DOCKER_CONTAINER_NAME`의 `TRAEFIK_ACME_STORAGE_PATH`를 fallback으로 읽습니다.
-- Docker socket을 backend에서 읽어야 하는 기능(컨테이너 자동 감지, 인증서 ACME fallback)을 쓰려면 `DOCKER_SOCKET_GID`를 호스트의 `/var/run/docker.sock` 그룹 ID와 맞춰야 합니다. 예: `stat -c '%g' /var/run/docker.sock`
+- 인증서 만료 모니터는 Traefik API와 ACME 저장소를 함께 읽습니다. backend가 `/acme.json`을 직접 못 읽는 경우에는 내부 Docker API proxy를 통해 `TRAEFIK_DOCKER_CONTAINER_NAME`의 `TRAEFIK_ACME_STORAGE_PATH`를 fallback으로 읽습니다.
+- 운영 compose에서 Docker socket은 `dockerproxy`에만 읽기 전용으로 마운트됩니다. backend는 내부망의 읽기 전용 API와 `networks/proxy_net/connect` 전용 API만 사용합니다.
+- `DOCKER_SOCKET_GID`는 `dockerproxy`가 호스트 socket에 접근할 그룹 ID입니다. `stat -c '%g' /var/run/docker.sock` 결과와 맞춰야 합니다. 로컬 backend를 compose 밖에서 실행할 때만 `DOCKER_READ_API_URL`과 `DOCKER_MUTATION_API_URL`을 비워 두고 Unix socket fallback을 사용할 수 있습니다.
 - `Traefik 디버그 대시보드` public route를 Manager에서 제어하려면 외부 Traefik 정적 설정에 `api.dashboard=true`가 켜져 있어야 합니다. Manager는 dashboard 엔진 자체를 토글하지 않고 `api@internal` 라우터만 생성/삭제합니다.
 - Cloudflare DNS 자동 연동은 여러 zone을 저장할 수 있습니다. 각 서비스 도메인은 suffix가 가장 구체적으로 일치하는 zone과만 매칭되며, 다른 DNS 제공자를 사용하는 도메인은 자동 제외됩니다.
 - Cloudflare를 사용하지 않는 도메인이 섞여 있어도 서비스 라우팅과 인증서 발급에는 영향이 없습니다. 다만 드리프트 진단과 재동기화는 Cloudflare 관리 대상 zone에 속한 도메인만 검사합니다.

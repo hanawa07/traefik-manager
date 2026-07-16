@@ -13,11 +13,11 @@ class TraefikDeploymentInspector:
         if not self.docker_client.enabled:
             return {
                 "enabled": False,
-                "message": "Docker 소켓이 없어 Traefik 배포 정보를 확인할 수 없습니다",
-                "checks": [_check("docker_socket", "Docker 소켓", "fail", "Docker 소켓을 사용할 수 없습니다.")],
+                "message": "Docker API 연결 경로가 없어 Traefik 배포 정보를 확인할 수 없습니다",
+                "checks": [_check("docker_api", "Docker API", "fail", "Docker API를 사용할 수 없습니다.")],
                 "commands": [],
                 "can_apply": False,
-                "apply_blocked_reason": "Docker 소켓이 없습니다.",
+                "apply_blocked_reason": "Docker API 연결 경로가 없습니다.",
             }
 
         container = await self.docker_client._get_object_json(
@@ -64,7 +64,7 @@ def _extract_compose_metadata(labels: dict) -> dict:
 
 def _build_checks(*, container: dict, compose: dict, current_version: str | None, target_version: str | None) -> list[dict]:
     checks = [
-        _check("docker_socket", "Docker 소켓", "ok", "Docker 소켓으로 Traefik 컨테이너 정보를 조회했습니다."),
+        _check("docker_api", "Docker API", "ok", "제한된 Docker API로 Traefik 컨테이너 정보를 조회했습니다."),
         _check(
             "compose_metadata",
             "Compose 메타데이터",

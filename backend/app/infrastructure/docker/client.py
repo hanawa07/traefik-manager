@@ -1,11 +1,11 @@
 import re
 from datetime import datetime
-from pathlib import Path
 from urllib.parse import quote
 
 import httpx
 
 from app.core.config import settings
+from app.infrastructure.docker.api_client import build_docker_api_client, docker_api_available
 from app.infrastructure.docker.deployment_release import ManagerReleaseChecker
 from app.infrastructure.docker.manager_http_errors import MANAGER_HTTP_ERROR_WINDOW_HOURS
 from app.infrastructure.docker.manager_http_log_reader import (
@@ -20,25 +20,27 @@ class DockerClientError(Exception):
 
 
 class DockerClient:
-    """Docker Socket 기반 읽기 전용 컨테이너 조회 클라이언트"""
+    """최소 권한 Docker API 기반 컨테이너 조회 클라이언트"""
 
     OCI_LABEL_PREFIX = "org.opencontainers.image."
 
     def __init__(self):
         self.socket_path = settings.DOCKER_SOCKET_PATH
+        self.read_api_url = settings.DOCKER_READ_API_URL
+        self.mutation_api_url = settings.DOCKER_MUTATION_API_URL
         self.api_version = settings.DOCKER_API_VERSION.strip("/")
         self.timeout = settings.DOCKER_API_TIMEOUT_SECONDS
 
     @property
     def enabled(self) -> bool:
-        return Path(self.socket_path).exists()
+        return docker_api_available(api_url=self.read_api_url, socket_path=self.socket_path)
 
     async def list_container_candidates(self) -> dict:
         if not self.enabled:
             return {
                 "enabled": False,
-                "socket_path": self.socket_path,
-                "message": "Docker 소켓이 없어 자동 감지가 비활성화되어 있습니다",
+                "socket_path": self.read_api_url or self.socket_path,
+                "message": "Docker API 연결 경로가 없어 자동 감지가 비활성화되어 있습니다",
                 "containers": [],
             }
 
@@ -71,7 +73,7 @@ class DockerClient:
 
         return {
             "enabled": True,
-            "socket_path": self.socket_path,
+            "socket_path": self.read_api_url or self.socket_path,
             "message": "Docker 컨테이너 목록을 조회했습니다",
             "containers": containers,
         }
@@ -88,7 +90,7 @@ class DockerClient:
             )
             return {
                 "enabled": False,
-                "message": "Docker 소켓이 없어 배포 이미지 라벨을 조회할 수 없습니다",
+                "message": "Docker API 연결 경로가 없어 배포 이미지 라벨을 조회할 수 없습니다",
                 "version": version,
                 "revision": fallback_component["revision"],
                 "build_date": fallback_component["build_date"],
@@ -164,8 +166,11 @@ class DockerClient:
         ]
 
     async def connect_container_to_network(self, *, container_name: str, network_name: str) -> dict:
-        if not self.enabled:
-            raise DockerClientError("Docker 소켓이 없어 네트워크 연결을 실행할 수 없습니다")
+        if not self.enabled or not docker_api_available(
+            api_url=self.mutation_api_url,
+            socket_path=self.socket_path,
+        ):
+            raise DockerClientError("Docker 조회 또는 변경 API 경로가 없어 네트워크 연결을 실행할 수 없습니다")
 
         container = await self._get_object_json(f"/{self.api_version}/containers/{quote(container_name, safe='')}/json")
         current_networks = self._extract_networks(container)
@@ -202,11 +207,10 @@ class DockerClient:
         return payload
 
     async def _request_json(self, path: str, params: dict | None = None):
-        transport = httpx.AsyncHTTPTransport(uds=self.socket_path)
         try:
-            async with httpx.AsyncClient(
-                base_url="http://docker",
-                transport=transport,
+            async with build_docker_api_client(
+                api_url=self.read_api_url,
+                socket_path=self.socket_path,
                 timeout=self.timeout,
             ) as client:
                 response = await client.get(path, params=params)
@@ -216,11 +220,10 @@ class DockerClient:
             raise DockerClientError("Docker API 조회에 실패했습니다") from exc
 
     async def _post_json(self, path: str, payload: dict) -> None:
-        transport = httpx.AsyncHTTPTransport(uds=self.socket_path)
         try:
-            async with httpx.AsyncClient(
-                base_url="http://docker",
-                transport=transport,
+            async with build_docker_api_client(
+                api_url=self.mutation_api_url,
+                socket_path=self.socket_path,
                 timeout=self.timeout,
             ) as client:
                 response = await client.post(path, json=payload)

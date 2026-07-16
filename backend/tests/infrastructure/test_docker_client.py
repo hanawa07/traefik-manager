@@ -1,7 +1,7 @@
 import pytest
 
 from app.infrastructure.docker import manager_http_log_reader
-from app.infrastructure.docker.client import DockerClient
+from app.infrastructure.docker.client import DockerClient, DockerClientError
 
 
 @pytest.mark.asyncio
@@ -108,6 +108,20 @@ async def test_connect_container_to_network_posts_docker_network_connect(monkeyp
             {"Container": "english-app-1"},
         )
     ]
+
+
+@pytest.mark.asyncio
+async def test_connect_container_to_network_requires_read_and_mutation_paths():
+    client = DockerClient()
+    client.socket_path = "/missing"
+    client.read_api_url = None
+    client.mutation_api_url = "http://dockerproxy:2376"
+
+    with pytest.raises(DockerClientError, match="조회 또는 변경 API 경로"):
+        await client.connect_container_to_network(
+            container_name="english-app-1",
+            network_name="proxy_net",
+        )
 
 
 @pytest.mark.asyncio

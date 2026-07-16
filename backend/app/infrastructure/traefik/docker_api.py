@@ -5,6 +5,7 @@ from pathlib import Path
 import httpx
 
 from app.core.config import settings
+from app.infrastructure.docker.api_client import build_docker_api_client, docker_api_available
 from app.infrastructure.docker.logs import (
     decode_docker_log_stream,
     read_docker_container_logs_text as read_container_logs_text,
@@ -24,8 +25,10 @@ def read_local_acme_json_text() -> str | None:
 
 
 async def read_docker_acme_json_text() -> str | None:
-    socket_path = Path(settings.DOCKER_SOCKET_PATH)
-    if not socket_path.exists():
+    if not docker_api_available(
+        api_url=settings.DOCKER_READ_API_URL,
+        socket_path=settings.DOCKER_SOCKET_PATH,
+    ):
         return None
 
     container_name = settings.TRAEFIK_DOCKER_CONTAINER_NAME.strip()
@@ -33,13 +36,12 @@ async def read_docker_acme_json_text() -> str | None:
     if not container_name or not acme_storage_path:
         return None
 
-    transport = httpx.AsyncHTTPTransport(uds=settings.DOCKER_SOCKET_PATH)
     path = f"/{settings.DOCKER_API_VERSION.strip('/')}/containers/{container_name}/archive"
 
     try:
-        async with httpx.AsyncClient(
-            base_url="http://docker",
-            transport=transport,
+        async with build_docker_api_client(
+            api_url=settings.DOCKER_READ_API_URL,
+            socket_path=settings.DOCKER_SOCKET_PATH,
             timeout=settings.DOCKER_API_TIMEOUT_SECONDS,
         ) as client:
             response = await client.get(path, params={"path": acme_storage_path})

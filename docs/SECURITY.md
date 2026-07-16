@@ -1,7 +1,7 @@
 # Traefik Manager 보안 점검 보고서
 
 > 최초 점검일: 2026-03-08
-> 업데이트: 2026-03-11
+> 업데이트: 2026-07-16
 
 ---
 
@@ -16,7 +16,7 @@
 | TrustedHostMiddleware | ✅ 양호 |
 | 도메인 regex 검증 (path traversal 방지) | ✅ 양호 |
 | subprocess shell=True 미사용 | ✅ 양호 |
-| Docker 소켓 read-only 마운트 | ✅ 양호 |
+| Docker API 최소 권한 proxy | ✅ 적용 (backend 직접 소켓 없음) |
 | Production docs URL 비활성화 | ✅ 양호 |
 | no-new-privileges:true | ✅ 양호 |
 | **로그인 brute force 방어** | ✅ 적용 (Traefik rate limit + 앱 레벨 계정 잠금 + 이상 징후 IP 차단) |
@@ -26,6 +26,26 @@
 | **Upstream 호스트 검증** | ✅ 강화됨 |
 | **HTTP redirect 차단 (헬스체크)** | ✅ 적용 |
 | **보안 응답 헤더** | ✅ 구조 개선 |
+
+---
+
+## Docker API 권한 분리
+
+운영 compose의 backend와 frontend는 capability 전체 제거 및
+`no-new-privileges` 상태이며 Docker socket을 직접 마운트하지 않습니다. socket은
+호스트에 포트를 공개하지 않는 전용 `dockerproxy`만 읽기 전용으로 마운트합니다.
+socket bind의 `:ro`만으로 Docker 변경 API가 차단되지는 않으므로 proxy가 요청
+메서드와 경로를 별도로 제한합니다.
+
+- 읽기 listener `2375`: `/_ping`, `/version`, `/info`, 컨테이너 목록,
+  컨테이너 상세·로그·archive, 이미지 상세만 허용
+- 변경 listener `2376`: `POST /networks/proxy_net/connect`만 허용
+- 그 밖의 컨테이너 생성, 네트워크 조회·분리, 다른 GET/POST는 `403`
+- backend는 `DOCKER_READ_API_URL`과 `DOCKER_MUTATION_API_URL`을 통해 용도별 client를
+  사용하고, UDS는 로컬 개발 fallback으로만 유지
+
+실제 Docker API canary에서 허용 조회와 임시 컨테이너 네트워크 연결은 `200`, 읽기
+listener의 POST와 변경 listener의 다른 메서드·경로는 `403`임을 확인했습니다.
 
 ---
 

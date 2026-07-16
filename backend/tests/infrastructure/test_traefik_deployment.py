@@ -32,7 +32,7 @@ async def test_traefik_deployment_status_builds_compose_update_commands(monkeypa
     assert result["can_apply"] is False
     assert "Docker CLI" in result["apply_blocked_reason"]
     assert {check["key"]: check["status"] for check in result["checks"]} == {
-        "docker_socket": "ok",
+        "docker_api": "ok",
         "compose_metadata": "ok",
         "version_delta": "ok",
         "proxy_network": "ok",

@@ -1,9 +1,9 @@
-from pathlib import Path
 from urllib.parse import quote
 
 import httpx
 
 from app.core.config import settings
+from app.infrastructure.docker.api_client import build_docker_api_client, docker_api_available
 
 
 DOCKER_LOG_HEADER_LENGTH = 8
@@ -15,11 +15,12 @@ async def read_docker_container_logs_text(
     tail_lines: int,
     since: int | None = None,
 ) -> str | None:
-    socket_path = Path(settings.DOCKER_SOCKET_PATH)
-    if not socket_path.exists() or not container_name.strip():
+    if not docker_api_available(
+        api_url=settings.DOCKER_READ_API_URL,
+        socket_path=settings.DOCKER_SOCKET_PATH,
+    ) or not container_name.strip():
         return None
 
-    transport = httpx.AsyncHTTPTransport(uds=settings.DOCKER_SOCKET_PATH)
     path = (
         f"/{settings.DOCKER_API_VERSION.strip('/')}/containers/"
         f"{quote(container_name.strip(), safe='')}/logs"
@@ -34,9 +35,9 @@ async def read_docker_container_logs_text(
         params["since"] = since
 
     try:
-        async with httpx.AsyncClient(
-            base_url="http://docker",
-            transport=transport,
+        async with build_docker_api_client(
+            api_url=settings.DOCKER_READ_API_URL,
+            socket_path=settings.DOCKER_SOCKET_PATH,
             timeout=settings.DOCKER_API_TIMEOUT_SECONDS,
         ) as client:
             response = await client.get(path, params=params)
