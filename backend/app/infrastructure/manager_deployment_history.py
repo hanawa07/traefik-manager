@@ -1,5 +1,6 @@
 import json
 import re
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 
@@ -7,6 +8,7 @@ from app.core.config import settings
 from app.infrastructure.github_actions_run import build_actions_run_api_url
 
 MAX_HISTORY_BYTES = 64 * 1024
+MAX_ARCHIVE_BYTES = 1024 * 1024
 MAX_HISTORY_ENTRIES = 20
 MAX_HISTORY_LINE_BYTES = 2048
 HISTORY_STATUSES = {"success", "failed_before_switch", "rolled_back", "rollback_failed"}
@@ -37,9 +39,35 @@ def read_manager_deployment_history(
         lines = _read_tail(history_path)
     except OSError:
         return []
+    return _normalize_lines(reversed(lines), limit)
 
+
+def read_manager_deployment_history_archive(
+    path: str | Path | None = None,
+    *,
+    limit: int = MAX_HISTORY_ENTRIES,
+) -> list[dict[str, object]]:
+    history_path = Path(path or settings.MANAGER_DEPLOYMENT_HISTORY_PATH)
+    try:
+        current_lines = set(_read_tail(history_path, MAX_ARCHIVE_BYTES))
+    except OSError:
+        current_lines = set()
+    try:
+        archive_lines = _read_tail(Path(f"{history_path}.1"), MAX_ARCHIVE_BYTES)
+    except OSError:
+        return []
+    unique_archive_lines = (line for line in reversed(archive_lines) if line not in current_lines)
+    return _normalize_lines(unique_archive_lines, limit)
+
+
+def _normalize_lines(
+    lines: Iterable[str],
+    limit: int,
+) -> list[dict[str, object]]:
+    if limit <= 0:
+        return []
     entries: list[dict[str, object]] = []
-    for line in reversed(lines):
+    for line in lines:
         if not line or len(line.encode("utf-8")) > MAX_HISTORY_LINE_BYTES:
             continue
         try:
@@ -54,14 +82,14 @@ def read_manager_deployment_history(
     return entries
 
 
-def _read_tail(path: Path) -> list[str]:
+def _read_tail(path: Path, max_bytes: int = MAX_HISTORY_BYTES) -> list[str]:
     with path.open("rb") as history_file:
         history_file.seek(0, 2)
-        start = max(0, history_file.tell() - MAX_HISTORY_BYTES)
+        start = max(0, history_file.tell() - max_bytes)
         history_file.seek(start)
         if start:
             history_file.readline()
-        return history_file.read(MAX_HISTORY_BYTES).decode("utf-8", errors="ignore").splitlines()
+        return history_file.read(max_bytes).decode("utf-8", errors="ignore").splitlines()
 
 
 def _normalize_entry(raw: object) -> dict[str, object] | None:

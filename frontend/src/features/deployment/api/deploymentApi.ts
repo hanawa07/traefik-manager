@@ -146,6 +146,7 @@ export interface DeploymentInfo {
   http_error_monitor: ManagerHttpErrorMonitorStatus | null;
   manager_route: ManagerRouteStatus | null;
   deployment_history: ManagerDeploymentHistoryEntry[];
+  deployment_history_archive: ManagerDeploymentHistoryEntry[];
   components: DeploymentComponent[];
 }
 

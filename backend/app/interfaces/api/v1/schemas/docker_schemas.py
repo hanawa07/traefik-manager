@@ -242,4 +242,7 @@ class DockerDeploymentInfoResponse(BaseModel):
     http_error_monitor: ManagerHttpErrorMonitorResponse | None = None
     manager_route: ManagerRouteStatusResponse | None = None
     deployment_history: list[ManagerDeploymentHistoryEntryResponse] = Field(default_factory=list)
+    deployment_history_archive: list[ManagerDeploymentHistoryEntryResponse] = Field(
+        default_factory=list
+    )
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)

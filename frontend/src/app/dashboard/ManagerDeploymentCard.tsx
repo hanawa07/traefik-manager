@@ -200,6 +200,7 @@ export function ManagerDeploymentCard({
       <ManagerRouteStatusCard route={deployment?.manager_route} />
 
       <ManagerDeploymentHistory
+        archiveEntries={deployment?.deployment_history_archive}
         entries={deployment?.deployment_history}
         source={deployment?.source}
         timezone={timezone}

@@ -1,7 +1,10 @@
 import json
 from pathlib import Path
 
-from app.infrastructure.manager_deployment_history import read_manager_deployment_history
+from app.infrastructure.manager_deployment_history import (
+    read_manager_deployment_history,
+    read_manager_deployment_history_archive,
+)
 
 
 def _entry(*, status: str = "success", completed_at: str = "2026-07-16T09:01:00Z"):
@@ -70,3 +73,24 @@ def test_history_returns_newest_valid_entries_and_skips_malformed_lines(tmp_path
 
 def test_history_returns_empty_list_when_file_is_missing(tmp_path: Path):
     assert read_manager_deployment_history(tmp_path / "missing.jsonl") == []
+
+
+def test_archive_returns_only_entries_not_retained_in_current_file(tmp_path: Path):
+    history_path = tmp_path / "deployments.jsonl"
+    entries = [
+        _entry(completed_at=f"2026-07-16T0{hour}:01:00Z")
+        for hour in range(1, 5)
+    ]
+    lines = [json.dumps(entry) for entry in entries]
+    history_path.write_text("\n".join(lines[2:]), encoding="utf-8")
+    Path(f"{history_path}.1").write_text(
+        "\n".join([*lines, "not-json"]),
+        encoding="utf-8",
+    )
+
+    result = read_manager_deployment_history_archive(history_path)
+
+    assert [entry["completed_at"] for entry in result] == [
+        "2026-07-16T02:01:00Z",
+        "2026-07-16T01:01:00Z",
+    ]

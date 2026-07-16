@@ -13,6 +13,7 @@ import {
 } from "./managerWatchdogStatus";
 
 interface ManagerDeploymentHistoryProps {
+  archiveEntries?: ManagerDeploymentHistoryEntry[];
   entries?: ManagerDeploymentHistoryEntry[];
   source?: string | null;
   timezone?: string;
@@ -60,32 +61,51 @@ const FAILURE_STAGE_LABELS: Record<NonNullable<ManagerDeploymentHistoryEntry["fa
 };
 
 export function ManagerDeploymentHistory({
+  archiveEntries = [],
   entries = [],
   source,
   timezone,
 }: ManagerDeploymentHistoryProps) {
   const [filter, setFilter] = useState<HistoryFilter>("all");
+  const [showArchive, setShowArchive] = useState(false);
+  const visibleEntries = showArchive ? archiveEntries : entries;
   const filteredEntries = filter === "all"
-    ? entries
-    : entries.filter((entry) => entry.status === filter);
+    ? visibleEntries
+    : visibleEntries.filter((entry) => entry.status === filter);
 
   return (
     <section
       className="mt-4 rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/60"
+      data-history-source={showArchive ? "archive" : "current"}
       data-manager-deployment-history
     >
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-2">
           <History className="h-4 w-4 text-slate-500 dark:text-slate-400" />
           <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">배포 전환 이력</h3>
-          <span className="text-xs text-gray-500 dark:text-slate-400">최근 {entries.length}건</span>
+          <span className="text-xs text-gray-500 dark:text-slate-400">
+            {showArchive ? "회전 보관" : "최근"} {visibleEntries.length}건
+          </span>
         </div>
-        {entries.length > 0 ? (
+        {archiveEntries.length > 0 ? (
+          <button
+            className="rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
+            data-history-source-toggle
+            onClick={() => {
+              setShowArchive((current) => !current);
+              setFilter("all");
+            }}
+            type="button"
+          >
+            {showArchive ? "현재 이력 보기" : `회전 보관 ${archiveEntries.length}건 보기`}
+          </button>
+        ) : null}
+        {visibleEntries.length > 0 ? (
           <div className="flex flex-wrap gap-1 sm:ml-auto" role="group" aria-label="배포 이력 상태 필터">
             {FILTER_OPTIONS.map((option) => {
               const count = option.value === "all"
-                ? entries.length
-                : entries.filter((entry) => entry.status === option.value).length;
+                ? visibleEntries.length
+                : visibleEntries.filter((entry) => entry.status === option.value).length;
               const active = filter === option.value;
               return (
                 <button
@@ -108,9 +128,9 @@ export function ManagerDeploymentHistory({
         ) : null}
       </div>
 
-      {entries.length === 0 ? (
+      {visibleEntries.length === 0 ? (
         <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
-          기록된 blue-green 배포가 없습니다.
+          {showArchive ? "회전 보관된 배포가 없습니다." : "기록된 blue-green 배포가 없습니다."}
         </p>
       ) : filteredEntries.length === 0 ? (
         <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
