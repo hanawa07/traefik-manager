@@ -22,6 +22,8 @@ interface ManagerDeploymentHistoryExportMetadata {
     status: ManagerDeploymentHistoryFilters["status"];
   };
   result_count: number;
+  schema_version: 1;
+  timezone: string;
 }
 
 const CSV_COLUMNS: readonly (keyof ManagerDeploymentHistoryEntry)[] = [
@@ -50,6 +52,7 @@ export function downloadManagerDeploymentHistory(
   filters: ManagerDeploymentHistoryFilters,
   format: ManagerDeploymentHistoryExportFormat,
   resolveSource?: (entry: ManagerDeploymentHistoryEntry) => ManagerDeploymentHistoryRecordSource,
+  timezone?: string,
 ): string {
   const source = filters.source;
   if (source === "all" && !resolveSource) {
@@ -59,7 +62,7 @@ export function downloadManagerDeploymentHistory(
   const exportEntries: ManagerDeploymentHistoryExportEntry[] = includeSource
     ? entries.map((entry) => ({ source: resolveSource!(entry), ...entry }))
     : entries;
-  const metadata = buildMetadata(filters, entries.length);
+  const metadata = buildMetadata(filters, entries.length, timezone);
   const content = format === "csv"
     ? `\uFEFF${toCsv(metadata, exportEntries, includeSource)}`
     : JSON.stringify({ metadata, entries: exportEntries }, null, 2);
@@ -69,7 +72,10 @@ export function downloadManagerDeploymentHistory(
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `traefik-manager-deployments-${source}-${metadata.exported_at.slice(0, 10)}.${format}`;
+  const period = filters.dateFrom || filters.dateTo
+    ? `${filters.dateFrom || "start"}_to_${filters.dateTo || "end"}`
+    : filters.period === "all" ? "all-time" : `${filters.period}d`;
+  link.download = `traefik-manager-deployments-${source}-${period}-${filters.status}-${metadata.exported_at.slice(0, 10)}.${format}`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -80,6 +86,7 @@ export function downloadManagerDeploymentHistory(
 function buildMetadata(
   filters: ManagerDeploymentHistoryFilters,
   resultCount: number,
+  timezone?: string,
 ): ManagerDeploymentHistoryExportMetadata {
   return {
     exported_at: new Date().toISOString(),
@@ -93,6 +100,8 @@ function buildMetadata(
       status: filters.status,
     },
     result_count: resultCount,
+    schema_version: 1,
+    timezone: timezone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   };
 }
 
@@ -105,7 +114,9 @@ function toCsv(
     ? ["source", ...CSV_COLUMNS]
     : CSV_COLUMNS;
   const metadataRows = [
+    ["schema_version", metadata.schema_version],
     ["exported_at", metadata.exported_at],
+    ["timezone", metadata.timezone],
     ["result_count", metadata.result_count],
     ["filter_source", metadata.filters.source],
     ["filter_period", metadata.filters.period],

@@ -162,6 +162,7 @@ function ManagerDeploymentHistoryContent({
         filters,
         format,
         historySource === "all" ? resolveEntrySource : undefined,
+        timezone,
       );
       setToastNotice({
         detail: `${filename} · ${filteredEntries.length}건`,

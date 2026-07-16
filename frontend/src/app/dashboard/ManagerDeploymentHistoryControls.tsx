@@ -117,6 +117,18 @@ export function ManagerDeploymentHistoryControls({
       </div>
 
       {entries.length > 0 ? (
+        <details className="mt-2 text-[11px] text-gray-500 dark:text-slate-400" data-history-export-help>
+          <summary className="w-fit cursor-pointer font-semibold text-gray-600 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-200">
+            내보내기 형식
+          </summary>
+          <p className="mt-1 leading-relaxed">
+            JSON은 스키마 버전·시간대·적용 필터가 담긴 metadata와 entries로 구성됩니다.
+            CSV는 상단 metadata,value 블록 다음 빈 줄 아래에 데이터 표가 이어집니다.
+          </p>
+        </details>
+      ) : null}
+
+      {entries.length > 0 ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <label className="relative min-w-0 basis-full sm:basis-64 sm:flex-1">
             <span className="sr-only">배포 이력 검색</span>
