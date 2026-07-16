@@ -16,6 +16,10 @@ export async function checkManagerDeploymentHistoryActions({ cdp, timeoutMs }) {
 
 async function checkCombinedSource({ cdp, timeoutMs }) {
   await selectSource({ cdp, expectedCount: 3, source: "all", timeoutMs });
+  const sourceBadges = await evaluate(cdp, `Array.from(document.querySelectorAll(
+    '[data-history-source="all"] [data-deployment-source]',
+  )).map((badge) => badge.getAttribute('data-deployment-source'))`);
+  assert.deepEqual(sourceBadges, ["current", "archive", "archive"]);
   await waitForCondition(
     cdp,
     `document.querySelector('[data-deployment-success-rate]')?.getAttribute(
@@ -26,6 +30,9 @@ async function checkCombinedSource({ cdp, timeoutMs }) {
     timeoutMs,
     "Manager 통합 배포 성공률·롤백률이 올바르지 않습니다",
   );
+  await clickRateFilter({ cdp, expectedCount: 1, status: "success", timeoutMs });
+  await clickRateFilter({ cdp, expectedCount: 1, status: "rollback", timeoutMs });
+  await clickRateFilter({ cdp, expectedCount: 3, status: "all", timeoutMs });
   await setCombinedSearch({ cdp, timeoutMs, value: "v1.38" });
   await setCombinedSearch({ cdp, timeoutMs, value: "" });
   await selectSource({ cdp, expectedCount: 2, source: "archive", timeoutMs });
@@ -38,6 +45,31 @@ async function checkCombinedSource({ cdp, timeoutMs }) {
     ),
   }))()`);
   assert.deepEqual(archiveRates, { rollback: "50", success: "0" });
+}
+
+async function clickRateFilter({ cdp, expectedCount, status, timeoutMs }) {
+  const kind = status === "success" ? "success" : "rollback";
+  const clicked = await evaluate(cdp, `(() => {
+    const button = document.querySelector(${JSON.stringify(
+      `[data-deployment-rate-filter="${kind}"]`,
+    )});
+    button?.click();
+    return Boolean(button);
+  })()`);
+  assert.equal(clicked, true, `Manager ${kind} 비율 필터를 찾지 못했습니다`);
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const params = new URLSearchParams(location.search);
+      return document.querySelectorAll(
+        '[data-history-source="all"] li[data-deployment-status]',
+      ).length === ${expectedCount} && ${status === "all"
+        ? "!params.has('deployment_status')"
+        : `params.get('deployment_status') === ${JSON.stringify(status)}`};
+    })()`,
+    timeoutMs,
+    `Manager ${status} 비율 필터가 적용되지 않았습니다`,
+  );
 }
 
 async function selectSource({ cdp, expectedCount, source, timeoutMs }) {

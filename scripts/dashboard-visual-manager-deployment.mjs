@@ -106,7 +106,7 @@ export async function checkManagerDeploymentHistory({ cdp, timeoutMs }) {
 
   assert.equal(snapshot.exists, true, "Manager 배포 이력 카드를 찾지 못했습니다");
   if (snapshot.statuses.length > 0) {
-    assert.equal(snapshot.filters, 5, "Manager 배포 이력 상태 필터 수가 다릅니다");
+    assert.equal(snapshot.filters, 6, "Manager 배포 이력 상태 필터 수가 다릅니다");
     assert.equal(snapshot.exports, 2, "Manager 배포 이력 내보내기 버튼 수가 다릅니다");
     assert.equal(snapshot.linksValid, true, "Manager 배포 이력의 커밋·릴리즈 링크가 올바르지 않습니다");
     assert.equal(
@@ -352,6 +352,26 @@ async function checkHistoryExports({ cdp, timeoutMs }) {
   assert.match(csv.text, /"'=archive fixture probe failure"/);
   assert.match(csv.text, /"'\+archive fixture build failure"/);
   await waitForExportToast({ cdp, filename: csv.filename, format: "CSV", timeoutMs });
+
+  await evaluate(cdp, `document.querySelector('[data-history-source-filter="all"]')?.click()`);
+  await waitForCondition(
+    cdp,
+    `document.querySelectorAll(
+      '[data-history-source="all"] li[data-deployment-status]',
+    ).length === 3`,
+    timeoutMs,
+    "Manager 통합 이력 내보내기 source를 선택하지 못했습니다",
+  );
+  const combinedJson = await captureHistoryDownload(cdp, "json");
+  assert.match(combinedJson.filename, /deployments-all-\d{4}-\d{2}-\d{2}\.json$/);
+  assert.deepEqual(
+    JSON.parse(combinedJson.text).map((entry) => entry.source),
+    ["current", "archive", "archive"],
+  );
+  const combinedCsv = await captureHistoryDownload(cdp, "csv");
+  assert.match(combinedCsv.text, /^source,status,from_slot,to_slot,/);
+  assert.match(combinedCsv.text, /"current","success"/);
+  assert.equal(combinedCsv.text.match(/"archive"/g)?.length, 2);
 }
 
 async function reloadWithDeploymentFixture({ cdp, fixture, timeoutMs }) {
