@@ -8,6 +8,7 @@ import {
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
   MANAGER_DEPLOYMENT_STATUS_DISPLAY,
 } from "./managerDeploymentHistoryDisplay";
+import { ManagerDeploymentHistoryJsonDetails } from "./ManagerDeploymentHistoryJsonDetails";
 import { buildManagerDeploymentLinks } from "./managerDeploymentLinks";
 import {
   getExternalWatchdogRunLabel,
@@ -130,6 +131,7 @@ export function ManagerDeploymentHistoryItem({
         </div>
       ) : null}
       <DeploymentAlertRun entry={entry} timezone={timezone} />
+      <ManagerDeploymentHistoryJsonDetails entry={entry} />
     </li>
   );
 }

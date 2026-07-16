@@ -17,6 +17,7 @@ import {
 } from "./managerDeploymentHistoryExport";
 import {
   MANAGER_DEPLOYMENT_HISTORY_QUERY,
+  parseManagerDeploymentHistoryDate,
   parseManagerDeploymentHistoryPeriod,
   parseManagerDeploymentHistorySource,
   parseManagerDeploymentHistoryStage,
@@ -52,6 +53,12 @@ function ManagerDeploymentHistoryContent({
   const searchParams = useSearchParams();
   const [toastNotice, setToastNotice] = useState<ToastNoticeValue | null>(null);
   const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
+  const [dateFrom, setDateFrom] = useState(() =>
+    parseManagerDeploymentHistoryDate(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.dateFrom)),
+  );
+  const [dateTo, setDateTo] = useState(() =>
+    parseManagerDeploymentHistoryDate(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.dateTo)),
+  );
   const [period, setPeriod] = useState<ManagerDeploymentHistoryPeriodFilter>(() =>
     parseManagerDeploymentHistoryPeriod(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.period)),
   );
@@ -68,6 +75,8 @@ function ManagerDeploymentHistoryContent({
     (searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.search) || "").slice(0, 100),
   );
   const filters: ManagerDeploymentHistoryFilters = {
+    dateFrom,
+    dateTo,
     period,
     search: searchText,
     source: historySource,
@@ -78,9 +87,14 @@ function ManagerDeploymentHistoryContent({
   const periodCutoff = period === "all"
     ? null
     : periodReferenceTime - Number(period) * 24 * 60 * 60 * 1_000;
+  const dateFromCutoff = getLocalDateBoundary(dateFrom);
+  const dateToCutoff = getLocalDateBoundary(dateTo, true);
   const visibleEntries = historySource === "archive" ? archiveEntries : entries;
   const filteredEntries = visibleEntries.filter((entry) => {
-    const matchesPeriod = periodCutoff === null || Date.parse(entry.completed_at) >= periodCutoff;
+    const completedAt = Date.parse(entry.completed_at);
+    const matchesPeriod = periodCutoff === null || completedAt >= periodCutoff;
+    const matchesDateRange = (dateFromCutoff === null || completedAt >= dateFromCutoff)
+      && (dateToCutoff === null || completedAt < dateToCutoff);
     const matchesStatus = status === "all" || entry.status === status;
     const matchesFailureStage = stage === "all"
       || (stage === "unknown"
@@ -88,11 +102,19 @@ function ManagerDeploymentHistoryContent({
         : entry.failure_stage === stage);
     const matchesSearch = !normalizedSearchText || [entry.version, entry.revision, entry.failure_reason]
       .some((value) => value?.toLowerCase().includes(normalizedSearchText));
-    return matchesPeriod && matchesStatus && matchesFailureStage && matchesSearch;
+    return matchesPeriod && matchesDateRange && matchesStatus && matchesFailureStage && matchesSearch;
   });
 
   const updateFilters = (updates: Partial<ManagerDeploymentHistoryFilters>) => {
     const queryUpdates: [key: string, value: string, defaultValue: string][] = [];
+    if (updates.dateFrom !== undefined) {
+      setDateFrom(updates.dateFrom);
+      queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.dateFrom, updates.dateFrom, ""]);
+    }
+    if (updates.dateTo !== undefined) {
+      setDateTo(updates.dateTo);
+      queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.dateTo, updates.dateTo, ""]);
+    }
     if (updates.period !== undefined) {
       setPeriodReferenceTime(Date.now());
       setPeriod(updates.period);
@@ -189,4 +211,12 @@ function ManagerDeploymentHistoryContent({
       </section>
     </>
   );
+}
+
+function getLocalDateBoundary(value: string, nextDay = false): number | null {
+  if (!value) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const boundary = new Date(year, month - 1, day);
+  if (nextDay) boundary.setDate(boundary.getDate() + 1);
+  return boundary.getTime();
 }

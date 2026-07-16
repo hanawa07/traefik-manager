@@ -71,8 +71,19 @@ export const MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS: Record<
 };
 
 export function formatManagerDeploymentDuration(startedAt: string, completedAt: string): string {
+  const durationMs = getManagerDeploymentDurationMs(startedAt, completedAt);
+  return durationMs === null ? "확인 불가" : formatManagerDeploymentDurationMs(durationMs);
+}
+
+export function getManagerDeploymentDurationMs(
+  startedAt: string,
+  completedAt: string,
+): number | null {
   const durationMs = Date.parse(completedAt) - Date.parse(startedAt);
-  if (!Number.isFinite(durationMs) || durationMs < 0) return "확인 불가";
+  return Number.isFinite(durationMs) && durationMs >= 0 ? durationMs : null;
+}
+
+export function formatManagerDeploymentDurationMs(durationMs: number): string {
   if (durationMs < 1_000) return "1초 미만";
 
   const totalSeconds = Math.floor(durationMs / 1_000);

@@ -7,12 +7,16 @@ export type ManagerDeploymentHistorySourceFilter = "archive" | "current";
 export type ManagerDeploymentHistoryPeriodFilter = "all" | "1" | "7" | "30" | "90";
 
 export const MANAGER_DEPLOYMENT_HISTORY_QUERY = {
+  dateFrom: "deployment_from",
+  dateTo: "deployment_to",
   period: "deployment_period",
   search: "deployment_q",
   source: "deployment_source",
   stage: "deployment_stage",
   status: "deployment_status",
 } as const;
+
+const DEPLOYMENT_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const PERIOD_FILTERS: readonly ManagerDeploymentHistoryPeriodFilter[] = [
   "all",
@@ -57,6 +61,13 @@ export function parseManagerDeploymentHistoryPeriod(
   return PERIOD_FILTERS.includes(value as ManagerDeploymentHistoryPeriodFilter)
     ? value as ManagerDeploymentHistoryPeriodFilter
     : "all";
+}
+
+export function parseManagerDeploymentHistoryDate(value: string | null): string {
+  if (!value || !DEPLOYMENT_DATE_PATTERN.test(value)) return "";
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  if (!Number.isFinite(timestamp)) return "";
+  return new Date(timestamp).toISOString().slice(0, 10) === value ? value : "";
 }
 
 export function parseManagerDeploymentHistoryStage(

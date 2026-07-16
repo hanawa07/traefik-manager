@@ -10,14 +10,17 @@ import {
 } from "./managerDeploymentHistoryDisplay";
 import type { ManagerDeploymentHistoryExportFormat } from "./managerDeploymentHistoryExport";
 import type {
-  ManagerDeploymentHistoryFailureStage,
   ManagerDeploymentHistoryPeriodFilter,
   ManagerDeploymentHistorySourceFilter,
   ManagerDeploymentHistoryStageFilter,
   ManagerDeploymentHistoryStatusFilter,
 } from "./managerDeploymentHistoryQuery";
+import { ManagerDeploymentDateRange } from "./ManagerDeploymentDateRange";
+import { ManagerDeploymentFailureSummary } from "./ManagerDeploymentFailureSummary";
 
 export interface ManagerDeploymentHistoryFilters {
+  dateFrom: string;
+  dateTo: string;
   period: ManagerDeploymentHistoryPeriodFilter;
   search: string;
   source: ManagerDeploymentHistorySourceFilter;
@@ -43,20 +46,11 @@ export function ManagerDeploymentHistoryControls({
   onFiltersChange,
 }: ManagerDeploymentHistoryControlsProps) {
   const showArchive = filters.source === "archive";
-  const failedEntries = entries.filter((entry) => entry.status !== "success");
-  const failureStageCounts = (
-    Object.keys(MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS) as ManagerDeploymentHistoryFailureStage[]
-  )
-    .map((stage) => ({
-      count: failedEntries.filter((entry) => entry.failure_stage === stage).length,
-      label: MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS[stage],
-      stage,
-    }))
-    .filter(({ count }) => count > 0);
-  const unknownStageCount = failedEntries.filter((entry) => !entry.failure_stage).length;
   const hasActiveFilters = filters.status !== "all"
     || filters.stage !== "all"
     || filters.period !== "all"
+    || filters.dateFrom !== ""
+    || filters.dateTo !== ""
     || filters.search.trim() !== "";
   const hasActiveConditions = showArchive || hasActiveFilters;
   const selectedStageLabel = filters.stage === "unknown"
@@ -130,6 +124,8 @@ export function ManagerDeploymentHistoryControls({
               className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs text-gray-700 outline-none focus:border-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
               data-history-period
               onChange={(event) => onFiltersChange({
+                dateFrom: "",
+                dateTo: "",
                 period: event.target.value as ManagerDeploymentHistoryPeriodFilter,
               })}
               value={filters.period}
@@ -148,6 +144,8 @@ export function ManagerDeploymentHistoryControls({
             data-history-filter-reset
             disabled={!hasActiveFilters}
             onClick={() => onFiltersChange({
+              dateFrom: "",
+              dateTo: "",
               period: "all",
               search: "",
               stage: "all",
@@ -159,6 +157,14 @@ export function ManagerDeploymentHistoryControls({
             필터 초기화
           </button>
         </div>
+      ) : null}
+
+      {entries.length > 0 ? (
+        <ManagerDeploymentDateRange
+          dateFrom={filters.dateFrom}
+          dateTo={filters.dateTo}
+          onChange={(dates) => onFiltersChange({ ...dates, period: "all" })}
+        />
       ) : null}
 
       {entries.length > 0 ? (
@@ -188,41 +194,11 @@ export function ManagerDeploymentHistoryControls({
         </div>
       ) : null}
 
-      {failedEntries.length > 0 ? (
-        <div
-          className="mt-3 flex flex-wrap items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/80 px-2.5 py-2 text-[11px] text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
-          data-deployment-failure-stats
-          role="group"
-          aria-label="배포 실패 단계 필터"
-        >
-          <span className="font-semibold">실패 {failedEntries.length}건</span>
-          <FailureStageButton
-            active={filters.stage === "all"}
-            label="단계 전체"
-            onClick={() => onFiltersChange({ stage: "all" })}
-            stage="all"
-          />
-          {failureStageCounts.map(({ count, label, stage }) => (
-            <FailureStageButton
-              active={filters.stage === stage}
-              key={stage}
-              label={`${label} ${count}`}
-              onClick={() => onFiltersChange({ stage: filters.stage === stage ? "all" : stage })}
-              stage={stage}
-            />
-          ))}
-          {unknownStageCount > 0 ? (
-            <FailureStageButton
-              active={filters.stage === "unknown"}
-              label={`단계 미기록 ${unknownStageCount}`}
-              onClick={() => onFiltersChange({
-                stage: filters.stage === "unknown" ? "all" : "unknown",
-              })}
-              stage="unknown"
-            />
-          ) : null}
-        </div>
-      ) : null}
+      <ManagerDeploymentFailureSummary
+        entries={entries}
+        onStageChange={(stage) => onFiltersChange({ stage })}
+        selectedStage={filters.stage}
+      />
 
       {entries.length > 0 ? (
         <div
@@ -249,6 +225,20 @@ export function ManagerDeploymentHistoryControls({
                     (option) => option.value === filters.period,
                   )?.label}`}
                   onRemove={() => onFiltersChange({ period: "all" })}
+                />
+              ) : null}
+              {filters.dateFrom ? (
+                <ConditionChip
+                  condition="date_from"
+                  label={`시작일: ${filters.dateFrom}`}
+                  onRemove={() => onFiltersChange({ dateFrom: "" })}
+                />
+              ) : null}
+              {filters.dateTo ? (
+                <ConditionChip
+                  condition="date_to"
+                  label={`종료일: ${filters.dateTo}`}
+                  onRemove={() => onFiltersChange({ dateTo: "" })}
                 />
               ) : null}
               {filters.status !== "all" ? (
@@ -280,40 +270,12 @@ export function ManagerDeploymentHistoryControls({
   );
 }
 
-function FailureStageButton({
-  active,
-  label,
-  onClick,
-  stage,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-  stage: ManagerDeploymentHistoryStageFilter;
-}) {
-  return (
-    <button
-      aria-pressed={active}
-      className={`rounded-full px-2 py-0.5 font-medium transition-colors ${
-        active
-          ? "bg-amber-700 text-white dark:bg-amber-300 dark:text-slate-950"
-          : "bg-white/80 hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900"
-      }`}
-      data-failure-stage-filter={stage}
-      onClick={onClick}
-      type="button"
-    >
-      {label}
-    </button>
-  );
-}
-
 function ConditionChip({
   condition,
   label,
   onRemove,
 }: {
-  condition: "period" | "search" | "source" | "stage" | "status";
+  condition: "date_from" | "date_to" | "period" | "search" | "source" | "stage" | "status";
   label: string;
   onRemove: () => void;
 }) {
