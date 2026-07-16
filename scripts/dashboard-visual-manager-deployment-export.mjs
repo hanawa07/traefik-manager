@@ -3,11 +3,15 @@ import assert from "node:assert/strict";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
+  await checkExportFormatHelp({ cdp, timeoutMs });
   const json = await captureHistoryDownload(cdp, "json");
-  assert.match(json.filename, /deployments-archive-\d{4}-\d{2}-\d{2}\.json$/);
+  assert.match(json.filename, /deployments-archive-30d-rolled_back-\d{4}-\d{2}-\d{2}\.json$/);
   const payload = JSON.parse(json.text);
   assert.match(payload.metadata.exported_at, /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(payload.metadata.result_count, 1);
+  assert.equal(payload.metadata.schema_version, 1);
+  assert.equal(typeof payload.metadata.timezone, "string");
+  assert.ok(payload.metadata.timezone);
   assert.deepEqual(payload.metadata.filters, {
     date_from: null,
     date_to: null,
@@ -38,9 +42,11 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
     "Manager 배포 이력 필터 초기화가 적용되지 않았습니다",
   );
   const csv = await captureHistoryDownload(cdp, "csv");
-  assert.match(csv.filename, /deployments-archive-\d{4}-\d{2}-\d{2}\.csv$/);
+  assert.match(csv.filename, /deployments-archive-all-time-all-\d{4}-\d{2}-\d{2}\.csv$/);
   assert.deepEqual(csv.bytes, [239, 187, 191], "Manager CSV UTF-8 BOM이 없습니다");
   assert.match(csv.text, /^metadata,value\r\n/);
+  assert.match(csv.text, /\r\nschema_version,"1"\r\n/);
+  assert.match(csv.text, /\r\ntimezone,"[^"]+"\r\n/);
   assert.match(csv.text, /\r\nresult_count,"2"\r\n/);
   assert.match(csv.text, /\r\nfilter_source,"archive"\r\n/);
   assert.match(csv.text, /\r\nfilter_period,"all"\r\n/);
@@ -59,7 +65,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
     "Manager 통합 이력 내보내기 source를 선택하지 못했습니다",
   );
   const combinedJson = await captureHistoryDownload(cdp, "json");
-  assert.match(combinedJson.filename, /deployments-all-\d{4}-\d{2}-\d{2}\.json$/);
+  assert.match(combinedJson.filename, /deployments-all-all-time-all-\d{4}-\d{2}-\d{2}\.json$/);
   const combinedPayload = JSON.parse(combinedJson.text);
   assert.equal(combinedPayload.metadata.filters.source, "all");
   assert.equal(combinedPayload.metadata.result_count, 3);
@@ -72,6 +78,26 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   assert.match(combinedCsv.text, /\r\n\r\nsource,status,from_slot,to_slot,/);
   assert.match(combinedCsv.text, /"current","success"/);
   assert.equal(combinedCsv.text.match(/"archive"/g)?.length, 2);
+}
+
+async function checkExportFormatHelp({ cdp, timeoutMs }) {
+  const opened = await evaluate(cdp, `(() => {
+    const details = document.querySelector('[data-history-export-help]');
+    details?.querySelector('summary')?.click();
+    return Boolean(details);
+  })()`);
+  assert.equal(opened, true, "Manager 배포 이력 내보내기 형식 도움말을 찾지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const details = document.querySelector('[data-history-export-help]');
+      return details?.hasAttribute('open') &&
+        details.textContent?.includes('metadata와 entries') &&
+        details.textContent?.includes('metadata,value 블록');
+    })()`,
+    timeoutMs,
+    "Manager 배포 이력 내보내기 형식 도움말을 펼치지 못했습니다",
+  );
 }
 
 async function waitForExportToast({ cdp, filename, format, timeoutMs }) {
