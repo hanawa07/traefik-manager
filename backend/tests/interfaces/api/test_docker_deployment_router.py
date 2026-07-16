@@ -155,11 +155,16 @@ async def test_manager_http_error_preview_rejects_non_api_exclusion() -> None:
 
 
 @pytest.mark.asyncio
-async def test_deployment_info_enriches_each_watchdog_run(monkeypatch) -> None:
-    run_urls = [
+async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monkeypatch) -> None:
+    watchdog_run_urls = [
         "https://github.com/hanawa07/traefik-manager/actions/runs/123",
         "https://github.com/hanawa07/traefik-manager/actions/runs/456",
     ]
+    deployment_run_urls = [
+        f"https://github.com/hanawa07/traefik-manager/actions/runs/{run_id}"
+        for run_id in range(789, 795)
+    ]
+    requested_run_urls = [*watchdog_run_urls, *deployment_run_urls[:5]]
     requested_at = datetime(2026, 7, 13, tzinfo=timezone.utc)
 
     class FakeDockerClient:
@@ -168,15 +173,17 @@ async def test_deployment_info_enriches_each_watchdog_run(monkeypatch) -> None:
 
     class FakeRunStatusReader:
         async def get_statuses(self, urls: list[str]):
-            assert urls == run_urls
+            assert urls == requested_run_urls
             return {
                 url: {
                     "external_watchdog_last_alert_run_status": "completed",
-                    "external_watchdog_last_alert_run_conclusion": conclusion,
+                    "external_watchdog_last_alert_run_conclusion": (
+                        "failure" if url == watchdog_run_urls[1] else "success"
+                    ),
                     "external_watchdog_last_alert_run_checked_at": requested_at,
                     "external_watchdog_last_alert_run_error": None,
                 }
-                for url, conclusion in zip(urls, ["success", "failure"])
+                for url in urls
             }
 
         async def get_status(self, run_url: str | None):
@@ -198,10 +205,18 @@ async def test_deployment_info_enriches_each_watchdog_run(monkeypatch) -> None:
         docker,
         "read_manager_watchdog_state",
         lambda **_: {
-            "external_watchdog_last_alert_run_url": run_urls[0],
+            "external_watchdog_last_alert_run_url": watchdog_run_urls[0],
             "external_watchdog_alert_runs": [
-                {"event": "recovery", "requested_at": requested_at, "run_url": run_urls[0]},
-                {"event": "failure", "requested_at": requested_at, "run_url": run_urls[1]},
+                {
+                    "event": "recovery",
+                    "requested_at": requested_at,
+                    "run_url": watchdog_run_urls[0],
+                },
+                {
+                    "event": "failure",
+                    "requested_at": requested_at,
+                    "run_url": watchdog_run_urls[1],
+                },
             ],
         },
     )
@@ -209,7 +224,14 @@ async def test_deployment_info_enriches_each_watchdog_run(monkeypatch) -> None:
     monkeypatch.setattr(
         docker,
         "read_manager_deployment_history",
-        lambda: [{"status": "success"}],
+        lambda: [
+            {
+                "status": "rollback_failed",
+                "alert_request_status": "requested",
+                "alert_run_url": run_url,
+            }
+            for run_url in deployment_run_urls
+        ],
     )
 
     result = await docker.get_deployment_info(
@@ -227,7 +249,10 @@ async def test_deployment_info_enriches_each_watchdog_run(monkeypatch) -> None:
         "healthy": True,
         "provider": "file",
     }
-    assert result["deployment_history"] == [{"status": "success"}]
+    assert result["deployment_history"][0]["alert_run_status"] == "completed"
+    assert result["deployment_history"][0]["alert_run_conclusion"] == "success"
+    assert result["deployment_history"][0]["alert_run_checked_at"] == requested_at
+    assert result["deployment_history"][-1]["alert_run_status"] is None
     assert [run["conclusion"] for run in result["external_watchdog_alert_runs"]] == [
         "success",
         "failure",

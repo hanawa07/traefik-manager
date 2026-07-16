@@ -108,6 +108,12 @@ export interface ManagerDeploymentHistoryEntry {
   failure_stage: "prepare" | "build" | "migration_preflight" | "candidate_health" |
     "route_switch" | "leader_handover" | "public_probe" | "state_write" | null;
   failure_reason: string | null;
+  alert_request_status: "not_needed" | "requested" | "request_failed";
+  alert_run_url: string | null;
+  alert_run_status: string | null;
+  alert_run_conclusion: string | null;
+  alert_run_checked_at: string | null;
+  alert_run_error: string | null;
 }
 
 export interface DeploymentInfo {

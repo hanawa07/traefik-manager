@@ -20,15 +20,28 @@ def _entry(*, status: str = "success", completed_at: str = "2026-07-16T09:01:00Z
     if status != "success":
         entry["failure_stage"] = "public_probe"
         entry["failure_reason"] = "HTTP 비정상 1/10건 · 자동 rollback 완료"
+    if status == "rollback_failed":
+        entry["alert_request_status"] = "requested"
+        entry["alert_run_url"] = (
+            "https://github.com/hanawa07/traefik-manager/actions/runs/123"
+        )
     return entry
 
 
 def test_history_returns_newest_valid_entries_and_skips_malformed_lines(tmp_path: Path):
     history_path = tmp_path / "deployments.jsonl"
     older = _entry(completed_at="2026-07-16T09:01:00Z")
-    newer = _entry(status="rolled_back", completed_at="2026-07-16T10:01:00Z")
+    newer = _entry(status="rollback_failed", completed_at="2026-07-16T10:01:00Z")
     invalid = {**_entry(), "probe_failures": 11}
     invalid_stage = {**_entry(status="rolled_back"), "failure_stage": "shell_command"}
+    invalid_alert_status = {
+        **_entry(status="rollback_failed"),
+        "alert_request_status": ["requested"],
+    }
+    invalid_alert_url = {
+        **_entry(status="rollback_failed"),
+        "alert_run_url": "https://example.com/actions/runs/123",
+    }
     history_path.write_text(
         "\n".join(
             (
@@ -36,6 +49,8 @@ def test_history_returns_newest_valid_entries_and_skips_malformed_lines(tmp_path
                 "not-json",
                 json.dumps(invalid),
                 json.dumps(invalid_stage),
+                json.dumps(invalid_alert_status),
+                json.dumps(invalid_alert_url),
                 json.dumps(newer),
             )
         ),
@@ -44,9 +59,13 @@ def test_history_returns_newest_valid_entries_and_skips_malformed_lines(tmp_path
 
     result = read_manager_deployment_history(history_path)
 
-    assert [entry["status"] for entry in result] == ["rolled_back", "success"]
+    assert [entry["status"] for entry in result] == ["rollback_failed", "success"]
     assert result[0]["failure_stage"] == "public_probe"
+    assert result[0]["alert_request_status"] == "requested"
+    assert result[0]["alert_run_url"].endswith("/actions/runs/123")
     assert result[1]["failure_stage"] is None
+    assert result[1]["alert_request_status"] == "not_needed"
+    assert result[1]["alert_run_url"] is None
 
 
 def test_history_returns_empty_list_when_file_is_missing(tmp_path: Path):

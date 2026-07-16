@@ -47,6 +47,7 @@ jobs:
         run: |
           scripts/blue-green-deploy.sh --self-test
           scripts/manager-deployment-probe.sh --self-test
+          scripts/request-host-operation-alert.sh --self-test
 
       - name: 예약 실행 설정 확인
         id: schedule

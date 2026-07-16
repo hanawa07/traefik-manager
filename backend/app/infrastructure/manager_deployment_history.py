@@ -4,11 +4,13 @@ from datetime import datetime
 from pathlib import Path
 
 from app.core.config import settings
+from app.infrastructure.github_actions_run import build_actions_run_api_url
 
 MAX_HISTORY_BYTES = 64 * 1024
 MAX_HISTORY_ENTRIES = 20
 MAX_HISTORY_LINE_BYTES = 2048
 HISTORY_STATUSES = {"success", "failed_before_switch", "rolled_back", "rollback_failed"}
+ALERT_REQUEST_STATUSES = {"not_needed", "requested", "request_failed"}
 FAILURE_STAGES = {
     "prepare",
     "build",
@@ -98,16 +100,36 @@ def _normalize_entry(raw: object) -> dict[str, object] | None:
         return None
     failure_stage = raw.get("failure_stage") or None
     failure_reason = raw.get("failure_reason") or None
-    if failure_stage is not None and failure_stage not in FAILURE_STAGES:
+    if failure_stage is not None and (
+        not isinstance(failure_stage, str) or failure_stage not in FAILURE_STAGES
+    ):
         return None
     if failure_reason is not None and (
         not isinstance(failure_reason, str) or len(failure_reason) > 300
     ):
         return None
+    alert_request_status = raw.get("alert_request_status", "not_needed")
+    if not isinstance(alert_request_status, str) or (
+        alert_request_status not in ALERT_REQUEST_STATUSES
+    ):
+        return None
+    raw_alert_run_url = raw.get("alert_run_url")
+    if raw_alert_run_url in (None, ""):
+        alert_run_url = None
+    elif isinstance(raw_alert_run_url, str) and build_actions_run_api_url(raw_alert_run_url):
+        alert_run_url = raw_alert_run_url
+    else:
+        return None
+    if raw["status"] != "rollback_failed" and alert_request_status != "not_needed":
+        return None
+    if alert_request_status != "requested" and alert_run_url is not None:
+        return None
     return {
         **{key: raw[key] for key in (*string_keys, "probe_total", "probe_failures")},
         "failure_stage": failure_stage,
         "failure_reason": failure_reason,
+        "alert_request_status": alert_request_status,
+        "alert_run_url": alert_run_url,
     }
 
 

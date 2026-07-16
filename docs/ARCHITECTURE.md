@@ -279,7 +279,7 @@ traefik-manager/
 - 안전한 설정(`시간 표시`, `업스트림 보안`)은 audit detail에 롤백 payload를 함께 저장하고, `settings/rollback` 액션으로 복구합니다.
 - 선택적으로 보안 이벤트를 외부 채널(generic/slack/discord/telegram/teams/pagerduty/email)로 전송할 수 있으며, 기본 채널 위에 이벤트별 override(telegram/pagerduty/email/disabled)를 둘 수 있습니다. 전송 실패는 원래 로그인 방어 흐름을 막지 않습니다.
 - Traefik 내장 dashboard는 Manager 설정에서 public route만 생성/삭제하도록 제어합니다. 실제 구현은 file-provider에 `api@internal` 라우터와 basicAuth 미들웨어를 쓰는 방식이고, 정적 Traefik의 `api.dashboard=true`는 별도로 유지되어야 합니다.
-- Manager frontend의 자체 라우터는 `init-traefik-config`가 file-provider YAML로 원자 생성합니다. blue/green 후보는 전용 app 내부망에서 같은 슬롯 backend까지 health를 확인한 뒤 backend에 stable ForwardAuth alias를 붙이고 service upstream만 교체합니다. 0.2초 공개 probe가 비정상 응답을 하나라도 감지하면 이전 슬롯으로 rollback합니다. 두 backend가 함께 떠 있는 동안 startup 정리와 주기 작업은 공유 file lock leader 한 곳에서만 실행되며 route 변경에 맞춰 lease를 승계합니다. 배포 API는 active 슬롯, HTTPS/HTTP router, service, upstream 상태를 대시보드에 표시합니다. 상세 절차와 안전 조건은 [blue-green 배포 설계](plans/2026-07-16-blue-green-deployment.md)를 따릅니다.
+- Manager frontend의 자체 라우터는 `init-traefik-config`가 file-provider YAML로 원자 생성합니다. blue/green 후보는 전용 app 내부망에서 같은 슬롯 backend까지 health를 확인한 뒤 backend에 stable ForwardAuth alias를 붙이고 service upstream만 교체합니다. 0.2초 공개 probe가 비정상 응답을 하나라도 감지하면 이전 슬롯으로 rollback합니다. 두 backend가 함께 떠 있는 동안 startup 정리와 주기 작업은 공유 file lock leader 한 곳에서만 실행되며 route 변경에 맞춰 lease를 승계합니다. 배포 결과는 상한이 있는 JSONL에 실패 단계·안전한 원인·rollback 실패 알림 실행 URL과 함께 기록하고, 배포 API가 최근 GitHub 실행 결과를 붙여 active 슬롯과 라우터·upstream 상태 및 이력을 대시보드에 표시합니다. 상세 절차와 안전 조건은 [blue-green 배포 설계](plans/2026-07-16-blue-green-deployment.md)를 따릅니다.
 - 컨테이너 비루트 사용자 실행
 - `no-new-privileges` 보안 옵션
 - backend는 Docker socket을 직접 마운트하지 않고, `traefik-manager-internal`의 allowlist proxy를 통해 조회 API와 네트워크 연결 API만 사용합니다.

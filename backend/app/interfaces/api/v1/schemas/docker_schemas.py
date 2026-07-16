@@ -204,6 +204,12 @@ class ManagerDeploymentHistoryEntryResponse(BaseModel):
         "state_write",
     ] | None = None
     failure_reason: str | None = None
+    alert_request_status: Literal["not_needed", "requested", "request_failed"] = "not_needed"
+    alert_run_url: str | None = None
+    alert_run_status: str | None = None
+    alert_run_conclusion: str | None = None
+    alert_run_checked_at: datetime | None = None
+    alert_run_error: str | None = None
 
 
 class DockerDeploymentInfoResponse(BaseModel):

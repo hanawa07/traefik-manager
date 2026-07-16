@@ -29,6 +29,8 @@ history_record_enabled=0
 history_recorded=0
 deployment_started_at=""
 deployment_stage="prepare"
+alert_request_status="not_needed"
+alert_run_url=""
 previous_slot=""
 candidate_slot=""
 revision=""
@@ -282,7 +284,8 @@ record_deployment_history() {
     "${HISTORY_SCRIPT}" append \
     "${HISTORY_FILE}" "${status}" "${previous_slot}" "${candidate_slot}" "${active_slot}" \
     "${version}" "${revision}" "${deployment_started_at}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    "${probe_total}" "${probe_failures}" "${failure_stage}" "${failure_reason}"; then
+    "${probe_total}" "${probe_failures}" "${failure_stage}" "${failure_reason}" \
+    "${alert_request_status}" "${alert_run_url}"; then
     echo "배포 이력을 기록하지 못했습니다: ${HISTORY_FILE}" >&2
   fi
   history_recorded=1
@@ -352,8 +355,13 @@ rollback() {
       history_status="rollback_failed"
       history_active_slot="$(infer_active_slot "${ROUTE_FILE}")"
       echo "자동 rollback이 완료되지 않아 후보 슬롯을 유지합니다" >&2
-      notify_rollback_failure "${history_active_slot}" || \
+      if alert_run_url="$(notify_rollback_failure "${history_active_slot}")"; then
+        alert_request_status="requested"
+      else
+        alert_request_status="request_failed"
+        alert_run_url=""
         echo "rollback 실패 운영 알림을 요청하지 못했습니다" >&2
+      fi
     else
       history_status="rolled_back"
     fi
