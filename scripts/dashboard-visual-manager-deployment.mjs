@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
+import { checkManagerDeploymentHistoryActions } from "./dashboard-visual-manager-deployment-actions.mjs";
+
+const FIXTURE_NOW = Date.now();
+const DAY_MS = 24 * 60 * 60 * 1_000;
+
+function fixtureTimestamp(daysAgo, extraMilliseconds = 0) {
+  return new Date(FIXTURE_NOW - daysAgo * DAY_MS - extraMilliseconds).toISOString();
+}
 
 const ARCHIVE_FIXTURE_ENTRIES = [
   {
@@ -10,8 +18,8 @@ const ARCHIVE_FIXTURE_ENTRIES = [
     active_slot: "blue",
     version: "v1.38.70",
     revision: "a".repeat(40),
-    started_at: "2026-07-01T00:00:00Z",
-    completed_at: "2026-07-01T00:01:00Z",
+    started_at: fixtureTimestamp(2, 60_000),
+    completed_at: fixtureTimestamp(2),
     probe_total: 3,
     probe_failures: 1,
     failure_stage: "public_probe",
@@ -30,8 +38,8 @@ const ARCHIVE_FIXTURE_ENTRIES = [
     active_slot: "green",
     version: "v1.38.69",
     revision: "b".repeat(40),
-    started_at: "2026-06-30T00:00:00Z",
-    completed_at: "2026-06-30T00:01:00Z",
+    started_at: fixtureTimestamp(10, 60_000),
+    completed_at: fixtureTimestamp(10),
     probe_total: 0,
     probe_failures: 0,
     failure_stage: "build",
@@ -180,6 +188,7 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
   assert.deepEqual(transitionSummary.durations, ["1분", "1분"]);
   assert.match(transitionSummary.slots[0], /blue → green · 최종 활성 blue/);
   assert.match(transitionSummary.slots[1], /green → blue · 최종 활성 green/);
+  await checkManagerDeploymentHistoryActions({ cdp, timeoutMs });
   await checkHistorySearchAndFilters({ cdp, timeoutMs });
   await reloadWithDeploymentFixture({ cdp, fixture, timeoutMs });
   await waitForHistoryQueryRestore({ cdp, timeoutMs });
@@ -236,6 +245,7 @@ async function checkHistorySearchAndFilters({ cdp, timeoutMs }) {
         (entry) => entry.getAttribute('data-deployment-status') === 'rolled_back' &&
           entry.getAttribute('data-deployment-failure-stage') === 'public_probe',
       ) && params.get('deployment_source') === 'archive' &&
+        params.get('deployment_period') === '30' &&
         params.get('deployment_status') === 'rolled_back' &&
         params.get('deployment_stage') === 'public_probe' &&
         params.get('deployment_q') === 'probe failure';
@@ -252,7 +262,7 @@ async function checkActiveConditionRemoval({ cdp, timeoutMs }) {
   )).map((condition) => condition.getAttribute('data-history-condition'))`);
   assert.deepEqual(
     conditions,
-    ["source", "status", "stage", "search"],
+    ["source", "period", "status", "stage", "search"],
     "Manager 배포 이력 적용 조건 칩 구성이 다릅니다",
   );
 
@@ -270,9 +280,10 @@ async function checkActiveConditionRemoval({ cdp, timeoutMs }) {
         .map((condition) => condition.getAttribute('data-history-condition'));
       return !params.has('deployment_q') &&
         params.get('deployment_source') === 'archive' &&
+        params.get('deployment_period') === '30' &&
         params.get('deployment_status') === 'rolled_back' &&
         params.get('deployment_stage') === 'public_probe' &&
-        conditions.join(',') === 'source,status,stage';
+        conditions.join(',') === 'source,period,status,stage';
     })()`,
     timeoutMs,
     "Manager 배포 검색 조건만 개별 제거되지 않았습니다",
@@ -301,7 +312,8 @@ async function checkHistoryExports({ cdp, timeoutMs }) {
       return document.querySelectorAll(
         '[data-history-source="archive"] li[data-deployment-status]',
       ).length === 2 && !params.has('deployment_q') &&
-        !params.has('deployment_status') && !params.has('deployment_stage') &&
+        !params.has('deployment_period') && !params.has('deployment_status') &&
+        !params.has('deployment_stage') &&
         params.get('deployment_source') === 'archive';
     })()`,
     timeoutMs,
@@ -372,13 +384,15 @@ async function waitForHistoryQueryRestore({ cdp, timeoutMs }) {
         '[data-history-source="archive"] li[data-deployment-status]',
       );
       return document.querySelector('[data-history-search]')?.value === 'probe failure' &&
+        document.querySelector('[data-history-period]')?.value === '30' &&
         document.querySelector('[data-history-filter="rolled_back"]')?.getAttribute('aria-pressed') === 'true' &&
         document.querySelector('[data-failure-stage-filter="public_probe"]')?.getAttribute('aria-pressed') === 'true' &&
         entry?.getAttribute('data-deployment-status') === 'rolled_back' &&
         entry.getAttribute('data-deployment-failure-stage') === 'public_probe' &&
-        document.querySelectorAll('[data-history-condition]').length === 4 &&
+        document.querySelectorAll('[data-history-condition]').length === 5 &&
         document.querySelector('[data-history-search-highlight]')?.textContent === 'probe failure' &&
         params.get('deployment_source') === 'archive' &&
+        params.get('deployment_period') === '30' &&
         params.get('deployment_q') === 'probe failure';
     })()`,
     timeoutMs,
