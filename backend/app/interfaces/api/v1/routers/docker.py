@@ -7,6 +7,7 @@ from app.core.manager_watchdog_state import read_manager_watchdog_state
 from app.infrastructure.docker.client import DockerClient, DockerClientError
 from app.infrastructure.docker.manager_http_log_reader import read_manager_http_error_preview
 from app.infrastructure.github_actions_run import GitHubActionsRunStatusReader
+from app.infrastructure.manager_deployment_history import read_manager_deployment_history
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
@@ -137,6 +138,7 @@ async def get_deployment_info(
             **watchdog_state,
             **run_status,
             "http_error_monitor": http_error_monitor,
+            "deployment_history": read_manager_deployment_history(),
             "external_watchdog_alert_runs": enriched_alert_runs,
         }
     except DockerClientError as exc:

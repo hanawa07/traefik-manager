@@ -8,6 +8,7 @@ readonly ROUTE_FILE="${REPO_ROOT}/traefik-config/dynamic/traefik-manager-self.ym
 readonly STATE_DIR="${TM_MANAGER_DEPLOY_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/traefik-manager}"
 readonly STATE_FILE="${STATE_DIR}/blue-green-deployment.state"
 readonly LOCK_FILE="${STATE_DIR}/blue-green-deployment.lock"
+readonly HISTORY_FILE="${STATE_DIR}/blue-green-deployments.jsonl"
 readonly PROBE_SCRIPT="${SCRIPT_DIR}/manager-deployment-probe.sh"
 readonly PROBE_INTERVAL_SECONDS="${TM_DEPLOY_PROBE_INTERVAL_SECONDS:-0.2}"
 readonly HEALTH_TIMEOUT_SECONDS="${TM_BLUE_GREEN_HEALTH_TIMEOUT_SECONDS:-180}"
@@ -20,8 +21,12 @@ state_backup_file=""
 state_existed=0
 switched=0
 candidate_started=0
+history_record_enabled=0
+history_recorded=0
+deployment_started_at=""
 previous_slot=""
 candidate_slot=""
+revision=""
 
 read_env_value() {
   local key="$1"
@@ -240,6 +245,45 @@ write_state() {
   mv "${temporary_file}" "${STATE_FILE}"
 }
 
+append_deployment_history() {
+  local output_file="$1"
+  local status="$2"
+  local from_slot="$3"
+  local to_slot="$4"
+  local active_slot="$5"
+  local deployed_version="$6"
+  local deployed_revision="$7"
+  local started_at="$8"
+  local completed_at="$9"
+  local probe_total="${10}"
+  local probe_failures="${11}"
+  printf '{"status":"%s","from_slot":"%s","to_slot":"%s","active_slot":"%s","version":"%s","revision":"%s","started_at":"%s","completed_at":"%s","probe_total":%s,"probe_failures":%s}\n' \
+    "${status}" "${from_slot}" "${to_slot}" "${active_slot}" \
+    "${deployed_version}" "${deployed_revision}" "${started_at}" "${completed_at}" \
+    "${probe_total}" "${probe_failures}" >> "${output_file}"
+  chmod 644 "${output_file}"
+}
+
+record_deployment_history() {
+  local status="$1"
+  local active_slot="$2"
+  local probe_total=0
+  local probe_failures=0
+  if (( history_record_enabled == 0 || history_recorded == 1 )); then
+    return
+  fi
+  if [[ -n "${probe_file}" && -f "${probe_file}" ]]; then
+    read -r probe_total probe_failures <<< "$("${PROBE_SCRIPT}" summary "${probe_file}")"
+  fi
+  if ! append_deployment_history \
+    "${HISTORY_FILE}" "${status}" "${previous_slot}" "${candidate_slot}" "${active_slot}" \
+    "${version}" "${revision}" "${deployment_started_at}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    "${probe_total}" "${probe_failures}"; then
+    echo "배포 이력을 기록하지 못했습니다: ${HISTORY_FILE}" >&2
+  fi
+  history_recorded=1
+}
+
 snapshot_state() {
   if [[ ! -f "${STATE_FILE}" ]]; then
     return
@@ -281,6 +325,8 @@ stop_probe() {
 rollback() {
   local exit_code="$1"
   local rollback_succeeded=1
+  local history_status="failed_before_switch"
+  local history_active_slot="${previous_slot:-unknown}"
   trap - EXIT
   set +e
   stop_probe
@@ -291,12 +337,17 @@ rollback() {
       || ! wait_traefik_route "$(backend_for_slot "${previous_slot}")" "$(upstream_for_slot "${previous_slot}")" \
       || ! restore_state; then
       rollback_succeeded=0
+      history_status="rollback_failed"
+      history_active_slot="$(infer_active_slot "${ROUTE_FILE}")"
       echo "자동 rollback이 완료되지 않아 후보 슬롯을 유지합니다" >&2
+    else
+      history_status="rolled_back"
     fi
   fi
   if (( candidate_started == 1 && (switched == 0 || rollback_succeeded == 1) )); then
     stop_slot "${candidate_slot}"
   fi
+  record_deployment_history "${history_status}" "${history_active_slot}"
   [[ -z "${probe_file}" ]] || rm -f "${probe_file}" "${probe_stop_file}"
   if (( switched == 0 )) && [[ -n "${state_backup_file}" ]]; then
     rm -f "${state_backup_file}"
@@ -308,16 +359,22 @@ rollback() {
 }
 
 run_self_test() {
-  local temporary_dir route_file
+  local temporary_dir route_file history_file
   temporary_dir="$(mktemp -d)"
   trap 'rm -rf "${temporary_dir}"' RETURN
   route_file="${temporary_dir}/route.yml"
+  history_file="${temporary_dir}/history.jsonl"
   printf 'url: "http://traefik-manager-frontend-blue:3000"\n' > "${route_file}"
   [[ "$(infer_active_slot "${route_file}")" == "blue" ]]
   [[ "$(opposite_slot blue)" == "green" ]]
   [[ "$(opposite_slot green)" == "blue" ]]
   [[ "$(upstream_for_slot green)" == "http://traefik-manager-frontend-green:3000" ]]
   [[ "$(backend_for_slot single)" == "traefik-manager-backend" ]]
+  append_deployment_history \
+    "${history_file}" success blue green green v1.2.3 \
+    1111111111111111111111111111111111111111 \
+    2026-07-16T00:00:00Z 2026-07-16T00:01:00Z 10 0
+  grep -Fq '"status":"success"' "${history_file}"
   echo "Manager blue-green 배포 self-test 통과"
 }
 
@@ -365,6 +422,8 @@ candidate_upstream="$(upstream_for_slot "${candidate_slot}")"
 snapshot_state
 revision="$(git rev-parse HEAD)"
 build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+deployment_started_at="${build_date}"
+history_record_enabled=1
 export TRAEFIK_MANAGER_VERSION="${version}"
 export TRAEFIK_MANAGER_GIT_SHA="${revision}"
 export TRAEFIK_MANAGER_BUILD_DATE="${build_date}"
@@ -387,6 +446,7 @@ stop_probe
 "${PROBE_SCRIPT}" assert "${probe_file}" 5
 write_state "${candidate_slot}" "${revision}" "${version}"
 docker stop --time 15 "$(frontend_for_slot "${previous_slot}")" >/dev/null
+record_deployment_history success "${candidate_slot}"
 rm -f "${probe_file}" "${probe_stop_file}"
 [[ -z "${state_backup_file}" ]] || rm -f "${state_backup_file}"
 probe_file=""

@@ -94,6 +94,19 @@ export interface ManagerRouteStatus {
   upstream_status: string | null;
 }
 
+export interface ManagerDeploymentHistoryEntry {
+  status: "success" | "failed_before_switch" | "rolled_back" | "rollback_failed";
+  from_slot: "single" | "blue" | "green";
+  to_slot: "single" | "blue" | "green";
+  active_slot: "single" | "blue" | "green" | "unknown";
+  version: string;
+  revision: string;
+  started_at: string;
+  completed_at: string;
+  probe_total: number;
+  probe_failures: number;
+}
+
 export interface DeploymentInfo {
   enabled: boolean;
   message: string;
@@ -123,6 +136,7 @@ export interface DeploymentInfo {
   http_error_summary: ManagerHttpErrorSummary | null;
   http_error_monitor: ManagerHttpErrorMonitorStatus | null;
   manager_route: ManagerRouteStatus | null;
+  deployment_history: ManagerDeploymentHistoryEntry[];
   components: DeploymentComponent[];
 }
 

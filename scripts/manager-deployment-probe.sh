@@ -28,14 +28,21 @@ run_probe() {
   done
 }
 
+summarize_probe() {
+  local output_file="$1"
+  if [[ ! -f "${output_file}" ]]; then
+    printf '0 0\n'
+    return
+  fi
+  awk '{ total += 1; if ($2 != "200") failures += 1 } END { print total + 0, failures + 0 }' \
+    "${output_file}"
+}
+
 assert_probe() {
   local output_file="$1"
   local minimum_samples="${2:-5}"
   local total failures codes
-  read -r total failures <<< "$(
-    awk '{ total += 1; if ($2 != "200") failures += 1 } END { print total + 0, failures + 0 }' \
-      "${output_file}"
-  )"
+  read -r total failures <<< "$(summarize_probe "${output_file}")"
   if (( total < minimum_samples )); then
     echo "배포 probe 표본이 부족합니다: ${total}/${minimum_samples}" >&2
     return 1
@@ -56,6 +63,7 @@ run_self_test() {
   failure_file="${temporary_dir}/failure.log"
   printf '1.000 200 0.01\n1.200 200 0.01\n1.400 200 0.01\n' > "${success_file}"
   printf '1.000 200 0.01\n1.200 503 0.01\n1.400 200 0.01\n' > "${failure_file}"
+  [[ "$(summarize_probe "${failure_file}")" == "3 1" ]]
   assert_probe "${success_file}" 3 >/dev/null
   if assert_probe "${failure_file}" 3 >/dev/null 2>&1; then
     echo "배포 probe self-test가 503을 감지하지 못했습니다" >&2
@@ -73,11 +81,15 @@ case "${1:-}" in
     [[ $# -ge 2 ]] || { echo "사용법: $0 assert OUTPUT_FILE [MINIMUM_SAMPLES]" >&2; exit 2; }
     assert_probe "$2" "${3:-5}"
     ;;
+  summary)
+    [[ $# -eq 2 ]] || { echo "사용법: $0 summary OUTPUT_FILE" >&2; exit 2; }
+    summarize_probe "$2"
+    ;;
   --self-test)
     run_self_test
     ;;
   *)
-    echo "사용법: $0 run|assert|--self-test" >&2
+    echo "사용법: $0 run|assert|summary|--self-test" >&2
     exit 2
     ;;
 esac

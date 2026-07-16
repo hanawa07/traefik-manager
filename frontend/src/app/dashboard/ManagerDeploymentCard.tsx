@@ -19,6 +19,7 @@ import {
   formatDeploymentRevision,
 } from "./ManagerDeploymentCardParts";
 import { ManagerHttpErrorTrend } from "./ManagerHttpErrorTrend";
+import { ManagerDeploymentHistory } from "./ManagerDeploymentHistory";
 import { ManagerRouteStatusCard } from "./ManagerRouteStatusCard";
 import { ManagerWatchdogAlertHistory } from "./ManagerWatchdogAlertHistory";
 
@@ -197,6 +198,11 @@ export function ManagerDeploymentCard({
       </div>
 
       <ManagerRouteStatusCard route={deployment?.manager_route} />
+
+      <ManagerDeploymentHistory
+        entries={deployment?.deployment_history}
+        timezone={timezone}
+      />
 
       <ManagerHttpErrorTrend
         monitor={deployment?.http_error_monitor}

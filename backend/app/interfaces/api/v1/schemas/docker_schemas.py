@@ -182,6 +182,19 @@ class ManagerRouteStatusResponse(BaseModel):
     upstream_status: str | None = None
 
 
+class ManagerDeploymentHistoryEntryResponse(BaseModel):
+    status: Literal["success", "failed_before_switch", "rolled_back", "rollback_failed"]
+    from_slot: Literal["single", "blue", "green"]
+    to_slot: Literal["single", "blue", "green"]
+    active_slot: Literal["single", "blue", "green", "unknown"]
+    version: str
+    revision: str
+    started_at: datetime
+    completed_at: datetime
+    probe_total: int = Field(ge=0)
+    probe_failures: int = Field(ge=0)
+
+
 class DockerDeploymentInfoResponse(BaseModel):
     enabled: bool
     message: str
@@ -211,4 +224,5 @@ class DockerDeploymentInfoResponse(BaseModel):
     http_error_summary: ManagerHttpErrorSummaryResponse | None = None
     http_error_monitor: ManagerHttpErrorMonitorResponse | None = None
     manager_route: ManagerRouteStatusResponse | None = None
+    deployment_history: list[ManagerDeploymentHistoryEntryResponse] = Field(default_factory=list)
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)

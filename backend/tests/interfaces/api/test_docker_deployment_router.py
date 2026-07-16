@@ -206,6 +206,11 @@ async def test_deployment_info_enriches_each_watchdog_run(monkeypatch) -> None:
         },
     )
     monkeypatch.setattr(docker, "GitHubActionsRunStatusReader", FakeRunStatusReader)
+    monkeypatch.setattr(
+        docker,
+        "read_manager_deployment_history",
+        lambda: [{"status": "success"}],
+    )
 
     result = await docker.get_deployment_info(
         docker_client=FakeDockerClient(),
@@ -222,6 +227,7 @@ async def test_deployment_info_enriches_each_watchdog_run(monkeypatch) -> None:
         "healthy": True,
         "provider": "file",
     }
+    assert result["deployment_history"] == [{"status": "success"}]
     assert [run["conclusion"] for run in result["external_watchdog_alert_runs"]] == [
         "success",
         "failure",
