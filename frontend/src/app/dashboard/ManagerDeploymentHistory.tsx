@@ -20,6 +20,8 @@ import {
   parseManagerDeploymentHistoryStatus,
   replaceManagerDeploymentHistoryQueryParams,
   type ManagerDeploymentHistoryFailureStage,
+  type ManagerDeploymentHistorySourceFilter,
+  type ManagerDeploymentHistoryStageFilter,
   type ManagerDeploymentHistoryStatusFilter,
 } from "./managerDeploymentHistoryQuery";
 import {
@@ -88,16 +90,18 @@ function ManagerDeploymentHistoryContent({
 }: ManagerDeploymentHistoryProps) {
   const searchParams = useSearchParams();
   const [toastNotice, setToastNotice] = useState<ToastNoticeValue | null>(null);
-  const filter = parseManagerDeploymentHistoryStatus(
-    searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.status),
+  const [filter, setFilter] = useState<ManagerDeploymentHistoryStatusFilter>(() =>
+    parseManagerDeploymentHistoryStatus(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.status)),
   );
-  const failureStageFilter = parseManagerDeploymentHistoryStage(
-    searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.stage),
+  const [failureStageFilter, setFailureStageFilter] = useState<ManagerDeploymentHistoryStageFilter>(
+    () => parseManagerDeploymentHistoryStage(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.stage)),
   );
-  const historySource = parseManagerDeploymentHistorySource(
-    searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.source),
+  const [historySource, setHistorySource] = useState<ManagerDeploymentHistorySourceFilter>(() =>
+    parseManagerDeploymentHistorySource(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.source)),
   );
-  const searchText = (searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.search) || "").slice(0, 100);
+  const [searchText, setSearchText] = useState(() =>
+    (searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.search) || "").slice(0, 100),
+  );
   const normalizedSearchText = searchText.trim().toLowerCase();
   const showArchive = historySource === "archive";
   const visibleEntries = showArchive ? archiveEntries : entries;
@@ -161,8 +165,12 @@ function ManagerDeploymentHistoryContent({
               className="rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
               data-history-source-toggle
               onClick={() => {
+                const nextSource = showArchive ? "current" : "archive";
+                setHistorySource(nextSource);
+                setFilter("all");
+                setFailureStageFilter("all");
                 replaceManagerDeploymentHistoryQueryParams([
-                  [MANAGER_DEPLOYMENT_HISTORY_QUERY.source, showArchive ? "current" : "archive", "current"],
+                  [MANAGER_DEPLOYMENT_HISTORY_QUERY.source, nextSource, "current"],
                   [MANAGER_DEPLOYMENT_HISTORY_QUERY.status, "all", "all"],
                   [MANAGER_DEPLOYMENT_HISTORY_QUERY.stage, "all", "all"],
                 ]);
@@ -198,9 +206,13 @@ function ManagerDeploymentHistoryContent({
               className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-xs text-gray-900 outline-none placeholder:text-gray-400 focus:border-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
               data-history-search
               maxLength={100}
-              onChange={(event) => replaceManagerDeploymentHistoryQueryParams([
-                [MANAGER_DEPLOYMENT_HISTORY_QUERY.search, event.target.value.slice(0, 100), ""],
-              ])}
+              onChange={(event) => {
+                const nextSearch = event.target.value.slice(0, 100);
+                setSearchText(nextSearch);
+                replaceManagerDeploymentHistoryQueryParams([
+                  [MANAGER_DEPLOYMENT_HISTORY_QUERY.search, nextSearch, ""],
+                ]);
+              }}
               placeholder="버전·커밋·실패 원인 검색"
               spellCheck={false}
               type="search"
@@ -215,11 +227,16 @@ function ManagerDeploymentHistoryContent({
             className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
             data-history-filter-reset
             disabled={!hasActiveFilters}
-            onClick={() => replaceManagerDeploymentHistoryQueryParams([
-              [MANAGER_DEPLOYMENT_HISTORY_QUERY.search, "", ""],
-              [MANAGER_DEPLOYMENT_HISTORY_QUERY.status, "all", "all"],
-              [MANAGER_DEPLOYMENT_HISTORY_QUERY.stage, "all", "all"],
-            ])}
+            onClick={() => {
+              setSearchText("");
+              setFilter("all");
+              setFailureStageFilter("all");
+              replaceManagerDeploymentHistoryQueryParams([
+                [MANAGER_DEPLOYMENT_HISTORY_QUERY.search, "", ""],
+                [MANAGER_DEPLOYMENT_HISTORY_QUERY.status, "all", "all"],
+                [MANAGER_DEPLOYMENT_HISTORY_QUERY.stage, "all", "all"],
+              ]);
+            }}
             type="button"
           >
             <RotateCcw className="h-3.5 w-3.5" />
@@ -245,9 +262,12 @@ function ManagerDeploymentHistoryContent({
                 }`}
                 data-history-filter={option.value}
                 key={option.value}
-                onClick={() => replaceManagerDeploymentHistoryQueryParams([
-                  [MANAGER_DEPLOYMENT_HISTORY_QUERY.status, option.value, "all"],
-                ])}
+                onClick={() => {
+                  setFilter(option.value);
+                  replaceManagerDeploymentHistoryQueryParams([
+                    [MANAGER_DEPLOYMENT_HISTORY_QUERY.status, option.value, "all"],
+                  ]);
+                }}
                 type="button"
               >
                 {option.label} {count}
@@ -273,9 +293,12 @@ function ManagerDeploymentHistoryContent({
                 : "bg-white/80 hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900"
             }`}
             data-failure-stage-filter="all"
-            onClick={() => replaceManagerDeploymentHistoryQueryParams([
-              [MANAGER_DEPLOYMENT_HISTORY_QUERY.stage, "all", "all"],
-            ])}
+            onClick={() => {
+              setFailureStageFilter("all");
+              replaceManagerDeploymentHistoryQueryParams([
+                [MANAGER_DEPLOYMENT_HISTORY_QUERY.stage, "all", "all"],
+              ]);
+            }}
             type="button"
           >
             단계 전체
@@ -290,9 +313,13 @@ function ManagerDeploymentHistoryContent({
               }`}
               data-failure-stage-filter={stage}
               key={stage}
-              onClick={() => replaceManagerDeploymentHistoryQueryParams([
-                [MANAGER_DEPLOYMENT_HISTORY_QUERY.stage, failureStageFilter === stage ? "all" : stage, "all"],
-              ])}
+              onClick={() => {
+                const nextStage = failureStageFilter === stage ? "all" : stage;
+                setFailureStageFilter(nextStage);
+                replaceManagerDeploymentHistoryQueryParams([
+                  [MANAGER_DEPLOYMENT_HISTORY_QUERY.stage, nextStage, "all"],
+                ]);
+              }}
               type="button"
             >
               {label} {count}
@@ -307,9 +334,13 @@ function ManagerDeploymentHistoryContent({
                   : "bg-white/80 hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900"
               }`}
               data-failure-stage-filter="unknown"
-              onClick={() => replaceManagerDeploymentHistoryQueryParams([
-                [MANAGER_DEPLOYMENT_HISTORY_QUERY.stage, failureStageFilter === "unknown" ? "all" : "unknown", "all"],
-              ])}
+              onClick={() => {
+                const nextStage = failureStageFilter === "unknown" ? "all" : "unknown";
+                setFailureStageFilter(nextStage);
+                replaceManagerDeploymentHistoryQueryParams([
+                  [MANAGER_DEPLOYMENT_HISTORY_QUERY.stage, nextStage, "all"],
+                ]);
+              }}
               type="button"
             >
               단계 미기록 {unknownStageCount}
