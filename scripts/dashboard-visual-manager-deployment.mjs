@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 import { checkManagerDeploymentHistoryActions } from "./dashboard-visual-manager-deployment-actions.mjs";
+import { checkManagerDeploymentHistoryExports } from "./dashboard-visual-manager-deployment-export.mjs";
 
 const FIXTURE_NOW = Date.now();
 const DAY_MS = 24 * 60 * 60 * 1_000;
@@ -217,7 +218,7 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
   await checkHistorySearchAndFilters({ cdp, timeoutMs });
   await reloadWithDeploymentFixture({ cdp, fixture, timeoutMs });
   await waitForHistoryQueryRestore({ cdp, timeoutMs });
-  await checkHistoryExports({ cdp, timeoutMs });
+  await checkManagerDeploymentHistoryExports({ cdp, timeoutMs });
   const sourceConditionRemoved = await evaluate(cdp, `(() => {
     const button = document.querySelector('[data-history-condition="source"]');
     button?.click();
@@ -321,59 +322,6 @@ async function checkActiveConditionRemoval({ cdp, timeoutMs }) {
   });
 }
 
-async function checkHistoryExports({ cdp, timeoutMs }) {
-  const json = await captureHistoryDownload(cdp, "json");
-  assert.match(json.filename, /deployments-archive-\d{4}-\d{2}-\d{2}\.json$/);
-  const jsonEntries = JSON.parse(json.text);
-  assert.equal(jsonEntries.length, 1, "Manager JSON 내보내기에 현재 필터가 반영되지 않았습니다");
-  assert.equal(jsonEntries[0].failure_stage, "public_probe");
-  await waitForExportToast({ cdp, filename: json.filename, format: "JSON", timeoutMs });
-
-  await evaluate(cdp, `document.querySelector('[data-history-filter-reset]')?.click()`);
-  await waitForCondition(
-    cdp,
-    `(() => {
-      const params = new URLSearchParams(location.search);
-      return document.querySelectorAll(
-        '[data-history-source="archive"] li[data-deployment-status]',
-      ).length === 2 && !params.has('deployment_q') &&
-        !params.has('deployment_period') && !params.has('deployment_from') &&
-        !params.has('deployment_to') && !params.has('deployment_status') &&
-        !params.has('deployment_stage') &&
-        params.get('deployment_source') === 'archive';
-    })()`,
-    timeoutMs,
-    "Manager 배포 이력 필터 초기화가 적용되지 않았습니다",
-  );
-  const csv = await captureHistoryDownload(cdp, "csv");
-  assert.match(csv.filename, /deployments-archive-\d{4}-\d{2}-\d{2}\.csv$/);
-  assert.deepEqual(csv.bytes, [239, 187, 191], "Manager CSV UTF-8 BOM이 없습니다");
-  assert.match(csv.text, /^status,from_slot,to_slot,/);
-  assert.match(csv.text, /"'=archive fixture probe failure"/);
-  assert.match(csv.text, /"'\+archive fixture build failure"/);
-  await waitForExportToast({ cdp, filename: csv.filename, format: "CSV", timeoutMs });
-
-  await evaluate(cdp, `document.querySelector('[data-history-source-filter="all"]')?.click()`);
-  await waitForCondition(
-    cdp,
-    `document.querySelectorAll(
-      '[data-history-source="all"] li[data-deployment-status]',
-    ).length === 3`,
-    timeoutMs,
-    "Manager 통합 이력 내보내기 source를 선택하지 못했습니다",
-  );
-  const combinedJson = await captureHistoryDownload(cdp, "json");
-  assert.match(combinedJson.filename, /deployments-all-\d{4}-\d{2}-\d{2}\.json$/);
-  assert.deepEqual(
-    JSON.parse(combinedJson.text).map((entry) => entry.source),
-    ["current", "archive", "archive"],
-  );
-  const combinedCsv = await captureHistoryDownload(cdp, "csv");
-  assert.match(combinedCsv.text, /^source,status,from_slot,to_slot,/);
-  assert.match(combinedCsv.text, /"current","success"/);
-  assert.equal(combinedCsv.text.match(/"archive"/g)?.length, 2);
-}
-
 async function reloadWithDeploymentFixture({ cdp, fixture, timeoutMs }) {
   await cdp.send("Fetch.enable", {
     patterns: [{ requestStage: "Request", urlPattern: "*/api/v1/docker/deployment*" }],
@@ -445,43 +393,4 @@ async function waitForHistoryQueryRestore({ cdp, timeoutMs }) {
     timeoutMs,
     "Manager 배포 이력 URL 조건이 새로고침 후 복원되지 않았습니다",
   );
-}
-
-async function waitForExportToast({ cdp, filename, format, timeoutMs }) {
-  await waitForCondition(
-    cdp,
-    `document.body.textContent?.includes(${JSON.stringify(`${format} 내보내기 완료`)}) &&
-      document.body.textContent?.includes(${JSON.stringify(filename)})`,
-    timeoutMs,
-    `Manager ${format} 내보내기 완료 파일명이 표시되지 않았습니다`,
-  );
-}
-
-async function captureHistoryDownload(cdp, format) {
-  const result = await evaluate(cdp, `(async () => {
-    const button = document.querySelector(
-      ${JSON.stringify(`[data-history-export="${format}"]`)},
-    );
-    if (!button) return null;
-    const originalCreateObjectUrl = URL.createObjectURL;
-    const originalRevokeObjectUrl = URL.revokeObjectURL;
-    const originalClick = HTMLAnchorElement.prototype.click;
-    let blob = null;
-    let filename = '';
-    try {
-      URL.createObjectURL = (value) => { blob = value; return 'blob:deployment-history-smoke'; };
-      URL.revokeObjectURL = () => {};
-      HTMLAnchorElement.prototype.click = function () { filename = this.download; };
-      button.click();
-      if (!blob) return null;
-      const bytes = Array.from(new Uint8Array(await blob.arrayBuffer()).slice(0, 3));
-      return { bytes, filename, text: await blob.text(), type: blob.type };
-    } finally {
-      URL.createObjectURL = originalCreateObjectUrl;
-      URL.revokeObjectURL = originalRevokeObjectUrl;
-      HTMLAnchorElement.prototype.click = originalClick;
-    }
-  })()`);
-  assert.ok(result, `Manager ${format.toUpperCase()} 내보내기를 캡처하지 못했습니다`);
-  return result;
 }

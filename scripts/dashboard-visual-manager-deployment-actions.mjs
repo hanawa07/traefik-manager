@@ -20,6 +20,7 @@ async function checkCombinedSource({ cdp, timeoutMs }) {
     '[data-history-source="all"] [data-deployment-source]',
   )).map((badge) => badge.getAttribute('data-deployment-source'))`);
   assert.deepEqual(sourceBadges, ["current", "archive", "archive"]);
+  await checkSourceSummaryAndRateHelp({ cdp, timeoutMs });
   await waitForCondition(
     cdp,
     `document.querySelector('[data-deployment-success-rate]')?.getAttribute(
@@ -45,6 +46,35 @@ async function checkCombinedSource({ cdp, timeoutMs }) {
     ),
   }))()`);
   assert.deepEqual(archiveRates, { rollback: "50", success: "0" });
+}
+
+async function checkSourceSummaryAndRateHelp({ cdp, timeoutMs }) {
+  const sourceCounts = await evaluate(cdp, `(() => {
+    const summary = document.querySelector('[data-deployment-source-counts]');
+    return {
+      archive: summary?.getAttribute('data-deployment-archive-count'),
+      current: summary?.getAttribute('data-deployment-current-count'),
+    };
+  })()`);
+  assert.deepEqual(sourceCounts, { archive: "2", current: "1" });
+  const opened = await evaluate(cdp, `(() => {
+    const details = document.querySelector('[data-deployment-rate-help]');
+    details?.querySelector('summary')?.click();
+    return Boolean(details);
+  })()`);
+  assert.equal(opened, true, "Manager 배포 비율 산정 기준을 찾지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const details = document.querySelector('[data-deployment-rate-help]');
+      return details?.hasAttribute('open') &&
+        details.textContent?.includes('success') &&
+        details.textContent?.includes('rolled_back·rollback_failed') &&
+        details.textContent?.includes('검색 필터는 비율에 반영하지 않습니다');
+    })()`,
+    timeoutMs,
+    "Manager 배포 비율 산정 기준을 펼치지 못했습니다",
+  );
 }
 
 async function clickRateFilter({ cdp, expectedCount, status, timeoutMs }) {
