@@ -7,6 +7,7 @@ from alembic.script import ScriptDirectory
 from alembic.script.revision import ResolutionError
 from alembic.util.exc import CommandError
 
+from app.infrastructure.persistence.migration_compatibility import incompatible_revision_ids
 from app.infrastructure.persistence.migration_runner import (
     detect_sqlite_schema_state,
     get_backend_root,
@@ -51,11 +52,7 @@ def check_blue_green_migrations(
             f"현재 DB revision을 Alembic 이력에서 찾지 못했습니다: {current_revision}"
         ) from exc
 
-    incompatible = tuple(
-        revision.revision
-        for revision in pending
-        if getattr(revision.module, "BLUE_GREEN_COMPATIBLE", False) is not True
-    )
+    incompatible = incompatible_revision_ids(pending)
     if incompatible:
         joined = ", ".join(incompatible)
         raise BlueGreenMigrationError(

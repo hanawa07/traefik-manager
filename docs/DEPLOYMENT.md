@@ -106,6 +106,7 @@ scripts/blue-green-deploy.sh vX.Y.Z
 스크립트는 현재 `traefik-manager-self.yml` upstream을 기준으로 active 슬롯을 판별합니다. 후보 backend/frontend가 모두 healthy이고 후보 frontend에서 후보 backend까지 `/api/health`가 통과한 뒤에만 file-provider upstream을 원자 교체합니다.
 
 - 후보 이미지를 빌드한 뒤 공유 DB의 현재 revision부터 Alembic head까지 미적용 migration을 검사합니다. 각 파일에서 기존/신규 앱의 schema 동시 사용이 안전함을 검토하고 `BLUE_GREEN_COMPATIBLE = True`로 명시해야 후보 컨테이너를 시작합니다.
+- PR과 main push에서는 변경된 migration의 같은 호환성 표식을 검사하고 기존 migration 파일 삭제를 차단합니다.
 - 후보 backend는 준비 중 `traefik-manager-app` 내부망에만 있고, health 통과 후 `proxy_net`에 `traefik-manager-backend` ForwardAuth alias로 연결됩니다.
 - backend의 startup 정리와 주기 작업은 `/traefik-config/.background-tasks.lock` lease를 가진 active 슬롯 하나만 실행합니다.
 - route가 바뀌면 기존 leader가 lease를 반납하고 새 active backend가 자동 승계합니다.

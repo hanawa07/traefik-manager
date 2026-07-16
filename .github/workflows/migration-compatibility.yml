@@ -1,0 +1,26 @@
+name: Migration blue-green 호환성 검사
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  migration-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: 변경 migration 호환성 확인
+        env:
+          BASE_REVISION: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: scripts/check-blue-green-migrations.sh "$BASE_REVISION" "$HEAD_REVISION"
