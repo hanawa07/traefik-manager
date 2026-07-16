@@ -24,14 +24,15 @@ def migration_file_is_compatible(path: Path) -> bool:
     except (OSError, SyntaxError, UnicodeError):
         return False
 
+    marker_value: bool | None = None
     for node in tree.body:
         if isinstance(node, ast.Assign):
             if any(isinstance(target, ast.Name) and target.id == MARKER_NAME for target in node.targets):
-                return isinstance(node.value, ast.Constant) and node.value.value is True
+                marker_value = isinstance(node.value, ast.Constant) and node.value.value is True
         if isinstance(node, ast.AnnAssign):
             if isinstance(node.target, ast.Name) and node.target.id == MARKER_NAME:
-                return isinstance(node.value, ast.Constant) and node.value.value is True
-    return False
+                marker_value = isinstance(node.value, ast.Constant) and node.value.value is True
+    return marker_value is True
 
 
 def main(arguments: list[str] | None = None) -> int:

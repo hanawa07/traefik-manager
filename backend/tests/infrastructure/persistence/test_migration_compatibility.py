@@ -19,8 +19,17 @@ def test_revision_check_reuses_runtime_marker():
 def test_file_check_requires_top_level_true_marker(tmp_path: Path):
     safe = tmp_path / "safe.py"
     unsafe = tmp_path / "unsafe.py"
+    overridden = tmp_path / "overridden.py"
     missing = tmp_path / "missing.py"
     safe.write_text("BLUE_GREEN_COMPATIBLE: bool = True\n", encoding="utf-8")
     unsafe.write_text("BLUE_GREEN_COMPATIBLE = False\n", encoding="utf-8")
+    overridden.write_text(
+        "BLUE_GREEN_COMPATIBLE = True\nBLUE_GREEN_COMPATIBLE = False\n",
+        encoding="utf-8",
+    )
 
-    assert incompatible_migration_files((safe, unsafe, missing)) == (unsafe, missing)
+    assert incompatible_migration_files((safe, unsafe, overridden, missing)) == (
+        unsafe,
+        overridden,
+        missing,
+    )
