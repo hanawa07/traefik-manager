@@ -81,6 +81,18 @@ export interface ManagerHttpErrorMonitorStatus {
   excluded_paths: string[];
 }
 
+export interface ManagerRouteStatus {
+  available: boolean;
+  healthy: boolean;
+  message: string;
+  provider: string | null;
+  https_router_status: string | null;
+  http_router_status: string | null;
+  service_status: string | null;
+  upstream_url: string | null;
+  upstream_status: string | null;
+}
+
 export interface DeploymentInfo {
   enabled: boolean;
   message: string;
@@ -109,6 +121,7 @@ export interface DeploymentInfo {
   external_watchdog_alert_runs: ExternalWatchdogAlertRun[];
   http_error_summary: ManagerHttpErrorSummary | null;
   http_error_monitor: ManagerHttpErrorMonitorStatus | null;
+  manager_route: ManagerRouteStatus | null;
   components: DeploymentComponent[];
 }
 

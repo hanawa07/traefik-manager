@@ -18,6 +18,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
         await checkRoute({ artifactDir, baseUrl, cdp, profile, route, timeoutMs });
         if (route.path === "/dashboard") {
           await checkManagerHttpErrorTrend({ cdp, timeoutMs });
+          labels.push(`${profile.label} Manager file-provider 라우터`);
           const opened = await checkMobileSidebar({ artifactDir, cdp, profile, timeoutMs });
           if (opened) labels.push(`${profile.label} 사이드바`);
           await checkWatchdogFilterPersistence({ cdp, timeoutMs });
@@ -329,6 +330,7 @@ export function runDashboardVisualSmokeSelfTest() {
   assert.ok(dashboardRoute);
   assert.ok(auditRoute?.requiredMarkers.includes("현재 조건 CSV"));
   assert.ok(dashboardRoute.requiredMarkers.includes("Manager API 404·5xx 추이"));
+  assert.ok(dashboardRoute.requiredMarkers.includes("Manager file-provider 라우터"));
   assert.ok(dashboardRoute.requiredMarkers.includes("경로 필터"));
   assert.ok(dashboardRoute.requiredMarkers.includes("연속 실패"));
   assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");

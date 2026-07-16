@@ -37,6 +37,7 @@ export const DASHBOARD_ROUTES = [
       "Backend",
       "Frontend",
       "Docker 정상",
+      "Manager file-provider 라우터",
       "Manager API 404·5xx 추이",
       "임계치 감지 상태",
       "최근 24시간",

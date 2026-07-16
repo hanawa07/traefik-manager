@@ -36,6 +36,7 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
     const chart = document.querySelector('[data-testid="manager-http-error-chart-scroll"]');
     const logStorage = document.querySelector('[data-testid="manager-http-log-storage"]');
     const monitor = document.querySelector('[data-testid="manager-http-error-monitor-status"]');
+    const route = document.querySelector('[data-testid="manager-route-status"]');
     return card ? {
       available: card.getAttribute('data-http-error-available'),
       bucketCount: card.querySelectorAll('[data-http-error-bucket="true"]').length,
@@ -48,6 +49,11 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
       sampleCoverage: Number(card.getAttribute('data-http-sample-coverage')),
       sampleReady: Boolean(document.querySelector('[data-testid="manager-http-sample-ready"]')),
       monitorStatus: monitor?.getAttribute('data-http-error-monitor-status'),
+      route: route ? {
+        healthy: route.getAttribute('data-route-healthy'),
+        provider: route.getAttribute('data-route-provider'),
+        upstreamStatus: route.getAttribute('data-route-upstream-status'),
+      } : null,
       logStorage: logStorage ? {
         capacityBytes: Number(logStorage.getAttribute('data-log-capacity-bytes')),
         fileCount: Number(logStorage.getAttribute('data-log-file-count')),
@@ -63,6 +69,11 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
   })()`);
 
   assert.ok(snapshot, "Manager API 오류 추이 카드를 찾지 못했습니다");
+  assert.deepEqual(
+    snapshot.route,
+    { healthy: "true", provider: "file", upstreamStatus: "UP" },
+    "Manager file-provider 라우터가 정상 상태가 아닙니다",
+  );
   assert.equal(snapshot.available, "true", "Manager API 오류 로그를 조회하지 못했습니다");
   assert.equal(snapshot.bucketCount, 24, "Manager API 오류 추이가 24개 시간 구간이 아닙니다");
   assert.ok(snapshot.chartScrollWidth >= snapshot.chartWidth, "Manager API 오류 차트 폭이 올바르지 않습니다");

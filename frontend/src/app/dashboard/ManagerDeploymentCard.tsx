@@ -19,6 +19,7 @@ import {
   formatDeploymentRevision,
 } from "./ManagerDeploymentCardParts";
 import { ManagerHttpErrorTrend } from "./ManagerHttpErrorTrend";
+import { ManagerRouteStatusCard } from "./ManagerRouteStatusCard";
 import { ManagerWatchdogAlertHistory } from "./ManagerWatchdogAlertHistory";
 
 interface ManagerDeploymentCardProps {
@@ -86,7 +87,7 @@ export function ManagerDeploymentCard({
             <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">Manager 배포 버전</h2>
           </div>
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-            backend/frontend 이미지의 OCI 라벨, Docker 헬스 상태와 GitHub 최신 릴리즈를 확인합니다.
+            backend/frontend 이미지, Docker 헬스, Manager 라우터와 GitHub 최신 릴리즈를 확인합니다.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -194,6 +195,8 @@ export function ManagerDeploymentCard({
             : ""}
         </p>
       </div>
+
+      <ManagerRouteStatusCard route={deployment?.manager_route} />
 
       <ManagerHttpErrorTrend
         monitor={deployment?.http_error_monitor}
