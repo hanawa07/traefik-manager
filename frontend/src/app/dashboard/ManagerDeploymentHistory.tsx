@@ -7,6 +7,7 @@ import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/de
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 import { buildManagerDeploymentLinks } from "./managerDeploymentLinks";
+import { downloadManagerDeploymentHistory } from "./managerDeploymentHistoryExport";
 import {
   getExternalWatchdogRunLabel,
   isExternalWatchdogRunFailure,
@@ -22,6 +23,7 @@ interface ManagerDeploymentHistoryProps {
 type HistoryStatus = ManagerDeploymentHistoryEntry["status"];
 type HistoryFilter = "all" | HistoryStatus;
 type FailureStage = NonNullable<ManagerDeploymentHistoryEntry["failure_stage"]>;
+type FailureStageFilter = "all" | "unknown" | FailureStage;
 
 const STATUS_DISPLAY = {
   success: {
@@ -68,11 +70,17 @@ export function ManagerDeploymentHistory({
   timezone,
 }: ManagerDeploymentHistoryProps) {
   const [filter, setFilter] = useState<HistoryFilter>("all");
+  const [failureStageFilter, setFailureStageFilter] = useState<FailureStageFilter>("all");
   const [showArchive, setShowArchive] = useState(false);
   const visibleEntries = showArchive ? archiveEntries : entries;
-  const filteredEntries = filter === "all"
-    ? visibleEntries
-    : visibleEntries.filter((entry) => entry.status === filter);
+  const filteredEntries = visibleEntries.filter((entry) => {
+    const matchesStatus = filter === "all" || entry.status === filter;
+    const matchesFailureStage = failureStageFilter === "all"
+      || (failureStageFilter === "unknown"
+        ? entry.status !== "success" && !entry.failure_stage
+        : entry.failure_stage === failureStageFilter);
+    return matchesStatus && matchesFailureStage;
+  });
   const failedEntries = visibleEntries.filter((entry) => entry.status !== "success");
   const failureStageCounts = (Object.keys(FAILURE_STAGE_LABELS) as FailureStage[])
     .map((stage) => ({
@@ -97,66 +105,118 @@ export function ManagerDeploymentHistory({
             {showArchive ? "회전 보관" : "최근"} {visibleEntries.length}건
           </span>
         </div>
-        {archiveEntries.length > 0 || showArchive ? (
-          <button
-            className="rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
-            data-history-source-toggle
-            onClick={() => {
-              setShowArchive((current) => !current);
-              setFilter("all");
-            }}
-            type="button"
-          >
-            {showArchive ? "현재 이력 보기" : `회전 보관 ${archiveEntries.length}건 보기`}
-          </button>
-        ) : null}
-        {visibleEntries.length > 0 ? (
-          <div className="flex flex-wrap gap-1 sm:ml-auto" role="group" aria-label="배포 이력 상태 필터">
-            {FILTER_OPTIONS.map((option) => {
-              const count = option.value === "all"
-                ? visibleEntries.length
-                : visibleEntries.filter((entry) => entry.status === option.value).length;
-              const active = filter === option.value;
-              return (
-                <button
-                  aria-pressed={active}
-                  className={`rounded-full border px-2 py-1 text-[11px] font-semibold transition-colors ${
-                    active
-                      ? "border-blue-600 bg-blue-600 text-white dark:border-blue-400 dark:bg-blue-400 dark:text-slate-950"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
-                  }`}
-                  data-history-filter={option.value}
-                  key={option.value}
-                  onClick={() => setFilter(option.value)}
-                  type="button"
-                >
-                  {option.label} {count}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
+        <div className="flex flex-wrap gap-1 sm:ml-auto">
+          {archiveEntries.length > 0 || showArchive ? (
+            <button
+              className="rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
+              data-history-source-toggle
+              onClick={() => {
+                setShowArchive((current) => !current);
+                setFilter("all");
+                setFailureStageFilter("all");
+              }}
+              type="button"
+            >
+              {showArchive ? "현재 이력 보기" : `회전 보관 ${archiveEntries.length}건 보기`}
+            </button>
+          ) : null}
+          {visibleEntries.length > 0 ? (["json", "csv"] as const).map((format) => (
+            <button
+              aria-label={`현재 화면 ${format.toUpperCase()} 내보내기`}
+              className="rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
+              data-history-export={format}
+              key={format}
+              onClick={() => downloadManagerDeploymentHistory(
+                filteredEntries,
+                showArchive ? "archive" : "current",
+                format,
+              )}
+              type="button"
+            >
+              {format.toUpperCase()} 내보내기
+            </button>
+          )) : null}
+        </div>
       </div>
+
+      {visibleEntries.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-1" role="group" aria-label="배포 이력 상태 필터">
+          {FILTER_OPTIONS.map((option) => {
+            const count = option.value === "all"
+              ? visibleEntries.length
+              : visibleEntries.filter((entry) => entry.status === option.value).length;
+            const active = filter === option.value;
+            return (
+              <button
+                aria-pressed={active}
+                className={`rounded-full border px-2 py-1 text-[11px] font-semibold transition-colors ${
+                  active
+                    ? "border-blue-600 bg-blue-600 text-white dark:border-blue-400 dark:bg-blue-400 dark:text-slate-950"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
+                }`}
+                data-history-filter={option.value}
+                key={option.value}
+                onClick={() => setFilter(option.value)}
+                type="button"
+              >
+                {option.label} {count}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       {failedEntries.length > 0 ? (
         <div
           className="mt-3 flex flex-wrap items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/80 px-2.5 py-2 text-[11px] text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
           data-deployment-failure-stats
+          role="group"
+          aria-label="배포 실패 단계 필터"
         >
           <span className="font-semibold">실패 {failedEntries.length}건</span>
+          <button
+            aria-pressed={failureStageFilter === "all"}
+            className={`rounded-full px-2 py-0.5 font-semibold transition-colors ${
+              failureStageFilter === "all"
+                ? "bg-amber-700 text-white dark:bg-amber-300 dark:text-slate-950"
+                : "bg-white/80 hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900"
+            }`}
+            data-failure-stage-filter="all"
+            onClick={() => setFailureStageFilter("all")}
+            type="button"
+          >
+            단계 전체
+          </button>
           {failureStageCounts.map(({ count, label, stage }) => (
-            <span
-              className="rounded-full bg-white/80 px-2 py-0.5 font-medium dark:bg-slate-900/70"
-              data-failure-stage={stage}
+            <button
+              aria-pressed={failureStageFilter === stage}
+              className={`rounded-full px-2 py-0.5 font-medium transition-colors ${
+                failureStageFilter === stage
+                  ? "bg-amber-700 text-white dark:bg-amber-300 dark:text-slate-950"
+                  : "bg-white/80 hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900"
+              }`}
+              data-failure-stage-filter={stage}
               key={stage}
+              onClick={() => setFailureStageFilter((current) => current === stage ? "all" : stage)}
+              type="button"
             >
               {label} {count}
-            </span>
+            </button>
           ))}
           {unknownStageCount > 0 ? (
-            <span className="rounded-full bg-white/80 px-2 py-0.5 font-medium dark:bg-slate-900/70">
+            <button
+              aria-pressed={failureStageFilter === "unknown"}
+              className={`rounded-full px-2 py-0.5 font-medium transition-colors ${
+                failureStageFilter === "unknown"
+                  ? "bg-amber-700 text-white dark:bg-amber-300 dark:text-slate-950"
+                  : "bg-white/80 hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900"
+              }`}
+              data-failure-stage-filter="unknown"
+              onClick={() => setFailureStageFilter((current) => current === "unknown" ? "all" : "unknown")}
+              type="button"
+            >
               단계 미기록 {unknownStageCount}
-            </span>
+            </button>
           ) : null}
         </div>
       ) : null}
@@ -167,7 +227,7 @@ export function ManagerDeploymentHistory({
         </p>
       ) : filteredEntries.length === 0 ? (
         <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
-          선택한 상태의 배포 이력이 없습니다.
+          선택한 필터의 배포 이력이 없습니다.
         </p>
       ) : (
         <ol className="mt-3 grid gap-2 lg:grid-cols-2">
@@ -181,6 +241,7 @@ export function ManagerDeploymentHistory({
             return (
               <li
                 className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900"
+                data-deployment-failure-stage={entry.failure_stage ?? (entry.status === "success" ? undefined : "unknown")}
                 data-deployment-status={entry.status}
                 key={`${entry.completed_at}-${entry.to_slot}`}
               >
