@@ -193,6 +193,17 @@ class ManagerDeploymentHistoryEntryResponse(BaseModel):
     completed_at: datetime
     probe_total: int = Field(ge=0)
     probe_failures: int = Field(ge=0)
+    failure_stage: Literal[
+        "prepare",
+        "build",
+        "migration_preflight",
+        "candidate_health",
+        "route_switch",
+        "leader_handover",
+        "public_probe",
+        "state_write",
+    ] | None = None
+    failure_reason: str | None = None
 
 
 class DockerDeploymentInfoResponse(BaseModel):

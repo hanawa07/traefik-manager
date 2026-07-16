@@ -45,10 +45,13 @@ append_history() {
   local completed_at="$9"
   local probe_total="${10}"
   local probe_failures="${11}"
-  printf '{"status":"%s","from_slot":"%s","to_slot":"%s","active_slot":"%s","version":"%s","revision":"%s","started_at":"%s","completed_at":"%s","probe_total":%s,"probe_failures":%s}\n' \
+  local failure_stage="${12}"
+  local failure_reason="${13}"
+  printf '{"status":"%s","from_slot":"%s","to_slot":"%s","active_slot":"%s","version":"%s","revision":"%s","started_at":"%s","completed_at":"%s","probe_total":%s,"probe_failures":%s,"failure_stage":"%s","failure_reason":"%s"}\n' \
     "${status}" "${from_slot}" "${to_slot}" "${active_slot}" \
     "${deployed_version}" "${deployed_revision}" "${started_at}" "${completed_at}" \
-    "${probe_total}" "${probe_failures}" >> "${output_file}"
+    "${probe_total}" "${probe_failures}" "${failure_stage}" "${failure_reason}" \
+    >> "${output_file}"
   chmod 644 "${output_file}"
   rotate_history "${output_file}"
 }
@@ -62,7 +65,7 @@ run_self_test() {
   for index in 1 2 3 4; do
     append_history \
       "${history_file}" success blue green green v1.2.3 "${revision}" \
-      2026-07-16T00:00:00Z "2026-07-16T00:0${index}:00Z" 10 0
+      2026-07-16T00:00:00Z "2026-07-16T00:0${index}:00Z" 10 0 "" ""
   done
   [[ "$(wc -l < "${history_file}")" == "2" ]]
   [[ "$(wc -l < "${history_file}.1")" == "4" ]]
@@ -72,7 +75,7 @@ run_self_test() {
 
 case "${1:-}" in
   append)
-    [[ $# -eq 12 ]] || { echo "배포 이력 append 인자 수가 올바르지 않습니다" >&2; exit 2; }
+    [[ $# -eq 14 ]] || { echo "배포 이력 append 인자 수가 올바르지 않습니다" >&2; exit 2; }
     validate_limits
     append_history "${@:2}"
     ;;

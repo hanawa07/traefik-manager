@@ -5,7 +5,7 @@ from app.infrastructure.manager_deployment_history import read_manager_deploymen
 
 
 def _entry(*, status: str = "success", completed_at: str = "2026-07-16T09:01:00Z"):
-    return {
+    entry = {
         "status": status,
         "from_slot": "blue",
         "to_slot": "green",
@@ -17,6 +17,10 @@ def _entry(*, status: str = "success", completed_at: str = "2026-07-16T09:01:00Z
         "probe_total": 10,
         "probe_failures": 0,
     }
+    if status != "success":
+        entry["failure_stage"] = "public_probe"
+        entry["failure_reason"] = "HTTP 비정상 1/10건 · 자동 rollback 완료"
+    return entry
 
 
 def test_history_returns_newest_valid_entries_and_skips_malformed_lines(tmp_path: Path):
@@ -24,14 +28,25 @@ def test_history_returns_newest_valid_entries_and_skips_malformed_lines(tmp_path
     older = _entry(completed_at="2026-07-16T09:01:00Z")
     newer = _entry(status="rolled_back", completed_at="2026-07-16T10:01:00Z")
     invalid = {**_entry(), "probe_failures": 11}
+    invalid_stage = {**_entry(status="rolled_back"), "failure_stage": "shell_command"}
     history_path.write_text(
-        "\n".join((json.dumps(older), "not-json", json.dumps(invalid), json.dumps(newer))),
+        "\n".join(
+            (
+                json.dumps(older),
+                "not-json",
+                json.dumps(invalid),
+                json.dumps(invalid_stage),
+                json.dumps(newer),
+            )
+        ),
         encoding="utf-8",
     )
 
     result = read_manager_deployment_history(history_path)
 
     assert [entry["status"] for entry in result] == ["rolled_back", "success"]
+    assert result[0]["failure_stage"] == "public_probe"
+    assert result[1]["failure_stage"] is None
 
 
 def test_history_returns_empty_list_when_file_is_missing(tmp_path: Path):

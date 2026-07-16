@@ -105,6 +105,9 @@ export interface ManagerDeploymentHistoryEntry {
   completed_at: string;
   probe_total: number;
   probe_failures: number;
+  failure_stage: "prepare" | "build" | "migration_preflight" | "candidate_health" |
+    "route_switch" | "leader_handover" | "public_probe" | "state_write" | null;
+  failure_reason: string | null;
 }
 
 export interface DeploymentInfo {

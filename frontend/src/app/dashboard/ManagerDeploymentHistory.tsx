@@ -44,6 +44,17 @@ const FILTER_OPTIONS: readonly { value: HistoryFilter; label: string }[] = [
   { value: "rollback_failed", label: STATUS_DISPLAY.rollback_failed.label },
 ];
 
+const FAILURE_STAGE_LABELS: Record<NonNullable<ManagerDeploymentHistoryEntry["failure_stage"]>, string> = {
+  prepare: "사전 준비",
+  build: "이미지 빌드",
+  migration_preflight: "DB migration 사전 검사",
+  candidate_health: "후보 컨테이너 준비",
+  route_switch: "Traefik route 전환",
+  leader_handover: "background leader 승계",
+  public_probe: "공개 health probe",
+  state_write: "배포 상태 확정",
+};
+
 export function ManagerDeploymentHistory({
   entries = [],
   source,
@@ -157,6 +168,12 @@ export function ManagerDeploymentHistory({
                 <p className="mt-1 text-[11px] text-gray-500 dark:text-slate-400">
                   {formatProbe(entry)} · {formatDateTime(entry.completed_at, timezone)}
                 </p>
+                {entry.failure_reason ? (
+                  <p className="mt-2 rounded-md bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-100">
+                    {entry.failure_stage ? `${FAILURE_STAGE_LABELS[entry.failure_stage]} · ` : ""}
+                    {entry.failure_reason}
+                  </p>
+                ) : null}
               </li>
             );
           })}

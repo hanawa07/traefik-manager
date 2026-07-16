@@ -115,6 +115,7 @@ scripts/blue-green-deploy.sh vX.Y.Z
 - active slot, revision, version은 `~/.local/state/traefik-manager/blue-green-deployment.state`에 원자 기록됩니다.
 - 배포 성공·전환 전 중단·자동 rollback·rollback 실패와 공개 probe 결과는 같은 디렉터리의 `blue-green-deployments.jsonl`에 추가됩니다. 대시보드에서 최근 20건을 상태별로 필터링하고 해당 커밋과 릴리즈를 바로 열 수 있습니다.
 - JSONL은 기본 200건을 넘으면 전체 파일을 `.1`에 보관하고 현재 파일은 최신 100건으로 줄입니다. `TM_DEPLOY_HISTORY_MAX_ENTRIES`와 `TM_DEPLOY_HISTORY_RETAIN_ENTRIES`로 상한을 조정할 수 있습니다.
+- 실패 이력에는 준비·빌드·migration 검사·후보 health·route 전환·leader 승계·공개 probe·상태 확정 중 실패 단계와 종료 코드 또는 비정상 probe 건수를 저장합니다. 원본 stderr는 비밀값 유입을 막기 위해 저장하지 않습니다.
 - 이전 슬롯·route·상태 파일 복원이 완료되지 않은 `rollback_failed`만 `host-operation-alert.yml`을 통해 운영 Telegram 알림으로 요청합니다. 정상 자동 rollback은 이력만 남기고 알림을 보내지 않습니다.
 - 배포 잠금은 같은 상태 디렉터리의 `blue-green-deployment.lock`을 사용합니다.
 - 배포 시작 시 `dockerproxy`가 healthy인지 먼저 확인하며 backend 컨테이너에는 Docker socket을 마운트하지 않습니다.

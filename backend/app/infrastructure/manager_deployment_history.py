@@ -9,6 +9,16 @@ MAX_HISTORY_BYTES = 64 * 1024
 MAX_HISTORY_ENTRIES = 20
 MAX_HISTORY_LINE_BYTES = 2048
 HISTORY_STATUSES = {"success", "failed_before_switch", "rolled_back", "rollback_failed"}
+FAILURE_STAGES = {
+    "prepare",
+    "build",
+    "migration_preflight",
+    "candidate_health",
+    "route_switch",
+    "leader_handover",
+    "public_probe",
+    "state_write",
+}
 DEPLOYMENT_SLOTS = {"single", "blue", "green"}
 ACTIVE_SLOTS = DEPLOYMENT_SLOTS | {"unknown"}
 VERSION_PATTERN = re.compile(r"^v\d+\.\d+\.\d+$")
@@ -86,7 +96,19 @@ def _normalize_entry(raw: object) -> dict[str, object] | None:
         return None
     if probe_total < 0 or probe_failures < 0 or probe_failures > probe_total:
         return None
-    return {key: raw[key] for key in (*string_keys, "probe_total", "probe_failures")}
+    failure_stage = raw.get("failure_stage") or None
+    failure_reason = raw.get("failure_reason") or None
+    if failure_stage is not None and failure_stage not in FAILURE_STAGES:
+        return None
+    if failure_reason is not None and (
+        not isinstance(failure_reason, str) or len(failure_reason) > 300
+    ):
+        return None
+    return {
+        **{key: raw[key] for key in (*string_keys, "probe_total", "probe_failures")},
+        "failure_stage": failure_stage,
+        "failure_reason": failure_reason,
+    }
 
 
 def _is_iso_datetime(value: str) -> bool:

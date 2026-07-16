@@ -28,6 +28,7 @@ candidate_started=0
 history_record_enabled=0
 history_recorded=0
 deployment_started_at=""
+deployment_stage="prepare"
 previous_slot=""
 candidate_slot=""
 revision=""
@@ -252,20 +253,36 @@ write_state() {
 record_deployment_history() {
   local status="$1"
   local active_slot="$2"
+  local exit_code="${3:-0}"
   local probe_total=0
   local probe_failures=0
+  local failure_stage=""
+  local failure_reason=""
   if (( history_record_enabled == 0 || history_recorded == 1 )); then
     return
   fi
   if [[ -n "${probe_file}" && -f "${probe_file}" ]]; then
     read -r probe_total probe_failures <<< "$("${PROBE_SCRIPT}" summary "${probe_file}")"
   fi
+  if [[ "${status}" != "success" ]]; then
+    failure_stage="${deployment_stage}"
+    if (( probe_failures > 0 )); then
+      failure_reason="HTTP 비정상 ${probe_failures}/${probe_total}건"
+    else
+      failure_reason="명령 종료 코드 ${exit_code}"
+    fi
+    case "${status}" in
+      failed_before_switch) failure_reason+=" · 후보 전환 전 중단" ;;
+      rolled_back) failure_reason+=" · 자동 rollback 완료" ;;
+      rollback_failed) failure_reason+=" · 자동 rollback 미완료" ;;
+    esac
+  fi
   if ! TM_DEPLOY_HISTORY_MAX_ENTRIES="${HISTORY_MAX_ENTRIES}" \
     TM_DEPLOY_HISTORY_RETAIN_ENTRIES="${HISTORY_RETAIN_ENTRIES}" \
     "${HISTORY_SCRIPT}" append \
     "${HISTORY_FILE}" "${status}" "${previous_slot}" "${candidate_slot}" "${active_slot}" \
     "${version}" "${revision}" "${deployment_started_at}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    "${probe_total}" "${probe_failures}"; then
+    "${probe_total}" "${probe_failures}" "${failure_stage}" "${failure_reason}"; then
     echo "배포 이력을 기록하지 못했습니다: ${HISTORY_FILE}" >&2
   fi
   history_recorded=1
@@ -344,7 +361,7 @@ rollback() {
   if (( candidate_started == 1 && (switched == 0 || rollback_succeeded == 1) )); then
     stop_slot "${candidate_slot}"
   fi
-  record_deployment_history "${history_status}" "${history_active_slot}"
+  record_deployment_history "${history_status}" "${history_active_slot}" "${exit_code}"
   [[ -z "${probe_file}" ]] || rm -f "${probe_file}" "${probe_stop_file}"
   if (( switched == 0 )) && [[ -n "${state_backup_file}" ]]; then
     rm -f "${state_backup_file}"
@@ -421,27 +438,35 @@ export TRAEFIK_MANAGER_GIT_SHA="${revision}"
 export TRAEFIK_MANAGER_BUILD_DATE="${build_date}"
 
 echo "Manager blue-green 배포: ${previous_slot} -> ${candidate_slot} (${version}, ${revision:0:12})"
+deployment_stage="prepare"
 ensure_docker_proxy
+deployment_stage="build"
 compose build "backend-${candidate_slot}" "frontend-${candidate_slot}"
+deployment_stage="migration_preflight"
 run_migration_preflight "${candidate_slot}"
+deployment_stage="candidate_health"
 start_candidate "${candidate_slot}"
+deployment_stage="route_switch"
 start_probe
 switched=1
 render_route "${candidate_upstream}"
 wait_traefik_route "$(backend_for_slot "${candidate_slot}")" "${candidate_upstream}"
+deployment_stage="leader_handover"
 sleep "${DRAIN_SECONDS}"
 docker stop --time 15 "$(backend_for_slot "${previous_slot}")" >/dev/null
 wait_background_leader "$(backend_for_slot "${candidate_slot}")" "${candidate_slot}"
+deployment_stage="public_probe"
 curl --silent --show-error --fail --max-time 5 "${health_url}" >/dev/null
 sleep 1
 stop_probe
 "${PROBE_SCRIPT}" assert "${probe_file}" 5
+deployment_stage="state_write"
 write_state "${candidate_slot}" "${revision}" "${version}"
 docker stop --time 15 "$(frontend_for_slot "${previous_slot}")" >/dev/null
-record_deployment_history success "${candidate_slot}"
-rm -f "${probe_file}" "${probe_stop_file}"
-[[ -z "${state_backup_file}" ]] || rm -f "${state_backup_file}"
+record_deployment_history success "${candidate_slot}" 0
+trap - EXIT
+rm -f "${probe_file}" "${probe_stop_file}" || true
+[[ -z "${state_backup_file}" ]] || rm -f "${state_backup_file}" || true
 probe_file=""
 state_backup_file=""
-trap - EXIT
 echo "Manager blue-green 배포 완료: active=${candidate_slot}, version=${version}"
