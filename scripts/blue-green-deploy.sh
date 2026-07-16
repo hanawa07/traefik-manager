@@ -127,6 +127,12 @@ ensure_docker_proxy() {
   wait_container_healthy traefik-manager-dockerproxy
 }
 
+run_migration_preflight() {
+  local slot="$1"
+  compose run --rm --no-deps --entrypoint python "backend-${slot}" \
+    -m app.infrastructure.persistence.blue_green_preflight
+}
+
 verify_candidate_chain() {
   local frontend_container="$1"
   docker exec "${frontend_container}" node -e \
@@ -366,6 +372,7 @@ export TRAEFIK_MANAGER_BUILD_DATE="${build_date}"
 echo "Manager blue-green 배포: ${previous_slot} -> ${candidate_slot} (${version}, ${revision:0:12})"
 ensure_docker_proxy
 compose build "backend-${candidate_slot}" "frontend-${candidate_slot}"
+run_migration_preflight "${candidate_slot}"
 start_candidate "${candidate_slot}"
 start_probe
 switched=1

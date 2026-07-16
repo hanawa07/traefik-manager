@@ -18,6 +18,9 @@ down_revision: Union[str, None] = ${repr(down_revision)}
 branch_labels: Union[str, Sequence[str], None] = ${repr(branch_labels)}
 depends_on: Union[str, Sequence[str], None] = ${repr(depends_on)}
 
+# 이전/신규 앱이 이 schema를 함께 사용할 수 있는지 검토한 뒤 True로 바꿉니다.
+BLUE_GREEN_COMPATIBLE = False
+
 
 def upgrade() -> None:
     ${upgrades if upgrades else "pass"}

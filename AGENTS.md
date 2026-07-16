@@ -61,4 +61,5 @@ Automated tests are not fully wired yet; treat lint/build and manual API checks 
 ## Database Migrations
 - Alembic is the source of truth for schema changes; do not add new SQLite `ALTER TABLE` patches in `database.py`.
 - Workflow: update `backend/app/infrastructure/persistence/models.py`, run `cd backend && alembic revision --autogenerate -m "..."`, review the generated file, then run `cd backend && alembic upgrade head`.
+- Blue-green 배포 migration은 기존/신규 앱이 schema를 함께 사용해도 안전한 expand 단계인지 검토한 뒤 `BLUE_GREEN_COMPATIBLE = True`로 바꾼다. column/table 제거 같은 contract 단계는 별도 후속 배포로 분리한다.
 - Existing production DBs created before Alembic adoption must be stamped once: `cd backend && alembic stamp head` after confirming the live schema already matches the initial migration.
