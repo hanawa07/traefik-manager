@@ -11,6 +11,7 @@ export async function checkManagerDeploymentHistory({ cdp, timeoutMs }) {
       filters: section?.querySelectorAll('button[data-history-filter]').length || 0,
       statuses: entries.map((entry) => entry.getAttribute('data-deployment-status')),
       failureDetails: section?.querySelectorAll('[data-deployment-failure-detail]').length || 0,
+      failureStats: Boolean(section?.querySelector('[data-deployment-failure-stats]')),
       linksValid: entries.every((entry) => {
         const links = Array.from(entry.querySelectorAll('a')).map((link) => link.href);
         const release = links.find((href) => href.includes('/releases/tag/'))?.split('/releases/tag/')[1];
@@ -28,6 +29,7 @@ export async function checkManagerDeploymentHistory({ cdp, timeoutMs }) {
   assert.equal(snapshot.linksValid, true, "Manager 배포 이력의 커밋·릴리즈 링크가 올바르지 않습니다");
   if (snapshot.statuses.some((status) => status !== "success")) {
     assert.ok(snapshot.failureDetails > 0, "Manager 실패 배포 이력의 단계·원인이 보이지 않습니다");
+    assert.equal(snapshot.failureStats, true, "Manager 배포 실패 단계 통계가 보이지 않습니다");
   }
 
   const selectedStatus = snapshot.statuses[0];

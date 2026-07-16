@@ -21,6 +21,7 @@ interface ManagerDeploymentHistoryProps {
 
 type HistoryStatus = ManagerDeploymentHistoryEntry["status"];
 type HistoryFilter = "all" | HistoryStatus;
+type FailureStage = NonNullable<ManagerDeploymentHistoryEntry["failure_stage"]>;
 
 const STATUS_DISPLAY = {
   success: {
@@ -72,6 +73,15 @@ export function ManagerDeploymentHistory({
   const filteredEntries = filter === "all"
     ? visibleEntries
     : visibleEntries.filter((entry) => entry.status === filter);
+  const failedEntries = visibleEntries.filter((entry) => entry.status !== "success");
+  const failureStageCounts = (Object.keys(FAILURE_STAGE_LABELS) as FailureStage[])
+    .map((stage) => ({
+      count: failedEntries.filter((entry) => entry.failure_stage === stage).length,
+      label: FAILURE_STAGE_LABELS[stage],
+      stage,
+    }))
+    .filter(({ count }) => count > 0);
+  const unknownStageCount = failedEntries.filter((entry) => !entry.failure_stage).length;
 
   return (
     <section
@@ -127,6 +137,29 @@ export function ManagerDeploymentHistory({
           </div>
         ) : null}
       </div>
+
+      {failedEntries.length > 0 ? (
+        <div
+          className="mt-3 flex flex-wrap items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/80 px-2.5 py-2 text-[11px] text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+          data-deployment-failure-stats
+        >
+          <span className="font-semibold">실패 {failedEntries.length}건</span>
+          {failureStageCounts.map(({ count, label, stage }) => (
+            <span
+              className="rounded-full bg-white/80 px-2 py-0.5 font-medium dark:bg-slate-900/70"
+              data-failure-stage={stage}
+              key={stage}
+            >
+              {label} {count}
+            </span>
+          ))}
+          {unknownStageCount > 0 ? (
+            <span className="rounded-full bg-white/80 px-2 py-0.5 font-medium dark:bg-slate-900/70">
+              단계 미기록 {unknownStageCount}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {visibleEntries.length === 0 ? (
         <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
