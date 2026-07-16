@@ -17,6 +17,7 @@ import {
 } from "./managerDeploymentHistoryExport";
 import {
   MANAGER_DEPLOYMENT_HISTORY_QUERY,
+  matchesManagerDeploymentHistoryStatus,
   parseManagerDeploymentHistoryDate,
   parseManagerDeploymentHistoryPeriod,
   parseManagerDeploymentHistorySource,
@@ -24,6 +25,7 @@ import {
   parseManagerDeploymentHistoryStatus,
   replaceManagerDeploymentHistoryQueryParams,
   type ManagerDeploymentHistoryPeriodFilter,
+  type ManagerDeploymentHistoryRecordSource,
   type ManagerDeploymentHistorySourceFilter,
   type ManagerDeploymentHistoryStageFilter,
   type ManagerDeploymentHistoryStatusFilter,
@@ -94,6 +96,9 @@ function ManagerDeploymentHistoryContent({
     : historySource === "all"
       ? [...entries, ...archiveEntries]
       : entries;
+  const resolveEntrySource = (
+    entry: ManagerDeploymentHistoryEntry,
+  ): ManagerDeploymentHistoryRecordSource => entries.includes(entry) ? "current" : "archive";
   const summaryEntries = visibleEntries.filter((entry) => {
     const completedAt = Date.parse(entry.completed_at);
     const matchesPeriod = periodCutoff === null || completedAt >= periodCutoff;
@@ -102,7 +107,7 @@ function ManagerDeploymentHistoryContent({
     return matchesPeriod && matchesDateRange;
   });
   const filteredEntries = summaryEntries.filter((entry) => {
-    const matchesStatus = status === "all" || entry.status === status;
+    const matchesStatus = matchesManagerDeploymentHistoryStatus(entry, status);
     const matchesFailureStage = stage === "all"
       || (stage === "unknown"
         ? entry.status !== "success" && !entry.failure_stage
@@ -149,7 +154,12 @@ function ManagerDeploymentHistoryContent({
 
   const handleExport = (format: ManagerDeploymentHistoryExportFormat) => {
     try {
-      const filename = downloadManagerDeploymentHistory(filteredEntries, historySource, format);
+      const filename = downloadManagerDeploymentHistory(
+        filteredEntries,
+        historySource,
+        format,
+        historySource === "all" ? resolveEntrySource : undefined,
+      );
       setToastNotice({
         detail: `${filename} · ${filteredEntries.length}건`,
         message: `${format.toUpperCase()} 내보내기 완료`,
@@ -207,6 +217,7 @@ function ManagerDeploymentHistoryContent({
             {filteredEntries.map((entry) => (
               <ManagerDeploymentHistoryItem
                 entry={entry}
+                entrySource={historySource === "all" ? resolveEntrySource(entry) : undefined}
                 key={`${entry.completed_at}-${entry.to_slot}`}
                 onCopy={handleCopy}
                 previousVersion={visibleEntries[visibleEntries.indexOf(entry) + 1]?.version}

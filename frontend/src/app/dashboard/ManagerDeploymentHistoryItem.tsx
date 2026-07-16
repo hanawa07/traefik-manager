@@ -10,6 +10,7 @@ import {
 } from "./managerDeploymentHistoryDisplay";
 import { ManagerDeploymentHistoryJsonDetails } from "./ManagerDeploymentHistoryJsonDetails";
 import { buildManagerDeploymentLinks } from "./managerDeploymentLinks";
+import type { ManagerDeploymentHistoryRecordSource } from "./managerDeploymentHistoryQuery";
 import {
   getExternalWatchdogRunLabel,
   isExternalWatchdogRunFailure,
@@ -17,6 +18,7 @@ import {
 
 interface ManagerDeploymentHistoryItemProps {
   entry: ManagerDeploymentHistoryEntry;
+  entrySource?: ManagerDeploymentHistoryRecordSource;
   onCopy: (label: string, value: string) => void;
   previousVersion?: string;
   searchText: string;
@@ -26,6 +28,7 @@ interface ManagerDeploymentHistoryItemProps {
 
 export function ManagerDeploymentHistoryItem({
   entry,
+  entrySource,
   onCopy,
   previousVersion,
   searchText,
@@ -52,6 +55,18 @@ export function ManagerDeploymentHistoryItem({
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.className}`}>
           {status.label}
         </span>
+        {entrySource ? (
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+              entrySource === "current"
+                ? "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200"
+                : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
+            }`}
+            data-deployment-source={entrySource}
+          >
+            {entrySource === "current" ? "현재" : "보관"}
+          </span>
+        ) : null}
         <span
           className="text-xs font-semibold text-gray-800 dark:text-slate-200"
           data-deployment-slot-summary

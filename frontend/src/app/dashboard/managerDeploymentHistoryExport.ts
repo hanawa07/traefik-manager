@@ -1,7 +1,15 @@
 import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/deploymentApi";
 
-export type ManagerDeploymentHistorySource = "all" | "archive" | "current";
+import type {
+  ManagerDeploymentHistoryRecordSource,
+  ManagerDeploymentHistorySourceFilter,
+} from "./managerDeploymentHistoryQuery";
+
 export type ManagerDeploymentHistoryExportFormat = "csv" | "json";
+type ManagerDeploymentHistoryExportEntry = ManagerDeploymentHistoryEntry & {
+  source?: ManagerDeploymentHistoryRecordSource;
+};
+type ManagerDeploymentHistoryExportColumn = keyof ManagerDeploymentHistoryExportEntry;
 
 const CSV_COLUMNS: readonly (keyof ManagerDeploymentHistoryEntry)[] = [
   "status",
@@ -26,12 +34,20 @@ const CSV_COLUMNS: readonly (keyof ManagerDeploymentHistoryEntry)[] = [
 
 export function downloadManagerDeploymentHistory(
   entries: ManagerDeploymentHistoryEntry[],
-  source: ManagerDeploymentHistorySource,
+  source: ManagerDeploymentHistorySourceFilter,
   format: ManagerDeploymentHistoryExportFormat,
+  resolveSource?: (entry: ManagerDeploymentHistoryEntry) => ManagerDeploymentHistoryRecordSource,
 ): string {
+  if (source === "all" && !resolveSource) {
+    throw new Error("통합 배포 이력 source 확인 함수가 필요합니다.");
+  }
+  const includeSource = source === "all";
+  const exportEntries: ManagerDeploymentHistoryExportEntry[] = includeSource
+    ? entries.map((entry) => ({ source: resolveSource!(entry), ...entry }))
+    : entries;
   const content = format === "csv"
-    ? `\uFEFF${toCsv(entries)}`
-    : JSON.stringify(entries, null, 2);
+    ? `\uFEFF${toCsv(exportEntries, includeSource)}`
+    : JSON.stringify(exportEntries, null, 2);
   const blob = new Blob([content], {
     type: format === "csv" ? "text/csv;charset=utf-8" : "application/json;charset=utf-8",
   });
@@ -46,14 +62,17 @@ export function downloadManagerDeploymentHistory(
   return link.download;
 }
 
-function toCsv(entries: ManagerDeploymentHistoryEntry[]): string {
+function toCsv(entries: ManagerDeploymentHistoryExportEntry[], includeSource: boolean): string {
+  const columns: readonly ManagerDeploymentHistoryExportColumn[] = includeSource
+    ? ["source", ...CSV_COLUMNS]
+    : CSV_COLUMNS;
   return [
-    CSV_COLUMNS.join(","),
-    ...entries.map((entry) => CSV_COLUMNS.map((column) => csvCell(entry[column])).join(",")),
+    columns.join(","),
+    ...entries.map((entry) => columns.map((column) => csvCell(entry[column])).join(",")),
   ].join("\r\n");
 }
 
-function csvCell(value: ManagerDeploymentHistoryEntry[keyof ManagerDeploymentHistoryEntry]): string {
+function csvCell(value: ManagerDeploymentHistoryExportEntry[ManagerDeploymentHistoryExportColumn]): string {
   const text = value == null ? "" : String(value);
   const safe = /^[=+\-@\t\r\n]/.test(text) ? `'${text}` : text;
   return `"${safe.replaceAll('"', '""')}"`;

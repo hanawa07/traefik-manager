@@ -1,9 +1,15 @@
 import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/deploymentApi";
 
+import type { ManagerDeploymentHistoryStatusFilter } from "./managerDeploymentHistoryQuery";
+
 export function ManagerDeploymentOutcomeSummary({
   entries,
+  onStatusChange,
+  selectedStatus,
 }: {
   entries: ManagerDeploymentHistoryEntry[];
+  onStatusChange: (status: ManagerDeploymentHistoryStatusFilter) => void;
+  selectedStatus: ManagerDeploymentHistoryStatusFilter;
 }) {
   if (entries.length === 0) {
     return (
@@ -31,19 +37,31 @@ export function ManagerDeploymentOutcomeSummary({
       <span className="font-semibold text-gray-600 dark:text-slate-300">
         선택 기간 {entries.length}건
       </span>
-      <span
-        className="rounded-full bg-emerald-100 px-2 py-1 font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
+      <button
+        aria-pressed={selectedStatus === "success"}
+        className={`rounded-full bg-emerald-100 px-2 py-1 font-semibold text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:hover:bg-emerald-500/25 ${
+          selectedStatus === "success" ? "ring-2 ring-emerald-500/50" : ""
+        }`}
+        data-deployment-rate-filter="success"
         data-deployment-success-rate={successRate}
+        onClick={() => onStatusChange(selectedStatus === "success" ? "all" : "success")}
+        type="button"
       >
         성공률 {successRate}% ({successCount}/{entries.length})
-      </span>
-      <span
-        className="rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-100"
+      </button>
+      <button
+        aria-pressed={selectedStatus === "rollback"}
+        className={`rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-800 hover:bg-amber-200 dark:bg-amber-500/15 dark:text-amber-100 dark:hover:bg-amber-500/25 ${
+          selectedStatus === "rollback" ? "ring-2 ring-amber-500/50" : ""
+        }`}
+        data-deployment-rate-filter="rollback"
         data-deployment-rollback-rate={rollbackRate}
+        onClick={() => onStatusChange(selectedStatus === "rollback" ? "all" : "rollback")}
         title="자동 롤백과 롤백 실패를 포함합니다."
+        type="button"
       >
         롤백률 {rollbackRate}% ({rollbackCount}/{entries.length})
-      </span>
+      </button>
     </div>
   );
 }

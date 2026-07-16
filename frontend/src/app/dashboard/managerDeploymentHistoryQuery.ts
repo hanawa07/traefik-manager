@@ -1,9 +1,10 @@
 import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/deploymentApi";
 
-export type ManagerDeploymentHistoryStatusFilter = "all" | ManagerDeploymentHistoryEntry["status"];
+export type ManagerDeploymentHistoryStatusFilter = "all" | "rollback" | ManagerDeploymentHistoryEntry["status"];
 export type ManagerDeploymentHistoryFailureStage = NonNullable<ManagerDeploymentHistoryEntry["failure_stage"]>;
 export type ManagerDeploymentHistoryStageFilter = "all" | "unknown" | ManagerDeploymentHistoryFailureStage;
 export type ManagerDeploymentHistorySourceFilter = "all" | "archive" | "current";
+export type ManagerDeploymentHistoryRecordSource = Exclude<ManagerDeploymentHistorySourceFilter, "all">;
 export type ManagerDeploymentHistoryPeriodFilter = "all" | "1" | "7" | "30" | "90";
 
 export const MANAGER_DEPLOYMENT_HISTORY_QUERY = {
@@ -30,6 +31,7 @@ const STATUS_FILTERS: readonly ManagerDeploymentHistoryStatusFilter[] = [
   "all",
   "success",
   "failed_before_switch",
+  "rollback",
   "rolled_back",
   "rollback_failed",
 ];
@@ -53,6 +55,17 @@ export function parseManagerDeploymentHistoryStatus(
   return STATUS_FILTERS.includes(value as ManagerDeploymentHistoryStatusFilter)
     ? value as ManagerDeploymentHistoryStatusFilter
     : "all";
+}
+
+export function matchesManagerDeploymentHistoryStatus(
+  entry: ManagerDeploymentHistoryEntry,
+  status: ManagerDeploymentHistoryStatusFilter,
+): boolean {
+  if (status === "all") return true;
+  if (status === "rollback") {
+    return entry.status === "rolled_back" || entry.status === "rollback_failed";
+  }
+  return entry.status === status;
 }
 
 export function parseManagerDeploymentHistoryPeriod(

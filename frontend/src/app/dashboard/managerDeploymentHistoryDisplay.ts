@@ -38,6 +38,7 @@ export const MANAGER_DEPLOYMENT_FILTER_OPTIONS: readonly {
     value: "failed_before_switch",
     label: MANAGER_DEPLOYMENT_STATUS_DISPLAY.failed_before_switch.label,
   },
+  { value: "rollback", label: "롤백 전체" },
   { value: "rolled_back", label: MANAGER_DEPLOYMENT_STATUS_DISPLAY.rolled_back.label },
   {
     value: "rollback_failed",

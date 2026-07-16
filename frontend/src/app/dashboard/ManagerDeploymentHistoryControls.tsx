@@ -9,11 +9,12 @@ import {
   MANAGER_DEPLOYMENT_STATUS_DISPLAY,
 } from "./managerDeploymentHistoryDisplay";
 import type { ManagerDeploymentHistoryExportFormat } from "./managerDeploymentHistoryExport";
-import type {
-  ManagerDeploymentHistoryPeriodFilter,
-  ManagerDeploymentHistorySourceFilter,
-  ManagerDeploymentHistoryStageFilter,
-  ManagerDeploymentHistoryStatusFilter,
+import {
+  matchesManagerDeploymentHistoryStatus,
+  type ManagerDeploymentHistoryPeriodFilter,
+  type ManagerDeploymentHistorySourceFilter,
+  type ManagerDeploymentHistoryStageFilter,
+  type ManagerDeploymentHistoryStatusFilter,
 } from "./managerDeploymentHistoryQuery";
 import { ManagerDeploymentDateRange } from "./ManagerDeploymentDateRange";
 import { ManagerDeploymentFailureSummary } from "./ManagerDeploymentFailureSummary";
@@ -72,6 +73,11 @@ export function ManagerDeploymentHistoryControls({
     : filters.stage === "all"
       ? null
       : MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS[filters.stage];
+  const selectedStatusLabel = filters.status === "rollback"
+    ? "롤백 전체"
+    : filters.status === "all"
+      ? null
+      : MANAGER_DEPLOYMENT_STATUS_DISPLAY[filters.status].label;
 
   return (
     <>
@@ -187,14 +193,22 @@ export function ManagerDeploymentHistoryControls({
         />
       ) : null}
 
-      {entries.length > 0 ? <ManagerDeploymentOutcomeSummary entries={summaryEntries} /> : null}
+      {entries.length > 0 ? (
+        <ManagerDeploymentOutcomeSummary
+          entries={summaryEntries}
+          onStatusChange={(status) => onFiltersChange({ status })}
+          selectedStatus={filters.status}
+        />
+      ) : null}
 
       {entries.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1" role="group" aria-label="배포 이력 상태 필터">
           {MANAGER_DEPLOYMENT_FILTER_OPTIONS.map((option) => {
             const count = option.value === "all"
               ? summaryEntries.length
-              : summaryEntries.filter((entry) => entry.status === option.value).length;
+              : summaryEntries.filter(
+                  (entry) => matchesManagerDeploymentHistoryStatus(entry, option.value),
+                ).length;
             const active = filters.status === option.value;
             return (
               <button
@@ -266,7 +280,7 @@ export function ManagerDeploymentHistoryControls({
               {filters.status !== "all" ? (
                 <ConditionChip
                   condition="status"
-                  label={`상태: ${MANAGER_DEPLOYMENT_STATUS_DISPLAY[filters.status].label}`}
+                  label={`상태: ${selectedStatusLabel}`}
                   onRemove={() => onFiltersChange({ status: "all" })}
                 />
               ) : null}
