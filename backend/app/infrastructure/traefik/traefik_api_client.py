@@ -22,6 +22,7 @@ from app.infrastructure.traefik.docker_api import (
     read_local_acme_json_text,
 )
 from app.infrastructure.traefik.runtime_status_builder import (
+    build_manager_route_status,
     build_middlewares_status,
     build_router_status,
 )
@@ -160,6 +161,17 @@ class TraefikApiClient:
             }
 
         return build_router_status(payload)
+
+    async def get_manager_route_status(self) -> dict[str, object]:
+        try:
+            routers, services = await asyncio.gather(
+                self._get("/api/http/routers"),
+                self._get("/api/http/services"),
+            )
+        except TraefikApiClientError:
+            return build_manager_route_status(None, None)
+
+        return build_manager_route_status(routers, services)
 
     async def list_middlewares(self) -> dict:
         try:

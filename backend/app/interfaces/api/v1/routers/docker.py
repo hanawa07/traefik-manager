@@ -9,6 +9,7 @@ from app.infrastructure.docker.manager_http_log_reader import read_manager_http_
 from app.infrastructure.github_actions_run import GitHubActionsRunStatusReader
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
+from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
 from app.interfaces.api.dependencies import get_current_user
 from app.interfaces.api.v1.schemas.docker_schemas import (
     DockerContainerListResponse,
@@ -24,6 +25,10 @@ MANAGER_HTTP_ERROR_WINDOW_OPTIONS = {6, 12, 24}
 
 def get_docker_client() -> DockerClient:
     return DockerClient()
+
+
+def get_traefik_client() -> TraefikApiClient:
+    return TraefikApiClient()
 
 
 @router.get("/containers", response_model=DockerContainerListResponse, summary="Docker 컨테이너 목록")
@@ -89,11 +94,13 @@ async def preview_manager_http_errors(
 async def get_deployment_info(
     refresh_latest: bool = False,
     docker_client: DockerClient = Depends(get_docker_client),
+    traefik_client: TraefikApiClient = Depends(get_traefik_client),
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
     try:
         deployment = await docker_client.get_manager_deployment_info(refresh_latest=refresh_latest)
+        manager_route = await traefik_client.get_manager_route_status()
         settings_repo = SQLiteSystemSettingsRepository(db)
         stale_after_minutes = await read_external_watchdog_stale_minutes(settings_repo)
         http_error_monitor = await read_manager_http_error_monitor_status(settings_repo)
@@ -126,6 +133,7 @@ async def get_deployment_info(
         ]
         return {
             **deployment,
+            "manager_route": manager_route,
             **watchdog_state,
             **run_status,
             "http_error_monitor": http_error_monitor,

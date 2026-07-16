@@ -169,6 +169,18 @@ class ManagerHttpErrorMonitorResponse(BaseModel):
     excluded_paths: list[str] = Field(default_factory=list, max_length=50)
 
 
+class ManagerRouteStatusResponse(BaseModel):
+    available: bool
+    healthy: bool
+    message: str
+    provider: str | None = None
+    https_router_status: str | None = None
+    http_router_status: str | None = None
+    service_status: str | None = None
+    upstream_url: str | None = None
+    upstream_status: str | None = None
+
+
 class DockerDeploymentInfoResponse(BaseModel):
     enabled: bool
     message: str
@@ -197,4 +209,5 @@ class DockerDeploymentInfoResponse(BaseModel):
     external_watchdog_alert_runs: list[ExternalWatchdogAlertRunResponse] = Field(default_factory=list)
     http_error_summary: ManagerHttpErrorSummaryResponse | None = None
     http_error_monitor: ManagerHttpErrorMonitorResponse | None = None
+    manager_route: ManagerRouteStatusResponse | None = None
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)
