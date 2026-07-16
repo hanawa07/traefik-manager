@@ -28,7 +28,7 @@ export function downloadManagerDeploymentHistory(
   entries: ManagerDeploymentHistoryEntry[],
   source: ManagerDeploymentHistorySource,
   format: ManagerDeploymentHistoryExportFormat,
-) {
+): string {
   const content = format === "csv"
     ? `\uFEFF${toCsv(entries)}`
     : JSON.stringify(entries, null, 2);
@@ -43,6 +43,7 @@ export function downloadManagerDeploymentHistory(
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+  return link.download;
 }
 
 function toCsv(entries: ManagerDeploymentHistoryEntry[]): string {
