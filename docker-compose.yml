@@ -1,3 +1,5 @@
+# PONYTAIL-DEBT(deploy-blue-green): 단일 backend/frontend 교체의 짧은 503 구간은
+# docs/plans/2026-07-16-blue-green-deployment.md의 슬롯 전환으로 분리한다.
 services:
   init-traefik-config:
     image: alpine:3.20
