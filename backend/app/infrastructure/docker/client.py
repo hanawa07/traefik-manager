@@ -166,10 +166,8 @@ class DockerClient:
         ]
 
     async def connect_container_to_network(self, *, container_name: str, network_name: str) -> dict:
-        if not self.enabled or not docker_api_available(
-            api_url=self.mutation_api_url,
-            socket_path=self.socket_path,
-        ):
+        mutation_enabled = docker_api_available(api_url=self.mutation_api_url, socket_path=self.socket_path)
+        if not self.enabled or not mutation_enabled:
             raise DockerClientError("Docker 조회 또는 변경 API 경로가 없어 네트워크 연결을 실행할 수 없습니다")
 
         container = await self._get_object_json(f"/{self.api_version}/containers/{quote(container_name, safe='')}/json")
