@@ -104,6 +104,7 @@ def test_archive_returns_only_entries_not_retained_in_current_file(tmp_path: Pat
         "2026-07-16T02:01:00Z",
         "2026-07-16T01:01:00Z",
     ]
+    assert [entry["archive_sample"] for entry in result] == ["detailed", "detailed"]
 
 
 def test_archive_merges_daily_entries_in_time_order_and_applies_limit(tmp_path: Path):
@@ -126,6 +127,11 @@ def test_archive_merges_daily_entries_in_time_order_and_applies_limit(tmp_path: 
         "2026-07-13T09:01:00Z",
         "2026-07-12T09:01:00Z",
         "2026-07-11T09:01:00Z",
+    ]
+    assert [entry["archive_sample"] for entry in result] == [
+        "detailed",
+        "detailed",
+        "daily",
     ]
     assert summary == {
         "detailed_count": 2,

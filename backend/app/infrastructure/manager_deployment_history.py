@@ -92,8 +92,8 @@ def read_manager_deployment_history_archive_with_summary(
     daily_entries.sort(key=_completed_at_timestamp, reverse=True)
     daily_entries = daily_entries[: max(0, limit - len(detailed_entries))]
     entries = [
-        *detailed_entries,
-        *daily_entries,
+        *({**entry, "archive_sample": "detailed"} for entry in detailed_entries),
+        *({**entry, "archive_sample": "daily"} for entry in daily_entries),
     ]
     entries.sort(key=_completed_at_timestamp, reverse=True)
     return entries, _archive_summary(entries, len(detailed_entries), len(daily_entries))

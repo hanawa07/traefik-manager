@@ -90,6 +90,14 @@ export function ManagerDeploymentHistoryItem({
             {entrySource === "current" ? "현재" : "보관"}
           </span>
         ) : null}
+        {entry.archive_sample ? (
+          <span
+            className="rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-semibold text-cyan-800 dark:bg-cyan-500/15 dark:text-cyan-100"
+            data-deployment-archive-sample={entry.archive_sample}
+          >
+            {entry.archive_sample === "detailed" ? "상세 표본" : "일별 표본"}
+          </span>
+        ) : null}
         {isSlowerThanThreshold ? (
           <span
             className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-800 dark:bg-orange-500/20 dark:text-orange-100"
