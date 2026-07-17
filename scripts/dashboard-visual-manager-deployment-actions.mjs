@@ -176,7 +176,7 @@ async function clickSpeedFilter({ cdp, expectedCount, selected, timeoutMs }) {
       ).length === ${expectedCount} &&
         button?.getAttribute('aria-pressed') === ${JSON.stringify(String(selected))} &&
         ${selected
-          ? "params.get('deployment_speed') === 'slow' && document.querySelector('[data-history-condition=\"speed\"]')"
+          ? "params.get('deployment_speed') === 'slow' && Boolean(document.querySelector('[data-history-condition=\"speed\"]'))"
           : "!params.has('deployment_speed') && !document.querySelector('[data-history-condition=\"speed\"]')"};
     })()`,
     timeoutMs,
