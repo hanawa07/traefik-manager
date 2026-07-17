@@ -20,6 +20,7 @@ import {
 } from "./managerWatchdogStatus";
 
 interface ManagerDeploymentHistoryItemProps {
+  bottleneckThresholdMs: number;
   entry: ManagerDeploymentHistoryEntry;
   entrySource?: ManagerDeploymentHistoryRecordSource;
   onCopy: (label: string, value: string) => void;
@@ -32,6 +33,7 @@ interface ManagerDeploymentHistoryItemProps {
 }
 
 export function ManagerDeploymentHistoryItem({
+  bottleneckThresholdMs,
   entry,
   entrySource,
   onCopy,
@@ -153,7 +155,10 @@ export function ManagerDeploymentHistoryItem({
         {" · "}
         {formatProbe(entry)} · {formatDateTime(entry.completed_at, timezone)}
       </p>
-      <ManagerDeploymentStageDurations durations={entry.stage_durations_ms} />
+      <ManagerDeploymentStageDurations
+        alertThresholdMs={bottleneckThresholdMs}
+        durations={entry.stage_durations_ms}
+      />
       {entry.failure_reason ? (
         <div
           className="mt-2 flex items-start gap-2 rounded-md bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-100"

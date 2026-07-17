@@ -1,6 +1,7 @@
 import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/deploymentApi";
 
 import type {
+  ManagerDeploymentBottleneckThreshold,
   ManagerDeploymentHistoryFailureStage,
   ManagerDeploymentHistoryPeriodFilter,
   ManagerDeploymentHistorySpeedFilter,
@@ -73,6 +74,17 @@ export const MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS: Record<
   state_write: "배포 상태 확정",
 };
 
+export const MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD_OPTIONS: readonly {
+  label: string;
+  value: ManagerDeploymentBottleneckThreshold;
+}[] = [
+  { label: "15초", value: "15000" },
+  { label: "30초", value: "30000" },
+  { label: "1분", value: "60000" },
+  { label: "2분", value: "120000" },
+  { label: "5분", value: "300000" },
+];
+
 export function getManagerDeploymentDurationMs(
   startedAt: string,
   completedAt: string,
@@ -100,6 +112,19 @@ export interface ManagerDeploymentDurationStats {
   p95Ms: number | null;
 }
 
+export interface ManagerDeploymentStageStats {
+  averageMs: number;
+  count: number;
+  maxMs: number;
+  p95Ms: number;
+  stage: ManagerDeploymentHistoryFailureStage;
+}
+
+export interface ManagerDeploymentBottleneck {
+  durationMs: number;
+  stage: ManagerDeploymentHistoryFailureStage;
+}
+
 export function getManagerDeploymentDurationStats(
   entries: ManagerDeploymentHistoryEntry[],
 ): ManagerDeploymentDurationStats {
@@ -123,6 +148,44 @@ export function getManagerDeploymentDurationStats(
     medianMs,
     p95Ms: percentile(durations, 0.95),
   };
+}
+
+export function getManagerDeploymentStageStats(
+  entries: ManagerDeploymentHistoryEntry[],
+): ManagerDeploymentStageStats[] {
+  return (Object.keys(
+    MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
+  ) as ManagerDeploymentHistoryFailureStage[]).flatMap((stage) => {
+    const durations = entries
+      .map((entry) => entry.stage_durations_ms[stage])
+      .filter(isValidStageDuration)
+      .sort((left, right) => left - right);
+    if (durations.length === 0) return [];
+    return [{
+      averageMs: Math.round(
+        durations.reduce((total, duration) => total + duration, 0) / durations.length,
+      ),
+      count: durations.length,
+      maxMs: durations[durations.length - 1],
+      p95Ms: percentile(durations, 0.95),
+      stage,
+    }];
+  });
+}
+
+export function getManagerDeploymentBottleneck(
+  durations: ManagerDeploymentHistoryEntry["stage_durations_ms"],
+): ManagerDeploymentBottleneck | null {
+  return (Object.keys(
+    MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
+  ) as ManagerDeploymentHistoryFailureStage[]).reduce<ManagerDeploymentBottleneck | null>(
+    (slowest, stage) => {
+      const durationMs = durations[stage];
+      if (!isValidStageDuration(durationMs)) return slowest;
+      return !slowest || durationMs > slowest.durationMs ? { durationMs, stage } : slowest;
+    },
+    null,
+  );
 }
 
 export function getManagerDeploymentSpeedThresholdMs(
@@ -149,4 +212,8 @@ function percentile(sortedDurations: number[], ratio: number): number {
   const lower = sortedDurations[lowerIndex];
   const upper = sortedDurations[upperIndex];
   return Math.round(lower + (upper - lower) * (position - lowerIndex));
+}
+
+function isValidStageDuration(duration: number | undefined): duration is number {
+  return typeof duration === "number" && Number.isFinite(duration) && duration >= 0;
 }

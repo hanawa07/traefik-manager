@@ -11,8 +11,12 @@ export type ManagerDeploymentHistorySourceFilter = "all" | "archive" | "current"
 export type ManagerDeploymentHistoryRecordSource = Exclude<ManagerDeploymentHistorySourceFilter, "all">;
 export type ManagerDeploymentHistoryPeriodFilter = "all" | "1" | "7" | "30" | "90";
 export type ManagerDeploymentHistorySpeedFilter = "all" | "average" | "p95";
+export type ManagerDeploymentBottleneckThreshold = "15000" | "30000" | "60000" | "120000" | "300000";
+
+export const DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD: ManagerDeploymentBottleneckThreshold = "60000";
 
 export interface ManagerDeploymentHistoryFilters {
+  bottleneckThreshold: ManagerDeploymentBottleneckThreshold;
   dateFrom: string;
   dateTo: string;
   period: ManagerDeploymentHistoryPeriodFilter;
@@ -24,6 +28,7 @@ export interface ManagerDeploymentHistoryFilters {
 }
 
 export const MANAGER_DEPLOYMENT_HISTORY_QUERY = {
+  bottleneckThreshold: "deployment_bottleneck_ms",
   dateFrom: "deployment_from",
   dateTo: "deployment_to",
   period: "deployment_period",
@@ -35,6 +40,14 @@ export const MANAGER_DEPLOYMENT_HISTORY_QUERY = {
 } as const;
 
 const DEPLOYMENT_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const BOTTLENECK_THRESHOLDS: readonly ManagerDeploymentBottleneckThreshold[] = [
+  "15000",
+  "30000",
+  "60000",
+  "120000",
+  "300000",
+];
 
 const PERIOD_FILTERS: readonly ManagerDeploymentHistoryPeriodFilter[] = [
   "all",
@@ -121,6 +134,14 @@ export function parseManagerDeploymentHistorySpeed(
 ): ManagerDeploymentHistorySpeedFilter {
   if (value === "p95") return "p95";
   return value === "average" || value === "slow" ? "average" : "all";
+}
+
+export function parseManagerDeploymentBottleneckThreshold(
+  value: string | null,
+): ManagerDeploymentBottleneckThreshold {
+  return BOTTLENECK_THRESHOLDS.includes(value as ManagerDeploymentBottleneckThreshold)
+    ? value as ManagerDeploymentBottleneckThreshold
+    : DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD;
 }
 
 export function replaceManagerDeploymentHistoryQueryParams(

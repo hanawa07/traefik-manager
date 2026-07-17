@@ -4,12 +4,14 @@ import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/de
 
 import {
   type ManagerDeploymentDurationStats,
+  MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD_OPTIONS,
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
   MANAGER_DEPLOYMENT_FILTER_OPTIONS,
   MANAGER_DEPLOYMENT_PERIOD_OPTIONS,
 } from "./managerDeploymentHistoryDisplay";
 import type { ManagerDeploymentHistoryExportFormat } from "./managerDeploymentHistoryExport";
 import {
+  DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD,
   matchesManagerDeploymentHistoryStatus,
   type ManagerDeploymentHistoryFilters,
   type ManagerDeploymentHistoryPeriodFilter,
@@ -18,6 +20,7 @@ import {
 import { ManagerDeploymentDateRange } from "./ManagerDeploymentDateRange";
 import { ManagerDeploymentFailureSummary } from "./ManagerDeploymentFailureSummary";
 import { ManagerDeploymentOutcomeSummary } from "./ManagerDeploymentOutcomeSummary";
+import { ManagerDeploymentStageSummary } from "./ManagerDeploymentStageSummary";
 
 interface ManagerDeploymentHistoryControlsProps {
   archiveCount: number;
@@ -55,6 +58,7 @@ export function ManagerDeploymentHistoryControls({
     { label: `회전 보관 ${archiveCount}`, value: "archive" },
   ];
   const hasActiveFilters = filters.status !== "all"
+    || filters.bottleneckThreshold !== DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD
     || filters.speed !== "all"
     || filters.stage !== "all"
     || filters.period !== "all"
@@ -174,6 +178,7 @@ export function ManagerDeploymentHistoryControls({
             data-history-filter-reset
             disabled={!hasActiveFilters}
             onClick={() => onFiltersChange({
+              bottleneckThreshold: DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD,
               dateFrom: "",
               dateTo: "",
               period: "all",
@@ -245,6 +250,12 @@ export function ManagerDeploymentHistoryControls({
         selectedStage={filters.stage}
       />
 
+      <ManagerDeploymentStageSummary
+        entries={summaryEntries}
+        onThresholdChange={(threshold) => onFiltersChange({ bottleneckThreshold: threshold })}
+        threshold={filters.bottleneckThreshold}
+      />
+
       {entries.length > 0 ? (
         <div
           aria-live="polite"
@@ -300,6 +311,17 @@ export function ManagerDeploymentHistoryControls({
                   onRemove={() => onFiltersChange({ speed: "all" })}
                 />
               ) : null}
+              {filters.bottleneckThreshold !== DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD ? (
+                <ConditionChip
+                  condition="bottleneck_threshold"
+                  label={`병목 경고: ${MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD_OPTIONS.find(
+                    (option) => option.value === filters.bottleneckThreshold,
+                  )?.label}`}
+                  onRemove={() => onFiltersChange({
+                    bottleneckThreshold: DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD,
+                  })}
+                />
+              ) : null}
               {selectedStageLabel ? (
                 <ConditionChip
                   condition="stage"
@@ -327,7 +349,7 @@ function ConditionChip({
   label,
   onRemove,
 }: {
-  condition: "date_from" | "date_to" | "period" | "search" | "source" | "speed" | "stage" | "status";
+  condition: "bottleneck_threshold" | "date_from" | "date_to" | "period" | "search" | "source" | "speed" | "stage" | "status";
   label: string;
   onRemove: () => void;
 }) {

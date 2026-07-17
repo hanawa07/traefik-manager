@@ -13,6 +13,7 @@ import { ManagerDeploymentDurationTrend } from "./ManagerDeploymentDurationTrend
 import { ManagerDeploymentHistoryItem } from "./ManagerDeploymentHistoryItem";
 import {
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
+  MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD_OPTIONS,
   MANAGER_DEPLOYMENT_FILTER_OPTIONS,
   MANAGER_DEPLOYMENT_PERIOD_OPTIONS,
   getManagerDeploymentDurationMs,
@@ -25,9 +26,11 @@ import {
   type ManagerDeploymentHistoryExportFormat,
 } from "./managerDeploymentHistoryExport";
 import {
+  DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD,
   MANAGER_DEPLOYMENT_HISTORY_QUERY,
   matchesManagerDeploymentHistoryStatus,
   parseManagerDeploymentHistoryDate,
+  parseManagerDeploymentBottleneckThreshold,
   parseManagerDeploymentHistoryPeriod,
   parseManagerDeploymentHistorySource,
   parseManagerDeploymentHistorySpeed,
@@ -42,6 +45,10 @@ import {
   type ManagerDeploymentHistoryStageFilter,
   type ManagerDeploymentHistoryStatusFilter,
 } from "./managerDeploymentHistoryQuery";
+import {
+  getManagerDeploymentDateBoundary,
+  getManagerDeploymentPeriodComparison,
+} from "./managerDeploymentPeriodComparison";
 
 interface ManagerDeploymentHistoryProps {
   archiveEntries?: ManagerDeploymentHistoryEntry[];
@@ -67,6 +74,10 @@ function ManagerDeploymentHistoryContent({
   const searchParams = useSearchParams();
   const [toastNotice, setToastNotice] = useState<ToastNoticeValue | null>(null);
   const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
+  const [bottleneckThreshold, setBottleneckThreshold] = useState(() =>
+    parseManagerDeploymentBottleneckThreshold(
+      searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.bottleneckThreshold),
+    ));
   const [dateFrom, setDateFrom] = useState(() =>
     parseManagerDeploymentHistoryDate(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.dateFrom)),
   );
@@ -92,6 +103,7 @@ function ManagerDeploymentHistoryContent({
     (searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.search) || "").slice(0, 100),
   );
   const filters: ManagerDeploymentHistoryFilters = {
+    bottleneckThreshold,
     dateFrom,
     dateTo,
     period,
@@ -105,8 +117,8 @@ function ManagerDeploymentHistoryContent({
   const periodCutoff = period === "all"
     ? null
     : periodReferenceTime - Number(period) * 24 * 60 * 60 * 1_000;
-  const dateFromCutoff = getLocalDateBoundary(dateFrom);
-  const dateToCutoff = getLocalDateBoundary(dateTo, true);
+  const dateFromCutoff = getManagerDeploymentDateBoundary(dateFrom);
+  const dateToCutoff = getManagerDeploymentDateBoundary(dateTo, true);
   const visibleEntries = historySource === "archive"
     ? archiveEntries
     : historySource === "all"
@@ -126,6 +138,11 @@ function ManagerDeploymentHistoryContent({
     (entry) => resolveEntrySource(entry) === "current",
   ).length;
   const durationStats = getManagerDeploymentDurationStats(summaryEntries);
+  const periodComparison = getManagerDeploymentPeriodComparison(
+    visibleEntries,
+    filters,
+    periodReferenceTime,
+  );
   const speedThresholdMs = getManagerDeploymentSpeedThresholdMs(durationStats, speed);
   const filteredEntries = summaryEntries.filter((entry) => {
     const matchesStatus = matchesManagerDeploymentHistoryStatus(entry, status);
@@ -144,6 +161,14 @@ function ManagerDeploymentHistoryContent({
 
   const updateFilters = (updates: Partial<ManagerDeploymentHistoryFilters>) => {
     const queryUpdates: [key: string, value: string, defaultValue: string][] = [];
+    if (updates.bottleneckThreshold !== undefined) {
+      setBottleneckThreshold(updates.bottleneckThreshold);
+      queryUpdates.push([
+        MANAGER_DEPLOYMENT_HISTORY_QUERY.bottleneckThreshold,
+        updates.bottleneckThreshold,
+        DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD,
+      ]);
+    }
     if (updates.dateFrom !== undefined) {
       setDateFrom(updates.dateFrom);
       queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.dateFrom, updates.dateFrom, ""]);
@@ -235,6 +260,7 @@ function ManagerDeploymentHistoryContent({
         />
 
         <ManagerDeploymentDurationTrend
+          comparison={periodComparison}
           entries={summaryEntries}
           speed={speed}
           stats={durationStats}
@@ -255,6 +281,7 @@ function ManagerDeploymentHistoryContent({
           <ol className="mt-3 grid gap-2 lg:grid-cols-2">
             {filteredEntries.map((entry) => (
               <ManagerDeploymentHistoryItem
+                bottleneckThresholdMs={Number(bottleneckThreshold)}
                 entry={entry}
                 entrySource={historySource === "all" ? resolveEntrySource(entry) : undefined}
                 key={`${entry.completed_at}-${entry.to_slot}`}
@@ -274,14 +301,6 @@ function ManagerDeploymentHistoryContent({
   );
 }
 
-function getLocalDateBoundary(value: string, nextDay = false): number | null {
-  if (!value) return null;
-  const [year, month, day] = value.split("-").map(Number);
-  const boundary = new Date(year, month - 1, day);
-  if (nextDay) boundary.setDate(boundary.getDate() + 1);
-  return boundary.getTime();
-}
-
 function describeExportFilters(filters: ManagerDeploymentHistoryFilters): string {
   const source = filters.source === "all"
     ? "현재·보관 통합"
@@ -295,6 +314,12 @@ function describeExportFilters(filters: ManagerDeploymentHistoryFilters): string
   const summary = [source, period, status];
   if (filters.speed !== "all") {
     summary.push(`속도 ${filters.speed === "p95" ? "P95" : "평균"} 초과`);
+  }
+  if (filters.bottleneckThreshold !== DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD) {
+    const threshold = MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD_OPTIONS.find(
+      (option) => option.value === filters.bottleneckThreshold,
+    )?.label;
+    summary.push(`병목 경고 ${threshold}`);
   }
   if (filters.stage !== "all") {
     summary.push(`단계 ${filters.stage === "unknown"

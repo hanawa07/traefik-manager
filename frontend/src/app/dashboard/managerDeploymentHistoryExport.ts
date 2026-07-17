@@ -13,6 +13,7 @@ type ManagerDeploymentHistoryExportColumn = keyof ManagerDeploymentHistoryExport
 interface ManagerDeploymentHistoryExportMetadata {
   exported_at: string;
   filters: {
+    bottleneck_threshold_ms: number;
     date_from: string | null;
     date_to: string | null;
     failure_stage: ManagerDeploymentHistoryFilters["stage"];
@@ -23,7 +24,7 @@ interface ManagerDeploymentHistoryExportMetadata {
     status: ManagerDeploymentHistoryFilters["status"];
   };
   result_count: number;
-  schema_version: 3;
+  schema_version: 4;
   timezone: string;
 }
 
@@ -94,6 +95,7 @@ function buildMetadata(
   return {
     exported_at: new Date().toISOString(),
     filters: {
+      bottleneck_threshold_ms: Number(filters.bottleneckThreshold),
       date_from: filters.dateFrom || null,
       date_to: filters.dateTo || null,
       failure_stage: filters.stage,
@@ -104,7 +106,7 @@ function buildMetadata(
       status: filters.status,
     },
     result_count: resultCount,
-    schema_version: 3,
+    schema_version: 4,
     timezone: timezone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   };
 }
@@ -123,6 +125,7 @@ function toCsv(
     ["timezone", metadata.timezone],
     ["result_count", metadata.result_count],
     ["filter_source", metadata.filters.source],
+    ["filter_bottleneck_threshold_ms", metadata.filters.bottleneck_threshold_ms],
     ["filter_speed", metadata.filters.speed],
     ["filter_period", metadata.filters.period],
     ["filter_date_from", metadata.filters.date_from],
