@@ -23,7 +23,7 @@ interface ManagerDeploymentHistoryExportMetadata {
     status: ManagerDeploymentHistoryFilters["status"];
   };
   result_count: number;
-  schema_version: 2;
+  schema_version: 3;
   timezone: string;
 }
 
@@ -40,6 +40,7 @@ const CSV_COLUMNS: readonly (keyof ManagerDeploymentHistoryEntry)[] = [
   "probe_failures",
   "failure_stage",
   "failure_reason",
+  "stage_durations_ms",
   "alert_request_status",
   "alert_run_url",
   "alert_run_status",
@@ -76,7 +77,7 @@ export function downloadManagerDeploymentHistory(
   const period = filters.dateFrom || filters.dateTo
     ? `${filters.dateFrom || "start"}_to_${filters.dateTo || "end"}`
     : filters.period === "all" ? "all-time" : `${filters.period}d`;
-  const speed = filters.speed === "slow" ? "-slow" : "";
+  const speed = filters.speed === "all" ? "" : `-slow-${filters.speed}`;
   link.download = `traefik-manager-deployments-${source}-${period}-${filters.status}${speed}-${metadata.exported_at.slice(0, 10)}.${format}`;
   document.body.appendChild(link);
   link.click();
@@ -103,7 +104,7 @@ function buildMetadata(
       status: filters.status,
     },
     result_count: resultCount,
-    schema_version: 2,
+    schema_version: 3,
     timezone: timezone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   };
 }
@@ -140,7 +141,9 @@ function toCsv(
 }
 
 function csvCell(value: unknown): string {
-  const text = value == null ? "" : String(value);
+  const text = value == null
+    ? ""
+    : typeof value === "object" ? JSON.stringify(value) : String(value);
   const safe = /^[=+\-@\t\r\n]/.test(text) ? `'${text}` : text;
   return `"${safe.replaceAll('"', '""')}"`;
 }

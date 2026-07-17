@@ -9,6 +9,7 @@ import ToastNotice, { type ToastNoticeValue } from "@/shared/components/ToastNot
 import {
   ManagerDeploymentHistoryControls,
 } from "./ManagerDeploymentHistoryControls";
+import { ManagerDeploymentDurationTrend } from "./ManagerDeploymentDurationTrend";
 import { ManagerDeploymentHistoryItem } from "./ManagerDeploymentHistoryItem";
 import {
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
@@ -17,6 +18,7 @@ import {
   getManagerDeploymentDurationMs,
   getManagerDeploymentDurationStats,
   getManagerDeploymentExcessDurationMs,
+  getManagerDeploymentSpeedThresholdMs,
 } from "./managerDeploymentHistoryDisplay";
 import {
   downloadManagerDeploymentHistory,
@@ -124,6 +126,7 @@ function ManagerDeploymentHistoryContent({
     (entry) => resolveEntrySource(entry) === "current",
   ).length;
   const durationStats = getManagerDeploymentDurationStats(summaryEntries);
+  const speedThresholdMs = getManagerDeploymentSpeedThresholdMs(durationStats, speed);
   const filteredEntries = summaryEntries.filter((entry) => {
     const matchesStatus = matchesManagerDeploymentHistoryStatus(entry, status);
     const matchesFailureStage = stage === "all"
@@ -134,7 +137,7 @@ function ManagerDeploymentHistoryContent({
       .some((value) => value?.toLowerCase().includes(normalizedSearchText));
     const matchesSpeed = speed === "all" || getManagerDeploymentExcessDurationMs(
       getManagerDeploymentDurationMs(entry.started_at, entry.completed_at),
-      durationStats.averageMs,
+      speedThresholdMs,
     ) !== null;
     return matchesStatus && matchesFailureStage && matchesSearch && matchesSpeed;
   });
@@ -231,6 +234,13 @@ function ManagerDeploymentHistoryContent({
           summaryEntries={summaryEntries}
         />
 
+        <ManagerDeploymentDurationTrend
+          entries={summaryEntries}
+          speed={speed}
+          stats={durationStats}
+          timezone={timezone}
+        />
+
         {visibleEntries.length === 0 ? (
           <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
             {historySource === "archive"
@@ -245,7 +255,6 @@ function ManagerDeploymentHistoryContent({
           <ol className="mt-3 grid gap-2 lg:grid-cols-2">
             {filteredEntries.map((entry) => (
               <ManagerDeploymentHistoryItem
-                averageDurationMs={durationStats.averageMs}
                 entry={entry}
                 entrySource={historySource === "all" ? resolveEntrySource(entry) : undefined}
                 key={`${entry.completed_at}-${entry.to_slot}`}
@@ -253,6 +262,8 @@ function ManagerDeploymentHistoryContent({
                 previousVersion={visibleEntries[visibleEntries.indexOf(entry) + 1]?.version}
                 searchText={searchText}
                 source={source}
+                thresholdDurationMs={speedThresholdMs}
+                thresholdLabel={speed === "p95" ? "P95" : "평균"}
                 timezone={timezone}
               />
             ))}
@@ -282,7 +293,9 @@ function describeExportFilters(filters: ManagerDeploymentHistoryFilters): string
     (option) => option.value === filters.status,
   )?.label;
   const summary = [source, period, status];
-  if (filters.speed === "slow") summary.push("속도 평균 초과");
+  if (filters.speed !== "all") {
+    summary.push(`속도 ${filters.speed === "p95" ? "P95" : "평균"} 초과`);
+  }
   if (filters.stage !== "all") {
     summary.push(`단계 ${filters.stage === "unknown"
       ? "미기록"

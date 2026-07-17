@@ -94,6 +94,9 @@ export interface ManagerRouteStatus {
   upstream_status: string | null;
 }
 
+export type ManagerDeploymentStage = "prepare" | "build" | "migration_preflight" |
+  "candidate_health" | "route_switch" | "leader_handover" | "public_probe" | "state_write";
+
 export interface ManagerDeploymentHistoryEntry {
   status: "success" | "failed_before_switch" | "rolled_back" | "rollback_failed";
   from_slot: "single" | "blue" | "green";
@@ -105,8 +108,7 @@ export interface ManagerDeploymentHistoryEntry {
   completed_at: string;
   probe_total: number;
   probe_failures: number;
-  failure_stage: "prepare" | "build" | "migration_preflight" | "candidate_health" |
-    "route_switch" | "leader_handover" | "public_probe" | "state_write" | null;
+  failure_stage: ManagerDeploymentStage | null;
   failure_reason: string | null;
   alert_request_status: "not_needed" | "requested" | "request_failed";
   alert_run_url: string | null;
@@ -114,6 +116,7 @@ export interface ManagerDeploymentHistoryEntry {
   alert_run_conclusion: string | null;
   alert_run_checked_at: string | null;
   alert_run_error: string | null;
+  stage_durations_ms: Partial<Record<ManagerDeploymentStage, number>>;
 }
 
 export interface DeploymentInfo {

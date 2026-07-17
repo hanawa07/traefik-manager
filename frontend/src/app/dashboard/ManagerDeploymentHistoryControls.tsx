@@ -293,10 +293,10 @@ export function ManagerDeploymentHistoryControls({
                   onRemove={() => onFiltersChange({ status: "all" })}
                 />
               ) : null}
-              {filters.speed === "slow" ? (
+              {filters.speed !== "all" ? (
                 <ConditionChip
                   condition="speed"
-                  label="속도: 평균 초과"
+                  label={`속도: ${filters.speed === "p95" ? "P95" : "평균"} 초과`}
                   onRemove={() => onFiltersChange({ speed: "all" })}
                 />
               ) : null}

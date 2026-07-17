@@ -10,7 +10,7 @@ export type ManagerDeploymentHistoryStageFilter = "all" | "unknown" | ManagerDep
 export type ManagerDeploymentHistorySourceFilter = "all" | "archive" | "current";
 export type ManagerDeploymentHistoryRecordSource = Exclude<ManagerDeploymentHistorySourceFilter, "all">;
 export type ManagerDeploymentHistoryPeriodFilter = "all" | "1" | "7" | "30" | "90";
-export type ManagerDeploymentHistorySpeedFilter = "all" | "slow";
+export type ManagerDeploymentHistorySpeedFilter = "all" | "average" | "p95";
 
 export interface ManagerDeploymentHistoryFilters {
   dateFrom: string;
@@ -119,7 +119,8 @@ export function parseManagerDeploymentHistorySource(
 export function parseManagerDeploymentHistorySpeed(
   value: string | null,
 ): ManagerDeploymentHistorySpeedFilter {
-  return value === "slow" ? "slow" : "all";
+  if (value === "p95") return "p95";
+  return value === "average" || value === "slow" ? "average" : "all";
 }
 
 export function replaceManagerDeploymentHistoryQueryParams(

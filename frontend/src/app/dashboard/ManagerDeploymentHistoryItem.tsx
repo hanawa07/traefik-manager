@@ -11,6 +11,7 @@ import {
   MANAGER_DEPLOYMENT_STATUS_DISPLAY,
 } from "./managerDeploymentHistoryDisplay";
 import { ManagerDeploymentHistoryJsonDetails } from "./ManagerDeploymentHistoryJsonDetails";
+import { ManagerDeploymentStageDurations } from "./ManagerDeploymentStageDurations";
 import { buildManagerDeploymentLinks } from "./managerDeploymentLinks";
 import type { ManagerDeploymentHistoryRecordSource } from "./managerDeploymentHistoryQuery";
 import {
@@ -19,24 +20,26 @@ import {
 } from "./managerWatchdogStatus";
 
 interface ManagerDeploymentHistoryItemProps {
-  averageDurationMs: number | null;
   entry: ManagerDeploymentHistoryEntry;
   entrySource?: ManagerDeploymentHistoryRecordSource;
   onCopy: (label: string, value: string) => void;
   previousVersion?: string;
   searchText: string;
   source?: string | null;
+  thresholdDurationMs: number | null;
+  thresholdLabel: "P95" | "평균";
   timezone?: string;
 }
 
 export function ManagerDeploymentHistoryItem({
-  averageDurationMs,
   entry,
   entrySource,
   onCopy,
   previousVersion,
   searchText,
   source,
+  thresholdDurationMs,
+  thresholdLabel,
   timezone,
 }: ManagerDeploymentHistoryItemProps) {
   const status = MANAGER_DEPLOYMENT_STATUS_DISPLAY[entry.status];
@@ -44,8 +47,8 @@ export function ManagerDeploymentHistoryItem({
   const duration = durationMs === null
     ? "확인 불가"
     : formatManagerDeploymentDurationMs(durationMs);
-  const excessDurationMs = getManagerDeploymentExcessDurationMs(durationMs, averageDurationMs);
-  const isSlowerThanAverage = excessDurationMs !== null;
+  const excessDurationMs = getManagerDeploymentExcessDurationMs(durationMs, thresholdDurationMs);
+  const isSlowerThanThreshold = excessDurationMs !== null;
   const links = buildManagerDeploymentLinks({
     latestVersion: entry.version,
     previousVersion,
@@ -56,13 +59,13 @@ export function ManagerDeploymentHistoryItem({
 
   return (
     <li
-      className={`rounded-lg border px-3 py-2.5 ${isSlowerThanAverage
+      className={`rounded-lg border px-3 py-2.5 ${isSlowerThanThreshold
         ? "border-orange-300 bg-orange-50/70 dark:border-orange-500/50 dark:bg-orange-950/20"
         : "border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900"
       }`}
       data-deployment-failure-stage={entry.failure_stage ?? (entry.status === "success" ? undefined : "unknown")}
       data-deployment-delay-ms={excessDurationMs ?? undefined}
-      data-deployment-slow={isSlowerThanAverage ? "true" : "false"}
+      data-deployment-slow={isSlowerThanThreshold ? "true" : "false"}
       data-deployment-status={entry.status}
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -81,12 +84,12 @@ export function ManagerDeploymentHistoryItem({
             {entrySource === "current" ? "현재" : "보관"}
           </span>
         ) : null}
-        {isSlowerThanAverage ? (
+        {isSlowerThanThreshold ? (
           <span
             className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-800 dark:bg-orange-500/20 dark:text-orange-100"
             data-deployment-slow-badge
           >
-            평균보다 +{formatManagerDeploymentDurationMs(excessDurationMs)}
+            {thresholdLabel}보다 +{formatManagerDeploymentDurationMs(excessDurationMs)}
           </span>
         ) : null}
         <span
@@ -150,6 +153,7 @@ export function ManagerDeploymentHistoryItem({
         {" · "}
         {formatProbe(entry)} · {formatDateTime(entry.completed_at, timezone)}
       </p>
+      <ManagerDeploymentStageDurations durations={entry.stage_durations_ms} />
       {entry.failure_reason ? (
         <div
           className="mt-2 flex items-start gap-2 rounded-md bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-100"

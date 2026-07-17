@@ -3,6 +3,7 @@ import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/de
 import type {
   ManagerDeploymentHistoryFailureStage,
   ManagerDeploymentHistoryPeriodFilter,
+  ManagerDeploymentHistorySpeedFilter,
   ManagerDeploymentHistoryStatusFilter,
 } from "./managerDeploymentHistoryQuery";
 
@@ -120,16 +121,32 @@ export function getManagerDeploymentDurationStats(
       durations.reduce((total, duration) => total + duration, 0) / durations.length,
     ),
     medianMs,
-    p95Ms: durations[Math.ceil(durations.length * 0.95) - 1],
+    p95Ms: percentile(durations, 0.95),
   };
+}
+
+export function getManagerDeploymentSpeedThresholdMs(
+  stats: ManagerDeploymentDurationStats,
+  speed: ManagerDeploymentHistorySpeedFilter,
+): number | null {
+  return speed === "p95" ? stats.p95Ms : stats.averageMs;
 }
 
 export function getManagerDeploymentExcessDurationMs(
   durationMs: number | null,
-  averageDurationMs: number | null,
+  thresholdDurationMs: number | null,
 ): number | null {
-  if (durationMs === null || averageDurationMs === null || durationMs <= averageDurationMs) {
+  if (durationMs === null || thresholdDurationMs === null || durationMs <= thresholdDurationMs) {
     return null;
   }
-  return durationMs - averageDurationMs;
+  return durationMs - thresholdDurationMs;
+}
+
+function percentile(sortedDurations: number[], ratio: number): number {
+  const position = (sortedDurations.length - 1) * ratio;
+  const lowerIndex = Math.floor(position);
+  const upperIndex = Math.ceil(position);
+  const lower = sortedDurations[lowerIndex];
+  const upper = sortedDurations[upperIndex];
+  return Math.round(lower + (upper - lower) * (position - lowerIndex));
 }
