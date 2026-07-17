@@ -10,7 +10,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   const payload = JSON.parse(json.text);
   assert.match(payload.metadata.exported_at, /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(payload.metadata.result_count, 1);
-  assert.equal(payload.metadata.schema_version, 2);
+  assert.equal(payload.metadata.schema_version, 3);
   assert.equal(typeof payload.metadata.timezone, "string");
   assert.ok(payload.metadata.timezone);
   assert.deepEqual(payload.metadata.filters, {
@@ -25,6 +25,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   });
   assert.equal(payload.entries.length, 1, "Manager JSON 내보내기에 현재 필터가 반영되지 않았습니다");
   assert.equal(payload.entries[0].failure_stage, "public_probe");
+  assert.equal(payload.entries[0].stage_durations_ms.public_probe, 18_000);
   await waitForExportToast({
     cdp,
     filename: json.filename,
@@ -81,13 +82,15 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   assert.match(csv.filename, /deployments-archive-all-time-all-\d{4}-\d{2}-\d{2}\.csv$/);
   assert.deepEqual(csv.bytes, [239, 187, 191], "Manager CSV UTF-8 BOM이 없습니다");
   assert.match(csv.text, /^metadata,value\r\n/);
-  assert.match(csv.text, /\r\nschema_version,"2"\r\n/);
+  assert.match(csv.text, /\r\nschema_version,"3"\r\n/);
   assert.match(csv.text, /\r\ntimezone,"[^"]+"\r\n/);
   assert.match(csv.text, /\r\nresult_count,"2"\r\n/);
   assert.match(csv.text, /\r\nfilter_source,"archive"\r\n/);
   assert.match(csv.text, /\r\nfilter_speed,"all"\r\n/);
   assert.match(csv.text, /\r\nfilter_period,"all"\r\n/);
   assert.match(csv.text, /\r\n\r\nstatus,from_slot,to_slot,/);
+  assert.match(csv.text, /failure_reason,stage_durations_ms,alert_request_status/);
+  assert.match(csv.text, /\{\"\"prepare\"\":10000,\"\"build\"\":110000\}/);
   assert.match(csv.text, /"'=archive fixture probe failure"/);
   assert.match(csv.text, /"'\+archive fixture build failure"/);
   await waitForExportToast({
@@ -123,24 +126,24 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   assert.match(combinedCsv.text, /"current","success"/);
   assert.equal(combinedCsv.text.match(/"archive"/g)?.length, 2);
 
-  await clickSlowFilter({ cdp, timeoutMs });
-  await checkExportButtonCount(cdp, 2);
+  await clickP95Filter({ cdp, timeoutMs });
+  await checkExportButtonCount(cdp, 1);
   const slowJson = await captureHistoryDownload(cdp, "json");
   assert.match(
     slowJson.filename,
-    /deployments-all-all-time-all-slow-\d{4}-\d{2}-\d{2}\.json$/,
+    /deployments-all-all-time-all-slow-p95-\d{4}-\d{2}-\d{2}\.json$/,
   );
   const slowPayload = JSON.parse(slowJson.text);
-  assert.equal(slowPayload.metadata.filters.speed, "slow");
-  assert.equal(slowPayload.metadata.result_count, 2);
+  assert.equal(slowPayload.metadata.filters.speed, "p95");
+  assert.equal(slowPayload.metadata.result_count, 1);
   assert.deepEqual(
     slowPayload.entries.map((entry) => entry.source),
-    ["archive", "archive"],
+    ["archive"],
   );
   await waitForExportToast({
     cdp,
     filename: slowJson.filename,
-    filterSummary: "현재·보관 통합 · 전체 기간 · 전체 · 속도 평균 초과",
+    filterSummary: "현재·보관 통합 · 전체 기간 · 전체 · 속도 P95 초과",
     format: "JSON",
     timeoutMs,
   });
@@ -156,21 +159,21 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   );
 }
 
-async function clickSlowFilter({ cdp, timeoutMs }) {
+async function clickP95Filter({ cdp, timeoutMs }) {
   const clicked = await evaluate(cdp, `(() => {
-    const button = document.querySelector('[data-deployment-speed-filter="slow"]');
+    const button = document.querySelector('[data-deployment-speed-filter="p95"]');
     button?.click();
     return Boolean(button);
   })()`);
-  assert.equal(clicked, true, "Manager 느린 배포 내보내기 필터를 찾지 못했습니다");
+  assert.equal(clicked, true, "Manager P95 초과 내보내기 필터를 찾지 못했습니다");
   await waitForCondition(
     cdp,
-    `new URLSearchParams(location.search).get('deployment_speed') === 'slow' &&
+    `new URLSearchParams(location.search).get('deployment_speed') === 'p95' &&
       document.querySelectorAll(
         '[data-history-source="all"] li[data-deployment-status]',
-      ).length === 2`,
+      ).length === 1`,
     timeoutMs,
-    "Manager 느린 배포 내보내기 필터가 적용되지 않았습니다",
+    "Manager P95 초과 내보내기 필터가 적용되지 않았습니다",
   );
 }
 

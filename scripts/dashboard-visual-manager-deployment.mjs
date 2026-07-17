@@ -31,6 +31,16 @@ const CURRENT_FIXTURE_ENTRIES = [
     alert_run_conclusion: null,
     alert_run_checked_at: null,
     alert_run_error: null,
+    stage_durations_ms: {
+      prepare: 1_000,
+      build: 10_000,
+      migration_preflight: 2_000,
+      candidate_health: 7_000,
+      route_switch: 1_000,
+      leader_handover: 5_000,
+      public_probe: 3_000,
+      state_write: 1_000,
+    },
   },
 ];
 
@@ -54,6 +64,16 @@ const ARCHIVE_FIXTURE_ENTRIES = [
     alert_run_conclusion: null,
     alert_run_checked_at: null,
     alert_run_error: null,
+    stage_durations_ms: {
+      prepare: 2_000,
+      build: 12_000,
+      migration_preflight: 3_000,
+      candidate_health: 10_000,
+      route_switch: 5_000,
+      leader_handover: 8_000,
+      public_probe: 18_000,
+      state_write: 2_000,
+    },
   },
   {
     status: "failed_before_switch",
@@ -62,7 +82,7 @@ const ARCHIVE_FIXTURE_ENTRIES = [
     active_slot: "green",
     version: "v1.38.69",
     revision: "b".repeat(40),
-    started_at: fixtureTimestamp(10, 60_000),
+    started_at: fixtureTimestamp(10, 120_000),
     completed_at: fixtureTimestamp(10),
     probe_total: 0,
     probe_failures: 0,
@@ -74,6 +94,10 @@ const ARCHIVE_FIXTURE_ENTRIES = [
     alert_run_conclusion: null,
     alert_run_checked_at: null,
     alert_run_error: null,
+    stage_durations_ms: {
+      prepare: 10_000,
+      build: 110_000,
+    },
   },
 ];
 
@@ -211,7 +235,7 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
       ),
     };
   })()`);
-  assert.deepEqual(transitionSummary.durations, ["1분", "1분"]);
+  assert.deepEqual(transitionSummary.durations, ["1분", "2분"]);
   assert.match(transitionSummary.slots[0], /blue → green · 최종 활성 blue/);
   assert.match(transitionSummary.slots[1], /green → blue · 최종 활성 green/);
   await checkManagerDeploymentHistoryActions({ cdp, timeoutMs });
