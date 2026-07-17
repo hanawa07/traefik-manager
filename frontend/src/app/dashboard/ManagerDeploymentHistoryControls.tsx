@@ -103,14 +103,14 @@ export function ManagerDeploymentHistoryControls({
           )) : null}
           {entries.length > 0 ? (["json", "csv"] as const).map((format) => (
             <button
-              aria-label={`현재 화면 ${format.toUpperCase()} 내보내기`}
-              className="rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
+              aria-label={`현재 결과 ${filteredCount}건 ${format.toUpperCase()} 내보내기`}
+              className="whitespace-nowrap rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
               data-history-export={format}
               key={format}
               onClick={() => onExport(format)}
               type="button"
             >
-              {format.toUpperCase()} 내보내기
+              {format.toUpperCase()} 내보내기 · {filteredCount}건
             </button>
           )) : null}
         </div>

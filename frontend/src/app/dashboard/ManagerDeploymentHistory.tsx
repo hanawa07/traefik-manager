@@ -11,6 +11,11 @@ import {
 } from "./ManagerDeploymentHistoryControls";
 import { ManagerDeploymentHistoryItem } from "./ManagerDeploymentHistoryItem";
 import {
+  MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
+  MANAGER_DEPLOYMENT_FILTER_OPTIONS,
+  MANAGER_DEPLOYMENT_PERIOD_OPTIONS,
+} from "./managerDeploymentHistoryDisplay";
+import {
   downloadManagerDeploymentHistory,
   type ManagerDeploymentHistoryExportFormat,
 } from "./managerDeploymentHistoryExport";
@@ -165,7 +170,7 @@ function ManagerDeploymentHistoryContent({
         timezone,
       );
       setToastNotice({
-        detail: `${filename} · ${filteredEntries.length}건`,
+        detail: `${filename} · ${filteredEntries.length}건 · ${describeExportFilters(filters)}`,
         message: `${format.toUpperCase()} 내보내기 완료`,
         tone: "success",
       });
@@ -244,4 +249,24 @@ function getLocalDateBoundary(value: string, nextDay = false): number | null {
   const boundary = new Date(year, month - 1, day);
   if (nextDay) boundary.setDate(boundary.getDate() + 1);
   return boundary.getTime();
+}
+
+function describeExportFilters(filters: ManagerDeploymentHistoryFilters): string {
+  const source = filters.source === "all"
+    ? "현재·보관 통합"
+    : filters.source === "archive" ? "회전 보관" : "최근";
+  const period = filters.dateFrom || filters.dateTo
+    ? `기간 ${filters.dateFrom || "처음"}~${filters.dateTo || "오늘"}`
+    : MANAGER_DEPLOYMENT_PERIOD_OPTIONS.find((option) => option.value === filters.period)?.label;
+  const status = MANAGER_DEPLOYMENT_FILTER_OPTIONS.find(
+    (option) => option.value === filters.status,
+  )?.label;
+  const summary = [source, period, status];
+  if (filters.stage !== "all") {
+    summary.push(`단계 ${filters.stage === "unknown"
+      ? "미기록"
+      : MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS[filters.stage]}`);
+  }
+  if (filters.search.trim()) summary.push(`검색 "${filters.search.trim()}"`);
+  return summary.filter(Boolean).join(" · ");
 }
