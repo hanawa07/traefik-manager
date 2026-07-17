@@ -25,6 +25,7 @@ SETTINGS_UPDATE_EVENTS = {
     "login_defense": "settings_update_login_defense",
     "security_alert": "settings_update_security_alert",
     "smoke_monitoring": "settings_update_smoke_monitoring",
+    "deployment_bottleneck": "settings_update_deployment_bottleneck",
 }
 
 SETTINGS_ROLLBACK_EVENTS = {

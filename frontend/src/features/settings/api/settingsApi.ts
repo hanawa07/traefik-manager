@@ -5,6 +5,7 @@ import { securityAlertSettingsApi } from "./settingsSecurityAlertApi";
 import { settingsBackupApi } from "./settingsBackupApi";
 import { settingsHistoryApi } from "./settingsHistoryApi";
 import { smokeRotationSettingsApi } from "./settingsSmokeRotationApi";
+import { deploymentBottleneckSettingsApi } from "./settingsDeploymentBottleneckApi";
 
 export type {
   AuditArchiveItem,
@@ -33,6 +34,7 @@ export type {
   CloudflareZoneInput,
   CloudflareZoneStatus,
 } from "./settingsCloudflareApi";
+export type { DeploymentBottleneckSettings } from "./settingsDeploymentBottleneckApi";
 export type {
   CertificateDiagnosticsSettingsInput,
   CertificateDiagnosticsSettingsStatus,
@@ -78,4 +80,5 @@ export const settingsApi = {
   ...settingsHistoryApi,
   ...settingsBackupApi,
   ...smokeRotationSettingsApi,
+  ...deploymentBottleneckSettingsApi,
 };

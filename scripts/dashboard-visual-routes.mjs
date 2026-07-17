@@ -98,6 +98,7 @@ export const DASHBOARD_ROUTES = [
       "API 오류 제외 경로",
       "외부 watchdog 지연 판정",
       "감사 로그 보존",
+      "배포 병목 운영 알림",
       "오래된 감사 로그를 매일 정리합니다",
     ],
   },

@@ -14,6 +14,7 @@ export {
   useRefreshSmokeMonitoringHistory,
   useRunAuditRetentionCleanup,
   useUpdateCertificateDiagnosticsSettings,
+  useUpdateDeploymentBottleneckSettings,
   useUpdateAuditRetentionSettings,
   useUpdateLoginDefenseSettings,
   useUpdateSmokeMonitoringSettings,

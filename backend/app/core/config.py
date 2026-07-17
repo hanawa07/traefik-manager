@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     TRAEFIK_MANAGER_REQUEST_LOG_PATH: str = "./data/manager-http-requests.jsonl"
     SMOKE_ROTATION_LOG_PATH: str = "/host-state/traefik-manager/smoke-password-rotation.log"
     MANAGER_DEPLOYMENT_HISTORY_PATH: str = "/host-state/traefik-manager/blue-green-deployments.jsonl"
+    MANAGER_DEPLOYMENT_BOTTLENECK_CONFIG_PATH: str = (
+        "/traefik-config/.runtime/manager-deployment-bottleneck.conf"
+    )
 
     CLOUDFLARE_API_TOKEN: str | None = None
     CLOUDFLARE_ZONE_ID: str | None = None

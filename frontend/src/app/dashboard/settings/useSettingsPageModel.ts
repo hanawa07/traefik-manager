@@ -5,6 +5,7 @@ import { useBackupRestoreSettings } from "@/features/settings/hooks/useBackupRes
 import { useCloudflareDnsSettingsSection } from "@/features/settings/hooks/useCloudflareDnsSettingsSection";
 import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
 import { useCertificateDiagnosticsSettingsModel } from "./useCertificateDiagnosticsSettingsModel";
+import { useDeploymentBottleneckSettingsModel } from "./useDeploymentBottleneckSettingsModel";
 import { useAuditRetentionSettingsModel } from "./useAuditRetentionSettingsModel";
 import { useLoginDefenseSettingsModel } from "./useLoginDefenseSettingsModel";
 import { useSecurityAlertSettingsModel } from "./useSecurityAlertSettingsModel";
@@ -30,6 +31,7 @@ export function useSettingsPageModel() {
   const displayTimezone = timeDisplay.displayTimezone;
   const auditRetention = useAuditRetentionSettingsModel(canManage, displayTimezone, setToastNotice);
   const certificateDiagnostics = useCertificateDiagnosticsSettingsModel(canManage, setToastNotice);
+  const deploymentBottleneck = useDeploymentBottleneckSettingsModel(canManage, setToastNotice);
   const upstreamSecurity = useUpstreamSecuritySettingsModel(canManage, setToastNotice);
   const loginDefense = useLoginDefenseSettingsModel(canManage, setToastNotice);
   const securityAlert = useSecurityAlertSettingsModel(canManage, displayTimezone, setToastNotice);
@@ -49,6 +51,7 @@ export function useSettingsPageModel() {
     timeDisplay: timeDisplay.card,
     auditRetention,
     certificateDiagnostics,
+    deploymentBottleneck,
     upstreamSecurity,
     loginDefense,
     securityAlert,

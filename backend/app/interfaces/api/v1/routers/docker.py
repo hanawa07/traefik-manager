@@ -11,6 +11,9 @@ from app.infrastructure.manager_deployment_history import (
     read_manager_deployment_history,
     read_manager_deployment_history_archive_with_summary,
 )
+from app.infrastructure.manager_deployment_bottleneck import (
+    read_manager_deployment_bottleneck_state,
+)
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
@@ -60,6 +63,21 @@ def _enrich_deployment_history(
             }
         )
     return enriched_entries
+
+
+def _enrich_bottleneck_alert(
+    alert: dict[str, object],
+    run_statuses: dict[str, dict[str, object]],
+) -> dict[str, object]:
+    run_url = alert.get("run_url")
+    run_status = run_statuses.get(run_url) if isinstance(run_url, str) else None
+    return {
+        **alert,
+        "run_status": run_status.get("external_watchdog_last_alert_run_status") if run_status else None,
+        "run_conclusion": run_status.get("external_watchdog_last_alert_run_conclusion") if run_status else None,
+        "run_checked_at": run_status.get("external_watchdog_last_alert_run_checked_at") if run_status else None,
+        "run_error": run_status.get("external_watchdog_last_alert_run_error") if run_status else None,
+    }
 
 
 @router.get("/containers", response_model=DockerContainerListResponse, summary="Docker 컨테이너 목록")
@@ -143,6 +161,8 @@ async def get_deployment_info(
             deployment_history_archive,
             deployment_history_archive_summary,
         ) = read_manager_deployment_history_archive_with_summary()
+        bottleneck_alert = read_manager_deployment_bottleneck_state()
+        bottleneck_run_url = bottleneck_alert.get("run_url")
         deployment_alert_urls = list(
             dict.fromkeys(
                 entry["alert_run_url"]
@@ -154,6 +174,8 @@ async def get_deployment_info(
         if last_run_url and last_run_url not in run_urls:
             run_urls.append(last_run_url)
         run_urls.extend(url for url in deployment_alert_urls if url not in run_urls)
+        if isinstance(bottleneck_run_url, str) and bottleneck_run_url not in run_urls:
+            run_urls.append(bottleneck_run_url)
         reader = GitHubActionsRunStatusReader()
         run_statuses = await reader.get_statuses(run_urls)
         run_status = run_statuses.get(last_run_url) or await reader.get_status(last_run_url)
@@ -190,6 +212,10 @@ async def get_deployment_info(
                 run_statuses,
             ),
             "deployment_history_archive_summary": deployment_history_archive_summary,
+            "deployment_bottleneck_alert": _enrich_bottleneck_alert(
+                bottleneck_alert,
+                run_statuses,
+            ),
             "external_watchdog_alert_runs": enriched_alert_runs,
         }
     except DockerClientError as exc:

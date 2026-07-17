@@ -30,6 +30,13 @@ export function useUpdateCertificateDiagnosticsSettings() {
   );
 }
 
+export function useUpdateDeploymentBottleneckSettings() {
+  return useSettingsMutationForQuery(
+    settingsApi.updateDeploymentBottleneckSettings,
+    settingsQueryKeys.deploymentBottleneck,
+  );
+}
+
 export function useUpdateTraefikDashboardSettings() {
   return useSettingsMutationForQuery(
     settingsApi.updateTraefikDashboardSettings,

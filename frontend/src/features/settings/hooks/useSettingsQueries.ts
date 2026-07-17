@@ -27,6 +27,13 @@ export function useCertificateDiagnosticsSettings() {
   );
 }
 
+export function useDeploymentBottleneckSettings() {
+  return useSettingsQuery(
+    settingsQueryKeys.deploymentBottleneck,
+    settingsApi.getDeploymentBottleneckSettings,
+  );
+}
+
 export function useTraefikDashboardSettings() {
   return useSettingsQuery(settingsQueryKeys.traefikDashboard, settingsApi.getTraefikDashboardSettings);
 }

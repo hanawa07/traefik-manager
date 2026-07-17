@@ -4,6 +4,7 @@ import { BackupRestoreSettingsCard } from "@/features/settings/components/Backup
 import { AuditRetentionSettingsCard } from "@/features/settings/components/AuditRetentionSettingsCard";
 import { CertificateDiagnosticsSettingsCard } from "@/features/settings/components/CertificateDiagnosticsSettingsCard";
 import { CloudflareDnsSettingsCard } from "@/features/settings/components/CloudflareDnsSettingsCard";
+import { DeploymentBottleneckSettingsCard } from "@/features/settings/components/DeploymentBottleneckSettingsCard";
 import { LoginDefenseSettingsCard } from "@/features/settings/components/LoginDefenseSettingsCard";
 import { SecurityAlertSettingsCard } from "@/features/settings/components/SecurityAlertSettingsCard";
 import { SmokeRotationStatusCard } from "@/features/settings/components/SmokeRotationStatusCard";
@@ -18,6 +19,7 @@ interface SettingsPageSectionsProps {
   timeDisplay: ComponentProps<typeof TimeDisplaySettingsCard>;
   auditRetention: ComponentProps<typeof AuditRetentionSettingsCard>;
   certificateDiagnostics: ComponentProps<typeof CertificateDiagnosticsSettingsCard>;
+  deploymentBottleneck: ComponentProps<typeof DeploymentBottleneckSettingsCard>;
   upstreamSecurity: ComponentProps<typeof UpstreamSecuritySettingsCard>;
   loginDefense: ComponentProps<typeof LoginDefenseSettingsCard>;
   securityAlert: ComponentProps<typeof SecurityAlertSettingsCard>;
@@ -33,6 +35,7 @@ export function SettingsPageSections({
   timeDisplay,
   auditRetention,
   certificateDiagnostics,
+  deploymentBottleneck,
   upstreamSecurity,
   loginDefense,
   securityAlert,
@@ -47,6 +50,7 @@ export function SettingsPageSections({
       <TimeDisplaySettingsCard {...timeDisplay} />
       <AuditRetentionSettingsCard {...auditRetention} />
       <CertificateDiagnosticsSettingsCard {...certificateDiagnostics} />
+      <DeploymentBottleneckSettingsCard {...deploymentBottleneck} />
       <UpstreamSecuritySettingsCard {...upstreamSecurity} />
       <LoginDefenseSettingsCard {...loginDefense} />
       <SecurityAlertSettingsCard {...securityAlert} />

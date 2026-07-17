@@ -20,6 +20,7 @@ import {
 } from "./ManagerDeploymentCardParts";
 import { ManagerHttpErrorTrend } from "./ManagerHttpErrorTrend";
 import { ManagerDeploymentHistory } from "./ManagerDeploymentHistory";
+import { ManagerDeploymentBottleneckStatusCard } from "./ManagerDeploymentBottleneckStatusCard";
 import { ManagerRouteStatusCard } from "./ManagerRouteStatusCard";
 import { ManagerWatchdogAlertHistory } from "./ManagerWatchdogAlertHistory";
 
@@ -196,6 +197,11 @@ export function ManagerDeploymentCard({
             : ""}
         </p>
       </div>
+
+      <ManagerDeploymentBottleneckStatusCard
+        alert={deployment?.deployment_bottleneck_alert}
+        timezone={timezone}
+      />
 
       <ManagerRouteStatusCard route={deployment?.manager_route} />
 

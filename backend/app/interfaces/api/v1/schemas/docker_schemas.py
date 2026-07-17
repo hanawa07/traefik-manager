@@ -214,6 +214,7 @@ class ManagerDeploymentHistoryEntryResponse(BaseModel):
     alert_run_checked_at: datetime | None = None
     alert_run_error: str | None = None
     stage_durations_ms: dict[ManagerDeploymentStage, int] = Field(default_factory=dict)
+    archive_sample: Literal["detailed", "daily"] | None = None
 
 
 class ManagerDeploymentHistoryArchiveSummaryResponse(BaseModel):
@@ -221,6 +222,32 @@ class ManagerDeploymentHistoryArchiveSummaryResponse(BaseModel):
     daily_count: int = Field(default=0, ge=0)
     newest_at: datetime | None = None
     oldest_at: datetime | None = None
+
+
+class ManagerDeploymentBottleneckAlertResponse(BaseModel):
+    status: Literal[
+        "not_checked",
+        "no_history",
+        "normal",
+        "pending",
+        "alerted",
+        "request_failed",
+    ] = "not_checked"
+    configured_threshold_ms: int = Field(default=60_000, ge=1_000, le=900_000)
+    configured_consecutive_count: int = Field(default=3, ge=1, le=20)
+    effective_threshold_ms: int = Field(default=60_000, ge=1_000, le=900_000)
+    effective_consecutive_count: int = Field(default=3, ge=1, le=20)
+    current_consecutive_count: int = Field(default=0, ge=0)
+    checked_at: datetime | None = None
+    latest_version: str | None = None
+    slowest_stage: ManagerDeploymentStage | None = None
+    slowest_ms: int = Field(default=0, ge=0)
+    alerted_at: datetime | None = None
+    run_url: str | None = None
+    run_status: str | None = None
+    run_conclusion: str | None = None
+    run_checked_at: datetime | None = None
+    run_error: str | None = None
 
 
 class DockerDeploymentInfoResponse(BaseModel):
@@ -258,5 +285,8 @@ class DockerDeploymentInfoResponse(BaseModel):
     )
     deployment_history_archive_summary: ManagerDeploymentHistoryArchiveSummaryResponse = Field(
         default_factory=ManagerDeploymentHistoryArchiveSummaryResponse
+    )
+    deployment_bottleneck_alert: ManagerDeploymentBottleneckAlertResponse = Field(
+        default_factory=ManagerDeploymentBottleneckAlertResponse
     )
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)

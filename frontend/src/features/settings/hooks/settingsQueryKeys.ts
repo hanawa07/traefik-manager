@@ -4,6 +4,7 @@ export const settingsQueryKeys = {
   auditLogs: ["audit-logs"] as const,
   certificateDiagnostics: ["settings", "certificate-diagnostics"] as const,
   cloudflare: ["settings", "cloudflare"] as const,
+  deploymentBottleneck: ["settings", "deployment-bottleneck-alert"] as const,
   loginDefense: ["settings", "login-defense"] as const,
   redirectHosts: ["redirect-hosts"] as const,
   securityAlerts: ["settings", "security-alerts"] as const,

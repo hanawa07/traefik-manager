@@ -117,6 +117,7 @@ export interface ManagerDeploymentHistoryEntry {
   alert_run_checked_at: string | null;
   alert_run_error: string | null;
   stage_durations_ms: Partial<Record<ManagerDeploymentStage, number>>;
+  archive_sample: "detailed" | "daily" | null;
 }
 
 export interface ManagerDeploymentHistoryArchiveSummary {
@@ -124,6 +125,25 @@ export interface ManagerDeploymentHistoryArchiveSummary {
   daily_count: number;
   newest_at: string | null;
   oldest_at: string | null;
+}
+
+export interface ManagerDeploymentBottleneckAlert {
+  status: "not_checked" | "no_history" | "normal" | "pending" | "alerted" | "request_failed";
+  configured_threshold_ms: number;
+  configured_consecutive_count: number;
+  effective_threshold_ms: number;
+  effective_consecutive_count: number;
+  current_consecutive_count: number;
+  checked_at: string | null;
+  latest_version: string | null;
+  slowest_stage: ManagerDeploymentStage | null;
+  slowest_ms: number;
+  alerted_at: string | null;
+  run_url: string | null;
+  run_status: string | null;
+  run_conclusion: string | null;
+  run_checked_at: string | null;
+  run_error: string | null;
 }
 
 export interface DeploymentInfo {
@@ -158,6 +178,7 @@ export interface DeploymentInfo {
   deployment_history: ManagerDeploymentHistoryEntry[];
   deployment_history_archive: ManagerDeploymentHistoryEntry[];
   deployment_history_archive_summary: ManagerDeploymentHistoryArchiveSummary;
+  deployment_bottleneck_alert: ManagerDeploymentBottleneckAlert;
   components: DeploymentComponent[];
 }
 
