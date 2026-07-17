@@ -3,7 +3,10 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
-import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/deploymentApi";
+import type {
+  ManagerDeploymentHistoryArchiveSummary,
+  ManagerDeploymentHistoryEntry,
+} from "@/features/deployment/api/deploymentApi";
 import ToastNotice, { type ToastNoticeValue } from "@/shared/components/ToastNotice";
 
 import {
@@ -52,6 +55,7 @@ import {
 
 interface ManagerDeploymentHistoryProps {
   archiveEntries?: ManagerDeploymentHistoryEntry[];
+  archiveSummary?: ManagerDeploymentHistoryArchiveSummary;
   entries?: ManagerDeploymentHistoryEntry[];
   source?: string | null;
   timezone?: string;
@@ -67,6 +71,7 @@ export function ManagerDeploymentHistory(props: ManagerDeploymentHistoryProps) {
 
 function ManagerDeploymentHistoryContent({
   archiveEntries = [],
+  archiveSummary,
   entries = [],
   source,
   timezone,
@@ -248,7 +253,9 @@ function ManagerDeploymentHistoryContent({
       >
         <ManagerDeploymentHistoryControls
           archiveCount={archiveEntries.length}
+          archiveSummary={archiveSummary}
           currentCount={entries.length}
+          detailEntries={filteredEntries}
           durationStats={durationStats}
           entries={visibleEntries}
           filteredCount={filteredEntries.length}
@@ -258,6 +265,7 @@ function ManagerDeploymentHistoryContent({
           previousPeriodEntries={periodComparison?.entries ?? null}
           summaryCurrentCount={summaryCurrentCount}
           summaryEntries={summaryEntries}
+          timezone={timezone}
         />
 
         <ManagerDeploymentDurationTrend

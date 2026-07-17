@@ -102,6 +102,11 @@ export async function checkManagerDeploymentPeriodComparison(cdp) {
     };
     return {
       exists: Boolean(document.querySelector('[data-deployment-stage-comparison]')),
+      links: Array.from(document.querySelectorAll('[data-stage-version-link]')).map((link) => ({
+        stage: link.getAttribute('data-stage-version-link'),
+        targetExists: Boolean(document.querySelector(link.getAttribute('href'))),
+        text: link.textContent?.trim(),
+      })),
       rows: document.querySelectorAll('[data-stage-period-comparison]').length,
       prepare: read('prepare'),
       build: read('build'),
@@ -109,9 +114,38 @@ export async function checkManagerDeploymentPeriodComparison(cdp) {
   })()`);
   assert.deepEqual(stageComparison, {
     exists: true,
+    links: [
+      'prepare',
+      'build',
+      'migration_preflight',
+      'candidate_health',
+      'route_switch',
+      'leader_handover',
+      'public_probe',
+      'state_write',
+    ].map((stage) => ({ stage, targetExists: true, text: 'v1.38.70' })),
     rows: 8,
     prepare: { current: "2000", delta: "-80", previous: "10000" },
     build: { current: "12000", delta: "-89", previous: "110000" },
+  });
+
+  const drillDown = await evaluate(cdp, `(() => {
+    const link = document.querySelector('[data-stage-version-link="build"]');
+    if (!(link instanceof HTMLAnchorElement)) return null;
+    link.click();
+    const target = document.querySelector(link.hash);
+    const result = {
+      hashMatches: location.hash === link.hash,
+      open: target?.querySelector('[data-deployment-stage-durations]')?.open === true,
+      targetMatches: target?.id === link.hash.slice(1),
+    };
+    history.replaceState(null, '', location.pathname + location.search);
+    return result;
+  })()`);
+  assert.deepEqual(drillDown, {
+    hashMatches: true,
+    open: true,
+    targetMatches: true,
   });
 }
 

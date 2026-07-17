@@ -204,6 +204,12 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
     ...response.body,
     deployment_history: CURRENT_FIXTURE_ENTRIES,
     deployment_history_archive: ARCHIVE_FIXTURE_ENTRIES,
+    deployment_history_archive_summary: {
+      detailed_count: 1,
+      daily_count: 1,
+      newest_at: ARCHIVE_FIXTURE_ENTRIES[0].completed_at,
+      oldest_at: ARCHIVE_FIXTURE_ENTRIES[1].completed_at,
+    },
   };
 
   await reloadWithDeploymentFixture({ cdp, fixture, timeoutMs });
@@ -211,7 +217,10 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
     cdp,
     `document.querySelector('[data-history-source="current"] [data-history-source-filter="archive"]')?.textContent?.includes('보관 이력 2') &&
       document.querySelector('[data-history-source="current"] [data-history-source-filter="all"]')?.textContent?.includes('통합 3') &&
-      document.querySelector('[data-deployment-history-retention]')?.textContent?.includes('UTC 날짜별 마지막 배포 1건')`,
+      document.querySelector('[data-deployment-history-retention]')?.textContent?.includes('UTC 날짜별 마지막 배포 1건') &&
+      document.querySelector('[data-deployment-history-retention]')?.getAttribute('data-detailed-archive-count') === '1' &&
+      document.querySelector('[data-deployment-history-retention]')?.getAttribute('data-daily-archive-count') === '1' &&
+      document.querySelector('[data-deployment-archive-range]')?.textContent?.includes('~')`,
     timeoutMs,
     "Manager 현재·통합·보관 이력 source 버튼이 표시되지 않았습니다",
   );

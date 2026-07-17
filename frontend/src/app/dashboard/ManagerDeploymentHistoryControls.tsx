@@ -1,6 +1,9 @@
 import { History, RotateCcw, Search, X } from "lucide-react";
 
-import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/deploymentApi";
+import type {
+  ManagerDeploymentHistoryArchiveSummary as ManagerDeploymentHistoryArchiveSummaryValue,
+  ManagerDeploymentHistoryEntry,
+} from "@/features/deployment/api/deploymentApi";
 
 import {
   type ManagerDeploymentDurationStats,
@@ -19,6 +22,7 @@ import {
 } from "./managerDeploymentHistoryQuery";
 import { ManagerDeploymentDateRange } from "./ManagerDeploymentDateRange";
 import { ManagerDeploymentBottleneckAlert } from "./ManagerDeploymentBottleneckAlert";
+import { ManagerDeploymentHistoryArchiveSummary } from "./ManagerDeploymentHistoryArchiveSummary";
 import { ManagerDeploymentFailureSummary } from "./ManagerDeploymentFailureSummary";
 import { ManagerDeploymentOutcomeSummary } from "./ManagerDeploymentOutcomeSummary";
 import { ManagerDeploymentStageComparison } from "./ManagerDeploymentStageComparison";
@@ -26,7 +30,9 @@ import { ManagerDeploymentStageSummary } from "./ManagerDeploymentStageSummary";
 
 interface ManagerDeploymentHistoryControlsProps {
   archiveCount: number;
+  archiveSummary?: ManagerDeploymentHistoryArchiveSummaryValue;
   currentCount: number;
+  detailEntries: ManagerDeploymentHistoryEntry[];
   durationStats: ManagerDeploymentDurationStats;
   entries: ManagerDeploymentHistoryEntry[];
   filteredCount: number;
@@ -36,11 +42,14 @@ interface ManagerDeploymentHistoryControlsProps {
   previousPeriodEntries: ManagerDeploymentHistoryEntry[] | null;
   summaryCurrentCount: number;
   summaryEntries: ManagerDeploymentHistoryEntry[];
+  timezone?: string;
 }
 
 export function ManagerDeploymentHistoryControls({
   archiveCount,
+  archiveSummary,
   currentCount,
+  detailEntries,
   durationStats,
   entries,
   filteredCount,
@@ -50,6 +59,7 @@ export function ManagerDeploymentHistoryControls({
   previousPeriodEntries,
   summaryCurrentCount,
   summaryEntries,
+  timezone,
 }: ManagerDeploymentHistoryControlsProps) {
   const sourceLabel = filters.source === "all"
     ? "현재·보관 통합"
@@ -130,12 +140,7 @@ export function ManagerDeploymentHistoryControls({
         threshold={filters.bottleneckThreshold}
       />
 
-      <p
-        className="mt-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400"
-        data-deployment-history-retention
-      >
-        상세 회전본 이후 오래된 기록은 UTC 날짜별 마지막 배포 1건으로 축약해 보관합니다.
-      </p>
+      <ManagerDeploymentHistoryArchiveSummary summary={archiveSummary} timezone={timezone} />
 
       {entries.length > 0 ? (
         <details className="mt-2 text-[11px] text-gray-500 dark:text-slate-400" data-history-export-help>
@@ -274,6 +279,7 @@ export function ManagerDeploymentHistoryControls({
 
       <ManagerDeploymentStageComparison
         currentEntries={summaryEntries}
+        detailEntries={detailEntries}
         previousEntries={previousPeriodEntries}
       />
 

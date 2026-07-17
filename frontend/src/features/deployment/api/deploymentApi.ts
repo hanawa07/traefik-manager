@@ -119,6 +119,13 @@ export interface ManagerDeploymentHistoryEntry {
   stage_durations_ms: Partial<Record<ManagerDeploymentStage, number>>;
 }
 
+export interface ManagerDeploymentHistoryArchiveSummary {
+  detailed_count: number;
+  daily_count: number;
+  newest_at: string | null;
+  oldest_at: string | null;
+}
+
 export interface DeploymentInfo {
   enabled: boolean;
   message: string;
@@ -150,6 +157,7 @@ export interface DeploymentInfo {
   manager_route: ManagerRouteStatus | null;
   deployment_history: ManagerDeploymentHistoryEntry[];
   deployment_history_archive: ManagerDeploymentHistoryEntry[];
+  deployment_history_archive_summary: ManagerDeploymentHistoryArchiveSummary;
   components: DeploymentComponent[];
 }
 

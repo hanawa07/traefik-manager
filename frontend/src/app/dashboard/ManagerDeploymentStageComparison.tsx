@@ -6,12 +6,15 @@ import {
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
 } from "./managerDeploymentHistoryDisplay";
 import type { ManagerDeploymentHistoryFailureStage } from "./managerDeploymentHistoryQuery";
+import { getManagerDeploymentHistoryAnchor } from "./managerDeploymentLinks";
 
 export function ManagerDeploymentStageComparison({
   currentEntries,
+  detailEntries,
   previousEntries,
 }: {
   currentEntries: ManagerDeploymentHistoryEntry[];
+  detailEntries: ManagerDeploymentHistoryEntry[];
   previousEntries: ManagerDeploymentHistoryEntry[] | null;
 }) {
   if (previousEntries === null) return null;
@@ -53,6 +56,9 @@ export function ManagerDeploymentStageComparison({
           const currentAverage = current.get(stage)?.averageMs ?? null;
           const previousAverage = previous.get(stage)?.averageMs ?? null;
           const deltaPercent = getDeltaPercent(currentAverage, previousAverage);
+          const versionEntries = detailEntries.filter(
+            (entry) => typeof entry.stage_durations_ms[stage] === "number",
+          ).slice(0, 3);
           return (
             <div
               data-current-stage-average-ms={currentAverage ?? undefined}
@@ -79,12 +85,41 @@ export function ManagerDeploymentStageComparison({
                 label="직전"
                 maxAverageMs={maxAverageMs}
               />
+              {versionEntries.length > 0 ? (
+                <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px]">
+                  <span className="text-slate-500 dark:text-slate-400">버전 상세</span>
+                  {versionEntries.map((entry) => {
+                    const anchor = getManagerDeploymentHistoryAnchor(
+                        entry.revision,
+                        entry.completed_at,
+                    );
+                    return (
+                      <a
+                        className="rounded-full bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-600 hover:bg-blue-100 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-blue-500/20 dark:hover:text-blue-200"
+                        data-stage-version-link={stage}
+                        href={`#${anchor}`}
+                        key={`${entry.revision}-${entry.completed_at}`}
+                        onClick={() => openStageDetails(anchor)}
+                      >
+                        {entry.version}
+                      </a>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
           );
         })}
       </div>
     </section>
   );
+}
+
+function openStageDetails(anchor: string): void {
+  const details = document.getElementById(anchor)?.querySelector(
+    "[data-deployment-stage-durations]",
+  );
+  if (details instanceof HTMLDetailsElement) details.open = true;
 }
 
 function ComparisonBar({

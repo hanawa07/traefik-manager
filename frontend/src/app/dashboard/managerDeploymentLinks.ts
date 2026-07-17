@@ -13,6 +13,13 @@ interface ManagerDeploymentLinks {
   sourceUrl?: string;
 }
 
+export function getManagerDeploymentHistoryAnchor(
+  revision: string,
+  completedAt: string,
+): string {
+  return `manager-deployment-${revision}-${Date.parse(completedAt)}`;
+}
+
 export function buildManagerDeploymentLinks({
   latestReleaseUrl,
   latestVersion,

@@ -12,7 +12,10 @@ import {
 } from "./managerDeploymentHistoryDisplay";
 import { ManagerDeploymentHistoryJsonDetails } from "./ManagerDeploymentHistoryJsonDetails";
 import { ManagerDeploymentStageDurations } from "./ManagerDeploymentStageDurations";
-import { buildManagerDeploymentLinks } from "./managerDeploymentLinks";
+import {
+  buildManagerDeploymentLinks,
+  getManagerDeploymentHistoryAnchor,
+} from "./managerDeploymentLinks";
 import type { ManagerDeploymentHistoryRecordSource } from "./managerDeploymentHistoryQuery";
 import {
   getExternalWatchdogRunLabel,
@@ -61,7 +64,7 @@ export function ManagerDeploymentHistoryItem({
 
   return (
     <li
-      className={`rounded-lg border px-3 py-2.5 ${isSlowerThanThreshold
+      className={`scroll-mt-4 rounded-lg border px-3 py-2.5 target:ring-2 target:ring-blue-200 dark:target:ring-blue-500/30 ${isSlowerThanThreshold
         ? "border-orange-300 bg-orange-50/70 dark:border-orange-500/50 dark:bg-orange-950/20"
         : "border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900"
       }`}
@@ -69,6 +72,7 @@ export function ManagerDeploymentHistoryItem({
       data-deployment-delay-ms={excessDurationMs ?? undefined}
       data-deployment-slow={isSlowerThanThreshold ? "true" : "false"}
       data-deployment-status={entry.status}
+      id={getManagerDeploymentHistoryAnchor(entry.revision, entry.completed_at)}
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.className}`}>

@@ -201,6 +201,7 @@ export function ManagerDeploymentCard({
 
       <ManagerDeploymentHistory
         archiveEntries={deployment?.deployment_history_archive}
+        archiveSummary={deployment?.deployment_history_archive_summary}
         entries={deployment?.deployment_history}
         source={deployment?.source}
         timezone={timezone}
