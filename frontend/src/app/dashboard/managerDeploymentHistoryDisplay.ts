@@ -34,6 +34,7 @@ export const MANAGER_DEPLOYMENT_FILTER_OPTIONS: readonly {
 }[] = [
   { value: "all", label: "전체" },
   { value: "success", label: MANAGER_DEPLOYMENT_STATUS_DISPLAY.success.label },
+  { value: "failure", label: "실패 전체" },
   {
     value: "failed_before_switch",
     label: MANAGER_DEPLOYMENT_STATUS_DISPLAY.failed_before_switch.label,
@@ -71,11 +72,6 @@ export const MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS: Record<
   state_write: "배포 상태 확정",
 };
 
-export function formatManagerDeploymentDuration(startedAt: string, completedAt: string): string {
-  const durationMs = getManagerDeploymentDurationMs(startedAt, completedAt);
-  return durationMs === null ? "확인 불가" : formatManagerDeploymentDurationMs(durationMs);
-}
-
 export function getManagerDeploymentDurationMs(
   startedAt: string,
   completedAt: string,
@@ -95,4 +91,15 @@ export function formatManagerDeploymentDurationMs(durationMs: number): string {
   if (hours > 0) return `${hours}시간${minutes > 0 ? ` ${minutes}분` : ""}`;
   if (minutes > 0) return `${minutes}분${seconds > 0 ? ` ${seconds}초` : ""}`;
   return `${seconds}초`;
+}
+
+export function getManagerDeploymentAverageDurationMs(
+  entries: ManagerDeploymentHistoryEntry[],
+): number | null {
+  const durations = entries
+    .map((entry) => getManagerDeploymentDurationMs(entry.started_at, entry.completed_at))
+    .filter((duration): duration is number => duration !== null);
+  if (durations.length === 0) return null;
+
+  return Math.round(durations.reduce((total, duration) => total + duration, 0) / durations.length);
 }

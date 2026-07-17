@@ -14,6 +14,7 @@ import {
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
   MANAGER_DEPLOYMENT_FILTER_OPTIONS,
   MANAGER_DEPLOYMENT_PERIOD_OPTIONS,
+  getManagerDeploymentAverageDurationMs,
 } from "./managerDeploymentHistoryDisplay";
 import {
   downloadManagerDeploymentHistory,
@@ -114,6 +115,7 @@ function ManagerDeploymentHistoryContent({
   const summaryCurrentCount = summaryEntries.filter(
     (entry) => resolveEntrySource(entry) === "current",
   ).length;
+  const averageDurationMs = getManagerDeploymentAverageDurationMs(summaryEntries);
   const filteredEntries = summaryEntries.filter((entry) => {
     const matchesStatus = matchesManagerDeploymentHistoryStatus(entry, status);
     const matchesFailureStage = stage === "all"
@@ -201,6 +203,7 @@ function ManagerDeploymentHistoryContent({
         data-manager-deployment-history
       >
         <ManagerDeploymentHistoryControls
+          averageDurationMs={averageDurationMs}
           archiveCount={archiveEntries.length}
           currentCount={entries.length}
           entries={visibleEntries}
@@ -226,6 +229,7 @@ function ManagerDeploymentHistoryContent({
           <ol className="mt-3 grid gap-2 lg:grid-cols-2">
             {filteredEntries.map((entry) => (
               <ManagerDeploymentHistoryItem
+                averageDurationMs={averageDurationMs}
                 entry={entry}
                 entrySource={historySource === "all" ? resolveEntrySource(entry) : undefined}
                 key={`${entry.completed_at}-${entry.to_slot}`}

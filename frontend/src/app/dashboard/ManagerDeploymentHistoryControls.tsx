@@ -6,7 +6,6 @@ import {
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
   MANAGER_DEPLOYMENT_FILTER_OPTIONS,
   MANAGER_DEPLOYMENT_PERIOD_OPTIONS,
-  MANAGER_DEPLOYMENT_STATUS_DISPLAY,
 } from "./managerDeploymentHistoryDisplay";
 import type { ManagerDeploymentHistoryExportFormat } from "./managerDeploymentHistoryExport";
 import {
@@ -20,6 +19,7 @@ import { ManagerDeploymentFailureSummary } from "./ManagerDeploymentFailureSumma
 import { ManagerDeploymentOutcomeSummary } from "./ManagerDeploymentOutcomeSummary";
 
 interface ManagerDeploymentHistoryControlsProps {
+  averageDurationMs: number | null;
   archiveCount: number;
   currentCount: number;
   entries: ManagerDeploymentHistoryEntry[];
@@ -32,6 +32,7 @@ interface ManagerDeploymentHistoryControlsProps {
 }
 
 export function ManagerDeploymentHistoryControls({
+  averageDurationMs,
   archiveCount,
   currentCount,
   entries,
@@ -64,11 +65,9 @@ export function ManagerDeploymentHistoryControls({
     : filters.stage === "all"
       ? null
       : MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS[filters.stage];
-  const selectedStatusLabel = filters.status === "rollback"
-    ? "롤백 전체"
-    : filters.status === "all"
-      ? null
-      : MANAGER_DEPLOYMENT_STATUS_DISPLAY[filters.status].label;
+  const selectedStatusLabel = MANAGER_DEPLOYMENT_FILTER_OPTIONS.find(
+    (option) => option.value === filters.status,
+  )?.label;
 
   return (
     <>
@@ -198,6 +197,7 @@ export function ManagerDeploymentHistoryControls({
 
       {entries.length > 0 ? (
         <ManagerDeploymentOutcomeSummary
+          averageDurationMs={averageDurationMs}
           currentSourceCount={filters.source === "all" ? summaryCurrentCount : undefined}
           entries={summaryEntries}
           onStatusChange={(status) => onFiltersChange({ status })}

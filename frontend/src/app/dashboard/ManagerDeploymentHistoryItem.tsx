@@ -4,7 +4,8 @@ import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/de
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 import {
-  formatManagerDeploymentDuration,
+  formatManagerDeploymentDurationMs,
+  getManagerDeploymentDurationMs,
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
   MANAGER_DEPLOYMENT_STATUS_DISPLAY,
 } from "./managerDeploymentHistoryDisplay";
@@ -17,6 +18,7 @@ import {
 } from "./managerWatchdogStatus";
 
 interface ManagerDeploymentHistoryItemProps {
+  averageDurationMs: number | null;
   entry: ManagerDeploymentHistoryEntry;
   entrySource?: ManagerDeploymentHistoryRecordSource;
   onCopy: (label: string, value: string) => void;
@@ -27,6 +29,7 @@ interface ManagerDeploymentHistoryItemProps {
 }
 
 export function ManagerDeploymentHistoryItem({
+  averageDurationMs,
   entry,
   entrySource,
   onCopy,
@@ -36,7 +39,13 @@ export function ManagerDeploymentHistoryItem({
   timezone,
 }: ManagerDeploymentHistoryItemProps) {
   const status = MANAGER_DEPLOYMENT_STATUS_DISPLAY[entry.status];
-  const duration = formatManagerDeploymentDuration(entry.started_at, entry.completed_at);
+  const durationMs = getManagerDeploymentDurationMs(entry.started_at, entry.completed_at);
+  const duration = durationMs === null
+    ? "확인 불가"
+    : formatManagerDeploymentDurationMs(durationMs);
+  const isSlowerThanAverage = averageDurationMs !== null
+    && durationMs !== null
+    && durationMs > averageDurationMs;
   const links = buildManagerDeploymentLinks({
     latestVersion: entry.version,
     previousVersion,
@@ -47,8 +56,12 @@ export function ManagerDeploymentHistoryItem({
 
   return (
     <li
-      className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900"
+      className={`rounded-lg border px-3 py-2.5 ${isSlowerThanAverage
+        ? "border-orange-300 bg-orange-50/70 dark:border-orange-500/50 dark:bg-orange-950/20"
+        : "border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+      }`}
       data-deployment-failure-stage={entry.failure_stage ?? (entry.status === "success" ? undefined : "unknown")}
+      data-deployment-slow={isSlowerThanAverage ? "true" : "false"}
       data-deployment-status={entry.status}
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -65,6 +78,14 @@ export function ManagerDeploymentHistoryItem({
             data-deployment-source={entrySource}
           >
             {entrySource === "current" ? "현재" : "보관"}
+          </span>
+        ) : null}
+        {isSlowerThanAverage ? (
+          <span
+            className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-800 dark:bg-orange-500/20 dark:text-orange-100"
+            data-deployment-slow-badge
+          >
+            평균보다 느림
           </span>
         ) : null}
         <span
