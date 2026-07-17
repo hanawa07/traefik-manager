@@ -8,6 +8,10 @@ import {
   setManagerDeploymentArchiveSample,
 } from "./dashboard-visual-manager-deployment-archive.mjs";
 import { checkManagerDeploymentHistoryExports } from "./dashboard-visual-manager-deployment-export.mjs";
+import {
+  buildManagerDeploymentBottleneckAlertFixture,
+  checkManagerDeploymentBottleneckEvents,
+} from "./dashboard-visual-manager-deployment-bottleneck.mjs";
 
 const FIXTURE_NOW = Date.now();
 const DAY_MS = 24 * 60 * 60 * 1_000;
@@ -212,37 +216,7 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
       newest_at: ARCHIVE_FIXTURE_ENTRIES[0].completed_at,
       oldest_at: ARCHIVE_FIXTURE_ENTRIES[1].completed_at,
     },
-    deployment_bottleneck_alert: {
-      status: "alerted",
-      configured_threshold_ms: 60_000,
-      configured_consecutive_count: 3,
-      effective_threshold_ms: 60_000,
-      effective_consecutive_count: 3,
-      current_consecutive_count: 3,
-      checked_at: new Date().toISOString(),
-      latest_version: "v1.38.71",
-      slowest_stage: "build",
-      slowest_ms: 75_000,
-      alerted_at: new Date().toISOString(),
-      run_url: null,
-      run_status: null,
-      run_conclusion: null,
-      run_checked_at: null,
-      run_error: null,
-      events: [
-        {
-          event: "alerted",
-          occurred_at: new Date().toISOString(),
-          threshold_ms: 60_000,
-          required_consecutive_count: 3,
-          current_consecutive_count: 3,
-          latest_version: "v1.38.71",
-          slowest_stage: "build",
-          slowest_ms: 75_000,
-          run_url: null,
-        },
-      ],
-    },
+    deployment_bottleneck_alert: buildManagerDeploymentBottleneckAlertFixture(),
   };
 
   await reloadWithDeploymentFixture({ cdp, fixture, timeoutMs });
@@ -264,6 +238,7 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
     timeoutMs,
     "Manager 배포 병목 운영 알림 상태가 표시되지 않았습니다",
   );
+  await checkManagerDeploymentBottleneckEvents({ cdp, timeoutMs });
 
   await evaluate(cdp, `document.querySelector('[data-history-source-filter="archive"]')?.click()`);
   await waitForCondition(
