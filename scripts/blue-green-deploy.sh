@@ -293,6 +293,8 @@ record_deployment_history() {
     "${probe_total}" "${probe_failures}" "${failure_stage}" "${failure_reason}" \
     "${alert_request_status}" "${alert_run_url}" "${stage_durations_json}"; then
     echo "배포 이력을 기록하지 못했습니다: ${HISTORY_FILE}" >&2
+  elif ! "${SCRIPT_DIR}/manager-deployment-bottleneck-alert.sh" "${HISTORY_FILE}"; then
+    echo "연속 병목 운영 알림을 확인하지 못했습니다" >&2
   fi
   history_recorded=1
 }
