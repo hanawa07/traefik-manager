@@ -5,6 +5,7 @@ import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 import { MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS, formatManagerDeploymentDurationMs } from "./managerDeploymentHistoryDisplay";
 import { getExternalWatchdogRunLabel, isExternalWatchdogRunFailure } from "./managerWatchdogStatus";
+import { ManagerDeploymentBottleneckEventHistory } from "./ManagerDeploymentBottleneckEventHistory";
 
 interface ManagerDeploymentBottleneckStatusCardProps {
   alert?: ManagerDeploymentBottleneckAlert;
@@ -76,6 +77,7 @@ export function ManagerDeploymentBottleneckStatusCard({
           {alert.run_error ? ` · ${alert.run_error}` : ""}
         </p>
       ) : null}
+      <ManagerDeploymentBottleneckEventHistory events={alert.events ?? []} timezone={timezone} />
     </section>
   );
 }

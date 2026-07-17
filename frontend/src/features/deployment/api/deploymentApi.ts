@@ -127,6 +127,18 @@ export interface ManagerDeploymentHistoryArchiveSummary {
   oldest_at: string | null;
 }
 
+export interface ManagerDeploymentBottleneckEvent {
+  event: "alerted" | "cleared";
+  occurred_at: string;
+  threshold_ms: number;
+  required_consecutive_count: number;
+  current_consecutive_count: number;
+  latest_version: string | null;
+  slowest_stage: ManagerDeploymentStage | null;
+  slowest_ms: number;
+  run_url: string | null;
+}
+
 export interface ManagerDeploymentBottleneckAlert {
   status: "not_checked" | "no_history" | "normal" | "pending" | "alerted" | "request_failed";
   configured_threshold_ms: number;
@@ -144,6 +156,7 @@ export interface ManagerDeploymentBottleneckAlert {
   run_conclusion: string | null;
   run_checked_at: string | null;
   run_error: string | null;
+  events: ManagerDeploymentBottleneckEvent[];
 }
 
 export interface DeploymentInfo {

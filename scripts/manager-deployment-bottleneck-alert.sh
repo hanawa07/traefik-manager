@@ -6,6 +6,7 @@ readonly SCRIPT_DIR="$(dirname -- "${SCRIPT_PATH}")"
 readonly ALERT_SCRIPT="${TM_HOST_OPERATION_ALERT_SCRIPT:-${SCRIPT_DIR}/request-host-operation-alert.sh}"
 readonly CONFIG_FILE="${TM_DEPLOY_BOTTLENECK_CONFIG_FILE:-${SCRIPT_DIR}/../traefik-config/.runtime/manager-deployment-bottleneck.conf}"
 readonly STAGE_PAIR_PATTERN='"(prepare|build|migration_preflight|candidate_health|route_switch|leader_handover|public_probe|state_write)":[0-9]+'
+readonly MAX_EVENT_LINES=100
 THRESHOLD_MS="${TM_DEPLOY_BOTTLENECK_ALERT_THRESHOLD_MS:-60000}"
 CONSECUTIVE_COUNT="${TM_DEPLOY_BOTTLENECK_ALERT_CONSECUTIVE:-3}"
 
@@ -113,19 +114,64 @@ write_check_status() {
   mv "${temporary_file}" "${status_file}"
 }
 
+json_escape() {
+  local value="${1//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/}"
+  value="${value//$'\r'/}"
+  value="${value//$'\t'/ }"
+  printf '%s' "${value}"
+}
+
+append_alert_event() {
+  local events_file="$1"
+  local event="$2"
+  local count="$3"
+  local latest_version="$4"
+  local slowest_stage="$5"
+  local slowest_ms="$6"
+  local run_url="$7"
+  local temporary_file
+  temporary_file="$(mktemp "${events_file}.tmp.XXXXXX")"
+  if [[ -f "${events_file}" ]]; then
+    tail -n $((MAX_EVENT_LINES - 1)) "${events_file}" > "${temporary_file}"
+  fi
+  printf '{"event":"%s","occurred_at":"%s","threshold_ms":%s,"required_consecutive_count":%s,"current_consecutive_count":%s,"latest_version":"%s","slowest_stage":"%s","slowest_ms":%s,"run_url":"%s"}\n' \
+    "${event}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${THRESHOLD_MS}" "${CONSECUTIVE_COUNT}" \
+    "${count}" "$(json_escape "${latest_version}")" "$(json_escape "${slowest_stage}")" \
+    "${slowest_ms}" "$(json_escape "${run_url}")" >> "${temporary_file}"
+  chmod 644 "${temporary_file}"
+  mv "${temporary_file}" "${events_file}"
+}
+
 check_history() {
   local history_file="$1"
   local state_file="${TM_DEPLOY_BOTTLENECK_ALERT_STATE_FILE:-${history_file}.bottleneck-alert.state}"
   local status_file="${TM_DEPLOY_BOTTLENECK_ALERT_STATUS_FILE:-${history_file}.bottleneck-alert.status}"
+  local events_file="${TM_DEPLOY_BOTTLENECK_ALERT_EVENTS_FILE:-${history_file}.bottleneck-alert.events.jsonl}"
   local analysis count incident_key latest_version slowest_stage slowest_ms
   local alerted_incident alerted_at run_url status
   if [[ ! -f "${history_file}" ]]; then
+    if [[ -f "${state_file}" ]]; then
+      run_url="$(read_state_value "${state_file}" run_url)"
+      if ! append_alert_event "${events_file}" cleared 0 "" "" 0 "${run_url}"; then
+        echo "Manager 병목 해제 이력을 기록하지 못했습니다" >&2
+      fi
+      rm -f "${state_file}"
+    fi
     write_check_status "${status_file}" no_history 0 "" "" "" 0 "" ""
     return 0
   fi
   analysis="$(analyze_streak "${history_file}")"
   IFS='|' read -r count incident_key latest_version slowest_stage slowest_ms <<< "${analysis}"
   if (( count < CONSECUTIVE_COUNT )); then
+    if [[ -f "${state_file}" ]]; then
+      run_url="$(read_state_value "${state_file}" run_url)"
+      if ! append_alert_event "${events_file}" cleared "${count}" \
+        "${latest_version}" "${slowest_stage}" "${slowest_ms}" "${run_url}"; then
+        echo "Manager 병목 해제 이력을 기록하지 못했습니다" >&2
+      fi
+    fi
     rm -f "${state_file}"
     status="normal"
     (( count == 0 )) || status="pending"
@@ -159,6 +205,10 @@ check_history() {
   alerted_at="$(read_state_value "${state_file}" alerted_at)"
   write_check_status "${status_file}" alerted "${count}" "${incident_key}" \
     "${latest_version}" "${slowest_stage}" "${slowest_ms}" "${run_url}" "${alerted_at}"
+  if ! append_alert_event "${events_file}" alerted "${count}" \
+    "${latest_version}" "${slowest_stage}" "${slowest_ms}" "${run_url}"; then
+    echo "Manager 병목 발생 이력을 기록하지 못했습니다" >&2
+  fi
   echo "Manager 연속 병목 운영 알림 요청: ${run_url}"
 }
 
@@ -172,13 +222,14 @@ append_fixture() {
 }
 
 run_self_test() {
-  local temporary_dir history_file state_file status_file fake_alert capture_file
-  local config_history config_state config_status config_file config_capture
+  local temporary_dir history_file state_file status_file events_file fake_alert capture_file
+  local config_history config_state config_status config_events config_file config_capture
   temporary_dir="$(mktemp -d)"
   trap 'rm -rf "${temporary_dir}"' RETURN
   history_file="${temporary_dir}/history.jsonl"
   state_file="${temporary_dir}/alert.state"
   status_file="${temporary_dir}/alert.status"
+  events_file="${temporary_dir}/alert.events.jsonl"
   fake_alert="${temporary_dir}/alert"
   capture_file="${temporary_dir}/capture"
   cat > "${fake_alert}" <<'SCRIPT'
@@ -190,31 +241,43 @@ SCRIPT
 
   append_fixture "${history_file}" 1 70001
   append_fixture "${history_file}" 2 70002
-  run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}"
+  run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}" "${events_file}"
   [[ ! -e "${capture_file}" && ! -e "${state_file}" ]]
+  [[ ! -e "${events_file}" ]]
   grep -Fq 'status=pending' "${status_file}"
   append_fixture "${history_file}" 3 70003
-  run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}"
+  run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}" "${events_file}"
   [[ "$(wc -l < "${capture_file}")" == "1" && -f "${state_file}" ]]
+  [[ "$(wc -l < "${events_file}")" == "1" ]]
+  grep -Fq '"event":"alerted"' "${events_file}"
   grep -Fq 'status=alerted' "${status_file}"
-  run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}"
+  run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}" "${events_file}"
   [[ "$(wc -l < "${capture_file}")" == "1" ]]
+  [[ "$(wc -l < "${events_file}")" == "1" ]]
   append_fixture "${history_file}" 4 1000
-  run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}"
+  run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}" "${events_file}"
   [[ ! -e "${state_file}" ]]
+  [[ "$(wc -l < "${events_file}")" == "2" ]]
+  grep -Fq '"event":"cleared"' "${events_file}"
   grep -Fq 'status=normal' "${status_file}"
   grep -Fq 'current_consecutive_count=0' "${status_file}"
   grep -Fq 'slowest_ms=0' "${status_file}"
   append_fixture "${history_file}" 5 80001
   append_fixture "${history_file}" 6 80002
   append_fixture "${history_file}" 7 80003
-  run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}"
+  run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}" "${events_file}"
   [[ "$(wc -l < "${capture_file}")" == "2" ]]
+  [[ "$(wc -l < "${events_file}")" == "3" ]]
   grep -Fq '연속 병목 3회' "${capture_file}"
+  rm "${history_file}"
+  run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}" "${events_file}"
+  [[ ! -e "${state_file}" && "$(wc -l < "${events_file}")" == "4" ]]
+  grep -Fq 'status=no_history' "${status_file}"
 
   config_history="${temporary_dir}/config-history.jsonl"
   config_state="${temporary_dir}/config-alert.state"
   config_status="${temporary_dir}/config-alert.status"
+  config_events="${temporary_dir}/config-alert.events.jsonl"
   config_file="${temporary_dir}/bottleneck.conf"
   config_capture="${temporary_dir}/config-capture"
   printf 'threshold_ms=75000\nconsecutive_count=2\n' > "${config_file}"
@@ -225,6 +288,7 @@ SCRIPT
     TM_DEPLOY_BOTTLENECK_CONFIG_FILE="${config_file}" \
     TM_DEPLOY_BOTTLENECK_ALERT_STATE_FILE="${config_state}" \
     TM_DEPLOY_BOTTLENECK_ALERT_STATUS_FILE="${config_status}" \
+    TM_DEPLOY_BOTTLENECK_ALERT_EVENTS_FILE="${config_events}" \
     TM_DEPLOY_BOTTLENECK_ALERT_CAPTURE="${config_capture}" \
     TM_HOST_OPERATION_ALERT_SCRIPT="${fake_alert}" \
       "${SCRIPT_PATH}" "${config_history}" >/dev/null
@@ -232,6 +296,7 @@ SCRIPT
   grep -Fq 'effective_threshold_ms=75000' "${config_status}"
   grep -Fq 'effective_consecutive_count=2' "${config_status}"
   [[ "$(wc -l < "${config_capture}")" == "1" ]]
+  [[ "$(wc -l < "${config_events}")" == "1" ]]
   echo "Manager 연속 병목 알림 self-test 통과"
 }
 
@@ -241,6 +306,7 @@ run_fixture_check() {
   TM_DEPLOY_BOTTLENECK_ALERT_STATE_FILE="$2" \
   TM_DEPLOY_BOTTLENECK_ALERT_STATUS_FILE="$3" \
   TM_DEPLOY_BOTTLENECK_ALERT_CAPTURE="$5" \
+  TM_DEPLOY_BOTTLENECK_ALERT_EVENTS_FILE="$6" \
   TM_HOST_OPERATION_ALERT_SCRIPT="$4" \
     "${SCRIPT_PATH}" "$1" >/dev/null
 }

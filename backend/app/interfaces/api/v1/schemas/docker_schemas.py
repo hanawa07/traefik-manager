@@ -224,6 +224,18 @@ class ManagerDeploymentHistoryArchiveSummaryResponse(BaseModel):
     oldest_at: datetime | None = None
 
 
+class ManagerDeploymentBottleneckEventResponse(BaseModel):
+    event: Literal["alerted", "cleared"]
+    occurred_at: datetime
+    threshold_ms: int = Field(ge=1_000, le=900_000)
+    required_consecutive_count: int = Field(ge=1, le=20)
+    current_consecutive_count: int = Field(ge=0)
+    latest_version: str | None = None
+    slowest_stage: ManagerDeploymentStage | None = None
+    slowest_ms: int = Field(default=0, ge=0)
+    run_url: str | None = None
+
+
 class ManagerDeploymentBottleneckAlertResponse(BaseModel):
     status: Literal[
         "not_checked",
@@ -248,6 +260,7 @@ class ManagerDeploymentBottleneckAlertResponse(BaseModel):
     run_conclusion: str | None = None
     run_checked_at: datetime | None = None
     run_error: str | None = None
+    events: list[ManagerDeploymentBottleneckEventResponse] = Field(default_factory=list)
 
 
 class DockerDeploymentInfoResponse(BaseModel):
