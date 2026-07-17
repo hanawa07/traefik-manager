@@ -1,6 +1,7 @@
 import { TimerReset } from "lucide-react";
 
 import type { DeploymentBottleneckSettings } from "@/features/settings/api/settingsApi";
+import type { DeploymentBottleneckPreview as DeploymentBottleneckPreviewValue } from "@/features/deployment/lib/deploymentBottleneckPreview";
 import {
   SettingsCardHeader,
   SettingsSummary,
@@ -8,17 +9,21 @@ import {
 } from "./SettingsCardPrimitives";
 import { CertificateDiagnosticsSettingsActions } from "./CertificateDiagnosticsSettingsActions";
 import { CertificateDiagnosticsSettingsNumberField } from "./CertificateDiagnosticsSettingsNumberField";
+import { DeploymentBottleneckPreview } from "./DeploymentBottleneckPreview";
 
 interface DeploymentBottleneckSettingsCardProps {
   canManage: boolean;
   formValue: DeploymentBottleneckSettings;
   isEditing: boolean;
   isLoading: boolean;
+  isPreviewError: boolean;
+  isPreviewLoading: boolean;
   isSaving: boolean;
   onCancel: () => void;
   onEdit: () => void;
   onFormChange: (value: DeploymentBottleneckSettings) => void;
   onSave: () => void;
+  preview?: DeploymentBottleneckPreviewValue;
   settings?: DeploymentBottleneckSettings;
 }
 
@@ -27,11 +32,14 @@ export function DeploymentBottleneckSettingsCard({
   formValue,
   isEditing,
   isLoading,
+  isPreviewError,
+  isPreviewLoading,
   isSaving,
   onCancel,
   onEdit,
   onFormChange,
   onSave,
+  preview,
   settings,
 }: DeploymentBottleneckSettingsCardProps) {
   return (
@@ -66,6 +74,12 @@ export function DeploymentBottleneckSettingsCard({
               value={formValue.consecutive_count}
             />
           </div>
+          <DeploymentBottleneckPreview
+            isError={isPreviewError}
+            isLoading={isPreviewLoading}
+            preview={preview}
+            requiredCount={formValue.consecutive_count}
+          />
           <p className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
             저장한 값은 다음 배포 검사부터 적용됩니다. 호스트 환경 변수로 지정한 값이 있으면 환경 변수가 우선합니다.
           </p>
@@ -79,6 +93,12 @@ export function DeploymentBottleneckSettingsCard({
         <SettingsSummary>
           <SettingsSummaryRow label="단계 소요 기준" value={`${(settings?.threshold_ms ?? 60_000) / 1000}초 초과`} />
           <SettingsSummaryRow label="연속 감지 기준" value={`${settings?.consecutive_count ?? 3}회`} />
+          <DeploymentBottleneckPreview
+            isError={isPreviewError}
+            isLoading={isPreviewLoading}
+            preview={preview}
+            requiredCount={settings?.consecutive_count ?? 3}
+          />
           <p className="pt-1 text-xs text-gray-500 dark:text-slate-400">
             정상 또는 실패 배포가 기록되면 연속 병목 상태가 초기화됩니다.
           </p>

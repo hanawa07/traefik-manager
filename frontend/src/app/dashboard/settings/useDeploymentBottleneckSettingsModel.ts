@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { useDeploymentInfo } from "@/features/deployment/hooks/useDeploymentInfo";
+import { buildDeploymentBottleneckPreview } from "@/features/deployment/lib/deploymentBottleneckPreview";
 import type { DeploymentBottleneckSettings } from "@/features/settings/api/settingsApi";
 import {
   useDeploymentBottleneckSettings,
@@ -19,7 +21,20 @@ export function useDeploymentBottleneckSettingsModel(
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState(DEFAULT_SETTINGS);
   const { data: settings, isLoading } = useDeploymentBottleneckSettings();
+  const {
+    data: deploymentInfo,
+    isError: isPreviewError,
+    isLoading: isPreviewLoading,
+  } = useDeploymentInfo();
   const updateSettings = useUpdateDeploymentBottleneckSettings();
+  const previewSettings = isEditing ? formValue : settings ?? DEFAULT_SETTINGS;
+  const preview = deploymentInfo
+    ? buildDeploymentBottleneckPreview(
+        deploymentInfo.deployment_history,
+        previewSettings.threshold_ms,
+        previewSettings.consecutive_count,
+      )
+    : undefined;
 
   const handleEdit = () => {
     setFormValue(settings ?? DEFAULT_SETTINGS);
@@ -42,10 +57,13 @@ export function useDeploymentBottleneckSettingsModel(
     isEditing,
     isLoading,
     isSaving: updateSettings.isPending,
+    isPreviewError,
+    isPreviewLoading,
     onCancel: () => setIsEditing(false),
     onEdit: handleEdit,
     onFormChange: setFormValue,
     onSave: handleSave,
+    preview,
     settings,
   };
 }
