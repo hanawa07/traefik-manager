@@ -234,11 +234,18 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
   await waitForCondition(
     cdp,
     `document.querySelector('[data-manager-deployment-bottleneck-status="alerted"]')?.textContent?.includes('연속 3/3회') &&
+      document.querySelector('[data-manager-deployment-bottleneck-status="alerted"]')?.textContent?.includes('이벤트 30일 보관') &&
+      document.querySelector('[data-manager-deployment-bottleneck-source]')?.textContent?.includes('환경 변수 우선 (이벤트 보관 기간)') &&
+      Boolean(document.querySelector('[data-manager-deployment-bottleneck-override]')) &&
       Boolean(document.querySelector('[data-manager-deployment-bottleneck-event="alerted"]'))`,
     timeoutMs,
     "Manager 배포 병목 운영 알림 상태가 표시되지 않았습니다",
   );
-  await checkManagerDeploymentBottleneckEvents({ cdp, timeoutMs });
+  await checkManagerDeploymentBottleneckEvents({
+    cdp,
+    reload: () => reloadWithDeploymentFixture({ cdp, fixture, timeoutMs }),
+    timeoutMs,
+  });
 
   await evaluate(cdp, `document.querySelector('[data-history-source-filter="archive"]')?.click()`);
   await waitForCondition(

@@ -10,8 +10,13 @@ export function buildManagerDeploymentBottleneckAlertFixture() {
     status: "alerted",
     configured_threshold_ms: 60_000,
     configured_consecutive_count: 3,
+    configured_event_retention_days: 90,
     effective_threshold_ms: 60_000,
     effective_consecutive_count: 3,
+    effective_event_retention_days: 30,
+    threshold_source: "settings",
+    consecutive_source: "settings",
+    event_retention_source: "environment",
     current_consecutive_count: 3,
     checked_at: occurredAt(0),
     latest_version: "v1.38.71",
@@ -31,7 +36,7 @@ export function buildManagerDeploymentBottleneckAlertFixture() {
   };
 }
 
-export async function checkManagerDeploymentBottleneckEvents({ cdp, timeoutMs }) {
+export async function checkManagerDeploymentBottleneckEvents({ cdp, reload, timeoutMs }) {
   const opened = await evaluate(cdp, `(() => {
     const details = document.querySelector('[data-manager-deployment-bottleneck-events]');
     details?.querySelector('summary')?.click();
@@ -43,6 +48,15 @@ export async function checkManagerDeploymentBottleneckEvents({ cdp, timeoutMs })
   await setEventPeriod({ cdp, period: "7", timeoutMs });
   await waitForEventCount(cdp, 2, timeoutMs, "최근 7일 병목 이력 필터가 적용되지 않았습니다");
   await clickEventFilter({ cdp, event: "cleared", expectedCount: 1, timeoutMs });
+  await reload();
+  await waitForCondition(
+    cdp,
+    `document.querySelector('[data-bottleneck-event-period]')?.value === '7' &&
+      document.querySelector('[data-bottleneck-event-filter="cleared"]')?.getAttribute('aria-pressed') === 'true'`,
+    timeoutMs,
+    "Manager 병목 이력 URL 조건이 새로고침 후 복원되지 않았습니다",
+  );
+  await waitForEventCount(cdp, 1, timeoutMs, "복원된 병목 이력 조건이 결과에 적용되지 않았습니다");
 
   const json = await captureEventDownload(cdp, "json");
   assert.match(json.filename, /bottleneck-events-cleared-7d-\d{4}-\d{2}-\d{2}\.json$/);
@@ -56,6 +70,16 @@ export async function checkManagerDeploymentBottleneckEvents({ cdp, timeoutMs })
   await clickEventFilter({ cdp, event: "all", expectedCount: 2, timeoutMs });
   await setEventPeriod({ cdp, period: "all", timeoutMs });
   await waitForEventCount(cdp, 3, timeoutMs, "전체 기간 병목 이력이 복원되지 않았습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const params = new URLSearchParams(location.search);
+      return !params.has('deployment_bottleneck_event_type') &&
+        !params.has('deployment_bottleneck_event_period');
+    })()`,
+    timeoutMs,
+    "Manager 병목 이력 URL 조건을 초기화하지 못했습니다",
+  );
   const csv = await captureEventDownload(cdp, "csv");
   assert.match(csv.filename, /bottleneck-events-all-all-time-\d{4}-\d{2}-\d{2}\.csv$/);
   assert.deepEqual(csv.bytes, [239, 187, 191], "Manager 병목 CSV UTF-8 BOM이 없습니다");
@@ -94,7 +118,14 @@ async function setEventPeriod({ cdp, period, timeoutMs }) {
   assert.equal(changed, true, "Manager 병목 이력 기간을 선택하지 못했습니다");
   await waitForCondition(
     cdp,
-    `document.querySelector('[data-bottleneck-event-period]')?.value === ${JSON.stringify(period)}`,
+    `(() => {
+      const expected = ${JSON.stringify(period)};
+      const params = new URLSearchParams(location.search);
+      return document.querySelector('[data-bottleneck-event-period]')?.value === expected &&
+        (expected === 'all'
+          ? !params.has('deployment_bottleneck_event_period')
+          : params.get('deployment_bottleneck_event_period') === expected);
+    })()`,
     timeoutMs,
     `Manager 병목 이력 ${period} 기간 선택이 반영되지 않았습니다`,
   );
@@ -109,7 +140,14 @@ async function clickEventFilter({ cdp, event, expectedCount, timeoutMs }) {
   assert.equal(clicked, true, `Manager 병목 ${event} 필터를 찾지 못했습니다`);
   await waitForCondition(
     cdp,
-    `document.querySelector('[data-bottleneck-event-filter=${JSON.stringify(event)}]')?.getAttribute('aria-pressed') === 'true'`,
+    `(() => {
+      const expected = ${JSON.stringify(event)};
+      const params = new URLSearchParams(location.search);
+      return document.querySelector('[data-bottleneck-event-filter=${JSON.stringify(event)}]')?.getAttribute('aria-pressed') === 'true' &&
+        (expected === 'all'
+          ? !params.has('deployment_bottleneck_event_type')
+          : params.get('deployment_bottleneck_event_type') === expected);
+    })()`,
     timeoutMs,
     `Manager 병목 ${event} 필터가 선택되지 않았습니다`,
   );

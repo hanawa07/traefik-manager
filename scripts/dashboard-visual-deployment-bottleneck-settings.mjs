@@ -15,7 +15,7 @@ export async function checkDeploymentBottleneckSettingsPreview({ cdp, timeoutMs 
 
   await waitForCondition(
     cdp,
-    `document.querySelectorAll('[data-testid="deployment-bottleneck-settings-card"] input[type="number"]').length === 2`,
+    `document.querySelectorAll('[data-testid="deployment-bottleneck-settings-card"] input[type="number"]').length === 3`,
     timeoutMs,
     "배포 병목 설정 편집 입력이 표시되지 않았습니다",
   );
@@ -38,7 +38,10 @@ export async function checkDeploymentBottleneckSettingsPreview({ cdp, timeoutMs 
       const card = document.querySelector('[data-testid="deployment-bottleneck-settings-card"]');
       const preview = card?.querySelector('[data-deployment-bottleneck-host-preview="different"]');
       return card?.querySelector('input[type="number"]')?.value === ${JSON.stringify(changed)} &&
-        preview?.textContent?.includes('호스트 현재 적용:');
+        preview?.textContent?.includes('호스트 현재 적용:') &&
+        preview.textContent.includes('이벤트') &&
+        Number(preview.getAttribute('data-host-retention-days')) >= 1 &&
+        Boolean(preview.querySelector('[data-deployment-bottleneck-host-source]'));
     })()`,
     timeoutMs,
     "입력값과 호스트 실제 적용값의 예상 결과가 분리 표시되지 않았습니다",

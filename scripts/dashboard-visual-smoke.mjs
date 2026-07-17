@@ -346,7 +346,9 @@ export function runDashboardVisualSmokeSelfTest() {
   assert.ok(settingsRoute.requiredMarkers.includes("감사 로그 보존"));
   assert.ok(settingsRoute.requiredMarkers.includes("Manager API 오류 감지"));
   assert.ok(settingsRoute.requiredMarkers.includes("배포 병목 운영 알림"));
+  assert.ok(settingsRoute.requiredMarkers.includes("이벤트 보관 기간"));
   assert.ok(settingsRoute.requiredMarkers.includes("호스트 현재 적용"));
+  assert.ok(settingsRoute.requiredMarkers.includes("적용 출처"));
   assert.equal(screenshotName(mobileProfile, "/dashboard/services"), "mobile-dark-dashboard-services");
   assert.equal(screenshotName(desktopProfile, "/login"), "desktop-light-login");
   const valid = {
