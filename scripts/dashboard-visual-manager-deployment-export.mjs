@@ -4,6 +4,7 @@ import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   await checkExportFormatHelp({ cdp, timeoutMs });
+  await checkExportButtonCount(cdp, 1);
   const json = await captureHistoryDownload(cdp, "json");
   assert.match(json.filename, /deployments-archive-30d-rolled_back-\d{4}-\d{2}-\d{2}\.json$/);
   const payload = JSON.parse(json.text);
@@ -23,7 +24,40 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   });
   assert.equal(payload.entries.length, 1, "Manager JSON 내보내기에 현재 필터가 반영되지 않았습니다");
   assert.equal(payload.entries[0].failure_stage, "public_probe");
-  await waitForExportToast({ cdp, filename: json.filename, format: "JSON", timeoutMs });
+  await waitForExportToast({
+    cdp,
+    filename: json.filename,
+    filterSummary: '회전 보관 · 최근 30일 · 자동 롤백 · 단계 공개 health probe · 검색 "probe failure"',
+    format: "JSON",
+    timeoutMs,
+  });
+
+  const dateFrom = formatDateInput(5);
+  const dateTo = formatDateInput(0);
+  await setDateInput({ cdp, kind: "from", timeoutMs, value: dateFrom });
+  await setDateInput({ cdp, kind: "to", timeoutMs, value: dateTo });
+  await checkExportButtonCount(cdp, 1);
+  const customDateJson = await captureHistoryDownload(cdp, "json");
+  assert.match(
+    customDateJson.filename,
+    new RegExp(`deployments-archive-${dateFrom}_to_${dateTo}-rolled_back-\\d{4}-\\d{2}-\\d{2}\\.json$`),
+  );
+  const customDatePayload = JSON.parse(customDateJson.text);
+  assert.deepEqual(
+    {
+      date_from: customDatePayload.metadata.filters.date_from,
+      date_to: customDatePayload.metadata.filters.date_to,
+      period: customDatePayload.metadata.filters.period,
+    },
+    { date_from: dateFrom, date_to: dateTo, period: "all" },
+  );
+  await waitForExportToast({
+    cdp,
+    filename: customDateJson.filename,
+    filterSummary: `회전 보관 · 기간 ${dateFrom}~${dateTo} · 자동 롤백`,
+    format: "JSON",
+    timeoutMs,
+  });
 
   await evaluate(cdp, `document.querySelector('[data-history-filter-reset]')?.click()`);
   await waitForCondition(
@@ -41,6 +75,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
     timeoutMs,
     "Manager 배포 이력 필터 초기화가 적용되지 않았습니다",
   );
+  await checkExportButtonCount(cdp, 2);
   const csv = await captureHistoryDownload(cdp, "csv");
   assert.match(csv.filename, /deployments-archive-all-time-all-\d{4}-\d{2}-\d{2}\.csv$/);
   assert.deepEqual(csv.bytes, [239, 187, 191], "Manager CSV UTF-8 BOM이 없습니다");
@@ -53,7 +88,13 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   assert.match(csv.text, /\r\n\r\nstatus,from_slot,to_slot,/);
   assert.match(csv.text, /"'=archive fixture probe failure"/);
   assert.match(csv.text, /"'\+archive fixture build failure"/);
-  await waitForExportToast({ cdp, filename: csv.filename, format: "CSV", timeoutMs });
+  await waitForExportToast({
+    cdp,
+    filename: csv.filename,
+    filterSummary: "회전 보관 · 전체 기간 · 전체",
+    format: "CSV",
+    timeoutMs,
+  });
 
   await evaluate(cdp, `document.querySelector('[data-history-source-filter="all"]')?.click()`);
   await waitForCondition(
@@ -64,6 +105,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
     timeoutMs,
     "Manager 통합 이력 내보내기 source를 선택하지 못했습니다",
   );
+  await checkExportButtonCount(cdp, 3);
   const combinedJson = await captureHistoryDownload(cdp, "json");
   assert.match(combinedJson.filename, /deployments-all-all-time-all-\d{4}-\d{2}-\d{2}\.json$/);
   const combinedPayload = JSON.parse(combinedJson.text);
@@ -78,6 +120,16 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   assert.match(combinedCsv.text, /\r\n\r\nsource,status,from_slot,to_slot,/);
   assert.match(combinedCsv.text, /"current","success"/);
   assert.equal(combinedCsv.text.match(/"archive"/g)?.length, 2);
+}
+
+async function checkExportButtonCount(cdp, expectedCount) {
+  const labels = await evaluate(cdp, `Array.from(document.querySelectorAll(
+    '[data-history-export]',
+  )).map((button) => button.textContent?.replace(/\\s+/g, ' ').trim())`);
+  assert.deepEqual(labels, [
+    `JSON 내보내기 · ${expectedCount}건`,
+    `CSV 내보내기 · ${expectedCount}건`,
+  ]);
 }
 
 async function checkExportFormatHelp({ cdp, timeoutMs }) {
@@ -100,13 +152,37 @@ async function checkExportFormatHelp({ cdp, timeoutMs }) {
   );
 }
 
-async function waitForExportToast({ cdp, filename, format, timeoutMs }) {
+async function setDateInput({ cdp, kind, timeoutMs, value }) {
+  const changed = await evaluate(cdp, `(() => {
+    const input = document.querySelector(${JSON.stringify(`[data-history-date-${kind}]`)});
+    if (!(input instanceof HTMLInputElement)) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, ${JSON.stringify(value)});
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(changed, true, `Manager 사용자 지정 ${kind} 날짜를 입력하지 못했습니다`);
+  const queryKey = kind === "from" ? "deployment_from" : "deployment_to";
+  await waitForCondition(
+    cdp,
+    `new URLSearchParams(location.search).get(${JSON.stringify(queryKey)}) === ${JSON.stringify(value)}`,
+    timeoutMs,
+    `Manager 사용자 지정 ${kind} 날짜가 URL에 반영되지 않았습니다`,
+  );
+}
+
+function formatDateInput(daysAgo) {
+  return new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1_000).toISOString().slice(0, 10);
+}
+
+async function waitForExportToast({ cdp, filename, filterSummary, format, timeoutMs }) {
   await waitForCondition(
     cdp,
     `document.body.textContent?.includes(${JSON.stringify(`${format} 내보내기 완료`)}) &&
-      document.body.textContent?.includes(${JSON.stringify(filename)})`,
+      document.body.textContent?.includes(${JSON.stringify(filename)}) &&
+      document.body.textContent?.includes(${JSON.stringify(filterSummary)})`,
     timeoutMs,
-    `Manager ${format} 내보내기 완료 파일명이 표시되지 않았습니다`,
+    `Manager ${format} 내보내기 완료 알림 내용이 올바르지 않습니다`,
   );
 }
 
