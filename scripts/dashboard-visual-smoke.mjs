@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
 import { checkAuditFilterPersistence, checkCertificateDrawer, checkMobileSidebar, checkOptionalAdminModal } from "./dashboard-visual-interactions.mjs";
+import { checkDeploymentBottleneckSettingsPreview } from "./dashboard-visual-deployment-bottleneck-settings.mjs";
 import {
   checkManagerHttpErrorPreviewForm,
   checkManagerHttpErrorTrend,
@@ -43,6 +44,11 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
             timeoutMs,
           });
           if (previewed) labels.push(`${profile.label} API 오류 권장값 계산`);
+          const bottleneckPreviewed = await checkDeploymentBottleneckSettingsPreview({
+            cdp,
+            timeoutMs,
+          });
+          if (bottleneckPreviewed) labels.push(`${profile.label} 배포 병목 호스트 적용값 비교`);
           const opened = await checkOptionalAdminModal({ artifactDir, cdp, profile, timeoutMs });
           if (opened) labels.push(`${profile.label} 사용자 추가 모달`);
         }
@@ -340,6 +346,7 @@ export function runDashboardVisualSmokeSelfTest() {
   assert.ok(settingsRoute.requiredMarkers.includes("감사 로그 보존"));
   assert.ok(settingsRoute.requiredMarkers.includes("Manager API 오류 감지"));
   assert.ok(settingsRoute.requiredMarkers.includes("배포 병목 운영 알림"));
+  assert.ok(settingsRoute.requiredMarkers.includes("호스트 현재 적용"));
   assert.equal(screenshotName(mobileProfile, "/dashboard/services"), "mobile-dark-dashboard-services");
   assert.equal(screenshotName(desktopProfile, "/login"), "desktop-light-login");
   const valid = {

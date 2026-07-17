@@ -35,6 +35,23 @@ export function useDeploymentBottleneckSettingsModel(
         previewSettings.consecutive_count,
       )
     : undefined;
+  const alert = deploymentInfo?.deployment_bottleneck_alert;
+  const hostSettings = alert
+    ? {
+        threshold_ms: alert.effective_threshold_ms,
+        consecutive_count: alert.effective_consecutive_count,
+      }
+    : undefined;
+  const hostPreview = deploymentInfo && hostSettings
+    ? hostSettings.threshold_ms === previewSettings.threshold_ms
+      && hostSettings.consecutive_count === previewSettings.consecutive_count
+      ? preview
+      : buildDeploymentBottleneckPreview(
+          deploymentInfo.deployment_history,
+          hostSettings.threshold_ms,
+          hostSettings.consecutive_count,
+        )
+    : undefined;
 
   const handleEdit = () => {
     setFormValue(settings ?? DEFAULT_SETTINGS);
@@ -54,6 +71,8 @@ export function useDeploymentBottleneckSettingsModel(
   return {
     canManage,
     formValue,
+    hostPreview,
+    hostSettings,
     isEditing,
     isLoading,
     isSaving: updateSettings.isPending,

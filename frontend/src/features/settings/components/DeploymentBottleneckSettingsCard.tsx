@@ -14,6 +14,8 @@ import { DeploymentBottleneckPreview } from "./DeploymentBottleneckPreview";
 interface DeploymentBottleneckSettingsCardProps {
   canManage: boolean;
   formValue: DeploymentBottleneckSettings;
+  hostPreview?: DeploymentBottleneckPreviewValue;
+  hostSettings?: DeploymentBottleneckSettings;
   isEditing: boolean;
   isLoading: boolean;
   isPreviewError: boolean;
@@ -30,6 +32,8 @@ interface DeploymentBottleneckSettingsCardProps {
 export function DeploymentBottleneckSettingsCard({
   canManage,
   formValue,
+  hostPreview,
+  hostSettings,
   isEditing,
   isLoading,
   isPreviewError,
@@ -43,7 +47,7 @@ export function DeploymentBottleneckSettingsCard({
   settings,
 }: DeploymentBottleneckSettingsCardProps) {
   return (
-    <div className="card order-2 p-6">
+    <div className="card order-2 p-6" data-testid="deployment-bottleneck-settings-card">
       <SettingsCardHeader
         icon={<TimerReset className="h-5 w-5 text-orange-600" />}
         title="배포 병목 운영 알림"
@@ -75,10 +79,13 @@ export function DeploymentBottleneckSettingsCard({
             />
           </div>
           <DeploymentBottleneckPreview
+            hostPreview={hostPreview}
+            hostSettings={hostSettings}
             isError={isPreviewError}
             isLoading={isPreviewLoading}
             preview={preview}
             requiredCount={formValue.consecutive_count}
+            thresholdMs={formValue.threshold_ms}
           />
           <p className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
             저장한 값은 다음 배포 검사부터 적용됩니다. 호스트 환경 변수로 지정한 값이 있으면 환경 변수가 우선합니다.
@@ -94,10 +101,13 @@ export function DeploymentBottleneckSettingsCard({
           <SettingsSummaryRow label="단계 소요 기준" value={`${(settings?.threshold_ms ?? 60_000) / 1000}초 초과`} />
           <SettingsSummaryRow label="연속 감지 기준" value={`${settings?.consecutive_count ?? 3}회`} />
           <DeploymentBottleneckPreview
+            hostPreview={hostPreview}
+            hostSettings={hostSettings}
             isError={isPreviewError}
             isLoading={isPreviewLoading}
             preview={preview}
             requiredCount={settings?.consecutive_count ?? 3}
+            thresholdMs={settings?.threshold_ms ?? 60_000}
           />
           <p className="pt-1 text-xs text-gray-500 dark:text-slate-400">
             정상 또는 실패 배포가 기록되면 연속 병목 상태가 초기화됩니다.
