@@ -125,6 +125,10 @@ export interface ManagerDeploymentBottleneck {
   stage: ManagerDeploymentHistoryFailureStage;
 }
 
+export interface ManagerDeploymentBottleneckAlert extends ManagerDeploymentBottleneck {
+  entry: ManagerDeploymentHistoryEntry;
+}
+
 export function getManagerDeploymentDurationStats(
   entries: ManagerDeploymentHistoryEntry[],
 ): ManagerDeploymentDurationStats {
@@ -186,6 +190,18 @@ export function getManagerDeploymentBottleneck(
     },
     null,
   );
+}
+
+export function getManagerDeploymentBottleneckAlerts(
+  entries: ManagerDeploymentHistoryEntry[],
+  thresholdMs: number,
+): ManagerDeploymentBottleneckAlert[] {
+  return entries.flatMap((entry) => {
+    const bottleneck = getManagerDeploymentBottleneck(entry.stage_durations_ms);
+    return bottleneck && bottleneck.durationMs > thresholdMs
+      ? [{ ...bottleneck, entry }]
+      : [];
+  }).sort((left, right) => right.durationMs - left.durationMs);
 }
 
 export function getManagerDeploymentSpeedThresholdMs(

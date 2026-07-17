@@ -4,7 +4,7 @@ import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/de
 
 import {
   formatManagerDeploymentDurationMs,
-  getManagerDeploymentBottleneck,
+  getManagerDeploymentBottleneckAlerts,
   getManagerDeploymentStageStats,
   MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD_OPTIONS,
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
@@ -24,15 +24,13 @@ export function ManagerDeploymentStageSummary({
   if (stats.length === 0) return null;
 
   const thresholdMs = Number(threshold);
-  const alertCount = entries.filter((entry) => {
-    const bottleneck = getManagerDeploymentBottleneck(entry.stage_durations_ms);
-    return bottleneck !== null && bottleneck.durationMs > thresholdMs;
-  }).length;
+  const alertCount = getManagerDeploymentBottleneckAlerts(entries, thresholdMs).length;
 
   return (
     <section
       className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[11px] dark:border-slate-700 dark:bg-slate-900"
       data-deployment-stage-summary
+      id="manager-deployment-stage-performance"
     >
       <div className="flex flex-wrap items-center gap-2">
         <strong className="text-slate-700 dark:text-slate-200">단계별 성능</strong>

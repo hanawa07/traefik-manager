@@ -19,6 +19,11 @@ export async function checkManagerDeploymentPerformance({ cdp, timeoutMs }) {
         'data-deployment-stage-alert-count',
       ),
       alertDetails: document.querySelectorAll('[data-deployment-bottleneck-alert="true"]').length,
+      bannerCount: document.querySelector('[data-deployment-bottleneck-banner]')?.getAttribute(
+        'data-deployment-bottleneck-banner',
+      ),
+      bannerText: document.querySelector('[data-deployment-bottleneck-banner]')?.textContent
+        ?.replace(/\s+/g, ' ').trim(),
       bars: Array.from(document.querySelectorAll('[data-deployment-duration-bar]')).map((bar) => ({
         duration: bar.getAttribute('data-deployment-duration-bar'),
         version: bar.getAttribute('data-deployment-version'),
@@ -46,6 +51,8 @@ export async function checkManagerDeploymentPerformance({ cdp, timeoutMs }) {
   ]);
   assert.equal(snapshot.alertCount, "1");
   assert.equal(snapshot.alertDetails, 1);
+  assert.equal(snapshot.bannerCount, "1");
+  assert.match(snapshot.bannerText, /v1\.38\.69 · 이미지 빌드 1분 50초 · 기준 1분/);
   assert.deepEqual(snapshot.build, {
     alert: "true",
     average: "44000",
@@ -83,6 +90,29 @@ export async function checkManagerDeploymentPeriodComparison(cdp) {
     previous: "120000",
     text: "직전 동일 기간 평균 2분 · 현재 평균 1분 (50% 단축)",
   });
+
+  const stageComparison = await evaluate(cdp, `(() => {
+    const read = (stage) => {
+      const row = document.querySelector('[data-stage-period-comparison="' + stage + '"]');
+      return {
+        current: row?.getAttribute('data-current-stage-average-ms'),
+        delta: row?.getAttribute('data-stage-average-delta-percent'),
+        previous: row?.getAttribute('data-previous-stage-average-ms'),
+      };
+    };
+    return {
+      exists: Boolean(document.querySelector('[data-deployment-stage-comparison]')),
+      rows: document.querySelectorAll('[data-stage-period-comparison]').length,
+      prepare: read('prepare'),
+      build: read('build'),
+    };
+  })()`);
+  assert.deepEqual(stageComparison, {
+    exists: true,
+    rows: 8,
+    prepare: { current: "2000", delta: "-80", previous: "10000" },
+    build: { current: "12000", delta: "-89", previous: "110000" },
+  });
 }
 
 async function selectBottleneckThreshold({ cdp, expectedAlerts, timeoutMs, value }) {
@@ -104,6 +134,9 @@ async function selectBottleneckThreshold({ cdp, expectedAlerts, timeoutMs, value
       );
       const condition = document.querySelector('[data-history-condition="bottleneck_threshold"]');
       return alertCount === ${JSON.stringify(String(expectedAlerts))} &&
+        document.querySelector('[data-deployment-bottleneck-banner]')?.getAttribute(
+          'data-deployment-bottleneck-banner',
+        ) === ${JSON.stringify(String(expectedAlerts))} &&
         document.querySelectorAll('[data-deployment-bottleneck-alert="true"]').length === ${expectedAlerts} &&
         ${value === "60000"
           ? "!params.has('deployment_bottleneck_ms') && !condition"

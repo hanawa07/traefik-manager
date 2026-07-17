@@ -18,8 +18,10 @@ import {
   type ManagerDeploymentHistorySourceFilter,
 } from "./managerDeploymentHistoryQuery";
 import { ManagerDeploymentDateRange } from "./ManagerDeploymentDateRange";
+import { ManagerDeploymentBottleneckAlert } from "./ManagerDeploymentBottleneckAlert";
 import { ManagerDeploymentFailureSummary } from "./ManagerDeploymentFailureSummary";
 import { ManagerDeploymentOutcomeSummary } from "./ManagerDeploymentOutcomeSummary";
+import { ManagerDeploymentStageComparison } from "./ManagerDeploymentStageComparison";
 import { ManagerDeploymentStageSummary } from "./ManagerDeploymentStageSummary";
 
 interface ManagerDeploymentHistoryControlsProps {
@@ -31,6 +33,7 @@ interface ManagerDeploymentHistoryControlsProps {
   filters: ManagerDeploymentHistoryFilters;
   onExport: (format: ManagerDeploymentHistoryExportFormat) => void;
   onFiltersChange: (updates: Partial<ManagerDeploymentHistoryFilters>) => void;
+  previousPeriodEntries: ManagerDeploymentHistoryEntry[] | null;
   summaryCurrentCount: number;
   summaryEntries: ManagerDeploymentHistoryEntry[];
 }
@@ -44,18 +47,19 @@ export function ManagerDeploymentHistoryControls({
   filters,
   onExport,
   onFiltersChange,
+  previousPeriodEntries,
   summaryCurrentCount,
   summaryEntries,
 }: ManagerDeploymentHistoryControlsProps) {
   const sourceLabel = filters.source === "all"
     ? "현재·보관 통합"
     : filters.source === "archive"
-      ? "회전 보관"
+      ? "보관 이력"
       : "최근";
   const sourceOptions: { label: string; value: ManagerDeploymentHistorySourceFilter }[] = [
     { label: `최근 ${currentCount}`, value: "current" },
     { label: `통합 ${currentCount + archiveCount}`, value: "all" },
-    { label: `회전 보관 ${archiveCount}`, value: "archive" },
+    { label: `보관 이력 ${archiveCount}`, value: "archive" },
   ];
   const hasActiveFilters = filters.status !== "all"
     || filters.bottleneckThreshold !== DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD
@@ -120,6 +124,18 @@ export function ManagerDeploymentHistoryControls({
           )) : null}
         </div>
       </div>
+
+      <ManagerDeploymentBottleneckAlert
+        entries={summaryEntries}
+        threshold={filters.bottleneckThreshold}
+      />
+
+      <p
+        className="mt-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400"
+        data-deployment-history-retention
+      >
+        상세 회전본 이후 오래된 기록은 UTC 날짜별 마지막 배포 1건으로 축약해 보관합니다.
+      </p>
 
       {entries.length > 0 ? (
         <details className="mt-2 text-[11px] text-gray-500 dark:text-slate-400" data-history-export-help>
@@ -256,6 +272,11 @@ export function ManagerDeploymentHistoryControls({
         threshold={filters.bottleneckThreshold}
       />
 
+      <ManagerDeploymentStageComparison
+        currentEntries={summaryEntries}
+        previousEntries={previousPeriodEntries}
+      />
+
       {entries.length > 0 ? (
         <div
           aria-live="polite"
@@ -270,7 +291,7 @@ export function ManagerDeploymentHistoryControls({
               {filters.source !== "current" ? (
                 <ConditionChip
                   condition="source"
-                  label={filters.source === "all" ? "현재·보관 통합" : "회전 보관"}
+                  label={filters.source === "all" ? "현재·보관 통합" : "보관 이력"}
                   onRemove={() => onFiltersChange({ source: "current" })}
                 />
               ) : null}

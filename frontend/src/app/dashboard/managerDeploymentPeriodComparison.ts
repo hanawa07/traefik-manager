@@ -11,6 +11,7 @@ const DAY_MS = 24 * 60 * 60 * 1_000;
 export interface ManagerDeploymentPeriodComparison {
   averageMs: number | null;
   count: number;
+  entries: ManagerDeploymentHistoryEntry[];
 }
 
 export function getManagerDeploymentPeriodComparison(
@@ -34,6 +35,7 @@ export function getManagerDeploymentPeriodComparison(
   return {
     averageMs: getManagerDeploymentDurationStats(previousEntries).averageMs,
     count: validCount,
+    entries: previousEntries,
   };
 }
 

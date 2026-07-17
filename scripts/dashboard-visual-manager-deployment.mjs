@@ -209,8 +209,9 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
   await reloadWithDeploymentFixture({ cdp, fixture, timeoutMs });
   await waitForCondition(
     cdp,
-    `document.querySelector('[data-history-source="current"] [data-history-source-filter="archive"]')?.textContent?.includes('회전 보관 2') &&
-      document.querySelector('[data-history-source="current"] [data-history-source-filter="all"]')?.textContent?.includes('통합 3')`,
+    `document.querySelector('[data-history-source="current"] [data-history-source-filter="archive"]')?.textContent?.includes('보관 이력 2') &&
+      document.querySelector('[data-history-source="current"] [data-history-source-filter="all"]')?.textContent?.includes('통합 3') &&
+      document.querySelector('[data-deployment-history-retention]')?.textContent?.includes('UTC 날짜별 마지막 배포 1건')`,
     timeoutMs,
     "Manager 현재·통합·보관 이력 source 버튼이 표시되지 않았습니다",
   );
@@ -220,7 +221,7 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
     cdp,
     `document.querySelectorAll('[data-history-source="archive"] li[data-deployment-status]').length === 2`,
     timeoutMs,
-    "Manager .1 보관 이력 fixture로 전환되지 않았습니다",
+    "Manager 보관 이력 fixture로 전환되지 않았습니다",
   );
   const transitionSummary = await evaluate(cdp, `(() => {
     const entries = Array.from(document.querySelectorAll(
@@ -248,7 +249,7 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
     button?.click();
     return Boolean(button);
   })()`);
-  assert.equal(sourceConditionRemoved, true, "Manager 회전 보관 적용 조건을 찾지 못했습니다");
+  assert.equal(sourceConditionRemoved, true, "Manager 보관 이력 적용 조건을 찾지 못했습니다");
   await waitForCondition(
     cdp,
     `(() => {

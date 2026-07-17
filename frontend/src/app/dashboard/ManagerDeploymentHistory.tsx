@@ -255,6 +255,7 @@ function ManagerDeploymentHistoryContent({
           filters={filters}
           onExport={handleExport}
           onFiltersChange={updateFilters}
+          previousPeriodEntries={periodComparison?.entries ?? null}
           summaryCurrentCount={summaryCurrentCount}
           summaryEntries={summaryEntries}
         />
@@ -270,7 +271,7 @@ function ManagerDeploymentHistoryContent({
         {visibleEntries.length === 0 ? (
           <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
             {historySource === "archive"
-              ? "회전 보관된 배포가 없습니다."
+              ? "보관된 배포가 없습니다."
               : "기록된 blue-green 배포가 없습니다."}
           </p>
         ) : filteredEntries.length === 0 ? (
@@ -304,7 +305,7 @@ function ManagerDeploymentHistoryContent({
 function describeExportFilters(filters: ManagerDeploymentHistoryFilters): string {
   const source = filters.source === "all"
     ? "현재·보관 통합"
-    : filters.source === "archive" ? "회전 보관" : "최근";
+    : filters.source === "archive" ? "보관 이력" : "최근";
   const period = filters.dateFrom || filters.dateTo
     ? `기간 ${filters.dateFrom || "처음"}~${filters.dateTo || "오늘"}`
     : MANAGER_DEPLOYMENT_PERIOD_OPTIONS.find((option) => option.value === filters.period)?.label;

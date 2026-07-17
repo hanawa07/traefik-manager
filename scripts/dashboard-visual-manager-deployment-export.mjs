@@ -30,7 +30,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   await waitForExportToast({
     cdp,
     filename: json.filename,
-    filterSummary: '회전 보관 · 최근 30일 · 자동 롤백 · 단계 공개 health probe · 검색 "probe failure"',
+    filterSummary: '보관 이력 · 최근 30일 · 자동 롤백 · 단계 공개 health probe · 검색 "probe failure"',
     format: "JSON",
     timeoutMs,
   });
@@ -57,7 +57,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   await waitForExportToast({
     cdp,
     filename: customDateJson.filename,
-    filterSummary: `회전 보관 · 기간 ${dateFrom}~${dateTo} · 자동 롤백`,
+    filterSummary: `보관 이력 · 기간 ${dateFrom}~${dateTo} · 자동 롤백`,
     format: "JSON",
     timeoutMs,
   });
@@ -99,7 +99,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   await waitForExportToast({
     cdp,
     filename: csv.filename,
-    filterSummary: "회전 보관 · 전체 기간 · 전체",
+    filterSummary: "보관 이력 · 전체 기간 · 전체",
     format: "CSV",
     timeoutMs,
   });
