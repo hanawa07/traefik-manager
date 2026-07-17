@@ -2,6 +2,23 @@ import assert from "node:assert/strict";
 
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
+export async function readManagerDeploymentFixtureSource(cdp) {
+  return evaluate(cdp, `(async () => {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const result = await fetch('/api/v1/docker/deployment', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        return { body: await result.json(), ok: result.ok };
+      } catch (error) {
+        if (attempt === 3) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+  })()`);
+}
+
 export async function setManagerDeploymentArchiveSample({
   cdp,
   expectedCount,

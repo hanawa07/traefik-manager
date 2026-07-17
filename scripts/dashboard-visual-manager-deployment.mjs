@@ -4,6 +4,7 @@ import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 import { checkManagerDeploymentHistoryActions } from "./dashboard-visual-manager-deployment-actions.mjs";
 import {
   checkManagerDeploymentArchiveSamples,
+  readManagerDeploymentFixtureSource,
   setManagerDeploymentArchiveSample,
 } from "./dashboard-visual-manager-deployment-archive.mjs";
 import { checkManagerDeploymentHistoryExports } from "./dashboard-visual-manager-deployment-export.mjs";
@@ -199,13 +200,7 @@ async function checkStatusFilter({ cdp, snapshot, timeoutMs }) {
 }
 
 async function checkArchiveFixture({ cdp, timeoutMs }) {
-  const response = await evaluate(cdp, `(async () => {
-    const result = await fetch('/api/v1/docker/deployment', {
-      credentials: 'include',
-      cache: 'no-store',
-    });
-    return { body: await result.json(), ok: result.ok };
-  })()`);
+  const response = await readManagerDeploymentFixtureSource(cdp);
   assert.equal(response.ok, true, "Manager 배포 보관 이력 fixture 원본을 읽지 못했습니다");
   const fixture = {
     ...response.body,
