@@ -4,6 +4,7 @@ from pathlib import Path
 from app.infrastructure.manager_deployment_history import (
     read_manager_deployment_history,
     read_manager_deployment_history_archive,
+    read_manager_deployment_history_archive_with_summary,
 )
 
 
@@ -116,13 +117,22 @@ def test_archive_merges_daily_entries_in_time_order_and_applies_limit(tmp_path: 
     Path(f"{history_path}.1").write_text("\n".join(lines[2:]), encoding="utf-8")
     Path(f"{history_path}.daily").write_text("\n".join(lines[:3]), encoding="utf-8")
 
-    result = read_manager_deployment_history_archive(history_path, limit=3)
+    result, summary = read_manager_deployment_history_archive_with_summary(
+        history_path,
+        limit=3,
+    )
 
     assert [entry["completed_at"] for entry in result] == [
         "2026-07-13T09:01:00Z",
         "2026-07-12T09:01:00Z",
         "2026-07-11T09:01:00Z",
     ]
+    assert summary == {
+        "detailed_count": 2,
+        "daily_count": 1,
+        "newest_at": "2026-07-13T09:01:00Z",
+        "oldest_at": "2026-07-11T09:01:00Z",
+    }
 
 
 def test_archive_uses_daily_entries_beyond_detailed_cap(tmp_path: Path):
@@ -136,10 +146,12 @@ def test_archive_uses_daily_entries_beyond_detailed_cap(tmp_path: Path):
     Path(f"{history_path}.1").write_text("\n".join(lines[:-1]), encoding="utf-8")
     Path(f"{history_path}.daily").write_text("\n".join(lines[:-1]), encoding="utf-8")
 
-    result = read_manager_deployment_history_archive(history_path)
+    result, summary = read_manager_deployment_history_archive_with_summary(history_path)
 
     completed_dates = [str(entry["completed_at"])[:10] for entry in result]
     assert len(completed_dates) == 26
     assert completed_dates[0] == "2026-07-26"
     assert completed_dates[-1] == "2026-07-01"
     assert len(set(completed_dates)) == len(completed_dates)
+    assert summary["detailed_count"] == 20
+    assert summary["daily_count"] == 6

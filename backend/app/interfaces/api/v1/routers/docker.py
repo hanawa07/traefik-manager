@@ -9,7 +9,7 @@ from app.infrastructure.docker.manager_http_log_reader import read_manager_http_
 from app.infrastructure.github_actions_run import GitHubActionsRunStatusReader
 from app.infrastructure.manager_deployment_history import (
     read_manager_deployment_history,
-    read_manager_deployment_history_archive,
+    read_manager_deployment_history_archive_with_summary,
 )
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
@@ -139,7 +139,10 @@ async def get_deployment_info(
         alert_runs = watchdog_state["external_watchdog_alert_runs"]
         last_run_url = watchdog_state["external_watchdog_last_alert_run_url"]
         deployment_history = read_manager_deployment_history()
-        deployment_history_archive = read_manager_deployment_history_archive()
+        (
+            deployment_history_archive,
+            deployment_history_archive_summary,
+        ) = read_manager_deployment_history_archive_with_summary()
         deployment_alert_urls = list(
             dict.fromkeys(
                 entry["alert_run_url"]
@@ -186,6 +189,7 @@ async def get_deployment_info(
                 deployment_history_archive,
                 run_statuses,
             ),
+            "deployment_history_archive_summary": deployment_history_archive_summary,
             "external_watchdog_alert_runs": enriched_alert_runs,
         }
     except DockerClientError as exc:

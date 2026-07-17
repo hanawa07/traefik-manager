@@ -50,8 +50,17 @@ def read_manager_deployment_history_archive(
     *,
     limit: int = MAX_ARCHIVE_ENTRIES,
 ) -> list[dict[str, object]]:
+    entries, _ = read_manager_deployment_history_archive_with_summary(path, limit=limit)
+    return entries
+
+
+def read_manager_deployment_history_archive_with_summary(
+    path: str | Path | None = None,
+    *,
+    limit: int = MAX_ARCHIVE_ENTRIES,
+) -> tuple[list[dict[str, object]], dict[str, object]]:
     if limit <= 0:
-        return []
+        return [], _archive_summary([], 0, 0)
     history_path = Path(path or settings.MANAGER_DEPLOYMENT_HISTORY_PATH)
     try:
         current_lines = set(_read_tail(history_path, MAX_ARCHIVE_BYTES))
@@ -77,12 +86,30 @@ def read_manager_deployment_history_archive(
         _completed_at_day(entry) for entry in [*current_entries, *detailed_entries]
     }
     daily_entries = _normalize_lines(daily_lines - current_lines, len(daily_lines))
+    daily_entries = [
+        entry for entry in daily_entries if _completed_at_day(entry) not in covered_days
+    ]
+    daily_entries.sort(key=_completed_at_timestamp, reverse=True)
+    daily_entries = daily_entries[: max(0, limit - len(detailed_entries))]
     entries = [
         *detailed_entries,
-        *(entry for entry in daily_entries if _completed_at_day(entry) not in covered_days),
+        *daily_entries,
     ]
     entries.sort(key=_completed_at_timestamp, reverse=True)
-    return entries[:limit]
+    return entries, _archive_summary(entries, len(detailed_entries), len(daily_entries))
+
+
+def _archive_summary(
+    entries: list[dict[str, object]],
+    detailed_count: int,
+    daily_count: int,
+) -> dict[str, object]:
+    return {
+        "detailed_count": detailed_count,
+        "daily_count": daily_count,
+        "newest_at": entries[0]["completed_at"] if entries else None,
+        "oldest_at": entries[-1]["completed_at"] if entries else None,
+    }
 
 
 def _normalize_lines(

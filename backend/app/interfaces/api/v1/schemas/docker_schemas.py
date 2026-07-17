@@ -216,6 +216,13 @@ class ManagerDeploymentHistoryEntryResponse(BaseModel):
     stage_durations_ms: dict[ManagerDeploymentStage, int] = Field(default_factory=dict)
 
 
+class ManagerDeploymentHistoryArchiveSummaryResponse(BaseModel):
+    detailed_count: int = Field(default=0, ge=0)
+    daily_count: int = Field(default=0, ge=0)
+    newest_at: datetime | None = None
+    oldest_at: datetime | None = None
+
+
 class DockerDeploymentInfoResponse(BaseModel):
     enabled: bool
     message: str
@@ -248,5 +255,8 @@ class DockerDeploymentInfoResponse(BaseModel):
     deployment_history: list[ManagerDeploymentHistoryEntryResponse] = Field(default_factory=list)
     deployment_history_archive: list[ManagerDeploymentHistoryEntryResponse] = Field(
         default_factory=list
+    )
+    deployment_history_archive_summary: ManagerDeploymentHistoryArchiveSummaryResponse = Field(
+        default_factory=ManagerDeploymentHistoryArchiveSummaryResponse
     )
     components: list[DockerDeploymentComponentResponse] = Field(default_factory=list)

@@ -235,8 +235,16 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
     )
     monkeypatch.setattr(
         docker,
-        "read_manager_deployment_history_archive",
-        lambda: [{"status": "success", "alert_run_url": None}],
+        "read_manager_deployment_history_archive_with_summary",
+        lambda: (
+            [{"status": "success", "alert_run_url": None}],
+            {
+                "detailed_count": 1,
+                "daily_count": 0,
+                "newest_at": requested_at,
+                "oldest_at": requested_at,
+            },
+        ),
     )
 
     result = await docker.get_deployment_info(
@@ -259,6 +267,7 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
     assert result["deployment_history"][0]["alert_run_checked_at"] == requested_at
     assert result["deployment_history"][-1]["alert_run_status"] is None
     assert result["deployment_history_archive"][0]["alert_run_status"] is None
+    assert result["deployment_history_archive_summary"]["detailed_count"] == 1
     assert [run["conclusion"] for run in result["external_watchdog_alert_runs"]] == [
         "success",
         "failure",
