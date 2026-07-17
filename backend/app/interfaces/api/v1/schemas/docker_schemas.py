@@ -247,8 +247,13 @@ class ManagerDeploymentBottleneckAlertResponse(BaseModel):
     ] = "not_checked"
     configured_threshold_ms: int = Field(default=60_000, ge=1_000, le=900_000)
     configured_consecutive_count: int = Field(default=3, ge=1, le=20)
+    configured_event_retention_days: int = Field(default=90, ge=1, le=3650)
     effective_threshold_ms: int = Field(default=60_000, ge=1_000, le=900_000)
     effective_consecutive_count: int = Field(default=3, ge=1, le=20)
+    effective_event_retention_days: int = Field(default=90, ge=1, le=3650)
+    threshold_source: Literal["settings", "environment"] = "settings"
+    consecutive_source: Literal["settings", "environment"] = "settings"
+    event_retention_source: Literal["settings", "environment"] = "settings"
     current_consecutive_count: int = Field(default=0, ge=0)
     checked_at: datetime | None = None
     latest_version: str | None = None

@@ -9,15 +9,19 @@ from app.infrastructure.github_actions_run import build_actions_run_api_url
 
 DEFAULT_THRESHOLD_MS = 60_000
 DEFAULT_CONSECUTIVE_COUNT = 3
+DEFAULT_EVENT_RETENTION_DAYS = 90
 MIN_THRESHOLD_MS = 1_000
 MAX_THRESHOLD_MS = 900_000
 MIN_CONSECUTIVE_COUNT = 1
 MAX_CONSECUTIVE_COUNT = 20
+MIN_EVENT_RETENTION_DAYS = 1
+MAX_EVENT_RETENTION_DAYS = 3650
 MAX_STATE_BYTES = 4 * 1024
 MAX_EVENTS_BYTES = 128 * 1024
 MAX_EVENTS = 20
 ALERT_STATUSES = {"not_checked", "no_history", "normal", "pending", "alerted", "request_failed"}
 ALERT_EVENTS = {"alerted", "cleared"}
+CONFIG_SOURCES = {"settings", "environment"}
 DEPLOYMENT_STAGES = {
     "prepare",
     "build",
@@ -47,12 +51,19 @@ def read_manager_deployment_bottleneck_config(
             minimum=MIN_CONSECUTIVE_COUNT,
             maximum=MAX_CONSECUTIVE_COUNT,
         ),
+        "event_retention_days": _bounded_int(
+            values.get("event_retention_days"),
+            default=DEFAULT_EVENT_RETENTION_DAYS,
+            minimum=MIN_EVENT_RETENTION_DAYS,
+            maximum=MAX_EVENT_RETENTION_DAYS,
+        ),
     }
 
 
 def write_manager_deployment_bottleneck_config(
     threshold_ms: int,
     consecutive_count: int,
+    event_retention_days: int = DEFAULT_EVENT_RETENTION_DAYS,
     path: str | Path | None = None,
 ) -> dict[str, int]:
     config_path = Path(path or settings.MANAGER_DEPLOYMENT_BOTTLENECK_CONFIG_PATH)
@@ -68,7 +79,9 @@ def write_manager_deployment_bottleneck_config(
         ) as temporary_file:
             temporary_path = Path(temporary_file.name)
             temporary_file.write(
-                f"threshold_ms={threshold_ms}\nconsecutive_count={consecutive_count}\n"
+                f"threshold_ms={threshold_ms}\n"
+                f"consecutive_count={consecutive_count}\n"
+                f"event_retention_days={event_retention_days}\n"
             )
             temporary_file.flush()
             os.fsync(temporary_file.fileno())
@@ -97,21 +110,43 @@ def read_manager_deployment_bottleneck_state(
     slowest_stage = values.get("slowest_stage") or None
     if slowest_stage not in DEPLOYMENT_STAGES:
         slowest_stage = None
+    effective_threshold_ms = _bounded_int(
+        values.get("effective_threshold_ms"),
+        default=config["threshold_ms"],
+        minimum=MIN_THRESHOLD_MS,
+        maximum=MAX_THRESHOLD_MS,
+    )
+    effective_consecutive_count = _bounded_int(
+        values.get("effective_consecutive_count"),
+        default=config["consecutive_count"],
+        minimum=MIN_CONSECUTIVE_COUNT,
+        maximum=MAX_CONSECUTIVE_COUNT,
+    )
+    effective_event_retention_days = _bounded_int(
+        values.get("effective_event_retention_days"),
+        default=config["event_retention_days"],
+        minimum=MIN_EVENT_RETENTION_DAYS,
+        maximum=MAX_EVENT_RETENTION_DAYS,
+    )
     return {
         "status": status,
         "configured_threshold_ms": config["threshold_ms"],
         "configured_consecutive_count": config["consecutive_count"],
-        "effective_threshold_ms": _bounded_int(
-            values.get("effective_threshold_ms"),
-            default=config["threshold_ms"],
-            minimum=MIN_THRESHOLD_MS,
-            maximum=MAX_THRESHOLD_MS,
+        "configured_event_retention_days": config["event_retention_days"],
+        "effective_threshold_ms": effective_threshold_ms,
+        "effective_consecutive_count": effective_consecutive_count,
+        "effective_event_retention_days": effective_event_retention_days,
+        "threshold_source": _config_source(
+            values.get("threshold_source"),
+            config["threshold_ms"] != effective_threshold_ms,
         ),
-        "effective_consecutive_count": _bounded_int(
-            values.get("effective_consecutive_count"),
-            default=config["consecutive_count"],
-            minimum=MIN_CONSECUTIVE_COUNT,
-            maximum=MAX_CONSECUTIVE_COUNT,
+        "consecutive_source": _config_source(
+            values.get("consecutive_source"),
+            config["consecutive_count"] != effective_consecutive_count,
+        ),
+        "event_retention_source": _config_source(
+            values.get("event_retention_source"),
+            config["event_retention_days"] != effective_event_retention_days,
         ),
         "current_consecutive_count": _bounded_int(
             values.get("current_consecutive_count"),
@@ -239,6 +274,12 @@ def _bounded_int(value: object, *, default: int, minimum: int, maximum: int) -> 
     except ValueError:
         return default
     return parsed if minimum <= parsed <= maximum else default
+
+
+def _config_source(value: str | None, differs: bool) -> str:
+    if value in CONFIG_SOURCES:
+        return value
+    return "environment" if differs else "settings"
 
 
 def _iso_datetime(value: str | None) -> str | None:

@@ -45,6 +45,9 @@ async def update_deployment_bottleneck_settings(
     updated = write_manager_deployment_bottleneck_config(
         payload.threshold_ms,
         payload.consecutive_count,
+        payload.event_retention_days
+        if payload.event_retention_days is not None
+        else previous["event_retention_days"],
     )
     await record_settings_update(
         audit_service=audit_service,

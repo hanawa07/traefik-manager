@@ -3,6 +3,7 @@ import apiClient from "@/shared/lib/apiClient";
 export interface DeploymentBottleneckSettings {
   threshold_ms: number;
   consecutive_count: number;
+  event_retention_days: number;
 }
 
 export const deploymentBottleneckSettingsApi = {

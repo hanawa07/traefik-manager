@@ -143,8 +143,13 @@ export interface ManagerDeploymentBottleneckAlert {
   status: "not_checked" | "no_history" | "normal" | "pending" | "alerted" | "request_failed";
   configured_threshold_ms: number;
   configured_consecutive_count: number;
+  configured_event_retention_days: number;
   effective_threshold_ms: number;
   effective_consecutive_count: number;
+  effective_event_retention_days: number;
+  threshold_source: "settings" | "environment";
+  consecutive_source: "settings" | "environment";
+  event_retention_source: "settings" | "environment";
   current_consecutive_count: number;
   checked_at: string | null;
   latest_version: string | null;

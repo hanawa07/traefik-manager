@@ -29,13 +29,33 @@ async def test_deployment_bottleneck_settings_persist_and_record_audit(monkeypat
         payload=ManagerDeploymentBottleneckSettingsUpdateRequest(
             threshold_ms=45_000,
             consecutive_count=4,
+            event_retention_days=120,
         ),
         request=SimpleNamespace(),
         db=object(),
         actor={"username": "admin"},
     )
 
-    assert response == {"threshold_ms": 45_000, "consecutive_count": 4}
+    assert response == {
+        "threshold_ms": 45_000,
+        "consecutive_count": 4,
+        "event_retention_days": 120,
+    }
     assert await router.get_deployment_bottleneck_settings(_={}) == response
     assert recorded[0]["detail"]["event"] == "settings_update_deployment_bottleneck"
-    assert recorded[0]["detail"]["changed_keys"] == ["consecutive_count", "threshold_ms"]
+    assert recorded[0]["detail"]["changed_keys"] == [
+        "consecutive_count",
+        "event_retention_days",
+        "threshold_ms",
+    ]
+
+    compatible = await router.update_deployment_bottleneck_settings(
+        payload=ManagerDeploymentBottleneckSettingsUpdateRequest(
+            threshold_ms=50_000,
+            consecutive_count=5,
+        ),
+        request=SimpleNamespace(),
+        db=object(),
+        actor={"username": "admin"},
+    )
+    assert compatible["event_retention_days"] == 120

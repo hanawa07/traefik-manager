@@ -34,7 +34,13 @@ export function ManagerDeploymentBottleneckStatusCard({
       ? "border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-100"
       : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100";
   const settingsDiffer = alert.configured_threshold_ms !== alert.effective_threshold_ms
-    || alert.configured_consecutive_count !== alert.effective_consecutive_count;
+    || alert.configured_consecutive_count !== alert.effective_consecutive_count
+    || alert.configured_event_retention_days !== alert.effective_event_retention_days;
+  const overrideLabels = [
+    ...(alert.threshold_source === "environment" ? ["단계 소요 기준"] : []),
+    ...(alert.consecutive_source === "environment" ? ["연속 감지 기준"] : []),
+    ...(alert.event_retention_source === "environment" ? ["이벤트 보관 기간"] : []),
+  ];
   const runLabel = getExternalWatchdogRunLabel(
     alert.run_status,
     alert.run_conclusion,
@@ -56,11 +62,19 @@ export function ManagerDeploymentBottleneckStatusCard({
       </div>
       <p className="mt-2">
         실제 검사 기준 {formatManagerDeploymentDurationMs(alert.effective_threshold_ms)} 초과 · 연속 {alert.current_consecutive_count}/{alert.effective_consecutive_count}회
+        {` · 이벤트 ${alert.effective_event_retention_days}일 보관`}
         {alert.checked_at ? ` · 마지막 검사 ${formatDateTime(alert.checked_at, timezone)}` : ""}
+      </p>
+      <p className="mt-1" data-manager-deployment-bottleneck-source>
+        {overrideLabels.length > 0
+          ? `적용 출처: 호스트 환경 변수 우선 (${overrideLabels.join(", ")})`
+          : "적용 출처: 설정 화면 저장값"}
       </p>
       {settingsDiffer ? (
         <p className="mt-1 font-semibold" data-manager-deployment-bottleneck-override>
-          설정 화면 값과 실제 적용값이 다릅니다. 호스트 환경 변수 우선 적용 여부를 확인하세요.
+          {overrideLabels.length > 0
+            ? "설정 화면 값과 실제 적용값이 다릅니다. 위 호스트 환경 변수 값이 우선합니다."
+            : "설정 화면 값과 마지막 검사 적용값이 다릅니다. 다음 배포 검사에서 반영됩니다."}
         </p>
       ) : null}
       {alert.slowest_stage && alert.current_consecutive_count > 0 ? (

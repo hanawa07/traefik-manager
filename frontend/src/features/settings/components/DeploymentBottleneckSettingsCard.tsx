@@ -15,6 +15,7 @@ interface DeploymentBottleneckSettingsCardProps {
   canManage: boolean;
   formValue: DeploymentBottleneckSettings;
   hostPreview?: DeploymentBottleneckPreviewValue;
+  hostOverrideLabels: string[];
   hostSettings?: DeploymentBottleneckSettings;
   isEditing: boolean;
   isLoading: boolean;
@@ -33,6 +34,7 @@ export function DeploymentBottleneckSettingsCard({
   canManage,
   formValue,
   hostPreview,
+  hostOverrideLabels,
   hostSettings,
   isEditing,
   isLoading,
@@ -77,9 +79,19 @@ export function DeploymentBottleneckSettingsCard({
               onChange={(value) => onFormChange({ ...formValue, consecutive_count: value })}
               value={formValue.consecutive_count}
             />
+            <CertificateDiagnosticsSettingsNumberField
+              help="기간이 지난 이벤트는 다음 배포 검사에서 삭제합니다. 최대 100건 제한도 함께 적용됩니다."
+              label="이벤트 보관 기간 (일)"
+              max={3650}
+              min={1}
+              onChange={(value) => onFormChange({ ...formValue, event_retention_days: value })}
+              value={formValue.event_retention_days}
+            />
           </div>
           <DeploymentBottleneckPreview
+            eventRetentionDays={formValue.event_retention_days}
             hostPreview={hostPreview}
+            hostOverrideLabels={hostOverrideLabels}
             hostSettings={hostSettings}
             isError={isPreviewError}
             isLoading={isPreviewLoading}
@@ -100,8 +112,11 @@ export function DeploymentBottleneckSettingsCard({
         <SettingsSummary>
           <SettingsSummaryRow label="단계 소요 기준" value={`${(settings?.threshold_ms ?? 60_000) / 1000}초 초과`} />
           <SettingsSummaryRow label="연속 감지 기준" value={`${settings?.consecutive_count ?? 3}회`} />
+          <SettingsSummaryRow label="이벤트 보관 기간" value={`${settings?.event_retention_days ?? 90}일 · 최대 100건`} />
           <DeploymentBottleneckPreview
+            eventRetentionDays={settings?.event_retention_days ?? 90}
             hostPreview={hostPreview}
+            hostOverrideLabels={hostOverrideLabels}
             hostSettings={hostSettings}
             isError={isPreviewError}
             isLoading={isPreviewLoading}

@@ -6,7 +6,9 @@ import {
 } from "@/features/deployment/lib/managerDeploymentDisplay";
 
 export function DeploymentBottleneckPreview({
+  eventRetentionDays,
   hostPreview,
+  hostOverrideLabels,
   hostSettings,
   isError,
   isLoading,
@@ -14,7 +16,9 @@ export function DeploymentBottleneckPreview({
   requiredCount,
   thresholdMs,
 }: {
+  eventRetentionDays: number;
   hostPreview?: PreviewValue;
+  hostOverrideLabels: string[];
   hostSettings?: DeploymentBottleneckSettings;
   isError: boolean;
   isLoading: boolean;
@@ -28,7 +32,8 @@ export function DeploymentBottleneckPreview({
       ? "최근 배포 이력을 불러오지 못해 예상 결과를 계산할 수 없습니다."
       : describePreview(preview, requiredCount);
   const matchesHost = hostSettings?.threshold_ms === thresholdMs
-    && hostSettings.consecutive_count === requiredCount;
+    && hostSettings.consecutive_count === requiredCount
+    && hostSettings.event_retention_days === eventRetentionDays;
 
   return (
     <div
@@ -46,11 +51,18 @@ export function DeploymentBottleneckPreview({
         <p
           className="mt-2 border-t border-current/15 pt-2 font-semibold"
           data-host-threshold-ms={hostSettings.threshold_ms}
+          data-host-retention-days={hostSettings.event_retention_days}
           data-deployment-bottleneck-host-preview={matchesHost ? "same" : "different"}
         >
           {matchesHost
             ? "호스트 현재 적용값과 동일합니다."
-            : `호스트 현재 적용: ${formatManagerDeploymentDurationMs(hostSettings.threshold_ms)} 초과 · ${describePreview(hostPreview, hostSettings.consecutive_count)}`}
+            : `호스트 현재 적용: ${formatManagerDeploymentDurationMs(hostSettings.threshold_ms)} 초과 · ${describePreview(hostPreview, hostSettings.consecutive_count)} · 이벤트 ${hostSettings.event_retention_days}일 보관.`}
+          {" "}
+          <span data-deployment-bottleneck-host-source>
+            {hostOverrideLabels.length > 0
+              ? `적용 출처: 호스트 환경 변수 우선 (${hostOverrideLabels.join(", ")}).`
+              : "적용 출처: 설정 화면 저장값."}
+          </span>
         </p>
       ) : null}
     </div>

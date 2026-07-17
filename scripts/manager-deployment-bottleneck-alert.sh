@@ -9,6 +9,13 @@ readonly STAGE_PAIR_PATTERN='"(prepare|build|migration_preflight|candidate_healt
 readonly MAX_EVENT_LINES=100
 THRESHOLD_MS="${TM_DEPLOY_BOTTLENECK_ALERT_THRESHOLD_MS:-60000}"
 CONSECUTIVE_COUNT="${TM_DEPLOY_BOTTLENECK_ALERT_CONSECUTIVE:-3}"
+EVENT_RETENTION_DAYS="${TM_DEPLOY_BOTTLENECK_EVENT_RETENTION_DAYS:-90}"
+THRESHOLD_SOURCE="settings"
+CONSECUTIVE_SOURCE="settings"
+EVENT_RETENTION_SOURCE="settings"
+[[ -z "${TM_DEPLOY_BOTTLENECK_ALERT_THRESHOLD_MS:-}" ]] || THRESHOLD_SOURCE="environment"
+[[ -z "${TM_DEPLOY_BOTTLENECK_ALERT_CONSECUTIVE:-}" ]] || CONSECUTIVE_SOURCE="environment"
+[[ -z "${TM_DEPLOY_BOTTLENECK_EVENT_RETENTION_DAYS:-}" ]] || EVENT_RETENTION_SOURCE="environment"
 
 read_state_value() {
   local file="$1"
@@ -27,6 +34,10 @@ load_config() {
     value="$(read_state_value "${CONFIG_FILE}" consecutive_count)"
     [[ -z "${value}" ]] || CONSECUTIVE_COUNT="${value}"
   fi
+  if [[ -z "${TM_DEPLOY_BOTTLENECK_EVENT_RETENTION_DAYS:-}" ]]; then
+    value="$(read_state_value "${CONFIG_FILE}" event_retention_days)"
+    [[ -z "${value}" ]] || EVENT_RETENTION_DAYS="${value}"
+  fi
 }
 
 validate_config() {
@@ -36,6 +47,9 @@ validate_config() {
   [[ "${CONSECUTIVE_COUNT}" =~ ^[1-9][0-9]*$ ]] \
     && (( CONSECUTIVE_COUNT <= 20 )) \
     || { echo "배포 병목 연속 횟수는 1~20 정수여야 합니다" >&2; return 1; }
+  [[ "${EVENT_RETENTION_DAYS}" =~ ^[1-9][0-9]*$ ]] \
+    && (( EVENT_RETENTION_DAYS <= 3650 )) \
+    || { echo "배포 병목 이벤트 보관 기간은 1~3650일 정수여야 합니다" >&2; return 1; }
 }
 
 analyze_streak() {
@@ -106,10 +120,11 @@ write_check_status() {
   local alerted_at="$9"
   local temporary_file
   temporary_file="$(mktemp "${status_file}.tmp.XXXXXX")"
-  printf 'status=%s\nchecked_at=%s\neffective_threshold_ms=%s\neffective_consecutive_count=%s\ncurrent_consecutive_count=%s\nincident_key=%s\nlatest_version=%s\nslowest_stage=%s\nslowest_ms=%s\nrun_url=%s\nalerted_at=%s\n' \
+  printf 'status=%s\nchecked_at=%s\neffective_threshold_ms=%s\neffective_consecutive_count=%s\neffective_event_retention_days=%s\nthreshold_source=%s\nconsecutive_source=%s\nevent_retention_source=%s\ncurrent_consecutive_count=%s\nincident_key=%s\nlatest_version=%s\nslowest_stage=%s\nslowest_ms=%s\nrun_url=%s\nalerted_at=%s\n' \
     "${status}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${THRESHOLD_MS}" "${CONSECUTIVE_COUNT}" \
-    "${count}" "${incident_key}" "${latest_version}" "${slowest_stage}" "${slowest_ms}" \
-    "${run_url}" "${alerted_at}" > "${temporary_file}"
+    "${EVENT_RETENTION_DAYS}" "${THRESHOLD_SOURCE}" "${CONSECUTIVE_SOURCE}" \
+    "${EVENT_RETENTION_SOURCE}" "${count}" "${incident_key}" "${latest_version}" \
+    "${slowest_stage}" "${slowest_ms}" "${run_url}" "${alerted_at}" > "${temporary_file}"
   chmod 644 "${temporary_file}"
   mv "${temporary_file}" "${status_file}"
 }
@@ -121,6 +136,24 @@ json_escape() {
   value="${value//$'\r'/}"
   value="${value//$'\t'/ }"
   printf '%s' "${value}"
+}
+
+prune_alert_events() {
+  local events_file="$1"
+  [[ -f "${events_file}" ]] || return 0
+  local cutoff line occurred_at occurred_epoch temporary_file
+  cutoff="$(date -u -d "${EVENT_RETENTION_DAYS} days ago" +%s)"
+  temporary_file="$(mktemp "${events_file}.tmp.XXXXXX")"
+  while IFS= read -r line; do
+    occurred_at="${line#*\"occurred_at\":\"}"
+    [[ "${occurred_at}" != "${line}" ]] || continue
+    occurred_at="${occurred_at%%\"*}"
+    occurred_epoch="$(date -u -d "${occurred_at}" +%s 2>/dev/null || true)"
+    [[ "${occurred_epoch}" =~ ^[0-9]+$ ]] && (( occurred_epoch >= cutoff )) || continue
+    printf '%s\n' "${line}" >> "${temporary_file}"
+  done < <(tail -n "${MAX_EVENT_LINES}" "${events_file}")
+  chmod 644 "${temporary_file}"
+  mv "${temporary_file}" "${events_file}"
 }
 
 append_alert_event() {
@@ -151,6 +184,9 @@ check_history() {
   local events_file="${TM_DEPLOY_BOTTLENECK_ALERT_EVENTS_FILE:-${history_file}.bottleneck-alert.events.jsonl}"
   local analysis count incident_key latest_version slowest_stage slowest_ms
   local alerted_incident alerted_at run_url status
+  if ! prune_alert_events "${events_file}"; then
+    echo "Manager 병목 이벤트 보관 기간 정리를 수행하지 못했습니다" >&2
+  fi
   if [[ ! -f "${history_file}" ]]; then
     if [[ -f "${state_file}" ]]; then
       run_url="$(read_state_value "${state_file}" run_url)"
@@ -245,6 +281,9 @@ SCRIPT
   [[ ! -e "${capture_file}" && ! -e "${state_file}" ]]
   [[ ! -e "${events_file}" ]]
   grep -Fq 'status=pending' "${status_file}"
+  grep -Fq 'threshold_source=environment' "${status_file}"
+  grep -Fq 'consecutive_source=environment' "${status_file}"
+  grep -Fq 'event_retention_source=environment' "${status_file}"
   append_fixture "${history_file}" 3 70003
   run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}" "${events_file}"
   [[ "$(wc -l < "${capture_file}")" == "1" && -f "${state_file}" ]]
@@ -280,11 +319,13 @@ SCRIPT
   config_events="${temporary_dir}/config-alert.events.jsonl"
   config_file="${temporary_dir}/bottleneck.conf"
   config_capture="${temporary_dir}/config-capture"
-  printf 'threshold_ms=75000\nconsecutive_count=2\n' > "${config_file}"
+  printf 'threshold_ms=75000\nconsecutive_count=2\nevent_retention_days=30\n' > "${config_file}"
+  printf '{"event":"alerted","occurred_at":"2000-01-01T00:00:00Z"}\n' > "${config_events}"
   append_fixture "${config_history}" 8 76001
   append_fixture "${config_history}" 9 76002
   (
     unset TM_DEPLOY_BOTTLENECK_ALERT_THRESHOLD_MS TM_DEPLOY_BOTTLENECK_ALERT_CONSECUTIVE
+    unset TM_DEPLOY_BOTTLENECK_EVENT_RETENTION_DAYS
     TM_DEPLOY_BOTTLENECK_CONFIG_FILE="${config_file}" \
     TM_DEPLOY_BOTTLENECK_ALERT_STATE_FILE="${config_state}" \
     TM_DEPLOY_BOTTLENECK_ALERT_STATUS_FILE="${config_status}" \
@@ -295,6 +336,10 @@ SCRIPT
   )
   grep -Fq 'effective_threshold_ms=75000' "${config_status}"
   grep -Fq 'effective_consecutive_count=2' "${config_status}"
+  grep -Fq 'effective_event_retention_days=30' "${config_status}"
+  grep -Fq 'threshold_source=settings' "${config_status}"
+  grep -Fq 'consecutive_source=settings' "${config_status}"
+  grep -Fq 'event_retention_source=settings' "${config_status}"
   [[ "$(wc -l < "${config_capture}")" == "1" ]]
   [[ "$(wc -l < "${config_events}")" == "1" ]]
   echo "Manager 연속 병목 알림 self-test 통과"
@@ -303,6 +348,7 @@ SCRIPT
 run_fixture_check() {
   TM_DEPLOY_BOTTLENECK_ALERT_THRESHOLD_MS=60000 \
   TM_DEPLOY_BOTTLENECK_ALERT_CONSECUTIVE=3 \
+  TM_DEPLOY_BOTTLENECK_EVENT_RETENTION_DAYS=90 \
   TM_DEPLOY_BOTTLENECK_ALERT_STATE_FILE="$2" \
   TM_DEPLOY_BOTTLENECK_ALERT_STATUS_FILE="$3" \
   TM_DEPLOY_BOTTLENECK_ALERT_CAPTURE="$5" \
