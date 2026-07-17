@@ -10,10 +10,11 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   const payload = JSON.parse(json.text);
   assert.match(payload.metadata.exported_at, /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(payload.metadata.result_count, 1);
-  assert.equal(payload.metadata.schema_version, 4);
+  assert.equal(payload.metadata.schema_version, 5);
   assert.equal(typeof payload.metadata.timezone, "string");
   assert.ok(payload.metadata.timezone);
   assert.deepEqual(payload.metadata.filters, {
+    archive_sample: "detailed",
     bottleneck_threshold_ms: 60_000,
     date_from: null,
     date_to: null,
@@ -30,7 +31,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   await waitForExportToast({
     cdp,
     filename: json.filename,
-    filterSummary: '보관 이력 · 최근 30일 · 자동 롤백 · 단계 공개 health probe · 검색 "probe failure"',
+    filterSummary: '보관 이력 · 상세 표본 · 최근 30일 · 자동 롤백 · 단계 공개 health probe · 검색 "probe failure"',
     format: "JSON",
     timeoutMs,
   });
@@ -57,7 +58,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   await waitForExportToast({
     cdp,
     filename: customDateJson.filename,
-    filterSummary: `보관 이력 · 기간 ${dateFrom}~${dateTo} · 자동 롤백`,
+    filterSummary: `보관 이력 · 상세 표본 · 기간 ${dateFrom}~${dateTo} · 자동 롤백`,
     format: "JSON",
     timeoutMs,
   });
@@ -73,6 +74,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
         !params.has('deployment_period') && !params.has('deployment_from') &&
         !params.has('deployment_to') && !params.has('deployment_status') &&
         !params.has('deployment_speed') && !params.has('deployment_stage') &&
+        !params.has('deployment_archive_sample') &&
         !params.has('deployment_bottleneck_ms') &&
         params.get('deployment_source') === 'archive';
     })()`,
@@ -84,15 +86,17 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   assert.match(csv.filename, /deployments-archive-all-time-all-\d{4}-\d{2}-\d{2}\.csv$/);
   assert.deepEqual(csv.bytes, [239, 187, 191], "Manager CSV UTF-8 BOM이 없습니다");
   assert.match(csv.text, /^metadata,value\r\n/);
-  assert.match(csv.text, /\r\nschema_version,"4"\r\n/);
+  assert.match(csv.text, /\r\nschema_version,"5"\r\n/);
   assert.match(csv.text, /\r\ntimezone,"[^"]+"\r\n/);
   assert.match(csv.text, /\r\nresult_count,"2"\r\n/);
   assert.match(csv.text, /\r\nfilter_source,"archive"\r\n/);
+  assert.match(csv.text, /\r\nfilter_archive_sample,"all"\r\n/);
   assert.match(csv.text, /\r\nfilter_bottleneck_threshold_ms,"60000"\r\n/);
   assert.match(csv.text, /\r\nfilter_speed,"all"\r\n/);
   assert.match(csv.text, /\r\nfilter_period,"all"\r\n/);
   assert.match(csv.text, /\r\n\r\nstatus,from_slot,to_slot,/);
   assert.match(csv.text, /failure_reason,stage_durations_ms,alert_request_status/);
+  assert.match(csv.text, /alert_run_error,archive_sample\r\n/);
   assert.match(csv.text, /\{\"\"prepare\"\":10000,\"\"build\"\":110000\}/);
   assert.match(csv.text, /"'=archive fixture probe failure"/);
   assert.match(csv.text, /"'\+archive fixture build failure"/);

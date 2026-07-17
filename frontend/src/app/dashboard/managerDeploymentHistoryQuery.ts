@@ -9,6 +9,7 @@ export type ManagerDeploymentHistoryFailureStage = NonNullable<ManagerDeployment
 export type ManagerDeploymentHistoryStageFilter = "all" | "unknown" | ManagerDeploymentHistoryFailureStage;
 export type ManagerDeploymentHistorySourceFilter = "all" | "archive" | "current";
 export type ManagerDeploymentHistoryRecordSource = Exclude<ManagerDeploymentHistorySourceFilter, "all">;
+export type ManagerDeploymentArchiveSampleFilter = "all" | "detailed" | "daily";
 export type ManagerDeploymentHistoryPeriodFilter = "all" | "1" | "7" | "30" | "90";
 export type ManagerDeploymentHistorySpeedFilter = "all" | "average" | "p95";
 export type ManagerDeploymentBottleneckThreshold = "15000" | "30000" | "60000" | "120000" | "300000";
@@ -16,6 +17,7 @@ export type ManagerDeploymentBottleneckThreshold = "15000" | "30000" | "60000" |
 export const DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD: ManagerDeploymentBottleneckThreshold = "60000";
 
 export interface ManagerDeploymentHistoryFilters {
+  archiveSample: ManagerDeploymentArchiveSampleFilter;
   bottleneckThreshold: ManagerDeploymentBottleneckThreshold;
   dateFrom: string;
   dateTo: string;
@@ -28,6 +30,7 @@ export interface ManagerDeploymentHistoryFilters {
 }
 
 export const MANAGER_DEPLOYMENT_HISTORY_QUERY = {
+  archiveSample: "deployment_archive_sample",
   bottleneckThreshold: "deployment_bottleneck_ms",
   dateFrom: "deployment_from",
   dateTo: "deployment_to",
@@ -127,6 +130,12 @@ export function parseManagerDeploymentHistorySource(
   value: string | null,
 ): ManagerDeploymentHistorySourceFilter {
   return value === "all" || value === "archive" ? value : "current";
+}
+
+export function parseManagerDeploymentArchiveSample(
+  value: string | null,
+): ManagerDeploymentArchiveSampleFilter {
+  return value === "detailed" || value === "daily" ? value : "all";
 }
 
 export function parseManagerDeploymentHistorySpeed(

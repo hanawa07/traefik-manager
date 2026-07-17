@@ -16,6 +16,7 @@ import type { ManagerDeploymentHistoryExportFormat } from "./managerDeploymentHi
 import {
   DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD,
   matchesManagerDeploymentHistoryStatus,
+  type ManagerDeploymentArchiveSampleFilter,
   type ManagerDeploymentHistoryFilters,
   type ManagerDeploymentHistoryPeriodFilter,
   type ManagerDeploymentHistorySourceFilter,
@@ -72,6 +73,7 @@ export function ManagerDeploymentHistoryControls({
     { label: `보관 이력 ${archiveCount}`, value: "archive" },
   ];
   const hasActiveFilters = filters.status !== "all"
+    || filters.archiveSample !== "all"
     || filters.bottleneckThreshold !== DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD
     || filters.speed !== "all"
     || filters.stage !== "all"
@@ -190,6 +192,24 @@ export function ManagerDeploymentHistoryControls({
               ))}
             </select>
           </label>
+          {filters.source !== "current" && archiveCount > 0 ? (
+            <label className="min-w-36 text-[11px] font-medium text-gray-500 dark:text-slate-400">
+              <span className="sr-only">보관 이력 표본</span>
+              <select
+                aria-label="보관 이력 표본"
+                className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs text-gray-700 outline-none focus:border-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                data-history-archive-sample
+                onChange={(event) => onFiltersChange({
+                  archiveSample: event.target.value as ManagerDeploymentArchiveSampleFilter,
+                })}
+                value={filters.archiveSample}
+              >
+                <option value="all">보관 표본 전체</option>
+                <option value="detailed">상세 표본 {archiveSummary?.detailed_count ?? 0}</option>
+                <option value="daily">일별 표본 {archiveSummary?.daily_count ?? 0}</option>
+              </select>
+            </label>
+          ) : null}
           <span aria-live="polite" className="text-[11px] text-gray-500 dark:text-slate-400">
             {filteredCount}/{entries.length}건
           </span>
@@ -200,6 +220,7 @@ export function ManagerDeploymentHistoryControls({
             disabled={!hasActiveFilters}
             onClick={() => onFiltersChange({
               bottleneckThreshold: DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD,
+              archiveSample: "all",
               dateFrom: "",
               dateTo: "",
               period: "all",
@@ -301,6 +322,13 @@ export function ManagerDeploymentHistoryControls({
                   onRemove={() => onFiltersChange({ source: "current" })}
                 />
               ) : null}
+              {filters.archiveSample !== "all" ? (
+                <ConditionChip
+                  condition="archive_sample"
+                  label={filters.archiveSample === "detailed" ? "상세 표본" : "일별 표본"}
+                  onRemove={() => onFiltersChange({ archiveSample: "all" })}
+                />
+              ) : null}
               {filters.period !== "all" ? (
                 <ConditionChip
                   condition="period"
@@ -376,7 +404,7 @@ function ConditionChip({
   label,
   onRemove,
 }: {
-  condition: "bottleneck_threshold" | "date_from" | "date_to" | "period" | "search" | "source" | "speed" | "stage" | "status";
+  condition: "archive_sample" | "bottleneck_threshold" | "date_from" | "date_to" | "period" | "search" | "source" | "speed" | "stage" | "status";
   label: string;
   onRemove: () => void;
 }) {

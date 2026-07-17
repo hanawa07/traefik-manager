@@ -13,6 +13,7 @@ type ManagerDeploymentHistoryExportColumn = keyof ManagerDeploymentHistoryExport
 interface ManagerDeploymentHistoryExportMetadata {
   exported_at: string;
   filters: {
+    archive_sample: ManagerDeploymentHistoryFilters["archiveSample"];
     bottleneck_threshold_ms: number;
     date_from: string | null;
     date_to: string | null;
@@ -24,7 +25,7 @@ interface ManagerDeploymentHistoryExportMetadata {
     status: ManagerDeploymentHistoryFilters["status"];
   };
   result_count: number;
-  schema_version: 4;
+  schema_version: 5;
   timezone: string;
 }
 
@@ -48,6 +49,7 @@ const CSV_COLUMNS: readonly (keyof ManagerDeploymentHistoryEntry)[] = [
   "alert_run_conclusion",
   "alert_run_checked_at",
   "alert_run_error",
+  "archive_sample",
 ];
 
 export function downloadManagerDeploymentHistory(
@@ -95,6 +97,7 @@ function buildMetadata(
   return {
     exported_at: new Date().toISOString(),
     filters: {
+      archive_sample: filters.archiveSample,
       bottleneck_threshold_ms: Number(filters.bottleneckThreshold),
       date_from: filters.dateFrom || null,
       date_to: filters.dateTo || null,
@@ -106,7 +109,7 @@ function buildMetadata(
       status: filters.status,
     },
     result_count: resultCount,
-    schema_version: 4,
+    schema_version: 5,
     timezone: timezone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   };
 }
@@ -125,6 +128,7 @@ function toCsv(
     ["timezone", metadata.timezone],
     ["result_count", metadata.result_count],
     ["filter_source", metadata.filters.source],
+    ["filter_archive_sample", metadata.filters.archive_sample],
     ["filter_bottleneck_threshold_ms", metadata.filters.bottleneck_threshold_ms],
     ["filter_speed", metadata.filters.speed],
     ["filter_period", metadata.filters.period],

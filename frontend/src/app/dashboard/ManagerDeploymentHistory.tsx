@@ -32,6 +32,7 @@ import {
   DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD,
   MANAGER_DEPLOYMENT_HISTORY_QUERY,
   matchesManagerDeploymentHistoryStatus,
+  parseManagerDeploymentArchiveSample,
   parseManagerDeploymentHistoryDate,
   parseManagerDeploymentBottleneckThreshold,
   parseManagerDeploymentHistoryPeriod,
@@ -41,6 +42,7 @@ import {
   parseManagerDeploymentHistoryStatus,
   replaceManagerDeploymentHistoryQueryParams,
   type ManagerDeploymentHistoryFilters,
+  type ManagerDeploymentArchiveSampleFilter,
   type ManagerDeploymentHistoryPeriodFilter,
   type ManagerDeploymentHistoryRecordSource,
   type ManagerDeploymentHistorySourceFilter,
@@ -86,6 +88,14 @@ function ManagerDeploymentHistoryContent({
   const [dateFrom, setDateFrom] = useState(() =>
     parseManagerDeploymentHistoryDate(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.dateFrom)),
   );
+  const [archiveSample, setArchiveSample] = useState<ManagerDeploymentArchiveSampleFilter>(() =>
+    parseManagerDeploymentHistorySource(
+      searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.source),
+    ) === "current"
+      ? "all"
+      : parseManagerDeploymentArchiveSample(
+          searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.archiveSample),
+        ));
   const [dateTo, setDateTo] = useState(() =>
     parseManagerDeploymentHistoryDate(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.dateTo)),
   );
@@ -108,6 +118,7 @@ function ManagerDeploymentHistoryContent({
     (searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.search) || "").slice(0, 100),
   );
   const filters: ManagerDeploymentHistoryFilters = {
+    archiveSample,
     bottleneckThreshold,
     dateFrom,
     dateTo,
@@ -124,11 +135,16 @@ function ManagerDeploymentHistoryContent({
     : periodReferenceTime - Number(period) * 24 * 60 * 60 * 1_000;
   const dateFromCutoff = getManagerDeploymentDateBoundary(dateFrom);
   const dateToCutoff = getManagerDeploymentDateBoundary(dateTo, true);
-  const visibleEntries = historySource === "archive"
+  const sourceEntries = historySource === "archive"
     ? archiveEntries
     : historySource === "all"
       ? [...entries, ...archiveEntries]
       : entries;
+  const visibleEntries = archiveSample === "all"
+    ? sourceEntries
+    : sourceEntries.filter(
+        (entry) => entry.archive_sample === null || entry.archive_sample === archiveSample,
+      );
   const resolveEntrySource = (
     entry: ManagerDeploymentHistoryEntry,
   ): ManagerDeploymentHistoryRecordSource => entries.includes(entry) ? "current" : "archive";
@@ -166,6 +182,14 @@ function ManagerDeploymentHistoryContent({
 
   const updateFilters = (updates: Partial<ManagerDeploymentHistoryFilters>) => {
     const queryUpdates: [key: string, value: string, defaultValue: string][] = [];
+    if (updates.archiveSample !== undefined) {
+      setArchiveSample(updates.archiveSample);
+      queryUpdates.push([
+        MANAGER_DEPLOYMENT_HISTORY_QUERY.archiveSample,
+        updates.archiveSample,
+        "all",
+      ]);
+    }
     if (updates.bottleneckThreshold !== undefined) {
       setBottleneckThreshold(updates.bottleneckThreshold);
       queryUpdates.push([
@@ -195,6 +219,10 @@ function ManagerDeploymentHistoryContent({
     if (updates.source !== undefined) {
       setHistorySource(updates.source);
       queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.source, updates.source, "current"]);
+      if (updates.source === "current" && updates.archiveSample === undefined) {
+        setArchiveSample("all");
+        queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.archiveSample, "all", "all"]);
+      }
     }
     if (updates.speed !== undefined) {
       setSpeed(updates.speed);
@@ -321,6 +349,9 @@ function describeExportFilters(filters: ManagerDeploymentHistoryFilters): string
     (option) => option.value === filters.status,
   )?.label;
   const summary = [source, period, status];
+  if (filters.archiveSample !== "all") {
+    summary.splice(1, 0, filters.archiveSample === "detailed" ? "상세 표본" : "일별 표본");
+  }
   if (filters.speed !== "all") {
     summary.push(`속도 ${filters.speed === "p95" ? "P95" : "평균"} 초과`);
   }
