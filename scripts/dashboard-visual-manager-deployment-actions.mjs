@@ -31,7 +31,13 @@ async function checkCombinedSource({ cdp, timeoutMs }) {
       'data-deployment-rollback-rate',
     ) === '33' && document.querySelector('[data-deployment-average-duration-ms]')?.getAttribute(
       'data-deployment-average-duration-ms',
-    ) === '50000' && document.querySelectorAll(
+    ) === '50000' && document.querySelector('[data-deployment-median-duration-ms]')?.getAttribute(
+      'data-deployment-median-duration-ms',
+    ) === '60000' && document.querySelector('[data-deployment-p95-duration-ms]')?.getAttribute(
+      'data-deployment-p95-duration-ms',
+    ) === '60000' && document.querySelector('[data-deployment-slow-count]')?.getAttribute(
+      'data-deployment-slow-count',
+    ) === '2' && document.querySelectorAll(
       '[data-history-source="all"] li[data-deployment-slow="true"]',
     ).length === 2`,
     timeoutMs,
@@ -43,6 +49,18 @@ async function checkCombinedSource({ cdp, timeoutMs }) {
     'data-deployment-source',
   ))`);
   assert.deepEqual(slowSources, ["archive", "archive"]);
+  const delayDetails = await evaluate(cdp, `Array.from(document.querySelectorAll(
+    '[data-history-source="all"] li[data-deployment-slow="true"]',
+  )).map((entry) => ({
+    delay: entry.getAttribute('data-deployment-delay-ms'),
+    label: entry.querySelector('[data-deployment-slow-badge]')?.textContent?.trim(),
+  }))`);
+  assert.deepEqual(delayDetails, [
+    { delay: "10000", label: "평균보다 +10초" },
+    { delay: "10000", label: "평균보다 +10초" },
+  ]);
+  await clickSpeedFilter({ cdp, expectedCount: 2, selected: true, timeoutMs });
+  await clickSpeedFilter({ cdp, expectedCount: 3, selected: false, timeoutMs });
   await clickRateFilter({ cdp, expectedCount: 2, status: "failure", timeoutMs });
   await clickRateFilter({ cdp, expectedCount: 1, status: "success", timeoutMs });
   await clickRateFilter({ cdp, expectedCount: 1, status: "rollback", timeoutMs });
@@ -60,6 +78,12 @@ async function checkCombinedSource({ cdp, timeoutMs }) {
     rollback: document.querySelector('[data-deployment-rollback-rate]')?.getAttribute(
       'data-deployment-rollback-rate',
     ),
+    median: document.querySelector('[data-deployment-median-duration-ms]')?.getAttribute(
+      'data-deployment-median-duration-ms',
+    ),
+    p95: document.querySelector('[data-deployment-p95-duration-ms]')?.getAttribute(
+      'data-deployment-p95-duration-ms',
+    ),
     slow: document.querySelectorAll(
       '[data-history-source="archive"] li[data-deployment-slow="true"]',
     ).length,
@@ -70,6 +94,8 @@ async function checkCombinedSource({ cdp, timeoutMs }) {
   assert.deepEqual(archiveRates, {
     average: "60000",
     failure: "100",
+    median: "60000",
+    p95: "60000",
     rollback: "50",
     slow: 0,
     success: "0",
@@ -100,7 +126,8 @@ async function checkSourceSummaryAndRateHelp({ cdp, timeoutMs }) {
         details.textContent?.includes('success가 아닌 모든 상태') &&
         details.textContent?.includes('rolled_back·rollback_failed') &&
         details.textContent?.includes('유효한 시작·완료 시각') &&
-        details.textContent?.includes('검색 필터는 비율과 평균에');
+        details.textContent?.includes('오름차순 95% 지점') &&
+        details.textContent?.includes('검색·느린 배포 필터는 비율과 시간 통계에');
     })()`,
     timeoutMs,
     "Manager 배포 비율 산정 기준을 펼치지 못했습니다",
@@ -129,6 +156,31 @@ async function clickRateFilter({ cdp, expectedCount, status, timeoutMs }) {
     })()`,
     timeoutMs,
     `Manager ${status} 비율 필터가 적용되지 않았습니다`,
+  );
+}
+
+async function clickSpeedFilter({ cdp, expectedCount, selected, timeoutMs }) {
+  const clicked = await evaluate(cdp, `(() => {
+    const button = document.querySelector('[data-deployment-speed-filter="slow"]');
+    button?.click();
+    return Boolean(button);
+  })()`);
+  assert.equal(clicked, true, "Manager 느린 배포 필터를 찾지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const params = new URLSearchParams(location.search);
+      const button = document.querySelector('[data-deployment-speed-filter="slow"]');
+      return document.querySelectorAll(
+        '[data-history-source="all"] li[data-deployment-status]',
+      ).length === ${expectedCount} &&
+        button?.getAttribute('aria-pressed') === ${JSON.stringify(String(selected))} &&
+        ${selected
+          ? "params.get('deployment_speed') === 'slow' && document.querySelector('[data-history-condition=\"speed\"]')"
+          : "!params.has('deployment_speed') && !document.querySelector('[data-history-condition=\"speed\"]')"};
+    })()`,
+    timeoutMs,
+    `Manager 느린 배포 필터 ${selected ? "적용" : "해제"}가 반영되지 않았습니다`,
   );
 }
 
