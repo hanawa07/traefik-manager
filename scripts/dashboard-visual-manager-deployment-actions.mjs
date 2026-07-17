@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 
+import {
+  checkManagerDeploymentPerformance,
+  checkManagerDeploymentPeriodComparison,
+} from "./dashboard-visual-manager-deployment-performance.mjs";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 export async function checkManagerDeploymentHistoryActions({ cdp, timeoutMs }) {
   await checkCombinedSource({ cdp, timeoutMs });
   await selectPeriod({ cdp, expectedCount: 1, timeoutMs, value: "7" });
+  await checkManagerDeploymentPeriodComparison(cdp);
   await selectPeriod({ cdp, expectedCount: 2, timeoutMs, value: "30" });
   await checkCustomDateRange({ cdp, timeoutMs });
   await selectPeriod({ cdp, expectedCount: 2, timeoutMs, value: "30" });
@@ -60,7 +65,7 @@ async function checkCombinedSource({ cdp, timeoutMs }) {
   assert.deepEqual(delayDetails, [
     { delay: "50000", label: "평균보다 +50초" },
   ]);
-  await checkDurationTrendAndBottlenecks(cdp);
+  await checkManagerDeploymentPerformance({ cdp, timeoutMs });
   await clickSpeedFilter({ basis: "average", cdp, expectedCount: 1, selected: true, timeoutMs });
   await clickSpeedFilter({ basis: "p95", cdp, expectedCount: 1, selected: true, timeoutMs });
   const p95Delay = await evaluate(cdp, `(() => {
@@ -198,32 +203,6 @@ async function clickSpeedFilter({ basis, cdp, expectedCount, selected, timeoutMs
     timeoutMs,
     `Manager ${basis} 속도 필터 ${selected ? "적용" : "해제"}가 반영되지 않았습니다`,
   );
-}
-
-async function checkDurationTrendAndBottlenecks(cdp) {
-  const snapshot = await evaluate(cdp, `(() => ({
-    bars: Array.from(document.querySelectorAll('[data-deployment-duration-bar]')).map((bar) => ({
-      duration: bar.getAttribute('data-deployment-duration-bar'),
-      version: bar.getAttribute('data-deployment-version'),
-    })),
-    bottlenecks: Array.from(document.querySelectorAll('[data-deployment-bottleneck]')).map(
-      (details) => ({
-        stage: details.getAttribute('data-deployment-bottleneck'),
-        summary: details.querySelector('summary')?.textContent?.replace(/\\s+/g, ' ').trim(),
-        timings: details.querySelectorAll('[data-deployment-stage-duration]').length,
-      }),
-    ),
-  }))()`);
-  assert.deepEqual(snapshot.bars, [
-    { duration: "120000", version: "v1.38.69" },
-    { duration: "60000", version: "v1.38.70" },
-    { duration: "30000", version: "v1.38.71" },
-  ]);
-  assert.deepEqual(snapshot.bottlenecks, [
-    { stage: "build", summary: "단계 병목 · 이미지 빌드 10초", timings: 8 },
-    { stage: "public_probe", summary: "단계 병목 · 공개 health probe 18초", timings: 8 },
-    { stage: "build", summary: "단계 병목 · 이미지 빌드 1분 50초", timings: 2 },
-  ]);
 }
 
 async function selectSource({ cdp, expectedCount, source, timeoutMs }) {

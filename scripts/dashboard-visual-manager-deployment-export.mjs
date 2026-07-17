@@ -10,10 +10,11 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   const payload = JSON.parse(json.text);
   assert.match(payload.metadata.exported_at, /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(payload.metadata.result_count, 1);
-  assert.equal(payload.metadata.schema_version, 3);
+  assert.equal(payload.metadata.schema_version, 4);
   assert.equal(typeof payload.metadata.timezone, "string");
   assert.ok(payload.metadata.timezone);
   assert.deepEqual(payload.metadata.filters, {
+    bottleneck_threshold_ms: 60_000,
     date_from: null,
     date_to: null,
     failure_stage: "public_probe",
@@ -72,6 +73,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
         !params.has('deployment_period') && !params.has('deployment_from') &&
         !params.has('deployment_to') && !params.has('deployment_status') &&
         !params.has('deployment_speed') && !params.has('deployment_stage') &&
+        !params.has('deployment_bottleneck_ms') &&
         params.get('deployment_source') === 'archive';
     })()`,
     timeoutMs,
@@ -82,10 +84,11 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   assert.match(csv.filename, /deployments-archive-all-time-all-\d{4}-\d{2}-\d{2}\.csv$/);
   assert.deepEqual(csv.bytes, [239, 187, 191], "Manager CSV UTF-8 BOM이 없습니다");
   assert.match(csv.text, /^metadata,value\r\n/);
-  assert.match(csv.text, /\r\nschema_version,"3"\r\n/);
+  assert.match(csv.text, /\r\nschema_version,"4"\r\n/);
   assert.match(csv.text, /\r\ntimezone,"[^"]+"\r\n/);
   assert.match(csv.text, /\r\nresult_count,"2"\r\n/);
   assert.match(csv.text, /\r\nfilter_source,"archive"\r\n/);
+  assert.match(csv.text, /\r\nfilter_bottleneck_threshold_ms,"60000"\r\n/);
   assert.match(csv.text, /\r\nfilter_speed,"all"\r\n/);
   assert.match(csv.text, /\r\nfilter_period,"all"\r\n/);
   assert.match(csv.text, /\r\n\r\nstatus,from_slot,to_slot,/);
