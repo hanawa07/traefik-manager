@@ -19,10 +19,11 @@ interface ManagerDeploymentHistoryExportMetadata {
     period: ManagerDeploymentHistoryFilters["period"];
     search: string | null;
     source: ManagerDeploymentHistoryFilters["source"];
+    speed: ManagerDeploymentHistoryFilters["speed"];
     status: ManagerDeploymentHistoryFilters["status"];
   };
   result_count: number;
-  schema_version: 1;
+  schema_version: 2;
   timezone: string;
 }
 
@@ -75,7 +76,8 @@ export function downloadManagerDeploymentHistory(
   const period = filters.dateFrom || filters.dateTo
     ? `${filters.dateFrom || "start"}_to_${filters.dateTo || "end"}`
     : filters.period === "all" ? "all-time" : `${filters.period}d`;
-  link.download = `traefik-manager-deployments-${source}-${period}-${filters.status}-${metadata.exported_at.slice(0, 10)}.${format}`;
+  const speed = filters.speed === "slow" ? "-slow" : "";
+  link.download = `traefik-manager-deployments-${source}-${period}-${filters.status}${speed}-${metadata.exported_at.slice(0, 10)}.${format}`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -97,10 +99,11 @@ function buildMetadata(
       period: filters.period,
       search: filters.search.trim() || null,
       source: filters.source,
+      speed: filters.speed,
       status: filters.status,
     },
     result_count: resultCount,
-    schema_version: 1,
+    schema_version: 2,
     timezone: timezone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   };
 }
@@ -119,6 +122,7 @@ function toCsv(
     ["timezone", metadata.timezone],
     ["result_count", metadata.result_count],
     ["filter_source", metadata.filters.source],
+    ["filter_speed", metadata.filters.speed],
     ["filter_period", metadata.filters.period],
     ["filter_date_from", metadata.filters.date_from],
     ["filter_date_to", metadata.filters.date_to],

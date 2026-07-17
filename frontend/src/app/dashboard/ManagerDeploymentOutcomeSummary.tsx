@@ -1,19 +1,31 @@
 import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/deploymentApi";
 
-import { formatManagerDeploymentDurationMs } from "./managerDeploymentHistoryDisplay";
-import type { ManagerDeploymentHistoryStatusFilter } from "./managerDeploymentHistoryQuery";
+import {
+  formatManagerDeploymentDurationMs,
+  getManagerDeploymentDurationMs,
+  getManagerDeploymentExcessDurationMs,
+  type ManagerDeploymentDurationStats,
+} from "./managerDeploymentHistoryDisplay";
+import type {
+  ManagerDeploymentHistorySpeedFilter,
+  ManagerDeploymentHistoryStatusFilter,
+} from "./managerDeploymentHistoryQuery";
 
 export function ManagerDeploymentOutcomeSummary({
-  averageDurationMs,
   currentSourceCount,
+  durationStats,
   entries,
+  onSpeedChange,
   onStatusChange,
+  selectedSpeed,
   selectedStatus,
 }: {
-  averageDurationMs: number | null;
   currentSourceCount?: number;
+  durationStats: ManagerDeploymentDurationStats;
   entries: ManagerDeploymentHistoryEntry[];
+  onSpeedChange: (speed: ManagerDeploymentHistorySpeedFilter) => void;
   onStatusChange: (status: ManagerDeploymentHistoryStatusFilter) => void;
+  selectedSpeed: ManagerDeploymentHistorySpeedFilter;
   selectedStatus: ManagerDeploymentHistoryStatusFilter;
 }) {
   if (entries.length === 0) {
@@ -35,6 +47,10 @@ export function ManagerDeploymentOutcomeSummary({
   const successRate = percentage(successCount, entries.length);
   const failureRate = percentage(failureCount, entries.length);
   const rollbackRate = percentage(rollbackCount, entries.length);
+  const slowCount = entries.filter((entry) => getManagerDeploymentExcessDurationMs(
+    getManagerDeploymentDurationMs(entry.started_at, entry.completed_at),
+    durationStats.averageMs,
+  ) !== null).length;
 
   return (
     <div
@@ -92,13 +108,32 @@ export function ManagerDeploymentOutcomeSummary({
       >
         롤백률 {rollbackRate}% ({rollbackCount}/{entries.length})
       </button>
+      <button
+        aria-pressed={selectedSpeed === "slow"}
+        className={`rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-700 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 ${
+          selectedSpeed === "slow" ? "ring-2 ring-orange-500/50" : ""
+        }`}
+        data-deployment-average-duration-ms={durationStats.averageMs ?? "unavailable"}
+        data-deployment-slow-count={slowCount}
+        data-deployment-speed-filter="slow"
+        disabled={durationStats.averageMs === null}
+        onClick={() => onSpeedChange(selectedSpeed === "slow" ? "all" : "slow")}
+        title="평균보다 오래 걸린 배포만 봅니다."
+        type="button"
+      >
+        평균 배포시간 {durationLabel(durationStats.averageMs)} · 초과 {slowCount}건
+      </button>
       <span
         className="rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200"
-        data-deployment-average-duration-ms={averageDurationMs ?? "unavailable"}
+        data-deployment-median-duration-ms={durationStats.medianMs ?? "unavailable"}
       >
-        평균 배포시간 {averageDurationMs === null
-          ? "확인 불가"
-          : formatManagerDeploymentDurationMs(averageDurationMs)}
+        중앙값 {durationLabel(durationStats.medianMs)}
+      </span>
+      <span
+        className="rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200"
+        data-deployment-p95-duration-ms={durationStats.p95Ms ?? "unavailable"}
+      >
+        P95 {durationLabel(durationStats.p95Ms)}
       </span>
       <details className="basis-full text-gray-500 dark:text-slate-400" data-deployment-rate-help>
         <summary className="w-fit cursor-pointer font-semibold text-gray-600 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-200">
@@ -107,8 +142,9 @@ export function ManagerDeploymentOutcomeSummary({
         <p className="mt-1 leading-relaxed">
           선택한 소스와 기간·날짜의 전체 배포가 분모입니다. 성공률은 success, 실패율은
           success가 아닌 모든 상태, 롤백률은 rolled_back·rollback_failed 상태를 집계합니다.
-          평균은 유효한 시작·완료 시각의 소요시간이며 상태·실패 단계·검색 필터는 비율과
-          평균에 반영하지 않습니다. 평균보다 오래 걸린 배포 카드는 따로 강조합니다.
+          평균·중앙값·P95는 유효한 시작·완료 시각의 소요시간으로 계산합니다. P95는
+          오름차순 95% 지점 값이며 상태·실패 단계·검색·느린 배포 필터는 비율과 시간 통계에
+          반영하지 않습니다. 평균 배포시간을 누르면 평균 초과 배포만 볼 수 있습니다.
         </p>
       </details>
     </div>
@@ -117,4 +153,8 @@ export function ManagerDeploymentOutcomeSummary({
 
 function percentage(count: number, total: number): number {
   return Math.round((count / total) * 100);
+}
+
+function durationLabel(durationMs: number | null): string {
+  return durationMs === null ? "확인 불가" : formatManagerDeploymentDurationMs(durationMs);
 }

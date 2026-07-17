@@ -10,6 +10,7 @@ export type ManagerDeploymentHistoryStageFilter = "all" | "unknown" | ManagerDep
 export type ManagerDeploymentHistorySourceFilter = "all" | "archive" | "current";
 export type ManagerDeploymentHistoryRecordSource = Exclude<ManagerDeploymentHistorySourceFilter, "all">;
 export type ManagerDeploymentHistoryPeriodFilter = "all" | "1" | "7" | "30" | "90";
+export type ManagerDeploymentHistorySpeedFilter = "all" | "slow";
 
 export interface ManagerDeploymentHistoryFilters {
   dateFrom: string;
@@ -17,6 +18,7 @@ export interface ManagerDeploymentHistoryFilters {
   period: ManagerDeploymentHistoryPeriodFilter;
   search: string;
   source: ManagerDeploymentHistorySourceFilter;
+  speed: ManagerDeploymentHistorySpeedFilter;
   stage: ManagerDeploymentHistoryStageFilter;
   status: ManagerDeploymentHistoryStatusFilter;
 }
@@ -27,6 +29,7 @@ export const MANAGER_DEPLOYMENT_HISTORY_QUERY = {
   period: "deployment_period",
   search: "deployment_q",
   source: "deployment_source",
+  speed: "deployment_speed",
   stage: "deployment_stage",
   status: "deployment_status",
 } as const;
@@ -111,6 +114,12 @@ export function parseManagerDeploymentHistorySource(
   value: string | null,
 ): ManagerDeploymentHistorySourceFilter {
   return value === "all" || value === "archive" ? value : "current";
+}
+
+export function parseManagerDeploymentHistorySpeed(
+  value: string | null,
+): ManagerDeploymentHistorySpeedFilter {
+  return value === "slow" ? "slow" : "all";
 }
 
 export function replaceManagerDeploymentHistoryQueryParams(

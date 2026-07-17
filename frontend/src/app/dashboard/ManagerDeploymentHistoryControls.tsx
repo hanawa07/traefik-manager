@@ -3,6 +3,7 @@ import { History, RotateCcw, Search, X } from "lucide-react";
 import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/deploymentApi";
 
 import {
+  type ManagerDeploymentDurationStats,
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
   MANAGER_DEPLOYMENT_FILTER_OPTIONS,
   MANAGER_DEPLOYMENT_PERIOD_OPTIONS,
@@ -19,9 +20,9 @@ import { ManagerDeploymentFailureSummary } from "./ManagerDeploymentFailureSumma
 import { ManagerDeploymentOutcomeSummary } from "./ManagerDeploymentOutcomeSummary";
 
 interface ManagerDeploymentHistoryControlsProps {
-  averageDurationMs: number | null;
   archiveCount: number;
   currentCount: number;
+  durationStats: ManagerDeploymentDurationStats;
   entries: ManagerDeploymentHistoryEntry[];
   filteredCount: number;
   filters: ManagerDeploymentHistoryFilters;
@@ -32,9 +33,9 @@ interface ManagerDeploymentHistoryControlsProps {
 }
 
 export function ManagerDeploymentHistoryControls({
-  averageDurationMs,
   archiveCount,
   currentCount,
+  durationStats,
   entries,
   filteredCount,
   filters,
@@ -54,6 +55,7 @@ export function ManagerDeploymentHistoryControls({
     { label: `회전 보관 ${archiveCount}`, value: "archive" },
   ];
   const hasActiveFilters = filters.status !== "all"
+    || filters.speed !== "all"
     || filters.stage !== "all"
     || filters.period !== "all"
     || filters.dateFrom !== ""
@@ -176,6 +178,7 @@ export function ManagerDeploymentHistoryControls({
               dateTo: "",
               period: "all",
               search: "",
+              speed: "all",
               stage: "all",
               status: "all",
             })}
@@ -197,10 +200,12 @@ export function ManagerDeploymentHistoryControls({
 
       {entries.length > 0 ? (
         <ManagerDeploymentOutcomeSummary
-          averageDurationMs={averageDurationMs}
           currentSourceCount={filters.source === "all" ? summaryCurrentCount : undefined}
+          durationStats={durationStats}
           entries={summaryEntries}
+          onSpeedChange={(speedFilter) => onFiltersChange({ speed: speedFilter })}
           onStatusChange={(status) => onFiltersChange({ status })}
+          selectedSpeed={filters.speed}
           selectedStatus={filters.status}
         />
       ) : null}
@@ -288,6 +293,13 @@ export function ManagerDeploymentHistoryControls({
                   onRemove={() => onFiltersChange({ status: "all" })}
                 />
               ) : null}
+              {filters.speed === "slow" ? (
+                <ConditionChip
+                  condition="speed"
+                  label="속도: 평균 초과"
+                  onRemove={() => onFiltersChange({ speed: "all" })}
+                />
+              ) : null}
               {selectedStageLabel ? (
                 <ConditionChip
                   condition="stage"
@@ -315,7 +327,7 @@ function ConditionChip({
   label,
   onRemove,
 }: {
-  condition: "date_from" | "date_to" | "period" | "search" | "source" | "stage" | "status";
+  condition: "date_from" | "date_to" | "period" | "search" | "source" | "speed" | "stage" | "status";
   label: string;
   onRemove: () => void;
 }) {

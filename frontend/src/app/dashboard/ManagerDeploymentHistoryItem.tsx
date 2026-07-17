@@ -6,6 +6,7 @@ import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import {
   formatManagerDeploymentDurationMs,
   getManagerDeploymentDurationMs,
+  getManagerDeploymentExcessDurationMs,
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
   MANAGER_DEPLOYMENT_STATUS_DISPLAY,
 } from "./managerDeploymentHistoryDisplay";
@@ -43,9 +44,8 @@ export function ManagerDeploymentHistoryItem({
   const duration = durationMs === null
     ? "확인 불가"
     : formatManagerDeploymentDurationMs(durationMs);
-  const isSlowerThanAverage = averageDurationMs !== null
-    && durationMs !== null
-    && durationMs > averageDurationMs;
+  const excessDurationMs = getManagerDeploymentExcessDurationMs(durationMs, averageDurationMs);
+  const isSlowerThanAverage = excessDurationMs !== null;
   const links = buildManagerDeploymentLinks({
     latestVersion: entry.version,
     previousVersion,
@@ -61,6 +61,7 @@ export function ManagerDeploymentHistoryItem({
         : "border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900"
       }`}
       data-deployment-failure-stage={entry.failure_stage ?? (entry.status === "success" ? undefined : "unknown")}
+      data-deployment-delay-ms={excessDurationMs ?? undefined}
       data-deployment-slow={isSlowerThanAverage ? "true" : "false"}
       data-deployment-status={entry.status}
     >
@@ -85,7 +86,7 @@ export function ManagerDeploymentHistoryItem({
             className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-800 dark:bg-orange-500/20 dark:text-orange-100"
             data-deployment-slow-badge
           >
-            평균보다 느림
+            평균보다 +{formatManagerDeploymentDurationMs(excessDurationMs)}
           </span>
         ) : null}
         <span

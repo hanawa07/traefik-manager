@@ -93,13 +93,43 @@ export function formatManagerDeploymentDurationMs(durationMs: number): string {
   return `${seconds}초`;
 }
 
-export function getManagerDeploymentAverageDurationMs(
+export interface ManagerDeploymentDurationStats {
+  averageMs: number | null;
+  medianMs: number | null;
+  p95Ms: number | null;
+}
+
+export function getManagerDeploymentDurationStats(
   entries: ManagerDeploymentHistoryEntry[],
-): number | null {
+): ManagerDeploymentDurationStats {
   const durations = entries
     .map((entry) => getManagerDeploymentDurationMs(entry.started_at, entry.completed_at))
-    .filter((duration): duration is number => duration !== null);
-  if (durations.length === 0) return null;
+    .filter((duration): duration is number => duration !== null)
+    .sort((left, right) => left - right);
+  if (durations.length === 0) {
+    return { averageMs: null, medianMs: null, p95Ms: null };
+  }
 
-  return Math.round(durations.reduce((total, duration) => total + duration, 0) / durations.length);
+  const middle = Math.floor(durations.length / 2);
+  const medianMs = durations.length % 2 === 0
+    ? Math.round((durations[middle - 1] + durations[middle]) / 2)
+    : durations[middle];
+
+  return {
+    averageMs: Math.round(
+      durations.reduce((total, duration) => total + duration, 0) / durations.length,
+    ),
+    medianMs,
+    p95Ms: durations[Math.ceil(durations.length * 0.95) - 1],
+  };
+}
+
+export function getManagerDeploymentExcessDurationMs(
+  durationMs: number | null,
+  averageDurationMs: number | null,
+): number | null {
+  if (durationMs === null || averageDurationMs === null || durationMs <= averageDurationMs) {
+    return null;
+  }
+  return durationMs - averageDurationMs;
 }

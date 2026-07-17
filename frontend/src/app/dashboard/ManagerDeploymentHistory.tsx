@@ -14,7 +14,9 @@ import {
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
   MANAGER_DEPLOYMENT_FILTER_OPTIONS,
   MANAGER_DEPLOYMENT_PERIOD_OPTIONS,
-  getManagerDeploymentAverageDurationMs,
+  getManagerDeploymentDurationMs,
+  getManagerDeploymentDurationStats,
+  getManagerDeploymentExcessDurationMs,
 } from "./managerDeploymentHistoryDisplay";
 import {
   downloadManagerDeploymentHistory,
@@ -26,6 +28,7 @@ import {
   parseManagerDeploymentHistoryDate,
   parseManagerDeploymentHistoryPeriod,
   parseManagerDeploymentHistorySource,
+  parseManagerDeploymentHistorySpeed,
   parseManagerDeploymentHistoryStage,
   parseManagerDeploymentHistoryStatus,
   replaceManagerDeploymentHistoryQueryParams,
@@ -33,6 +36,7 @@ import {
   type ManagerDeploymentHistoryPeriodFilter,
   type ManagerDeploymentHistoryRecordSource,
   type ManagerDeploymentHistorySourceFilter,
+  type ManagerDeploymentHistorySpeedFilter,
   type ManagerDeploymentHistoryStageFilter,
   type ManagerDeploymentHistoryStatusFilter,
 } from "./managerDeploymentHistoryQuery";
@@ -79,6 +83,9 @@ function ManagerDeploymentHistoryContent({
   const [historySource, setHistorySource] = useState<ManagerDeploymentHistorySourceFilter>(() =>
     parseManagerDeploymentHistorySource(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.source)),
   );
+  const [speed, setSpeed] = useState<ManagerDeploymentHistorySpeedFilter>(() =>
+    parseManagerDeploymentHistorySpeed(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.speed)),
+  );
   const [searchText, setSearchText] = useState(() =>
     (searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.search) || "").slice(0, 100),
   );
@@ -88,6 +95,7 @@ function ManagerDeploymentHistoryContent({
     period,
     search: searchText,
     source: historySource,
+    speed,
     stage,
     status,
   };
@@ -115,7 +123,7 @@ function ManagerDeploymentHistoryContent({
   const summaryCurrentCount = summaryEntries.filter(
     (entry) => resolveEntrySource(entry) === "current",
   ).length;
-  const averageDurationMs = getManagerDeploymentAverageDurationMs(summaryEntries);
+  const durationStats = getManagerDeploymentDurationStats(summaryEntries);
   const filteredEntries = summaryEntries.filter((entry) => {
     const matchesStatus = matchesManagerDeploymentHistoryStatus(entry, status);
     const matchesFailureStage = stage === "all"
@@ -124,7 +132,11 @@ function ManagerDeploymentHistoryContent({
         : entry.failure_stage === stage);
     const matchesSearch = !normalizedSearchText || [entry.version, entry.revision, entry.failure_reason]
       .some((value) => value?.toLowerCase().includes(normalizedSearchText));
-    return matchesStatus && matchesFailureStage && matchesSearch;
+    const matchesSpeed = speed === "all" || getManagerDeploymentExcessDurationMs(
+      getManagerDeploymentDurationMs(entry.started_at, entry.completed_at),
+      durationStats.averageMs,
+    ) !== null;
+    return matchesStatus && matchesFailureStage && matchesSearch && matchesSpeed;
   });
 
   const updateFilters = (updates: Partial<ManagerDeploymentHistoryFilters>) => {
@@ -150,6 +162,10 @@ function ManagerDeploymentHistoryContent({
     if (updates.source !== undefined) {
       setHistorySource(updates.source);
       queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.source, updates.source, "current"]);
+    }
+    if (updates.speed !== undefined) {
+      setSpeed(updates.speed);
+      queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.speed, updates.speed, "all"]);
     }
     if (updates.stage !== undefined) {
       setStage(updates.stage);
@@ -203,9 +219,9 @@ function ManagerDeploymentHistoryContent({
         data-manager-deployment-history
       >
         <ManagerDeploymentHistoryControls
-          averageDurationMs={averageDurationMs}
           archiveCount={archiveEntries.length}
           currentCount={entries.length}
+          durationStats={durationStats}
           entries={visibleEntries}
           filteredCount={filteredEntries.length}
           filters={filters}
@@ -229,7 +245,7 @@ function ManagerDeploymentHistoryContent({
           <ol className="mt-3 grid gap-2 lg:grid-cols-2">
             {filteredEntries.map((entry) => (
               <ManagerDeploymentHistoryItem
-                averageDurationMs={averageDurationMs}
+                averageDurationMs={durationStats.averageMs}
                 entry={entry}
                 entrySource={historySource === "all" ? resolveEntrySource(entry) : undefined}
                 key={`${entry.completed_at}-${entry.to_slot}`}
@@ -266,6 +282,7 @@ function describeExportFilters(filters: ManagerDeploymentHistoryFilters): string
     (option) => option.value === filters.status,
   )?.label;
   const summary = [source, period, status];
+  if (filters.speed === "slow") summary.push("속도 평균 초과");
   if (filters.stage !== "all") {
     summary.push(`단계 ${filters.stage === "unknown"
       ? "미기록"
