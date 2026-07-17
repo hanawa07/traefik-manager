@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
 import type { ManagerDeploymentBottleneckEvent } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
@@ -15,6 +16,10 @@ import {
   type ManagerDeploymentBottleneckEventFilter,
   type ManagerDeploymentBottleneckEventPeriod,
 } from "./managerDeploymentBottleneckEventExport";
+import { replaceManagerDeploymentHistoryQueryParams } from "./managerDeploymentHistoryQuery";
+
+const EVENT_FILTER_QUERY = "deployment_bottleneck_event_type";
+const PERIOD_QUERY = "deployment_bottleneck_event_period";
 
 const EVENT_FILTERS: readonly {
   label: string;
@@ -39,8 +44,27 @@ export function ManagerDeploymentBottleneckEventHistory({
   events: ManagerDeploymentBottleneckEvent[];
   timezone?: string;
 }) {
-  const [eventFilter, setEventFilter] = useState<ManagerDeploymentBottleneckEventFilter>("all");
-  const [period, setPeriod] = useState<ManagerDeploymentBottleneckEventPeriod>("all");
+  return (
+    <Suspense fallback={null}>
+      <ManagerDeploymentBottleneckEventHistoryContent events={events} timezone={timezone} />
+    </Suspense>
+  );
+}
+
+function ManagerDeploymentBottleneckEventHistoryContent({
+  events,
+  timezone,
+}: {
+  events: ManagerDeploymentBottleneckEvent[];
+  timezone?: string;
+}) {
+  const searchParams = useSearchParams();
+  const [eventFilter, setEventFilter] = useState<ManagerDeploymentBottleneckEventFilter>(() =>
+    parseEventFilter(searchParams.get(EVENT_FILTER_QUERY)),
+  );
+  const [period, setPeriod] = useState<ManagerDeploymentBottleneckEventPeriod>(() =>
+    parseEventPeriod(searchParams.get(PERIOD_QUERY)),
+  );
   const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
   const [exportNotice, setExportNotice] = useState("");
   if (events.length === 0) return null;
@@ -82,9 +106,13 @@ export function ManagerDeploymentBottleneckEventHistory({
             className="rounded-full border border-current/20 bg-white/70 px-2 py-1 text-[11px] font-semibold dark:bg-slate-950/40"
             data-bottleneck-event-period
             onChange={(event) => {
+              const nextPeriod = event.target.value as ManagerDeploymentBottleneckEventPeriod;
               setPeriodReferenceTime(Date.now());
-              setPeriod(event.target.value as ManagerDeploymentBottleneckEventPeriod);
+              setPeriod(nextPeriod);
               setExportNotice("");
+              replaceManagerDeploymentHistoryQueryParams([
+                [PERIOD_QUERY, nextPeriod, "all"],
+              ]);
             }}
             value={period}
           >
@@ -108,6 +136,9 @@ export function ManagerDeploymentBottleneckEventHistory({
                 onClick={() => {
                   setEventFilter(option.value);
                   setExportNotice("");
+                  replaceManagerDeploymentHistoryQueryParams([
+                    [EVENT_FILTER_QUERY, option.value, "all"],
+                  ]);
                 }}
                 type="button"
               >
@@ -164,4 +195,12 @@ export function ManagerDeploymentBottleneckEventHistory({
       )}
     </details>
   );
+}
+
+function parseEventFilter(value: string | null): ManagerDeploymentBottleneckEventFilter {
+  return value === "alerted" || value === "cleared" ? value : "all";
+}
+
+function parseEventPeriod(value: string | null): ManagerDeploymentBottleneckEventPeriod {
+  return value === "1" || value === "7" || value === "30" ? value : "all";
 }
