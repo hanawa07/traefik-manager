@@ -107,7 +107,7 @@ export async function checkManagerDeploymentHistory({ cdp, timeoutMs }) {
 
   assert.equal(snapshot.exists, true, "Manager 배포 이력 카드를 찾지 못했습니다");
   if (snapshot.statuses.length > 0) {
-    assert.equal(snapshot.filters, 6, "Manager 배포 이력 상태 필터 수가 다릅니다");
+    assert.equal(snapshot.filters, 7, "Manager 배포 이력 상태 필터 수가 다릅니다");
     assert.equal(snapshot.exports, 2, "Manager 배포 이력 내보내기 버튼 수가 다릅니다");
     assert.equal(snapshot.linksValid, true, "Manager 배포 이력의 커밋·릴리즈 링크가 올바르지 않습니다");
     assert.equal(

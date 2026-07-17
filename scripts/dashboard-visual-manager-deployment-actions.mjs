@@ -25,12 +25,25 @@ async function checkCombinedSource({ cdp, timeoutMs }) {
     cdp,
     `document.querySelector('[data-deployment-success-rate]')?.getAttribute(
       'data-deployment-success-rate',
-    ) === '33' && document.querySelector('[data-deployment-rollback-rate]')?.getAttribute(
+    ) === '33' && document.querySelector('[data-deployment-failure-rate]')?.getAttribute(
+      'data-deployment-failure-rate',
+    ) === '67' && document.querySelector('[data-deployment-rollback-rate]')?.getAttribute(
       'data-deployment-rollback-rate',
-    ) === '33'`,
+    ) === '33' && document.querySelector('[data-deployment-average-duration-ms]')?.getAttribute(
+      'data-deployment-average-duration-ms',
+    ) === '50000' && document.querySelectorAll(
+      '[data-history-source="all"] li[data-deployment-slow="true"]',
+    ).length === 2`,
     timeoutMs,
-    "Manager 통합 배포 성공률·롤백률이 올바르지 않습니다",
+    "Manager 통합 배포 비율·평균·지연 강조가 올바르지 않습니다",
   );
+  const slowSources = await evaluate(cdp, `Array.from(document.querySelectorAll(
+    '[data-history-source="all"] li[data-deployment-slow="true"]',
+  )).map((entry) => entry.querySelector('[data-deployment-source]')?.getAttribute(
+    'data-deployment-source',
+  ))`);
+  assert.deepEqual(slowSources, ["archive", "archive"]);
+  await clickRateFilter({ cdp, expectedCount: 2, status: "failure", timeoutMs });
   await clickRateFilter({ cdp, expectedCount: 1, status: "success", timeoutMs });
   await clickRateFilter({ cdp, expectedCount: 1, status: "rollback", timeoutMs });
   await clickRateFilter({ cdp, expectedCount: 3, status: "all", timeoutMs });
@@ -38,14 +51,29 @@ async function checkCombinedSource({ cdp, timeoutMs }) {
   await setCombinedSearch({ cdp, timeoutMs, value: "" });
   await selectSource({ cdp, expectedCount: 2, source: "archive", timeoutMs });
   const archiveRates = await evaluate(cdp, `(() => ({
+    average: document.querySelector('[data-deployment-average-duration-ms]')?.getAttribute(
+      'data-deployment-average-duration-ms',
+    ),
+    failure: document.querySelector('[data-deployment-failure-rate]')?.getAttribute(
+      'data-deployment-failure-rate',
+    ),
     rollback: document.querySelector('[data-deployment-rollback-rate]')?.getAttribute(
       'data-deployment-rollback-rate',
     ),
+    slow: document.querySelectorAll(
+      '[data-history-source="archive"] li[data-deployment-slow="true"]',
+    ).length,
     success: document.querySelector('[data-deployment-success-rate]')?.getAttribute(
       'data-deployment-success-rate',
     ),
   }))()`);
-  assert.deepEqual(archiveRates, { rollback: "50", success: "0" });
+  assert.deepEqual(archiveRates, {
+    average: "60000",
+    failure: "100",
+    rollback: "50",
+    slow: 0,
+    success: "0",
+  });
 }
 
 async function checkSourceSummaryAndRateHelp({ cdp, timeoutMs }) {
@@ -69,8 +97,10 @@ async function checkSourceSummaryAndRateHelp({ cdp, timeoutMs }) {
       const details = document.querySelector('[data-deployment-rate-help]');
       return details?.hasAttribute('open') &&
         details.textContent?.includes('success') &&
+        details.textContent?.includes('success가 아닌 모든 상태') &&
         details.textContent?.includes('rolled_back·rollback_failed') &&
-        details.textContent?.includes('검색 필터는 비율에 반영하지 않습니다');
+        details.textContent?.includes('유효한 시작·완료 시각') &&
+        details.textContent?.includes('검색 필터는 비율과 평균에');
     })()`,
     timeoutMs,
     "Manager 배포 비율 산정 기준을 펼치지 못했습니다",
@@ -78,7 +108,7 @@ async function checkSourceSummaryAndRateHelp({ cdp, timeoutMs }) {
 }
 
 async function clickRateFilter({ cdp, expectedCount, status, timeoutMs }) {
-  const kind = status === "success" ? "success" : "rollback";
+  const kind = status === "all" ? "rollback" : status;
   const clicked = await evaluate(cdp, `(() => {
     const button = document.querySelector(${JSON.stringify(
       `[data-deployment-rate-filter="${kind}"]`,
