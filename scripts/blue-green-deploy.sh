@@ -17,6 +17,7 @@ readonly HEALTH_TIMEOUT_SECONDS="${TM_BLUE_GREEN_HEALTH_TIMEOUT_SECONDS:-180}"
 readonly DRAIN_SECONDS="${TM_BLUE_GREEN_DRAIN_SECONDS:-2}"
 readonly HISTORY_MAX_ENTRIES="${TM_DEPLOY_HISTORY_MAX_ENTRIES:-200}"
 readonly HISTORY_RETAIN_ENTRIES="${TM_DEPLOY_HISTORY_RETAIN_ENTRIES:-100}"
+readonly HISTORY_DAILY_RETAIN_ENTRIES="${TM_DEPLOY_HISTORY_DAILY_RETAIN_ENTRIES:-365}"
 source "${SCRIPT_DIR}/manager-deployment-stage-timing.sh"
 
 probe_pid=""
@@ -285,6 +286,7 @@ record_deployment_history() {
   fi
   if ! TM_DEPLOY_HISTORY_MAX_ENTRIES="${HISTORY_MAX_ENTRIES}" \
     TM_DEPLOY_HISTORY_RETAIN_ENTRIES="${HISTORY_RETAIN_ENTRIES}" \
+    TM_DEPLOY_HISTORY_DAILY_RETAIN_ENTRIES="${HISTORY_DAILY_RETAIN_ENTRIES}" \
     "${HISTORY_SCRIPT}" append \
     "${HISTORY_FILE}" "${status}" "${previous_slot}" "${candidate_slot}" "${active_slot}" \
     "${version}" "${revision}" "${deployment_started_at}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \

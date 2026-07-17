@@ -103,3 +103,43 @@ def test_archive_returns_only_entries_not_retained_in_current_file(tmp_path: Pat
         "2026-07-16T02:01:00Z",
         "2026-07-16T01:01:00Z",
     ]
+
+
+def test_archive_merges_daily_entries_in_time_order_and_applies_limit(tmp_path: Path):
+    history_path = tmp_path / "deployments.jsonl"
+    entries = [
+        _entry(completed_at=f"2026-07-{day:02d}T09:01:00Z")
+        for day in range(10, 15)
+    ]
+    lines = [json.dumps(entry) for entry in entries]
+    history_path.write_text(lines[4], encoding="utf-8")
+    Path(f"{history_path}.1").write_text("\n".join(lines[2:]), encoding="utf-8")
+    Path(f"{history_path}.daily").write_text("\n".join(lines[:3]), encoding="utf-8")
+
+    result = read_manager_deployment_history_archive(history_path, limit=3)
+
+    assert [entry["completed_at"] for entry in result] == [
+        "2026-07-13T09:01:00Z",
+        "2026-07-12T09:01:00Z",
+        "2026-07-11T09:01:00Z",
+    ]
+
+
+def test_archive_uses_daily_entries_beyond_detailed_cap(tmp_path: Path):
+    history_path = tmp_path / "deployments.jsonl"
+    entries = [
+        _entry(completed_at=f"2026-07-{day:02d}T09:01:00Z")
+        for day in range(1, 28)
+    ]
+    lines = [json.dumps(entry) for entry in entries]
+    history_path.write_text(lines[-1], encoding="utf-8")
+    Path(f"{history_path}.1").write_text("\n".join(lines[:-1]), encoding="utf-8")
+    Path(f"{history_path}.daily").write_text("\n".join(lines[:-1]), encoding="utf-8")
+
+    result = read_manager_deployment_history_archive(history_path)
+
+    completed_dates = [str(entry["completed_at"])[:10] for entry in result]
+    assert len(completed_dates) == 26
+    assert completed_dates[0] == "2026-07-26"
+    assert completed_dates[-1] == "2026-07-01"
+    assert len(set(completed_dates)) == len(completed_dates)

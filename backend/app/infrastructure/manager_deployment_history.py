@@ -10,6 +10,8 @@ from app.infrastructure.github_actions_run import build_actions_run_api_url
 MAX_HISTORY_BYTES = 64 * 1024
 MAX_ARCHIVE_BYTES = 1024 * 1024
 MAX_HISTORY_ENTRIES = 20
+MAX_ARCHIVE_ENTRIES = 120
+MAX_DETAILED_ARCHIVE_ENTRIES = 20
 MAX_HISTORY_LINE_BYTES = 2048
 MAX_STAGE_DURATION_MS = 24 * 60 * 60 * 1000
 HISTORY_STATUSES = {"success", "failed_before_switch", "rolled_back", "rollback_failed"}
@@ -46,19 +48,41 @@ def read_manager_deployment_history(
 def read_manager_deployment_history_archive(
     path: str | Path | None = None,
     *,
-    limit: int = MAX_HISTORY_ENTRIES,
+    limit: int = MAX_ARCHIVE_ENTRIES,
 ) -> list[dict[str, object]]:
+    if limit <= 0:
+        return []
     history_path = Path(path or settings.MANAGER_DEPLOYMENT_HISTORY_PATH)
     try:
         current_lines = set(_read_tail(history_path, MAX_ARCHIVE_BYTES))
     except OSError:
         current_lines = set()
     try:
-        archive_lines = _read_tail(Path(f"{history_path}.1"), MAX_ARCHIVE_BYTES)
+        detailed_lines = set(_read_tail(Path(f"{history_path}.1"), MAX_ARCHIVE_BYTES))
     except OSError:
-        return []
-    unique_archive_lines = (line for line in reversed(archive_lines) if line not in current_lines)
-    return _normalize_lines(unique_archive_lines, limit)
+        detailed_lines = set()
+    try:
+        daily_lines = set(_read_tail(Path(f"{history_path}.daily"), MAX_ARCHIVE_BYTES))
+    except OSError:
+        daily_lines = set()
+
+    current_entries = _normalize_lines(current_lines, len(current_lines))
+    detailed_entries = _normalize_lines(
+        detailed_lines - current_lines,
+        len(detailed_lines),
+    )
+    detailed_entries.sort(key=_completed_at_timestamp, reverse=True)
+    detailed_entries = detailed_entries[: min(MAX_DETAILED_ARCHIVE_ENTRIES, limit)]
+    covered_days = {
+        _completed_at_day(entry) for entry in [*current_entries, *detailed_entries]
+    }
+    daily_entries = _normalize_lines(daily_lines - current_lines, len(daily_lines))
+    entries = [
+        *detailed_entries,
+        *(entry for entry in daily_entries if _completed_at_day(entry) not in covered_days),
+    ]
+    entries.sort(key=_completed_at_timestamp, reverse=True)
+    return entries[:limit]
 
 
 def _normalize_lines(
@@ -182,3 +206,12 @@ def _is_iso_datetime(value: str) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _completed_at_timestamp(entry: dict[str, object]) -> float:
+    completed_at = datetime.fromisoformat(str(entry["completed_at"]).replace("Z", "+00:00"))
+    return completed_at.timestamp()
+
+
+def _completed_at_day(entry: dict[str, object]) -> str:
+    return str(entry["completed_at"])[:10]
