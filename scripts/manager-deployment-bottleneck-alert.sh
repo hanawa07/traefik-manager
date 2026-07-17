@@ -77,7 +77,7 @@ analyze_streak() {
     fi
   done < <(tac "${history_file}")
 
-  printf '%s\t%s\t%s\t%s\t%s\n' \
+  printf '%s|%s|%s|%s|%s\n' \
     "${count}" "${incident_key}" "${latest_version}" "${slowest_stage}" "${slowest_ms}"
 }
 
@@ -124,7 +124,7 @@ check_history() {
     return 0
   fi
   analysis="$(analyze_streak "${history_file}")"
-  IFS=$'\t' read -r count incident_key latest_version slowest_stage slowest_ms <<< "${analysis}"
+  IFS='|' read -r count incident_key latest_version slowest_stage slowest_ms <<< "${analysis}"
   if (( count < CONSECUTIVE_COUNT )); then
     rm -f "${state_file}"
     status="normal"
@@ -203,6 +203,8 @@ SCRIPT
   run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}"
   [[ ! -e "${state_file}" ]]
   grep -Fq 'status=normal' "${status_file}"
+  grep -Fq 'current_consecutive_count=0' "${status_file}"
+  grep -Fq 'slowest_ms=0' "${status_file}"
   append_fixture "${history_file}" 5 80001
   append_fixture "${history_file}" 6 80002
   append_fixture "${history_file}" 7 80003
