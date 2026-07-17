@@ -182,6 +182,18 @@ class ManagerRouteStatusResponse(BaseModel):
     upstream_status: str | None = None
 
 
+ManagerDeploymentStage = Literal[
+    "prepare",
+    "build",
+    "migration_preflight",
+    "candidate_health",
+    "route_switch",
+    "leader_handover",
+    "public_probe",
+    "state_write",
+]
+
+
 class ManagerDeploymentHistoryEntryResponse(BaseModel):
     status: Literal["success", "failed_before_switch", "rolled_back", "rollback_failed"]
     from_slot: Literal["single", "blue", "green"]
@@ -193,16 +205,7 @@ class ManagerDeploymentHistoryEntryResponse(BaseModel):
     completed_at: datetime
     probe_total: int = Field(ge=0)
     probe_failures: int = Field(ge=0)
-    failure_stage: Literal[
-        "prepare",
-        "build",
-        "migration_preflight",
-        "candidate_health",
-        "route_switch",
-        "leader_handover",
-        "public_probe",
-        "state_write",
-    ] | None = None
+    failure_stage: ManagerDeploymentStage | None = None
     failure_reason: str | None = None
     alert_request_status: Literal["not_needed", "requested", "request_failed"] = "not_needed"
     alert_run_url: str | None = None
@@ -210,6 +213,7 @@ class ManagerDeploymentHistoryEntryResponse(BaseModel):
     alert_run_conclusion: str | None = None
     alert_run_checked_at: datetime | None = None
     alert_run_error: str | None = None
+    stage_durations_ms: dict[ManagerDeploymentStage, int] = Field(default_factory=dict)
 
 
 class DockerDeploymentInfoResponse(BaseModel):

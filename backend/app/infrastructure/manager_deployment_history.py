@@ -11,6 +11,7 @@ MAX_HISTORY_BYTES = 64 * 1024
 MAX_ARCHIVE_BYTES = 1024 * 1024
 MAX_HISTORY_ENTRIES = 20
 MAX_HISTORY_LINE_BYTES = 2048
+MAX_STAGE_DURATION_MS = 24 * 60 * 60 * 1000
 HISTORY_STATUSES = {"success", "failed_before_switch", "rolled_back", "rollback_failed"}
 ALERT_REQUEST_STATUSES = {"not_needed", "requested", "request_failed"}
 FAILURE_STAGES = {
@@ -152,12 +153,26 @@ def _normalize_entry(raw: object) -> dict[str, object] | None:
         return None
     if alert_request_status != "requested" and alert_run_url is not None:
         return None
+    stage_durations_ms = _normalize_stage_durations(raw.get("stage_durations_ms"))
     return {
         **{key: raw[key] for key in (*string_keys, "probe_total", "probe_failures")},
         "failure_stage": failure_stage,
         "failure_reason": failure_reason,
         "alert_request_status": alert_request_status,
         "alert_run_url": alert_run_url,
+        "stage_durations_ms": stage_durations_ms,
+    }
+
+
+def _normalize_stage_durations(raw: object) -> dict[str, int]:
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        stage: duration
+        for stage, duration in raw.items()
+        if stage in FAILURE_STAGES
+        and type(duration) is int
+        and 0 <= duration <= MAX_STAGE_DURATION_MS
     }
 
 

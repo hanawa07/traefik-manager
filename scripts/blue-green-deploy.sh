@@ -17,6 +17,7 @@ readonly HEALTH_TIMEOUT_SECONDS="${TM_BLUE_GREEN_HEALTH_TIMEOUT_SECONDS:-180}"
 readonly DRAIN_SECONDS="${TM_BLUE_GREEN_DRAIN_SECONDS:-2}"
 readonly HISTORY_MAX_ENTRIES="${TM_DEPLOY_HISTORY_MAX_ENTRIES:-200}"
 readonly HISTORY_RETAIN_ENTRIES="${TM_DEPLOY_HISTORY_RETAIN_ENTRIES:-100}"
+source "${SCRIPT_DIR}/manager-deployment-stage-timing.sh"
 
 probe_pid=""
 probe_file=""
@@ -260,9 +261,12 @@ record_deployment_history() {
   local probe_failures=0
   local failure_stage=""
   local failure_reason=""
+  local stage_durations_json="{}"
   if (( history_record_enabled == 0 || history_recorded == 1 )); then
     return
   fi
+  manager_deployment_stage_finish
+  stage_durations_json="$(manager_deployment_stage_timing_json)"
   if [[ -n "${probe_file}" && -f "${probe_file}" ]]; then
     read -r probe_total probe_failures <<< "$("${PROBE_SCRIPT}" summary "${probe_file}")"
   fi
@@ -285,7 +289,7 @@ record_deployment_history() {
     "${HISTORY_FILE}" "${status}" "${previous_slot}" "${candidate_slot}" "${active_slot}" \
     "${version}" "${revision}" "${deployment_started_at}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "${probe_total}" "${probe_failures}" "${failure_stage}" "${failure_reason}" \
-    "${alert_request_status}" "${alert_run_url}"; then
+    "${alert_request_status}" "${alert_run_url}" "${stage_durations_json}"; then
     echo "배포 이력을 기록하지 못했습니다: ${HISTORY_FILE}" >&2
   fi
   history_recorded=1
@@ -344,6 +348,7 @@ rollback() {
   local history_active_slot="${previous_slot:-unknown}"
   trap - EXIT
   set +e
+  manager_deployment_stage_finish
   stop_probe
   if (( switched == 1 )); then
     echo "배포 실패, ${previous_slot} 슬롯으로 rollback합니다" >&2
@@ -392,6 +397,7 @@ run_self_test() {
   [[ "$(upstream_for_slot green)" == "http://traefik-manager-frontend-green:3000" ]]
   [[ "$(backend_for_slot single)" == "traefik-manager-backend" ]]
   "${HISTORY_SCRIPT}" --self-test >/dev/null
+  manager_deployment_stage_timing_self_test
   echo "Manager blue-green 배포 self-test 통과"
 }
 
@@ -450,30 +456,31 @@ export TRAEFIK_MANAGER_GIT_SHA="${revision}"
 export TRAEFIK_MANAGER_BUILD_DATE="${build_date}"
 
 echo "Manager blue-green 배포: ${previous_slot} -> ${candidate_slot} (${version}, ${revision:0:12})"
-deployment_stage="prepare"
+manager_deployment_stage_start prepare
 ensure_docker_proxy
-deployment_stage="build"
+manager_deployment_stage_start build
 compose build "backend-${candidate_slot}" "frontend-${candidate_slot}"
-deployment_stage="migration_preflight"
+manager_deployment_stage_start migration_preflight
 run_migration_preflight "${candidate_slot}"
-deployment_stage="candidate_health"
+manager_deployment_stage_start candidate_health
 start_candidate "${candidate_slot}"
-deployment_stage="route_switch"
+manager_deployment_stage_start route_switch
 start_probe
 switched=1
 render_route "${candidate_upstream}"
 wait_traefik_route "$(backend_for_slot "${candidate_slot}")" "${candidate_upstream}"
-deployment_stage="leader_handover"
+manager_deployment_stage_start leader_handover
 sleep "${DRAIN_SECONDS}"
 docker stop --time 15 "$(backend_for_slot "${previous_slot}")" >/dev/null
 wait_background_leader "$(backend_for_slot "${candidate_slot}")" "${candidate_slot}"
-deployment_stage="public_probe"
+manager_deployment_stage_start public_probe
 curl --silent --show-error --fail --max-time 5 "${health_url}" >/dev/null
 sleep 1
 stop_probe
 "${PROBE_SCRIPT}" assert "${probe_file}" 5
-deployment_stage="state_write"
+manager_deployment_stage_start state_write
 write_state "${candidate_slot}" "${revision}" "${version}"
+manager_deployment_stage_finish
 docker stop --time 15 "$(frontend_for_slot "${previous_slot}")" >/dev/null
 record_deployment_history success "${candidate_slot}" 0
 trap - EXIT

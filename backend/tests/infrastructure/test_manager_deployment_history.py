@@ -35,6 +35,13 @@ def test_history_returns_newest_valid_entries_and_skips_malformed_lines(tmp_path
     history_path = tmp_path / "deployments.jsonl"
     older = _entry(completed_at="2026-07-16T09:01:00Z")
     newer = _entry(status="rollback_failed", completed_at="2026-07-16T10:01:00Z")
+    older["stage_durations_ms"] = {
+        "prepare": 1000,
+        "build": -1,
+        "public_probe": True,
+        "unknown": 500,
+    }
+    newer["stage_durations_ms"] = {"prepare": 1000, "public_probe": 5000}
     invalid = {**_entry(), "probe_failures": 11}
     invalid_stage = {**_entry(status="rolled_back"), "failure_stage": "shell_command"}
     invalid_alert_status = {
@@ -66,9 +73,11 @@ def test_history_returns_newest_valid_entries_and_skips_malformed_lines(tmp_path
     assert result[0]["failure_stage"] == "public_probe"
     assert result[0]["alert_request_status"] == "requested"
     assert result[0]["alert_run_url"].endswith("/actions/runs/123")
+    assert result[0]["stage_durations_ms"] == {"prepare": 1000, "public_probe": 5000}
     assert result[1]["failure_stage"] is None
     assert result[1]["alert_request_status"] == "not_needed"
     assert result[1]["alert_run_url"] is None
+    assert result[1]["stage_durations_ms"] == {"prepare": 1000}
 
 
 def test_history_returns_empty_list_when_file_is_missing(tmp_path: Path):
