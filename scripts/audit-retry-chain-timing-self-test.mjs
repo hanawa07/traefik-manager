@@ -4,15 +4,24 @@ import { getAuditRetryChainTiming } from "../frontend/src/features/audit/lib/aud
 
 const recoveredChain = [
   { created_at: "2026-07-19T00:00:00Z", detail: { success: false } },
-  { created_at: "2026-07-19T00:00:30Z", detail: { success: false } },
-  { created_at: "2026-07-19T00:02:00Z", detail: { success: true } },
+  { created_at: "2026-07-19T00:00:30Z", detail: { success: false, trigger: "automatic_retry" } },
+  { created_at: "2026-07-19T00:02:00Z", detail: { success: true, trigger: "automatic_retry" } },
 ];
 
 assert.deepEqual(getAuditRetryChainTiming(recoveredChain), {
   recoveryDurationMs: 120_000,
   recoveryState: "recovered",
+  stageDelayWarnings: [false, false, false],
   stageElapsedMs: [null, 30_000, 90_000],
 });
+assert.deepEqual(
+  getAuditRetryChainTiming([
+    recoveredChain[0],
+    { created_at: "2026-07-19T00:10:00Z", detail: { success: false, trigger: "automatic_retry" } },
+    { created_at: "2026-07-19T00:20:01Z", detail: { success: false, trigger: "automatic_retry" } },
+  ]).stageDelayWarnings,
+  [false, false, true],
+);
 assert.equal(getAuditRetryChainTiming(recoveredChain.slice(0, 2)).recoveryState, "pending");
 assert.deepEqual(
   getAuditRetryChainTiming([
@@ -22,6 +31,7 @@ assert.deepEqual(
   {
     recoveryDurationMs: null,
     recoveryState: "invalid",
+    stageDelayWarnings: [false, false],
     stageElapsedMs: [null, null],
   },
 );

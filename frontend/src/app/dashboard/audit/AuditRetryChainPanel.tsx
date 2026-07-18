@@ -3,7 +3,10 @@
 import Link from "next/link";
 
 import { useAuditRetryChain } from "@/features/audit/hooks/useAudit";
-import { getAuditRetryChainTiming } from "@/features/audit/lib/auditRetryChainTiming";
+import {
+  AUTO_RETRY_DELAY_WARNING_MS,
+  getAuditRetryChainTiming,
+} from "@/features/audit/lib/auditRetryChainTiming";
 import { formatManagerDeploymentDurationMs } from "@/features/deployment/lib/managerDeploymentDisplay";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
@@ -38,6 +41,7 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
     <div
       className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-500/30 dark:bg-amber-950/20"
       data-chain-count={chain.length}
+      data-auto-retry-delay-warning-ms={AUTO_RETRY_DELAY_WARNING_MS}
       data-chain-failure-count={failureCount}
       data-chain-success-count={successCount}
       data-testid="audit-retry-chain"
@@ -65,6 +69,7 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
       <ol className="space-y-2 border-l-2 border-amber-200 pl-3 dark:border-amber-500/30">
         {chain.map((item, index) => {
           const elapsedMs = timing.stageElapsedMs[index];
+          const delayWarning = timing.stageDelayWarnings[index];
           const elapsedLabel = index > 0
             ? elapsedMs === null
               ? "경과 시간 확인 불가"
@@ -113,11 +118,13 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
               </time>
               {elapsedLabel ? (
                 <span
-                  className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                  className={`rounded-full px-2 py-0.5 ${delayWarning ? "bg-amber-200 font-semibold text-amber-900 dark:bg-amber-500/25 dark:text-amber-100" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}
+                  data-stage-delay-warning={delayWarning}
                   data-stage-elapsed-ms={elapsedMs ?? undefined}
                   data-testid="audit-retry-stage-elapsed"
+                  title={delayWarning ? "자동 재시도가 10분을 초과했습니다" : undefined}
                 >
-                  {elapsedLabel}
+                  {elapsedLabel}{delayWarning ? " · 지연" : ""}
                 </span>
               ) : null}
               {isCurrent ? (
