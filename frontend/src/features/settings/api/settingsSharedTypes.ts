@@ -14,6 +14,7 @@ export interface SettingsRollbackActionResult {
 
 export interface SettingsTestHistoryEvent {
   audit_id: string;
+  retry_of_audit_id: string | null;
   success: boolean | null;
   message: string | null;
   detail: string | null;

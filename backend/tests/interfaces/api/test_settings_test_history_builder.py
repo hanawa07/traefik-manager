@@ -104,3 +104,19 @@ def test_settings_history_keeps_five_recent_events_in_order():
     ]
     assert result.recent_events[0].message == "result-0"
     assert result.recent_events[0].detail == "detail-0"
+
+
+def test_settings_history_exposes_retry_origin():
+    result = find_latest_settings_events(
+        [
+            make_settings_history_log(
+                log_id="retry-result",
+                event="security_alert_delivery_success",
+                detail={"success": True, "retry_of_audit_id": "original-failure"},
+                created_at=datetime.now(timezone.utc),
+            )
+        ],
+        {"security_alert_delivery_failure", "security_alert_delivery_success"},
+    )
+
+    assert result.recent_events[0].retry_of_audit_id == "original-failure"

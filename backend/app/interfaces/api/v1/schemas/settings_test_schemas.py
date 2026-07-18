@@ -19,6 +19,7 @@ class SettingsRollbackActionResponse(BaseModel):
 
 class SettingsTestHistoryEventResponse(BaseModel):
     audit_id: str
+    retry_of_audit_id: str | None = None
     success: bool | None = None
     message: str | None = None
     detail: str | None = None

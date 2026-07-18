@@ -86,46 +86,74 @@ export default function SettingsTestHistoryNotice({
             최근 이력 {recentEvents.length}건 (최대 5건)
           </summary>
           <ol className="mt-2 space-y-2">
-            {recentEvents.map((event) => (
-              <li
-                key={event.audit_id}
-                className="rounded-md border border-gray-100 bg-gray-50 p-2 dark:border-slate-700 dark:bg-slate-950"
-                data-event-success={String(event.success)}
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`font-semibold ${event.success === null ? "text-slate-600 dark:text-slate-300" : event.success ? "text-green-700 dark:text-emerald-200" : "text-red-700 dark:text-red-200"}`}>
-                    {event.success === null ? "결과 없음" : event.success ? "성공" : "실패"}
-                  </span>
-                  {event.provider ? <span>{event.provider}</span> : null}
-                  <time className="text-gray-500 dark:text-slate-400" dateTime={event.created_at}>
-                    {formatDateTime(event.created_at, timezone)}
-                  </time>
-                  <Link
-                    aria-label={`${label} 최근 이력 감사 상세`}
-                    className="ml-auto font-semibold text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
-                    href={`/dashboard/audit?q=${encodeURIComponent(event.audit_id)}&expand=${encodeURIComponent(event.audit_id)}`}
-                  >
-                    감사 상세
-                  </Link>
-                  {event.success === false && onRetry ? (
-                    <button
-                      aria-label={`${label} ${formatDateTime(event.created_at, timezone)} 실패 재시도`}
-                      className="rounded-md border border-amber-300 bg-white px-2 py-0.5 font-semibold text-amber-800 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-500/40 dark:bg-slate-900 dark:text-amber-100 dark:hover:bg-amber-500/10"
-                      data-retry-audit-id={event.audit_id}
-                      disabled={isRetrying}
-                      onClick={() => onRetry?.(event.audit_id)}
-                      type="button"
+            {recentEvents.map((event) => {
+              const retryResultAuditId = recentEvents.find(
+                (item) => item.retry_of_audit_id === event.audit_id,
+              )?.audit_id;
+              return (
+                <li
+                  key={event.audit_id}
+                  className="rounded-md border border-gray-100 bg-gray-50 p-2 dark:border-slate-700 dark:bg-slate-950"
+                  data-event-success={String(event.success)}
+                  data-retry-of-audit-id={event.retry_of_audit_id || undefined}
+                  data-retry-result-audit-id={retryResultAuditId}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`font-semibold ${event.success === null ? "text-slate-600 dark:text-slate-300" : event.success ? "text-green-700 dark:text-emerald-200" : "text-red-700 dark:text-red-200"}`}>
+                      {event.retry_of_audit_id ? "재시도 " : ""}
+                      {event.success === null ? "결과 없음" : event.success ? "성공" : "실패"}
+                    </span>
+                    {event.provider ? <span>{event.provider}</span> : null}
+                    <time className="text-gray-500 dark:text-slate-400" dateTime={event.created_at}>
+                      {formatDateTime(event.created_at, timezone)}
+                    </time>
+                    {event.retry_of_audit_id ? (
+                      <Link
+                        aria-label={`${label} 재시도 원본`}
+                        className="font-semibold text-amber-700 underline-offset-2 hover:underline dark:text-amber-300"
+                        data-retry-relation="origin"
+                        href={`/dashboard/audit?q=${encodeURIComponent(event.retry_of_audit_id)}&expand=${encodeURIComponent(event.retry_of_audit_id)}`}
+                      >
+                        재시도 원본
+                      </Link>
+                    ) : null}
+                    {retryResultAuditId ? (
+                      <Link
+                        aria-label={`${label} 재시도 결과`}
+                        className="font-semibold text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
+                        data-retry-relation="result"
+                        href={`/dashboard/audit?q=${encodeURIComponent(retryResultAuditId)}&expand=${encodeURIComponent(retryResultAuditId)}`}
+                      >
+                        재시도 결과
+                      </Link>
+                    ) : null}
+                    <Link
+                      aria-label={`${label} 최근 이력 감사 상세`}
+                      className="ml-auto font-semibold text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+                      href={`/dashboard/audit?q=${encodeURIComponent(event.audit_id)}&expand=${encodeURIComponent(event.audit_id)}`}
                     >
-                      {isRetrying && retryingAuditId === event.audit_id
-                        ? "재시도 중..."
-                        : "이 실패 재시도"}
-                    </button>
-                  ) : null}
-                </div>
-                {event.message ? <p className="mt-1 text-gray-700 dark:text-slate-200">{event.message}</p> : null}
-                {event.detail ? <p className="mt-1 break-all text-gray-500 dark:text-slate-400">{event.detail}</p> : null}
-              </li>
-            ))}
+                      감사 상세
+                    </Link>
+                    {event.success === false && onRetry ? (
+                      <button
+                        aria-label={`${label} ${formatDateTime(event.created_at, timezone)} 실패 재시도`}
+                        className="rounded-md border border-amber-300 bg-white px-2 py-0.5 font-semibold text-amber-800 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-500/40 dark:bg-slate-900 dark:text-amber-100 dark:hover:bg-amber-500/10"
+                        data-retry-audit-id={event.audit_id}
+                        disabled={isRetrying}
+                        onClick={() => onRetry?.(event.audit_id)}
+                        type="button"
+                      >
+                        {isRetrying && retryingAuditId === event.audit_id
+                          ? "재시도 중..."
+                          : "이 실패 재시도"}
+                      </button>
+                    ) : null}
+                  </div>
+                  {event.message ? <p className="mt-1 text-gray-700 dark:text-slate-200">{event.message}</p> : null}
+                  {event.detail ? <p className="mt-1 break-all text-gray-500 dark:text-slate-400">{event.detail}</p> : null}
+                </li>
+              );
+            })}
           </ol>
         </details>
       ) : null}

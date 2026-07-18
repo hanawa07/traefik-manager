@@ -65,6 +65,11 @@ def find_latest_settings_events(
             recent_events.append(
                 SettingsTestHistoryEventResponse(
                     audit_id=str(log.id),
+                    retry_of_audit_id=(
+                        detail.get("retry_of_audit_id")
+                        if isinstance(detail.get("retry_of_audit_id"), str)
+                        else None
+                    ),
                     success=success if isinstance(success, bool) else None,
                     message=detail.get("message") if isinstance(detail.get("message"), str) else None,
                     detail=detail.get("detail") if isinstance(detail.get("detail"), str) else None,
