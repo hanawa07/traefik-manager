@@ -65,6 +65,7 @@ export type {
 export type {
   SettingsActionTestResult,
   SettingsRollbackActionResult,
+  SettingsTestHistoryEvent,
   SettingsTestHistoryItem,
   SettingsTestHistoryStatus,
 } from "./settingsSharedTypes";

@@ -12,6 +12,15 @@ export interface SettingsRollbackActionResult {
   event: string;
 }
 
+export interface SettingsTestHistoryEvent {
+  audit_id: string;
+  success: boolean | null;
+  message: string | null;
+  detail: string | null;
+  provider: string | null;
+  created_at: string;
+}
+
 export interface SettingsTestHistoryItem {
   last_event: string | null;
   last_success: boolean | null;
@@ -26,6 +35,7 @@ export interface SettingsTestHistoryItem {
   last_failure_detail: string | null;
   last_failure_provider: string | null;
   recent_failure_count: number;
+  recent_events: SettingsTestHistoryEvent[];
 }
 
 export interface SettingsTestHistoryStatus {

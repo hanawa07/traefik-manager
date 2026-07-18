@@ -46,6 +46,7 @@ from app.interfaces.api.v1.schemas.settings_smoke_rotation_schemas import (
 from app.interfaces.api.v1.schemas.settings_test_schemas import (
     SettingsRollbackActionResponse,
     SettingsTestActionResponse,
+    SettingsTestHistoryEventResponse,
     SettingsTestHistoryItemResponse,
     SettingsTestHistoryResponse,
 )
@@ -74,6 +75,7 @@ __all__ = [
     "SmokeRotationStatusResponse",
     "SettingsRollbackActionResponse",
     "SettingsTestActionResponse",
+    "SettingsTestHistoryEventResponse",
     "SettingsTestHistoryItemResponse",
     "SettingsTestHistoryResponse",
     "TimeDisplaySettingsResponse",

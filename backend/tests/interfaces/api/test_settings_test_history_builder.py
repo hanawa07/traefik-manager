@@ -72,4 +72,35 @@ def test_settings_history_separates_smoke_admin_stale_dry_run():
 
     assert result.smoke_admin_stale.last_success is True
     assert result.smoke_admin_stale.last_provider == "telegram"
+    assert result.smoke_admin_stale.recent_events[0].audit_id == "smoke-stale"
     assert result.security_alert.last_success is False
+
+
+def test_settings_history_keeps_five_recent_events_in_order():
+    now = datetime.now(timezone.utc)
+    logs = [
+        make_settings_history_log(
+            log_id=f"dry-run-{index}",
+            event="settings_test_smoke_admin_stale",
+            detail={
+                "success": index % 2 == 0,
+                "message": f"result-{index}",
+                "detail": f"detail-{index}",
+                "provider": "telegram",
+            },
+            created_at=now - timedelta(minutes=index),
+        )
+        for index in range(7)
+    ]
+
+    result = build_settings_test_history_response(logs).smoke_admin_stale
+
+    assert [event.audit_id for event in result.recent_events] == [
+        "dry-run-0",
+        "dry-run-1",
+        "dry-run-2",
+        "dry-run-3",
+        "dry-run-4",
+    ]
+    assert result.recent_events[0].message == "result-0"
+    assert result.recent_events[0].detail == "detail-0"

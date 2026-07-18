@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SettingsTestActionResponse(BaseModel):
@@ -17,6 +17,15 @@ class SettingsRollbackActionResponse(BaseModel):
     event: str
 
 
+class SettingsTestHistoryEventResponse(BaseModel):
+    audit_id: str
+    success: bool | None = None
+    message: str | None = None
+    detail: str | None = None
+    provider: str | None = None
+    created_at: datetime
+
+
 class SettingsTestHistoryItemResponse(BaseModel):
     last_event: str | None = None
     last_success: bool | None = None
@@ -31,6 +40,7 @@ class SettingsTestHistoryItemResponse(BaseModel):
     last_failure_detail: str | None = None
     last_failure_provider: str | None = None
     recent_failure_count: int = 0
+    recent_events: list[SettingsTestHistoryEventResponse] = Field(default_factory=list)
 
 
 class SettingsTestHistoryResponse(BaseModel):

@@ -13,6 +13,7 @@ import {
 } from "@/features/settings/components/SettingsCardPrimitives";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { SmokeMonitoringSettingsEditForm } from "./SmokeMonitoringSettingsEditForm";
+import { SmokeStaleAlertHistory } from "./SmokeStaleAlertHistory";
 
 const STATUS_LABELS: Record<SmokeRotationState, string> = {
   never: "실행 기록 없음",
@@ -134,6 +135,10 @@ export function SmokeRotationStatusCard({
           />
           <SettingsSummaryRow label="점검 시각" value={`${scheduleTime} (${scheduleTimezone})`} />
           <SettingsSummaryRow
+            label="실패율 경고 기준"
+            value={`최근 7일 ${status.monitoring_failure_rate_min_runs}회 이상 · ${status.monitoring_failure_rate_threshold_percent}% 이상`}
+          />
+          <SettingsSummaryRow
             label="최근 원격 점검 성공"
             value={
               status.monitoring_last_run_url ? (
@@ -188,30 +193,7 @@ export function SmokeRotationStatusCard({
               }
             />
           ) : null}
-          <SettingsSummaryRow
-            label="최근 dry-run 결과"
-            value={
-              staleAlertHistory?.last_created_at ? (
-                <span className="inline-flex flex-wrap items-center gap-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                      staleAlertHistory.last_success
-                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                        : "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
-                    }`}
-                  >
-                    {staleAlertHistory.last_success ? "성공" : "실패"}
-                  </span>
-                  <span>
-                    {staleAlertHistory.last_provider || "telegram"} ·{" "}
-                    {formatDateTime(staleAlertHistory.last_created_at, timezone)}
-                  </span>
-                </span>
-              ) : (
-                "기록 없음"
-              )
-            }
-          />
+          <SmokeStaleAlertHistory history={staleAlertHistory} timezone={timezone} />
           {status.monitoring_admin_is_stale ? (
             <div
               className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200"
