@@ -41,7 +41,7 @@ export async function checkSmokeRotationAuditDetail({ cdp, timeoutMs }) {
   assert.equal(filterFound, true, "Secret 회전 결과 감사 필터를 찾지 못했습니다");
   await waitForCondition(
     cdp,
-    `new URLSearchParams(location.search).get('filter') === 'smoke_rotation' &&
+    `new URLSearchParams(location.search).get('filter') === 'smoke_rotation_result' &&
       document.querySelector('[data-visual-surface]')?.getAttribute('aria-busy') === 'false'`,
     timeoutMs,
     "Secret 회전 감사 로그를 불러오지 못했습니다",
@@ -60,7 +60,9 @@ export async function checkSmokeRotationAuditDetail({ cdp, timeoutMs }) {
     cdp,
     `(() => {
       const text = document.querySelector('[data-testid="smoke-rotation-audit-detail"]')?.textContent || '';
-      return text.includes('실패 Secret') && text.includes('시도 횟수') && text.includes('TM_SMOKE_');
+      return text.includes('Secret 회전 상세') &&
+        text.includes('회전 결과') &&
+        text.includes('실패 단계');
     })()`,
     timeoutMs,
     "Secret 회전 실패 상세가 표시되지 않았습니다",
