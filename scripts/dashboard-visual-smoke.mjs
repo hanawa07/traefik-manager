@@ -14,6 +14,7 @@ import {
 import { checkManagerDeploymentHistory } from "./dashboard-visual-manager-deployment.mjs";
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
 import {
+  checkAuditRetryChain,
   checkSettingsTestAuditLinks,
   checkSmokeRotationAuditDetail,
   checkSmokeRunTrendRange,
@@ -44,6 +45,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
           if (opened) labels.push(`${profile.label} 인증서 drawer`);
         }
         if (route.path === "/dashboard/audit") {
+          const retryChainChecked = await checkAuditRetryChain({ cdp, timeoutMs });
+          if (retryChainChecked) labels.push(`${profile.label} 알림 재시도 전체 체인`);
           await checkSmokeRotationAuditDetail({ cdp, timeoutMs });
           labels.push(`${profile.label} Secret 회전 실패 상세`);
           await checkAuditFilterPersistence({ cdp, profile, timeoutMs });
