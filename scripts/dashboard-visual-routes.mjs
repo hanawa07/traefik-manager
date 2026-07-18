@@ -105,8 +105,6 @@ export const DASHBOARD_ROUTES = [
       "Artifact 만료",
       "관리자 전용 점검 최근 성공",
       "관리자 점검 지연 판정",
-      "관리자 지연 알림 dry-run",
-      "Telegram 테스트 전송",
       "회전 실패 단계",
       "Secret 재시도 횟수",
       "Manager Docker 감지",
