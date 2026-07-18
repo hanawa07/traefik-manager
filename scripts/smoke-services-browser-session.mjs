@@ -16,6 +16,10 @@ import {
   resolveSessionCookies,
   splitCombinedSetCookie,
 } from "./smoke-session-auth.mjs";
+import {
+  checkOptionalSmokeAdminReadOnly,
+  runSmokeAdminReadOnlySelfTest,
+} from "./smoke-admin-read-only.mjs";
 
 const DEFAULT_TIMEOUT_MS = 40_000;
 
@@ -57,7 +61,7 @@ const CHECKS = [
   },
   {
     label: "스모크 회전 상태",
-    path: "/api/v1/settings/smoke-rotation",
+    path: "/api/v1/settings/smoke-rotation?summary=true",
     validate: (data) =>
       ["never", "running", "success", "failure"].includes(data?.status) &&
       typeof data?.is_stale === "boolean" &&
@@ -88,7 +92,7 @@ const CHECKS = [
 ];
 
 if (process.argv.includes("--self-test")) {
-  runSelfTest();
+  await runSelfTest();
   process.exit(0);
 }
 
@@ -103,6 +107,7 @@ async function main() {
   const baseUrl = resolveBaseUrl();
   const timeoutMs = Number(process.env.TM_SMOKE_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);
   const cookiePairs = await resolveSessionCookies(baseUrl);
+  const adminReadOnlyChecked = await checkOptionalSmokeAdminReadOnly(baseUrl);
   const chrome = await launchChrome(timeoutMs);
 
   try {
@@ -140,6 +145,7 @@ async function main() {
       cdp,
       timeoutMs,
     });
+    if (adminReadOnlyChecked) visualResult.labels.push("관리자 읽기 전용 403");
     await reportRemoteSmokeSuccess(baseUrl, cookiePairs, visualResult.adminChecked);
 
     const session = results.find((item) => item.label === "현재 세션")?.data;
@@ -455,7 +461,7 @@ function waitForExit(processHandle, timeoutMs) {
   });
 }
 
-function runSelfTest() {
+async function runSelfTest() {
   assert.equal(normalizeBaseUrl("example.com/"), "https://example.com");
   assert.equal(normalizeBaseUrl("http://localhost:3000/"), "http://localhost:3000");
   assert.deepEqual(parseCookieHeader("tm_session=abc; tm_csrf=def"), [
@@ -480,6 +486,7 @@ function runSelfTest() {
   const rotationCheck = CHECKS.find((check) => check.label === "스모크 회전 상태");
   assert.match(rotationCheck.failureMessage({ is_stale: true, stale_after_days: 35 }), /35일/);
   assert.equal(rotationCheck.failureMessage({ is_stale: false, stale_after_days: 35 }), null);
+  await runSmokeAdminReadOnlySelfTest();
   runDashboardVisualSmokeSelfTest();
   console.log("서비스 브라우저 스모크 self-test 통과");
 }

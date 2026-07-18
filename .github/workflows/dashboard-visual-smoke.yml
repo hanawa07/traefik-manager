@@ -31,6 +31,7 @@ jobs:
       TM_SMOKE_PASSWORD: ${{ secrets.TM_SMOKE_PASSWORD }}
       TM_SMOKE_ADMIN_USERNAME: ${{ secrets.TM_SMOKE_ADMIN_USERNAME }}
       TM_SMOKE_ADMIN_PASSWORD: ${{ secrets.TM_SMOKE_ADMIN_PASSWORD }}
+      TM_SMOKE_ADMIN_EXPECT_READ_ONLY: "1"
       TM_SMOKE_ARTIFACT_DIR: smoke-artifacts
       TM_SMOKE_ALERT_DETAIL_FILE: smoke-alert-detail.txt
     steps:
