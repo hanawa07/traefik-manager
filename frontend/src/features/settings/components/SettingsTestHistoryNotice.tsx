@@ -19,6 +19,7 @@ export default function SettingsTestHistoryNotice({
   if (!history?.last_event) {
     return <p className="text-xs text-gray-500 dark:text-slate-400">{label}: 아직 기록이 없습니다.</p>;
   }
+  const recentEvents = history.recent_events.slice(0, 5);
   const latestAuditId = history.recent_events[0]?.audit_id;
   const canRetry = Boolean(onRetry && history.last_failure_audit_id);
 
@@ -71,6 +72,43 @@ export default function SettingsTestHistoryNotice({
       {history.last_failure_message ? <p>최근 실패 메시지: {history.last_failure_message}</p> : null}
       {history.last_failure_detail ? <p className="text-gray-500 dark:text-slate-400">실패 상세: {history.last_failure_detail}</p> : null}
       {history.last_detail ? <p className="text-gray-500 dark:text-slate-400">{history.last_detail}</p> : null}
+      {recentEvents.length ? (
+        <details
+          className="rounded-md border border-gray-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900"
+          data-testid="settings-test-recent-history"
+        >
+          <summary className="cursor-pointer font-semibold text-gray-700 dark:text-slate-200">
+            최근 이력 {recentEvents.length}건 (최대 5건)
+          </summary>
+          <ol className="mt-2 space-y-2">
+            {recentEvents.map((event) => (
+              <li
+                key={event.audit_id}
+                className="rounded-md border border-gray-100 bg-gray-50 p-2 dark:border-slate-700 dark:bg-slate-950"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`font-semibold ${event.success === null ? "text-slate-600 dark:text-slate-300" : event.success ? "text-green-700 dark:text-emerald-200" : "text-red-700 dark:text-red-200"}`}>
+                    {event.success === null ? "결과 없음" : event.success ? "성공" : "실패"}
+                  </span>
+                  {event.provider ? <span>{event.provider}</span> : null}
+                  <time className="text-gray-500 dark:text-slate-400" dateTime={event.created_at}>
+                    {formatDateTime(event.created_at, timezone)}
+                  </time>
+                  <Link
+                    aria-label={`${label} 최근 이력 감사 상세`}
+                    className="ml-auto font-semibold text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+                    href={`/dashboard/audit?q=${encodeURIComponent(event.audit_id)}&expand=${encodeURIComponent(event.audit_id)}`}
+                  >
+                    감사 상세
+                  </Link>
+                </div>
+                {event.message ? <p className="mt-1 text-gray-700 dark:text-slate-200">{event.message}</p> : null}
+                {event.detail ? <p className="mt-1 break-all text-gray-500 dark:text-slate-400">{event.detail}</p> : null}
+              </li>
+            ))}
+          </ol>
+        </details>
+      ) : null}
     </div>
   );
 }
