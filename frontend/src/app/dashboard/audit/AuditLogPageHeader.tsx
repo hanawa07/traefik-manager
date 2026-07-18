@@ -68,6 +68,10 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
     { event: "smoke_rotation_result", limit: 1, offset: 0 },
     isEmptyRotationExport,
   );
+  const latestRotationFailureQuery = useAuditPage(
+    { event: "smoke_rotation_failed", limit: 1, offset: 0 },
+    isEmptyRotationExport,
+  );
   const latestRotation = latestRotationQuery.data?.items[0];
   const latestRotationDate = latestRotation?.created_at.slice(0, 10);
   const latestRotationStatus = latestRotation?.event === "smoke_rotation_succeeded"
@@ -80,6 +84,14 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
     : latestRotationStatus === "failure"
       ? "실패"
       : null;
+  const latestRotationFailure = latestRotationFailureQuery.data?.items[0];
+  const rawLatestRotationFailureStep = latestRotationFailure?.detail?.step;
+  const latestRotationFailureStep = latestRotationFailure
+    ? typeof rawLatestRotationFailureStep === "string" && rawLatestRotationFailureStep.trim()
+      ? rawLatestRotationFailureStep.trim()
+      : "알 수 없는 단계"
+    : null;
+  const latestRotationFailureDate = latestRotationFailure?.created_at.slice(0, 10);
   const setRotationRange = (date: string) => {
     setRotationCsvPeriod("custom");
     setRotationStartDate(date);
@@ -169,6 +181,17 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
           >
             최근 결과 {latestRotationDate}{latestRotationStatusLabel ? ` · ${latestRotationStatusLabel}` : ""}
           </button>
+        ) : null}
+        {isEmptyRotationExport && latestRotationFailureDate && latestRotationFailureStep ? (
+          <span
+            className="max-w-80 self-center truncate rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 dark:border-rose-500/30 dark:bg-rose-950/60 dark:text-rose-200"
+            data-latest-failure-date={latestRotationFailureDate}
+            data-latest-failure-step={latestRotationFailureStep}
+            data-testid="secret-rotation-export-latest-failure"
+            title={`최근 회전 실패 단계: ${latestRotationFailureStep}`}
+          >
+            최근 실패 {latestRotationFailureDate} UTC · 단계: {latestRotationFailureStep}
+          </span>
         ) : null}
         {isEmptyRotationExport ? (
           <button

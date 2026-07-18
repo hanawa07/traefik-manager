@@ -47,6 +47,12 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
             : trigger === "manual_retry"
               ? "수동"
               : null;
+          const rawFailureDetail = item.detail?.detail;
+          const failureSummary = success === false
+            ? typeof rawFailureDetail === "string" && rawFailureDetail.trim()
+              ? rawFailureDetail.trim()
+              : "상세 정보 없음"
+            : null;
           const isCurrent = item.id === logId;
           return (
             <li
@@ -82,6 +88,15 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
                   감사 상세
                 </Link>
               )}
+              {failureSummary ? (
+                <span
+                  className="line-clamp-2 basis-full rounded-lg bg-rose-100/70 px-2 py-1 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200"
+                  data-testid="audit-retry-failure-summary"
+                  title={failureSummary}
+                >
+                  원인: {failureSummary}
+                </span>
+              ) : null}
             </li>
           );
         })}
