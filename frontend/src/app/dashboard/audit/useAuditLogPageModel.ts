@@ -108,6 +108,7 @@ export function useAuditLogPageModel() {
     pageSize,
   });
   const exportUrl = buildAuditExportUrl(withoutAuditPagination(auditQuery));
+  const smokeRotationExportUrl = buildAuditExportUrl({ event: "smoke_rotation_result" });
   const { data: logPage, isLoading, isFetching, isError, error } = useAuditPage(auditQuery);
   const { data: managerHealthSummary } = useManagerHealthSummary(managerHealthWindowMinutes);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
@@ -247,6 +248,7 @@ export function useAuditLogPageModel() {
     isError,
     isLoading,
     rollbackFeedback: auditActions.rollbackFeedback,
+    smokeRotationExportUrl,
     table: {
       currentPage,
       expandedLogId: visibleExpandedLogId,

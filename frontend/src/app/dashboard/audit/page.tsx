@@ -17,8 +17,17 @@ export default function AuditLogPage() {
 }
 
 function AuditLogPageContent() {
-  const { deliveryFeedback, errorMessage, exportUrl, filters, isError, isLoading, rollbackFeedback, table } =
-    useAuditLogPageModel();
+  const {
+    deliveryFeedback,
+    errorMessage,
+    exportUrl,
+    filters,
+    isError,
+    isLoading,
+    rollbackFeedback,
+    smokeRotationExportUrl,
+    table,
+  } = useAuditLogPageModel();
 
   if (isLoading) {
     return <AuditLogLoading />;
@@ -36,7 +45,10 @@ function AuditLogPageContent() {
 
   return (
     <div className="mx-auto max-w-[1600px]">
-      <AuditLogPageHeader exportUrl={exportUrl} />
+      <AuditLogPageHeader
+        exportUrl={exportUrl}
+        smokeRotationExportUrl={smokeRotationExportUrl}
+      />
 
       <AuditLogFilters {...filters} />
 
