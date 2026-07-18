@@ -4,7 +4,11 @@ import {
   checkManagerDeploymentPerformance,
   checkManagerDeploymentPeriodComparison,
 } from "./dashboard-visual-manager-deployment-performance.mjs";
-import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
+import {
+  evaluate,
+  installClipboardCapture,
+  waitForCondition,
+} from "./dashboard-visual-runtime.mjs";
 
 export async function checkManagerDeploymentHistoryActions({ cdp, timeoutMs }) {
   await checkCombinedSource({ cdp, timeoutMs });
@@ -408,24 +412,6 @@ async function checkCopyButtons({ cdp, timeoutMs }) {
     toast: "상세 JSON 복사 완료",
     timeoutMs,
   });
-}
-
-async function installClipboardCapture(cdp) {
-  const installed = await evaluate(cdp, `(() => {
-    try {
-      Object.defineProperty(navigator, 'clipboard', {
-        configurable: true,
-        value: {
-          writeText: async (value) => { window.__managerDeploymentClipboard = value; },
-        },
-      });
-      window.__managerDeploymentClipboard = '';
-      return true;
-    } catch {
-      return false;
-    }
-  })()`);
-  assert.equal(installed, true, "Manager 클립보드 캡처를 준비하지 못했습니다");
 }
 
 async function clickCopyAndWait({ cdp, expected, kind, toast, timeoutMs }) {

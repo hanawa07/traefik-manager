@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 
-import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
+import {
+  evaluate,
+  installClipboardCapture,
+  waitForCondition,
+} from "./dashboard-visual-runtime.mjs";
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
@@ -28,6 +32,9 @@ export function buildManagerDeploymentBottleneckAlertFixture() {
     run_conclusion: null,
     run_checked_at: null,
     run_error: null,
+    retained_event_count: 24,
+    oldest_event_at: occurredAt(29),
+    newest_event_at: occurredAt(0),
     events: [
       buildEvent("alerted", occurredAt(0), "v1.38.71", "build", 75_000, 3),
       buildEvent("cleared", occurredAt(2), "v1.38.70", null, 0, 0),
@@ -57,6 +64,7 @@ export async function checkManagerDeploymentBottleneckEvents({ cdp, reload, time
     "Manager 병목 이력 URL 조건이 새로고침 후 복원되지 않았습니다",
   );
   await waitForEventCount(cdp, 1, timeoutMs, "복원된 병목 이력 조건이 결과에 적용되지 않았습니다");
+  await checkFilterLinkCopy({ cdp, timeoutMs });
 
   const json = await captureEventDownload(cdp, "json");
   assert.match(json.filename, /bottleneck-events-cleared-7d-\d{4}-\d{2}-\d{2}\.json$/);
@@ -90,6 +98,23 @@ export async function checkManagerDeploymentBottleneckEvents({ cdp, reload, time
   assert.match(csv.text, /\r\n\r\nevent,occurred_at,threshold_ms,/);
   assert.match(csv.text, /"'\+v1\.38\.61"/);
   await waitForExportNotice(cdp, "CSV", csv.filename, timeoutMs);
+}
+
+async function checkFilterLinkCopy({ cdp, timeoutMs }) {
+  await installClipboardCapture(cdp);
+  const expected = await evaluate(cdp, `(() => {
+    const button = document.querySelector('[data-bottleneck-event-share]');
+    button?.click();
+    return button ? location.href : null;
+  })()`);
+  assert.ok(expected, "Manager 병목 필터 링크 복사 버튼을 찾지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `window.__managerDeploymentClipboard === ${JSON.stringify(expected)} &&
+      document.querySelector('[data-bottleneck-event-export-notice]')?.textContent?.includes('필터 링크 복사 완료')`,
+    timeoutMs,
+    "Manager 병목 필터 링크와 복사 완료 표시가 일치하지 않습니다",
+  );
 }
 
 function buildEvent(event, occurredAt, latestVersion, slowestStage, slowestMs, currentCount) {

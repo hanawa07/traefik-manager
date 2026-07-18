@@ -18,6 +18,24 @@ export async function reloadPage(cdp, timeoutMs) {
   await loaded;
 }
 
+export async function installClipboardCapture(cdp) {
+  const installed = await evaluate(cdp, `(() => {
+    try {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async (value) => { window.__managerDeploymentClipboard = value; },
+        },
+      });
+      window.__managerDeploymentClipboard = '';
+      return true;
+    } catch {
+      return false;
+    }
+  })()`);
+  assert.equal(installed, true, "Manager 클립보드 캡처를 준비하지 못했습니다");
+}
+
 export async function waitForCondition(cdp, expression, timeoutMs, message) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {

@@ -60,5 +60,17 @@ export async function checkDeploymentBottleneckSettingsPreview({ cdp, timeoutMs 
     timeoutMs,
     "배포 병목 설정 편집을 닫지 못했습니다",
   );
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const card = document.querySelector('[data-testid="deployment-bottleneck-settings-card"]');
+      return card?.textContent?.includes('현재 보관') &&
+        card.textContent.includes('24/100건') &&
+        card.textContent.includes('보관 범위') &&
+        Boolean(card.querySelector('[data-deployment-bottleneck-cleanup]'));
+    })()`,
+    timeoutMs,
+    "배포 병목 이벤트 보관 현황과 즉시 정리 버튼이 표시되지 않았습니다",
+  );
   return true;
 }
