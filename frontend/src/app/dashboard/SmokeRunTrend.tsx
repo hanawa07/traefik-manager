@@ -8,6 +8,10 @@ import {
   getCompletedSmokeRunsInWindow,
   getSmokeRunFailureRate,
 } from "./smokeRunFailureRate";
+import {
+  getSmokeArtifactExpiryState,
+  type SmokeArtifactExpiryState,
+} from "./smokeArtifactExpiry";
 
 const STATUS_LABELS = {
   failure: "실패",
@@ -20,6 +24,18 @@ const STATUS_STYLES = {
   skipped: "bg-slate-400 hover:bg-slate-500",
   success: "bg-emerald-500 hover:bg-emerald-600",
 } as const;
+
+const ARTIFACT_EXPIRY_LABELS: Record<SmokeArtifactExpiryState, string> = {
+  active: "만료",
+  expiring_soon: "만료 임박",
+  expired: "만료됨",
+};
+
+const ARTIFACT_EXPIRY_STYLES: Record<SmokeArtifactExpiryState, string> = {
+  active: "text-slate-500 dark:text-slate-400",
+  expiring_soon: "bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-200",
+  expired: "bg-rose-100 px-1.5 py-0.5 font-semibold text-rose-700 dark:bg-rose-950 dark:text-rose-200",
+};
 
 interface SmokeRunTrendProps {
   error: string | null;
@@ -59,6 +75,9 @@ export function SmokeRunTrend({
   ).filter((run) => run.status === "failure");
   const displayedFailedRuns = failedRuns.slice(0, 5);
   const artifactCount = displayedFailedRuns.filter((run) => run.artifact_url).length;
+  const artifactExpiryCount = displayedFailedRuns.filter((run) =>
+    run.artifact_url && getSmokeArtifactExpiryState(run.artifact_expires_at, periodReferenceTime)
+  ).length;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]" data-testid="smoke-run-trend">
       <span className="font-semibold">운영 점검 추이</span>
@@ -121,11 +140,16 @@ export function SmokeRunTrend({
         <span
           className="inline-flex flex-wrap items-center gap-1 rounded-md border border-rose-200 bg-white/70 px-2 py-0.5 dark:border-rose-500/30 dark:bg-slate-950/50"
           data-artifact-count={artifactCount}
+          data-artifact-expiry-count={artifactExpiryCount}
           data-testid="smoke-failure-run-links"
         >
           <span className="font-semibold">실패 실행</span>
           {displayedFailedRuns.map((run, index) => {
             const runLabel = run.run_number ? `#${run.run_number}` : `${index + 1}번`;
+            const artifactExpiryState = getSmokeArtifactExpiryState(
+              run.artifact_expires_at,
+              periodReferenceTime,
+            );
             return (
               <span key={run.run_url} className="inline-flex items-center gap-1">
                 <a
@@ -149,6 +173,16 @@ export function SmokeRunTrend({
                   >
                     화면
                   </a>
+                ) : null}
+                {run.artifact_url && run.artifact_expires_at && artifactExpiryState ? (
+                  <span
+                    className={`rounded ${ARTIFACT_EXPIRY_STYLES[artifactExpiryState]}`}
+                    data-expiry-state={artifactExpiryState}
+                    data-testid="smoke-artifact-expiry"
+                    title={`Artifact 만료 시각: ${formatDateTime(run.artifact_expires_at, timezone)}`}
+                  >
+                    {ARTIFACT_EXPIRY_LABELS[artifactExpiryState]} · {formatDateTime(run.artifact_expires_at, timezone)}
+                  </span>
                 ) : null}
               </span>
             );
