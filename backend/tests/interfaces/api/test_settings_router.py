@@ -1,4 +1,5 @@
 import pytest
+from fastapi import HTTPException
 from pydantic import ValidationError
 from types import SimpleNamespace
 
@@ -64,6 +65,17 @@ async def test_get_smoke_rotation_status_skips_admin_details_for_summary(
             "force_refresh_monitoring_history": role == "admin" and not summary,
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_get_smoke_rotation_status_rejects_unsupported_history_days():
+    with pytest.raises(HTTPException, match="history_days는 7 또는 30이어야 합니다"):
+        await settings_router.get_smoke_rotation_status(
+            db=object(),
+            current_user={"role": "admin"},
+            history=True,
+            history_days=8,
+        )
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,4 @@
-from typing import Literal
-
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.audit import audit_service
@@ -146,8 +144,10 @@ async def get_smoke_rotation_status(
     refresh_monitoring_history: bool = False,
     summary: bool = False,
     history: bool = False,
-    history_days: Literal[7, 30] | None = None,
+    history_days: int | None = None,
 ):
+    if history_days not in {None, 7, 30}:
+        raise HTTPException(status_code=422, detail="history_days는 7 또는 30이어야 합니다")
     is_admin = current_user["role"] == "admin"
     include_admin_details = is_admin and not summary
     include_monitoring_history = include_admin_details or (is_admin and history)
