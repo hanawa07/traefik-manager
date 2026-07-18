@@ -169,6 +169,7 @@ export function AuditLogFilters({
             <button
               key={filter.key}
               aria-pressed={active}
+              data-audit-filter={filter.key}
               type="button"
               onClick={() => onFilterChange(filter.key)}
               className={clsx(

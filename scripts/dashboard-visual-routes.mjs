@@ -79,6 +79,7 @@ export const DASHBOARD_ROUTES = [
       "시작일 (UTC)",
       "종료일 (UTC)",
       "Manager 전체",
+      "병목 이벤트 정리",
       "Manager 소스",
       "Manager 상태",
       "Manager 집계 기간",

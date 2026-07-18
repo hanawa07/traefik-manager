@@ -151,6 +151,43 @@ export async function checkManagerHttpAuditAutoExpand(cdp, timeoutMs) {
       timeoutMs,
       "병목 이벤트 정리 감사 상세가 한글 건수로 표시되지 않았습니다",
     );
+    const filterRequestPaused = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+    const filterClicked = await evaluate(cdp, `(() => {
+      const button = document.querySelector(
+        '[data-audit-filter="deployment_bottleneck_events_cleanup"]',
+      );
+      button?.click();
+      return Boolean(button);
+    })()`);
+    assert.equal(filterClicked, true, "병목 이벤트 정리 전용 필터가 없습니다");
+    const filterRequest = await filterRequestPaused;
+    const filterRequestUrl = new URL(filterRequest.request.url);
+    assert.equal(
+      filterRequestUrl.searchParams.get("event"),
+      "deployment_bottleneck_events_cleanup",
+      "병목 이벤트 정리 필터가 event API 조건으로 전달되지 않았습니다",
+    );
+    await cdp.send("Fetch.fulfillRequest", {
+      requestId: filterRequest.requestId,
+      responseCode: 200,
+      responseHeaders: [
+        { name: "Content-Type", value: "application/json" },
+        { name: "X-Total-Count", value: "1" },
+      ],
+      body: Buffer.from(
+        JSON.stringify([DEPLOYMENT_BOTTLENECK_CLEANUP_AUDIT_FIXTURE]),
+      ).toString("base64"),
+    });
+    await waitForCondition(
+      cdp,
+      `document.querySelector('[data-audit-filter="deployment_bottleneck_events_cleanup"]')?.getAttribute('aria-pressed') === 'true' &&
+        new URLSearchParams(location.search).get('filter') === 'deployment_bottleneck_events_cleanup' &&
+        document.querySelectorAll('[data-audit-log-id]').length === 1 &&
+        Boolean(document.querySelector('[data-audit-log-id="${DEPLOYMENT_BOTTLENECK_CLEANUP_AUDIT_FIXTURE_ID}"]')) &&
+        new URL(document.querySelector('a[href*="/audit/export.csv"]')?.href || location.href).searchParams.get('event') === 'deployment_bottleneck_events_cleanup'`,
+      timeoutMs,
+      "병목 이벤트 정리 필터 결과와 CSV 조건이 반영되지 않았습니다",
+    );
     return true;
   } finally {
     await cdp.send("Fetch.disable");

@@ -338,6 +338,7 @@ export function runDashboardVisualSmokeSelfTest() {
   assert.ok(serviceRoute);
   assert.ok(dashboardRoute);
   assert.ok(auditRoute?.requiredMarkers.includes("현재 조건 CSV"));
+  assert.ok(auditRoute.requiredMarkers.includes("병목 이벤트 정리"));
   assert.ok(dashboardRoute.requiredMarkers.includes("Manager API 404·5xx 추이"));
   assert.ok(dashboardRoute.requiredMarkers.includes("Manager file-provider 라우터"));
   assert.ok(dashboardRoute.requiredMarkers.includes("경로 필터"));
