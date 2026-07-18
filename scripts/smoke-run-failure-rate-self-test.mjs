@@ -4,7 +4,10 @@ import {
   getCompletedSmokeRunsInWindow,
   getSmokeRunFailureRate,
 } from "../frontend/src/app/dashboard/smokeRunFailureRate.ts";
-import { getSmokeArtifactExpiryState } from "../frontend/src/app/dashboard/smokeArtifactExpiry.ts";
+import {
+  getSmokeArtifactExpiryState,
+  getSmokeArtifactRemainingLabel,
+} from "../frontend/src/app/dashboard/smokeArtifactExpiry.ts";
 
 const now = Date.parse("2026-07-18T00:00:00Z");
 const high = getSmokeRunFailureRate(
@@ -78,5 +81,11 @@ assert.equal(getSmokeArtifactExpiryState("invalid", now), null);
 assert.equal(getSmokeArtifactExpiryState("2026-07-18T00:00:00Z", now), "expired");
 assert.equal(getSmokeArtifactExpiryState("2026-07-21T00:00:00Z", now), "expiring_soon");
 assert.equal(getSmokeArtifactExpiryState("2026-07-22T00:00:01Z", now), "active");
+assert.equal(getSmokeArtifactRemainingLabel("invalid", now), null);
+assert.equal(getSmokeArtifactRemainingLabel("2026-07-18T00:00:00Z", now), null);
+assert.equal(getSmokeArtifactRemainingLabel("2026-07-18T00:00:30Z", now), "1분 남음");
+assert.equal(getSmokeArtifactRemainingLabel("2026-07-18T01:01:00Z", now), "1시간 1분 남음");
+assert.equal(getSmokeArtifactRemainingLabel("2026-07-19T00:30:00Z", now), "1일 30분 남음");
+assert.equal(getSmokeArtifactRemainingLabel("2026-07-20T03:30:00Z", now), "2일 3시간 남음");
 
 console.log("운영 점검 실패율 self-test 통과");

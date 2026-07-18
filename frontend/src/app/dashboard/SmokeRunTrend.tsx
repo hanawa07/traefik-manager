@@ -10,6 +10,7 @@ import {
 } from "./smokeRunFailureRate";
 import {
   getSmokeArtifactExpiryState,
+  getSmokeArtifactRemainingLabel,
   type SmokeArtifactExpiryState,
 } from "./smokeArtifactExpiry";
 
@@ -162,6 +163,10 @@ export function SmokeRunTrend({
               run.artifact_expires_at,
               periodReferenceTime,
             );
+            const artifactRemainingLabel = getSmokeArtifactRemainingLabel(
+              run.artifact_expires_at,
+              periodReferenceTime,
+            );
             return (
               <span key={run.run_url} className="inline-flex items-center gap-1">
                 <a
@@ -199,10 +204,13 @@ export function SmokeRunTrend({
                   <span
                     className={`rounded ${ARTIFACT_EXPIRY_STYLES[artifactExpiryState]}`}
                     data-expiry-state={artifactExpiryState}
+                    data-remaining-label={artifactRemainingLabel || undefined}
                     data-testid="smoke-artifact-expiry"
                     title={`Artifact 만료 시각: ${formatDateTime(run.artifact_expires_at, timezone)}`}
                   >
-                    {ARTIFACT_EXPIRY_LABELS[artifactExpiryState]} · {formatDateTime(run.artifact_expires_at, timezone)}
+                    {ARTIFACT_EXPIRY_LABELS[artifactExpiryState]}
+                    {artifactRemainingLabel ? ` · ${artifactRemainingLabel}` : ""}
+                    {` · ${formatDateTime(run.artifact_expires_at, timezone)}`}
                   </span>
                 ) : null}
               </span>
