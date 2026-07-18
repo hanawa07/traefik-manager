@@ -2,7 +2,7 @@
 
 import { Download, History } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 
 import { buildAuditExportUrl, type AuditLogQueryParams } from "@/features/audit/api/auditApi";
 import { useAuditPage } from "@/features/audit/hooks/useAudit";
@@ -222,8 +222,11 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
           <span
             aria-label="최근 Secret 회전 실패 날짜 작업"
             className="inline-flex self-center overflow-hidden rounded-lg border border-rose-200 bg-white dark:border-rose-500/30 dark:bg-slate-900"
+            data-keyboard-navigation="horizontal"
             data-testid="secret-rotation-export-latest-failure-actions"
+            onKeyDown={handleFailureActionKeyDown}
             role="group"
+            title="좌우 방향키로 작업을 이동할 수 있습니다"
           >
             <a
               aria-label="최근 Secret 회전 실패 날짜 CSV 다운로드"
@@ -273,4 +276,14 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
       </div>
     </div>
   );
+}
+
+function handleFailureActionKeyDown(event: KeyboardEvent<HTMLSpanElement>) {
+  const direction = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+  if (!direction) return;
+  const actions = Array.from(event.currentTarget.querySelectorAll<HTMLAnchorElement>("a"));
+  const currentIndex = actions.indexOf(document.activeElement as HTMLAnchorElement);
+  if (currentIndex < 0 || actions.length < 2) return;
+  event.preventDefault();
+  actions[(currentIndex + direction + actions.length) % actions.length]?.focus();
 }
