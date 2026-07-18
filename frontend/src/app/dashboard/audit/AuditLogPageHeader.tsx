@@ -64,11 +64,15 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
           ? "다운로드 대상 0건 · CSV에는 헤더만 포함됩니다."
           : `다운로드 대상 ${(rotationCount ?? 0).toLocaleString("ko-KR")}건`;
   const isEmptyRotationExport = rotationCountStatus === "ready" && rotationCount === 0;
-  const setRotationRangeToToday = () => {
-    const today = new Date().toISOString().slice(0, 10);
+  const latestRotationQuery = useAuditPage(
+    { event: "smoke_rotation_result", limit: 1, offset: 0 },
+    isEmptyRotationExport,
+  );
+  const latestRotationDate = latestRotationQuery.data?.items[0]?.created_at.slice(0, 10);
+  const setRotationRange = (date: string) => {
     setRotationCsvPeriod("custom");
-    setRotationStartDate(today);
-    setRotationEndDate(today);
+    setRotationStartDate(date);
+    setRotationEndDate(date);
   };
   return (
     <div className="mb-8 flex flex-wrap items-center gap-3">
@@ -136,12 +140,30 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
         >
           {rotationCountLabel}
         </span>
+        {isEmptyRotationExport && latestRotationQuery.isFetching ? (
+          <span className="self-center text-xs text-slate-500 dark:text-slate-400">
+            최근 결과 날짜 확인 중...
+          </span>
+        ) : null}
+        {isEmptyRotationExport && latestRotationDate ? (
+          <button
+            aria-label="Secret 회전 CSV 최근 결과 날짜로"
+            className="self-center rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-800 hover:bg-cyan-100 dark:border-cyan-500/40 dark:bg-cyan-950 dark:text-cyan-200 dark:hover:bg-cyan-900"
+            data-latest-date={latestRotationDate}
+            data-testid="secret-rotation-export-latest"
+            onClick={() => setRotationRange(latestRotationDate)}
+            title={`가장 최근 Secret 회전 결과가 있는 ${latestRotationDate} UTC로 이동합니다`}
+            type="button"
+          >
+            최근 결과 {latestRotationDate}
+          </button>
+        ) : null}
         {isEmptyRotationExport ? (
           <button
             aria-label="Secret 회전 CSV 오늘 범위로"
             className="self-center rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900"
             data-testid="secret-rotation-export-today"
-            onClick={setRotationRangeToToday}
+            onClick={() => setRotationRange(new Date().toISOString().slice(0, 10))}
             title="UTC 기준 오늘 날짜로 시작일과 종료일을 설정합니다"
             type="button"
           >
