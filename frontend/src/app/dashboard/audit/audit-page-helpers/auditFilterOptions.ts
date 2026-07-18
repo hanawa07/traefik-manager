@@ -6,6 +6,7 @@ export const auditFilters = [
   { key: "settings_test", label: "설정 테스트" },
   { key: "settings_rollback", label: "설정 롤백" },
   { key: "smoke_rotation_result", label: "Secret 회전 결과" },
+  { key: "smoke_rotation_failed", label: "Secret 회전 실패" },
   { key: "deployment_bottleneck_events_cleanup", label: "병목 이벤트 정리" },
   { key: "login_locked", label: "계정 잠금" },
   { key: "login_suspicious", label: "이상 징후" },

@@ -111,6 +111,9 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
     Boolean(isEmptyRotationExport && latestRotationFailureDate),
   );
   const latestRotationFailureDateCount = latestRotationFailureDateCountQuery.data?.total;
+  const latestRotationFailureListUrl = latestRotationFailureDate
+    ? `/dashboard/audit?filter=smoke_rotation_failed&start_date=${encodeURIComponent(latestRotationFailureDate)}&end_date=${encodeURIComponent(latestRotationFailureDate)}`
+    : null;
   const setRotationRange = (date: string) => {
     setRotationCsvPeriod("custom");
     setRotationStartDate(date);
@@ -228,6 +231,18 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
             실패 날짜 CSV{latestRotationFailureDateCount === undefined
               ? ""
               : ` (${latestRotationFailureDateCount.toLocaleString("ko-KR")}건)`}
+          </a>
+        ) : null}
+        {isEmptyRotationExport && latestRotationFailureListUrl && latestRotationFailureDateCount !== undefined ? (
+          <a
+            aria-label="최근 Secret 회전 실패 날짜 감사 목록"
+            className="self-center rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-950/60 dark:text-rose-200 dark:hover:bg-rose-900"
+            data-latest-failure-date={latestRotationFailureDate}
+            data-result-count={latestRotationFailureDateCount}
+            data-testid="secret-rotation-export-latest-failure-list"
+            href={latestRotationFailureListUrl}
+          >
+            {latestRotationFailureDateCount.toLocaleString("ko-KR")}건 보기
           </a>
         ) : null}
         {isEmptyRotationExport ? (
