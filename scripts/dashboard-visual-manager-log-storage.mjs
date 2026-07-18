@@ -101,7 +101,7 @@ async function showWarningFixture({
     );
     assert.equal(
       auditHref,
-      "/dashboard/audit?filter=manager_health&manager_source=api&period=1&q=request-log-storage&expand=latest",
+      "/dashboard/audit?filter=manager_health&manager_source=api&period=90&q=request-log-storage&expand=latest",
       "Manager 요청 로그 보관 경고의 감사 이력 링크가 올바르지 않습니다",
     );
   } finally {

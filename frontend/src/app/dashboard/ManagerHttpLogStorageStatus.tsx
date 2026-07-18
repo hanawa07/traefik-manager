@@ -3,6 +3,8 @@ import Link from "next/link";
 import type { ManagerHttpRequestLogStorage } from "@/features/deployment/api/deploymentApi";
 import { formatBytes } from "@/shared/lib/formatBytes";
 
+import { getManagerApiAuditUrl } from "./managerAuditLinks";
+
 interface ManagerHttpLogStorageStatusProps {
   storage: ManagerHttpRequestLogStorage;
 }
@@ -66,7 +68,7 @@ export function ManagerHttpLogStorageStatus({ storage }: ManagerHttpLogStorageSt
           <Link
             className="font-semibold underline decoration-amber-500/50 underline-offset-2 hover:decoration-current"
             data-testid="manager-http-log-storage-audit-link"
-            href="/dashboard/audit?filter=manager_health&manager_source=api&period=1&q=request-log-storage&expand=latest"
+            href={getManagerApiAuditUrl("request-log-storage")}
           >
             관련 Manager 이력 보기
           </Link>

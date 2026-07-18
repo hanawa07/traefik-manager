@@ -7,6 +7,8 @@ import type {
 } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
+import { getManagerApiAuditUrl } from "./managerAuditLinks";
+
 interface ManagerHealthAlertBannerProps {
   deployment?: DeploymentInfo;
   updatedAt?: string;
@@ -88,7 +90,7 @@ export function ManagerHealthAlertBanner({
             <Link
               className="mt-2 inline-flex text-xs font-semibold underline underline-offset-2 hover:no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               data-testid="manager-api-audit-link"
-              href="/dashboard/audit?filter=manager_health&manager_source=api&period=1&expand=latest"
+              href={getManagerApiAuditUrl()}
             >
               관련 감사 로그 보기
             </Link>

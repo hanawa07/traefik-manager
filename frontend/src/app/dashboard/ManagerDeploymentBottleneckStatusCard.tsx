@@ -9,6 +9,7 @@ import {
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 import { MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS, formatManagerDeploymentDurationMs } from "./managerDeploymentHistoryDisplay";
+import { getManagerApiAuditUrl } from "./managerAuditLinks";
 import { getExternalWatchdogRunLabel, isExternalWatchdogRunFailure } from "./managerWatchdogStatus";
 import { ManagerDeploymentBottleneckEventHistory } from "./ManagerDeploymentBottleneckEventHistory";
 
@@ -97,7 +98,7 @@ export function ManagerDeploymentBottleneckStatusCard({
           <Link
             className="font-semibold underline underline-offset-2"
             data-testid="manager-deployment-bottleneck-storage-audit-link"
-            href="/dashboard/audit?filter=manager_health&manager_source=api&period=1&q=deployment-bottleneck-storage&expand=latest"
+            href={getManagerApiAuditUrl("deployment-bottleneck-storage")}
           >
             관련 감사 이력 보기
           </Link>
