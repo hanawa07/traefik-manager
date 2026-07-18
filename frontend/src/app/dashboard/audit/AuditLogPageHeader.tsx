@@ -22,11 +22,19 @@ export function AuditLogPageHeader({
         <p className="text-sm text-slate-500 dark:text-slate-400">시스템의 모든 변경 사항을 추적합니다.</p>
       </div>
       <div className="ml-auto flex flex-wrap gap-2">
-        <a className={EXPORT_LINK_CLASS} href={smokeRotationExportUrl}>
+        <a
+          aria-label="Secret 회전 CSV 다운로드"
+          className={EXPORT_LINK_CLASS}
+          href={smokeRotationExportUrl}
+        >
           <Download className="h-4 w-4" />
           Secret 회전 CSV
         </a>
-        <a className={EXPORT_LINK_CLASS} href={exportUrl}>
+        <a
+          aria-label="현재 감사 조건 CSV 다운로드"
+          className={EXPORT_LINK_CLASS}
+          href={exportUrl}
+        >
           <Download className="h-4 w-4" />
           현재 조건 CSV
         </a>

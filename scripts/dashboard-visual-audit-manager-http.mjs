@@ -228,7 +228,7 @@ export async function checkManagerHttpAuditAutoExpand(cdp, timeoutMs) {
         new URLSearchParams(location.search).get('filter') === 'deployment_bottleneck_events_cleanup' &&
         document.querySelectorAll('[data-audit-log-id]').length === 1 &&
         Boolean(document.querySelector('[data-audit-log-id="${DEPLOYMENT_BOTTLENECK_CLEANUP_AUDIT_FIXTURE_ID}"]')) &&
-        new URL(document.querySelector('a[href*="/audit/export.csv"]')?.href || location.href).searchParams.get('event') === 'deployment_bottleneck_events_cleanup'`,
+        new URL(document.querySelector('a[aria-label="현재 감사 조건 CSV 다운로드"]')?.href || location.href).searchParams.get('event') === 'deployment_bottleneck_events_cleanup'`,
       timeoutMs,
       "병목 이벤트 정리 필터 결과와 CSV 조건이 반영되지 않았습니다",
     );
