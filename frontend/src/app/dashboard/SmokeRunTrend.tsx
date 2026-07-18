@@ -10,6 +10,7 @@ import {
 } from "./smokeRunFailureRate";
 import {
   filterAndPrioritizeSmokeArtifactRuns,
+  getSmokeArtifactFilterCounts,
   getSmokeArtifactExpiryState,
   getSmokeArtifactRemainingLabel,
   type SmokeArtifactFilter,
@@ -88,6 +89,7 @@ export function SmokeRunTrend({
     periodReferenceTime,
     failureRateWindowDays,
   ).filter((run) => run.status === "failure");
+  const artifactFilterCounts = getSmokeArtifactFilterCounts(failedRuns, periodReferenceTime);
   const filteredFailedRuns = filterAndPrioritizeSmokeArtifactRuns(
     failedRuns,
     artifactFilter,
@@ -188,10 +190,18 @@ export function SmokeRunTrend({
             value={artifactFilter}
             onChange={(event) => setArtifactFilter(event.target.value as SmokeArtifactFilter)}
           >
-            <option value="all">전체</option>
-            <option value="available">다운로드 가능</option>
-            <option value="expiring_soon">만료 임박</option>
-            <option value="expired">만료됨</option>
+            <option data-count={artifactFilterCounts.all} value="all">
+              전체 ({artifactFilterCounts.all})
+            </option>
+            <option data-count={artifactFilterCounts.available} value="available">
+              다운로드 가능 ({artifactFilterCounts.available})
+            </option>
+            <option data-count={artifactFilterCounts.expiring_soon} value="expiring_soon">
+              만료 임박 ({artifactFilterCounts.expiring_soon})
+            </option>
+            <option data-count={artifactFilterCounts.expired} value="expired">
+              만료됨 ({artifactFilterCounts.expired})
+            </option>
           </select>
           {displayedFailedRuns.map((run, index) => {
             const runLabel = run.run_number ? `#${run.run_number}` : `${index + 1}번`;

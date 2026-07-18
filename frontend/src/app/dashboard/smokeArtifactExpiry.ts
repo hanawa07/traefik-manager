@@ -3,6 +3,7 @@ const MINUTE_MS = 60 * 1000;
 
 export type SmokeArtifactExpiryState = "active" | "expiring_soon" | "expired";
 export type SmokeArtifactFilter = "all" | "available" | "expiring_soon" | "expired";
+export type SmokeArtifactFilterCounts = Record<SmokeArtifactFilter, number>;
 
 export function getSmokeArtifactExpiryState(
   expiresAt: string | null,
@@ -50,6 +51,25 @@ export function filterAndPrioritizeSmokeArtifactRuns<
     .sort((left, right) =>
       getArtifactSortValue(left, referenceTime) - getArtifactSortValue(right, referenceTime)
     );
+}
+
+export function getSmokeArtifactFilterCounts<
+  T extends { artifact_url: string | null; artifact_expires_at: string | null },
+>(runs: T[], referenceTime: number): SmokeArtifactFilterCounts {
+  const counts: SmokeArtifactFilterCounts = {
+    all: runs.length,
+    available: 0,
+    expiring_soon: 0,
+    expired: 0,
+  };
+  runs.forEach((run) => {
+    if (!run.artifact_url) return;
+    const state = getSmokeArtifactExpiryState(run.artifact_expires_at, referenceTime);
+    if (state !== "expired") counts.available += 1;
+    if (state === "expiring_soon") counts.expiring_soon += 1;
+    if (state === "expired") counts.expired += 1;
+  });
+  return counts;
 }
 
 function getArtifactSortValue(

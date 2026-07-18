@@ -6,6 +6,7 @@ import {
 } from "../frontend/src/app/dashboard/smokeRunFailureRate.ts";
 import {
   filterAndPrioritizeSmokeArtifactRuns,
+  getSmokeArtifactFilterCounts,
   getSmokeArtifactExpiryState,
   getSmokeArtifactRemainingLabel,
 } from "../frontend/src/app/dashboard/smokeArtifactExpiry.ts";
@@ -112,5 +113,11 @@ assert.deepEqual(
   filterAndPrioritizeSmokeArtifactRuns(artifactRuns, "expired", now).map((run) => run.id),
   ["expired"],
 );
+assert.deepEqual(getSmokeArtifactFilterCounts(artifactRuns, now), {
+  all: 5,
+  available: 3,
+  expiring_soon: 1,
+  expired: 1,
+});
 
 console.log("운영 점검 실패율 self-test 통과");
