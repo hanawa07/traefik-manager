@@ -3,6 +3,15 @@ import { writeFile } from "node:fs/promises";
 
 import { formatCookieHeader } from "./smoke-session-auth.mjs";
 
+const ADMIN_STALE_DRY_RUN_MESSAGE =
+  "관리자 전용 점검이 2일 넘게 성공하지 않았습니다 (dry-run)";
+
+if (process.argv.includes("--admin-stale-dry-run")) {
+  await writeSmokeAlertDetail(ADMIN_STALE_DRY_RUN_MESSAGE);
+  console.error(ADMIN_STALE_DRY_RUN_MESSAGE);
+  process.exit(1);
+}
+
 export async function recordRemoteSmokeSuccess(
   baseUrl,
   cookies,
@@ -109,4 +118,5 @@ export async function runRemoteSmokeStatusSelfTest() {
   );
   assert.equal(isAlertDetail("관리자 전용 점검이 지연되었습니다"), true);
   assert.equal(isAlertDetail("일반 화면 오류"), false);
+  assert.match(ADMIN_STALE_DRY_RUN_MESSAGE, /dry-run/);
 }

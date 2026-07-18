@@ -1,11 +1,16 @@
 name: 운영 로그인·화면 스모크
-run-name: ${{ inputs.test_failure_notification && '[테스트] 운영 로그인·화면 스모크' || '운영 로그인·화면 스모크' }}
+run-name: ${{ inputs.test_admin_stale_notification && '[테스트] 관리자 점검 지연 알림' || inputs.test_failure_notification && '[테스트] 운영 로그인·화면 스모크' || '운영 로그인·화면 스모크' }}
 
 on:
   workflow_dispatch:
     inputs:
       test_failure_notification:
         description: "실패 아티팩트와 Telegram 알림 경로만 점검"
+        required: false
+        default: false
+        type: boolean
+      test_admin_stale_notification:
+        description: "관리자 점검 지연 Telegram 알림을 dry-run"
         required: false
         default: false
         type: boolean
@@ -80,6 +85,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "${{ inputs.test_admin_stale_notification }}" == "true" ]]; then
+            node scripts/smoke-remote-status.mjs --admin-stale-dry-run
+          fi
           if [[ -z "$TM_SMOKE_BASE_URL" ]]; then
             echo "::notice::TM_SMOKE_BASE_URL이 없어 self-test만 실행합니다."
             node scripts/smoke-services-browser-session.mjs --self-test
@@ -107,7 +115,7 @@ jobs:
 
       - name: 반복 실패 알림 cooldown 확인
         id: alert_cooldown
-        if: failure()
+        if: failure() && inputs.test_failure_notification != true && inputs.test_admin_stale_notification != true
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/smoke-alert-cooldown.mjs >> "$GITHUB_OUTPUT"
@@ -119,6 +127,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TM_SMOKE_TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TM_SMOKE_TELEGRAM_CHAT_ID }}
           TEST_FAILURE_NOTIFICATION: ${{ inputs.test_failure_notification }}
+          TEST_ADMIN_STALE_NOTIFICATION: ${{ inputs.test_admin_stale_notification }}
         run: |
           if [[ -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_CHAT_ID" ]]; then
             echo "::notice::Telegram 비밀값이 없어 실패 알림을 건너뜁니다."
@@ -127,6 +136,9 @@ jobs:
           title="Traefik Manager 운영 로그인·화면 스모크 실패"
           if [[ "$TEST_FAILURE_NOTIFICATION" == "true" ]]; then
             title="[테스트] Traefik Manager 운영 로그인·화면 스모크 실패"
+          fi
+          if [[ "$TEST_ADMIN_STALE_NOTIFICATION" == "true" ]]; then
+            title="[테스트] Traefik Manager 관리자 점검 지연 알림"
           fi
           detail=""
           if [[ -s "$TM_SMOKE_ALERT_DETAIL_FILE" ]]; then
