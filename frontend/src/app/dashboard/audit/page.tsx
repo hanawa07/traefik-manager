@@ -25,7 +25,6 @@ function AuditLogPageContent() {
     isError,
     isLoading,
     rollbackFeedback,
-    smokeRotationExportUrl,
     table,
   } = useAuditLogPageModel();
 
@@ -45,10 +44,7 @@ function AuditLogPageContent() {
 
   return (
     <div className="mx-auto max-w-[1600px]">
-      <AuditLogPageHeader
-        exportUrl={exportUrl}
-        smokeRotationExportUrl={smokeRotationExportUrl}
-      />
+      <AuditLogPageHeader exportUrl={exportUrl} />
 
       <AuditLogFilters {...filters} />
 

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { SettingsTestHistoryItem } from "@/features/settings/api/settingsApi";
 import { SettingsSummaryRow } from "@/features/settings/components/SettingsCardPrimitives";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
@@ -43,6 +45,12 @@ export function SmokeStaleAlertHistory({ history, timezone }: SmokeStaleAlertHis
                   <span className="text-gray-500 dark:text-slate-400">
                     {formatDateTime(event.created_at, timezone)}
                   </span>
+                  <Link
+                    className="ml-auto font-semibold text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+                    href={`/dashboard/audit?filter=settings_test&q=${encodeURIComponent(event.audit_id)}&expand=${encodeURIComponent(event.audit_id)}`}
+                  >
+                    감사 상세
+                  </Link>
                 </div>
                 {event.message ? <p className="mt-2 text-gray-700 dark:text-slate-200">{event.message}</p> : null}
                 {event.detail ? <p className="mt-1 break-all text-gray-500 dark:text-slate-400">{event.detail}</p> : null}

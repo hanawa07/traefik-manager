@@ -97,6 +97,7 @@ def build_audit_log_conditions(
     if search_text := (search or "").strip():
         conditions.append(
             or_(
+                AuditLogModel.id.icontains(search_text, autoescape=True),
                 AuditLogModel.actor.icontains(search_text, autoescape=True),
                 AuditLogModel.resource_name.icontains(search_text, autoescape=True),
                 AuditLogModel.resource_id.icontains(search_text, autoescape=True),

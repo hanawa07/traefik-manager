@@ -76,6 +76,7 @@ export const securityEventConfig: Record<string, BadgeConfig> = {
   settings_test_cloudflare_drift: { label: "Cloudflare 드리프트 진단", color: "bg-sky-50 text-sky-700 border-sky-200" },
   settings_test_cloudflare_reconcile: { label: "Cloudflare 재동기화", color: "bg-blue-50 text-blue-700 border-blue-200" },
   settings_test_security_alert: { label: "보안 알림 테스트", color: "bg-sky-50 text-sky-700 border-sky-200" },
+  settings_test_smoke_admin_stale: { label: "관리자 지연 알림 dry-run", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
   security_alert_delivery_success: { label: "보안 알림 전송 성공", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   security_alert_delivery_failure: { label: "보안 알림 전송 실패", color: "bg-rose-50 text-rose-700 border-rose-200" },
   change_alert_delivery_success: { label: "운영 변경 알림 전송 성공", color: "bg-teal-50 text-teal-700 border-teal-200" },

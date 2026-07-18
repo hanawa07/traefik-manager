@@ -108,15 +108,15 @@ export function useAuditLogPageModel() {
     pageSize,
   });
   const exportUrl = buildAuditExportUrl(withoutAuditPagination(auditQuery));
-  const smokeRotationExportUrl = buildAuditExportUrl({ event: "smoke_rotation_result" });
   const { data: logPage, isLoading, isFetching, isError, error } = useAuditPage(auditQuery);
   const { data: managerHealthSummary } = useManagerHealthSummary(managerHealthWindowMinutes);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const auditActions = useAuditLogActions();
+  const requestedExpandedLogId = searchParams.get("expand");
   const autoExpandedLogId =
-    searchParams.get("expand") === "latest"
+    requestedExpandedLogId === "latest"
       ? logPage?.items.find(isManagerHttpLog)?.id
-      : undefined;
+      : requestedExpandedLogId;
   const visibleExpandedLogId = expandedLogId === undefined ? autoExpandedLogId ?? null : expandedLogId;
 
   const replaceFilterQueryParams = (
@@ -248,7 +248,6 @@ export function useAuditLogPageModel() {
     isError,
     isLoading,
     rollbackFeedback: auditActions.rollbackFeedback,
-    smokeRotationExportUrl,
     table: {
       currentPage,
       expandedLogId: visibleExpandedLogId,

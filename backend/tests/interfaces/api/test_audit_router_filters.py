@@ -369,44 +369,45 @@ async def test_list_audit_logs_filters_manager_source(audit_db, manager_source, 
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("search", ["LIZSTUDIO", "english", "3011"])
-async def test_list_audit_logs_searches_actor_and_target(audit_db, search):
+async def test_list_audit_logs_searches_id_actor_and_target(audit_db):
     now = datetime.now(timezone.utc)
+    target = make_log(
+        actor="lizstudio",
+        resource_id="service-3011",
+        resource_name="English Service",
+        created_at=now,
+    )
     await seed_logs(
         audit_db,
         [
-            make_log(
-                actor="lizstudio",
-                resource_id="service-3011",
-                resource_name="English Service",
-                created_at=now,
-            ),
+            target,
             make_log(actor="viewer", resource_name="다른 서비스", created_at=now),
         ],
     )
 
-    result = await audit_router.list_audit_logs(
-        response=Response(),
-        limit=10,
-        offset=0,
-        resource_type=None,
-        action=None,
-        event=None,
-        manager_status=None,
-        manager_source=None,
-        period_days=None,
-        start_date=None,
-        end_date=None,
-        search=search,
-        security_only=False,
-        provider=None,
-        delivery_success=None,
-        db=audit_db,
-        _={"username": "admin"},
-    )
+    for search in [target.id, "LIZSTUDIO", "english", "3011"]:
+        result = await audit_router.list_audit_logs(
+            response=Response(),
+            limit=10,
+            offset=0,
+            resource_type=None,
+            action=None,
+            event=None,
+            manager_status=None,
+            manager_source=None,
+            period_days=None,
+            start_date=None,
+            end_date=None,
+            search=search,
+            security_only=False,
+            provider=None,
+            delivery_success=None,
+            db=audit_db,
+            _={"username": "admin"},
+        )
 
-    assert len(result) == 1
-    assert result[0].resource_name == "English Service"
+        assert len(result) == 1
+        assert result[0].resource_name == "English Service"
 
 
 @pytest.mark.asyncio

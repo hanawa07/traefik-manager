@@ -20,6 +20,12 @@ export function getAuditDiffRows(detail: Record<string, unknown> | null) {
 export function getDeliveryDetailRows(detail: Record<string, unknown> | null) {
   if (!detail) return [];
   const rows = [
+    {
+      key: "success",
+      label: "결과",
+      value: detail.success === true ? "성공" : detail.success === false ? "실패" : undefined,
+    },
+    { key: "message", label: "메시지", value: detail.message },
     { key: "provider", label: "채널", value: detail.provider },
     { key: "source_event", label: "원본 이벤트", value: detail.source_event },
     { key: "source_action", label: "원본 작업", value: detail.source_action },
