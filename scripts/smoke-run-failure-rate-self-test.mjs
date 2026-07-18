@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 
-import { getSmokeRunFailureRate } from "../frontend/src/app/dashboard/smokeRunFailureRate.ts";
+import {
+  getCompletedSmokeRunsInWindow,
+  getSmokeRunFailureRate,
+} from "../frontend/src/app/dashboard/smokeRunFailureRate.ts";
 
 const now = Date.parse("2026-07-18T00:00:00Z");
 const high = getSmokeRunFailureRate(
@@ -57,5 +60,17 @@ const thirtyDays = getSmokeRunFailureRate(
 );
 assert.equal(thirtyDays.totalCount, 3);
 assert.equal(thirtyDays.isAlert, true);
+assert.deepEqual(
+  getCompletedSmokeRunsInWindow(
+    [
+      { status: "failure", completed_at: "2026-07-17T00:00:00Z", run_url: "recent" },
+      { status: "skipped", completed_at: "2026-07-16T00:00:00Z", run_url: "skipped" },
+      { status: "failure", completed_at: "2026-07-01T00:00:00Z", run_url: "older" },
+    ],
+    now,
+    30,
+  ).map((run) => run.run_url),
+  ["recent", "older"],
+);
 
 console.log("운영 점검 실패율 self-test 통과");

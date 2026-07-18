@@ -4,7 +4,10 @@ import { useState } from "react";
 
 import type { SmokeMonitoringRecentRun } from "@/features/settings/api/settingsApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
-import { getSmokeRunFailureRate } from "./smokeRunFailureRate";
+import {
+  getCompletedSmokeRunsInWindow,
+  getSmokeRunFailureRate,
+} from "./smokeRunFailureRate";
 
 const STATUS_LABELS = {
   failure: "실패",
@@ -49,6 +52,11 @@ export function SmokeRunTrend({
     failureRateMinRuns,
     failureRateWindowDays,
   );
+  const failedRuns = getCompletedSmokeRunsInWindow(
+    runs,
+    periodReferenceTime,
+    failureRateWindowDays,
+  ).filter((run) => run.status === "failure");
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]" data-testid="smoke-run-trend">
       <span className="font-semibold">운영 점검 추이</span>
@@ -107,6 +115,27 @@ export function SmokeRunTrend({
             ? `${failureRateWindowDays}일 실패율 ${failureRate.percentage}% (${failureRate.failureCount}/${failureRate.totalCount}) · ${failureRateMinRuns}회부터 판정`
             : `${failureRate.isAlert ? "실패율 경고" : `${failureRateWindowDays}일 실패율`} ${failureRate.percentage}% (${failureRate.failureCount}/${failureRate.totalCount}) · 기준 ${failureRateThresholdPercent}%`}
       </span>
+      {failureRate.isAlert && failedRuns.length ? (
+        <span
+          className="inline-flex flex-wrap items-center gap-1 rounded-md border border-rose-200 bg-white/70 px-2 py-0.5 dark:border-rose-500/30 dark:bg-slate-950/50"
+          data-testid="smoke-failure-run-links"
+        >
+          <span className="font-semibold">실패 실행</span>
+          {failedRuns.slice(0, 5).map((run, index) => (
+            <a
+              key={run.run_url}
+              className="font-semibold text-rose-700 underline underline-offset-2 dark:text-rose-300"
+              href={run.run_url}
+              target="_blank"
+              rel="noreferrer"
+              title={getRunTooltip(run, timezone)}
+            >
+              {run.run_number ? `#${run.run_number}` : `${index + 1}번`}
+            </a>
+          ))}
+          {failedRuns.length > 5 ? <span>외 {failedRuns.length - 5}건</span> : null}
+        </span>
+      ) : null}
     </div>
   );
 }
