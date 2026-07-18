@@ -165,6 +165,12 @@ set_github_secret() {
   return 1
 }
 
+rotate_github_secret() {
+  local name="$1"
+  rotation_step="GitHub secret 갱신: ${name}"
+  set_github_secret "${name}" "$2"
+}
+
 run_self_test() {
   local attempt_count attempts_file route_file temp_dir
   temp_dir="$(mktemp -d)"
@@ -194,9 +200,10 @@ run_self_test() {
     echo "GitHub secret 3회 실패를 감지하지 못했습니다" >&2
     return 1
   fi
-  set_github_secret TM_SMOKE_PASSWORD recovery-attempt >/dev/null 2>&1
+  rotate_github_secret TM_SMOKE_PASSWORD recovery-attempt >/dev/null 2>&1
   read -r attempt_count <"${attempts_file}"
   [[ "${attempt_count}" == "4" ]]
+  [[ "${rotation_step}" == "GitHub secret 갱신: TM_SMOKE_PASSWORD" ]]
   echo "스모크 계정 회전 self-test 통과"
 }
 
@@ -251,15 +258,13 @@ admin_password="$(openssl rand -hex 32)"
 
 rotation_step="viewer 계정 갱신"
 update_account "${VIEWER_USERNAME}" viewer "${viewer_password}"
-rotation_step="viewer GitHub secret 갱신"
-set_github_secret TM_SMOKE_USERNAME "${VIEWER_USERNAME}"
-set_github_secret TM_SMOKE_PASSWORD "${viewer_password}"
+rotate_github_secret TM_SMOKE_USERNAME "${VIEWER_USERNAME}"
+rotate_github_secret TM_SMOKE_PASSWORD "${viewer_password}"
 
 rotation_step="admin 계정 갱신"
 update_account "${SMOKE_ADMIN_USERNAME}" admin "${admin_password}"
-rotation_step="admin GitHub secret 갱신"
-set_github_secret TM_SMOKE_ADMIN_USERNAME "${SMOKE_ADMIN_USERNAME}"
-set_github_secret TM_SMOKE_ADMIN_PASSWORD "${admin_password}"
+rotate_github_secret TM_SMOKE_ADMIN_USERNAME "${SMOKE_ADMIN_USERNAME}"
+rotate_github_secret TM_SMOKE_ADMIN_PASSWORD "${admin_password}"
 
 rotation_step="Node.js 실행 환경 준비"
 if [[ -s "${HOME}/.nvm/nvm.sh" ]]; then
@@ -277,6 +282,7 @@ if command -v node >/dev/null && [[ -n "${base_url}" ]]; then
     TM_SMOKE_PASSWORD="${viewer_password}" \
     TM_SMOKE_ADMIN_USERNAME="${SMOKE_ADMIN_USERNAME}" \
     TM_SMOKE_ADMIN_PASSWORD="${admin_password}" \
+    TM_SMOKE_ADMIN_EXPECT_READ_ONLY=1 \
     node scripts/smoke-services-browser-session.mjs
 else
   echo "Node.js 또는 .env의 FRONTEND_DOMAIN이 없어 로컬 스모크 검증을 실행할 수 없습니다" >&2
