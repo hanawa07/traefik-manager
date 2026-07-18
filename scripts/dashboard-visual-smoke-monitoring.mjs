@@ -179,16 +179,31 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
             )
           ),
       };
-      select.value = 'all';
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-      await settle();
-      return {
-        ...result,
-        restored: container?.getAttribute('data-artifact-filter'),
-      };
+      return result;
     })()`);
     assert.equal(filterResult?.valid, true, "다운로드 가능 Artifact 필터 결과가 다릅니다");
-    assert.equal(filterResult.restored, "all", "Artifact 필터가 전체로 복구되지 않았습니다");
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      cdp,
+      `document.querySelector('[data-testid="smoke-failure-run-links"]')?.getAttribute('data-artifact-filter') === 'available'`,
+      timeoutMs,
+      "Artifact 필터가 새로고침 후 복원되지 않았습니다",
+    );
+    const persistedFilter = await evaluate(cdp, `(async () => {
+      const container = document.querySelector('[data-testid="smoke-failure-run-links"]');
+      const select = container?.querySelector('select[aria-label="실패 실행 Artifact 필터"]');
+      const persisted = select?.value === 'available';
+      if (!select) return { persisted, restored: false };
+      select.value = 'all';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return {
+        persisted,
+        restored: container?.getAttribute('data-artifact-filter') === 'all',
+      };
+    })()`);
+    assert.equal(persistedFilter.persisted, true, "Artifact 저장 필터가 선택 상자에 복원되지 않았습니다");
+    assert.equal(persistedFilter.restored, true, "Artifact 필터가 전체로 복구되지 않았습니다");
   }
 }
 
@@ -331,6 +346,21 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
         return index === 0 ? !parentId : Boolean(parentId && ids.includes(parentId));
       }),
       responseOk: response.ok,
+      recoveryValid: (() => {
+        const firstFailureIndex = chain.findIndex((item) => item.detail?.success === false);
+        const firstFailure = firstFailureIndex >= 0 ? chain[firstFailureIndex] : null;
+        const firstSuccess = firstFailureIndex >= 0
+          ? chain.slice(firstFailureIndex + 1).find((item) => item.detail?.success === true)
+          : null;
+        const recovery = panel?.querySelector('[data-testid="audit-retry-recovery-duration"]');
+        if (!firstFailure) return !recovery;
+        if (!firstSuccess) return recovery?.textContent?.includes('아직 성공 없음');
+        const duration = Date.parse(firstSuccess.created_at) - Date.parse(firstFailure.created_at);
+        return Number.isFinite(duration) && duration >= 0
+          ? Number(recovery?.getAttribute('data-recovery-duration-ms')) === duration &&
+              recovery?.textContent?.includes('최초 실패→성공')
+          : recovery?.textContent?.includes('시간 확인 불가');
+      })(),
       successCount: Number(panel?.getAttribute('data-chain-success-count')),
       triggersValid: items.every((item, index) => {
         const trigger = chain[index]?.detail?.trigger;
@@ -350,6 +380,7 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
   assert.equal(result.failureDetailsValid, true, "알림 재시도 체인의 실패 원인이 다릅니다");
   assert.equal(result.firstIsOrigin, true, "알림 재시도 체인의 원본 표시가 없습니다");
   assert.equal(result.parentsValid, true, "알림 재시도 체인의 부모 관계가 끊겼습니다");
+  assert.equal(result.recoveryValid, true, "알림 재시도 체인의 복구 소요 시간이 다릅니다");
   assert.equal(result.successCount, result.expectedSuccessCount, "알림 재시도 성공 요약 건수가 다릅니다");
   assert.equal(result.triggersValid, true, "알림 재시도 체인의 자동·수동 표시가 다릅니다");
   assert.equal(result.linksValid, true, "알림 재시도 체인의 감사 상세 링크가 다릅니다");
