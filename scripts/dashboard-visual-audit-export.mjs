@@ -123,6 +123,7 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
     const rawStep = latest.detail?.step;
     return {
       date: latest.created_at.slice(0, 10),
+      id: latest.id,
       step: typeof rawStep === 'string' && rawStep.trim() ? rawStep.trim() : '알 수 없는 단계',
     };
   })()`);
@@ -157,7 +158,9 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
       clicked: Boolean(button),
       expectedStatus,
       latestDate,
+      latestFailureAuditId: failure?.getAttribute('data-latest-failure-audit-id'),
       latestFailureDate: failure?.getAttribute('data-latest-failure-date'),
+      latestFailureHref: failure?.href,
       latestFailureStep: failure?.getAttribute('data-latest-failure-step'),
       latestFailureText: failure?.textContent || '',
       latestStatus,
@@ -173,9 +176,14 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
     "최근 회전 결과 상태 문구가 없습니다",
   );
   if (expectedLatestFailure) {
+    const latestFailureUrl = new URL(latestRecovery.latestFailureHref);
+    assert.equal(latestRecovery.latestFailureAuditId, expectedLatestFailure.id, "최근 회전 실패 감사 ID가 다릅니다");
     assert.equal(latestRecovery.latestFailureDate, expectedLatestFailure.date, "최근 회전 실패 날짜가 다릅니다");
     assert.equal(latestRecovery.latestFailureStep, expectedLatestFailure.step, "최근 회전 실패 단계가 다릅니다");
     assert.match(latestRecovery.latestFailureText, /최근 실패.*단계:/, "최근 회전 실패 단계 문구가 없습니다");
+    assert.equal(latestFailureUrl.pathname, "/dashboard/audit", "최근 회전 실패 링크 경로가 다릅니다");
+    assert.equal(latestFailureUrl.searchParams.get("q"), expectedLatestFailure.id, "최근 회전 실패 검색 ID가 다릅니다");
+    assert.equal(latestFailureUrl.searchParams.get("expand"), expectedLatestFailure.id, "최근 회전 실패 펼침 ID가 다릅니다");
   }
   await waitForCondition(
     cdp,

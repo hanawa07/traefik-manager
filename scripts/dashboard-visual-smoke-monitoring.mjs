@@ -110,6 +110,12 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
       filterOptions: Array.from(
         container?.querySelectorAll('select[aria-label="실패 실행 Artifact 필터"] option') || []
       ).map((option) => option.value),
+      filterCounts: Array.from(
+        container?.querySelectorAll('select[aria-label="실패 실행 Artifact 필터"] option') || []
+      ).map((option) => Number(option.getAttribute('data-count'))),
+      filterLabels: Array.from(
+        container?.querySelectorAll('select[aria-label="실패 실행 Artifact 필터"] option') || []
+      ).map((option) => option.textContent?.trim()),
       filterValue: container?.getAttribute('data-artifact-filter'),
       valid: links.every((link) =>
         link.href.startsWith('https://github.com/') && link.href.includes('/actions/runs/')
@@ -144,6 +150,13 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
       ["all", "available", "expiring_soon", "expired"],
       "Artifact 필터 선택지가 다릅니다",
     );
+    assert.equal(
+      failureLinks.filterLabels.every(
+        (label, index) => label?.includes(`(${failureLinks.filterCounts[index]})`)
+      ),
+      true,
+      "Artifact 필터 건수가 라벨에 표시되지 않았습니다",
+    );
     const filterResult = await evaluate(cdp, `(async () => {
       const select = document.querySelector('select[aria-label="실패 실행 Artifact 필터"]');
       if (!select) return null;
@@ -156,9 +169,11 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
       const container = document.querySelector('[data-testid="smoke-failure-run-links"]');
       const items = Array.from(container?.querySelectorAll('[data-testid="smoke-failure-run"]') || []);
       const filteredCount = Number(container?.getAttribute('data-filtered-run-count'));
+      const expectedCount = Number(select.selectedOptions[0]?.getAttribute('data-count'));
       const result = {
         valid: container?.getAttribute('data-artifact-filter') === 'available' &&
-          items.length === Math.min(filteredCount, 5) && items.every((item) =>
+          filteredCount === expectedCount && items.length === Math.min(filteredCount, 5) &&
+          items.every((item) =>
             ['active', 'expiring_soon', 'available'].includes(
               item.getAttribute('data-artifact-state')
             )
@@ -291,6 +306,9 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
       count: items.length,
       currentCount: items.filter((item) => item.getAttribute('data-chain-current') === 'true').length,
       expectedCount: Number(panel?.getAttribute('data-chain-count')),
+      expectedFailureCount: chain.filter((item) => item.detail?.success === false).length,
+      expectedSuccessCount: chain.filter((item) => item.detail?.success === true).length,
+      failureCount: Number(panel?.getAttribute('data-chain-failure-count')),
       firstIsOrigin: items[0]?.textContent?.includes('원본'),
       failureDetailsValid: items.every((item, index) => {
         const detail = chain[index]?.detail;
@@ -313,6 +331,7 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
         return index === 0 ? !parentId : Boolean(parentId && ids.includes(parentId));
       }),
       responseOk: response.ok,
+      successCount: Number(panel?.getAttribute('data-chain-success-count')),
       triggersValid: items.every((item, index) => {
         const trigger = chain[index]?.detail?.trigger;
         const expected = ['automatic_retry', 'manual_retry'].includes(trigger) ? trigger : null;
@@ -327,9 +346,11 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
   assert.equal(result.count, result.expectedCount, "알림 재시도 체인 표시 건수가 다릅니다");
   assert.deepEqual(result.ids, result.apiIds, "알림 재시도 체인 ID 순서가 API와 다릅니다");
   assert.equal(result.currentCount, 1, "알림 재시도 체인의 현재 로그 표시가 다릅니다");
+  assert.equal(result.failureCount, result.expectedFailureCount, "알림 재시도 실패 요약 건수가 다릅니다");
   assert.equal(result.failureDetailsValid, true, "알림 재시도 체인의 실패 원인이 다릅니다");
   assert.equal(result.firstIsOrigin, true, "알림 재시도 체인의 원본 표시가 없습니다");
   assert.equal(result.parentsValid, true, "알림 재시도 체인의 부모 관계가 끊겼습니다");
+  assert.equal(result.successCount, result.expectedSuccessCount, "알림 재시도 성공 요약 건수가 다릅니다");
   assert.equal(result.triggersValid, true, "알림 재시도 체인의 자동·수동 표시가 다릅니다");
   assert.equal(result.linksValid, true, "알림 재시도 체인의 감사 상세 링크가 다릅니다");
   return true;
