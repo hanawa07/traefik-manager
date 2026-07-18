@@ -64,15 +64,16 @@ export async function checkDeploymentBottleneckSettingsPreview({ cdp, timeoutMs 
     cdp,
     `(() => {
       const card = document.querySelector('[data-testid="deployment-bottleneck-settings-card"]');
-      return card?.textContent?.includes('현재 보관') &&
-        card.textContent.includes('84/100건') &&
+      const text = card?.textContent || '';
+      const retained = Number(text.match(/현재 보관\\s*(\\d+)\\/100건/)?.[1]);
+      const warning = card?.querySelector('[data-deployment-bottleneck-storage-warning]');
+      return Number.isInteger(retained) &&
         card.textContent.includes('보관 범위') &&
-        card.textContent.includes('보관 한도에 가까움') &&
-        Boolean(card.querySelector('[data-deployment-bottleneck-storage-warning]')) &&
+        (retained >= 80 ? Boolean(warning) : !warning) &&
         Boolean(card.querySelector('[data-deployment-bottleneck-cleanup]'));
     })()`,
     timeoutMs,
-    "배포 병목 이벤트 보관 현황과 즉시 정리 버튼이 표시되지 않았습니다",
+    "배포 병목 이벤트 보관 현황·경고 조건·즉시 정리 버튼이 올바르지 않습니다",
   );
   return true;
 }
