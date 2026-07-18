@@ -148,17 +148,17 @@ scripts/blue-green-deploy.sh vX.Y.Z
 - 인증 비밀값이 아직 없으면 예약 작업은 브라우저 스모크 self-test만 실행하고 정상 종료합니다.
 - 인증 화면 검사에 실패하면 모바일 화면 PNG를 GitHub Actions 아티팩트로 7일간 보관합니다.
 - `TM_SMOKE_TELEGRAM_BOT_TOKEN`과 `TM_SMOKE_TELEGRAM_CHAT_ID` 비밀값이 있으면 실패 실행 링크를 Telegram으로 전송합니다.
-- `scripts/rotate-smoke-viewer-password.sh`는 `traefik-smoke-viewer` 비밀번호와 `TM_SMOKE_PASSWORD` secret을 함께 교체하고 실제 인증 스모크로 검증합니다.
-- 전용 viewer 이름을 바꾸는 경우 backend의 `SMOKE_VIEWER_USERNAME`과 GitHub secret `TM_SMOKE_USERNAME`을 같은 값으로 설정해야 원격 성공 기록이 허용됩니다.
-- 운영 호스트에서는 매월 1일 04:17에 회전 스크립트를 실행하는 사용자 cron을 사용합니다. 실행 로그는 `~/.local/state/traefik-manager/smoke-password-rotation.log`에 저장합니다.
+- `scripts/rotate-smoke-viewer-password.sh`는 활성 blue/green backend를 찾아 `traefik-smoke-viewer`와 `traefik-smoke-admin` 비밀번호, 대응하는 GitHub secret을 함께 교체하고 일반·관리자 인증 스모크로 검증합니다.
+- 전용 계정 이름을 바꾸는 경우 backend의 `SMOKE_VIEWER_USERNAME`·`SMOKE_ADMIN_USERNAME`과 GitHub secret `TM_SMOKE_USERNAME`·`TM_SMOKE_ADMIN_USERNAME`을 각각 같은 값으로 설정합니다.
+- 운영 호스트에서는 매월 1일 04:17에 두 계정을 회전하는 기존 사용자 cron을 사용합니다. 실행 로그는 `~/.local/state/traefik-manager/smoke-password-rotation.log`에 저장합니다.
 - 회전 결과는 설정 화면의 `운영 로그인·화면 점검` 카드 안에 별도 표시되며, 실패하면 현재 설정 변경 알림 채널로 실패 단계가 전송됩니다.
-- 정기 회전의 비밀번호 단독 변경은 감사 로그만 남기고 운영 알림에서는 제외하며, 수동 실패 시험 알림은 제목에 `[테스트]`를 표시합니다.
+- 정기 회전의 viewer·admin 비밀번호 단독 변경은 감사 로그만 남기고 운영 알림에서는 제외하며, 수동 실패 시험 알림은 제목에 `[테스트]`를 표시합니다.
 - 회전 스크립트는 `~/.local/state/traefik-manager/smoke-password-rotation.lock` 잠금을 사용해 cron과 수동 실행의 중복 회전을 건너뜁니다.
 - 마지막 성공 후 35일이 지나면 설정 화면의 회전 상태가 `점검 필요`로 표시됩니다.
 - 일일 인증 스모크도 35일 미회전을 실패로 처리해 Telegram으로 능동 통지합니다.
 - 운영 로그인·화면 스모크는 보안 공격 검사가 아니라 viewer 로그인, 주요 API, 화면 로딩을 확인하는 가용성 점검입니다. 로그인 공격 방어는 별도 `로그인 보안 방어` 설정에서 관리합니다.
 - 관리자 설정 화면에서 예약 자동 점검을 끄거나 `매일`/`매주 일요일`로 조정할 수 있습니다. GitHub Actions는 매일 03:17(Asia/Seoul)에 설정을 확인하며, 수동 실행과 월간 비밀번호 회전 후 검증은 항상 실행합니다.
-- 원격 스모크가 성공하면 전용 viewer 세션으로 GitHub run ID를 기록합니다. 관리자 설정 카드는 공개 GitHub Actions 메타데이터를 10분간 캐시해 최근 5회의 성공·실패·예약 건너뜀, 실패 단계, 중복 Telegram 억제 여부를 함께 표시합니다.
+- 원격 스모크가 성공하면 전용 viewer 세션으로 GitHub run ID를 기록합니다. admin 취소 흐름까지 통과한 실행은 관리자 전용 최근 성공 시각과 실행 링크도 별도로 기록합니다. 관리자 설정 카드는 공개 GitHub Actions 메타데이터를 10분간 캐시해 최근 5회의 성공·실패·예약 건너뜀, 실패 단계, 중복 Telegram 억제 여부를 함께 표시합니다.
 - 관리자는 마지막 GitHub 확인 시각을 확인하고 `지금 새로고침`으로 10분 캐시를 우회할 수 있습니다. 최근 5건 밖으로 밀린 마지막 실패도 별도로 유지되며, 보관 기간이 지나지 않았다면 만료 시각과 함께 `실패 화면` artifact를 바로 받을 수 있습니다.
 - GitHub 이력 조회가 실패해도 설정 API 전체를 실패시키지 않으며, 앱에 저장된 최근 성공 시각과 실행 링크는 계속 표시합니다.
 - 같은 커밋의 원격 스모크 실패가 6시간 안에 반복되면 GitHub 실패 기록과 아티팩트는 유지하되 중복 Telegram 알림만 억제합니다.

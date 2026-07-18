@@ -60,7 +60,7 @@ def build_message(event: str, resource_name: str, client_ip: Any, category: str)
     if event == "certificate_preflight_repeated_failure":
         return f"인증서 발급 반복 실패: {resource_name}"
     if event == "smoke_rotation_failed":
-        return f"스모크 viewer 비밀번호 회전 실패: {resource_name}"
+        return f"스모크 계정 비밀번호 회전 실패: {resource_name}"
     if event == "manager_docker_unhealthy":
         return f"Manager Docker 이상: {resource_name}"
     if event == "manager_docker_recovered":

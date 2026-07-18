@@ -58,18 +58,19 @@ async def test_notify_if_needed_posts_smoke_rotation_failure(monkeypatch):
     result = await security_alert_notifier.notify_if_needed(object(), audit_log)
 
     assert result is True
-    assert "스모크 viewer 비밀번호 회전 실패" in posted[0][1]["text"]
+    assert "스모크 계정 비밀번호 회전 실패" in posted[0][1]["text"]
     assert "실패 단계: GitHub secret 갱신" in posted[0][1]["text"]
 
 
 @pytest.mark.asyncio
-async def test_notify_if_needed_skips_routine_smoke_viewer_password_rotation(monkeypatch):
+@pytest.mark.parametrize("resource_name", ["traefik-smoke-viewer", "traefik-smoke-admin"])
+async def test_notify_if_needed_skips_routine_smoke_password_rotation(monkeypatch, resource_name):
     posted = []
     audit_log = make_audit_log(
         "user_update",
         resource_type="user",
         resource_id="smoke-viewer",
-        resource_name="traefik-smoke-viewer",
+        resource_name=resource_name,
     )
     audit_log.detail["changed_keys"] = ["password_changed"]
     patch_settings(

@@ -45,8 +45,8 @@ async def record_smoke_rotation_status(
             actor="system",
             action="rotate",
             resource_type="user",
-            resource_id="traefik-smoke-viewer",
-            resource_name="traefik-smoke-viewer",
+            resource_id="smoke-accounts",
+            resource_name="스모크 viewer·admin",
             detail={
                 "event": "smoke_rotation_failed",
                 "step": safe_detail or "알 수 없는 단계",
@@ -62,7 +62,7 @@ async def report_smoke_rotation(status: str, detail: str | None = None) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="스모크 viewer 비밀번호 회전 결과 기록")
+    parser = argparse.ArgumentParser(description="스모크 계정 비밀번호 회전 결과 기록")
     parser.add_argument(
         "status",
         nargs="?",
@@ -75,7 +75,7 @@ def main() -> None:
         parser.error("status가 필요합니다")
 
     asyncio.run(report_smoke_rotation(args.status, args.detail))
-    print(f"스모크 viewer 회전 상태 기록 완료: {args.status}")
+    print(f"스모크 계정 회전 상태 기록 완료: {args.status}")
 
 
 if __name__ == "__main__":

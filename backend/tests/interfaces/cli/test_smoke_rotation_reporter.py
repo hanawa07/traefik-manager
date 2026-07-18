@@ -54,3 +54,4 @@ async def test_record_smoke_rotation_failure_records_alert_event() -> None:
         "event": "smoke_rotation_failed",
         "step": "GitHub secret 갱신",
     }
+    assert recorded[0]["resource_id"] == "smoke-accounts"
