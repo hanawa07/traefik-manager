@@ -238,6 +238,8 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
       document.querySelector('[data-manager-deployment-bottleneck-source]')?.textContent?.includes('환경 변수 우선 (이벤트 보관 기간)') &&
       document.querySelector('[data-manager-deployment-bottleneck-storage]')?.textContent?.includes('이력 보관 84/100건') &&
       Boolean(document.querySelector('[data-manager-deployment-bottleneck-storage-warning]')) &&
+      document.querySelector('[data-testid="manager-deployment-bottleneck-storage-audit-link"]')?.getAttribute('href') ===
+        '/dashboard/audit?filter=manager_health&manager_source=api&period=1&q=deployment-bottleneck-storage&expand=latest' &&
       document.querySelector('[data-manager-deployment-bottleneck-storage-run]')?.textContent?.includes('보관 경고 워크플로 성공') &&
       Boolean(document.querySelector('[data-manager-deployment-bottleneck-override]')) &&
       Boolean(document.querySelector('[data-manager-deployment-bottleneck-event="alerted"]'))`,

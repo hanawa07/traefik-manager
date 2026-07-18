@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { TimerReset } from "lucide-react";
 
 import {
@@ -89,9 +90,18 @@ export function ManagerDeploymentBottleneckStatusCard({
           : " · 보관된 이벤트 없음"}
       </p>
       {storageWarning ? (
-        <p className="mt-1 font-semibold" data-manager-deployment-bottleneck-storage-warning>
-          이력 보관 한도에 가까움 · 설정에서 보관 기간을 줄이거나 오래된 이벤트를 정리하세요.
-        </p>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+          <p className="font-semibold" data-manager-deployment-bottleneck-storage-warning>
+            이력 보관 한도에 가까움 · 설정에서 보관 기간을 줄이거나 오래된 이벤트를 정리하세요.
+          </p>
+          <Link
+            className="font-semibold underline underline-offset-2"
+            data-testid="manager-deployment-bottleneck-storage-audit-link"
+            href="/dashboard/audit?filter=manager_health&manager_source=api&period=1&q=deployment-bottleneck-storage&expand=latest"
+          >
+            관련 감사 이력 보기
+          </Link>
+        </div>
       ) : null}
       {alert.storage_warning_run_url ? (
         <p className="mt-1" data-manager-deployment-bottleneck-storage-run>
