@@ -84,6 +84,33 @@ async def test_require_admin_blocks_viewer():
     assert exc.value.status_code == 403
 
 
+def test_smoke_admin_read_only_allows_reads(monkeypatch):
+    monkeypatch.setattr(dependencies.settings, "SMOKE_ADMIN_USERNAME", "smoke-admin")
+    user = {"username": "smoke-admin", "role": "admin"}
+
+    dependencies._validate_smoke_admin_read_only(make_request(method="GET"), user)
+
+
+def test_smoke_admin_read_only_allows_own_session_mutations(monkeypatch):
+    monkeypatch.setattr(dependencies.settings, "SMOKE_ADMIN_USERNAME", "smoke-admin")
+    user = {"username": "smoke-admin", "role": "admin"}
+
+    dependencies._validate_smoke_admin_read_only(
+        make_request(path="/api/v1/auth/logout", method="POST"),
+        user,
+    )
+
+
+def test_smoke_admin_read_only_does_not_restrict_primary_admin(monkeypatch):
+    monkeypatch.setattr(dependencies.settings, "SMOKE_ADMIN_USERNAME", "smoke-admin")
+    user = {"username": "admin", "role": "admin"}
+
+    dependencies._validate_smoke_admin_read_only(
+        make_request(path="/api/v1/settings/smoke-rotation", method="PUT"),
+        user,
+    )
+
+
 @pytest.mark.asyncio
 async def test_get_current_user_blocks_missing_session_cookie():
     request = make_request()
@@ -177,3 +204,53 @@ async def test_get_current_user_blocks_missing_csrf_for_mutation(monkeypatch):
 
     assert exc.value.status_code == 403
     assert exc.value.detail == "CSRF 검증에 실패했습니다"
+
+
+@pytest.mark.asyncio
+async def test_get_current_user_blocks_smoke_admin_mutation(monkeypatch):
+    user = User(
+        id=uuid4(),
+        username="smoke-admin",
+        hashed_password="hashed",
+        role="admin",
+        is_active=True,
+        token_version=0,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    auth_session = AuthSession.issue(
+        session_id="session-1",
+        session_secret_hash="hash-1",
+        user_id=str(user.id),
+        username="smoke-admin",
+        role="admin",
+        token_version=0,
+        absolute_ttl=timedelta(hours=8),
+        idle_ttl=timedelta(hours=1),
+        now=datetime.now(timezone.utc),
+    )
+    request = make_request(
+        path="/api/v1/settings/smoke-rotation",
+        method="PUT",
+        cookies={"tm_session": "session-1.secret-1", "tm_csrf": "csrf-cookie"},
+        headers={"x-csrf-token": "csrf-cookie"},
+    )
+
+    monkeypatch.setattr(dependencies.settings, "SMOKE_ADMIN_USERNAME", "smoke-admin")
+    monkeypatch.setattr(
+        dependencies,
+        "verify_session_secret",
+        lambda secret, expected_hash: secret == "secret-1",
+    )
+    monkeypatch.setattr(
+        dependencies,
+        "SQLiteAuthSessionRepository",
+        lambda _db: StubAuthSessionRepository(auth_session),
+    )
+    monkeypatch.setattr(dependencies, "SQLiteUserRepository", lambda _db: StubUserRepository(user))
+
+    with pytest.raises(HTTPException) as exc:
+        await dependencies.get_current_user(request=request, db=object())
+
+    assert exc.value.status_code == 403
+    assert exc.value.detail == "전용 스모크 관리자 계정은 조회만 할 수 있습니다"
