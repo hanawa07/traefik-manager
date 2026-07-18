@@ -30,6 +30,7 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
             manager_health_monitoring_enabled=False,
             manager_health_alert_cooldown_minutes=15,
             external_watchdog_stale_minutes=20,
+            automatic_retry_delay_warning_minutes=25,
             manager_http_error_monitoring_enabled=True,
             manager_http_error_window_minutes=30,
             manager_http_not_found_threshold=50,
@@ -61,6 +62,9 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     assert StubSettingsRepository.store["manager_health_monitoring_enabled"] == "false"
     assert StubSettingsRepository.store["manager_health_alert_cooldown_minutes"] == "15"
     assert StubSettingsRepository.store["external_watchdog_stale_minutes"] == "20"
+    assert StubSettingsRepository.store[
+        "security_alert_automatic_retry_delay_warning_minutes"
+    ] == "25"
     assert StubSettingsRepository.store["manager_http_error_monitoring_enabled"] == "true"
     assert StubSettingsRepository.store["manager_http_error_window_minutes"] == "30"
     assert StubSettingsRepository.store["manager_http_not_found_threshold"] == "50"
@@ -84,6 +88,7 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     assert response.manager_health_monitoring_enabled is False
     assert response.manager_health_alert_cooldown_minutes == 15
     assert response.external_watchdog_stale_minutes == 20
+    assert response.automatic_retry_delay_warning_minutes == 25
     assert response.manager_http_error_monitoring_enabled is True
     assert response.manager_http_error_window_minutes == 30
     assert response.manager_http_not_found_threshold == 50

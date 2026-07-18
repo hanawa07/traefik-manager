@@ -34,6 +34,7 @@ async def test_get_security_alert_settings_returns_defaults(monkeypatch):
     assert response.manager_health_monitoring_enabled is True
     assert response.manager_health_alert_cooldown_minutes == 60
     assert response.external_watchdog_stale_minutes == 10
+    assert response.automatic_retry_delay_warning_minutes == 10
     assert response.manager_http_error_monitoring_enabled is False
     assert response.manager_http_error_window_minutes == 15
     assert response.manager_http_not_found_threshold == 20
@@ -50,6 +51,26 @@ async def test_get_security_alert_settings_returns_defaults(monkeypatch):
         "manager_health": "default",
         "rollback": "default",
     }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("stored_value", "expected"),
+    [("invalid", 10), ("4", 5), ("1441", 1440)],
+)
+async def test_get_security_alert_settings_normalizes_retry_delay_warning(
+    monkeypatch,
+    stored_value,
+    expected,
+):
+    patch_settings_repository(
+        monkeypatch,
+        {"security_alert_automatic_retry_delay_warning_minutes": stored_value},
+    )
+
+    response = await settings_router.get_security_alert_settings(db=object(), _=ADMIN)
+
+    assert response.automatic_retry_delay_warning_minutes == expected
 
 
 @pytest.mark.asyncio

@@ -13,7 +13,17 @@ from app.interfaces.api.v1.routers.settings_security_alert_helpers import (
     build_change_alert_event_routes,
     build_security_alert_event_routes,
 )
-from app.interfaces.api.v1.routers.settings_value_helpers import get_bool_setting, split_networks
+from app.interfaces.api.v1.routers.settings_value_helpers import (
+    get_bool_setting,
+    get_int_setting,
+    split_networks,
+)
+from app.interfaces.api.v1.schemas.settings_security_alert_schemas import (
+    AUTOMATIC_RETRY_DELAY_WARNING_MINUTES_KEY,
+    DEFAULT_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
+    MAX_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
+    MIN_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
+)
 from app.interfaces.api.v1.schemas.settings_schemas import SecurityAlertSettingsResponse
 
 
@@ -24,6 +34,15 @@ async def build_security_alert_response(
         await read_manager_health_monitoring_values(repo)
     )
     external_watchdog_stale_minutes = await read_external_watchdog_stale_minutes(repo)
+    retry_delay_warning_minutes = await get_int_setting(
+        repo,
+        AUTOMATIC_RETRY_DELAY_WARNING_MINUTES_KEY,
+        default=DEFAULT_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
+    )
+    retry_delay_warning_minutes = max(
+        MIN_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
+        min(MAX_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES, retry_delay_warning_minutes),
+    )
     manager_http_errors = await read_manager_http_error_monitoring_values(repo)
     provider = await repo.get("security_alert_provider") or "generic"
     telegram_bot_token = await repo.get("security_alert_telegram_bot_token")
@@ -48,6 +67,7 @@ async def build_security_alert_response(
         manager_health_monitoring_enabled=manager_health_enabled,
         manager_health_alert_cooldown_minutes=manager_health_cooldown_minutes,
         external_watchdog_stale_minutes=external_watchdog_stale_minutes,
+        automatic_retry_delay_warning_minutes=retry_delay_warning_minutes,
         manager_http_error_monitoring_enabled=manager_http_errors.enabled,
         manager_http_error_window_minutes=manager_http_errors.window_minutes,
         manager_http_not_found_threshold=manager_http_errors.not_found_threshold,

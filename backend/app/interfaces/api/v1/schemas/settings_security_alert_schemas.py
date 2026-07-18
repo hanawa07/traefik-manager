@@ -27,6 +27,12 @@ from app.application.manager_http_error_monitoring import (
 
 
 SecurityAlertRoute = Literal["default", "disabled", "telegram", "pagerduty", "email"]
+AUTOMATIC_RETRY_DELAY_WARNING_MINUTES_KEY = (
+    "security_alert_automatic_retry_delay_warning_minutes"
+)
+DEFAULT_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES = 10
+MIN_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES = 5
+MAX_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES = 1440
 
 
 def normalize_email_recipients(value: list[str]) -> list[str]:
@@ -65,6 +71,11 @@ class SecurityAlertSettingsResponse(BaseModel):
         default=DEFAULT_EXTERNAL_WATCHDOG_STALE_MINUTES,
         ge=MIN_EXTERNAL_WATCHDOG_STALE_MINUTES,
         le=MAX_EXTERNAL_WATCHDOG_STALE_MINUTES,
+    )
+    automatic_retry_delay_warning_minutes: int = Field(
+        default=DEFAULT_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
+        ge=MIN_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
+        le=MAX_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
     )
     manager_http_error_monitoring_enabled: bool = (
         DEFAULT_MANAGER_HTTP_ERROR_MONITORING_ENABLED
@@ -119,6 +130,11 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
         default=DEFAULT_EXTERNAL_WATCHDOG_STALE_MINUTES,
         ge=MIN_EXTERNAL_WATCHDOG_STALE_MINUTES,
         le=MAX_EXTERNAL_WATCHDOG_STALE_MINUTES,
+    )
+    automatic_retry_delay_warning_minutes: int = Field(
+        default=DEFAULT_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
+        ge=MIN_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
+        le=MAX_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
     )
     manager_http_error_monitoring_enabled: bool = (
         DEFAULT_MANAGER_HTTP_ERROR_MONITORING_ENABLED

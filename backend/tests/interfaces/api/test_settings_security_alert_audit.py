@@ -38,6 +38,7 @@ async def test_update_security_alert_settings_records_redacted_audit(monkeypatch
                 "login_blocked_ip": "disabled",
             },
             change_alerts_enabled=True,
+            automatic_retry_delay_warning_minutes=25,
             change_event_routes={
                 "settings_change": "default",
                 "service_change": "default",
@@ -65,6 +66,7 @@ async def test_update_security_alert_settings_records_redacted_audit(monkeypatch
     assert recorded[0]["detail"]["summary"]["email_recipients_count"] == 2
     assert recorded[0]["detail"]["summary"]["event_routes"]["login_blocked_ip"] == "disabled"
     assert recorded[0]["detail"]["summary"]["change_alerts_enabled"] is True
+    assert recorded[0]["detail"]["summary"]["automatic_retry_delay_warning_minutes"] == 25
     assert recorded[0]["detail"]["summary"]["change_event_routes"]["redirect_change"] == "disabled"
     assert recorded[0]["detail"]["summary"]["change_event_routes"]["user_change"] == "email"
     assert recorded[0]["detail"]["summary"]["change_event_routes"]["certificate_status_change"] == "default"

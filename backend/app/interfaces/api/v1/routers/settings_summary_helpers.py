@@ -79,6 +79,9 @@ def security_alert_summary(response: SecurityAlertSettingsResponse) -> dict[str,
         "manager_health_monitoring_enabled": response.manager_health_monitoring_enabled,
         "manager_health_alert_cooldown_minutes": response.manager_health_alert_cooldown_minutes,
         "external_watchdog_stale_minutes": response.external_watchdog_stale_minutes,
+        "automatic_retry_delay_warning_minutes": (
+            response.automatic_retry_delay_warning_minutes
+        ),
         "provider": response.provider,
         "event_routes": response.event_routes,
         "change_event_routes": response.change_event_routes,

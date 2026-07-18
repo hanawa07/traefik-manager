@@ -23,6 +23,9 @@ from app.interfaces.api.v1.routers.settings_security_alert_helpers import (
     resolve_security_alert_provider,
     validate_security_alert_provider_config,
 )
+from app.interfaces.api.v1.schemas.settings_security_alert_schemas import (
+    AUTOMATIC_RETRY_DELAY_WARNING_MINUTES_KEY,
+)
 from app.interfaces.api.v1.schemas.settings_schemas import (
     SecurityAlertSettingsResponse,
     SecurityAlertSettingsUpdateRequest,
@@ -91,6 +94,10 @@ async def update_security_alert_settings_values(
     await repo.set(
         EXTERNAL_WATCHDOG_STALE_MINUTES_KEY,
         str(request.external_watchdog_stale_minutes),
+    )
+    await repo.set(
+        AUTOMATIC_RETRY_DELAY_WARNING_MINUTES_KEY,
+        str(request.automatic_retry_delay_warning_minutes),
     )
     await repo.set(
         MANAGER_HTTP_ERROR_MONITORING_ENABLED_KEY,
