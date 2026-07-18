@@ -166,15 +166,37 @@ set_github_secret() {
 }
 
 run_self_test() {
-  local route_file
-  route_file="$(mktemp)"
-  trap 'rm -f "${route_file}"' RETURN
+  local attempt_count attempts_file route_file temp_dir
+  temp_dir="$(mktemp -d)"
+  route_file="${temp_dir}/route.yml"
+  attempts_file="${temp_dir}/secret-attempts"
+  trap 'rm -rf "${temp_dir}"' RETURN
   printf 'url: "http://traefik-manager-frontend-green:3000"\n' >"${route_file}"
   [[ "$(resolve_backend_service "${route_file}")" == "backend-green" ]]
   printf 'url: "http://traefik-manager-frontend-blue:3000"\n' >"${route_file}"
   [[ "$(resolve_backend_service "${route_file}")" == "backend-blue" ]]
   printf 'url: "http://traefik-manager-frontend:3000"\n' >"${route_file}"
   [[ "$(resolve_backend_service "${route_file}")" == "backend" ]]
+
+  gh() {
+    local attempt=0
+    if [[ -f "${attempts_file}" ]]; then
+      read -r attempt <"${attempts_file}"
+    fi
+    attempt=$((attempt + 1))
+    printf '%s\n' "${attempt}" >"${attempts_file}"
+    cat >/dev/null
+    (( attempt > 3 ))
+  }
+  sleep() { :; }
+
+  if set_github_secret TM_SMOKE_PASSWORD first-attempt >/dev/null 2>&1; then
+    echo "GitHub secret 3회 실패를 감지하지 못했습니다" >&2
+    return 1
+  fi
+  set_github_secret TM_SMOKE_PASSWORD recovery-attempt >/dev/null 2>&1
+  read -r attempt_count <"${attempts_file}"
+  [[ "${attempt_count}" == "4" ]]
   echo "스모크 계정 회전 self-test 통과"
 }
 
