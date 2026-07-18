@@ -23,3 +23,11 @@ export function formatManagerDeploymentDurationMs(durationMs: number): string {
   if (minutes > 0) return `${minutes}분${seconds > 0 ? ` ${seconds}초` : ""}`;
   return `${seconds}초`;
 }
+
+export function getManagerDeploymentDurationMs(
+  startedAt: string,
+  completedAt: string,
+): number | null {
+  const durationMs = Date.parse(completedAt) - Date.parse(startedAt);
+  return Number.isFinite(durationMs) && durationMs >= 0 ? durationMs : null;
+}

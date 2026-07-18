@@ -2,6 +2,7 @@ import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/de
 import {
   MANAGER_DEPLOYMENT_STAGE_LABELS,
   formatManagerDeploymentDurationMs,
+  getManagerDeploymentDurationMs,
 } from "@/features/deployment/lib/managerDeploymentDisplay";
 
 import type {
@@ -68,7 +69,7 @@ export const MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS: Record<
   ManagerDeploymentHistoryFailureStage,
   string
 > = MANAGER_DEPLOYMENT_STAGE_LABELS;
-export { formatManagerDeploymentDurationMs };
+export { formatManagerDeploymentDurationMs, getManagerDeploymentDurationMs };
 
 export const MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD_OPTIONS: readonly {
   label: string;
@@ -80,14 +81,6 @@ export const MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD_OPTIONS: readonly {
   { label: "2분", value: "120000" },
   { label: "5분", value: "300000" },
 ];
-
-export function getManagerDeploymentDurationMs(
-  startedAt: string,
-  completedAt: string,
-): number | null {
-  const durationMs = Date.parse(completedAt) - Date.parse(startedAt);
-  return Number.isFinite(durationMs) && durationMs >= 0 ? durationMs : null;
-}
 
 export interface ManagerDeploymentDurationStats {
   averageMs: number | null;

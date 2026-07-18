@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 
-import { formatManagerDeploymentDurationMs } from "@/features/deployment/lib/managerDeploymentDisplay";
+import {
+  formatManagerDeploymentDurationMs,
+  getManagerDeploymentDurationMs,
+} from "@/features/deployment/lib/managerDeploymentDisplay";
 import { useAuditRetryChain } from "@/features/audit/hooks/useAudit";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
@@ -31,11 +34,8 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
   const firstSuccess = firstFailureIndex >= 0
     ? chain.slice(firstFailureIndex + 1).find((item) => item.detail?.success === true)
     : null;
-  const firstFailureTime = firstFailure ? Date.parse(firstFailure.created_at) : Number.NaN;
-  const firstSuccessTime = firstSuccess ? Date.parse(firstSuccess.created_at) : Number.NaN;
-  const recoveryDurationMs = Number.isFinite(firstFailureTime) && Number.isFinite(firstSuccessTime)
-    && firstSuccessTime >= firstFailureTime
-    ? firstSuccessTime - firstFailureTime
+  const recoveryDurationMs = firstFailure && firstSuccess
+    ? getManagerDeploymentDurationMs(firstFailure.created_at, firstSuccess.created_at)
     : null;
   const recoveryLabel = recoveryDurationMs !== null
     ? `최초 실패→성공 ${formatManagerDeploymentDurationMs(recoveryDurationMs)}`
@@ -75,6 +75,15 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
       </div>
       <ol className="space-y-2 border-l-2 border-amber-200 pl-3 dark:border-amber-500/30">
         {chain.map((item, index) => {
+          const previousItem = chain[index - 1];
+          const elapsedMs = previousItem
+            ? getManagerDeploymentDurationMs(previousItem.created_at, item.created_at)
+            : null;
+          const elapsedLabel = previousItem
+            ? elapsedMs === null
+              ? "경과 시간 확인 불가"
+              : `이전 단계 후 ${formatManagerDeploymentDurationMs(elapsedMs)}`
+            : null;
           const success = item.detail?.success;
           const provider = item.detail?.provider;
           const parentId = item.detail?.retry_of_audit_id;
@@ -116,6 +125,15 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
               <time className="text-slate-500 dark:text-slate-400" dateTime={item.created_at}>
                 {formatDateTime(item.created_at, timezone)}
               </time>
+              {elapsedLabel ? (
+                <span
+                  className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                  data-stage-elapsed-ms={elapsedMs ?? undefined}
+                  data-testid="audit-retry-stage-elapsed"
+                >
+                  {elapsedLabel}
+                </span>
+              ) : null}
               {isCurrent ? (
                 <span className="rounded-full bg-amber-200 px-2 py-0.5 font-semibold text-amber-900 dark:bg-amber-500/20 dark:text-amber-100">
                   현재 로그
