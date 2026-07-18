@@ -161,6 +161,19 @@ export function SmokeRotationStatusCard({
             }
           />
           <SettingsSummaryRow
+            label="관리자 점검 지연 판정"
+            value={`최근 성공 ${status.monitoring_admin_stale_after_days}일 초과 시 경고`}
+          />
+          {status.monitoring_admin_is_stale ? (
+            <div
+              className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200"
+              data-testid="smoke-admin-stale-warning"
+            >
+              관리자 전용 점검이 {status.monitoring_admin_stale_after_days}일 넘게 성공하지
+              않았습니다. GitHub Actions와 admin secret을 확인하세요.
+            </div>
+          ) : null}
+          <SettingsSummaryRow
             label="최근 원격 점검 실패"
             value={
               latestFailure ? (

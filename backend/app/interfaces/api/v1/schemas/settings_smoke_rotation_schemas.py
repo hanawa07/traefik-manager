@@ -34,6 +34,8 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_last_run_url: str | None = None
     monitoring_admin_last_success_at: str | None = None
     monitoring_admin_last_run_url: str | None = None
+    monitoring_admin_is_stale: bool = False
+    monitoring_admin_stale_after_days: int = 2
     monitoring_workflow_url: str
     monitoring_recent_runs: list[SmokeMonitoringRecentRunResponse] = Field(default_factory=list)
     monitoring_latest_failure: SmokeMonitoringRecentRunResponse | None = None

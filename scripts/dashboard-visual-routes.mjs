@@ -95,6 +95,7 @@ export const DASHBOARD_ROUTES = [
     requiredMarkers: [
       "Artifact 만료",
       "관리자 전용 점검 최근 성공",
+      "관리자 점검 지연 판정",
       "Manager Docker 감지",
       "Manager API 오류 감지",
       "API 오류 제외 경로",

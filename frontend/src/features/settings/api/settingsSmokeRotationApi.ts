@@ -29,6 +29,8 @@ export interface SmokeRotationStatus {
   monitoring_last_run_url: string | null;
   monitoring_admin_last_success_at: string | null;
   monitoring_admin_last_run_url: string | null;
+  monitoring_admin_is_stale: boolean;
+  monitoring_admin_stale_after_days: number;
   monitoring_workflow_url: string;
   monitoring_recent_runs: SmokeMonitoringRecentRun[];
   monitoring_latest_failure: SmokeMonitoringRecentRun | null;

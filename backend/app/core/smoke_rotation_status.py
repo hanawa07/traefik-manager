@@ -10,9 +10,10 @@ SMOKE_ROTATION_STATUSES = {"running", "success", "failure"}
 SMOKE_ROTATION_STALE_AFTER_DAYS = 35
 
 
-def is_smoke_rotation_stale(
+def is_smoke_success_stale(
     last_success_at: str | None,
     *,
+    stale_after_days: int,
     now: datetime | None = None,
 ) -> bool:
     if not last_success_at:
@@ -28,5 +29,17 @@ def is_smoke_rotation_stale(
     if current.tzinfo is None:
         current = current.replace(tzinfo=timezone.utc)
     return current.astimezone(timezone.utc) - parsed.astimezone(timezone.utc) > timedelta(
-        days=SMOKE_ROTATION_STALE_AFTER_DAYS
+        days=stale_after_days
+    )
+
+
+def is_smoke_rotation_stale(
+    last_success_at: str | None,
+    *,
+    now: datetime | None = None,
+) -> bool:
+    return is_smoke_success_stale(
+        last_success_at,
+        stale_after_days=SMOKE_ROTATION_STALE_AFTER_DAYS,
+        now=now,
     )

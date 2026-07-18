@@ -14,6 +14,7 @@ from app.core.smoke_rotation_status import (
     SMOKE_ROTATION_STALE_AFTER_DAYS,
     SMOKE_ROTATION_STATUS_KEY,
     is_smoke_rotation_stale,
+    is_smoke_success_stale,
 )
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
     SQLiteSystemSettingsRepository,
@@ -53,6 +54,12 @@ async def get_smoke_rotation_status_response(
         )
     monitoring = await read_smoke_monitoring_values(repo)
     run_status = await read_smoke_run_status(repo)
+    admin_stale_after_days = 8 if monitoring["monitoring_frequency"] == "weekly" else 2
+    admin_is_stale = monitoring["monitoring_enabled"] and is_smoke_success_stale(
+        run_status["monitoring_admin_last_success_at"],
+        stale_after_days=admin_stale_after_days,
+        now=now,
+    )
     run_history = {
         "runs": [],
         "latest_failure": None,
@@ -75,6 +82,8 @@ async def get_smoke_rotation_status_response(
         log_updated_at=log_updated_at,
         **monitoring,
         **run_status,
+        monitoring_admin_is_stale=admin_is_stale,
+        monitoring_admin_stale_after_days=admin_stale_after_days,
         monitoring_recent_runs=run_history["runs"],
         monitoring_latest_failure=run_history["latest_failure"],
         monitoring_history_checked_at=run_history["checked_at"],

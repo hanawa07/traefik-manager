@@ -63,7 +63,10 @@ const CHECKS = [
       typeof data?.is_stale === "boolean" &&
       data?.stale_after_days === 35 &&
       typeof data?.monitoring_enabled === "boolean" &&
-      ["daily", "weekly"].includes(data?.monitoring_frequency),
+      ["daily", "weekly"].includes(data?.monitoring_frequency) &&
+      typeof data?.monitoring_admin_is_stale === "boolean" &&
+      data?.monitoring_admin_stale_after_days ===
+        (data?.monitoring_frequency === "weekly" ? 8 : 2),
     failureMessage: (data) =>
       data?.is_stale
         ? `스모크 계정 자동 회전이 ${data.stale_after_days}일 이상 성공하지 않았습니다`
