@@ -31,6 +31,7 @@ export {
 export {
   getAuditDiffRows,
   getDeploymentBottleneckCleanupDetailRows,
+  getDeploymentBottleneckStorageDetailRows,
   getDeliveryDetailRows,
   getManagerHttpErrorDetailRows,
   getManagerHttpLogStorageDetailRows,

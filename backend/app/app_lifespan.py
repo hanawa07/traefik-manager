@@ -159,6 +159,9 @@ async def check_manager_health_once() -> None:
     from app.infrastructure.docker.manager_http_log_storage_monitor import (
         check_manager_http_log_storage_once,
     )
+    from app.infrastructure.docker.manager_deployment_bottleneck_storage_monitor import (
+        check_manager_deployment_bottleneck_storage_once,
+    )
 
     try:
         await check_once()
@@ -176,6 +179,10 @@ async def check_manager_health_once() -> None:
         await check_manager_http_log_storage_once()
     except Exception:
         logger.warning("Manager 요청 로그 보관 상태 점검 실패 (다음 주기에 재시도)", exc_info=True)
+    try:
+        await check_manager_deployment_bottleneck_storage_once()
+    except Exception:
+        logger.warning("Manager 배포 병목 이벤트 보관 상태 점검 실패 (다음 주기에 재시도)", exc_info=True)
 
 
 async def manager_health_loop() -> None:

@@ -28,7 +28,7 @@ export function ManagerHealthHistoryCard({
             </h2>
           </div>
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-            Backend·Frontend Docker, Manager API 오류·요청 로그 보관과 외부 watchdog의 최근 이상·복구 기록입니다.
+            Backend·Frontend Docker, Manager API·로그·배포 병목 보관과 외부 watchdog의 최근 이상·복구 기록입니다.
           </p>
         </div>
         <Link
@@ -63,12 +63,18 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
   const isLogStorage =
     event === "manager_http_log_storage_warning" ||
     event === "manager_http_log_storage_recovered";
+  const isDeploymentStorage =
+    event === "manager_deployment_bottleneck_storage_warning" ||
+    event === "manager_deployment_bottleneck_storage_recovered";
   const isRecovery =
     event === "manager_docker_recovered" ||
     event === "manager_http_errors_recovered" ||
     event === "manager_http_log_storage_recovered" ||
+    event === "manager_deployment_bottleneck_storage_recovered" ||
     event === "manager_watchdog_recovered";
-  const statusLabel = isLogStorage
+  const statusLabel = isDeploymentStorage
+    ? `보관 ${isRecovery ? "복구" : "경고"}`
+    : isLogStorage
     ? `로그 보관 ${isRecovery ? "복구" : "경고"}`
     : isApiError
     ? `오류 ${isRecovery ? "정상화" : "임계치 초과"}`
@@ -87,6 +93,8 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
   const usagePercent = getDetailNumber(log, "usage_percent");
   const fileCount = getDetailNumber(log, "file_count");
   const maxFileCount = getDetailNumber(log, "max_file_count");
+  const eventCount = getDetailNumber(log, "event_count");
+  const maxEventCount = getDetailNumber(log, "max_event_count");
   const topPaths = getTopPaths(log);
 
   return (
@@ -95,7 +103,11 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
         <div className="flex items-center gap-2">
           <span
             className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-              isRecovery ? "bg-emerald-500" : isLogStorage ? "bg-amber-500" : "bg-rose-500"
+              isRecovery
+                ? "bg-emerald-500"
+                : isLogStorage || isDeploymentStorage
+                  ? "bg-amber-500"
+                  : "bg-rose-500"
             }`}
           />
           <p className="truncate text-sm font-semibold text-gray-900 dark:text-slate-100">
@@ -128,7 +140,12 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
             {maxFileCount ?? "-"}개
           </p>
         ) : null}
-        {!isRecovery && !isWatchdog && !isApiError && !isLogStorage ? (
+        {!isRecovery && isDeploymentStorage ? (
+          <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+            이벤트 {eventCount ?? "-"}/{maxEventCount ?? "-"}건
+          </p>
+        ) : null}
+        {!isRecovery && !isWatchdog && !isApiError && !isLogStorage && !isDeploymentStorage ? (
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
             연속 실패 {failingStreak ?? "-"}회 · 종료 코드 {exitCode ?? "-"}
           </p>

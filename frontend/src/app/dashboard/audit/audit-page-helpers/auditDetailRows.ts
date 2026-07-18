@@ -99,6 +99,27 @@ export function getManagerHttpLogStorageDetailRows(
   return rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== "");
 }
 
+export function getDeploymentBottleneckStorageDetailRows(
+  event: unknown,
+  detail: Record<string, unknown> | null,
+) {
+  if (
+    (event !== "manager_deployment_bottleneck_storage_warning" &&
+      event !== "manager_deployment_bottleneck_storage_recovered") ||
+    !detail
+  ) return [];
+  const rows = [
+    { key: "event_count", label: "현재 이벤트", value: withUnit(detail.event_count, "건") },
+    { key: "previous_event_count", label: "이전 이벤트", value: withUnit(detail.previous_event_count, "건") },
+    { key: "warning_event_count", label: "경고 기준", value: withUnit(detail.warning_event_count, "건") },
+    { key: "max_event_count", label: "최대 보관", value: withUnit(detail.max_event_count, "건") },
+    { key: "alert_run_url", label: "호스트 알림 실행", value: detail.alert_run_url },
+    { key: "alerted_at", label: "호스트 알림 시각", value: detail.alerted_at },
+    { key: "checked_at", label: "수집 시각", value: detail.checked_at },
+  ];
+  return rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== "");
+}
+
 function withUnit(value: unknown, unit: string) {
   return typeof value === "number" ? `${value}${unit}` : value;
 }

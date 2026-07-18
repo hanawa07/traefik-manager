@@ -12,6 +12,7 @@ import {
   actionConfig,
   getAuditDiffRows,
   getDeploymentBottleneckCleanupDetailRows,
+  getDeploymentBottleneckStorageDetailRows,
   getDeliveryDetailRows,
   getManagerHttpErrorDetailRows,
   getManagerHttpLogStorageDetailRows,
@@ -54,6 +55,7 @@ export function AuditLogRow({
   const managerEvent = log.event ?? detail?.event;
   const managerDetailRows = [
     ...getDeploymentBottleneckCleanupDetailRows(managerEvent, detail),
+    ...getDeploymentBottleneckStorageDetailRows(managerEvent, detail),
     ...getManagerHttpErrorDetailRows(managerEvent, detail),
     ...getManagerHttpLogStorageDetailRows(managerEvent, detail),
   ];
