@@ -37,9 +37,17 @@ async def record_smoke_rotation_status(
     await repo.set(SMOKE_ROTATION_LAST_ATTEMPT_AT_KEY, recorded_at)
     await repo.set(SMOKE_ROTATION_DETAIL_KEY, safe_detail)
 
+    audit_event = None
     if status == "success":
         await repo.set(SMOKE_ROTATION_LAST_SUCCESS_AT_KEY, recorded_at)
+        audit_event = "smoke_rotation_succeeded"
     elif status == "failure":
+        audit_event = "smoke_rotation_failed"
+
+    if audit_event:
+        audit_detail = {"event": audit_event}
+        if status == "failure":
+            audit_detail["step"] = safe_detail or "알 수 없는 단계"
         await audit_recorder(
             db=db,
             actor="system",
@@ -47,10 +55,7 @@ async def record_smoke_rotation_status(
             resource_type="user",
             resource_id="smoke-accounts",
             resource_name="스모크 viewer·admin",
-            detail={
-                "event": "smoke_rotation_failed",
-                "step": safe_detail or "알 수 없는 단계",
-            },
+            detail=audit_detail,
         )
 
 

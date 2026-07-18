@@ -40,6 +40,7 @@ export const actionConfig: Record<string, BadgeConfig> = {
   test: { label: "테스트", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
   alert: { label: "경고", color: "bg-amber-50 text-amber-700 border-amber-200" },
   cleanup: { label: "정리", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  rotate: { label: "회전", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
   rollback: { label: "롤백", color: "bg-amber-50 text-amber-700 border-amber-200" },
 };
 
@@ -64,6 +65,8 @@ export const securityEventConfig: Record<string, BadgeConfig> = {
     label: "운영 점검 설정 변경",
     color: "bg-cyan-50 text-cyan-700 border-cyan-200",
   },
+  smoke_rotation_succeeded: { label: "Secret 회전 성공", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  smoke_rotation_failed: { label: "Secret 회전 실패", color: "bg-rose-50 text-rose-700 border-rose-200" },
   settings_rollback_time_display: { label: "시간 표시 설정 롤백", color: "bg-amber-50 text-amber-700 border-amber-200" },
   settings_rollback_upstream_security: {
     label: "업스트림 보안 설정 롤백",

@@ -23,13 +23,25 @@ class StubRepository:
 async def test_record_smoke_rotation_success_updates_last_success() -> None:
     repo = StubRepository()
     now = datetime(2026, 7, 10, 4, 17, tzinfo=timezone.utc)
+    recorded: list[dict] = []
 
-    await record_smoke_rotation_status(db=object(), repo=repo, status="success", now=now)
+    async def record_audit(**kwargs) -> None:
+        recorded.append(kwargs)
+
+    await record_smoke_rotation_status(
+        db=object(),
+        repo=repo,
+        status="success",
+        now=now,
+        audit_recorder=record_audit,
+    )
 
     assert repo.values[SMOKE_ROTATION_STATUS_KEY] == "success"
     assert repo.values[SMOKE_ROTATION_LAST_ATTEMPT_AT_KEY] == now.isoformat()
     assert repo.values[SMOKE_ROTATION_LAST_SUCCESS_AT_KEY] == now.isoformat()
     assert repo.values[SMOKE_ROTATION_DETAIL_KEY] is None
+    assert recorded[0]["detail"] == {"event": "smoke_rotation_succeeded"}
+    assert recorded[0]["resource_id"] == "smoke-accounts"
 
 
 @pytest.mark.asyncio

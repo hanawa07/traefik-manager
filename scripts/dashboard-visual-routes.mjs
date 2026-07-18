@@ -79,6 +79,7 @@ export const DASHBOARD_ROUTES = [
       "현재 조건 CSV",
       "적용 조건",
       "전체 초기화",
+      "Secret 회전 결과",
       "건 표시",
       "페이지당",
       "감사 기간",

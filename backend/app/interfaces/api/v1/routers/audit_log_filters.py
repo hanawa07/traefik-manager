@@ -7,6 +7,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from app.infrastructure.persistence.models import AuditLogModel
 
 SECURITY_EVENTS = {"login_failure", "login_locked", "login_suspicious", "login_blocked_ip"}
+SMOKE_ROTATION_EVENTS = {"smoke_rotation_failed", "smoke_rotation_succeeded"}
 MANAGER_UNHEALTHY_EVENTS = {
     "manager_docker_unhealthy",
     "manager_http_errors_high",
@@ -81,7 +82,11 @@ def build_audit_log_conditions(
     if action:
         conditions.append(AuditLogModel.action == action)
     if event:
-        conditions.append(event_column == event)
+        conditions.append(
+            event_column.in_(SMOKE_ROTATION_EVENTS)
+            if event == "smoke_rotation_result"
+            else event_column == event
+        )
     if manager_status:
         manager_events = (
             MANAGER_UNHEALTHY_EVENTS if manager_status == "unhealthy" else MANAGER_RECOVERED_EVENTS
