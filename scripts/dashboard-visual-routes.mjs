@@ -46,7 +46,7 @@ export const DASHBOARD_ROUTES = [
       "운영 점검 추이",
       "7일",
       "30일",
-      "7일 실패율",
+      "실패율",
       "활성 슬롯",
       "Manager API 404·5xx 추이",
       "임계치 감지 상태",

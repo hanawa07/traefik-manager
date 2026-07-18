@@ -35,6 +35,7 @@ async def update_smoke_monitoring_settings_action(
         frequency=request.monitoring_frequency,
         failure_rate_threshold_percent=request.monitoring_failure_rate_threshold_percent,
         failure_rate_min_runs=request.monitoring_failure_rate_min_runs,
+        failure_rate_window_days=request.monitoring_failure_rate_window_days,
     )
     await record_settings_update(
         audit_service=audit_service,

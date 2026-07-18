@@ -8,8 +8,11 @@ SMOKE_MONITORING_ENABLED_KEY = "dashboard_smoke_monitoring_enabled"
 SMOKE_MONITORING_FREQUENCY_KEY = "dashboard_smoke_monitoring_frequency"
 SMOKE_FAILURE_RATE_THRESHOLD_PERCENT_KEY = "dashboard_smoke_failure_rate_threshold_percent"
 SMOKE_FAILURE_RATE_MIN_RUNS_KEY = "dashboard_smoke_failure_rate_min_runs"
+SMOKE_FAILURE_RATE_WINDOW_DAYS_KEY = "dashboard_smoke_failure_rate_window_days"
 SMOKE_FAILURE_RATE_THRESHOLD_PERCENT_DEFAULT = 30
 SMOKE_FAILURE_RATE_MIN_RUNS_DEFAULT = 3
+SMOKE_FAILURE_RATE_WINDOW_DAYS_DEFAULT = 7
+SMOKE_FAILURE_RATE_WINDOW_DAYS = {7, 30}
 SMOKE_MONITORING_FREQUENCIES = {"daily", "weekly"}
 SMOKE_MONITORING_SCHEDULE_TIME = "03:17"
 SMOKE_MONITORING_SCHEDULE_TIMEZONE = "Asia/Seoul"
@@ -33,6 +36,13 @@ async def read_smoke_monitoring_values(repo: Any) -> dict[str, Any]:
     )
     if not 1 <= failure_rate_min_runs <= 30:
         failure_rate_min_runs = SMOKE_FAILURE_RATE_MIN_RUNS_DEFAULT
+    failure_rate_window_days = await get_int_setting(
+        repo,
+        SMOKE_FAILURE_RATE_WINDOW_DAYS_KEY,
+        default=SMOKE_FAILURE_RATE_WINDOW_DAYS_DEFAULT,
+    )
+    if failure_rate_window_days not in SMOKE_FAILURE_RATE_WINDOW_DAYS:
+        failure_rate_window_days = SMOKE_FAILURE_RATE_WINDOW_DAYS_DEFAULT
     return {
         "monitoring_enabled": await get_bool_setting(
             repo,
@@ -42,6 +52,7 @@ async def read_smoke_monitoring_values(repo: Any) -> dict[str, Any]:
         "monitoring_frequency": frequency,
         "monitoring_failure_rate_threshold_percent": failure_rate_threshold,
         "monitoring_failure_rate_min_runs": failure_rate_min_runs,
+        "monitoring_failure_rate_window_days": failure_rate_window_days,
         "monitoring_schedule_time": SMOKE_MONITORING_SCHEDULE_TIME,
         "monitoring_schedule_timezone": SMOKE_MONITORING_SCHEDULE_TIMEZONE,
     }
@@ -54,12 +65,14 @@ async def update_smoke_monitoring_values(
     frequency: str,
     failure_rate_threshold_percent: int,
     failure_rate_min_runs: int,
+    failure_rate_window_days: int,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     before = await read_smoke_monitoring_values(repo)
     await repo.set(SMOKE_MONITORING_ENABLED_KEY, "true" if enabled else "false")
     await repo.set(SMOKE_MONITORING_FREQUENCY_KEY, frequency)
     await repo.set(SMOKE_FAILURE_RATE_THRESHOLD_PERCENT_KEY, str(failure_rate_threshold_percent))
     await repo.set(SMOKE_FAILURE_RATE_MIN_RUNS_KEY, str(failure_rate_min_runs))
+    await repo.set(SMOKE_FAILURE_RATE_WINDOW_DAYS_KEY, str(failure_rate_window_days))
     after = await read_smoke_monitoring_values(repo)
     return before, after
 

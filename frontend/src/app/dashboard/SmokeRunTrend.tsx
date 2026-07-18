@@ -22,6 +22,7 @@ interface SmokeRunTrendProps {
   error: string | null;
   failureRateMinRuns: number;
   failureRateThresholdPercent: number;
+  failureRateWindowDays: 7 | 30;
   runs: SmokeMonitoringRecentRun[];
   timezone?: string;
 }
@@ -30,6 +31,7 @@ export function SmokeRunTrend({
   error,
   failureRateMinRuns,
   failureRateThresholdPercent,
+  failureRateWindowDays,
   runs,
   timezone,
 }: SmokeRunTrendProps) {
@@ -45,6 +47,7 @@ export function SmokeRunTrend({
     periodReferenceTime,
     failureRateThresholdPercent,
     failureRateMinRuns,
+    failureRateWindowDays,
   );
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]" data-testid="smoke-run-trend">
@@ -99,10 +102,10 @@ export function SmokeRunTrend({
         role={failureRate.isAlert ? "alert" : undefined}
       >
         {failureRate.totalCount === 0
-          ? `7일 실패율 이력 없음 · 경고 ${failureRateThresholdPercent}%`
+          ? `${failureRateWindowDays}일 실패율 이력 없음 · 경고 ${failureRateThresholdPercent}%`
           : failureRate.totalCount < failureRateMinRuns
-            ? `7일 실패율 ${failureRate.percentage}% (${failureRate.failureCount}/${failureRate.totalCount}) · ${failureRateMinRuns}회부터 판정`
-            : `${failureRate.isAlert ? "실패율 경고" : "7일 실패율"} ${failureRate.percentage}% (${failureRate.failureCount}/${failureRate.totalCount}) · 기준 ${failureRateThresholdPercent}%`}
+            ? `${failureRateWindowDays}일 실패율 ${failureRate.percentage}% (${failureRate.failureCount}/${failureRate.totalCount}) · ${failureRateMinRuns}회부터 판정`
+            : `${failureRate.isAlert ? "실패율 경고" : `${failureRateWindowDays}일 실패율`} ${failureRate.percentage}% (${failureRate.failureCount}/${failureRate.totalCount}) · 기준 ${failureRateThresholdPercent}%`}
       </span>
     </div>
   );

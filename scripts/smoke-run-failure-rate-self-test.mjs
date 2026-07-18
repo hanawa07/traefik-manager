@@ -44,4 +44,18 @@ const configured = getSmokeRunFailureRate(
 assert.equal(configured.percentage, 50);
 assert.equal(configured.isAlert, false);
 
+const thirtyDays = getSmokeRunFailureRate(
+  [
+    { status: "failure", completed_at: "2026-07-17T00:00:00Z" },
+    { status: "failure", completed_at: "2026-07-01T00:00:00Z" },
+    { status: "success", completed_at: "2026-06-25T00:00:00Z" },
+  ],
+  now,
+  50,
+  3,
+  30,
+);
+assert.equal(thirtyDays.totalCount, 3);
+assert.equal(thirtyDays.isAlert, true);
+
 console.log("운영 점검 실패율 self-test 통과");

@@ -3,12 +3,14 @@ import type { SettingsActionTestResult } from "./settingsSharedTypes";
 
 export type SmokeRotationState = "never" | "running" | "success" | "failure";
 export type SmokeMonitoringFrequency = "daily" | "weekly";
+export type SmokeFailureRateWindowDays = 7 | 30;
 
 export interface SmokeMonitoringSettingsInput {
   monitoring_enabled: boolean;
   monitoring_frequency: SmokeMonitoringFrequency;
   monitoring_failure_rate_threshold_percent: number;
   monitoring_failure_rate_min_runs: number;
+  monitoring_failure_rate_window_days: SmokeFailureRateWindowDays;
 }
 
 export interface SmokeMonitoringRecentRun {
@@ -28,6 +30,7 @@ export interface SmokeRotationStatus {
   monitoring_frequency: SmokeMonitoringFrequency;
   monitoring_failure_rate_threshold_percent: number;
   monitoring_failure_rate_min_runs: number;
+  monitoring_failure_rate_window_days: SmokeFailureRateWindowDays;
   monitoring_schedule_time: string;
   monitoring_schedule_timezone: string;
   monitoring_last_success_at: string | null;

@@ -65,7 +65,26 @@ export function SmokeMonitoringSettingsEditForm({
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div>
+          <label className="label" htmlFor="smoke-failure-rate-window">
+            실패율 판정 기간
+          </label>
+          <select
+            id="smoke-failure-rate-window"
+            className="input"
+            value={formValue.monitoring_failure_rate_window_days}
+            onChange={(event) =>
+              onFormChange({
+                ...formValue,
+                monitoring_failure_rate_window_days: Number(event.target.value) as 7 | 30,
+              })
+            }
+          >
+            <option value={7}>최근 7일</option>
+            <option value={30}>최근 30일</option>
+          </select>
+        </div>
         <div>
           <label className="label" htmlFor="smoke-failure-rate-threshold">
             실패율 경고 기준 (%)
@@ -106,7 +125,8 @@ export function SmokeMonitoringSettingsEditForm({
         </div>
       </div>
       <p className="text-xs text-gray-500 dark:text-slate-400">
-        최근 7일의 완료된 점검이 최소 표본 이상이고 실패율이 기준 이상이면 대시보드에 경고합니다.
+        최근 {formValue.monitoring_failure_rate_window_days}일의 완료된 점검이 최소 표본 이상이고
+        실패율이 기준 이상이면 대시보드에 경고합니다.
       </p>
 
       {errorMessage ? <p className="text-xs text-red-600 dark:text-red-300">{errorMessage}</p> : null}

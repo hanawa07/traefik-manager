@@ -16,6 +16,7 @@ const DEFAULT_FORM: SmokeMonitoringSettingsInput = {
   monitoring_frequency: "daily",
   monitoring_failure_rate_threshold_percent: 30,
   monitoring_failure_rate_min_runs: 3,
+  monitoring_failure_rate_window_days: 7,
 };
 
 export function useSmokeMonitoringSettingsModel(
@@ -39,6 +40,8 @@ export function useSmokeMonitoringSettingsModel(
       monitoring_failure_rate_threshold_percent:
         query.data?.monitoring_failure_rate_threshold_percent ?? 30,
       monitoring_failure_rate_min_runs: query.data?.monitoring_failure_rate_min_runs ?? 3,
+      monitoring_failure_rate_window_days:
+        query.data?.monitoring_failure_rate_window_days ?? 7,
     });
     setErrorMessage("");
     setIsEditing(true);
@@ -50,9 +53,10 @@ export function useSmokeMonitoringSettingsModel(
       formValue.monitoring_failure_rate_threshold_percent < 1 ||
       formValue.monitoring_failure_rate_threshold_percent > 100 ||
       formValue.monitoring_failure_rate_min_runs < 1 ||
-      formValue.monitoring_failure_rate_min_runs > 30
+      formValue.monitoring_failure_rate_min_runs > 30 ||
+      ![7, 30].includes(formValue.monitoring_failure_rate_window_days)
     ) {
-      setErrorMessage("실패율 기준은 1~100%, 최소 표본은 1~30회로 입력해주세요.");
+      setErrorMessage("판정 기간은 7일 또는 30일, 실패율 기준은 1~100%, 최소 표본은 1~30회로 입력해주세요.");
       return;
     }
     try {

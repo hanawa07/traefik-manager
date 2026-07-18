@@ -42,6 +42,7 @@ async def test_update_smoke_monitoring_settings_records_change() -> None:
             monitoring_frequency="weekly",
             monitoring_failure_rate_threshold_percent=45,
             monitoring_failure_rate_min_runs=5,
+            monitoring_failure_rate_window_days=30,
         ),
         http_request=None,
         db=object(),
@@ -55,15 +56,18 @@ async def test_update_smoke_monitoring_settings_records_change() -> None:
     assert response.monitoring_frequency == "weekly"
     assert response.monitoring_failure_rate_threshold_percent == 45
     assert response.monitoring_failure_rate_min_runs == 5
+    assert response.monitoring_failure_rate_window_days == 30
     assert repo.values["dashboard_smoke_monitoring_enabled"] == "false"
     assert repo.values["dashboard_smoke_monitoring_frequency"] == "weekly"
     assert repo.values["dashboard_smoke_failure_rate_threshold_percent"] == "45"
     assert repo.values["dashboard_smoke_failure_rate_min_runs"] == "5"
+    assert repo.values["dashboard_smoke_failure_rate_window_days"] == "30"
     assert audit.records[0]["detail"]["event"] == "settings_update_smoke_monitoring"
     assert audit.records[0]["detail"]["changed_keys"] == [
         "monitoring_enabled",
         "monitoring_failure_rate_min_runs",
         "monitoring_failure_rate_threshold_percent",
+        "monitoring_failure_rate_window_days",
         "monitoring_frequency",
     ]
 
@@ -82,4 +86,16 @@ def test_smoke_monitoring_settings_rejects_invalid_failure_rate_rule(
             monitoring_frequency="daily",
             monitoring_failure_rate_threshold_percent=threshold,
             monitoring_failure_rate_min_runs=min_runs,
+        )
+
+
+@pytest.mark.parametrize("window_days", [1, 90])
+def test_smoke_monitoring_settings_rejects_invalid_failure_rate_window(
+    window_days: int,
+) -> None:
+    with pytest.raises(ValidationError):
+        SmokeMonitoringSettingsUpdateRequest(
+            monitoring_enabled=True,
+            monitoring_frequency="daily",
+            monitoring_failure_rate_window_days=window_days,
         )

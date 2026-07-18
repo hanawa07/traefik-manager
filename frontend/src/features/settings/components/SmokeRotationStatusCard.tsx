@@ -136,7 +136,7 @@ export function SmokeRotationStatusCard({
           <SettingsSummaryRow label="점검 시각" value={`${scheduleTime} (${scheduleTimezone})`} />
           <SettingsSummaryRow
             label="실패율 경고 기준"
-            value={`최근 7일 ${status.monitoring_failure_rate_min_runs}회 이상 · ${status.monitoring_failure_rate_threshold_percent}% 이상`}
+            value={`최근 ${status.monitoring_failure_rate_window_days}일 ${status.monitoring_failure_rate_min_runs}회 이상 · ${status.monitoring_failure_rate_threshold_percent}% 이상`}
           />
           <SettingsSummaryRow
             label="최근 원격 점검 성공"

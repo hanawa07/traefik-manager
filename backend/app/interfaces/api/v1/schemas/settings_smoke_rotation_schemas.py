@@ -3,6 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 SmokeMonitoringFrequency = Literal["daily", "weekly"]
+SmokeFailureRateWindowDays = Literal[7, 30]
 
 
 class SmokeMonitoringRecentRunResponse(BaseModel):
@@ -30,6 +31,7 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_frequency: SmokeMonitoringFrequency = "daily"
     monitoring_failure_rate_threshold_percent: int = 30
     monitoring_failure_rate_min_runs: int = 3
+    monitoring_failure_rate_window_days: SmokeFailureRateWindowDays = 7
     monitoring_schedule_time: str = "03:17"
     monitoring_schedule_timezone: str = "Asia/Seoul"
     monitoring_last_success_at: str | None = None
@@ -50,6 +52,7 @@ class SmokeMonitoringSettingsUpdateRequest(BaseModel):
     monitoring_frequency: SmokeMonitoringFrequency
     monitoring_failure_rate_threshold_percent: int = Field(default=30, ge=1, le=100)
     monitoring_failure_rate_min_runs: int = Field(default=3, ge=1, le=30)
+    monitoring_failure_rate_window_days: SmokeFailureRateWindowDays = 7
 
 
 class SmokeMonitoringScheduleDecisionResponse(BaseModel):

@@ -1,4 +1,4 @@
-export const SMOKE_FAILURE_RATE_WINDOW_DAYS = 7;
+export const DEFAULT_SMOKE_FAILURE_RATE_WINDOW_DAYS = 7;
 export const DEFAULT_SMOKE_FAILURE_RATE_THRESHOLD_PERCENT = 30;
 export const DEFAULT_SMOKE_FAILURE_RATE_MIN_RUNS = 3;
 
@@ -12,9 +12,10 @@ export function getSmokeRunFailureRate(
   referenceTime: number,
   thresholdPercent = DEFAULT_SMOKE_FAILURE_RATE_THRESHOLD_PERCENT,
   minRuns = DEFAULT_SMOKE_FAILURE_RATE_MIN_RUNS,
+  windowDays = DEFAULT_SMOKE_FAILURE_RATE_WINDOW_DAYS,
 ) {
   const cutoff =
-    referenceTime - SMOKE_FAILURE_RATE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    referenceTime - windowDays * 24 * 60 * 60 * 1000;
   const completed = runs.filter((run) => {
     const completedAt = Date.parse(run.completed_at);
     return run.status !== "skipped" && Number.isFinite(completedAt) && completedAt >= cutoff;
