@@ -65,6 +65,7 @@ export function SmokeRunTrend({
   const [rangeDays, setRangeDays] = useState<7 | 30>(7);
   const [artifactFilter, setArtifactFilter] = useState<SmokeArtifactFilter>("all");
   const [artifactCopyStatus, setArtifactCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+  const [artifactShareUrl, setArtifactShareUrl] = useState("");
   const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
   useEffect(() => {
     const refreshClock = () => setPeriodReferenceTime(Date.now());
@@ -86,8 +87,10 @@ export function SmokeRunTrend({
     window.localStorage.setItem(ARTIFACT_FILTER_STORAGE_KEY, initialFilter);
   }, []);
   const copyArtifactFilterLink = async () => {
+    const shareUrl = window.location.href;
+    setArtifactShareUrl(shareUrl);
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(shareUrl);
       setArtifactCopyStatus("copied");
     } catch {
       setArtifactCopyStatus("error");
@@ -213,6 +216,7 @@ export function SmokeRunTrend({
               const nextFilter = event.target.value as SmokeArtifactFilter;
               setArtifactFilter(nextFilter);
               setArtifactCopyStatus("idle");
+              setArtifactShareUrl("");
               replaceArtifactFilterQuery(nextFilter);
               window.localStorage.setItem(ARTIFACT_FILTER_STORAGE_KEY, nextFilter);
             }}
@@ -243,6 +247,20 @@ export function SmokeRunTrend({
               ? "링크 복사됨"
               : artifactCopyStatus === "error" ? "복사 실패" : "링크 복사"}
           </button>
+          {artifactCopyStatus === "error" ? (
+            <label className="inline-flex max-w-full items-center gap-1 font-semibold text-amber-800 dark:text-amber-200">
+              직접 복사
+              <input
+                aria-label="Artifact 필터 공유 URL 직접 복사"
+                autoFocus
+                className="w-56 max-w-full rounded border border-amber-300 bg-white px-1.5 py-0.5 font-normal text-slate-700 outline-none focus:ring-2 focus:ring-amber-400 dark:border-amber-500/50 dark:bg-slate-950 dark:text-slate-200"
+                onClick={(event) => event.currentTarget.select()}
+                onFocus={(event) => event.currentTarget.select()}
+                readOnly
+                value={artifactShareUrl}
+              />
+            </label>
+          ) : null}
           {displayedFailedRuns.map((run, index) => {
             const runLabel = run.run_number ? `#${run.run_number}` : `${index + 1}번`;
             const artifactExpiryState = getSmokeArtifactExpiryState(
