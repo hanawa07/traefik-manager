@@ -42,6 +42,7 @@ const ARTIFACT_EXPIRY_STYLES: Record<SmokeArtifactExpiryState, string> = {
 };
 
 const ARTIFACT_CLOCK_INTERVAL_MS = 60_000;
+const ARTIFACT_FILTER_STORAGE_KEY = "traefik-manager:smoke-artifact-filter";
 
 interface SmokeRunTrendProps {
   error: string | null;
@@ -71,6 +72,10 @@ export function SmokeRunTrend({
       window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshClock);
     };
+  }, []);
+  useEffect(() => {
+    const storedFilter = window.localStorage.getItem(ARTIFACT_FILTER_STORAGE_KEY);
+    if (isSmokeArtifactFilter(storedFilter)) setArtifactFilter(storedFilter);
   }, []);
   const cutoff = periodReferenceTime - rangeDays * 24 * 60 * 60 * 1000;
   const recent = runs
@@ -188,7 +193,11 @@ export function SmokeRunTrend({
             aria-label="실패 실행 Artifact 필터"
             className="rounded border border-current/20 bg-white/80 px-1 py-0.5 font-semibold dark:bg-slate-950/70"
             value={artifactFilter}
-            onChange={(event) => setArtifactFilter(event.target.value as SmokeArtifactFilter)}
+            onChange={(event) => {
+              const nextFilter = event.target.value as SmokeArtifactFilter;
+              setArtifactFilter(nextFilter);
+              window.localStorage.setItem(ARTIFACT_FILTER_STORAGE_KEY, nextFilter);
+            }}
           >
             <option data-count={artifactFilterCounts.all} value="all">
               전체 ({artifactFilterCounts.all})
@@ -283,4 +292,8 @@ function getRunTooltip(run: SmokeMonitoringRecentRun, timezone?: string) {
     formatDateTime(run.completed_at, timezone),
     run.summary,
   ].filter(Boolean).join(" · ");
+}
+
+function isSmokeArtifactFilter(value: string | null): value is SmokeArtifactFilter {
+  return value === "all" || value === "available" || value === "expiring_soon" || value === "expired";
 }
