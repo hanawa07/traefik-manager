@@ -219,31 +219,36 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
           </Link>
         ) : null}
         {isEmptyRotationExport && latestRotationFailureDate && latestRotationFailureExportUrl ? (
-          <a
-            aria-label="최근 Secret 회전 실패 날짜 CSV 다운로드"
-            className="inline-flex self-center items-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-500/30 dark:bg-slate-900 dark:text-rose-200 dark:hover:bg-rose-950"
-            data-latest-failure-date={latestRotationFailureDate}
-            data-result-count={latestRotationFailureDateCount ?? ""}
-            data-testid="secret-rotation-export-latest-failure-csv"
-            href={latestRotationFailureExportUrl}
+          <span
+            aria-label="최근 Secret 회전 실패 날짜 작업"
+            className="inline-flex self-center overflow-hidden rounded-lg border border-rose-200 bg-white dark:border-rose-500/30 dark:bg-slate-900"
+            data-testid="secret-rotation-export-latest-failure-actions"
+            role="group"
           >
-            <Download className="h-3.5 w-3.5" />
-            실패 날짜 CSV{latestRotationFailureDateCount === undefined
-              ? ""
-              : ` (${latestRotationFailureDateCount.toLocaleString("ko-KR")}건)`}
-          </a>
-        ) : null}
-        {isEmptyRotationExport && latestRotationFailureListUrl && latestRotationFailureDateCount !== undefined ? (
-          <a
-            aria-label="최근 Secret 회전 실패 날짜 감사 목록"
-            className="self-center rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-950/60 dark:text-rose-200 dark:hover:bg-rose-900"
-            data-latest-failure-date={latestRotationFailureDate}
-            data-result-count={latestRotationFailureDateCount}
-            data-testid="secret-rotation-export-latest-failure-list"
-            href={latestRotationFailureListUrl}
-          >
-            {latestRotationFailureDateCount.toLocaleString("ko-KR")}건 보기
-          </a>
+            <a
+              aria-label="최근 Secret 회전 실패 날짜 CSV 다운로드"
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 dark:text-rose-200 dark:hover:bg-rose-950"
+              data-latest-failure-date={latestRotationFailureDate}
+              data-result-count={latestRotationFailureDateCount ?? ""}
+              data-testid="secret-rotation-export-latest-failure-csv"
+              href={latestRotationFailureExportUrl}
+            >
+              <Download className="h-3.5 w-3.5" />
+              실패 날짜 CSV
+            </a>
+            {latestRotationFailureListUrl && latestRotationFailureDateCount !== undefined ? (
+              <a
+                aria-label="최근 Secret 회전 실패 날짜 감사 목록"
+                className="border-l border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-950/60 dark:text-rose-200 dark:hover:bg-rose-900"
+                data-latest-failure-date={latestRotationFailureDate}
+                data-result-count={latestRotationFailureDateCount}
+                data-testid="secret-rotation-export-latest-failure-list"
+                href={latestRotationFailureListUrl}
+              >
+                {latestRotationFailureDateCount.toLocaleString("ko-KR")}건 보기
+              </a>
+            ) : null}
+          </span>
         ) : null}
         {isEmptyRotationExport ? (
           <button
