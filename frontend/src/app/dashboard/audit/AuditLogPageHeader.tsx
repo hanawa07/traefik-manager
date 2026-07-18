@@ -64,6 +64,12 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
           ? "다운로드 대상 0건 · CSV에는 헤더만 포함됩니다."
           : `다운로드 대상 ${(rotationCount ?? 0).toLocaleString("ko-KR")}건`;
   const isEmptyRotationExport = rotationCountStatus === "ready" && rotationCount === 0;
+  const setRotationRangeToToday = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    setRotationCsvPeriod("custom");
+    setRotationStartDate(today);
+    setRotationEndDate(today);
+  };
   return (
     <div className="mb-8 flex flex-wrap items-center gap-3">
       <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:shadow-none">
@@ -130,6 +136,18 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
         >
           {rotationCountLabel}
         </span>
+        {isEmptyRotationExport ? (
+          <button
+            aria-label="Secret 회전 CSV 오늘 범위로"
+            className="self-center rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900"
+            data-testid="secret-rotation-export-today"
+            onClick={setRotationRangeToToday}
+            title="UTC 기준 오늘 날짜로 시작일과 종료일을 설정합니다"
+            type="button"
+          >
+            오늘 범위로
+          </button>
+        ) : null}
         <a
           aria-label="현재 감사 조건 CSV 다운로드"
           className={EXPORT_LINK_CLASS}

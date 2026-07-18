@@ -115,6 +115,28 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
   const emptyResult = await assertRotationCount({ cdp, timeoutMs });
   assert.equal(emptyResult.actual, 0, "Secret 회전 CSV 0건 조건이 비어 있지 않습니다");
   assert.match(emptyResult.text, /CSV에는 헤더만 포함됩니다/);
+
+  const todayResetClicked = await evaluate(cdp, `(() => {
+    const button = document.querySelector('[data-testid="secret-rotation-export-today"]');
+    button?.click();
+    return Boolean(button);
+  })()`);
+  assert.equal(todayResetClicked, true, "Secret 회전 CSV 오늘 범위 복구 버튼이 없습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const select = document.querySelector('select[aria-label="Secret 회전 CSV 기간"]');
+      const start = document.querySelector('input[aria-label="Secret 회전 CSV 시작일"]');
+      const end = document.querySelector('input[aria-label="Secret 회전 CSV 종료일"]');
+      return select?.value === 'custom' && start?.value === ${JSON.stringify(today)} &&
+        end?.value === ${JSON.stringify(today)};
+    })()`,
+    timeoutMs,
+    "Secret 회전 CSV가 오늘 범위로 복구되지 않았습니다",
+  );
+  const todayResult = await assertRotationCount({ cdp, timeoutMs });
+  assert.equal(todayResult.startDate, today, "복구된 CSV 시작일이 오늘이 아닙니다");
+  assert.equal(todayResult.endDate, today, "복구된 CSV 종료일이 오늘이 아닙니다");
 }
 
 async function assertRotationCount({ cdp, timeoutMs }) {
@@ -134,8 +156,10 @@ async function assertRotationCount({ cdp, timeoutMs }) {
     const response = await fetch(url);
     return {
       actual: Number(count?.getAttribute('data-result-count')),
+      endDate: url.searchParams.get('end_date'),
       expected: Number(response.headers.get('x-total-count')),
       ok: response.ok,
+      startDate: url.searchParams.get('start_date'),
       text: count?.textContent || '',
     };
   })()`);
