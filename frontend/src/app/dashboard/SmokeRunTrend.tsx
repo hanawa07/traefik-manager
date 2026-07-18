@@ -57,6 +57,8 @@ export function SmokeRunTrend({
     periodReferenceTime,
     failureRateWindowDays,
   ).filter((run) => run.status === "failure");
+  const displayedFailedRuns = failedRuns.slice(0, 5);
+  const artifactCount = displayedFailedRuns.filter((run) => run.artifact_url).length;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]" data-testid="smoke-run-trend">
       <span className="font-semibold">운영 점검 추이</span>
@@ -118,21 +120,39 @@ export function SmokeRunTrend({
       {failureRate.isAlert && failedRuns.length ? (
         <span
           className="inline-flex flex-wrap items-center gap-1 rounded-md border border-rose-200 bg-white/70 px-2 py-0.5 dark:border-rose-500/30 dark:bg-slate-950/50"
+          data-artifact-count={artifactCount}
           data-testid="smoke-failure-run-links"
         >
           <span className="font-semibold">실패 실행</span>
-          {failedRuns.slice(0, 5).map((run, index) => (
-            <a
-              key={run.run_url}
-              className="font-semibold text-rose-700 underline underline-offset-2 dark:text-rose-300"
-              href={run.run_url}
-              target="_blank"
-              rel="noreferrer"
-              title={getRunTooltip(run, timezone)}
-            >
-              {run.run_number ? `#${run.run_number}` : `${index + 1}번`}
-            </a>
-          ))}
+          {displayedFailedRuns.map((run, index) => {
+            const runLabel = run.run_number ? `#${run.run_number}` : `${index + 1}번`;
+            return (
+              <span key={run.run_url} className="inline-flex items-center gap-1">
+                <a
+                  className="font-semibold text-rose-700 underline underline-offset-2 dark:text-rose-300"
+                  href={run.run_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={getRunTooltip(run, timezone)}
+                >
+                  {runLabel}
+                </a>
+                {run.artifact_url ? (
+                  <a
+                    aria-label={`${runLabel} 실패 화면 Artifact`}
+                    className="font-semibold text-cyan-700 underline underline-offset-2 dark:text-cyan-300"
+                    data-testid="smoke-failure-artifact-link"
+                    href={run.artifact_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="GitHub 로그인 후 실패 화면 ZIP 다운로드"
+                  >
+                    화면
+                  </a>
+                ) : null}
+              </span>
+            );
+          })}
           {failedRuns.length > 5 ? <span>외 {failedRuns.length - 5}건</span> : null}
         </span>
       ) : null}
