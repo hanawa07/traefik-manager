@@ -42,6 +42,7 @@ const ARTIFACT_EXPIRY_STYLES: Record<SmokeArtifactExpiryState, string> = {
 };
 
 const ARTIFACT_CLOCK_INTERVAL_MS = 60_000;
+const ARTIFACT_COPY_SUCCESS_DURATION_MS = 2_000;
 const ARTIFACT_FILTER_STORAGE_KEY = "traefik-manager:smoke-artifact-filter";
 const ARTIFACT_FILTER_QUERY = "artifact_filter";
 
@@ -86,6 +87,14 @@ export function SmokeRunTrend({
     replaceArtifactFilterQuery(initialFilter);
     window.localStorage.setItem(ARTIFACT_FILTER_STORAGE_KEY, initialFilter);
   }, []);
+  useEffect(() => {
+    if (artifactCopyStatus !== "copied") return;
+    const timeoutId = window.setTimeout(
+      () => setArtifactCopyStatus("idle"),
+      ARTIFACT_COPY_SUCCESS_DURATION_MS,
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [artifactCopyStatus]);
   const copyArtifactFilterLink = async () => {
     const shareUrl = window.location.href;
     setArtifactShareUrl(shareUrl);
@@ -239,6 +248,7 @@ export function SmokeRunTrend({
             aria-live="polite"
             className="rounded border border-current/20 bg-white/80 px-1.5 py-0.5 font-semibold hover:bg-white dark:bg-slate-950/70 dark:hover:bg-slate-900"
             data-copy-status={artifactCopyStatus}
+            data-copy-success-duration-ms={ARTIFACT_COPY_SUCCESS_DURATION_MS}
             data-testid="smoke-artifact-filter-copy"
             onClick={copyArtifactFilterLink}
             type="button"
