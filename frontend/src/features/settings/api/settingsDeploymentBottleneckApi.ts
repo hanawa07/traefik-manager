@@ -32,6 +32,13 @@ export const deploymentBottleneckSettingsApi = {
     return response.data;
   },
 
+  previewDeploymentBottleneckEventCleanup: async (): Promise<DeploymentBottleneckCleanupResult> => {
+    const response = await apiClient.get<DeploymentBottleneckCleanupResult>(
+      "/settings/deployment-bottleneck-alert/cleanup",
+    );
+    return response.data;
+  },
+
   cleanupDeploymentBottleneckEvents: async (): Promise<DeploymentBottleneckCleanupResult> => {
     const response = await apiClient.post<DeploymentBottleneckCleanupResult>(
       "/settings/deployment-bottleneck-alert/cleanup",

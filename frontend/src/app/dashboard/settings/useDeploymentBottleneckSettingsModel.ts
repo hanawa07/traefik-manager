@@ -6,6 +6,7 @@ import type { DeploymentBottleneckSettings } from "@/features/settings/api/setti
 import {
   useCleanupDeploymentBottleneckEvents,
   useDeploymentBottleneckSettings,
+  usePreviewDeploymentBottleneckEventCleanup,
   useUpdateDeploymentBottleneckSettings,
 } from "@/features/settings/hooks/useSettings";
 import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
@@ -31,6 +32,7 @@ export function useDeploymentBottleneckSettingsModel(
     isLoading: isPreviewLoading,
   } = useDeploymentInfo();
   const updateSettings = useUpdateDeploymentBottleneckSettings();
+  const previewCleanup = usePreviewDeploymentBottleneckEventCleanup();
   const cleanupEvents = useCleanupDeploymentBottleneckEvents();
   const previewSettings = isEditing ? formValue : settings ?? DEFAULT_SETTINGS;
   const preview = deploymentInfo
@@ -82,6 +84,33 @@ export function useDeploymentBottleneckSettingsModel(
   };
 
   const handleCleanup = async () => {
+    let cleanupPreview;
+    try {
+      cleanupPreview = await previewCleanup.mutateAsync();
+    } catch (error) {
+      onToast({
+        tone: "error",
+        message: "배포 병목 이벤트 정리 확인 실패",
+        detail: getSettingsModelErrorMessage(error, "삭제 예정 이벤트를 확인하지 못했습니다"),
+      });
+      return;
+    }
+    if (cleanupPreview.deleted_count === 0) {
+      onToast({
+        tone: "warning",
+        message: "정리할 배포 병목 이벤트 없음",
+        detail: `적용 기간 ${cleanupPreview.retention_days}일 · 현재 ${cleanupPreview.retained_event_count}건 보관 중입니다.`,
+      });
+      return;
+    }
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(
+        `보관 기간 ${cleanupPreview.retention_days}일을 적용하면 ${cleanupPreview.deleted_count}건을 삭제하고 ${cleanupPreview.retained_event_count}건을 남깁니다. 계속하시겠습니까?`,
+      )
+    ) {
+      return;
+    }
     try {
       const result = await cleanupEvents.mutateAsync();
       onToast({
@@ -106,7 +135,7 @@ export function useDeploymentBottleneckSettingsModel(
     hostOverrideLabels,
     hostSettings,
     isEditing,
-    isCleaning: cleanupEvents.isPending,
+    isCleaning: previewCleanup.isPending || cleanupEvents.isPending,
     isLoading,
     isSaving: updateSettings.isPending,
     isPreviewError,

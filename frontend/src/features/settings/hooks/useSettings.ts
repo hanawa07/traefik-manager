@@ -17,6 +17,7 @@ export {
 } from "./useSettingsQueries";
 export {
   useCleanupDeploymentBottleneckEvents,
+  usePreviewDeploymentBottleneckEventCleanup,
   useRunAuditRetentionCleanup,
   useDiagnoseCloudflareDnsDrift,
   useExportBackup,

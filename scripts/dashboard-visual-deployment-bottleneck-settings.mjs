@@ -65,8 +65,10 @@ export async function checkDeploymentBottleneckSettingsPreview({ cdp, timeoutMs 
     `(() => {
       const card = document.querySelector('[data-testid="deployment-bottleneck-settings-card"]');
       return card?.textContent?.includes('현재 보관') &&
-        card.textContent.includes('24/100건') &&
+        card.textContent.includes('84/100건') &&
         card.textContent.includes('보관 범위') &&
+        card.textContent.includes('보관 한도에 가까움') &&
+        Boolean(card.querySelector('[data-deployment-bottleneck-storage-warning]')) &&
         Boolean(card.querySelector('[data-deployment-bottleneck-cleanup]'));
     })()`,
     timeoutMs,

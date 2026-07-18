@@ -236,7 +236,8 @@ async function checkArchiveFixture({ cdp, timeoutMs }) {
     `document.querySelector('[data-manager-deployment-bottleneck-status="alerted"]')?.textContent?.includes('연속 3/3회') &&
       document.querySelector('[data-manager-deployment-bottleneck-status="alerted"]')?.textContent?.includes('이벤트 30일 보관') &&
       document.querySelector('[data-manager-deployment-bottleneck-source]')?.textContent?.includes('환경 변수 우선 (이벤트 보관 기간)') &&
-      document.querySelector('[data-manager-deployment-bottleneck-storage]')?.textContent?.includes('이력 보관 24/100건') &&
+      document.querySelector('[data-manager-deployment-bottleneck-storage]')?.textContent?.includes('이력 보관 84/100건') &&
+      Boolean(document.querySelector('[data-manager-deployment-bottleneck-storage-warning]')) &&
       Boolean(document.querySelector('[data-manager-deployment-bottleneck-override]')) &&
       Boolean(document.querySelector('[data-manager-deployment-bottleneck-event="alerted"]'))`,
     timeoutMs,

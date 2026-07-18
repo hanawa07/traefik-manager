@@ -1,5 +1,8 @@
 import apiClient from "@/shared/lib/apiClient";
 
+export const MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_LIMIT = 100;
+export const MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_WARNING_COUNT = 80;
+
 export interface DeploymentComponent {
   name: string;
   container_name: string;

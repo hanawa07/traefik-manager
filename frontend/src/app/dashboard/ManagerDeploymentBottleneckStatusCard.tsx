@@ -1,6 +1,10 @@
 import { TimerReset } from "lucide-react";
 
-import type { ManagerDeploymentBottleneckAlert } from "@/features/deployment/api/deploymentApi";
+import {
+  MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_LIMIT,
+  MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_WARNING_COUNT,
+  type ManagerDeploymentBottleneckAlert,
+} from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 import { MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS, formatManagerDeploymentDurationMs } from "./managerDeploymentHistoryDisplay";
@@ -26,8 +30,10 @@ export function ManagerDeploymentBottleneckStatusCard({
   timezone,
 }: ManagerDeploymentBottleneckStatusCardProps) {
   if (!alert) return null;
+  const retainedEventCount = alert.retained_event_count ?? alert.events?.length ?? 0;
+  const storageWarning = retainedEventCount >= MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_WARNING_COUNT;
   const failed = alert.status === "request_failed" || isExternalWatchdogRunFailure(alert.run_conclusion);
-  const warning = alert.status === "pending" || alert.status === "alerted" || Boolean(alert.run_error);
+  const warning = alert.status === "pending" || alert.status === "alerted" || Boolean(alert.run_error) || storageWarning;
   const tone = failed
     ? "border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100"
     : warning
@@ -41,7 +47,6 @@ export function ManagerDeploymentBottleneckStatusCard({
     ...(alert.consecutive_source === "environment" ? ["연속 감지 기준"] : []),
     ...(alert.event_retention_source === "environment" ? ["이벤트 보관 기간"] : []),
   ];
-  const retainedEventCount = alert.retained_event_count ?? alert.events?.length ?? 0;
   const runLabel = getExternalWatchdogRunLabel(
     alert.run_status,
     alert.run_conclusion,
@@ -72,11 +77,16 @@ export function ManagerDeploymentBottleneckStatusCard({
           : "적용 출처: 설정 화면 저장값"}
       </p>
       <p className="mt-1" data-manager-deployment-bottleneck-storage>
-        이력 보관 {retainedEventCount}/100건
+        이력 보관 {retainedEventCount}/{MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_LIMIT}건
         {retainedEventCount > 0
           ? ` · ${formatDateTime(alert.oldest_event_at, timezone)} ~ ${formatDateTime(alert.newest_event_at, timezone)}`
           : " · 보관된 이벤트 없음"}
       </p>
+      {storageWarning ? (
+        <p className="mt-1 font-semibold" data-manager-deployment-bottleneck-storage-warning>
+          이력 보관 한도에 가까움 · 설정에서 보관 기간을 줄이거나 오래된 이벤트를 정리하세요.
+        </p>
+      ) : null}
       {settingsDiffer ? (
         <p className="mt-1 font-semibold" data-manager-deployment-bottleneck-override>
           {overrideLabels.length > 0

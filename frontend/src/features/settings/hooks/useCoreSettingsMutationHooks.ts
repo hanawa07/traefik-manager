@@ -3,6 +3,7 @@ import { DEPLOYMENT_INFO_QUERY_KEY } from "@/features/deployment/hooks/useDeploy
 import { settingsApi } from "../api/settingsApi";
 import { settingsQueryKeys } from "./settingsQueryKeys";
 import { useSettingsMutationForQuery } from "./useSettingsHookHelpers";
+import { useSettingsMutation } from "./useSettingsMutation";
 
 export function useUpdateTimeDisplaySettings() {
   return useSettingsMutationForQuery(
@@ -44,6 +45,12 @@ export function useCleanupDeploymentBottleneckEvents() {
     settingsApi.cleanupDeploymentBottleneckEvents,
     DEPLOYMENT_INFO_QUERY_KEY,
   );
+}
+
+export function usePreviewDeploymentBottleneckEventCleanup() {
+  return useSettingsMutation({
+    mutationFn: settingsApi.previewDeploymentBottleneckEventCleanup,
+  });
 }
 
 export function useUpdateTraefikDashboardSettings() {

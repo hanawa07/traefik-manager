@@ -32,7 +32,7 @@ export function buildManagerDeploymentBottleneckAlertFixture() {
     run_conclusion: null,
     run_checked_at: null,
     run_error: null,
-    retained_event_count: 24,
+    retained_event_count: 84,
     oldest_event_at: occurredAt(29),
     newest_event_at: occurredAt(0),
     events: [

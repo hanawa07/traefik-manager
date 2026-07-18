@@ -1,5 +1,9 @@
 import { DatabaseZap, TimerReset } from "lucide-react";
 
+import {
+  MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_LIMIT,
+  MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_WARNING_COUNT,
+} from "@/features/deployment/api/deploymentApi";
 import type { DeploymentBottleneckSettings } from "@/features/settings/api/settingsApi";
 import type { DeploymentBottleneckPreview as DeploymentBottleneckPreviewValue } from "@/features/deployment/lib/deploymentBottleneckPreview";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
@@ -100,7 +104,7 @@ export function DeploymentBottleneckSettingsCard({
               value={formValue.consecutive_count}
             />
             <CertificateDiagnosticsSettingsNumberField
-              help="기간이 지난 이벤트는 다음 배포 검사에서 삭제합니다. 최대 100건 제한도 함께 적용됩니다."
+              help={`기간이 지난 이벤트는 다음 배포 검사에서 삭제합니다. 최대 ${MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_LIMIT}건 제한도 함께 적용됩니다.`}
               label="이벤트 보관 기간 (일)"
               max={3650}
               min={1}
@@ -132,12 +136,21 @@ export function DeploymentBottleneckSettingsCard({
         <SettingsSummary>
           <SettingsSummaryRow label="단계 소요 기준" value={`${(settings?.threshold_ms ?? 60_000) / 1000}초 초과`} />
           <SettingsSummaryRow label="연속 감지 기준" value={`${settings?.consecutive_count ?? 3}회`} />
-          <SettingsSummaryRow label="이벤트 보관 기간" value={`${settings?.event_retention_days ?? 90}일 · 최대 100건`} />
+          <SettingsSummaryRow label="이벤트 보관 기간" value={`${settings?.event_retention_days ?? 90}일 · 최대 ${MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_LIMIT}건`} />
           <SettingsSummaryRow
             label="현재 보관"
-            value={retainedEventCount === undefined ? "확인 중" : `${retainedEventCount}/100건`}
+            value={retainedEventCount === undefined ? "확인 중" : `${retainedEventCount}/${MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_LIMIT}건`}
           />
           <SettingsSummaryRow label="보관 범위" value={storageRange} />
+          {retainedEventCount !== undefined &&
+          retainedEventCount >= MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_WARNING_COUNT ? (
+            <p
+              className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100"
+              data-deployment-bottleneck-storage-warning
+            >
+              보관 한도에 가까움 · 현재 {retainedEventCount}/{MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_LIMIT}건입니다. {canManage ? "보관 기간을 줄이거나 지금 정리하세요." : "관리자에게 정리를 요청하세요."}
+            </p>
+          ) : null}
           <DeploymentBottleneckPreview
             eventRetentionDays={settings?.event_retention_days ?? 90}
             hostPreview={hostPreview}
