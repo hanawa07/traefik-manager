@@ -68,7 +68,18 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
     { event: "smoke_rotation_result", limit: 1, offset: 0 },
     isEmptyRotationExport,
   );
-  const latestRotationDate = latestRotationQuery.data?.items[0]?.created_at.slice(0, 10);
+  const latestRotation = latestRotationQuery.data?.items[0];
+  const latestRotationDate = latestRotation?.created_at.slice(0, 10);
+  const latestRotationStatus = latestRotation?.event === "smoke_rotation_succeeded"
+    ? "success"
+    : latestRotation?.event === "smoke_rotation_failed"
+      ? "failure"
+      : null;
+  const latestRotationStatusLabel = latestRotationStatus === "success"
+    ? "성공"
+    : latestRotationStatus === "failure"
+      ? "실패"
+      : null;
   const setRotationRange = (date: string) => {
     setRotationCsvPeriod("custom");
     setRotationStartDate(date);
@@ -150,12 +161,13 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
             aria-label="Secret 회전 CSV 최근 결과 날짜로"
             className="self-center rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-800 hover:bg-cyan-100 dark:border-cyan-500/40 dark:bg-cyan-950 dark:text-cyan-200 dark:hover:bg-cyan-900"
             data-latest-date={latestRotationDate}
+            data-latest-status={latestRotationStatus || undefined}
             data-testid="secret-rotation-export-latest"
             onClick={() => setRotationRange(latestRotationDate)}
-            title={`가장 최근 Secret 회전 결과가 있는 ${latestRotationDate} UTC로 이동합니다`}
+            title={`가장 최근 Secret 회전 결과가 있는 ${latestRotationDate} UTC로 이동합니다${latestRotationStatusLabel ? ` (${latestRotationStatusLabel})` : ""}`}
             type="button"
           >
-            최근 결과 {latestRotationDate}
+            최근 결과 {latestRotationDate}{latestRotationStatusLabel ? ` · ${latestRotationStatusLabel}` : ""}
           </button>
         ) : null}
         {isEmptyRotationExport ? (

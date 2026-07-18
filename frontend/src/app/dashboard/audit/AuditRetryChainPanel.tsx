@@ -38,6 +38,15 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
           const success = item.detail?.success;
           const provider = item.detail?.provider;
           const parentId = item.detail?.retry_of_audit_id;
+          const rawTrigger = item.detail?.trigger;
+          const trigger = rawTrigger === "automatic_retry" || rawTrigger === "manual_retry"
+            ? rawTrigger
+            : null;
+          const triggerLabel = trigger === "automatic_retry"
+            ? "자동"
+            : trigger === "manual_retry"
+              ? "수동"
+              : null;
           const isCurrent = item.id === logId;
           return (
             <li
@@ -46,8 +55,14 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
               data-chain-audit-id={item.id}
               data-chain-current={isCurrent}
               data-chain-parent-id={typeof parentId === "string" ? parentId : undefined}
+              data-chain-trigger={trigger || undefined}
             >
               <span className="font-semibold">{index === 0 ? "원본" : `재시도 ${index}`}</span>
+              {triggerLabel ? (
+                <span className={`rounded-full px-2 py-0.5 font-semibold ${trigger === "automatic_retry" ? "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200" : "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-200"}`}>
+                  {triggerLabel}
+                </span>
+              ) : null}
               <span className={success === true ? "text-emerald-700 dark:text-emerald-300" : success === false ? "text-rose-700 dark:text-rose-300" : "text-slate-500 dark:text-slate-400"}>
                 {success === true ? "성공" : success === false ? "실패" : "결과 없음"}
               </span>
