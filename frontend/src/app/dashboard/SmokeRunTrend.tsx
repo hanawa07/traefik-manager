@@ -43,6 +43,7 @@ const ARTIFACT_EXPIRY_STYLES: Record<SmokeArtifactExpiryState, string> = {
 
 const ARTIFACT_CLOCK_INTERVAL_MS = 60_000;
 const ARTIFACT_FILTER_STORAGE_KEY = "traefik-manager:smoke-artifact-filter";
+const ARTIFACT_FILTER_QUERY = "artifact_filter";
 
 interface SmokeRunTrendProps {
   error: string | null;
@@ -74,8 +75,14 @@ export function SmokeRunTrend({
     };
   }, []);
   useEffect(() => {
+    const queryFilter = new URLSearchParams(window.location.search).get(ARTIFACT_FILTER_QUERY);
     const storedFilter = window.localStorage.getItem(ARTIFACT_FILTER_STORAGE_KEY);
-    if (isSmokeArtifactFilter(storedFilter)) setArtifactFilter(storedFilter);
+    const initialFilter = isSmokeArtifactFilter(queryFilter)
+      ? queryFilter
+      : isSmokeArtifactFilter(storedFilter) ? storedFilter : "all";
+    setArtifactFilter(initialFilter);
+    replaceArtifactFilterQuery(initialFilter);
+    window.localStorage.setItem(ARTIFACT_FILTER_STORAGE_KEY, initialFilter);
   }, []);
   const cutoff = periodReferenceTime - rangeDays * 24 * 60 * 60 * 1000;
   const recent = runs
@@ -196,6 +203,7 @@ export function SmokeRunTrend({
             onChange={(event) => {
               const nextFilter = event.target.value as SmokeArtifactFilter;
               setArtifactFilter(nextFilter);
+              replaceArtifactFilterQuery(nextFilter);
               window.localStorage.setItem(ARTIFACT_FILTER_STORAGE_KEY, nextFilter);
             }}
           >
@@ -296,4 +304,13 @@ function getRunTooltip(run: SmokeMonitoringRecentRun, timezone?: string) {
 
 function isSmokeArtifactFilter(value: string | null): value is SmokeArtifactFilter {
   return value === "all" || value === "available" || value === "expiring_soon" || value === "expired";
+}
+
+function replaceArtifactFilterQuery(filter: SmokeArtifactFilter) {
+  const url = new URL(window.location.href);
+  if (filter === "all") url.searchParams.delete(ARTIFACT_FILTER_QUERY);
+  else url.searchParams.set(ARTIFACT_FILTER_QUERY, filter);
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (nextUrl !== currentUrl) window.history.replaceState(window.history.state, "", nextUrl);
 }
