@@ -184,11 +184,13 @@ export async function checkManagerHttpAuditAutoExpand(cdp, timeoutMs) {
       cdp,
       `(() => {
         const row = document.querySelector('[data-audit-log-id="' + CSS.escape(${JSON.stringify(DEPLOYMENT_BOTTLENECK_STORAGE_AUDIT_FIXTURE_ID)}) + '"]');
-        const text = row?.nextElementSibling?.querySelector('[data-testid="manager-audit-detail"]')?.textContent;
+        const detail = row?.nextElementSibling?.querySelector('[data-testid="manager-audit-detail"]');
+        const runLink = detail?.querySelector('a[href="https://github.com/hanawa07/traefik-manager/actions/runs/101"]');
+        const text = detail?.textContent;
         return text?.includes('현재 이벤트') && text.includes('84건') &&
           text.includes('경고 기준') && text.includes('80건') &&
           text.includes('최대 보관') && text.includes('100건') &&
-          text.includes('actions/runs/101');
+          runLink?.getAttribute('target') === '_blank';
       })()`,
       timeoutMs,
       "배포 병목 보관 경고 감사 상세가 표시되지 않았습니다",

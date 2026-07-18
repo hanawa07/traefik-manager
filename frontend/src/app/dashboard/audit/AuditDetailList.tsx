@@ -7,6 +7,21 @@ interface AuditDetailRow {
   value: unknown;
 }
 
+const GITHUB_ACTIONS_RUN_URL = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/runs\/[1-9][0-9]*$/;
+
+function AuditDetailValue({ row }: { row: AuditDetailRow }) {
+  const value = formatAuditValue(row.value);
+  if (row.key !== "alert_run_url" || typeof row.value !== "string" || !GITHUB_ACTIONS_RUN_URL.test(row.value)) {
+    return value;
+  }
+
+  return (
+    <a className="font-semibold underline underline-offset-2" href={row.value} rel="noreferrer" target="_blank">
+      {value}
+    </a>
+  );
+}
+
 interface AuditDetailListProps {
   logId: string;
   rows: AuditDetailRow[];
@@ -30,7 +45,7 @@ export function AuditDetailList({ logId, rows, testId, title }: AuditDetailListP
           <div key={`${logId}-${row.key}-detail`} className="grid gap-1 text-sm sm:grid-cols-[160px_1fr] sm:gap-3">
             <span className="text-slate-500 dark:text-slate-400">{row.label}</span>
             <span className="break-all text-slate-900 dark:text-slate-100">
-              {formatAuditValue(row.value)}
+              <AuditDetailValue row={row} />
             </span>
           </div>
         ))}
