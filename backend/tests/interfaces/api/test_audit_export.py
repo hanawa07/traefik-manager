@@ -32,6 +32,14 @@ async def test_export_audit_logs_uses_date_and_search_filters(monkeypatch):
                     detail_extra={"memo": "한글"},
                 ),
                 make_log(resource_name="Old", created_at=datetime(2026, 7, 1, 12)),
+                make_log(
+                    resource_name="traefik-smoke-viewer",
+                    event="smoke_rotation_failed",
+                    created_at=datetime(2026, 7, 2, 13),
+                    detail_extra={
+                        "step": "GitHub secret 갱신 실패: TM_SMOKE_PASSWORD (시도 3/3)"
+                    },
+                ),
             ]
         )
         await db.commit()
@@ -53,6 +61,10 @@ async def test_export_audit_logs_uses_date_and_search_filters(monkeypatch):
             "/audit/export.csv",
             params={"period_days": "7", "start_date": "2026-07-02"},
         )
+        rotation_response = await client.get(
+            "/audit/export.csv",
+            params={"event": "smoke_rotation_result"},
+        )
 
     await engine.dispose()
     rows = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig"))))
@@ -63,6 +75,14 @@ async def test_export_audit_logs_uses_date_and_search_filters(monkeypatch):
     assert rows[0]["resource_name"] == "English Service"
     assert '"memo":"한글"' in rows[0]["detail"]
     assert invalid.status_code == 422
+    rotation_rows = list(
+        csv.DictReader(io.StringIO(rotation_response.content.decode("utf-8-sig")))
+    )
+    assert len(rotation_rows) == 1
+    assert rotation_rows[0]["rotation_result"] == "실패"
+    assert rotation_rows[0]["failed_secret"] == "TM_SMOKE_PASSWORD"
+    assert rotation_rows[0]["attempt_count"] == "3/3"
+    assert rotation_rows[0]["failure_step"].startswith("GitHub secret 갱신 실패")
 
 
 @pytest.mark.parametrize("value", ["=cmd", "+cmd", "-cmd", "@cmd", "\t=cmd", "\r=cmd"])

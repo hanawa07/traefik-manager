@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+import re
 from datetime import date, datetime, timezone
 from typing import Literal
 
@@ -25,8 +26,15 @@ CSV_COLUMNS = (
     "resource_id",
     "resource_name",
     "event",
+    "rotation_result",
+    "failed_secret",
+    "attempt_count",
+    "failure_step",
     "detail",
 )
+
+_FAILED_SECRET_PATTERN = re.compile(r"GitHub secret 갱신 실패:\s+([^\s(]+)")
+_ATTEMPT_PATTERN = re.compile(r"\(시도\s+(\d+/\d+)\)")
 
 
 @router.get("/export.csv", summary="감사 로그 CSV 내보내기")
@@ -88,6 +96,7 @@ async def _iter_csv(conditions):
             output.seek(0)
             output.truncate(0)
             detail = log.detail if isinstance(log.detail, dict) else {}
+            rotation_values = _smoke_rotation_csv_values(detail)
             writer.writerow(
                 (
                     log.created_at.isoformat(),
@@ -97,10 +106,29 @@ async def _iter_csv(conditions):
                     _safe_cell(log.resource_id),
                     _safe_cell(log.resource_name),
                     _safe_cell(detail.get("event")),
+                    *(_safe_cell(value) for value in rotation_values),
                     _safe_cell(json.dumps(detail, ensure_ascii=False, separators=(",", ":"))),
                 )
             )
             yield output.getvalue()
+
+
+def _smoke_rotation_csv_values(detail: dict) -> tuple[str, str, str, str]:
+    event = detail.get("event")
+    if event == "smoke_rotation_succeeded":
+        return "성공", "", "", ""
+    if event != "smoke_rotation_failed":
+        return "", "", "", ""
+
+    step = detail.get("step") if isinstance(detail.get("step"), str) else ""
+    secret = _FAILED_SECRET_PATTERN.search(step)
+    attempts = _ATTEMPT_PATTERN.search(step)
+    return (
+        "실패",
+        secret.group(1) if secret else "",
+        attempts.group(1) if attempts else "",
+        step,
+    )
 
 
 def _safe_cell(value: object) -> str:
