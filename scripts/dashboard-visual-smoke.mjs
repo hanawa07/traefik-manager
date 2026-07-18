@@ -46,7 +46,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
         }
         if (route.path === "/dashboard/audit") {
           const retryChainChecked = await checkAuditRetryChain({ cdp, timeoutMs });
-          if (retryChainChecked) labels.push(`${profile.label} 알림 재시도 전체 체인·단계 경과`);
+          if (retryChainChecked) labels.push(`${profile.label} 알림 재시도 전체 체인·단계 경과·지연 강조`);
           await checkSmokeRotationAuditDetail({ cdp, timeoutMs });
           labels.push(`${profile.label} Secret 회전 실패 상세`);
           await checkAuditFilterPersistence({ cdp, profile, timeoutMs });
@@ -74,7 +74,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
     });
     labels.push(`${profile.label} ${DASHBOARD_ROUTES.length}개 화면`);
   }
-  labels.push("Docker 정상 표시", "Artifact 필터 건수·정렬·URL 공유·링크 복사·새로고침 유지");
+  labels.push("Docker 정상 표시", "Artifact 필터 건수·정렬·URL 공유·링크 복사 fallback·새로고침 유지");
 
   const cleanupCancelChecked = await checkOptionalDeploymentBottleneckCleanupCancel({
     baseUrl,

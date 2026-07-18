@@ -174,6 +174,14 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
       const copyButton = document.querySelector('[data-testid="smoke-artifact-filter-copy"]');
       copyButton?.click();
       await settle();
+      const successfulCopyStatus = copyButton?.getAttribute('data-copy-status');
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: async () => { throw new Error('clipboard blocked'); } },
+      });
+      copyButton?.click();
+      await settle();
+      const fallback = document.querySelector('input[aria-label="Artifact 필터 공유 URL 직접 복사"]');
       const container = document.querySelector('[data-testid="smoke-failure-run-links"]');
       const items = Array.from(container?.querySelectorAll('[data-testid="smoke-failure-run"]') || []);
       const filteredCount = Number(container?.getAttribute('data-filtered-run-count'));
@@ -185,9 +193,13 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
             ['active', 'expiring_soon', 'available'].includes(
               item.getAttribute('data-artifact-state')
             )
-          ),
+        ),
         copiedFilter: copiedUrl ? new URL(copiedUrl).searchParams.get('artifact_filter') : null,
-        copyStatus: copyButton?.getAttribute('data-copy-status'),
+        copyFailureStatus: copyButton?.getAttribute('data-copy-status'),
+        copySuccessStatus: successfulCopyStatus,
+        fallbackFilter: fallback?.value ? new URL(fallback.value).searchParams.get('artifact_filter') : null,
+        fallbackSelected: document.activeElement === fallback &&
+          fallback?.selectionStart === 0 && fallback.selectionEnd === fallback.value.length,
         urlFilter: new URL(window.location.href).searchParams.get('artifact_filter'),
       };
       localStorage.removeItem('traefik-manager:smoke-artifact-filter');
@@ -195,7 +207,10 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     })()`);
     assert.equal(filterResult?.valid, true, "다운로드 가능 Artifact 필터 결과가 다릅니다");
     assert.equal(filterResult?.copiedFilter, "available", "복사된 Artifact 필터 URL이 다릅니다");
-    assert.equal(filterResult?.copyStatus, "copied", "Artifact 필터 링크 복사 성공 표시가 없습니다");
+    assert.equal(filterResult?.copySuccessStatus, "copied", "Artifact 필터 링크 복사 성공 표시가 없습니다");
+    assert.equal(filterResult?.copyFailureStatus, "error", "Artifact 필터 링크 복사 실패 표시가 없습니다");
+    assert.equal(filterResult?.fallbackFilter, "available", "Artifact 필터 직접 복사 URL이 다릅니다");
+    assert.equal(filterResult?.fallbackSelected, true, "Artifact 필터 직접 복사 URL이 전체 선택되지 않았습니다");
     assert.equal(filterResult?.urlFilter, "available", "Artifact 필터가 URL에 반영되지 않았습니다");
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitForCondition(
@@ -385,10 +400,15 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
         if (index === 0) return !elapsed;
         const duration = Date.parse(chain[index]?.created_at) -
           Date.parse(chain[index - 1]?.created_at);
+        const delayThreshold = Number(panel?.getAttribute('data-auto-retry-delay-warning-ms'));
+        const delayWarning = chain[index]?.detail?.trigger === 'automatic_retry' &&
+          Number.isFinite(duration) && duration > delayThreshold;
+        const warningValid = elapsed?.getAttribute('data-stage-delay-warning') === String(delayWarning) &&
+          (!delayWarning || elapsed?.textContent?.includes('지연'));
         return Number.isFinite(duration) && duration >= 0
           ? Number(elapsed?.getAttribute('data-stage-elapsed-ms')) === duration &&
-              elapsed?.textContent?.includes('이전 단계 후')
-          : elapsed?.textContent?.includes('경과 시간 확인 불가');
+              elapsed?.textContent?.includes('이전 단계 후') && warningValid
+          : elapsed?.textContent?.includes('경과 시간 확인 불가') && warningValid;
       }),
       successCount: Number(panel?.getAttribute('data-chain-success-count')),
       triggersValid: items.every((item, index) => {
