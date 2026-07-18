@@ -79,6 +79,7 @@ export const DASHBOARD_ROUTES = [
     marker: "시스템의 모든 변경 사항을 추적합니다",
     requiredMarkers: [
       "감사 로그 검색",
+      "Secret 회전 CSV",
       "현재 조건 CSV",
       "적용 조건",
       "전체 초기화",
@@ -106,7 +107,9 @@ export const DASHBOARD_ROUTES = [
       "Artifact 만료",
       "관리자 전용 점검 최근 성공",
       "관리자 점검 지연 판정",
+      "실패율 경고 기준",
       "최근 dry-run 결과",
+      "dry-run 최근 이력",
       "회전 실패 단계",
       "Secret 재시도 횟수",
       "Manager Docker 감지",

@@ -167,6 +167,24 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
   assert.equal(exportResult.hasLimit || exportResult.hasOffset, false, "감사 로그 CSV에 페이지 조건이 포함됐습니다");
   assert.deepEqual(exportResult.bytes, [239, 187, 191], "감사 로그 CSV UTF-8 BOM이 없습니다");
   assert.match(exportResult.disposition || "", /audit-logs-\d{8}\.csv/, "감사 로그 CSV 파일명이 없습니다");
+  const rotationExportResult = await evaluate(cdp, `(async () => {
+    const link = Array.from(document.querySelectorAll('a')).find(
+      (item) => item.textContent?.includes('Secret 회전 CSV')
+    );
+    if (!link) return null;
+    const url = new URL(link.href);
+    const response = await fetch(url);
+    return {
+      event: url.searchParams.get('event'),
+      ok: response.ok,
+    };
+  })()`);
+  assert.ok(rotationExportResult?.ok, "Secret 회전 CSV 응답을 받지 못했습니다");
+  assert.equal(
+    rotationExportResult.event,
+    "smoke_rotation_result",
+    "Secret 회전 CSV 조건이 고정되지 않았습니다",
+  );
   await clickAriaLabel(cdp, "감사 필터 전체 초기화");
   await waitForCondition(
     cdp,
