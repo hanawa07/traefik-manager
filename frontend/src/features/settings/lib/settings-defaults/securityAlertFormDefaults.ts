@@ -7,6 +7,7 @@ export function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
     manager_health_monitoring_enabled: true,
     manager_health_alert_cooldown_minutes: 60,
     external_watchdog_stale_minutes: 10,
+    automatic_retry_delay_warning_minutes: 10,
     manager_http_error_monitoring_enabled: false,
     manager_http_error_window_minutes: 15,
     manager_http_not_found_threshold: 20,

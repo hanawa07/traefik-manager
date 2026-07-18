@@ -4,10 +4,11 @@ import Link from "next/link";
 
 import { useAuditRetryChain } from "@/features/audit/hooks/useAudit";
 import {
-  AUTO_RETRY_DELAY_WARNING_MS,
+  DEFAULT_AUTO_RETRY_DELAY_WARNING_MINUTES,
   getAuditRetryChainTiming,
 } from "@/features/audit/lib/auditRetryChainTiming";
 import { formatManagerDeploymentDurationMs } from "@/features/deployment/lib/managerDeploymentDisplay";
+import { useSecurityAlertSettings } from "@/features/settings/hooks/useSettings";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 interface AuditRetryChainPanelProps {
@@ -18,8 +19,9 @@ interface AuditRetryChainPanelProps {
 
 export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryChainPanelProps) {
   const chainQuery = useAuditRetryChain(logId, enabled);
+  const securityAlertSettingsQuery = useSecurityAlertSettings();
   if (!enabled) return null;
-  if (chainQuery.isLoading) {
+  if (chainQuery.isLoading || securityAlertSettingsQuery.isLoading) {
     return <p className="text-xs text-slate-500 dark:text-slate-400">재시도 체인 확인 중...</p>;
   }
   if (chainQuery.isError) {
@@ -30,7 +32,11 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
   if (chain.length <= 1) return null;
   const successCount = chain.filter((item) => item.detail?.success === true).length;
   const failureCount = chain.filter((item) => item.detail?.success === false).length;
-  const timing = getAuditRetryChainTiming(chain);
+  const retryDelayWarningMinutes =
+    securityAlertSettingsQuery.data?.automatic_retry_delay_warning_minutes ??
+    DEFAULT_AUTO_RETRY_DELAY_WARNING_MINUTES;
+  const retryDelayWarningMs = retryDelayWarningMinutes * 60 * 1_000;
+  const timing = getAuditRetryChainTiming(chain, retryDelayWarningMs);
   const recoveryLabel = timing.recoveryState === "recovered" && timing.recoveryDurationMs !== null
     ? `최초 실패→성공 ${formatManagerDeploymentDurationMs(timing.recoveryDurationMs)}`
     : timing.recoveryState === "invalid"
@@ -41,7 +47,7 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
     <div
       className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-500/30 dark:bg-amber-950/20"
       data-chain-count={chain.length}
-      data-auto-retry-delay-warning-ms={AUTO_RETRY_DELAY_WARNING_MS}
+      data-auto-retry-delay-warning-ms={retryDelayWarningMs}
       data-chain-failure-count={failureCount}
       data-chain-success-count={successCount}
       data-testid="audit-retry-chain"
@@ -122,7 +128,9 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
                   data-stage-delay-warning={delayWarning}
                   data-stage-elapsed-ms={elapsedMs ?? undefined}
                   data-testid="audit-retry-stage-elapsed"
-                  title={delayWarning ? "자동 재시도가 10분을 초과했습니다" : undefined}
+                  title={delayWarning
+                    ? `자동 재시도가 ${retryDelayWarningMinutes}분을 초과했습니다`
+                    : undefined}
                 >
                   {elapsedLabel}{delayWarning ? " · 지연" : ""}
                 </span>

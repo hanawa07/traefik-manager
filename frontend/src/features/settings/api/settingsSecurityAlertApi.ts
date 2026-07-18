@@ -23,6 +23,7 @@ export interface SecurityAlertSettingsStatus {
   manager_health_monitoring_enabled: boolean;
   manager_health_alert_cooldown_minutes: number;
   external_watchdog_stale_minutes: number;
+  automatic_retry_delay_warning_minutes: number;
   manager_http_error_monitoring_enabled: boolean;
   manager_http_error_window_minutes: number;
   manager_http_not_found_threshold: number;
@@ -52,6 +53,7 @@ export interface SecurityAlertSettingsInput {
   manager_health_monitoring_enabled: boolean;
   manager_health_alert_cooldown_minutes: number;
   external_watchdog_stale_minutes: number;
+  automatic_retry_delay_warning_minutes: number;
   manager_http_error_monitoring_enabled: boolean;
   manager_http_error_window_minutes: number;
   manager_http_not_found_threshold: number;

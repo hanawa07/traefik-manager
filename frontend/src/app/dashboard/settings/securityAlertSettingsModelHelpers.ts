@@ -19,6 +19,9 @@ export function createSecurityAlertFormFromSettings(
       defaults.manager_health_alert_cooldown_minutes,
     external_watchdog_stale_minutes:
       settings?.external_watchdog_stale_minutes ?? defaults.external_watchdog_stale_minutes,
+    automatic_retry_delay_warning_minutes:
+      settings?.automatic_retry_delay_warning_minutes ??
+      defaults.automatic_retry_delay_warning_minutes,
     manager_http_error_monitoring_enabled:
       settings?.manager_http_error_monitoring_enabled ??
       defaults.manager_http_error_monitoring_enabled,
@@ -59,6 +62,7 @@ export function buildSecurityAlertSettingsPayload(
     manager_health_monitoring_enabled: formValue.manager_health_monitoring_enabled,
     manager_health_alert_cooldown_minutes: formValue.manager_health_alert_cooldown_minutes,
     external_watchdog_stale_minutes: formValue.external_watchdog_stale_minutes,
+    automatic_retry_delay_warning_minutes: formValue.automatic_retry_delay_warning_minutes,
     manager_http_error_monitoring_enabled: formValue.manager_http_error_monitoring_enabled,
     manager_http_error_window_minutes: formValue.manager_http_error_window_minutes,
     manager_http_not_found_threshold: formValue.manager_http_not_found_threshold,

@@ -22,6 +22,13 @@ assert.deepEqual(
   ]).stageDelayWarnings,
   [false, false, true],
 );
+assert.deepEqual(
+  getAuditRetryChainTiming([
+    recoveredChain[0],
+    { created_at: "2026-07-19T00:10:01Z", detail: { success: false, trigger: "automatic_retry" } },
+  ], 15 * 60 * 1_000).stageDelayWarnings,
+  [false, false],
+);
 assert.equal(getAuditRetryChainTiming(recoveredChain.slice(0, 2)).recoveryState, "pending");
 assert.deepEqual(
   getAuditRetryChainTiming([

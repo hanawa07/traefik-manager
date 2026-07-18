@@ -15,6 +15,7 @@ import {
   SecurityAlertProviderPicker,
 } from "@/features/settings/components/SecurityAlertProviderFields";
 import { SecurityAlertRouteSections } from "@/features/settings/components/SecurityAlertRouteSections";
+import { SecurityAlertRetryDelayField } from "@/features/settings/components/SecurityAlertRetryDelayField";
 import { SecurityAlertSettingsEditActions } from "@/features/settings/components/SecurityAlertSettingsEditActions";
 import { SecurityAlertSettingsInfoNotice } from "@/features/settings/components/SecurityAlertSettingsInfoNotice";
 import { SECURITY_ALERT_PROVIDER_OPTIONS } from "@/features/settings/lib/settingsDefaults";
@@ -62,6 +63,10 @@ export function SecurityAlertSettingsEditForm({
       <SecurityAlertEnablementFields formValue={formValue} updateForm={updateForm} />
       <ManagerHealthMonitoringFields formValue={formValue} updateForm={updateForm} />
       <ManagerHttpErrorMonitoringFields formValue={formValue} updateForm={updateForm} />
+      <SecurityAlertRetryDelayField
+        value={formValue.automatic_retry_delay_warning_minutes}
+        onChange={updateForm}
+      />
 
       <SecurityAlertProviderPicker value={formValue.provider} onChange={(provider) => updateForm({ provider })} />
       <SecurityAlertProviderFields

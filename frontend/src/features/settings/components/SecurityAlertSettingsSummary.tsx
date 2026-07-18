@@ -3,7 +3,10 @@ import type {
   SettingsTestHistoryItem,
   SecurityAlertSettingsStatus,
 } from "@/features/settings/api/settingsApi";
-import { SettingsSummary } from "@/features/settings/components/SettingsCardPrimitives";
+import {
+  SettingsSummary,
+  SettingsSummaryRow,
+} from "@/features/settings/components/SettingsCardPrimitives";
 import { SECURITY_ALERT_PROVIDER_OPTIONS } from "@/features/settings/lib/settingsDefaults";
 import { SecurityAlertChannelSummary } from "./SecurityAlertChannelSummary";
 import { SecurityAlertDeliverySummary } from "./SecurityAlertDeliverySummary";
@@ -48,9 +51,21 @@ export function SecurityAlertSettingsSummary({
   onRetrySecurityDelivery,
   onRetryChangeDelivery,
 }: SecurityAlertSettingsSummaryProps) {
+  const retryDelayWarningMinutes = settings?.automatic_retry_delay_warning_minutes ?? 10;
   return (
     <SettingsSummary>
       <SecurityAlertChannelSummary settings={settings} provider={provider} />
+      <SettingsSummaryRow
+        label="자동 재시도 지연"
+        value={
+          <span
+            data-retry-delay-warning-minutes={retryDelayWarningMinutes}
+            data-testid="security-alert-retry-delay-summary"
+          >
+            {retryDelayWarningMinutes}분 초과
+          </span>
+        }
+      />
       <SecurityAlertRoutingSummary settings={settings} providerLabel={provider.label} />
       <SecurityAlertDeliverySummary
         canManage={canManage}
