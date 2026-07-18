@@ -3,6 +3,7 @@ SETTINGS_TEST_EVENTS = {
     "cloudflare_drift": "settings_test_cloudflare_drift",
     "cloudflare_reconcile": "settings_test_cloudflare_reconcile",
     "security_alert": "settings_test_security_alert",
+    "smoke_admin_stale": "settings_test_smoke_admin_stale",
 }
 
 SETTINGS_DELIVERY_EVENTS = {

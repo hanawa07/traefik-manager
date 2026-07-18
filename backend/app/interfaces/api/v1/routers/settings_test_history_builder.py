@@ -14,6 +14,10 @@ def build_settings_test_history_response(logs: list[AuditLogModel]) -> SettingsT
     cloudflare_drift = find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["cloudflare_drift"])
     cloudflare_reconcile = find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["cloudflare_reconcile"])
     security_alert = find_latest_settings_test_event(logs, SETTINGS_TEST_EVENTS["security_alert"])
+    smoke_admin_stale = find_latest_settings_test_event(
+        logs,
+        SETTINGS_TEST_EVENTS["smoke_admin_stale"],
+    )
     security_alert_delivery = find_latest_settings_events(logs, SETTINGS_DELIVERY_EVENTS["security_alert_delivery"])
     change_alert_delivery = find_latest_settings_events(logs, SETTINGS_DELIVERY_EVENTS["change_alert_delivery"])
     return SettingsTestHistoryResponse(
@@ -21,6 +25,7 @@ def build_settings_test_history_response(logs: list[AuditLogModel]) -> SettingsT
         cloudflare_drift=cloudflare_drift,
         cloudflare_reconcile=cloudflare_reconcile,
         security_alert=security_alert,
+        smoke_admin_stale=smoke_admin_stale,
         security_alert_delivery=security_alert_delivery,
         change_alert_delivery=change_alert_delivery,
     )

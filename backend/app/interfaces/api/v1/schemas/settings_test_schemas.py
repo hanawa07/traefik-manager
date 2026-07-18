@@ -38,5 +38,6 @@ class SettingsTestHistoryResponse(BaseModel):
     cloudflare_drift: SettingsTestHistoryItemResponse
     cloudflare_reconcile: SettingsTestHistoryItemResponse
     security_alert: SettingsTestHistoryItemResponse
+    smoke_admin_stale: SettingsTestHistoryItemResponse
     security_alert_delivery: SettingsTestHistoryItemResponse
     change_alert_delivery: SettingsTestHistoryItemResponse

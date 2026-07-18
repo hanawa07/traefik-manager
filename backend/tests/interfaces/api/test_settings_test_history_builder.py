@@ -1,6 +1,10 @@
 from datetime import datetime, timedelta, timezone
 
-from app.interfaces.api.v1.routers.settings_audit_helpers import find_latest_settings_events, normalize_utc
+from app.interfaces.api.v1.routers.settings_audit_helpers import (
+    build_settings_test_history_response,
+    find_latest_settings_events,
+    normalize_utc,
+)
 from tests.interfaces.api.settings_history_router_fakes import make_settings_history_log
 
 
@@ -45,3 +49,27 @@ def test_normalize_utc_accepts_naive_datetime():
 
     assert normalized.tzinfo is not None
     assert normalized.utcoffset() == timedelta(0)
+
+
+def test_settings_history_separates_smoke_admin_stale_dry_run():
+    now = datetime.now(timezone.utc)
+    result = build_settings_test_history_response(
+        [
+            make_settings_history_log(
+                log_id="smoke-stale",
+                event="settings_test_smoke_admin_stale",
+                detail={"success": True, "provider": "telegram"},
+                created_at=now,
+            ),
+            make_settings_history_log(
+                log_id="security-alert",
+                event="settings_test_security_alert",
+                detail={"success": False, "provider": "slack"},
+                created_at=now - timedelta(minutes=1),
+            ),
+        ]
+    )
+
+    assert result.smoke_admin_stale.last_success is True
+    assert result.smoke_admin_stale.last_provider == "telegram"
+    assert result.security_alert.last_success is False

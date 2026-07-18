@@ -33,6 +33,7 @@ export interface SettingsTestHistoryStatus {
   cloudflare_drift: SettingsTestHistoryItem;
   cloudflare_reconcile: SettingsTestHistoryItem;
   security_alert: SettingsTestHistoryItem;
+  smoke_admin_stale: SettingsTestHistoryItem;
   security_alert_delivery: SettingsTestHistoryItem;
   change_alert_delivery: SettingsTestHistoryItem;
 }

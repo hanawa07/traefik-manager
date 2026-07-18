@@ -58,6 +58,8 @@ async def test_smoke_admin_stale_alert_action(
         actor=actor.get("username", "unknown"),
         result=result,
         client_ip=client_ip_getter(request),
+        event_key="smoke_admin_stale",
+        resource_name="관리자 지연 알림 dry-run",
     )
     return result
 

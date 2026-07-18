@@ -113,16 +113,19 @@ async def record_security_alert_test_audit(
     actor: str,
     result: SettingsTestActionResponse,
     client_ip: str,
+    event_key: str = "security_alert",
+    resource_name: str = "보안 알림 테스트",
 ) -> None:
+    event = SETTINGS_TEST_EVENTS[event_key]
     await audit_service.record(
         db=db,
         actor=actor,
         action="test",
         resource_type="settings",
-        resource_id=SETTINGS_TEST_EVENTS["security_alert"],
-        resource_name="보안 알림 테스트",
+        resource_id=event,
+        resource_name=resource_name,
         detail={
-            "event": SETTINGS_TEST_EVENTS["security_alert"],
+            "event": event,
             "success": result.success,
             "message": result.message,
             "detail": result.detail,

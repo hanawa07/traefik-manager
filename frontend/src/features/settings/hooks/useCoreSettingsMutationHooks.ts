@@ -89,7 +89,8 @@ export function useRefreshSmokeMonitoringHistory() {
 }
 
 export function useTestSmokeAdminStaleAlert() {
-  return useSettingsMutation({
-    mutationFn: settingsApi.testSmokeAdminStaleAlert,
-  });
+  return useSettingsMutationForQuery(
+    settingsApi.testSmokeAdminStaleAlert,
+    settingsQueryKeys.testHistory,
+  );
 }

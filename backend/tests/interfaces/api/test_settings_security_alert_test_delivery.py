@@ -73,4 +73,6 @@ async def test_smoke_admin_stale_dry_run_returns_telegram_result(monkeypatch):
     assert called["db"] is db
     assert response.success is True
     assert response.provider == "telegram"
+    assert recorded[0]["resource_name"] == "관리자 지연 알림 dry-run"
+    assert recorded[0]["detail"]["event"] == "settings_test_smoke_admin_stale"
     assert recorded[0]["detail"]["provider"] == "telegram"

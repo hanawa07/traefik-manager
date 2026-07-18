@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { SmokeMonitoringSettingsInput } from "@/features/settings/api/settingsApi";
 import {
   useRefreshSmokeMonitoringHistory,
+  useSettingsTestHistory,
   useSmokeRotationStatus,
   useTestSmokeAdminStaleAlert,
   useUpdateSmokeMonitoringSettings,
@@ -23,6 +24,7 @@ export function useSmokeMonitoringSettingsModel(
   const query = useSmokeRotationStatus();
   const update = useUpdateSmokeMonitoringSettings();
   const refreshHistory = useRefreshSmokeMonitoringHistory();
+  const testHistory = useSettingsTestHistory();
   const testStaleAlert = useTestSmokeAdminStaleAlert();
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState(DEFAULT_FORM);
@@ -105,6 +107,7 @@ export function useSmokeMonitoringSettingsModel(
     isError: query.isError,
     isEditing,
     status: query.data,
+    staleAlertHistory: testHistory.data?.smoke_admin_stale,
     timezone,
     formValue,
     errorMessage,
