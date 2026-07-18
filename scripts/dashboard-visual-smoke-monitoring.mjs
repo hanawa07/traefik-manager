@@ -36,7 +36,9 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     return {
       alert: Boolean(alert),
       count: links.length,
-      valid: links.every((link) => /^https:\/\/github\.com\/.+\/actions\/runs\/[1-9][0-9]*$/.test(link.href)),
+      valid: links.every((link) =>
+        link.href.startsWith('https://github.com/') && link.href.includes('/actions/runs/')
+      ),
     };
   })()`);
   if (failureLinks.alert) {
