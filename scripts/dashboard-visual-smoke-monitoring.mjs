@@ -28,6 +28,38 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     timeoutMs,
     "운영 점검 추이가 30일 범위로 전환되지 않았습니다",
   );
+  const failureLinks = await evaluate(cdp, `(() => {
+    const alert = document.querySelector('[data-testid="smoke-failure-rate"][role="alert"]');
+    const links = Array.from(
+      document.querySelectorAll('[data-testid="smoke-failure-run-links"] a')
+    );
+    return {
+      alert: Boolean(alert),
+      count: links.length,
+      valid: links.every((link) => /^https:\/\/github\.com\/.+\/actions\/runs\/[1-9][0-9]*$/.test(link.href)),
+    };
+  })()`);
+  if (failureLinks.alert) {
+    assert.ok(failureLinks.count > 0, "실패율 경고에 실패 실행 링크가 표시되지 않았습니다");
+    assert.equal(failureLinks.valid, true, "실패 실행 링크가 GitHub Actions 주소가 아닙니다");
+  }
+}
+
+export async function checkSettingsTestAuditLinks({ cdp }) {
+  const result = await evaluate(cdp, `(() => {
+    const links = Array.from(document.querySelectorAll('a[aria-label$="감사 상세"]'));
+    return {
+      count: links.length,
+      valid: links.every((link) => {
+        const url = new URL(link.href);
+        const id = url.searchParams.get('q');
+        return url.pathname === '/dashboard/audit' && Boolean(id) && url.searchParams.get('expand') === id;
+      }),
+    };
+  })()`);
+  if (!result.count) return false;
+  assert.equal(result.valid, true, "설정 테스트 감사 상세 링크 조건이 올바르지 않습니다");
+  return true;
 }
 
 export async function checkSmokeRotationAuditDetail({ cdp, timeoutMs }) {

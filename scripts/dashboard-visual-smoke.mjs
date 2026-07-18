@@ -14,6 +14,7 @@ import {
 import { checkManagerDeploymentHistory } from "./dashboard-visual-manager-deployment.mjs";
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
 import {
+  checkSettingsTestAuditLinks,
   checkSmokeRotationAuditDetail,
   checkSmokeRunTrendRange,
 } from "./dashboard-visual-smoke-monitoring.mjs";
@@ -49,6 +50,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
           labels.push(`${profile.label} 감사 필터 조합·자동 펼침·레이아웃`);
         }
         if (route.path === "/dashboard/settings") {
+          const historyLinked = await checkSettingsTestAuditLinks({ cdp });
+          if (historyLinked) labels.push(`${profile.label} 설정 테스트 감사 상세 링크`);
           const previewed = await checkManagerHttpErrorPreviewForm({
             artifactDir,
             cdp,
