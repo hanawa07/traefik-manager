@@ -64,6 +64,7 @@ export function SmokeRunTrend({
 }: SmokeRunTrendProps) {
   const [rangeDays, setRangeDays] = useState<7 | 30>(7);
   const [artifactFilter, setArtifactFilter] = useState<SmokeArtifactFilter>("all");
+  const [artifactCopyStatus, setArtifactCopyStatus] = useState<"idle" | "copied" | "error">("idle");
   const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
   useEffect(() => {
     const refreshClock = () => setPeriodReferenceTime(Date.now());
@@ -84,6 +85,14 @@ export function SmokeRunTrend({
     replaceArtifactFilterQuery(initialFilter);
     window.localStorage.setItem(ARTIFACT_FILTER_STORAGE_KEY, initialFilter);
   }, []);
+  const copyArtifactFilterLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setArtifactCopyStatus("copied");
+    } catch {
+      setArtifactCopyStatus("error");
+    }
+  };
   const cutoff = periodReferenceTime - rangeDays * 24 * 60 * 60 * 1000;
   const recent = runs
     .filter((run) => Date.parse(run.completed_at) >= cutoff)
@@ -203,6 +212,7 @@ export function SmokeRunTrend({
             onChange={(event) => {
               const nextFilter = event.target.value as SmokeArtifactFilter;
               setArtifactFilter(nextFilter);
+              setArtifactCopyStatus("idle");
               replaceArtifactFilterQuery(nextFilter);
               window.localStorage.setItem(ARTIFACT_FILTER_STORAGE_KEY, nextFilter);
             }}
@@ -220,6 +230,19 @@ export function SmokeRunTrend({
               만료됨 ({artifactFilterCounts.expired})
             </option>
           </select>
+          <button
+            aria-label="Artifact 필터 링크 복사"
+            aria-live="polite"
+            className="rounded border border-current/20 bg-white/80 px-1.5 py-0.5 font-semibold hover:bg-white dark:bg-slate-950/70 dark:hover:bg-slate-900"
+            data-copy-status={artifactCopyStatus}
+            data-testid="smoke-artifact-filter-copy"
+            onClick={copyArtifactFilterLink}
+            type="button"
+          >
+            {artifactCopyStatus === "copied"
+              ? "링크 복사됨"
+              : artifactCopyStatus === "error" ? "복사 실패" : "링크 복사"}
+          </button>
           {displayedFailedRuns.map((run, index) => {
             const runLabel = run.run_number ? `#${run.run_number}` : `${index + 1}번`;
             const artifactExpiryState = getSmokeArtifactExpiryState(
