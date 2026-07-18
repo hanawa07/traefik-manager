@@ -38,6 +38,9 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     const artifactExpiry = Array.from(
       container?.querySelectorAll('[data-testid="smoke-artifact-expiry"]') || []
     );
+    const expiredArtifacts = Array.from(
+      container?.querySelectorAll('[data-testid="smoke-failure-artifact-expired"]') || []
+    );
     return {
       alert: Boolean(alert),
       artifactCount: artifactLinks.length,
@@ -51,9 +54,17 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
           link.href.includes('/artifacts/')
       ),
       count: links.length,
+      expiredArtifactCount: expiredArtifacts.length,
+      expiredArtifactValid: expiredArtifacts.every((item) =>
+        item.getAttribute('aria-disabled') === 'true' &&
+          item.textContent?.trim() === '화면 만료' && !item.closest('a')
+      ),
       expectedArtifactCount: Number(container?.getAttribute('data-artifact-count') || 0),
       expectedArtifactExpiryCount: Number(
         container?.getAttribute('data-artifact-expiry-count') || 0
+      ),
+      expectedExpiredArtifactCount: Number(
+        container?.getAttribute('data-expired-artifact-count') || 0
       ),
       valid: links.every((link) =>
         link.href.startsWith('https://github.com/') && link.href.includes('/actions/runs/')
@@ -75,6 +86,12 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
       "Artifact 만료 표시 수가 일치하지 않습니다",
     );
     assert.equal(failureLinks.artifactExpiryValid, true, "Artifact 만료 상태가 올바르지 않습니다");
+    assert.equal(
+      failureLinks.expiredArtifactCount,
+      failureLinks.expectedExpiredArtifactCount,
+      "만료된 Artifact 비활성 표시 수가 일치하지 않습니다",
+    );
+    assert.equal(failureLinks.expiredArtifactValid, true, "만료된 Artifact에 링크가 남았습니다");
   }
 }
 
@@ -88,6 +105,9 @@ export async function checkSettingsTestAuditLinks({ cdp }) {
     const retryButtons = histories.flatMap((history) =>
       Array.from(history.querySelectorAll('button[data-retry-audit-id]'))
     );
+    const retryRelationLinks = histories.flatMap((history) =>
+      Array.from(history.querySelectorAll('a[data-retry-relation]'))
+    );
     return {
       count: links.length,
       historyCount: histories.length,
@@ -98,6 +118,23 @@ export async function checkSettingsTestAuditLinks({ cdp }) {
           : 0), 0
       ),
       retryCount: retryButtons.length,
+      expectedRetryRelationCount: histories.reduce((count, history) =>
+        count + Array.from(history.querySelectorAll('li')).reduce((itemCount, item) =>
+          itemCount + Number(Boolean(item.getAttribute('data-retry-of-audit-id'))) +
+            Number(Boolean(item.getAttribute('data-retry-result-audit-id'))), 0
+        ), 0
+      ),
+      retryRelationCount: retryRelationLinks.length,
+      retryRelationValid: retryRelationLinks.every((link) => {
+        const row = link.closest('li');
+        const relation = link.getAttribute('data-retry-relation');
+        const expectedId = relation === 'origin'
+          ? row?.getAttribute('data-retry-of-audit-id')
+          : row?.getAttribute('data-retry-result-audit-id');
+        const url = new URL(link.href);
+        return Boolean(expectedId) && url.pathname === '/dashboard/audit' &&
+          url.searchParams.get('q') === expectedId && url.searchParams.get('expand') === expectedId;
+      }),
       retryValid: retryButtons.every((button) => {
         const auditId = button.getAttribute('data-retry-audit-id');
         const link = button.closest('li')?.querySelector('a[aria-label$="감사 상세"]');
@@ -125,6 +162,12 @@ export async function checkSettingsTestAuditLinks({ cdp }) {
     "설정 실패 이력 재시도 버튼 수가 일치하지 않습니다",
   );
   assert.equal(result.retryValid, true, "설정 실패 이력 재시도 감사 ID가 일치하지 않습니다");
+  assert.equal(
+    result.retryRelationCount,
+    result.expectedRetryRelationCount,
+    "재시도 원본·결과 감사 링크 수가 일치하지 않습니다",
+  );
+  assert.equal(result.retryRelationValid, true, "재시도 원본·결과 감사 ID가 일치하지 않습니다");
   return true;
 }
 
