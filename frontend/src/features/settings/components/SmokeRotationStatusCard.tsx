@@ -85,6 +85,7 @@ export function SmokeRotationStatusCard({
     status?.monitoring_latest_failure ?? recentRuns.find((run) => run.status === "failure");
   const suppressedRuns = recentRuns.filter((run) => run.notification_suppressed);
   const latestSuppressed = suppressedRuns[0];
+  const secretRetryCount = status?.detail?.match(/GitHub secret 갱신 실패: .+ \(시도 (\d+\/\d+)\)$/)?.[1];
 
   return (
     <div className="card order-6 p-6" data-testid="smoke-rotation-status-card">
@@ -362,6 +363,10 @@ export function SmokeRotationStatusCard({
                 "없음"
               )
             }
+          />
+          <SettingsSummaryRow
+            label="Secret 재시도 횟수"
+            value={status.status === "failure" ? secretRetryCount || "해당 없음" : "없음"}
           />
           {status.status === "running" && status.detail ? (
             <SettingsSummaryRow label="회전 진행 상태" value={status.detail} />

@@ -155,20 +155,16 @@ set_github_secret() {
   local value="$2"
   local attempt
   for attempt in 1 2 3; do
+    rotation_step="GitHub secret 갱신: ${name} (시도 ${attempt}/3)"
     if printf %s "${value}" | gh secret set "${name}" --app actions; then
       return
     fi
     echo "GitHub secret 갱신 재시도: ${name} ${attempt}/3" >&2
     sleep 5
   done
+  rotation_step="GitHub secret 갱신 실패: ${name} (시도 3/3)"
   echo "GitHub secret 갱신 실패: ${name}" >&2
   return 1
-}
-
-rotate_github_secret() {
-  local name="$1"
-  rotation_step="GitHub secret 갱신: ${name}"
-  set_github_secret "${name}" "$2"
 }
 
 run_self_test() {
@@ -200,10 +196,11 @@ run_self_test() {
     echo "GitHub secret 3회 실패를 감지하지 못했습니다" >&2
     return 1
   fi
-  rotate_github_secret TM_SMOKE_PASSWORD recovery-attempt >/dev/null 2>&1
+  [[ "${rotation_step}" == "GitHub secret 갱신 실패: TM_SMOKE_PASSWORD (시도 3/3)" ]]
+  set_github_secret TM_SMOKE_PASSWORD recovery-attempt >/dev/null 2>&1
   read -r attempt_count <"${attempts_file}"
   [[ "${attempt_count}" == "4" ]]
-  [[ "${rotation_step}" == "GitHub secret 갱신: TM_SMOKE_PASSWORD" ]]
+  [[ "${rotation_step}" == "GitHub secret 갱신: TM_SMOKE_PASSWORD (시도 1/3)" ]]
   echo "스모크 계정 회전 self-test 통과"
 }
 
@@ -258,13 +255,13 @@ admin_password="$(openssl rand -hex 32)"
 
 rotation_step="viewer 계정 갱신"
 update_account "${VIEWER_USERNAME}" viewer "${viewer_password}"
-rotate_github_secret TM_SMOKE_USERNAME "${VIEWER_USERNAME}"
-rotate_github_secret TM_SMOKE_PASSWORD "${viewer_password}"
+set_github_secret TM_SMOKE_USERNAME "${VIEWER_USERNAME}"
+set_github_secret TM_SMOKE_PASSWORD "${viewer_password}"
 
 rotation_step="admin 계정 갱신"
 update_account "${SMOKE_ADMIN_USERNAME}" admin "${admin_password}"
-rotate_github_secret TM_SMOKE_ADMIN_USERNAME "${SMOKE_ADMIN_USERNAME}"
-rotate_github_secret TM_SMOKE_ADMIN_PASSWORD "${admin_password}"
+set_github_secret TM_SMOKE_ADMIN_USERNAME "${SMOKE_ADMIN_USERNAME}"
+set_github_secret TM_SMOKE_ADMIN_PASSWORD "${admin_password}"
 
 rotation_step="Node.js 실행 환경 준비"
 if [[ -s "${HOME}/.nvm/nvm.sh" ]]; then
