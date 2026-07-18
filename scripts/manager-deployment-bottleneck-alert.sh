@@ -156,6 +156,18 @@ prune_alert_events() {
   mv "${temporary_file}" "${events_file}"
 }
 
+migrate_legacy_alert_events() {
+  local legacy_events_file="$1"
+  local events_file="$2"
+  [[ "${legacy_events_file}" != "${events_file}" ]] || return 0
+  [[ ! -e "${events_file}" && -f "${legacy_events_file}" ]] || return 0
+  local temporary_file
+  temporary_file="$(mktemp "${events_file}.tmp.XXXXXX")"
+  tail -n "${MAX_EVENT_LINES}" "${legacy_events_file}" > "${temporary_file}"
+  chmod 644 "${temporary_file}"
+  mv "${temporary_file}" "${events_file}"
+}
+
 append_alert_event() {
   local events_file="$1"
   local event="$2"
@@ -177,13 +189,18 @@ append_alert_event() {
   mv "${temporary_file}" "${events_file}"
 }
 
-check_history() {
+check_history() (
   local history_file="$1"
   local state_file="${TM_DEPLOY_BOTTLENECK_ALERT_STATE_FILE:-${history_file}.bottleneck-alert.state}"
   local status_file="${TM_DEPLOY_BOTTLENECK_ALERT_STATUS_FILE:-${history_file}.bottleneck-alert.status}"
-  local events_file="${TM_DEPLOY_BOTTLENECK_ALERT_EVENTS_FILE:-${history_file}.bottleneck-alert.events.jsonl}"
+  local events_file="${TM_DEPLOY_BOTTLENECK_ALERT_EVENTS_FILE:-${CONFIG_FILE}.events.jsonl}"
+  local legacy_events_file="${history_file}.bottleneck-alert.events.jsonl"
   local analysis count incident_key latest_version slowest_stage slowest_ms
   local alerted_incident alerted_at run_url status
+  mkdir -p "$(dirname "${events_file}")"
+  exec 9>"${events_file}.lock"
+  flock -x 9
+  migrate_legacy_alert_events "${legacy_events_file}" "${events_file}"
   if ! prune_alert_events "${events_file}"; then
     echo "Manager 병목 이벤트 보관 기간 정리를 수행하지 못했습니다" >&2
   fi
@@ -246,7 +263,7 @@ check_history() {
     echo "Manager 병목 발생 이력을 기록하지 못했습니다" >&2
   fi
   echo "Manager 연속 병목 운영 알림 요청: ${run_url}"
-}
+)
 
 append_fixture() {
   local history_file="$1"
@@ -316,11 +333,11 @@ SCRIPT
   config_history="${temporary_dir}/config-history.jsonl"
   config_state="${temporary_dir}/config-alert.state"
   config_status="${temporary_dir}/config-alert.status"
-  config_events="${temporary_dir}/config-alert.events.jsonl"
   config_file="${temporary_dir}/bottleneck.conf"
+  config_events="${config_file}.events.jsonl"
   config_capture="${temporary_dir}/config-capture"
   printf 'threshold_ms=75000\nconsecutive_count=2\nevent_retention_days=30\n' > "${config_file}"
-  printf '{"event":"alerted","occurred_at":"2000-01-01T00:00:00Z"}\n' > "${config_events}"
+  printf '{"event":"alerted","occurred_at":"2000-01-01T00:00:00Z"}\n' > "${config_history}.bottleneck-alert.events.jsonl"
   append_fixture "${config_history}" 8 76001
   append_fixture "${config_history}" 9 76002
   (
@@ -329,7 +346,6 @@ SCRIPT
     TM_DEPLOY_BOTTLENECK_CONFIG_FILE="${config_file}" \
     TM_DEPLOY_BOTTLENECK_ALERT_STATE_FILE="${config_state}" \
     TM_DEPLOY_BOTTLENECK_ALERT_STATUS_FILE="${config_status}" \
-    TM_DEPLOY_BOTTLENECK_ALERT_EVENTS_FILE="${config_events}" \
     TM_DEPLOY_BOTTLENECK_ALERT_CAPTURE="${config_capture}" \
     TM_HOST_OPERATION_ALERT_SCRIPT="${fake_alert}" \
       "${SCRIPT_PATH}" "${config_history}" >/dev/null

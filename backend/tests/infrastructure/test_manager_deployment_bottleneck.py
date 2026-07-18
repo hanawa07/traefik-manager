@@ -1,6 +1,9 @@
+import json
+from datetime import datetime
 from pathlib import Path
 
 from app.infrastructure.manager_deployment_bottleneck import (
+    prune_manager_deployment_bottleneck_events,
     read_manager_deployment_bottleneck_config,
     read_manager_deployment_bottleneck_events,
     read_manager_deployment_bottleneck_state,
@@ -122,3 +125,40 @@ def test_bottleneck_events_return_recent_valid_transitions(tmp_path: Path):
     assert events[1]["latest_version"] == "v1.38.98"
     assert events[1]["current_consecutive_count"] == 3
     assert events[1]["slowest_ms"] == 75_000
+
+    state = read_manager_deployment_bottleneck_state(
+        tmp_path / "missing.status",
+        tmp_path / "missing.conf",
+        events_path,
+    )
+    assert state["retained_event_count"] == 2
+    assert state["oldest_event_at"] == "2026-07-17T00:00:00Z"
+    assert state["newest_event_at"] == "2026-07-17T01:00:00Z"
+
+
+def test_bottleneck_event_cleanup_applies_retention_and_count_limit(tmp_path: Path):
+    events_path = tmp_path / "runtime" / "bottleneck.events.jsonl"
+    events_path.parent.mkdir()
+    events = [
+        {"event": "alerted", "occurred_at": "2026-06-01T00:00:00Z"},
+        *[
+            {"event": "cleared", "occurred_at": f"2026-07-17T00:{index % 60:02d}:00Z"}
+            for index in range(102)
+        ],
+    ]
+    events_path.write_text(
+        "\n".join(json.dumps(event) for event in events),
+        encoding="utf-8",
+    )
+
+    result = prune_manager_deployment_bottleneck_events(
+        7,
+        events_path,
+        now=datetime(2026, 7, 18),
+    )
+
+    assert result["retention_days"] == 7
+    assert result["deleted_count"] == 3
+    assert result["retained_event_count"] == 100
+    assert len(events_path.read_text(encoding="utf-8").splitlines()) == 100
+    assert events_path.stat().st_mode & 0o777 == 0o644

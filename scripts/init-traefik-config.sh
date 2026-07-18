@@ -3,6 +3,7 @@ set -eu
 
 config_root=${TRAEFIK_CONFIG_ROOT:-/traefik-config}
 dynamic_dir="${config_root}/dynamic"
+runtime_dir="${config_root}/.runtime"
 target="${dynamic_dir}/traefik-manager-self.yml"
 temporary="${target}.tmp"
 manager_upstream=${TRAEFIK_MANAGER_FRONTEND_UPSTREAM:-http://traefik-manager-frontend:3000}
@@ -23,7 +24,7 @@ case "$manager_upstream" in
     ;;
 esac
 
-mkdir -p "$dynamic_dir"
+mkdir -p "$dynamic_dir" "$runtime_dir"
 cat > "$temporary" <<EOF
 http:
   routers:
@@ -55,3 +56,5 @@ EOF
 chmod 0644 "$temporary"
 mv "$temporary" "$target"
 chown -R 10001:10001 "$config_root"
+chmod 2775 "$config_root"
+chmod 2770 "$runtime_dir"

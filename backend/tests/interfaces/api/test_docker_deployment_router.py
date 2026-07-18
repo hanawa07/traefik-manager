@@ -237,6 +237,9 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
             "consecutive_source": "settings",
             "event_retention_source": "environment",
             "current_consecutive_count": 3,
+            "retained_event_count": 4,
+            "oldest_event_at": requested_at,
+            "newest_event_at": requested_at,
             "run_url": bottleneck_run_url,
         },
     )
@@ -289,6 +292,7 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
     assert result["deployment_history_archive_summary"]["detailed_count"] == 1
     assert result["deployment_bottleneck_alert"]["run_status"] == "completed"
     assert result["deployment_bottleneck_alert"]["run_conclusion"] == "success"
+    assert result["deployment_bottleneck_alert"]["retained_event_count"] == 4
     assert [run["conclusion"] for run in result["external_watchdog_alert_runs"]] == [
         "success",
         "failure",

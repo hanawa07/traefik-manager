@@ -59,3 +59,50 @@ async def test_deployment_bottleneck_settings_persist_and_record_audit(monkeypat
         actor={"username": "admin"},
     )
     assert compatible["event_retention_days"] == 120
+
+
+@pytest.mark.asyncio
+async def test_deployment_bottleneck_event_cleanup_uses_effective_retention_and_records_audit(
+    monkeypatch,
+):
+    recorded = []
+    cleanup_calls = []
+    monkeypatch.setattr(router, "get_client_ip", lambda _: "203.0.113.11")
+    monkeypatch.setattr(
+        router,
+        "read_manager_deployment_bottleneck_state",
+        lambda: {"effective_event_retention_days": 30},
+    )
+
+    def fake_cleanup(retention_days):
+        cleanup_calls.append(retention_days)
+        return {
+            "retention_days": retention_days,
+            "deleted_count": 2,
+            "retained_event_count": 3,
+            "oldest_event_at": "2026-07-01T00:00:00Z",
+            "newest_event_at": "2026-07-17T00:00:00Z",
+        }
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(router, "prune_manager_deployment_bottleneck_events", fake_cleanup)
+    monkeypatch.setattr(router.audit_service, "record", fake_record, raising=False)
+
+    result = await router.cleanup_deployment_bottleneck_events(
+        request=SimpleNamespace(),
+        db=object(),
+        actor={"username": "admin"},
+    )
+
+    assert cleanup_calls == [30]
+    assert result["deleted_count"] == 2
+    assert recorded[0]["action"] == "cleanup"
+    assert recorded[0]["detail"] == {
+        "event": "deployment_bottleneck_events_cleanup",
+        "retention_days": 30,
+        "deleted_count": 2,
+        "retained_event_count": 3,
+        "client_ip": "203.0.113.11",
+    }

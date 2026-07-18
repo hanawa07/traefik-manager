@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from app.infrastructure.manager_deployment_bottleneck import (
@@ -6,6 +8,7 @@ from app.infrastructure.manager_deployment_bottleneck import (
     DEFAULT_THRESHOLD_MS,
     MAX_CONSECUTIVE_COUNT,
     MAX_EVENT_RETENTION_DAYS,
+    MAX_RETAINED_EVENTS,
     MAX_THRESHOLD_MS,
     MIN_CONSECUTIVE_COUNT,
     MIN_EVENT_RETENTION_DAYS,
@@ -39,3 +42,11 @@ class ManagerDeploymentBottleneckSettingsUpdateRequest(
         ge=MIN_EVENT_RETENTION_DAYS,
         le=MAX_EVENT_RETENTION_DAYS,
     )
+
+
+class ManagerDeploymentBottleneckCleanupResponse(BaseModel):
+    retention_days: int = Field(ge=MIN_EVENT_RETENTION_DAYS, le=MAX_EVENT_RETENTION_DAYS)
+    deleted_count: int = Field(ge=0)
+    retained_event_count: int = Field(ge=0, le=MAX_RETAINED_EVENTS)
+    oldest_event_at: datetime | None = None
+    newest_event_at: datetime | None = None

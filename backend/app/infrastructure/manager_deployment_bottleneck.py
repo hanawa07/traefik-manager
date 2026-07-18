@@ -1,7 +1,8 @@
+import fcntl
 import json
 import os
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.core.config import settings
@@ -19,6 +20,7 @@ MAX_EVENT_RETENTION_DAYS = 3650
 MAX_STATE_BYTES = 4 * 1024
 MAX_EVENTS_BYTES = 128 * 1024
 MAX_EVENTS = 20
+MAX_RETAINED_EVENTS = 100
 ALERT_STATUSES = {"not_checked", "no_history", "normal", "pending", "alerted", "request_failed"}
 ALERT_EVENTS = {"alerted", "cleared"}
 CONFIG_SOURCES = {"settings", "environment"}
@@ -128,6 +130,7 @@ def read_manager_deployment_bottleneck_state(
         minimum=MIN_EVENT_RETENTION_DAYS,
         maximum=MAX_EVENT_RETENTION_DAYS,
     )
+    events = _read_normalized_events(_manager_deployment_bottleneck_events_path(events_path))
     return {
         "status": status,
         "configured_threshold_ms": config["threshold_ms"],
@@ -165,24 +168,77 @@ def read_manager_deployment_bottleneck_state(
         ),
         "alerted_at": _iso_datetime(values.get("alerted_at")),
         "run_url": run_url,
-        "events": read_manager_deployment_bottleneck_events(events_path),
+        **_event_storage_summary(events),
+        "events": events[:MAX_EVENTS],
     }
 
 
 def read_manager_deployment_bottleneck_events(
     path: str | Path | None = None,
 ) -> list[dict[str, object]]:
-    events_path = Path(
-        path or f"{settings.MANAGER_DEPLOYMENT_HISTORY_PATH}.bottleneck-alert.events.jsonl"
-    )
+    return _read_normalized_events(_manager_deployment_bottleneck_events_path(path))[:MAX_EVENTS]
+
+
+def prune_manager_deployment_bottleneck_events(
+    retention_days: int,
+    path: str | Path | None = None,
+    *,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    if not MIN_EVENT_RETENTION_DAYS <= retention_days <= MAX_EVENT_RETENTION_DAYS:
+        raise ValueError("event retention days out of range")
+
+    events_path = _manager_deployment_bottleneck_events_path(path)
+    events_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = Path(f"{events_path}.lock")
+    with lock_path.open("a", encoding="utf-8") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        lines = _read_event_lines(events_path, strict=True)
+        events = _normalize_event_lines(lines)
+        reference_time = now or datetime.now(timezone.utc)
+        if reference_time.tzinfo is None:
+            reference_time = reference_time.replace(tzinfo=timezone.utc)
+        cutoff = reference_time.astimezone(timezone.utc) - timedelta(days=retention_days)
+        retained = [
+            event
+            for event in events
+            if _event_timestamp(_string(event.get("occurred_at"))) >= cutoff
+        ][:MAX_RETAINED_EVENTS]
+        _write_events(events_path, retained)
+
+    return {
+        "retention_days": retention_days,
+        "deleted_count": len(lines) - len(retained),
+        **_event_storage_summary(retained),
+    }
+
+
+def _manager_deployment_bottleneck_events_path(path: str | Path | None) -> Path:
+    return Path(path or f"{settings.MANAGER_DEPLOYMENT_BOTTLENECK_CONFIG_PATH}.events.jsonl")
+
+
+def _read_normalized_events(events_path: Path) -> list[dict[str, object]]:
+    return _normalize_event_lines(_read_event_lines(events_path))[:MAX_RETAINED_EVENTS]
+
+
+def _read_event_lines(events_path: Path, *, strict: bool = False) -> list[str]:
     try:
         if events_path.stat().st_size > MAX_EVENTS_BYTES:
+            if strict:
+                raise ValueError("event history file is too large")
             return []
-        lines = events_path.read_text(encoding="utf-8").splitlines()
+        return events_path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return []
     except (OSError, UnicodeError):
+        if strict:
+            raise
         return []
 
+
+def _normalize_event_lines(lines: list[str]) -> list[dict[str, object]]:
     events = []
+
     for line in reversed(lines):
         try:
             value = json.loads(line)
@@ -191,9 +247,51 @@ def read_manager_deployment_bottleneck_events(
         event = _normalize_event(value)
         if event is not None:
             events.append(event)
-        if len(events) >= MAX_EVENTS:
-            break
     return events
+
+
+def _write_events(events_path: Path, events: list[dict[str, object]]) -> None:
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            dir=events_path.parent,
+            encoding="utf-8",
+            prefix=f".{events_path.name}.",
+            delete=False,
+        ) as temporary_file:
+            temporary_path = Path(temporary_file.name)
+            for event in reversed(events):
+                temporary_file.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")))
+                temporary_file.write("\n")
+            temporary_file.flush()
+            os.fsync(temporary_file.fileno())
+        temporary_path.chmod(0o644)
+        os.replace(temporary_path, events_path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+def _event_storage_summary(events: list[dict[str, object]]) -> dict[str, object]:
+    occurred_values = [
+        value
+        for event in events
+        if (value := _string(event.get("occurred_at"))) is not None
+    ]
+    return {
+        "retained_event_count": len(events),
+        "oldest_event_at": min(occurred_values, key=_event_timestamp)
+        if occurred_values
+        else None,
+        "newest_event_at": max(occurred_values, key=_event_timestamp)
+        if occurred_values
+        else None,
+    }
+
+
+def _event_timestamp(value: str | None) -> datetime:
+    return _parse_datetime(value) or datetime.min.replace(tzinfo=timezone.utc)
 
 
 def _normalize_event(value: object) -> dict[str, object] | None:
@@ -283,13 +381,19 @@ def _config_source(value: str | None, differs: bool) -> str:
 
 
 def _iso_datetime(value: str | None) -> str | None:
+    return value if _parse_datetime(value) is not None else None
+
+
+def _parse_datetime(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
-        datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
-    return value
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _string(value: object) -> str | None:

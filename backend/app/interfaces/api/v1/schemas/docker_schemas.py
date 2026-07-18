@@ -265,6 +265,9 @@ class ManagerDeploymentBottleneckAlertResponse(BaseModel):
     run_conclusion: str | None = None
     run_checked_at: datetime | None = None
     run_error: str | None = None
+    retained_event_count: int = Field(default=0, ge=0, le=100)
+    oldest_event_at: datetime | None = None
+    newest_event_at: datetime | None = None
     events: list[ManagerDeploymentBottleneckEventResponse] = Field(default_factory=list)
 
 

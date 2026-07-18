@@ -1,10 +1,14 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.audit import audit_service
 from app.core.logging_config import get_client_ip
 from app.infrastructure.manager_deployment_bottleneck import (
+    prune_manager_deployment_bottleneck_events,
     read_manager_deployment_bottleneck_config,
+    read_manager_deployment_bottleneck_state,
     write_manager_deployment_bottleneck_config,
 )
 from app.infrastructure.persistence.database import get_db
@@ -12,6 +16,7 @@ from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.routers.settings_audit_helpers import record_settings_update
 from app.interfaces.api.v1.routers.settings_events import SETTINGS_UPDATE_EVENTS
 from app.interfaces.api.v1.schemas.settings_deployment_schemas import (
+    ManagerDeploymentBottleneckCleanupResponse,
     ManagerDeploymentBottleneckSettingsResponse,
     ManagerDeploymentBottleneckSettingsUpdateRequest,
 )
@@ -60,3 +65,37 @@ async def update_deployment_bottleneck_settings(
         client_ip=get_client_ip(request),
     )
     return updated
+
+
+@router.post(
+    "/deployment-bottleneck-alert/cleanup",
+    response_model=ManagerDeploymentBottleneckCleanupResponse,
+    summary="Manager 배포 병목 이벤트 즉시 정리",
+)
+async def cleanup_deployment_bottleneck_events(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    actor: dict = Depends(require_admin),
+):
+    state = read_manager_deployment_bottleneck_state()
+    retention_days = int(state["effective_event_retention_days"])
+    result = await asyncio.to_thread(
+        prune_manager_deployment_bottleneck_events,
+        retention_days,
+    )
+    await audit_service.record(
+        db=db,
+        actor=actor["username"],
+        action="cleanup",
+        resource_type="settings",
+        resource_id="deployment-bottleneck-alert",
+        resource_name="Manager 배포 병목 이벤트",
+        detail={
+            "event": "deployment_bottleneck_events_cleanup",
+            "retention_days": retention_days,
+            "deleted_count": result["deleted_count"],
+            "retained_event_count": result["retained_event_count"],
+            "client_ip": get_client_ip(request),
+        },
+    )
+    return result
