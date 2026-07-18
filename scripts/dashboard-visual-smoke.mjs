@@ -13,6 +13,10 @@ import {
 } from "./dashboard-visual-manager-http.mjs";
 import { checkManagerDeploymentHistory } from "./dashboard-visual-manager-deployment.mjs";
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
+import {
+  checkSmokeRotationAuditDetail,
+  checkSmokeRunTrendRange,
+} from "./dashboard-visual-smoke-monitoring.mjs";
 import { checkWatchdogFilterPersistence } from "./dashboard-visual-watchdog.mjs";
 import { assertDashboardShell } from "./dashboard-visual-shell.mjs";
 
@@ -23,6 +27,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
       for (const route of DASHBOARD_ROUTES) {
         await checkRoute({ artifactDir, baseUrl, cdp, profile, route, timeoutMs });
         if (route.path === "/dashboard") {
+          await checkSmokeRunTrendRange({ cdp, timeoutMs });
+          labels.push(`${profile.label} 운영 점검 7일·30일 추이`);
           await checkManagerHttpErrorTrend({ cdp, timeoutMs });
           labels.push(`${profile.label} Manager file-provider 라우터`);
           const deploymentHistory = await checkManagerDeploymentHistory({ cdp, timeoutMs });
@@ -37,6 +43,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
           if (opened) labels.push(`${profile.label} 인증서 drawer`);
         }
         if (route.path === "/dashboard/audit") {
+          await checkSmokeRotationAuditDetail({ cdp, timeoutMs });
+          labels.push(`${profile.label} Secret 회전 실패 상세`);
           await checkAuditFilterPersistence({ cdp, profile, timeoutMs });
           labels.push(`${profile.label} 감사 필터 조합·자동 펼침·레이아웃`);
         }
