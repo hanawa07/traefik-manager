@@ -7,6 +7,8 @@ export type SmokeMonitoringFrequency = "daily" | "weekly";
 export interface SmokeMonitoringSettingsInput {
   monitoring_enabled: boolean;
   monitoring_frequency: SmokeMonitoringFrequency;
+  monitoring_failure_rate_threshold_percent: number;
+  monitoring_failure_rate_min_runs: number;
 }
 
 export interface SmokeMonitoringRecentRun {
@@ -24,6 +26,8 @@ export interface SmokeMonitoringRecentRun {
 export interface SmokeRotationStatus {
   monitoring_enabled: boolean;
   monitoring_frequency: SmokeMonitoringFrequency;
+  monitoring_failure_rate_threshold_percent: number;
+  monitoring_failure_rate_min_runs: number;
   monitoring_schedule_time: string;
   monitoring_schedule_timezone: string;
   monitoring_last_success_at: string | null;

@@ -32,4 +32,16 @@ const insufficient = getSmokeRunFailureRate(
 assert.equal(insufficient.percentage, 100);
 assert.equal(insufficient.isAlert, false);
 
+const configured = getSmokeRunFailureRate(
+  [
+    { status: "failure", completed_at: "2026-07-17T00:00:00Z" },
+    { status: "success", completed_at: "2026-07-16T00:00:00Z" },
+  ],
+  now,
+  60,
+  2,
+);
+assert.equal(configured.percentage, 50);
+assert.equal(configured.isAlert, false);
+
 console.log("운영 점검 실패율 self-test 통과");

@@ -65,6 +65,50 @@ export function SmokeMonitoringSettingsEditForm({
         </p>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="label" htmlFor="smoke-failure-rate-threshold">
+            실패율 경고 기준 (%)
+          </label>
+          <input
+            id="smoke-failure-rate-threshold"
+            className="input"
+            type="number"
+            min={1}
+            max={100}
+            value={formValue.monitoring_failure_rate_threshold_percent}
+            onChange={(event) =>
+              onFormChange({
+                ...formValue,
+                monitoring_failure_rate_threshold_percent: Number(event.target.value),
+              })
+            }
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="smoke-failure-rate-min-runs">
+            판정 최소 표본 (회)
+          </label>
+          <input
+            id="smoke-failure-rate-min-runs"
+            className="input"
+            type="number"
+            min={1}
+            max={30}
+            value={formValue.monitoring_failure_rate_min_runs}
+            onChange={(event) =>
+              onFormChange({
+                ...formValue,
+                monitoring_failure_rate_min_runs: Number(event.target.value),
+              })
+            }
+          />
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 dark:text-slate-400">
+        최근 7일의 완료된 점검이 최소 표본 이상이고 실패율이 기준 이상이면 대시보드에 경고합니다.
+      </p>
+
       {errorMessage ? <p className="text-xs text-red-600 dark:text-red-300">{errorMessage}</p> : null}
 
       <SettingsActionRow>

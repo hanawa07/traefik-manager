@@ -14,6 +14,8 @@ import { getSettingsModelErrorMessage } from "./settingsModelErrors";
 const DEFAULT_FORM: SmokeMonitoringSettingsInput = {
   monitoring_enabled: true,
   monitoring_frequency: "daily",
+  monitoring_failure_rate_threshold_percent: 30,
+  monitoring_failure_rate_min_runs: 3,
 };
 
 export function useSmokeMonitoringSettingsModel(
@@ -34,6 +36,9 @@ export function useSmokeMonitoringSettingsModel(
     setFormValue({
       monitoring_enabled: query.data?.monitoring_enabled ?? true,
       monitoring_frequency: query.data?.monitoring_frequency ?? "daily",
+      monitoring_failure_rate_threshold_percent:
+        query.data?.monitoring_failure_rate_threshold_percent ?? 30,
+      monitoring_failure_rate_min_runs: query.data?.monitoring_failure_rate_min_runs ?? 3,
     });
     setErrorMessage("");
     setIsEditing(true);
@@ -41,6 +46,15 @@ export function useSmokeMonitoringSettingsModel(
 
   const handleSave = async () => {
     setErrorMessage("");
+    if (
+      formValue.monitoring_failure_rate_threshold_percent < 1 ||
+      formValue.monitoring_failure_rate_threshold_percent > 100 ||
+      formValue.monitoring_failure_rate_min_runs < 1 ||
+      formValue.monitoring_failure_rate_min_runs > 30
+    ) {
+      setErrorMessage("실패율 기준은 1~100%, 최소 표본은 1~30회로 입력해주세요.");
+      return;
+    }
     try {
       await update.mutateAsync(formValue);
       onToast({

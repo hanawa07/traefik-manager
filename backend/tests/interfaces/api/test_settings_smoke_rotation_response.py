@@ -65,6 +65,8 @@ async def test_get_smoke_rotation_status_returns_saved_result() -> None:
     StubRepository.values = {
         "dashboard_smoke_monitoring_enabled": "false",
         "dashboard_smoke_monitoring_frequency": "weekly",
+        "dashboard_smoke_failure_rate_threshold_percent": "45",
+        "dashboard_smoke_failure_rate_min_runs": "5",
         "dashboard_smoke_last_success_at": "2026-07-11T06:59:00+00:00",
         "dashboard_smoke_last_run_url": "https://github.com/hanawa07/traefik-manager/actions/runs/123",
         "dashboard_smoke_admin_last_success_at": "2026-07-11T06:58:00+00:00",
@@ -84,6 +86,8 @@ async def test_get_smoke_rotation_status_returns_saved_result() -> None:
     assert result.status == "failure"
     assert result.monitoring_enabled is False
     assert result.monitoring_frequency == "weekly"
+    assert result.monitoring_failure_rate_threshold_percent == 45
+    assert result.monitoring_failure_rate_min_runs == 5
     assert result.monitoring_schedule_time == "03:17"
     assert result.monitoring_schedule_timezone == "Asia/Seoul"
     assert result.monitoring_last_success_at == "2026-07-11T06:59:00+00:00"
@@ -104,6 +108,8 @@ async def test_get_smoke_rotation_status_returns_saved_result() -> None:
 async def test_get_smoke_rotation_status_defaults_to_never() -> None:
     StubRepository.values = {
         "dashboard_smoke_monitoring_frequency": "hourly",
+        "dashboard_smoke_failure_rate_threshold_percent": "101",
+        "dashboard_smoke_failure_rate_min_runs": "invalid",
         "smoke_viewer_rotation_status": "unexpected",
     }
 
@@ -116,6 +122,8 @@ async def test_get_smoke_rotation_status_defaults_to_never() -> None:
     assert result.is_stale is False
     assert result.monitoring_enabled is True
     assert result.monitoring_frequency == "daily"
+    assert result.monitoring_failure_rate_threshold_percent == 30
+    assert result.monitoring_failure_rate_min_runs == 3
     assert result.monitoring_last_success_at is None
     assert result.monitoring_last_run_url is None
     assert result.monitoring_admin_last_success_at is None

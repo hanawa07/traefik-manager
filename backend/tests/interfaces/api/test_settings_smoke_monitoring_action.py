@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from app.interfaces.api.v1.routers.settings_smoke_monitoring_action import (
     update_smoke_monitoring_settings_action,
@@ -39,6 +40,8 @@ async def test_update_smoke_monitoring_settings_records_change() -> None:
         request=SmokeMonitoringSettingsUpdateRequest(
             monitoring_enabled=False,
             monitoring_frequency="weekly",
+            monitoring_failure_rate_threshold_percent=45,
+            monitoring_failure_rate_min_runs=5,
         ),
         http_request=None,
         db=object(),
@@ -50,10 +53,33 @@ async def test_update_smoke_monitoring_settings_records_change() -> None:
 
     assert response.monitoring_enabled is False
     assert response.monitoring_frequency == "weekly"
+    assert response.monitoring_failure_rate_threshold_percent == 45
+    assert response.monitoring_failure_rate_min_runs == 5
     assert repo.values["dashboard_smoke_monitoring_enabled"] == "false"
     assert repo.values["dashboard_smoke_monitoring_frequency"] == "weekly"
+    assert repo.values["dashboard_smoke_failure_rate_threshold_percent"] == "45"
+    assert repo.values["dashboard_smoke_failure_rate_min_runs"] == "5"
     assert audit.records[0]["detail"]["event"] == "settings_update_smoke_monitoring"
     assert audit.records[0]["detail"]["changed_keys"] == [
         "monitoring_enabled",
+        "monitoring_failure_rate_min_runs",
+        "monitoring_failure_rate_threshold_percent",
         "monitoring_frequency",
     ]
+
+
+@pytest.mark.parametrize(
+    ("threshold", "min_runs"),
+    [(0, 3), (101, 3), (30, 0), (30, 31)],
+)
+def test_smoke_monitoring_settings_rejects_invalid_failure_rate_rule(
+    threshold: int,
+    min_runs: int,
+) -> None:
+    with pytest.raises(ValidationError):
+        SmokeMonitoringSettingsUpdateRequest(
+            monitoring_enabled=True,
+            monitoring_frequency="daily",
+            monitoring_failure_rate_threshold_percent=threshold,
+            monitoring_failure_rate_min_runs=min_runs,
+        )

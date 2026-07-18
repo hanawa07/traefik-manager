@@ -28,6 +28,8 @@ class SmokeRotationStatusResponse(BaseModel):
     log_updated_at: str | None = None
     monitoring_enabled: bool = True
     monitoring_frequency: SmokeMonitoringFrequency = "daily"
+    monitoring_failure_rate_threshold_percent: int = 30
+    monitoring_failure_rate_min_runs: int = 3
     monitoring_schedule_time: str = "03:17"
     monitoring_schedule_timezone: str = "Asia/Seoul"
     monitoring_last_success_at: str | None = None
@@ -46,6 +48,8 @@ class SmokeRotationStatusResponse(BaseModel):
 class SmokeMonitoringSettingsUpdateRequest(BaseModel):
     monitoring_enabled: bool
     monitoring_frequency: SmokeMonitoringFrequency
+    monitoring_failure_rate_threshold_percent: int = Field(default=30, ge=1, le=100)
+    monitoring_failure_rate_min_runs: int = Field(default=3, ge=1, le=30)
 
 
 class SmokeMonitoringScheduleDecisionResponse(BaseModel):
