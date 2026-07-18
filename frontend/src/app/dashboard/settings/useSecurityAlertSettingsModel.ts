@@ -33,8 +33,8 @@ export function useSecurityAlertSettingsModel(
   const {
     securityAlertDeliveryRetryResult,
     changeAlertDeliveryRetryResult,
-    isRetryingSecurityDelivery,
-    isRetryingChangeDelivery,
+    isRetryingDelivery,
+    retryTargetAuditId,
     retrySecurityDelivery,
     retryChangeDelivery,
   } = useSettingsAlertRetry(settingsTestHistory);
@@ -88,8 +88,8 @@ export function useSecurityAlertSettingsModel(
     securityTestHistory: settingsTestHistory?.security_alert,
     securityDeliveryHistory: settingsTestHistory?.security_alert_delivery,
     changeDeliveryHistory: settingsTestHistory?.change_alert_delivery,
-    isRetryingSecurityDelivery,
-    isRetryingChangeDelivery,
+    isRetryingDelivery,
+    retryTargetAuditId,
     onEdit: handleEdit,
     onSave: handleSave,
     onCancel: () => setIsEditing(false),

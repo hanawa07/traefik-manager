@@ -16,10 +16,10 @@ interface SecurityAlertDeliveryHistoryProps {
   securityTestHistory?: SettingsTestHistoryItem | null;
   securityDeliveryHistory?: SettingsTestHistoryItem | null;
   changeDeliveryHistory?: SettingsTestHistoryItem | null;
-  isRetryingSecurityDelivery: boolean;
-  isRetryingChangeDelivery: boolean;
-  onRetrySecurityDelivery: () => void;
-  onRetryChangeDelivery: () => void;
+  isRetryingDelivery: boolean;
+  retryTargetAuditId: string | null;
+  onRetrySecurityDelivery?: (auditLogId?: string) => void;
+  onRetryChangeDelivery?: (auditLogId?: string) => void;
 }
 
 export function SecurityAlertDeliveryHistory({
@@ -31,8 +31,8 @@ export function SecurityAlertDeliveryHistory({
   securityTestHistory,
   securityDeliveryHistory,
   changeDeliveryHistory,
-  isRetryingSecurityDelivery,
-  isRetryingChangeDelivery,
+  isRetryingDelivery,
+  retryTargetAuditId,
   onRetrySecurityDelivery,
   onRetryChangeDelivery,
 }: SecurityAlertDeliveryHistoryProps) {
@@ -50,14 +50,16 @@ export function SecurityAlertDeliveryHistory({
             history={securityDeliveryHistory}
             timezone={displayTimezone}
             onRetry={onRetrySecurityDelivery}
-            isRetrying={isRetryingSecurityDelivery}
+            isRetrying={isRetryingDelivery}
+            retryingAuditId={retryTargetAuditId}
           />
           <SettingsTestHistoryNotice
             label="최근 운영 변경 전송"
             history={changeDeliveryHistory}
             timezone={displayTimezone}
             onRetry={onRetryChangeDelivery}
-            isRetrying={isRetryingChangeDelivery}
+            isRetrying={isRetryingDelivery}
+            retryingAuditId={retryTargetAuditId}
           />
         </div>
       ) : null}

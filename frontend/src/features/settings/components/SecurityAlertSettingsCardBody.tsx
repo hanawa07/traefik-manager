@@ -27,13 +27,13 @@ interface SecurityAlertSettingsCardBodyProps {
   securityTestHistory?: SettingsTestHistoryItem | null;
   securityDeliveryHistory?: SettingsTestHistoryItem | null;
   changeDeliveryHistory?: SettingsTestHistoryItem | null;
-  isRetryingSecurityDelivery: boolean;
-  isRetryingChangeDelivery: boolean;
+  isRetryingDelivery: boolean;
+  retryTargetAuditId: string | null;
   onSave: () => void;
   onCancel: () => void;
   onTest: () => void;
-  onRetrySecurityDelivery: () => void;
-  onRetryChangeDelivery: () => void;
+  onRetrySecurityDelivery: (auditLogId?: string) => void;
+  onRetryChangeDelivery: (auditLogId?: string) => void;
   onFormChange: Dispatch<SetStateAction<SecurityAlertSettingsInput>>;
 }
 
@@ -54,8 +54,8 @@ export function SecurityAlertSettingsCardBody({
   securityTestHistory,
   securityDeliveryHistory,
   changeDeliveryHistory,
-  isRetryingSecurityDelivery,
-  isRetryingChangeDelivery,
+  isRetryingDelivery,
+  retryTargetAuditId,
   onSave,
   onCancel,
   onTest,
@@ -99,8 +99,8 @@ export function SecurityAlertSettingsCardBody({
       securityTestHistory={securityTestHistory}
       securityDeliveryHistory={securityDeliveryHistory}
       changeDeliveryHistory={changeDeliveryHistory}
-      isRetryingSecurityDelivery={isRetryingSecurityDelivery}
-      isRetryingChangeDelivery={isRetryingChangeDelivery}
+      isRetryingDelivery={isRetryingDelivery}
+      retryTargetAuditId={retryTargetAuditId}
       onTest={onTest}
       onRetrySecurityDelivery={onRetrySecurityDelivery}
       onRetryChangeDelivery={onRetryChangeDelivery}

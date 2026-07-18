@@ -7,7 +7,8 @@ interface SecurityAlertFailureBannerProps {
   history?: SettingsTestHistoryItem | null;
   isRetrying: boolean;
   label: string;
-  onRetry: () => void;
+  onRetry?: (auditLogId?: string) => void;
+  retryTargetAuditId: string | null;
   timezone?: string;
 }
 
@@ -16,6 +17,7 @@ export function SecurityAlertFailureBanner({
   isRetrying,
   label,
   onRetry,
+  retryTargetAuditId,
   timezone,
 }: SecurityAlertFailureBannerProps) {
   if (!history?.last_failure_at) return null;
@@ -36,14 +38,16 @@ export function SecurityAlertFailureBanner({
             {history.last_failure_detail || history.last_failure_message || "실패 상세가 기록되지 않았습니다."}
           </p>
         </div>
-        {history.last_failure_audit_id ? (
+        {history.last_failure_audit_id && onRetry ? (
           <button
             type="button"
-            onClick={onRetry}
+            onClick={() => onRetry(history.last_failure_audit_id ?? undefined)}
             disabled={isRetrying}
             className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-500/40 dark:bg-slate-950 dark:text-amber-100 dark:hover:bg-amber-500/10"
           >
-            {isRetrying ? "재시도 중..." : "마지막 실패 재시도"}
+            {isRetrying && retryTargetAuditId === history.last_failure_audit_id
+              ? "재시도 중..."
+              : "마지막 실패 재시도"}
           </button>
         ) : null}
       </div>

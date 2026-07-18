@@ -9,12 +9,14 @@ export default function SettingsTestHistoryNotice({
   timezone,
   onRetry,
   isRetrying = false,
+  retryingAuditId,
 }: {
   label: string;
   history: SettingsTestHistoryItem | null | undefined;
   timezone?: string;
-  onRetry?: (() => void) | null;
+  onRetry?: ((auditLogId?: string) => void) | null;
   isRetrying?: boolean;
+  retryingAuditId?: string | null;
 }) {
   if (!history?.last_event) {
     return <p className="text-xs text-gray-500 dark:text-slate-400">{label}: 아직 기록이 없습니다.</p>;
@@ -50,7 +52,7 @@ export default function SettingsTestHistoryNotice({
             {canRetry ? (
               <button
                 type="button"
-                onClick={() => onRetry?.()}
+                onClick={() => onRetry?.(history.last_failure_audit_id ?? undefined)}
                 disabled={isRetrying}
                 className={[
                   "w-full rounded-md border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-medium text-amber-800 sm:w-auto",
@@ -58,7 +60,9 @@ export default function SettingsTestHistoryNotice({
                   "dark:border-amber-500/40 dark:bg-slate-900 dark:text-amber-100 dark:hover:bg-amber-500/10",
                 ].join(" ")}
               >
-                {isRetrying ? "재시도 중..." : "마지막 실패 재시도"}
+                {isRetrying && retryingAuditId === history.last_failure_audit_id
+                  ? "재시도 중..."
+                  : "마지막 실패 재시도"}
               </button>
             ) : null}
           </div>
@@ -75,6 +79,7 @@ export default function SettingsTestHistoryNotice({
       {recentEvents.length ? (
         <details
           className="rounded-md border border-gray-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900"
+          data-retry-enabled={Boolean(onRetry)}
           data-testid="settings-test-recent-history"
         >
           <summary className="cursor-pointer font-semibold text-gray-700 dark:text-slate-200">
@@ -85,6 +90,7 @@ export default function SettingsTestHistoryNotice({
               <li
                 key={event.audit_id}
                 className="rounded-md border border-gray-100 bg-gray-50 p-2 dark:border-slate-700 dark:bg-slate-950"
+                data-event-success={String(event.success)}
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`font-semibold ${event.success === null ? "text-slate-600 dark:text-slate-300" : event.success ? "text-green-700 dark:text-emerald-200" : "text-red-700 dark:text-red-200"}`}>
@@ -101,6 +107,20 @@ export default function SettingsTestHistoryNotice({
                   >
                     감사 상세
                   </Link>
+                  {event.success === false && onRetry ? (
+                    <button
+                      aria-label={`${label} ${formatDateTime(event.created_at, timezone)} 실패 재시도`}
+                      className="rounded-md border border-amber-300 bg-white px-2 py-0.5 font-semibold text-amber-800 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-500/40 dark:bg-slate-900 dark:text-amber-100 dark:hover:bg-amber-500/10"
+                      data-retry-audit-id={event.audit_id}
+                      disabled={isRetrying}
+                      onClick={() => onRetry?.(event.audit_id)}
+                      type="button"
+                    >
+                      {isRetrying && retryingAuditId === event.audit_id
+                        ? "재시도 중..."
+                        : "이 실패 재시도"}
+                    </button>
+                  ) : null}
                 </div>
                 {event.message ? <p className="mt-1 text-gray-700 dark:text-slate-200">{event.message}</p> : null}
                 {event.detail ? <p className="mt-1 break-all text-gray-500 dark:text-slate-400">{event.detail}</p> : null}

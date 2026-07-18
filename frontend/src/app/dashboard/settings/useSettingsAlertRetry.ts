@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useAuditRetryDelivery } from "@/features/audit/hooks/useAudit";
 import type {
   SettingsActionTestResult,
-  SettingsTestHistoryItem,
   SettingsTestHistoryStatus,
 } from "@/features/settings/api/settingsApi";
 import { buildActionFailure, getApiErrorDetail } from "@/features/settings/lib/settingsErrors";
@@ -19,10 +18,9 @@ export function useSettingsAlertRetry(settingsTestHistory?: SettingsTestHistoryS
   const retryDelivery = useAuditRetryDelivery();
 
   const handleRetryDelivery = async (
-    history: SettingsTestHistoryItem | null | undefined,
+    auditLogId: string | null | undefined,
     target: AlertRetryTarget,
   ) => {
-    const auditLogId = history?.last_failure_audit_id;
     if (!auditLogId) return;
 
     try {
@@ -57,13 +55,15 @@ export function useSettingsAlertRetry(settingsTestHistory?: SettingsTestHistoryS
   return {
     securityAlertDeliveryRetryResult,
     changeAlertDeliveryRetryResult,
-    isRetryingSecurityDelivery:
-      retryDelivery.isPending &&
-      retryTargetAuditId === settingsTestHistory?.security_alert_delivery?.last_failure_audit_id,
-    isRetryingChangeDelivery:
-      retryDelivery.isPending &&
-      retryTargetAuditId === settingsTestHistory?.change_alert_delivery?.last_failure_audit_id,
-    retrySecurityDelivery: () => handleRetryDelivery(settingsTestHistory?.security_alert_delivery, "security"),
-    retryChangeDelivery: () => handleRetryDelivery(settingsTestHistory?.change_alert_delivery, "change"),
+    isRetryingDelivery: retryDelivery.isPending,
+    retryTargetAuditId,
+    retrySecurityDelivery: (auditLogId?: string) => handleRetryDelivery(
+      auditLogId ?? settingsTestHistory?.security_alert_delivery?.last_failure_audit_id,
+      "security",
+    ),
+    retryChangeDelivery: (auditLogId?: string) => handleRetryDelivery(
+      auditLogId ?? settingsTestHistory?.change_alert_delivery?.last_failure_audit_id,
+      "change",
+    ),
   };
 }

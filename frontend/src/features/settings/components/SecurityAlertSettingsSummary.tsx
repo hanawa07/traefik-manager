@@ -22,11 +22,11 @@ interface SecurityAlertSettingsSummaryProps {
   securityTestHistory?: SettingsTestHistoryItem | null;
   securityDeliveryHistory?: SettingsTestHistoryItem | null;
   changeDeliveryHistory?: SettingsTestHistoryItem | null;
-  isRetryingSecurityDelivery: boolean;
-  isRetryingChangeDelivery: boolean;
+  isRetryingDelivery: boolean;
+  retryTargetAuditId: string | null;
   onTest: () => void;
-  onRetrySecurityDelivery: () => void;
-  onRetryChangeDelivery: () => void;
+  onRetrySecurityDelivery: (auditLogId?: string) => void;
+  onRetryChangeDelivery: (auditLogId?: string) => void;
 }
 
 export function SecurityAlertSettingsSummary({
@@ -42,8 +42,8 @@ export function SecurityAlertSettingsSummary({
   securityTestHistory,
   securityDeliveryHistory,
   changeDeliveryHistory,
-  isRetryingSecurityDelivery,
-  isRetryingChangeDelivery,
+  isRetryingDelivery,
+  retryTargetAuditId,
   onTest,
   onRetrySecurityDelivery,
   onRetryChangeDelivery,
@@ -63,8 +63,8 @@ export function SecurityAlertSettingsSummary({
         securityTestHistory={securityTestHistory}
         securityDeliveryHistory={securityDeliveryHistory}
         changeDeliveryHistory={changeDeliveryHistory}
-        isRetryingSecurityDelivery={isRetryingSecurityDelivery}
-        isRetryingChangeDelivery={isRetryingChangeDelivery}
+        isRetryingDelivery={isRetryingDelivery}
+        retryTargetAuditId={retryTargetAuditId}
         onTest={onTest}
         onRetrySecurityDelivery={onRetrySecurityDelivery}
         onRetryChangeDelivery={onRetryChangeDelivery}

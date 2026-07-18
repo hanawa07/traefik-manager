@@ -19,11 +19,11 @@ interface SecurityAlertDeliverySummaryProps {
   securityTestHistory?: SettingsTestHistoryItem | null;
   securityDeliveryHistory?: SettingsTestHistoryItem | null;
   changeDeliveryHistory?: SettingsTestHistoryItem | null;
-  isRetryingSecurityDelivery: boolean;
-  isRetryingChangeDelivery: boolean;
+  isRetryingDelivery: boolean;
+  retryTargetAuditId: string | null;
   onTest: () => void;
-  onRetrySecurityDelivery: () => void;
-  onRetryChangeDelivery: () => void;
+  onRetrySecurityDelivery: (auditLogId?: string) => void;
+  onRetryChangeDelivery: (auditLogId?: string) => void;
 }
 
 export function SecurityAlertDeliverySummary({
@@ -37,8 +37,8 @@ export function SecurityAlertDeliverySummary({
   securityTestHistory,
   securityDeliveryHistory,
   changeDeliveryHistory,
-  isRetryingSecurityDelivery,
-  isRetryingChangeDelivery,
+  isRetryingDelivery,
+  retryTargetAuditId,
   onTest,
   onRetrySecurityDelivery,
   onRetryChangeDelivery,
@@ -64,15 +64,17 @@ export function SecurityAlertDeliverySummary({
           label="보안 이벤트"
           history={securityDeliveryHistory}
           timezone={displayTimezone}
-          isRetrying={isRetryingSecurityDelivery}
-          onRetry={onRetrySecurityDelivery}
+          isRetrying={isRetryingDelivery}
+          retryTargetAuditId={retryTargetAuditId}
+          onRetry={canManage ? onRetrySecurityDelivery : undefined}
         />
         <SecurityAlertFailureBanner
           label="운영 변경"
           history={changeDeliveryHistory}
           timezone={displayTimezone}
-          isRetrying={isRetryingChangeDelivery}
-          onRetry={onRetryChangeDelivery}
+          isRetrying={isRetryingDelivery}
+          retryTargetAuditId={retryTargetAuditId}
+          onRetry={canManage ? onRetryChangeDelivery : undefined}
         />
       </div>
       <SecurityAlertDeliveryHistory
@@ -84,10 +86,10 @@ export function SecurityAlertDeliverySummary({
         securityTestHistory={securityTestHistory}
         securityDeliveryHistory={securityDeliveryHistory}
         changeDeliveryHistory={changeDeliveryHistory}
-        isRetryingSecurityDelivery={isRetryingSecurityDelivery}
-        isRetryingChangeDelivery={isRetryingChangeDelivery}
-        onRetrySecurityDelivery={onRetrySecurityDelivery}
-        onRetryChangeDelivery={onRetryChangeDelivery}
+        isRetryingDelivery={isRetryingDelivery}
+        retryTargetAuditId={retryTargetAuditId}
+        onRetrySecurityDelivery={canManage ? onRetrySecurityDelivery : undefined}
+        onRetryChangeDelivery={canManage ? onRetryChangeDelivery : undefined}
       />
       <p className="text-xs text-gray-500 dark:text-slate-400">
         알림 실패는 운영 가시성에만 영향을 주고, 로그인 차단/잠금 로직 자체는 중단하지 않습니다.
