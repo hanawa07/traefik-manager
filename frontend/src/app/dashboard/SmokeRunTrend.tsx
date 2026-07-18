@@ -1,4 +1,5 @@
 import type { SmokeMonitoringRecentRun } from "@/features/settings/api/settingsApi";
+import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 const STATUS_LABELS = {
   failure: "실패",
@@ -15,9 +16,10 @@ const STATUS_STYLES = {
 interface SmokeRunTrendProps {
   error: string | null;
   runs: SmokeMonitoringRecentRun[];
+  timezone?: string;
 }
 
-export function SmokeRunTrend({ error, runs }: SmokeRunTrendProps) {
+export function SmokeRunTrend({ error, runs, timezone }: SmokeRunTrendProps) {
   const recent = runs.slice(0, 5).reverse();
   if (!recent.length) {
     return (
@@ -36,20 +38,32 @@ export function SmokeRunTrend({ error, runs }: SmokeRunTrendProps) {
         className="flex items-center gap-1"
         aria-label={`최근 ${recent.length}회 중 ${successCount}회 성공`}
       >
-        {recent.map((run) => (
-          <a
-            key={run.run_url}
-            className={`h-2.5 w-7 rounded-full transition-colors ${STATUS_STYLES[run.status]}`}
-            href={run.run_url}
-            target="_blank"
-            rel="noreferrer"
-            title={`${run.run_number ? `#${run.run_number} ` : ""}${STATUS_LABELS[run.status]}`}
-          >
-            <span className="sr-only">{STATUS_LABELS[run.status]}</span>
-          </a>
-        ))}
+        {recent.map((run) => {
+          const tooltip = getRunTooltip(run, timezone);
+          return (
+            <a
+              key={run.run_url}
+              className={`h-2.5 w-7 rounded-full transition-colors ${STATUS_STYLES[run.status]}`}
+              href={run.run_url}
+              target="_blank"
+              rel="noreferrer"
+              title={tooltip}
+            >
+              <span className="sr-only">{tooltip}</span>
+            </a>
+          );
+        })}
       </div>
       <span>{successCount}/{recent.length} 성공</span>
     </div>
   );
+}
+
+function getRunTooltip(run: SmokeMonitoringRecentRun, timezone?: string) {
+  return [
+    run.run_number ? `#${run.run_number}` : "실행",
+    STATUS_LABELS[run.status],
+    formatDateTime(run.completed_at, timezone),
+    run.summary,
+  ].filter(Boolean).join(" · ");
 }

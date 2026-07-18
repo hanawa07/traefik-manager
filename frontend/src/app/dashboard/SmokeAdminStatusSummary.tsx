@@ -35,6 +35,7 @@ export function SmokeAdminStatusSummary({
             <SmokeRunTrend
               error={status.monitoring_history_error}
               runs={status.monitoring_recent_runs}
+              timezone={timezone}
             />
           ) : null}
         </div>
