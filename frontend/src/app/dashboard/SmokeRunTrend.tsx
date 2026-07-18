@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { SmokeMonitoringRecentRun } from "@/features/settings/api/settingsApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
@@ -38,6 +38,8 @@ const ARTIFACT_EXPIRY_STYLES: Record<SmokeArtifactExpiryState, string> = {
   expired: "bg-rose-100 px-1.5 py-0.5 font-semibold text-rose-700 dark:bg-rose-950 dark:text-rose-200",
 };
 
+const ARTIFACT_CLOCK_INTERVAL_MS = 60_000;
+
 interface SmokeRunTrendProps {
   error: string | null;
   failureRateMinRuns: number;
@@ -56,7 +58,16 @@ export function SmokeRunTrend({
   timezone,
 }: SmokeRunTrendProps) {
   const [rangeDays, setRangeDays] = useState<7 | 30>(7);
-  const [periodReferenceTime] = useState(() => Date.now());
+  const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
+  useEffect(() => {
+    const refreshClock = () => setPeriodReferenceTime(Date.now());
+    const intervalId = window.setInterval(refreshClock, ARTIFACT_CLOCK_INTERVAL_MS);
+    window.addEventListener("focus", refreshClock);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshClock);
+    };
+  }, []);
   const cutoff = periodReferenceTime - rangeDays * 24 * 60 * 60 * 1000;
   const recent = runs
     .filter((run) => Date.parse(run.completed_at) >= cutoff)
@@ -91,7 +102,11 @@ export function SmokeRunTrend({
     run.artifact_url && getSmokeArtifactExpiryState(run.artifact_expires_at, periodReferenceTime)
   ).length;
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]" data-testid="smoke-run-trend">
+    <div
+      className="mt-2 flex flex-wrap items-center gap-2 text-[11px]"
+      data-artifact-reference-time={periodReferenceTime}
+      data-testid="smoke-run-trend"
+    >
       <span className="font-semibold">운영 점검 추이</span>
       <div className="inline-flex rounded-md border border-current/20 p-0.5" aria-label="운영 점검 범위">
         {([7, 30] as const).map((days) => (
