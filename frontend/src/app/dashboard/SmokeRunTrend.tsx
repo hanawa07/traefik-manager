@@ -4,6 +4,11 @@ import { useState } from "react";
 
 import type { SmokeMonitoringRecentRun } from "@/features/settings/api/settingsApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import {
+  getSmokeRunFailureRate,
+  SMOKE_FAILURE_RATE_MIN_RUNS,
+  SMOKE_FAILURE_RATE_THRESHOLD_PERCENT,
+} from "./smokeRunFailureRate";
 
 const STATUS_LABELS = {
   failure: "실패",
@@ -31,6 +36,7 @@ export function SmokeRunTrend({ error, runs, timezone }: SmokeRunTrendProps) {
     .filter((run) => Date.parse(run.completed_at) >= cutoff)
     .reverse();
   const successCount = recent.filter((run) => run.status === "success").length;
+  const failureRate = getSmokeRunFailureRate(runs, periodReferenceTime);
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]" data-testid="smoke-run-trend">
       <span className="font-semibold">운영 점검 추이</span>
@@ -74,6 +80,21 @@ export function SmokeRunTrend({ error, runs, timezone }: SmokeRunTrendProps) {
       ) : (
         <span className="opacity-80">{error ? "확인 실패" : "이력 없음"}</span>
       )}
+      <span
+        className={
+          failureRate.isAlert
+            ? "rounded-full bg-rose-100 px-2 py-0.5 font-semibold text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+            : "opacity-80"
+        }
+        data-testid="smoke-failure-rate"
+        role={failureRate.isAlert ? "alert" : undefined}
+      >
+        {failureRate.totalCount === 0
+          ? `7일 실패율 이력 없음 · 경고 ${SMOKE_FAILURE_RATE_THRESHOLD_PERCENT}%`
+          : failureRate.totalCount < SMOKE_FAILURE_RATE_MIN_RUNS
+            ? `7일 실패율 ${failureRate.percentage}% (${failureRate.failureCount}/${failureRate.totalCount}) · ${SMOKE_FAILURE_RATE_MIN_RUNS}회부터 판정`
+            : `${failureRate.isAlert ? "실패율 경고" : "7일 실패율"} ${failureRate.percentage}% (${failureRate.failureCount}/${failureRate.totalCount}) · 기준 ${SMOKE_FAILURE_RATE_THRESHOLD_PERCENT}%`}
+      </span>
     </div>
   );
 }
