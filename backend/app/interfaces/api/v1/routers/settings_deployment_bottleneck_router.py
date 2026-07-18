@@ -74,7 +74,7 @@ async def update_deployment_bottleneck_settings(
     summary="Manager 배포 병목 이벤트 정리 미리보기",
 )
 async def preview_deployment_bottleneck_event_cleanup(
-    _: dict = Depends(require_admin),
+    _: dict = Depends(get_current_user),
 ):
     state = read_manager_deployment_bottleneck_state()
     return await asyncio.to_thread(

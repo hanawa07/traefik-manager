@@ -70,6 +70,14 @@ const CHECKS = [
         : null,
   },
   {
+    label: "병목 이벤트 정리 미리보기",
+    path: "/api/v1/settings/deployment-bottleneck-alert/cleanup",
+    validate: (data) =>
+      Number.isInteger(data?.retention_days) &&
+      Number.isInteger(data?.deleted_count) &&
+      Number.isInteger(data?.retained_event_count),
+  },
+  {
     label: "서비스 진단 감사 로그",
     path: "/api/v1/audit?event=service_gateway_diagnosis&limit=100&resource_type=service",
     validate: Array.isArray,
