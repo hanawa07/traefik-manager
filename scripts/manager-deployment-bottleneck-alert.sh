@@ -153,7 +153,7 @@ prune_alert_events() {
     printf '%s\n' "${line}" >> "${temporary_file}"
   done < <(tail -n "${MAX_EVENT_LINES}" "${events_file}")
   chmod 644 "${temporary_file}"
-  mv "${temporary_file}" "${events_file}"
+  mv -f "${temporary_file}" "${events_file}"
 }
 
 migrate_legacy_alert_events() {
@@ -165,7 +165,7 @@ migrate_legacy_alert_events() {
   temporary_file="$(mktemp "${events_file}.tmp.XXXXXX")"
   tail -n "${MAX_EVENT_LINES}" "${legacy_events_file}" > "${temporary_file}"
   chmod 644 "${temporary_file}"
-  mv "${temporary_file}" "${events_file}"
+  mv -f "${temporary_file}" "${events_file}"
 }
 
 append_alert_event() {
@@ -186,7 +186,7 @@ append_alert_event() {
     "${count}" "$(json_escape "${latest_version}")" "$(json_escape "${slowest_stage}")" \
     "${slowest_ms}" "$(json_escape "${run_url}")" >> "${temporary_file}"
   chmod 644 "${temporary_file}"
-  mv "${temporary_file}" "${events_file}"
+  mv -f "${temporary_file}" "${events_file}"
 }
 
 check_history() (
