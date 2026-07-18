@@ -30,12 +30,20 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
   );
   const failureLinks = await evaluate(cdp, `(() => {
     const alert = document.querySelector('[data-testid="smoke-failure-rate"][role="alert"]');
-    const links = Array.from(
-      document.querySelectorAll('[data-testid="smoke-failure-run-links"] a')
+    const container = document.querySelector('[data-testid="smoke-failure-run-links"]');
+    const links = Array.from(container?.querySelectorAll('a') || []);
+    const artifactLinks = Array.from(
+      container?.querySelectorAll('[data-testid="smoke-failure-artifact-link"]') || []
     );
     return {
       alert: Boolean(alert),
+      artifactCount: artifactLinks.length,
+      artifactValid: artifactLinks.every((link) =>
+        link.href.startsWith('https://github.com/') && link.href.includes('/actions/runs/') &&
+          link.href.includes('/artifacts/')
+      ),
       count: links.length,
+      expectedArtifactCount: Number(container?.getAttribute('data-artifact-count') || 0),
       valid: links.every((link) =>
         link.href.startsWith('https://github.com/') && link.href.includes('/actions/runs/')
       ),
@@ -44,14 +52,26 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
   if (failureLinks.alert) {
     assert.ok(failureLinks.count > 0, "실패율 경고에 실패 실행 링크가 표시되지 않았습니다");
     assert.equal(failureLinks.valid, true, "실패 실행 링크가 GitHub Actions 주소가 아닙니다");
+    assert.equal(
+      failureLinks.artifactCount,
+      failureLinks.expectedArtifactCount,
+      "실패 실행의 Artifact 링크 수가 일치하지 않습니다",
+    );
+    assert.equal(failureLinks.artifactValid, true, "실패 화면 Artifact 링크가 올바르지 않습니다");
   }
 }
 
 export async function checkSettingsTestAuditLinks({ cdp }) {
   const result = await evaluate(cdp, `(() => {
+    const histories = Array.from(
+      document.querySelectorAll('[data-testid="settings-test-recent-history"]')
+    );
+    histories.forEach((history) => { history.open = true; });
     const links = Array.from(document.querySelectorAll('a[aria-label$="감사 상세"]'));
     return {
       count: links.length,
+      historyCount: histories.length,
+      historyItemCounts: histories.map((history) => history.querySelectorAll('li').length),
       valid: links.every((link) => {
         const url = new URL(link.href);
         const id = url.searchParams.get('q');
@@ -61,6 +81,12 @@ export async function checkSettingsTestAuditLinks({ cdp }) {
   })()`);
   if (!result.count) return false;
   assert.equal(result.valid, true, "설정 테스트 감사 상세 링크 조건이 올바르지 않습니다");
+  assert.ok(result.historyCount > 0, "설정 테스트 최근 이력 펼침 목록이 표시되지 않았습니다");
+  assert.equal(
+    result.historyItemCounts.every((count) => count > 0 && count <= 5),
+    true,
+    "설정 테스트 최근 이력이 최대 5건으로 표시되지 않았습니다",
+  );
   return true;
 }
 

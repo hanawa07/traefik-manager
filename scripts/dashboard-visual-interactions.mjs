@@ -144,7 +144,7 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
     timeoutMs,
     "새로고침 후 감사 로그 날짜 범위가 복원되지 않았습니다",
   );
-  await checkAuditCsvExports({ cdp, today });
+  await checkAuditCsvExports({ cdp, timeoutMs, today });
   await clickAriaLabel(cdp, "감사 필터 전체 초기화");
   await waitForCondition(
     cdp,
