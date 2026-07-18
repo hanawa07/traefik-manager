@@ -47,12 +47,58 @@ class StubUserRepository:
 class StubAuthSessionRepository:
     def __init__(self, auth_session: AuthSession | None):
         self.auth_session = auth_session
+        self.save_count = 0
 
     async def find_by_id(self, _session_id: str):
         return self.auth_session
 
     async def save(self, session: AuthSession) -> None:
         self.auth_session = session
+        self.save_count += 1
+
+
+class StubDatabase:
+    def __init__(self):
+        self.commit_count = 0
+
+    async def commit(self) -> None:
+        self.commit_count += 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("age", "should_touch"),
+    [(timedelta(seconds=30), False), (timedelta(minutes=2), True)],
+)
+async def test_auth_session_touch_commits_only_when_due(
+    age: timedelta,
+    should_touch: bool,
+):
+    now = datetime.now(timezone.utc)
+    auth_session = AuthSession.issue(
+        session_id="session-1",
+        session_secret_hash="hash-1",
+        user_id=str(uuid4()),
+        username="admin",
+        role="admin",
+        token_version=0,
+        absolute_ttl=timedelta(hours=8),
+        idle_ttl=timedelta(hours=1),
+        now=now - age,
+    )
+    repository = StubAuthSessionRepository(auth_session)
+    db = StubDatabase()
+
+    await dependencies._touch_auth_session_if_due(
+        auth_session,
+        repository=repository,
+        db=db,
+        now=now,
+    )
+
+    assert repository.save_count == int(should_touch)
+    assert db.commit_count == int(should_touch)
+    assert auth_session.last_seen_at == (now if should_touch else now - age)
 
 
 @pytest.mark.asyncio

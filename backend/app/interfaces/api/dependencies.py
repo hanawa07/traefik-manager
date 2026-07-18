@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
@@ -16,6 +16,7 @@ from app.infrastructure.persistence.repositories.sqlite_user_repository import (
 )
 
 MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+SESSION_TOUCH_INTERVAL = timedelta(minutes=1)
 
 
 def _validate_csrf(request: Request) -> None:
@@ -91,9 +92,25 @@ async def resolve_authenticated_user(request: Request, db: AsyncSession):
 
     _validate_csrf(request)
 
-    auth_session.touch(now=now, idle_ttl=auth_session.idle_expires_at - (auth_session.last_seen_at or auth_session.issued_at))
-    await auth_session_repository.save(auth_session)
+    await _touch_auth_session_if_due(
+        auth_session,
+        repository=auth_session_repository,
+        db=db,
+        now=now,
+    )
     return user, auth_session
+
+
+async def _touch_auth_session_if_due(auth_session, *, repository, db, now: datetime) -> None:
+    last_seen_at = auth_session.last_seen_at or auth_session.issued_at
+    if now - last_seen_at < SESSION_TOUCH_INTERVAL:
+        return
+    auth_session.touch(
+        now=now,
+        idle_ttl=auth_session.idle_expires_at - last_seen_at,
+    )
+    await repository.save(auth_session)
+    await db.commit()
 
 
 async def get_current_user(
