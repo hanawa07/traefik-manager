@@ -8,6 +8,7 @@ import {
 import { AuditDetailList } from "./AuditDetailList";
 import { AuditDiffDetails } from "./AuditDiffDetails";
 import { AuditRetryDeliveryPanel, AuditRollbackPanel } from "./AuditLogActionPanels";
+import { AuditRetryChainPanel } from "./AuditRetryChainPanel";
 
 type AuditDiffRows = ReturnType<typeof getAuditDiffRows>;
 type AuditDeliveryRows = ReturnType<typeof getDeliveryDetailRows>;
@@ -22,7 +23,9 @@ interface AuditLogDetailPanelProps {
   smokeRotationDetailRows: SmokeRotationDetailRows;
   rollbackSupported: boolean;
   rollbackResourceType: RollbackResourceType | null;
+  retryChainSupported: boolean;
   retrySupported: boolean;
+  timezone?: string;
   isRollbackPending: boolean;
   isRetryPending: boolean;
   onRollback: (resourceType: RollbackResourceType, auditLogId: string) => void;
@@ -37,7 +40,9 @@ export function AuditLogDetailPanel({
   smokeRotationDetailRows,
   rollbackSupported,
   rollbackResourceType,
+  retryChainSupported,
   retrySupported,
+  timezone,
   isRollbackPending,
   isRetryPending,
   onRollback,
@@ -59,6 +64,7 @@ export function AuditLogDetailPanel({
       />
       <AuditDiffDetails logId={logId} diffRows={diffRows} />
       <AuditDetailList logId={logId} rows={deliveryRows} title="전송 상세" />
+      <AuditRetryChainPanel enabled={retryChainSupported} logId={logId} timezone={timezone} />
       {rollbackSupported && rollbackResourceType ? (
         <AuditRollbackPanel
           logId={logId}

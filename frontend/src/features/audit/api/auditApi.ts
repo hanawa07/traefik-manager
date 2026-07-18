@@ -116,6 +116,11 @@ export const auditApi = {
     return { items: res.data, total: Number.isFinite(total) ? total : res.data.length };
   },
 
+  getRetryChain: async (auditLogId: string): Promise<AuditLogItem[]> => {
+    const res = await apiClient.get<AuditLogItem[]>(`/audit/retry-chain/${auditLogId}`);
+    return res.data;
+  },
+
   getSecuritySummary: async (params?: {
     window_minutes?: number;
     recent_limit?: number;

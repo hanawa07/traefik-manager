@@ -22,6 +22,14 @@ export const useAuditPage = (params: AuditLogQueryParams, enabled = true) => {
   });
 };
 
+export const useAuditRetryChain = (auditLogId: string, enabled: boolean) => {
+  return useQuery({
+    queryKey: ["audit-logs", "retry-chain", auditLogId],
+    queryFn: () => auditApi.getRetryChain(auditLogId),
+    enabled,
+  });
+};
+
 export const useAuditSecuritySummary = (params?: {
   window_minutes?: number;
   recent_limit?: number;

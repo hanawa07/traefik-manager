@@ -12,6 +12,7 @@ from app.infrastructure.persistence.models import AuditLogModel
 from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.routers.audit_export import router as audit_export_router
 from app.interfaces.api.v1.routers.audit_certificate_summary import build_certificate_summary
+from app.interfaces.api.v1.routers.audit_delivery_retry_chain import build_delivery_retry_chain
 from app.interfaces.api.v1.routers.audit_log_filters import (
     build_audit_log_conditions,
     validate_audit_log_filters,
@@ -137,6 +138,28 @@ async def get_certificate_summary(
         recent_limit=recent_limit,
         now=datetime.now(timezone.utc),
     )
+
+
+@router.get(
+    "/retry-chain/{audit_log_id}",
+    response_model=list[AuditLogResponse],
+    summary="알림 전송 재시도 체인 조회",
+)
+async def get_delivery_retry_chain(
+    audit_log_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(AuditLogModel).where(
+            AuditLogModel.action == "alert",
+            AuditLogModel.resource_type == "settings",
+        )
+    )
+    chain = build_delivery_retry_chain(result.scalars().all(), str(audit_log_id))
+    if not chain:
+        raise HTTPException(status_code=404, detail="대상 알림 재시도 체인을 찾을 수 없습니다")
+    return [to_audit_log_response(log) for log in chain]
 
 
 @router.post(

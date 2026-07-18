@@ -61,6 +61,7 @@ export function AuditLogRow({
     ...getManagerHttpLogStorageDetailRows(managerEvent, detail),
   ];
   const smokeRotationDetailRows = getSmokeRotationDetailRows(managerEvent, detail);
+  const retryChainSupported = log.event?.includes("_alert_delivery_") === true;
   const retrySupported = log.event?.endsWith("_delivery_failure") === true;
   const canExpand =
     diffRows.length > 0 ||
@@ -123,7 +124,9 @@ export function AuditLogRow({
               smokeRotationDetailRows={smokeRotationDetailRows}
               rollbackSupported={rollbackSupported}
               rollbackResourceType={rollbackResourceType}
+              retryChainSupported={retryChainSupported}
               retrySupported={retrySupported}
+              timezone={timezone}
               isRollbackPending={isRollbackPending && rollbackTargetId === log.id}
               isRetryPending={isRetryPending && retryTargetId === log.id}
               onRollback={onRollback}
