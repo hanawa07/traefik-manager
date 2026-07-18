@@ -13,6 +13,7 @@ import {
 } from "./dashboard-visual-manager-http.mjs";
 import { checkManagerDeploymentHistory } from "./dashboard-visual-manager-deployment.mjs";
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
+import { checkSecurityAlertRetryDelaySetting } from "./dashboard-visual-security-alert-settings.mjs";
 import {
   checkAuditRetryChain,
   checkSettingsTestAuditLinks,
@@ -62,6 +63,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
             timeoutMs,
           });
           if (previewed) labels.push(`${profile.label} API 오류 권장값 계산`);
+          await checkSecurityAlertRetryDelaySetting({ cdp, timeoutMs });
+          labels.push(`${profile.label} 자동 재시도 지연 설정`);
           const bottleneckPreviewed = await checkDeploymentBottleneckSettingsPreview({
             cdp,
             timeoutMs,
@@ -74,7 +77,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
     });
     labels.push(`${profile.label} ${DASHBOARD_ROUTES.length}개 화면`);
   }
-  labels.push("Docker 정상 표시", "Artifact 필터 건수·정렬·URL 공유·링크 복사 fallback·새로고침 유지");
+  labels.push("Docker 정상 표시", "Artifact 필터 건수·정렬·URL 공유·복사 성공 초기화·실패 fallback·새로고침 유지");
 
   const cleanupCancelChecked = await checkOptionalDeploymentBottleneckCleanupCancel({
     baseUrl,

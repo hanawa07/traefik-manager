@@ -168,6 +168,11 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
       ? 'success'
       : latest?.event === 'smoke_rotation_failed' ? 'failure' : null;
     const text = button?.textContent || '';
+    failureCsv?.focus();
+    failureCsv?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    const keyboardForward = document.activeElement === failureList;
+    failureList?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    const keyboardBackward = document.activeElement === failureCsv;
     button?.click();
     return {
       clicked: Boolean(button),
@@ -177,6 +182,7 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
       latestFailureActionsGrouped: Boolean(
         failureActions?.contains(failureCsv) && failureActions?.contains(failureList)
       ),
+      latestFailureActionsKeyboardValid: keyboardForward && keyboardBackward,
       latestFailureCsvHref: failureCsv?.href,
       latestFailureCsvOk: failureCsvResponse?.ok,
       latestFailureCsvCount: Number(failureCsv?.getAttribute('data-result-count')),
@@ -213,6 +219,7 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
     assert.equal(latestFailureUrl.searchParams.get("q"), expectedLatestFailure.id, "최근 회전 실패 검색 ID가 다릅니다");
     assert.equal(latestFailureUrl.searchParams.get("expand"), expectedLatestFailure.id, "최근 회전 실패 펼침 ID가 다릅니다");
     assert.equal(latestRecovery.latestFailureActionsGrouped, true, "최근 회전 실패 날짜 작업이 한 그룹으로 묶이지 않았습니다");
+    assert.equal(latestRecovery.latestFailureActionsKeyboardValid, true, "최근 회전 실패 날짜 작업의 방향키 이동이 동작하지 않습니다");
     assert.equal(latestRecovery.latestFailureCsvOk, true, "최근 회전 실패 날짜 CSV 응답을 받지 못했습니다");
     assert.ok(latestRecovery.expectedLatestFailureCsvCount > 0, "최근 회전 실패 날짜 대상 건수가 없습니다");
     assert.equal(latestRecovery.latestFailureCsvCount, latestRecovery.expectedLatestFailureCsvCount, "최근 회전 실패 날짜 CSV 대상 건수가 다릅니다");

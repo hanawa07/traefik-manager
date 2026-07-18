@@ -175,6 +175,9 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
       copyButton?.click();
       await settle();
       const successfulCopyStatus = copyButton?.getAttribute('data-copy-status');
+      const copySuccessDuration = Number(copyButton?.getAttribute('data-copy-success-duration-ms'));
+      await new Promise((resolve) => setTimeout(resolve, copySuccessDuration + 100));
+      const resetCopyStatus = copyButton?.getAttribute('data-copy-status');
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: { writeText: async () => { throw new Error('clipboard blocked'); } },
@@ -196,6 +199,7 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
         ),
         copiedFilter: copiedUrl ? new URL(copiedUrl).searchParams.get('artifact_filter') : null,
         copyFailureStatus: copyButton?.getAttribute('data-copy-status'),
+        copyResetStatus: resetCopyStatus,
         copySuccessStatus: successfulCopyStatus,
         fallbackFilter: fallback?.value ? new URL(fallback.value).searchParams.get('artifact_filter') : null,
         fallbackSelected: document.activeElement === fallback &&
@@ -208,6 +212,7 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     assert.equal(filterResult?.valid, true, "다운로드 가능 Artifact 필터 결과가 다릅니다");
     assert.equal(filterResult?.copiedFilter, "available", "복사된 Artifact 필터 URL이 다릅니다");
     assert.equal(filterResult?.copySuccessStatus, "copied", "Artifact 필터 링크 복사 성공 표시가 없습니다");
+    assert.equal(filterResult?.copyResetStatus, "idle", "Artifact 필터 링크 복사 성공 표시가 초기화되지 않았습니다");
     assert.equal(filterResult?.copyFailureStatus, "error", "Artifact 필터 링크 복사 실패 표시가 없습니다");
     assert.equal(filterResult?.fallbackFilter, "available", "Artifact 필터 직접 복사 URL이 다릅니다");
     assert.equal(filterResult?.fallbackSelected, true, "Artifact 필터 직접 복사 URL이 전체 선택되지 않았습니다");
@@ -345,6 +350,8 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
   );
   const result = await evaluate(cdp, `(async () => {
     const response = await fetch('/api/v1/audit/retry-chain/${targetAuditId}');
+    const settingsResponse = await fetch('/api/v1/settings/security-alerts');
+    const alertSettings = settingsResponse.ok ? await settingsResponse.json() : null;
     const chain = response.ok ? await response.json() : [];
     const panel = document.querySelector('[data-testid="audit-retry-chain"]');
     const items = Array.from(panel?.querySelectorAll('[data-chain-audit-id]') || []);
@@ -380,6 +387,9 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
         return index === 0 ? !parentId : Boolean(parentId && ids.includes(parentId));
       }),
       responseOk: response.ok,
+      retryDelaySettingValid: settingsResponse.ok &&
+        Number(panel?.getAttribute('data-auto-retry-delay-warning-ms')) ===
+          alertSettings?.automatic_retry_delay_warning_minutes * 60 * 1_000,
       recoveryValid: (() => {
         const firstFailureIndex = chain.findIndex((item) => item.detail?.success === false);
         const firstFailure = firstFailureIndex >= 0 ? chain[firstFailureIndex] : null;
@@ -430,6 +440,7 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
   assert.equal(result.firstIsOrigin, true, "알림 재시도 체인의 원본 표시가 없습니다");
   assert.equal(result.parentsValid, true, "알림 재시도 체인의 부모 관계가 끊겼습니다");
   assert.equal(result.recoveryValid, true, "알림 재시도 체인의 복구 소요 시간이 다릅니다");
+  assert.equal(result.retryDelaySettingValid, true, "알림 재시도 지연 설정이 체인에 반영되지 않았습니다");
   assert.equal(result.stageElapsedValid, true, "알림 재시도 단계별 경과 시간이 다릅니다");
   assert.equal(result.successCount, result.expectedSuccessCount, "알림 재시도 성공 요약 건수가 다릅니다");
   assert.equal(result.triggersValid, true, "알림 재시도 체인의 자동·수동 표시가 다릅니다");
