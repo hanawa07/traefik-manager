@@ -161,6 +161,9 @@ export interface ManagerDeploymentBottleneckAlert {
   run_conclusion: string | null;
   run_checked_at: string | null;
   run_error: string | null;
+  retained_event_count?: number;
+  oldest_event_at?: string | null;
+  newest_event_at?: string | null;
   events: ManagerDeploymentBottleneckEvent[];
 }
 

@@ -4,10 +4,12 @@ import { useDeploymentInfo } from "@/features/deployment/hooks/useDeploymentInfo
 import { buildDeploymentBottleneckPreview } from "@/features/deployment/lib/deploymentBottleneckPreview";
 import type { DeploymentBottleneckSettings } from "@/features/settings/api/settingsApi";
 import {
+  useCleanupDeploymentBottleneckEvents,
   useDeploymentBottleneckSettings,
   useUpdateDeploymentBottleneckSettings,
 } from "@/features/settings/hooks/useSettings";
 import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
+import { getSettingsModelErrorMessage } from "./settingsModelErrors";
 
 const DEFAULT_SETTINGS: DeploymentBottleneckSettings = {
   threshold_ms: 60_000,
@@ -17,6 +19,7 @@ const DEFAULT_SETTINGS: DeploymentBottleneckSettings = {
 
 export function useDeploymentBottleneckSettingsModel(
   canManage: boolean,
+  timezone: string | undefined,
   onToast: (notice: ToastNoticeValue) => void,
 ) {
   const [isEditing, setIsEditing] = useState(false);
@@ -28,6 +31,7 @@ export function useDeploymentBottleneckSettingsModel(
     isLoading: isPreviewLoading,
   } = useDeploymentInfo();
   const updateSettings = useUpdateDeploymentBottleneckSettings();
+  const cleanupEvents = useCleanupDeploymentBottleneckEvents();
   const previewSettings = isEditing ? formValue : settings ?? DEFAULT_SETTINGS;
   const preview = deploymentInfo
     ? buildDeploymentBottleneckPreview(
@@ -77,6 +81,24 @@ export function useDeploymentBottleneckSettingsModel(
     setIsEditing(false);
   };
 
+  const handleCleanup = async () => {
+    try {
+      const result = await cleanupEvents.mutateAsync();
+      onToast({
+        tone: "success",
+        message: "배포 병목 이벤트 정리 완료",
+        detail: `${result.deleted_count}건 삭제 · ${result.retained_event_count}건 보관 · `
+          + `적용 기간 ${result.retention_days}일`,
+      });
+    } catch (error) {
+      onToast({
+        tone: "error",
+        message: "배포 병목 이벤트 정리 실패",
+        detail: getSettingsModelErrorMessage(error, "보관 기간 정리를 수행하지 못했습니다"),
+      });
+    }
+  };
+
   return {
     canManage,
     formValue,
@@ -84,15 +106,21 @@ export function useDeploymentBottleneckSettingsModel(
     hostOverrideLabels,
     hostSettings,
     isEditing,
+    isCleaning: cleanupEvents.isPending,
     isLoading,
     isSaving: updateSettings.isPending,
     isPreviewError,
     isPreviewLoading,
     onCancel: () => setIsEditing(false),
+    onCleanup: handleCleanup,
     onEdit: handleEdit,
     onFormChange: setFormValue,
     onSave: handleSave,
     preview,
     settings,
+    retainedEventCount: alert?.retained_event_count,
+    oldestEventAt: alert?.oldest_event_at,
+    newestEventAt: alert?.newest_event_at,
+    timezone,
   };
 }

@@ -39,23 +39,31 @@ const PERIODS: readonly { label: string; value: ManagerDeploymentBottleneckEvent
 
 export function ManagerDeploymentBottleneckEventHistory({
   events,
+  retainedEventCount,
   timezone,
 }: {
   events: ManagerDeploymentBottleneckEvent[];
+  retainedEventCount: number;
   timezone?: string;
 }) {
   return (
     <Suspense fallback={null}>
-      <ManagerDeploymentBottleneckEventHistoryContent events={events} timezone={timezone} />
+      <ManagerDeploymentBottleneckEventHistoryContent
+        events={events}
+        retainedEventCount={retainedEventCount}
+        timezone={timezone}
+      />
     </Suspense>
   );
 }
 
 function ManagerDeploymentBottleneckEventHistoryContent({
   events,
+  retainedEventCount,
   timezone,
 }: {
   events: ManagerDeploymentBottleneckEvent[];
+  retainedEventCount: number;
   timezone?: string;
 }) {
   const searchParams = useSearchParams();
@@ -66,7 +74,7 @@ function ManagerDeploymentBottleneckEventHistoryContent({
     parseEventPeriod(searchParams.get(PERIOD_QUERY)),
   );
   const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
-  const [exportNotice, setExportNotice] = useState("");
+  const [actionNotice, setActionNotice] = useState("");
   if (events.length === 0) return null;
 
   const cutoff = period === "all"
@@ -87,16 +95,26 @@ function ManagerDeploymentBottleneckEventHistoryContent({
         format,
         timezone,
       );
-      setExportNotice(`${format.toUpperCase()} 내보내기 완료 · ${filename}`);
+      setActionNotice(`${format.toUpperCase()} 내보내기 완료 · ${filename}`);
     } catch {
-      setExportNotice(`${format.toUpperCase()} 내보내기 실패`);
+      setActionNotice(`${format.toUpperCase()} 내보내기 실패`);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setActionNotice("현재 병목 이력 필터 링크 복사 완료");
+    } catch {
+      setActionNotice("현재 병목 이력 필터 링크 복사 실패");
     }
   };
 
   return (
     <details className="mt-3 border-t border-current/15 pt-2" data-manager-deployment-bottleneck-events>
       <summary className="w-fit cursor-pointer font-semibold">
-        발생·해제 이력 {events.length}건
+        발생·해제 이력 {retainedEventCount}건
+        {retainedEventCount > events.length ? ` · 최근 ${events.length}건 표시` : ""}
       </summary>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <label>
@@ -109,7 +127,7 @@ function ManagerDeploymentBottleneckEventHistoryContent({
               const nextPeriod = event.target.value as ManagerDeploymentBottleneckEventPeriod;
               setPeriodReferenceTime(Date.now());
               setPeriod(nextPeriod);
-              setExportNotice("");
+              setActionNotice("");
               replaceManagerDeploymentHistoryQueryParams([
                 [PERIOD_QUERY, nextPeriod, "all"],
               ]);
@@ -135,7 +153,7 @@ function ManagerDeploymentBottleneckEventHistoryContent({
                 key={option.value}
                 onClick={() => {
                   setEventFilter(option.value);
-                  setExportNotice("");
+                  setActionNotice("");
                   replaceManagerDeploymentHistoryQueryParams([
                     [EVENT_FILTER_QUERY, option.value, "all"],
                   ]);
@@ -159,9 +177,17 @@ function ManagerDeploymentBottleneckEventHistoryContent({
             {format.toUpperCase()} · {filteredEvents.length}건
           </button>
         ))}
+        <button
+          className="whitespace-nowrap rounded-full border border-current/20 bg-white/70 px-2 py-1 text-[11px] font-semibold dark:bg-slate-950/40"
+          data-bottleneck-event-share
+          onClick={handleCopyLink}
+          type="button"
+        >
+          필터 링크 복사
+        </button>
       </div>
       <p aria-live="polite" className="mt-1 min-h-4 opacity-75" data-bottleneck-event-export-notice>
-        {exportNotice || `현재 결과 ${filteredEvents.length}건`}
+        {actionNotice || `현재 결과 ${filteredEvents.length}건`}
       </p>
       {filteredEvents.length === 0 ? (
         <p className="mt-2 rounded-lg bg-white/60 px-2.5 py-2 dark:bg-slate-950/30">

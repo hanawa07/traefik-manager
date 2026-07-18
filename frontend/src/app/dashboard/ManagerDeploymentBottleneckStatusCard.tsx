@@ -41,6 +41,7 @@ export function ManagerDeploymentBottleneckStatusCard({
     ...(alert.consecutive_source === "environment" ? ["연속 감지 기준"] : []),
     ...(alert.event_retention_source === "environment" ? ["이벤트 보관 기간"] : []),
   ];
+  const retainedEventCount = alert.retained_event_count ?? alert.events?.length ?? 0;
   const runLabel = getExternalWatchdogRunLabel(
     alert.run_status,
     alert.run_conclusion,
@@ -70,6 +71,12 @@ export function ManagerDeploymentBottleneckStatusCard({
           ? `적용 출처: 호스트 환경 변수 우선 (${overrideLabels.join(", ")})`
           : "적용 출처: 설정 화면 저장값"}
       </p>
+      <p className="mt-1" data-manager-deployment-bottleneck-storage>
+        이력 보관 {retainedEventCount}/100건
+        {retainedEventCount > 0
+          ? ` · ${formatDateTime(alert.oldest_event_at, timezone)} ~ ${formatDateTime(alert.newest_event_at, timezone)}`
+          : " · 보관된 이벤트 없음"}
+      </p>
       {settingsDiffer ? (
         <p className="mt-1 font-semibold" data-manager-deployment-bottleneck-override>
           {overrideLabels.length > 0
@@ -91,7 +98,11 @@ export function ManagerDeploymentBottleneckStatusCard({
           {alert.run_error ? ` · ${alert.run_error}` : ""}
         </p>
       ) : null}
-      <ManagerDeploymentBottleneckEventHistory events={alert.events ?? []} timezone={timezone} />
+      <ManagerDeploymentBottleneckEventHistory
+        events={alert.events ?? []}
+        retainedEventCount={retainedEventCount}
+        timezone={timezone}
+      />
     </section>
   );
 }

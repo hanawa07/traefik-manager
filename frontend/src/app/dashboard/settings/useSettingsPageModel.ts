@@ -31,7 +31,11 @@ export function useSettingsPageModel() {
   const displayTimezone = timeDisplay.displayTimezone;
   const auditRetention = useAuditRetentionSettingsModel(canManage, displayTimezone, setToastNotice);
   const certificateDiagnostics = useCertificateDiagnosticsSettingsModel(canManage, setToastNotice);
-  const deploymentBottleneck = useDeploymentBottleneckSettingsModel(canManage, setToastNotice);
+  const deploymentBottleneck = useDeploymentBottleneckSettingsModel(
+    canManage,
+    displayTimezone,
+    setToastNotice,
+  );
   const upstreamSecurity = useUpstreamSecuritySettingsModel(canManage, setToastNotice);
   const loginDefense = useLoginDefenseSettingsModel(canManage, setToastNotice);
   const securityAlert = useSecurityAlertSettingsModel(canManage, displayTimezone, setToastNotice);

@@ -11,6 +11,7 @@ export {
   useUpdateCloudflareSettings,
 } from "./useCloudflareMutationHooks";
 export {
+  useCleanupDeploymentBottleneckEvents,
   useRefreshSmokeMonitoringHistory,
   useRunAuditRetentionCleanup,
   useUpdateCertificateDiagnosticsSettings,

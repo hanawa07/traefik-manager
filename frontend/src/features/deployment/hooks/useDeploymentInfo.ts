@@ -5,11 +5,11 @@ import {
   type ManagerHttpErrorWindowHours,
 } from "../api/deploymentApi";
 
-const QUERY_KEY = ["deployment-info"];
+export const DEPLOYMENT_INFO_QUERY_KEY = ["deployment-info"] as const;
 
 export function useDeploymentInfo() {
   return useQuery({
-    queryKey: QUERY_KEY,
+    queryKey: DEPLOYMENT_INFO_QUERY_KEY,
     queryFn: () => deploymentApi.getInfo(),
     refetchInterval: 30_000,
   });
@@ -35,7 +35,7 @@ export function useRefreshDeploymentLatest() {
   return useMutation({
     mutationFn: () => deploymentApi.getInfo({ refreshLatest: true }),
     onSuccess: (data) => {
-      queryClient.setQueryData(QUERY_KEY, data);
+      queryClient.setQueryData(DEPLOYMENT_INFO_QUERY_KEY, data);
     },
   });
 }

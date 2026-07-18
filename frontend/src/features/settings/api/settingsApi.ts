@@ -34,7 +34,10 @@ export type {
   CloudflareZoneInput,
   CloudflareZoneStatus,
 } from "./settingsCloudflareApi";
-export type { DeploymentBottleneckSettings } from "./settingsDeploymentBottleneckApi";
+export type {
+  DeploymentBottleneckCleanupResult,
+  DeploymentBottleneckSettings,
+} from "./settingsDeploymentBottleneckApi";
 export type {
   CertificateDiagnosticsSettingsInput,
   CertificateDiagnosticsSettingsStatus,

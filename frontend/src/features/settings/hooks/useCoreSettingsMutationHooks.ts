@@ -1,3 +1,5 @@
+import { DEPLOYMENT_INFO_QUERY_KEY } from "@/features/deployment/hooks/useDeploymentInfo";
+
 import { settingsApi } from "../api/settingsApi";
 import { settingsQueryKeys } from "./settingsQueryKeys";
 import { useSettingsMutationForQuery } from "./useSettingsHookHelpers";
@@ -34,6 +36,13 @@ export function useUpdateDeploymentBottleneckSettings() {
   return useSettingsMutationForQuery(
     settingsApi.updateDeploymentBottleneckSettings,
     settingsQueryKeys.deploymentBottleneck,
+  );
+}
+
+export function useCleanupDeploymentBottleneckEvents() {
+  return useSettingsMutationForQuery(
+    settingsApi.cleanupDeploymentBottleneckEvents,
+    DEPLOYMENT_INFO_QUERY_KEY,
   );
 }
 

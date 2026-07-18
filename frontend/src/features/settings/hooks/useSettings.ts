@@ -16,6 +16,7 @@ export {
   useUpstreamSecuritySettings,
 } from "./useSettingsQueries";
 export {
+  useCleanupDeploymentBottleneckEvents,
   useRunAuditRetentionCleanup,
   useDiagnoseCloudflareDnsDrift,
   useExportBackup,

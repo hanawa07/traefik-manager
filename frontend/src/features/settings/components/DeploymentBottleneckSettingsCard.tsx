@@ -1,8 +1,10 @@
-import { TimerReset } from "lucide-react";
+import { DatabaseZap, TimerReset } from "lucide-react";
 
 import type { DeploymentBottleneckSettings } from "@/features/settings/api/settingsApi";
 import type { DeploymentBottleneckPreview as DeploymentBottleneckPreviewValue } from "@/features/deployment/lib/deploymentBottleneckPreview";
+import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import {
+  SettingsActionRow,
   SettingsCardHeader,
   SettingsSummary,
   SettingsSummaryRow,
@@ -18,16 +20,22 @@ interface DeploymentBottleneckSettingsCardProps {
   hostOverrideLabels: string[];
   hostSettings?: DeploymentBottleneckSettings;
   isEditing: boolean;
+  isCleaning: boolean;
   isLoading: boolean;
   isPreviewError: boolean;
   isPreviewLoading: boolean;
   isSaving: boolean;
   onCancel: () => void;
+  onCleanup: () => void;
   onEdit: () => void;
   onFormChange: (value: DeploymentBottleneckSettings) => void;
   onSave: () => void;
   preview?: DeploymentBottleneckPreviewValue;
   settings?: DeploymentBottleneckSettings;
+  retainedEventCount?: number;
+  oldestEventAt?: string | null;
+  newestEventAt?: string | null;
+  timezone?: string;
 }
 
 export function DeploymentBottleneckSettingsCard({
@@ -37,17 +45,29 @@ export function DeploymentBottleneckSettingsCard({
   hostOverrideLabels,
   hostSettings,
   isEditing,
+  isCleaning,
   isLoading,
   isPreviewError,
   isPreviewLoading,
   isSaving,
   onCancel,
+  onCleanup,
   onEdit,
   onFormChange,
   onSave,
   preview,
   settings,
+  retainedEventCount,
+  oldestEventAt,
+  newestEventAt,
+  timezone,
 }: DeploymentBottleneckSettingsCardProps) {
+  const storageRange = retainedEventCount === undefined
+    ? "확인 중"
+    : retainedEventCount === 0
+      ? "없음"
+      : `${formatDateTime(oldestEventAt, timezone)} ~ ${formatDateTime(newestEventAt, timezone)}`;
+
   return (
     <div className="card order-2 p-6" data-testid="deployment-bottleneck-settings-card">
       <SettingsCardHeader
@@ -113,6 +133,11 @@ export function DeploymentBottleneckSettingsCard({
           <SettingsSummaryRow label="단계 소요 기준" value={`${(settings?.threshold_ms ?? 60_000) / 1000}초 초과`} />
           <SettingsSummaryRow label="연속 감지 기준" value={`${settings?.consecutive_count ?? 3}회`} />
           <SettingsSummaryRow label="이벤트 보관 기간" value={`${settings?.event_retention_days ?? 90}일 · 최대 100건`} />
+          <SettingsSummaryRow
+            label="현재 보관"
+            value={retainedEventCount === undefined ? "확인 중" : `${retainedEventCount}/100건`}
+          />
+          <SettingsSummaryRow label="보관 범위" value={storageRange} />
           <DeploymentBottleneckPreview
             eventRetentionDays={settings?.event_retention_days ?? 90}
             hostPreview={hostPreview}
@@ -127,6 +152,20 @@ export function DeploymentBottleneckSettingsCard({
           <p className="pt-1 text-xs text-gray-500 dark:text-slate-400">
             정상 또는 실패 배포가 기록되면 연속 병목 상태가 초기화됩니다.
           </p>
+          {canManage ? (
+            <SettingsActionRow>
+              <button
+                className="btn-secondary flex items-center gap-2"
+                data-deployment-bottleneck-cleanup
+                disabled={isCleaning}
+                onClick={onCleanup}
+                type="button"
+              >
+                <DatabaseZap className="h-4 w-4" />
+                {isCleaning ? "정리 중" : "지금 정리"}
+              </button>
+            </SettingsActionRow>
+          ) : null}
         </SettingsSummary>
       )}
     </div>
