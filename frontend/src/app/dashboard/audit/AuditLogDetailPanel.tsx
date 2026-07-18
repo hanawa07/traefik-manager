@@ -10,13 +10,13 @@ import { AuditRetryDeliveryPanel, AuditRollbackPanel } from "./AuditLogActionPan
 
 type AuditDiffRows = ReturnType<typeof getAuditDiffRows>;
 type AuditDeliveryRows = ReturnType<typeof getDeliveryDetailRows>;
-type AuditManagerHttpRows = ReturnType<typeof getManagerHttpErrorDetailRows>;
+type AuditManagerDetailRows = ReturnType<typeof getManagerHttpErrorDetailRows>;
 
 interface AuditLogDetailPanelProps {
   logId: string;
   diffRows: AuditDiffRows;
   deliveryRows: AuditDeliveryRows;
-  managerHttpRows: AuditManagerHttpRows;
+  managerDetailRows: AuditManagerDetailRows;
   rollbackSupported: boolean;
   rollbackResourceType: RollbackResourceType | null;
   retrySupported: boolean;
@@ -30,7 +30,7 @@ export function AuditLogDetailPanel({
   logId,
   diffRows,
   deliveryRows,
-  managerHttpRows,
+  managerDetailRows,
   rollbackSupported,
   rollbackResourceType,
   retrySupported,
@@ -43,9 +43,9 @@ export function AuditLogDetailPanel({
     <div className="space-y-4">
       <AuditDetailList
         logId={logId}
-        rows={managerHttpRows}
-        testId="manager-http-audit-detail"
-        title="Manager API·로그 상세"
+        rows={managerDetailRows}
+        testId="manager-audit-detail"
+        title="Manager 운영 상세"
       />
       <AuditDiffDetails logId={logId} diffRows={diffRows} />
       <AuditDetailList logId={logId} rows={deliveryRows} title="전송 상세" />

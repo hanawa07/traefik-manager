@@ -30,6 +30,7 @@ export {
 } from "./audit-page-helpers/auditFilterOptions";
 export {
   getAuditDiffRows,
+  getDeploymentBottleneckCleanupDetailRows,
   getDeliveryDetailRows,
   getManagerHttpErrorDetailRows,
   getManagerHttpLogStorageDetailRows,

@@ -33,6 +33,21 @@ export function getDeliveryDetailRows(detail: Record<string, unknown> | null) {
   return rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== "");
 }
 
+export function getDeploymentBottleneckCleanupDetailRows(
+  event: unknown,
+  detail: Record<string, unknown> | null,
+) {
+  if (event !== "deployment_bottleneck_events_cleanup" || !detail) return [];
+  const rows = [
+    { key: "retention_days", label: "적용 보관 기간", value: withUnit(detail.retention_days, "일") },
+    { key: "previous_event_count", label: "정리 전 이벤트", value: withUnit(detail.previous_event_count, "건") },
+    { key: "deleted_count", label: "삭제한 이벤트", value: withUnit(detail.deleted_count, "건") },
+    { key: "retained_event_count", label: "남은 이벤트", value: withUnit(detail.retained_event_count, "건") },
+    { key: "client_ip", label: "요청 IP", value: detail.client_ip },
+  ];
+  return rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== "");
+}
+
 export function isManagerHttpErrorEvent(value: unknown): value is string {
   return value === "manager_http_errors_high" || value === "manager_http_errors_recovered";
 }

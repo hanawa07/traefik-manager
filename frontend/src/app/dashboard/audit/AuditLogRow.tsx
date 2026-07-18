@@ -11,6 +11,7 @@ import { AuditTargetCell } from "./AuditTargetCell";
 import {
   actionConfig,
   getAuditDiffRows,
+  getDeploymentBottleneckCleanupDetailRows,
   getDeliveryDetailRows,
   getManagerHttpErrorDetailRows,
   getManagerHttpLogStorageDetailRows,
@@ -51,12 +52,13 @@ export function AuditLogRow({
   const diffRows = getAuditDiffRows(detail);
   const deliveryRows = getDeliveryDetailRows(detail);
   const managerEvent = log.event ?? detail?.event;
-  const managerHttpRows = [
+  const managerDetailRows = [
+    ...getDeploymentBottleneckCleanupDetailRows(managerEvent, detail),
     ...getManagerHttpErrorDetailRows(managerEvent, detail),
     ...getManagerHttpLogStorageDetailRows(managerEvent, detail),
   ];
   const retrySupported = log.event?.endsWith("_delivery_failure") === true;
-  const canExpand = diffRows.length > 0 || deliveryRows.length > 0 || managerHttpRows.length > 0;
+  const canExpand = diffRows.length > 0 || deliveryRows.length > 0 || managerDetailRows.length > 0;
   const rollbackResourceType = isRollbackResourceType(log.resource_type) ? log.resource_type : null;
   const rollbackSupported =
     detail?.rollback_supported === true && log.action === "update" && rollbackResourceType !== null;
@@ -109,7 +111,7 @@ export function AuditLogRow({
               logId={log.id}
               diffRows={diffRows}
               deliveryRows={deliveryRows}
-              managerHttpRows={managerHttpRows}
+              managerDetailRows={managerDetailRows}
               rollbackSupported={rollbackSupported}
               rollbackResourceType={rollbackResourceType}
               retrySupported={retrySupported}

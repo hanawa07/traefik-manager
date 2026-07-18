@@ -4,6 +4,7 @@ import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 const MANAGER_HTTP_AUDIT_FIXTURE_ID = "00000000-0000-4000-8000-000000000001";
 const MANAGER_HTTP_STORAGE_AUDIT_FIXTURE_ID = "00000000-0000-4000-8000-000000000002";
+const DEPLOYMENT_BOTTLENECK_CLEANUP_AUDIT_FIXTURE_ID = "00000000-0000-4000-8000-000000000003";
 const MANAGER_HTTP_AUDIT_FIXTURE = {
   id: MANAGER_HTTP_AUDIT_FIXTURE_ID,
   actor: "system",
@@ -50,6 +51,23 @@ const MANAGER_HTTP_STORAGE_AUDIT_FIXTURE = {
     cooldown_minutes: 60,
   },
 };
+const DEPLOYMENT_BOTTLENECK_CLEANUP_AUDIT_FIXTURE = {
+  id: DEPLOYMENT_BOTTLENECK_CLEANUP_AUDIT_FIXTURE_ID,
+  actor: "lizstudio",
+  action: "cleanup",
+  resource_type: "settings",
+  resource_id: "deployment-bottleneck-alert",
+  resource_name: "Manager 배포 병목 이벤트",
+  event: "deployment_bottleneck_events_cleanup",
+  created_at: "2026-07-13T23:58:00Z",
+  detail: {
+    retention_days: 30,
+    previous_event_count: 84,
+    deleted_count: 4,
+    retained_event_count: 80,
+    client_ip: "203.0.113.11",
+  },
+};
 
 export async function checkManagerHttpAuditAutoExpand(cdp, timeoutMs) {
   await evaluate(cdp, `history.replaceState(
@@ -70,10 +88,14 @@ export async function checkManagerHttpAuditAutoExpand(cdp, timeoutMs) {
       responseCode: 200,
       responseHeaders: [
         { name: "Content-Type", value: "application/json" },
-        { name: "X-Total-Count", value: "2" },
+        { name: "X-Total-Count", value: "3" },
       ],
       body: Buffer.from(
-        JSON.stringify([MANAGER_HTTP_STORAGE_AUDIT_FIXTURE, MANAGER_HTTP_AUDIT_FIXTURE]),
+        JSON.stringify([
+          MANAGER_HTTP_STORAGE_AUDIT_FIXTURE,
+          MANAGER_HTTP_AUDIT_FIXTURE,
+          DEPLOYMENT_BOTTLENECK_CLEANUP_AUDIT_FIXTURE,
+        ]),
       ).toString("base64"),
     });
     await loaded;
@@ -81,7 +103,7 @@ export async function checkManagerHttpAuditAutoExpand(cdp, timeoutMs) {
       cdp,
       `(() => {
         const row = document.querySelector('[data-audit-log-id="' + CSS.escape(${JSON.stringify(MANAGER_HTTP_STORAGE_AUDIT_FIXTURE_ID)}) + '"]');
-        const detail = row?.nextElementSibling?.querySelector('[data-testid="manager-http-audit-detail"]');
+        const detail = row?.nextElementSibling?.querySelector('[data-testid="manager-audit-detail"]');
         return document.querySelector('select[aria-label="Manager 소스"]')?.value === 'api' &&
           document.querySelector('select[aria-label="감사 기간"]')?.value === '1' &&
           detail?.textContent?.includes('용량 사용률') &&
@@ -101,12 +123,33 @@ export async function checkManagerHttpAuditAutoExpand(cdp, timeoutMs) {
       cdp,
       `(() => {
         const row = document.querySelector('[data-audit-log-id="' + CSS.escape(${JSON.stringify(MANAGER_HTTP_AUDIT_FIXTURE_ID)}) + '"]');
-        const detail = row?.nextElementSibling?.querySelector('[data-testid="manager-http-audit-detail"]');
+        const detail = row?.nextElementSibling?.querySelector('[data-testid="manager-audit-detail"]');
         return detail?.textContent?.includes('집계 구간') &&
           detail.textContent.includes('/api/v1/services');
       })()`,
       timeoutMs,
       "Manager API 감사 fixture 상세가 표시되지 않았습니다",
+    );
+    const cleanupExpanded = await evaluate(cdp, `(() => {
+      const row = document.querySelector('[data-audit-log-id="' + CSS.escape(${JSON.stringify(DEPLOYMENT_BOTTLENECK_CLEANUP_AUDIT_FIXTURE_ID)}) + '"]');
+      const button = [...(row?.querySelectorAll('button') || [])].find((item) => item.textContent?.includes('상세 보기'));
+      const labelsVisible = row?.textContent?.includes('병목 이벤트 정리') && row.textContent.includes('정리');
+      button?.click();
+      return Boolean(button) && labelsVisible;
+    })()`);
+    assert.equal(cleanupExpanded, true, "병목 이벤트 정리 감사 로그의 한글 표시나 상세 버튼이 없습니다");
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const row = document.querySelector('[data-audit-log-id="' + CSS.escape(${JSON.stringify(DEPLOYMENT_BOTTLENECK_CLEANUP_AUDIT_FIXTURE_ID)}) + '"]');
+        const text = row?.nextElementSibling?.querySelector('[data-testid="manager-audit-detail"]')?.textContent;
+        return text?.includes('적용 보관 기간') && text.includes('30일') &&
+          text.includes('정리 전 이벤트') && text.includes('84건') &&
+          text.includes('삭제한 이벤트') && text.includes('4건') &&
+          text.includes('남은 이벤트') && text.includes('80건');
+      })()`,
+      timeoutMs,
+      "병목 이벤트 정리 감사 상세가 한글 건수로 표시되지 않았습니다",
     );
     return true;
   } finally {
