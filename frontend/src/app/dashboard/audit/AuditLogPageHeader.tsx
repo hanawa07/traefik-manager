@@ -3,7 +3,8 @@
 import { Download, History } from "lucide-react";
 import { useState } from "react";
 
-import { buildAuditExportUrl } from "@/features/audit/api/auditApi";
+import { buildAuditExportUrl, type AuditLogQueryParams } from "@/features/audit/api/auditApi";
+import { useAuditPage } from "@/features/audit/hooks/useAudit";
 
 interface AuditLogPageHeaderProps {
   exportUrl: string;
@@ -29,7 +30,7 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
   const isRotationRangeValid =
     !isCustomRotationRange ||
     Boolean(rotationStartDate && rotationEndDate && rotationStartDate <= rotationEndDate);
-  const smokeRotationExportUrl = buildAuditExportUrl({
+  const smokeRotationFilters: AuditLogQueryParams = {
     event: "smoke_rotation_result",
     period_days:
       rotationCsvPeriod === "all" || isCustomRotationRange
@@ -37,7 +38,29 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
         : Number(rotationCsvPeriod) as 7 | 30 | 90,
     start_date: isCustomRotationRange ? rotationStartDate || undefined : undefined,
     end_date: isCustomRotationRange ? rotationEndDate || undefined : undefined,
-  });
+  };
+  const smokeRotationExportUrl = buildAuditExportUrl(smokeRotationFilters);
+  const rotationCountQuery = useAuditPage(
+    { ...smokeRotationFilters, limit: 1, offset: 0 },
+    isRotationRangeValid,
+  );
+  const rotationCount = rotationCountQuery.data?.total;
+  const rotationCountStatus = !isRotationRangeValid
+    ? "waiting"
+    : rotationCountQuery.isFetching
+      ? "loading"
+      : rotationCountQuery.isError
+        ? "error"
+        : rotationCount === undefined
+          ? "loading"
+          : "ready";
+  const rotationCountLabel = rotationCountStatus === "waiting"
+    ? "시작일과 종료일을 순서대로 선택하세요."
+    : rotationCountStatus === "error"
+      ? "다운로드 대상 건수를 확인하지 못했습니다."
+      : rotationCountStatus === "loading"
+        ? "다운로드 대상 건수 확인 중..."
+        : `다운로드 대상 ${(rotationCount ?? 0).toLocaleString("ko-KR")}건`;
   return (
     <div className="mb-8 flex flex-wrap items-center gap-3">
       <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:shadow-none">
@@ -94,11 +117,15 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
           <Download className="h-4 w-4" />
           Secret 회전 CSV
         </a>
-        {isCustomRotationRange && !isRotationRangeValid ? (
-          <span className="self-center text-xs font-medium text-amber-700 dark:text-amber-300">
-            시작일과 종료일을 순서대로 선택하세요.
-          </span>
-        ) : null}
+        <span
+          aria-live="polite"
+          className={`self-center text-xs font-medium ${rotationCountStatus === "error" || rotationCountStatus === "waiting" ? "text-amber-700 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}
+          data-result-count={rotationCount ?? ""}
+          data-count-status={rotationCountStatus}
+          data-testid="secret-rotation-export-count"
+        >
+          {rotationCountLabel}
+        </span>
         <a
           aria-label="현재 감사 조건 CSV 다운로드"
           className={EXPORT_LINK_CLASS}

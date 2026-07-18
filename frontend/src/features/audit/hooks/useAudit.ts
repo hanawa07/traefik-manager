@@ -13,10 +13,11 @@ export const useAudit = (params?: AuditLogQueryParams) => {
   });
 };
 
-export const useAuditPage = (params: AuditLogQueryParams) => {
+export const useAuditPage = (params: AuditLogQueryParams, enabled = true) => {
   return useQuery({
     queryKey: ["audit-logs", "page", params],
     queryFn: () => auditApi.getLogPage(params),
+    enabled,
     placeholderData: (previousData) => previousData,
   });
 };
