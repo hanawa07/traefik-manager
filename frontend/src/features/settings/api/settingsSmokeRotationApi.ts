@@ -52,7 +52,9 @@ export const smokeRotationSettingsApi = {
     return response.data;
   },
   getSmokeRotationSummary: async (): Promise<SmokeRotationStatus> => {
-    const response = await apiClient.get<SmokeRotationStatus>("/settings/smoke-rotation?summary=true");
+    const response = await apiClient.get<SmokeRotationStatus>(
+      "/settings/smoke-rotation?summary=true&history=true",
+    );
     return response.data;
   },
   refreshSmokeMonitoringHistory: async (): Promise<SmokeRotationStatus> => {

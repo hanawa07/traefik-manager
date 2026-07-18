@@ -43,6 +43,7 @@ export const DASHBOARD_ROUTES = [
       "Docker 정상",
       "Manager file-provider 라우터",
       "관리자 운영 점검",
+      "최근 실행 추이",
       "활성 슬롯",
       "Manager API 404·5xx 추이",
       "임계치 감지 상태",

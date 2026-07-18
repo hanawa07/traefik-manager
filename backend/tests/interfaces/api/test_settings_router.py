@@ -12,11 +12,22 @@ from tests.interfaces.api.settings_router_fakes import StubSettingsRepository
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("summary", "include_details"), [(False, True), (True, False)])
+@pytest.mark.parametrize(
+    ("role", "summary", "history", "include_logs", "include_history"),
+    [
+        ("admin", False, False, True, True),
+        ("admin", True, False, False, False),
+        ("admin", True, True, False, True),
+        ("viewer", True, True, False, False),
+    ],
+)
 async def test_get_smoke_rotation_status_skips_admin_details_for_summary(
     monkeypatch,
+    role: str,
     summary: bool,
-    include_details: bool,
+    history: bool,
+    include_logs: bool,
+    include_history: bool,
 ):
     calls = []
 
@@ -28,16 +39,17 @@ async def test_get_smoke_rotation_status_skips_admin_details_for_summary(
 
     await settings_router.get_smoke_rotation_status(
         db=object(),
-        current_user={"role": "admin"},
+        current_user={"role": role},
         refresh_monitoring_history=True,
         summary=summary,
+        history=history,
     )
 
     assert calls == [
         {
-            "include_recent_logs": include_details,
-            "include_monitoring_history": include_details,
-            "force_refresh_monitoring_history": include_details,
+            "include_recent_logs": include_logs,
+            "include_monitoring_history": include_history,
+            "force_refresh_monitoring_history": role == "admin" and not summary,
         }
     ]
 

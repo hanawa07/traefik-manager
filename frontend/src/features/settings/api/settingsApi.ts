@@ -70,6 +70,7 @@ export type {
 } from "./settingsSharedTypes";
 export type {
   SmokeMonitoringFrequency,
+  SmokeMonitoringRecentRun,
   SmokeMonitoringSettingsInput,
   SmokeRotationState,
   SmokeRotationStatus,

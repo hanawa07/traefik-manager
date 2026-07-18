@@ -142,13 +142,15 @@ async def get_smoke_rotation_status(
     current_user: dict = Depends(get_current_user),
     refresh_monitoring_history: bool = False,
     summary: bool = False,
+    history: bool = False,
 ):
     is_admin = current_user["role"] == "admin"
     include_admin_details = is_admin and not summary
+    include_monitoring_history = include_admin_details or (is_admin and history)
     return await _get_smoke_rotation_status_response(
         db,
         include_recent_logs=include_admin_details,
-        include_monitoring_history=include_admin_details,
+        include_monitoring_history=include_monitoring_history,
         force_refresh_monitoring_history=include_admin_details and refresh_monitoring_history,
     )
 

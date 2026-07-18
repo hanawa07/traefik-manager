@@ -3,6 +3,7 @@ import { MonitorCheck } from "lucide-react";
 
 import type { SmokeRotationStatus } from "@/features/settings/api/settingsApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { SmokeRunTrend } from "./SmokeRunTrend";
 
 interface SmokeAdminStatusSummaryProps {
   isError: boolean;
@@ -30,6 +31,12 @@ export function SmokeAdminStatusSummary({
         <div className="min-w-0">
           <p className="text-sm font-semibold">관리자 운영 점검</p>
           <p className="mt-1 text-xs">{summary.detail}</p>
+          {status ? (
+            <SmokeRunTrend
+              error={status.monitoring_history_error}
+              runs={status.monitoring_recent_runs}
+            />
+          ) : null}
         </div>
       </div>
       <div className="flex items-center justify-between gap-3 sm:justify-end">
