@@ -135,7 +135,7 @@ async def get_smoke_schedule_decision(
 @router.get(
     "/smoke-rotation",
     response_model=SmokeRotationStatusResponse,
-    summary="운영 로그인·화면 점검과 viewer 계정 회전 상태 조회",
+    summary="운영 로그인·화면 점검과 스모크 계정 회전 상태 조회",
 )
 async def get_smoke_rotation_status(
     db: AsyncSession = Depends(get_db),
@@ -163,6 +163,7 @@ async def record_smoke_run_success(
 ):
     return await _record_smoke_run_success_action(
         run_id=request.run_id,
+        admin_checked=request.admin_checked,
         actor=actor,
         db=db,
         settings_repository_factory=SQLiteSystemSettingsRepository,

@@ -79,7 +79,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
   }
   labels.push("로그인 2개 화면");
 
-  return labels;
+  return { adminChecked: cleanupCancelChecked, labels };
 }
 
 async function withVisualProfile(cdp, profile, callback) {

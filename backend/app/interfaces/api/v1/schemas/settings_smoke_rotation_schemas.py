@@ -32,6 +32,8 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_schedule_timezone: str = "Asia/Seoul"
     monitoring_last_success_at: str | None = None
     monitoring_last_run_url: str | None = None
+    monitoring_admin_last_success_at: str | None = None
+    monitoring_admin_last_run_url: str | None = None
     monitoring_workflow_url: str
     monitoring_recent_runs: list[SmokeMonitoringRecentRunResponse] = Field(default_factory=list)
     monitoring_latest_failure: SmokeMonitoringRecentRunResponse | None = None
@@ -50,6 +52,7 @@ class SmokeMonitoringScheduleDecisionResponse(BaseModel):
 
 class SmokeMonitoringRunSuccessRequest(BaseModel):
     run_id: int = Field(gt=0)
+    admin_checked: bool = False
 
 
 class SmokeMonitoringRunSuccessResponse(BaseModel):

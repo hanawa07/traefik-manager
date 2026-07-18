@@ -27,6 +27,8 @@ export interface SmokeRotationStatus {
   monitoring_schedule_timezone: string;
   monitoring_last_success_at: string | null;
   monitoring_last_run_url: string | null;
+  monitoring_admin_last_success_at: string | null;
+  monitoring_admin_last_run_url: string | null;
   monitoring_workflow_url: string;
   monitoring_recent_runs: SmokeMonitoringRecentRun[];
   monitoring_latest_failure: SmokeMonitoringRecentRun | null;

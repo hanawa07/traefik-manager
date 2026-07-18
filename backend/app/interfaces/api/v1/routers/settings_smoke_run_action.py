@@ -18,6 +18,7 @@ async def record_smoke_run_success_action(
     actor: dict,
     db: AsyncSession,
     settings_repository_factory: Any,
+    admin_checked: bool = False,
 ) -> SmokeMonitoringRunSuccessResponse:
     if actor.get("role") != "viewer" or actor.get("username") != settings.SMOKE_VIEWER_USERNAME:
         raise HTTPException(
@@ -25,5 +26,9 @@ async def record_smoke_run_success_action(
             detail="전용 스모크 viewer만 성공 결과를 기록할 수 있습니다",
         )
     repo = settings_repository_factory(db)
-    result = await record_smoke_run_success(repo, run_id=run_id)
+    result = await record_smoke_run_success(
+        repo,
+        run_id=run_id,
+        admin_checked=admin_checked,
+    )
     return SmokeMonitoringRunSuccessResponse(**result)

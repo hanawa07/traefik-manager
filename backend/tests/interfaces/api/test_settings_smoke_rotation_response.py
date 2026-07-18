@@ -59,6 +59,8 @@ async def test_get_smoke_rotation_status_returns_saved_result() -> None:
         "dashboard_smoke_monitoring_frequency": "weekly",
         "dashboard_smoke_last_success_at": "2026-07-11T06:59:00+00:00",
         "dashboard_smoke_last_run_url": "https://github.com/hanawa07/traefik-manager/actions/runs/123",
+        "dashboard_smoke_admin_last_success_at": "2026-07-11T06:58:00+00:00",
+        "dashboard_smoke_admin_last_run_url": "https://github.com/hanawa07/traefik-manager/actions/runs/122",
         "smoke_viewer_rotation_status": "failure",
         "smoke_viewer_rotation_last_attempt_at": "2026-07-10T04:17:00+00:00",
         "smoke_viewer_rotation_last_success_at": "2026-06-01T04:17:00+00:00",
@@ -78,6 +80,8 @@ async def test_get_smoke_rotation_status_returns_saved_result() -> None:
     assert result.monitoring_schedule_timezone == "Asia/Seoul"
     assert result.monitoring_last_success_at == "2026-07-11T06:59:00+00:00"
     assert result.monitoring_last_run_url.endswith("/actions/runs/123")
+    assert result.monitoring_admin_last_success_at == "2026-07-11T06:58:00+00:00"
+    assert result.monitoring_admin_last_run_url.endswith("/actions/runs/122")
     assert result.monitoring_workflow_url.endswith("/actions/workflows/dashboard-visual-smoke.yml")
     assert result.last_attempt_at == "2026-07-10T04:17:00+00:00"
     assert result.last_success_at == "2026-06-01T04:17:00+00:00"
@@ -104,6 +108,8 @@ async def test_get_smoke_rotation_status_defaults_to_never() -> None:
     assert result.monitoring_frequency == "daily"
     assert result.monitoring_last_success_at is None
     assert result.monitoring_last_run_url is None
+    assert result.monitoring_admin_last_success_at is None
+    assert result.monitoring_admin_last_run_url is None
 
 
 @pytest.mark.asyncio

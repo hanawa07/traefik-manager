@@ -23,11 +23,14 @@ async def test_record_smoke_run_success_accepts_dedicated_viewer() -> None:
         actor={"username": "traefik-smoke-viewer", "role": "viewer"},
         db=object(),
         settings_repository_factory=lambda _db: repo,
+        admin_checked=True,
     )
 
     assert response.run_url.endswith("/actions/runs/123")
     assert repo.values["dashboard_smoke_last_success_at"] == response.recorded_at
     assert repo.values["dashboard_smoke_last_run_url"] == response.run_url
+    assert repo.values["dashboard_smoke_admin_last_success_at"] == response.recorded_at
+    assert repo.values["dashboard_smoke_admin_last_run_url"] == response.run_url
 
 
 @pytest.mark.asyncio

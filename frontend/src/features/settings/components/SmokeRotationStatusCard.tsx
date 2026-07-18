@@ -114,7 +114,7 @@ export function SmokeRotationStatusCard({
       ) : (
         <SettingsSummary>
           <div className="rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-xs text-cyan-900 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200">
-            이 점검은 전용 viewer 계정으로 로그인·API·화면이 정상인지 확인합니다. 비밀번호 공격이나 침입 징후는 별도 로그인 보안 방어 설정에서 처리합니다.
+            전용 viewer로 일반 화면을, 전용 admin으로 관리자 안전 흐름을 확인합니다. 비밀번호 공격이나 침입 징후는 별도 로그인 보안 방어 설정에서 처리합니다.
           </div>
           <SettingsSummaryRow
             label="예약 자동 점검"
@@ -136,6 +136,24 @@ export function SmokeRotationStatusCard({
                   rel="noreferrer"
                 >
                   {formatDateTime(status.monitoring_last_success_at, timezone)}
+                </a>
+              ) : (
+                "기록 없음"
+              )
+            }
+          />
+          <SettingsSummaryRow
+            label="관리자 전용 점검 최근 성공"
+            value={
+              status.monitoring_admin_last_run_url ? (
+                <a
+                  className="text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+                  data-testid="smoke-admin-last-success"
+                  href={status.monitoring_admin_last_run_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {formatDateTime(status.monitoring_admin_last_success_at, timezone)}
                 </a>
               ) : (
                 "기록 없음"

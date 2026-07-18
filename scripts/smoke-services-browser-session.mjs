@@ -131,13 +131,13 @@ async function main() {
       results.push({ ...check, data: result.data });
     }
 
-    const visualRoutes = await runDashboardVisualSmoke({
+    const visualResult = await runDashboardVisualSmoke({
       artifactDir: process.env.TM_SMOKE_ARTIFACT_DIR,
       baseUrl,
       cdp,
       timeoutMs,
     });
-    await reportRemoteSmokeSuccess(baseUrl, cookiePairs);
+    await reportRemoteSmokeSuccess(baseUrl, cookiePairs, visualResult.adminChecked);
 
     const session = results.find((item) => item.label === "현재 세션")?.data;
     const services = results.find((item) => item.label === "서비스 목록")?.data ?? [];
@@ -145,13 +145,13 @@ async function main() {
     console.log(`- 세션: ${session.username} (${session.role})`);
     console.log(`- 서비스: ${services.length}개`);
     console.log(`- 확인 API: ${results.map((item) => item.label).join(", ")}`);
-    console.log(`- 모바일 다크모드: ${visualRoutes.join(", ")}`);
+    console.log(`- 모바일 다크모드: ${visualResult.labels.join(", ")}`);
   } finally {
     await chrome.close();
   }
 }
 
-async function reportRemoteSmokeSuccess(baseUrl, cookies) {
+async function reportRemoteSmokeSuccess(baseUrl, cookies, adminChecked) {
   const runId = process.env.GITHUB_RUN_ID;
   if (!runId) return;
   const csrfCookie = findCsrfCookie(cookies);
@@ -166,7 +166,7 @@ async function reportRemoteSmokeSuccess(baseUrl, cookies) {
       cookie: formatCookieHeader(cookies),
       "x-csrf-token": csrfCookie.value,
     },
-    body: JSON.stringify({ run_id: Number(runId) }),
+    body: JSON.stringify({ admin_checked: adminChecked, run_id: Number(runId) }),
   });
   const text = await response.text();
   if (!response.ok) {
