@@ -1,6 +1,7 @@
 "use client";
 
 import { Download, History } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { buildAuditExportUrl, type AuditLogQueryParams } from "@/features/audit/api/auditApi";
@@ -182,16 +183,19 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
             최근 결과 {latestRotationDate}{latestRotationStatusLabel ? ` · ${latestRotationStatusLabel}` : ""}
           </button>
         ) : null}
-        {isEmptyRotationExport && latestRotationFailureDate && latestRotationFailureStep ? (
-          <span
-            className="max-w-80 self-center truncate rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 dark:border-rose-500/30 dark:bg-rose-950/60 dark:text-rose-200"
+        {isEmptyRotationExport && latestRotationFailureDate && latestRotationFailureStep && latestRotationFailure ? (
+          <Link
+            aria-label="최근 Secret 회전 실패 감사 상세"
+            className="max-w-80 self-center truncate rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-950/60 dark:text-rose-200 dark:hover:bg-rose-900"
+            data-latest-failure-audit-id={latestRotationFailure.id}
             data-latest-failure-date={latestRotationFailureDate}
             data-latest-failure-step={latestRotationFailureStep}
             data-testid="secret-rotation-export-latest-failure"
+            href={`/dashboard/audit?q=${encodeURIComponent(latestRotationFailure.id)}&expand=${encodeURIComponent(latestRotationFailure.id)}`}
             title={`최근 회전 실패 단계: ${latestRotationFailureStep}`}
           >
             최근 실패 {latestRotationFailureDate} UTC · 단계: {latestRotationFailureStep}
-          </span>
+          </Link>
         ) : null}
         {isEmptyRotationExport ? (
           <button

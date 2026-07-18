@@ -23,16 +23,28 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
 
   const chain = chainQuery.data ?? [];
   if (chain.length <= 1) return null;
+  const successCount = chain.filter((item) => item.detail?.success === true).length;
+  const failureCount = chain.filter((item) => item.detail?.success === false).length;
 
   return (
     <div
       className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-500/30 dark:bg-amber-950/20"
       data-chain-count={chain.length}
+      data-chain-failure-count={failureCount}
+      data-chain-success-count={successCount}
       data-testid="audit-retry-chain"
     >
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-200">
-        알림 재시도 체인 · {chain.length}건
-      </p>
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-semibold">
+        <p className="uppercase tracking-wider text-amber-800 dark:text-amber-200">
+          알림 재시도 체인 · {chain.length}건
+        </p>
+        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
+          성공 {successCount}
+        </span>
+        <span className="rounded-full bg-rose-100 px-2 py-0.5 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200">
+          실패 {failureCount}
+        </span>
+      </div>
       <ol className="space-y-2 border-l-2 border-amber-200 pl-3 dark:border-amber-500/30">
         {chain.map((item, index) => {
           const success = item.detail?.success;
