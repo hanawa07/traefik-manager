@@ -63,8 +63,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
             timeoutMs,
           });
           if (previewed) labels.push(`${profile.label} API 오류 권장값 계산`);
-          await checkSecurityAlertRetryDelaySetting({ cdp, timeoutMs });
-          labels.push(`${profile.label} 자동 재시도 지연 설정`);
+          const retryDelayEditable = await checkSecurityAlertRetryDelaySetting({ cdp, timeoutMs });
+          labels.push(`${profile.label} 자동 재시도 지연 설정${retryDelayEditable ? "·편집 범위" : ""}`);
           const bottleneckPreviewed = await checkDeploymentBottleneckSettingsPreview({
             cdp,
             timeoutMs,

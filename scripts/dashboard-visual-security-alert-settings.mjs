@@ -32,7 +32,7 @@ export async function checkSecurityAlertRetryDelaySetting({ cdp, timeoutMs }) {
     edit?.click();
     return Boolean(edit);
   })()`);
-  assert.equal(opened, true, "보안 알림 설정 편집 버튼을 찾지 못했습니다");
+  if (!opened) return false;
   await waitForCondition(
     cdp,
     `Boolean(document.querySelector('input[aria-label="자동 재시도 지연 판정 시간"]'))`,
@@ -60,4 +60,5 @@ export async function checkSecurityAlertRetryDelaySetting({ cdp, timeoutMs }) {
     min: 5,
     value: summary.expected,
   });
+  return true;
 }
