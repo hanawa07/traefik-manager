@@ -13,12 +13,20 @@ from tests.interfaces.api.settings_router_fakes import StubSettingsRepository
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("role", "summary", "history", "include_logs", "include_history"),
+    (
+        "role",
+        "summary",
+        "history",
+        "history_days",
+        "include_logs",
+        "include_history",
+        "expected_history_days",
+    ),
     [
-        ("admin", False, False, True, True),
-        ("admin", True, False, False, False),
-        ("admin", True, True, False, True),
-        ("viewer", True, True, False, False),
+        ("admin", False, False, 30, True, True, None),
+        ("admin", True, False, 30, False, False, None),
+        ("admin", True, True, 30, False, True, 30),
+        ("viewer", True, True, 30, False, False, None),
     ],
 )
 async def test_get_smoke_rotation_status_skips_admin_details_for_summary(
@@ -26,8 +34,10 @@ async def test_get_smoke_rotation_status_skips_admin_details_for_summary(
     role: str,
     summary: bool,
     history: bool,
+    history_days: int,
     include_logs: bool,
     include_history: bool,
+    expected_history_days: int | None,
 ):
     calls = []
 
@@ -43,12 +53,14 @@ async def test_get_smoke_rotation_status_skips_admin_details_for_summary(
         refresh_monitoring_history=True,
         summary=summary,
         history=history,
+        history_days=history_days,
     )
 
     assert calls == [
         {
             "include_recent_logs": include_logs,
             "include_monitoring_history": include_history,
+            "monitoring_history_days": expected_history_days,
             "force_refresh_monitoring_history": role == "admin" and not summary,
         }
     ]

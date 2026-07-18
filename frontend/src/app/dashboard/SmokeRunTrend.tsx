@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 import type { SmokeMonitoringRecentRun } from "@/features/settings/api/settingsApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
@@ -20,41 +24,56 @@ interface SmokeRunTrendProps {
 }
 
 export function SmokeRunTrend({ error, runs, timezone }: SmokeRunTrendProps) {
-  const recent = runs.slice(0, 5).reverse();
-  if (!recent.length) {
-    return (
-      <p className="mt-2 flex items-center gap-2 text-[11px] opacity-80">
-        <span className="font-semibold">최근 실행 추이</span>
-        <span>{error ? "확인 실패" : "이력 없음"}</span>
-      </p>
-    );
-  }
-
+  const [rangeDays, setRangeDays] = useState<7 | 30>(7);
+  const [periodReferenceTime] = useState(() => Date.now());
+  const cutoff = periodReferenceTime - rangeDays * 24 * 60 * 60 * 1000;
+  const recent = runs
+    .filter((run) => Date.parse(run.completed_at) >= cutoff)
+    .reverse();
   const successCount = recent.filter((run) => run.status === "success").length;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]" data-testid="smoke-run-trend">
-      <span className="font-semibold">최근 실행 추이</span>
-      <div
-        className="flex items-center gap-1"
-        aria-label={`최근 ${recent.length}회 중 ${successCount}회 성공`}
-      >
-        {recent.map((run) => {
-          const tooltip = getRunTooltip(run, timezone);
-          return (
-            <a
-              key={run.run_url}
-              className={`h-2.5 w-7 rounded-full transition-colors ${STATUS_STYLES[run.status]}`}
-              href={run.run_url}
-              target="_blank"
-              rel="noreferrer"
-              title={tooltip}
-            >
-              <span className="sr-only">{tooltip}</span>
-            </a>
-          );
-        })}
+      <span className="font-semibold">운영 점검 추이</span>
+      <div className="inline-flex rounded-md border border-current/20 p-0.5" aria-label="운영 점검 범위">
+        {([7, 30] as const).map((days) => (
+          <button
+            key={days}
+            type="button"
+            className={`rounded px-1.5 py-0.5 font-semibold ${rangeDays === days ? "bg-white/80 shadow-sm dark:bg-slate-950/70" : "opacity-60"}`}
+            aria-pressed={rangeDays === days}
+            onClick={() => setRangeDays(days)}
+          >
+            {days}일
+          </button>
+        ))}
       </div>
-      <span>{successCount}/{recent.length} 성공</span>
+      {recent.length ? (
+        <>
+          <div
+            className="flex max-w-56 flex-wrap items-center gap-1"
+            aria-label={`최근 ${rangeDays}일 ${recent.length}회 중 ${successCount}회 성공`}
+          >
+            {recent.map((run) => {
+              const tooltip = getRunTooltip(run, timezone);
+              return (
+                <a
+                  key={run.run_url}
+                  className={`h-2.5 w-3 rounded-sm transition-colors ${STATUS_STYLES[run.status]}`}
+                  href={run.run_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={tooltip}
+                >
+                  <span className="sr-only">{tooltip}</span>
+                </a>
+              );
+            })}
+          </div>
+          <span>{successCount}/{recent.length} 성공</span>
+        </>
+      ) : (
+        <span className="opacity-80">{error ? "확인 실패" : "이력 없음"}</span>
+      )}
     </div>
   );
 }

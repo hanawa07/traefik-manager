@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +34,7 @@ from app.interfaces.api.v1.routers.settings_router_wiring import (
 )
 from app.interfaces.api.v1.routers.settings_security_alert_actions import (
     test_security_alert_settings_action as _test_security_alert_settings_action,
+    test_smoke_admin_stale_alert_action as _test_smoke_admin_stale_alert_action,
 )
 from app.interfaces.api.v1.routers.settings_smoke_monitoring_action import (
     update_smoke_monitoring_settings_action as _update_smoke_monitoring_settings_action,
@@ -143,6 +146,7 @@ async def get_smoke_rotation_status(
     refresh_monitoring_history: bool = False,
     summary: bool = False,
     history: bool = False,
+    history_days: Literal[7, 30] | None = None,
 ):
     is_admin = current_user["role"] == "admin"
     include_admin_details = is_admin and not summary
@@ -151,6 +155,7 @@ async def get_smoke_rotation_status(
         db,
         include_recent_logs=include_admin_details,
         include_monitoring_history=include_monitoring_history,
+        monitoring_history_days=history_days if is_admin and history else None,
         force_refresh_monitoring_history=include_admin_details and refresh_monitoring_history,
     )
 
@@ -210,6 +215,26 @@ async def test_security_alert_settings(
         request=request,
         db=db,
         actor=_,
+        notifier=security_alert_notifier,
+        audit_service=audit_service,
+        client_ip_getter=get_client_ip,
+    )
+
+
+@router.post(
+    "/smoke-admin-stale/test",
+    response_model=SettingsTestActionResponse,
+    summary="관리자 점검 지연 Telegram dry-run 전송",
+)
+async def test_smoke_admin_stale_alert(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    actor: dict = Depends(require_admin),
+):
+    return await _test_smoke_admin_stale_alert_action(
+        request=request,
+        db=db,
+        actor=actor,
         notifier=security_alert_notifier,
         audit_service=audit_service,
         client_ip_getter=get_client_ip,

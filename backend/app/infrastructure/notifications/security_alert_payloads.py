@@ -61,6 +61,8 @@ def build_message(event: str, resource_name: str, client_ip: Any, category: str)
         return f"인증서 발급 반복 실패: {resource_name}"
     if event == "smoke_rotation_failed":
         return f"스모크 계정 비밀번호 회전 실패: {resource_name}"
+    if event == "smoke_admin_stale_test":
+        return f"[테스트] 관리자 전용 점검 지연: {resource_name}"
     if event == "manager_docker_unhealthy":
         return f"Manager Docker 이상: {resource_name}"
     if event == "manager_docker_recovered":

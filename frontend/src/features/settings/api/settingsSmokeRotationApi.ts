@@ -1,4 +1,5 @@
 import apiClient from "@/shared/lib/apiClient";
+import type { SettingsActionTestResult } from "./settingsSharedTypes";
 
 export type SmokeRotationState = "never" | "running" | "success" | "failure";
 export type SmokeMonitoringFrequency = "daily" | "weekly";
@@ -53,7 +54,13 @@ export const smokeRotationSettingsApi = {
   },
   getSmokeRotationSummary: async (): Promise<SmokeRotationStatus> => {
     const response = await apiClient.get<SmokeRotationStatus>(
-      "/settings/smoke-rotation?summary=true&history=true",
+      "/settings/smoke-rotation?summary=true&history=true&history_days=30",
+    );
+    return response.data;
+  },
+  testSmokeAdminStaleAlert: async (): Promise<SettingsActionTestResult> => {
+    const response = await apiClient.post<SettingsActionTestResult>(
+      "/settings/smoke-admin-stale/test",
     );
     return response.data;
   },

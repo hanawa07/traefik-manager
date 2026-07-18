@@ -87,3 +87,9 @@ export function useRefreshSmokeMonitoringHistory() {
     settingsQueryKeys.smokeRotation,
   );
 }
+
+export function useTestSmokeAdminStaleAlert() {
+  return useSettingsMutation({
+    mutationFn: settingsApi.testSmokeAdminStaleAlert,
+  });
+}

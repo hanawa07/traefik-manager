@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pytest
 
 from app.infrastructure.smoke_run_history import (
@@ -103,6 +105,25 @@ def test_select_smoke_run_groups_keeps_latest_failure_outside_recent_five() -> N
     assert latest_failure["id"] == 4
 
 
+def test_select_smoke_run_groups_filters_requested_day_range() -> None:
+    runs = [
+        _run(id=10, updated_at="2026-07-17T00:00:00Z"),
+        _run(id=9, updated_at="2026-07-11T00:00:00Z", conclusion="failure"),
+        _run(id=8, updated_at="2026-06-17T00:00:00Z", conclusion="failure"),
+        _run(id=7, updated_at="invalid"),
+        _run(id=6, updated_at="2026-07-16T00:00:00Z", display_title="[테스트] 알림"),
+    ]
+
+    recent, latest_failure = select_smoke_run_groups(
+        runs,
+        recent_days=7,
+        now=datetime(2026, 7, 18, tzinfo=timezone.utc),
+    )
+
+    assert [run["id"] for run in recent] == [10, 9]
+    assert latest_failure["id"] == 9
+
+
 @pytest.mark.asyncio
 async def test_history_reader_rejects_non_github_source_without_request() -> None:
     history = await GitHubSmokeRunHistoryReader().get_history("https://example.com/repository")
@@ -120,7 +141,13 @@ async def test_history_reader_force_refresh_bypasses_cache() -> None:
     class CountingReader(GitHubSmokeRunHistoryReader):
         calls = 0
 
-        async def _fetch_history(self, _api_url: str, _public_url: str) -> dict:
+        async def _fetch_history(
+            self,
+            _api_url: str,
+            _public_url: str,
+            *,
+            recent_days: int | None = None,
+        ) -> dict:
             self.calls += 1
             return {"runs": [], "latest_failure": None, "error": None}
 
@@ -133,3 +160,28 @@ async def test_history_reader_force_refresh_bypasses_cache() -> None:
 
     assert reader.calls == 2
     assert first["checked_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_history_reader_caches_each_day_range_separately() -> None:
+    class CountingReader(GitHubSmokeRunHistoryReader):
+        calls: list[int | None] = []
+
+        async def _fetch_history(
+            self,
+            _api_url: str,
+            _public_url: str,
+            *,
+            recent_days: int | None = None,
+        ) -> dict:
+            self.calls.append(recent_days)
+            return {"runs": [], "latest_failure": None, "error": None}
+
+    reader = CountingReader()
+    source_url = "https://github.com/hanawa07/traefik-manager-range-cache-test"
+
+    await reader.get_history(source_url, recent_days=7)
+    await reader.get_history(source_url, recent_days=30)
+    await reader.get_history(source_url, recent_days=7)
+
+    assert reader.calls == [7, 30]

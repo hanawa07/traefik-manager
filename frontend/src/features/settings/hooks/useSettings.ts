@@ -30,6 +30,7 @@ export {
   useRollbackSettingsChange,
   useTestCloudflareConnection,
   useTestSecurityAlertSettings,
+  useTestSmokeAdminStaleAlert,
   useUpdateCertificateDiagnosticsSettings,
   useUpdateAuditRetentionSettings,
   useUpdateCloudflareSettings,

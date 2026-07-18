@@ -145,6 +145,28 @@ async def test_notify_if_needed_formats_telegram_payload(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_smoke_admin_stale_dry_run_forces_telegram(monkeypatch):
+    posted = []
+    patch_settings(
+        monkeypatch,
+        {
+            "security_alert_provider": "slack",
+            "security_alert_telegram_bot_token": "telegram-secret",
+            "security_alert_telegram_chat_id": "10001",
+        },
+    )
+    patch_http_client(monkeypatch, posted)
+
+    result = await security_alert_notifier.send_smoke_admin_stale_test_alert(object())
+
+    assert result["success"] is True
+    assert result["provider"] == "telegram"
+    assert posted[0][0] == "https://api.telegram.org/bottelegram-secret/sendMessage"
+    assert posted[0][1]["chat_id"] == "10001"
+    assert "[테스트] 관리자 전용 점검 지연" in posted[0][1]["text"]
+
+
+@pytest.mark.asyncio
 async def test_notify_if_needed_routes_event_to_override_provider(monkeypatch):
     posted = []
     patch_settings(

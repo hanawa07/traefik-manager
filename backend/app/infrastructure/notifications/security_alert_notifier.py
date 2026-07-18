@@ -184,6 +184,39 @@ async def send_test_alert(db: AsyncSession) -> dict[str, Any]:
         }
 
 
+async def send_smoke_admin_stale_test_alert(db: AsyncSession) -> dict[str, Any]:
+    repo = SQLiteSystemSettingsRepository(db)
+    audit_log = AuditLogModel(
+        actor="system",
+        action="test",
+        resource_type="settings",
+        resource_id="smoke-admin-stale",
+        resource_name="관리자 전용 운영 점검",
+        detail={
+            "event": "smoke_admin_stale_test",
+            "test": True,
+        },
+    )
+    audit_log.created_at = datetime.now(timezone.utc)
+    success, detail = await _deliver_alert(
+        repo,
+        audit_log,
+        "smoke_admin_stale_test",
+        "telegram",
+        "change",
+    )
+    return {
+        "success": success,
+        "provider": "telegram",
+        "message": (
+            "관리자 지연 알림 dry-run을 전송했습니다"
+            if success
+            else "관리자 지연 알림 dry-run 전송에 실패했습니다"
+        ),
+        "detail": detail,
+    }
+
+
 async def _send_email_alert(
     repo: SQLiteSystemSettingsRepository,
     audit_log: AuditLogModel,

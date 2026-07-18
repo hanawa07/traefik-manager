@@ -15,6 +15,7 @@ export {
   usePreviewDeploymentBottleneckEventCleanup,
   useRefreshSmokeMonitoringHistory,
   useRunAuditRetentionCleanup,
+  useTestSmokeAdminStaleAlert,
   useUpdateCertificateDiagnosticsSettings,
   useUpdateDeploymentBottleneckSettings,
   useUpdateAuditRetentionSettings,

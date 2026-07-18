@@ -4,6 +4,7 @@ import type { SmokeMonitoringSettingsInput } from "@/features/settings/api/setti
 import {
   useRefreshSmokeMonitoringHistory,
   useSmokeRotationStatus,
+  useTestSmokeAdminStaleAlert,
   useUpdateSmokeMonitoringSettings,
 } from "@/features/settings/hooks/useSettings";
 import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
@@ -22,6 +23,7 @@ export function useSmokeMonitoringSettingsModel(
   const query = useSmokeRotationStatus();
   const update = useUpdateSmokeMonitoringSettings();
   const refreshHistory = useRefreshSmokeMonitoringHistory();
+  const testStaleAlert = useTestSmokeAdminStaleAlert();
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState(DEFAULT_FORM);
   const [errorMessage, setErrorMessage] = useState("");
@@ -77,6 +79,26 @@ export function useSmokeMonitoringSettingsModel(
     }
   };
 
+  const handleTestStaleAlert = async () => {
+    if (!window.confirm("저장된 Telegram 채널로 관리자 점검 지연 테스트 알림을 전송할까요?")) {
+      return;
+    }
+    try {
+      const result = await testStaleAlert.mutateAsync();
+      onToast({
+        tone: result.success ? "success" : "error",
+        message: result.message,
+        detail: result.detail,
+      });
+    } catch (error) {
+      onToast({
+        tone: "error",
+        message: "관리자 지연 알림 dry-run 실패",
+        detail: getSettingsModelErrorMessage(error, "Telegram 설정을 확인하지 못했습니다"),
+      });
+    }
+  };
+
   return {
     canManage,
     isLoading: query.isLoading,
@@ -88,9 +110,11 @@ export function useSmokeMonitoringSettingsModel(
     errorMessage,
     isSaving: update.isPending,
     isRefreshingHistory: refreshHistory.isPending,
+    isTestingStaleAlert: testStaleAlert.isPending,
     onEdit: handleEdit,
     onSave: handleSave,
     onRefreshHistory: handleRefreshHistory,
+    onTestStaleAlert: handleTestStaleAlert,
     onCancel: () => setIsEditing(false),
     onFormChange: setFormValue,
   };

@@ -6,6 +6,7 @@ from tests.interfaces.api.settings_security_alert_router_fakes import (
     capture_audit_records,
     make_http_request,
     patch_settings_repository,
+    patch_smoke_admin_stale_test_alert_sender,
     patch_test_alert_sender,
 )
 
@@ -47,3 +48,29 @@ async def test_test_security_alert_settings_returns_success(monkeypatch):
     assert recorded[0]["detail"]["event"] == "settings_test_security_alert"
     assert recorded[0]["detail"]["provider"] == "slack"
     assert recorded[0]["detail"]["client_ip"] == "198.51.100.7"
+
+
+@pytest.mark.asyncio
+async def test_smoke_admin_stale_dry_run_returns_telegram_result(monkeypatch):
+    called = patch_smoke_admin_stale_test_alert_sender(
+        monkeypatch,
+        {
+            "success": True,
+            "provider": "telegram",
+            "message": "관리자 지연 알림 dry-run을 전송했습니다",
+            "detail": "telegram 채널로 전송했습니다",
+        },
+    )
+    recorded = capture_audit_records(monkeypatch)
+    db = object()
+
+    response = await settings_router.test_smoke_admin_stale_alert(
+        request=make_http_request(),
+        db=db,
+        actor=ADMIN_USER,
+    )
+
+    assert called["db"] is db
+    assert response.success is True
+    assert response.provider == "telegram"
+    assert recorded[0]["detail"]["provider"] == "telegram"

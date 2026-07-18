@@ -1,4 +1,4 @@
-import { Download, MonitorCheck, RefreshCw } from "lucide-react";
+import { Download, MonitorCheck, RefreshCw, Send } from "lucide-react";
 
 import type {
   SmokeMonitoringSettingsInput,
@@ -50,9 +50,11 @@ interface SmokeRotationStatusCardProps {
   errorMessage: string;
   isSaving: boolean;
   isRefreshingHistory: boolean;
+  isTestingStaleAlert: boolean;
   onEdit: () => void;
   onSave: () => void;
   onRefreshHistory: () => void;
+  onTestStaleAlert: () => void;
   onCancel: () => void;
   onFormChange: (value: SmokeMonitoringSettingsInput) => void;
 }
@@ -68,9 +70,11 @@ export function SmokeRotationStatusCard({
   errorMessage,
   isSaving,
   isRefreshingHistory,
+  isTestingStaleAlert,
   onEdit,
   onSave,
   onRefreshHistory,
+  onTestStaleAlert,
   onCancel,
   onFormChange,
 }: SmokeRotationStatusCardProps) {
@@ -165,6 +169,22 @@ export function SmokeRotationStatusCard({
             label="관리자 점검 지연 판정"
             value={`최근 성공 ${status.monitoring_admin_stale_after_days}일 초과 시 경고`}
           />
+          {canManage ? (
+            <SettingsSummaryRow
+              label="관리자 지연 알림 dry-run"
+              value={
+                <button
+                  type="button"
+                  className="btn-secondary inline-flex items-center gap-1.5 py-1.5 text-xs"
+                  onClick={onTestStaleAlert}
+                  disabled={isTestingStaleAlert}
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  {isTestingStaleAlert ? "전송 중" : "Telegram 테스트 전송"}
+                </button>
+              }
+            />
+          ) : null}
           {status.monitoring_admin_is_stale ? (
             <div
               className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200"

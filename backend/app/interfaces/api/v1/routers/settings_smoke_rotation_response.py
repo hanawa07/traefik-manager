@@ -38,6 +38,7 @@ async def get_smoke_rotation_status_response(
     now: datetime | None = None,
     include_recent_logs: bool = False,
     include_monitoring_history: bool = False,
+    monitoring_history_days: int | None = None,
     force_refresh_monitoring_history: bool = False,
     history_reader: Any = smoke_run_history_reader,
 ) -> SmokeRotationStatusResponse:
@@ -70,6 +71,7 @@ async def get_smoke_rotation_status_response(
         run_history = await history_reader.get_history(
             settings.TRAEFIK_MANAGER_IMAGE_SOURCE,
             force_refresh=force_refresh_monitoring_history,
+            recent_days=monitoring_history_days,
         )
     return SmokeRotationStatusResponse(
         status=status,

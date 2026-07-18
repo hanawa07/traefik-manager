@@ -1,6 +1,6 @@
 import asyncio
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import urlparse
 
@@ -15,7 +15,7 @@ _REPOSITORY_PART_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 class GitHubSmokeRunHistoryReader:
     """Read recent smoke results from the repository's public Actions metadata."""
 
-    _cache: dict[str, tuple[datetime, dict[str, Any]]] = {}
+    _cache: dict[tuple[str, int | None], tuple[datetime, dict[str, Any]]] = {}
     _lock = asyncio.Lock()
 
     async def get_history(
@@ -23,31 +23,43 @@ class GitHubSmokeRunHistoryReader:
         source_url: str | None,
         *,
         force_refresh: bool = False,
+        recent_days: int | None = None,
     ) -> dict[str, Any]:
         repository_urls = _resolve_repository_urls(source_url)
         if repository_urls is None:
             return _history_error("GitHub 저장소 주소를 확인하지 못했습니다")
 
         api_url, public_url = repository_urls
+        cache_key = (api_url, recent_days)
         now = datetime.now(timezone.utc)
-        cached = self._cache.get(api_url)
+        cached = self._cache.get(cache_key)
         if not force_refresh and cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
             return _copy_history(cached[1])
 
         async with self._lock:
-            cached = self._cache.get(api_url)
+            cached = self._cache.get(cache_key)
             if not force_refresh and cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
                 return _copy_history(cached[1])
 
-            history = await self._fetch_history(api_url, public_url)
+            history = await self._fetch_history(
+                api_url,
+                public_url,
+                recent_days=recent_days,
+            )
             history["checked_at"] = datetime.now(timezone.utc).isoformat()
             if history["error"] and cached and cached[1]["runs"]:
                 history["runs"] = cached[1]["runs"]
                 history["latest_failure"] = cached[1]["latest_failure"]
-            GitHubSmokeRunHistoryReader._cache[api_url] = (now, _copy_history(history))
+            GitHubSmokeRunHistoryReader._cache[cache_key] = (now, _copy_history(history))
             return history
 
-    async def _fetch_history(self, api_url: str, public_url: str) -> dict[str, Any]:
+    async def _fetch_history(
+        self,
+        api_url: str,
+        public_url: str,
+        *,
+        recent_days: int | None = None,
+    ) -> dict[str, Any]:
         try:
             async with httpx.AsyncClient(
                 timeout=4.0,
@@ -64,7 +76,10 @@ class GitHubSmokeRunHistoryReader:
                 response.raise_for_status()
                 payload = response.json()
                 raw_runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
-                runs, latest_failure_run = select_smoke_run_groups(raw_runs)
+                runs, latest_failure_run = select_smoke_run_groups(
+                    raw_runs,
+                    recent_days=recent_days,
+                )
                 detail_runs = list(runs)
                 if latest_failure_run and all(
                     run["id"] != latest_failure_run["id"] for run in detail_runs
@@ -261,6 +276,9 @@ async def _empty_artifacts() -> dict[int, dict[str, str | None]]:
 
 def select_smoke_run_groups(
     raw_runs: object,
+    *,
+    recent_days: int | None = None,
+    now: datetime | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
     if not isinstance(raw_runs, list):
         raise ValueError("workflow_runs must be a list")
@@ -273,11 +291,37 @@ def select_smoke_run_groups(
         and run.get("status") == "completed"
         and not str(run.get("display_title") or "").startswith("[테스트]")
     ]
+    if recent_days is None:
+        latest_failure = next(
+            (run for run in operational_runs if run.get("conclusion") != "success"),
+            None,
+        )
+        return operational_runs[:RECENT_RUN_LIMIT], latest_failure
+    if recent_days <= 0:
+        raise ValueError("recent_days must be positive")
+
+    cutoff = (now or datetime.now(timezone.utc)) - timedelta(days=recent_days)
+    recent_runs = [
+        run
+        for run in operational_runs
+        if (updated_at := _parse_run_timestamp(run["updated_at"])) is not None
+        and updated_at >= cutoff
+    ]
     latest_failure = next(
-        (run for run in operational_runs if run.get("conclusion") != "success"),
+        (run for run in recent_runs if run.get("conclusion") != "success"),
         None,
     )
-    return operational_runs[:RECENT_RUN_LIMIT], latest_failure
+    return recent_runs, latest_failure
+
+
+def _parse_run_timestamp(value: str) -> datetime | None:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _needs_job_details(run: dict[str, Any]) -> bool:

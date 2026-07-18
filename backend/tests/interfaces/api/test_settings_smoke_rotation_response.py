@@ -19,9 +19,17 @@ class StubRepository:
 
 class StubHistoryReader:
     force_refresh = False
+    recent_days = None
 
-    async def get_history(self, _source_url: str, *, force_refresh: bool = False) -> dict:
+    async def get_history(
+        self,
+        _source_url: str,
+        *,
+        force_refresh: bool = False,
+        recent_days: int | None = None,
+    ) -> dict:
         self.force_refresh = force_refresh
+        self.recent_days = recent_days
         return {
             "runs": [
                 {
@@ -223,6 +231,7 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin() -> 
         object(),
         settings_repository_factory=StubRepository,
         include_monitoring_history=True,
+        monitoring_history_days=30,
         force_refresh_monitoring_history=True,
         history_reader=history_reader,
     )
@@ -235,3 +244,4 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin() -> 
     assert result.monitoring_history_checked_at == "2026-07-13T01:00:00+00:00"
     assert result.monitoring_history_error is None
     assert history_reader.force_refresh is True
+    assert history_reader.recent_days == 30
