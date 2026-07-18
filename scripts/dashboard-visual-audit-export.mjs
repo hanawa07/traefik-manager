@@ -132,6 +132,7 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
       cdp,
       `Boolean(document.querySelector('[data-testid="secret-rotation-export-latest-failure"]')) &&
         Boolean(document.querySelector('[data-testid="secret-rotation-export-latest-failure-csv"]')) &&
+        Boolean(document.querySelector('[data-testid="secret-rotation-export-latest-failure-list"]')) &&
         document.querySelector('[data-testid="secret-rotation-export-latest-failure-csv"]')
           ?.getAttribute('data-result-count') !== ''`,
       timeoutMs,
@@ -151,6 +152,7 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
     const latestStatus = button?.getAttribute('data-latest-status');
     const failure = document.querySelector('[data-testid="secret-rotation-export-latest-failure"]');
     const failureCsv = document.querySelector('[data-testid="secret-rotation-export-latest-failure-csv"]');
+    const failureList = document.querySelector('[data-testid="secret-rotation-export-latest-failure-list"]');
     const failureDate = failureCsv?.getAttribute('data-latest-failure-date');
     const response = await fetch('/api/v1/audit?event=smoke_rotation_result&limit=1&offset=0');
     const latest = response.ok ? (await response.json())[0] : null;
@@ -176,6 +178,9 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
       latestFailureCsvText: failureCsv?.textContent || '',
       latestFailureDate: failure?.getAttribute('data-latest-failure-date'),
       latestFailureHref: failure?.href,
+      latestFailureListCount: Number(failureList?.getAttribute('data-result-count')),
+      latestFailureListHref: failureList?.href,
+      latestFailureListText: failureList?.textContent || '',
       latestFailureStep: failure?.getAttribute('data-latest-failure-step'),
       latestFailureText: failure?.textContent || '',
       expectedLatestFailureCsvCount: Number(failureCountResponse?.headers.get('x-total-count')),
@@ -194,6 +199,7 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
   if (expectedLatestFailure) {
     const latestFailureUrl = new URL(latestRecovery.latestFailureHref);
     const latestFailureCsvUrl = new URL(latestRecovery.latestFailureCsvHref);
+    const latestFailureListUrl = new URL(latestRecovery.latestFailureListHref);
     assert.equal(latestRecovery.latestFailureAuditId, expectedLatestFailure.id, "최근 회전 실패 감사 ID가 다릅니다");
     assert.equal(latestRecovery.latestFailureDate, expectedLatestFailure.date, "최근 회전 실패 날짜가 다릅니다");
     assert.equal(latestRecovery.latestFailureStep, expectedLatestFailure.step, "최근 회전 실패 단계가 다릅니다");
@@ -205,9 +211,15 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
     assert.ok(latestRecovery.expectedLatestFailureCsvCount > 0, "최근 회전 실패 날짜 대상 건수가 없습니다");
     assert.equal(latestRecovery.latestFailureCsvCount, latestRecovery.expectedLatestFailureCsvCount, "최근 회전 실패 날짜 CSV 대상 건수가 다릅니다");
     assert.match(latestRecovery.latestFailureCsvText, /\(\d[\d,]*건\)/, "최근 회전 실패 날짜 CSV 건수 문구가 없습니다");
+    assert.equal(latestRecovery.latestFailureListCount, latestRecovery.expectedLatestFailureCsvCount, "최근 회전 실패 감사 목록 건수가 다릅니다");
+    assert.match(latestRecovery.latestFailureListText, /\d[\d,]*건 보기/, "최근 회전 실패 감사 목록 문구가 없습니다");
     assert.equal(latestFailureCsvUrl.searchParams.get("event"), "smoke_rotation_failed", "최근 회전 실패 CSV 이벤트가 다릅니다");
     assert.equal(latestFailureCsvUrl.searchParams.get("start_date"), expectedLatestFailure.date, "최근 회전 실패 CSV 시작일이 다릅니다");
     assert.equal(latestFailureCsvUrl.searchParams.get("end_date"), expectedLatestFailure.date, "최근 회전 실패 CSV 종료일이 다릅니다");
+    assert.equal(latestFailureListUrl.pathname, "/dashboard/audit", "최근 회전 실패 감사 목록 경로가 다릅니다");
+    assert.equal(latestFailureListUrl.searchParams.get("filter"), "smoke_rotation_failed", "최근 회전 실패 감사 목록 필터가 다릅니다");
+    assert.equal(latestFailureListUrl.searchParams.get("start_date"), expectedLatestFailure.date, "최근 회전 실패 감사 목록 시작일이 다릅니다");
+    assert.equal(latestFailureListUrl.searchParams.get("end_date"), expectedLatestFailure.date, "최근 회전 실패 감사 목록 종료일이 다릅니다");
   }
   await waitForCondition(
     cdp,
@@ -225,6 +237,18 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
   assert.ok(latestResult.actual > 0, "최근 결과 날짜에 Secret 회전 이력이 없습니다");
   assert.equal(latestResult.startDate, latestRecovery.latestDate, "최근 결과 시작일이 다릅니다");
   assert.equal(latestResult.endDate, latestRecovery.latestDate, "최근 결과 종료일이 다릅니다");
+  if (expectedLatestFailure) {
+    await cdp.send("Page.navigate", { url: latestRecovery.latestFailureListHref });
+    await waitForCondition(
+      cdp,
+      `document.querySelector('[data-audit-filter="smoke_rotation_failed"]')?.getAttribute('aria-pressed') === 'true' &&
+        document.querySelector('input[aria-label="감사 시작일"]')?.value === ${JSON.stringify(expectedLatestFailure.date)} &&
+        document.querySelector('input[aria-label="감사 종료일"]')?.value === ${JSON.stringify(expectedLatestFailure.date)} &&
+        Number(document.querySelector('[data-audit-total]')?.getAttribute('data-audit-total')) === ${latestRecovery.expectedLatestFailureCsvCount}`,
+      timeoutMs,
+      "최근 회전 실패 날짜 감사 목록이 동일 조건으로 열리지 않았습니다",
+    );
+  }
 }
 
 async function assertRotationCount({ cdp, timeoutMs }) {

@@ -74,7 +74,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
     });
     labels.push(`${profile.label} ${DASHBOARD_ROUTES.length}개 화면`);
   }
-  labels.push("Docker 정상 표시", "Artifact 필터 건수·정렬·URL 공유·새로고침 유지");
+  labels.push("Docker 정상 표시", "Artifact 필터 건수·정렬·URL 공유·링크 복사·새로고침 유지");
 
   const cleanupCancelChecked = await checkOptionalDeploymentBottleneckCleanupCancel({
     baseUrl,

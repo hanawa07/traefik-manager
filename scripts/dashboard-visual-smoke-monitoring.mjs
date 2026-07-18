@@ -166,6 +166,14 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
       select.value = 'available';
       select.dispatchEvent(new Event('change', { bubbles: true }));
       await settle();
+      let copiedUrl = null;
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: async (value) => { copiedUrl = value; } },
+      });
+      const copyButton = document.querySelector('[data-testid="smoke-artifact-filter-copy"]');
+      copyButton?.click();
+      await settle();
       const container = document.querySelector('[data-testid="smoke-failure-run-links"]');
       const items = Array.from(container?.querySelectorAll('[data-testid="smoke-failure-run"]') || []);
       const filteredCount = Number(container?.getAttribute('data-filtered-run-count'));
@@ -178,12 +186,16 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
               item.getAttribute('data-artifact-state')
             )
           ),
+        copiedFilter: copiedUrl ? new URL(copiedUrl).searchParams.get('artifact_filter') : null,
+        copyStatus: copyButton?.getAttribute('data-copy-status'),
         urlFilter: new URL(window.location.href).searchParams.get('artifact_filter'),
       };
       localStorage.removeItem('traefik-manager:smoke-artifact-filter');
       return result;
     })()`);
     assert.equal(filterResult?.valid, true, "다운로드 가능 Artifact 필터 결과가 다릅니다");
+    assert.equal(filterResult?.copiedFilter, "available", "복사된 Artifact 필터 URL이 다릅니다");
+    assert.equal(filterResult?.copyStatus, "copied", "Artifact 필터 링크 복사 성공 표시가 없습니다");
     assert.equal(filterResult?.urlFilter, "available", "Artifact 필터가 URL에 반영되지 않았습니다");
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitForCondition(
