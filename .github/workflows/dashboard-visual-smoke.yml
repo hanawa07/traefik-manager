@@ -48,6 +48,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: 알림 비발송 재시도 체인 fixture 검사
+        run: npm --prefix frontend run test:audit-retry-chain
+
       - name: Watchdog 무중단 장애·복구 시험
         run: scripts/test-manager-health-watchdog.sh
 

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test:audit-retry-chain": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/audit-retry-chain-timing-self-test.mjs",
     "test:bottleneck-preview": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/deployment-bottleneck-preview-self-test.mjs",
     "test:smoke-rotation-audit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/smoke-rotation-audit-detail-self-test.mjs",
     "test:smoke-failure-rate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/smoke-run-failure-rate-self-test.mjs",

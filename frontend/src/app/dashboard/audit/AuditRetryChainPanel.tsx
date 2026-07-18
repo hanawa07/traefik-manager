@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 
-import {
-  formatManagerDeploymentDurationMs,
-  getManagerDeploymentDurationMs,
-} from "@/features/deployment/lib/managerDeploymentDisplay";
 import { useAuditRetryChain } from "@/features/audit/hooks/useAudit";
+import { getAuditRetryChainTiming } from "@/features/audit/lib/auditRetryChainTiming";
+import { formatManagerDeploymentDurationMs } from "@/features/deployment/lib/managerDeploymentDisplay";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 interface AuditRetryChainPanelProps {
@@ -29,21 +27,12 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
   if (chain.length <= 1) return null;
   const successCount = chain.filter((item) => item.detail?.success === true).length;
   const failureCount = chain.filter((item) => item.detail?.success === false).length;
-  const firstFailureIndex = chain.findIndex((item) => item.detail?.success === false);
-  const firstFailure = firstFailureIndex >= 0 ? chain[firstFailureIndex] : null;
-  const firstSuccess = firstFailureIndex >= 0
-    ? chain.slice(firstFailureIndex + 1).find((item) => item.detail?.success === true)
-    : null;
-  const recoveryDurationMs = firstFailure && firstSuccess
-    ? getManagerDeploymentDurationMs(firstFailure.created_at, firstSuccess.created_at)
-    : null;
-  const recoveryLabel = recoveryDurationMs !== null
-    ? `최초 실패→성공 ${formatManagerDeploymentDurationMs(recoveryDurationMs)}`
-    : firstSuccess
+  const timing = getAuditRetryChainTiming(chain);
+  const recoveryLabel = timing.recoveryState === "recovered" && timing.recoveryDurationMs !== null
+    ? `최초 실패→성공 ${formatManagerDeploymentDurationMs(timing.recoveryDurationMs)}`
+    : timing.recoveryState === "invalid"
       ? "최초 실패→성공 시간 확인 불가"
-      : failureCount > 0
-        ? "최초 실패 후 아직 성공 없음"
-        : null;
+      : timing.recoveryState === "pending" ? "최초 실패 후 아직 성공 없음" : null;
 
   return (
     <div
@@ -66,7 +55,7 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
         {recoveryLabel ? (
           <span
             className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            data-recovery-duration-ms={recoveryDurationMs ?? undefined}
+            data-recovery-duration-ms={timing.recoveryDurationMs ?? undefined}
             data-testid="audit-retry-recovery-duration"
           >
             {recoveryLabel}
@@ -75,11 +64,8 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
       </div>
       <ol className="space-y-2 border-l-2 border-amber-200 pl-3 dark:border-amber-500/30">
         {chain.map((item, index) => {
-          const previousItem = chain[index - 1];
-          const elapsedMs = previousItem
-            ? getManagerDeploymentDurationMs(previousItem.created_at, item.created_at)
-            : null;
-          const elapsedLabel = previousItem
+          const elapsedMs = timing.stageElapsedMs[index];
+          const elapsedLabel = index > 0
             ? elapsedMs === null
               ? "경과 시간 확인 불가"
               : `이전 단계 후 ${formatManagerDeploymentDurationMs(elapsedMs)}`
