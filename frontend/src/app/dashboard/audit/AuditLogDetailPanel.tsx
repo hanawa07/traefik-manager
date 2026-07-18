@@ -3,6 +3,7 @@ import {
   type getAuditDiffRows,
   type getDeliveryDetailRows,
   type getManagerHttpErrorDetailRows,
+  type getSmokeRotationDetailRows,
 } from "./auditPageHelpers";
 import { AuditDetailList } from "./AuditDetailList";
 import { AuditDiffDetails } from "./AuditDiffDetails";
@@ -11,12 +12,14 @@ import { AuditRetryDeliveryPanel, AuditRollbackPanel } from "./AuditLogActionPan
 type AuditDiffRows = ReturnType<typeof getAuditDiffRows>;
 type AuditDeliveryRows = ReturnType<typeof getDeliveryDetailRows>;
 type AuditManagerDetailRows = ReturnType<typeof getManagerHttpErrorDetailRows>;
+type SmokeRotationDetailRows = ReturnType<typeof getSmokeRotationDetailRows>;
 
 interface AuditLogDetailPanelProps {
   logId: string;
   diffRows: AuditDiffRows;
   deliveryRows: AuditDeliveryRows;
   managerDetailRows: AuditManagerDetailRows;
+  smokeRotationDetailRows: SmokeRotationDetailRows;
   rollbackSupported: boolean;
   rollbackResourceType: RollbackResourceType | null;
   retrySupported: boolean;
@@ -31,6 +34,7 @@ export function AuditLogDetailPanel({
   diffRows,
   deliveryRows,
   managerDetailRows,
+  smokeRotationDetailRows,
   rollbackSupported,
   rollbackResourceType,
   retrySupported,
@@ -46,6 +50,12 @@ export function AuditLogDetailPanel({
         rows={managerDetailRows}
         testId="manager-audit-detail"
         title="Manager 운영 상세"
+      />
+      <AuditDetailList
+        logId={logId}
+        rows={smokeRotationDetailRows}
+        testId="smoke-rotation-audit-detail"
+        title="Secret 회전 상세"
       />
       <AuditDiffDetails logId={logId} diffRows={diffRows} />
       <AuditDetailList logId={logId} rows={deliveryRows} title="전송 상세" />

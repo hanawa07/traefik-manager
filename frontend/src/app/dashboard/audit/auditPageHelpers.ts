@@ -42,6 +42,7 @@ export {
   isRollbackResourceType,
   type RollbackResourceType,
 } from "./audit-page-helpers/auditRollbackTypes";
+export { getSmokeRotationDetailRows } from "./audit-page-helpers/smokeRotationDetailRows";
 export {
   formatAuditValue,
   isRecord,

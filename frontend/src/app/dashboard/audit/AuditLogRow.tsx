@@ -16,6 +16,7 @@ import {
   getDeliveryDetailRows,
   getManagerHttpErrorDetailRows,
   getManagerHttpLogStorageDetailRows,
+  getSmokeRotationDetailRows,
   isRecord,
   isRollbackResourceType,
   securityEventConfig,
@@ -59,8 +60,13 @@ export function AuditLogRow({
     ...getManagerHttpErrorDetailRows(managerEvent, detail),
     ...getManagerHttpLogStorageDetailRows(managerEvent, detail),
   ];
+  const smokeRotationDetailRows = getSmokeRotationDetailRows(managerEvent, detail);
   const retrySupported = log.event?.endsWith("_delivery_failure") === true;
-  const canExpand = diffRows.length > 0 || deliveryRows.length > 0 || managerDetailRows.length > 0;
+  const canExpand =
+    diffRows.length > 0 ||
+    deliveryRows.length > 0 ||
+    managerDetailRows.length > 0 ||
+    smokeRotationDetailRows.length > 0;
   const rollbackResourceType = isRollbackResourceType(log.resource_type) ? log.resource_type : null;
   const rollbackSupported =
     detail?.rollback_supported === true && log.action === "update" && rollbackResourceType !== null;
@@ -114,6 +120,7 @@ export function AuditLogRow({
               diffRows={diffRows}
               deliveryRows={deliveryRows}
               managerDetailRows={managerDetailRows}
+              smokeRotationDetailRows={smokeRotationDetailRows}
               rollbackSupported={rollbackSupported}
               rollbackResourceType={rollbackResourceType}
               retrySupported={retrySupported}
