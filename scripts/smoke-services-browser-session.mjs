@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
@@ -20,6 +20,11 @@ import {
   checkOptionalSmokeAdminReadOnly,
   runSmokeAdminReadOnlySelfTest,
 } from "./smoke-admin-read-only.mjs";
+import {
+  recordRemoteSmokeSuccess,
+  runRemoteSmokeStatusSelfTest,
+  writeSmokeAlertDetail,
+} from "./smoke-remote-status.mjs";
 
 const DEFAULT_TIMEOUT_MS = 40_000;
 
@@ -107,7 +112,12 @@ async function main() {
   const baseUrl = resolveBaseUrl();
   const timeoutMs = Number(process.env.TM_SMOKE_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);
   const cookiePairs = await resolveSessionCookies(baseUrl);
-  const adminReadOnlyChecked = await checkOptionalSmokeAdminReadOnly(baseUrl);
+  let adminReadOnlyChecked = false;
+  try {
+    adminReadOnlyChecked = await checkOptionalSmokeAdminReadOnly(baseUrl);
+  } catch (error) {
+    throw new Error(`관리자 전용 점검 실패: ${error.message}`);
+  }
   const chrome = await launchChrome(timeoutMs);
 
   try {
@@ -146,7 +156,11 @@ async function main() {
       timeoutMs,
     });
     if (adminReadOnlyChecked) visualResult.labels.push("관리자 읽기 전용 403");
-    await reportRemoteSmokeSuccess(baseUrl, cookiePairs, visualResult.adminChecked);
+    await recordRemoteSmokeSuccess(
+      baseUrl,
+      cookiePairs,
+      visualResult.adminChecked || adminReadOnlyChecked,
+    );
 
     const session = results.find((item) => item.label === "현재 세션")?.data;
     const services = results.find((item) => item.label === "서비스 목록")?.data ?? [];
@@ -160,37 +174,8 @@ async function main() {
   }
 }
 
-async function reportRemoteSmokeSuccess(baseUrl, cookies, adminChecked) {
-  const runId = process.env.GITHUB_RUN_ID;
-  if (!runId) return;
-  const csrfCookie = findCsrfCookie(cookies);
-  if (!csrfCookie) {
-    throw new Error("원격 스모크 성공 기록에 필요한 CSRF 쿠키가 없습니다");
-  }
-
-  const response = await fetch(`${baseUrl}/api/v1/settings/smoke-run-success`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      cookie: formatCookieHeader(cookies),
-      "x-csrf-token": csrfCookie.value,
-    },
-    body: JSON.stringify({ admin_checked: adminChecked, run_id: Number(runId) }),
-  });
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(`원격 스모크 성공 기록 API ${response.status}: ${text.slice(0, 200)}`);
-  }
-}
-
 function findCsrfCookie(cookies) {
   return cookies.find((cookie) => cookie.name.toLowerCase().includes("csrf"));
-}
-
-async function writeSmokeAlertDetail(message) {
-  const path = process.env.TM_SMOKE_ALERT_DETAIL_FILE;
-  if (!path || !message.startsWith("스모크 계정 자동 회전")) return;
-  await writeFile(path, message.slice(0, 500), "utf8");
 }
 
 function resolveBaseUrl() {
@@ -487,6 +472,7 @@ async function runSelfTest() {
   assert.match(rotationCheck.failureMessage({ is_stale: true, stale_after_days: 35 }), /35일/);
   assert.equal(rotationCheck.failureMessage({ is_stale: false, stale_after_days: 35 }), null);
   await runSmokeAdminReadOnlySelfTest();
+  await runRemoteSmokeStatusSelfTest();
   runDashboardVisualSmokeSelfTest();
   console.log("서비스 브라우저 스모크 self-test 통과");
 }
