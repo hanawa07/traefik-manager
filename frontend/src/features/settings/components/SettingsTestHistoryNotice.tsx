@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { SettingsTestHistoryItem } from "@/features/settings/api/settingsApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
@@ -17,6 +19,8 @@ export default function SettingsTestHistoryNotice({
   if (!history?.last_event) {
     return <p className="text-xs text-gray-500 dark:text-slate-400">{label}: 아직 기록이 없습니다.</p>;
   }
+  const latestAuditId = history.recent_events[0]?.audit_id;
+  const canRetry = Boolean(onRetry && history.last_failure_audit_id);
 
   return (
     <div className="space-y-1 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
@@ -31,19 +35,32 @@ export default function SettingsTestHistoryNotice({
           <p>시각: {history.last_created_at ? formatDateTime(history.last_created_at, timezone) : "-"}</p>
           <p>메시지: {history.last_message || "-"}</p>
         </div>
-        {onRetry && history.last_failure_audit_id ? (
-          <button
-            type="button"
-            onClick={onRetry}
-            disabled={isRetrying}
-            className={[
-              "w-full rounded-md border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-medium text-amber-800 sm:w-auto",
-              "transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60",
-              "dark:border-amber-500/40 dark:bg-slate-900 dark:text-amber-100 dark:hover:bg-amber-500/10",
-            ].join(" ")}
-          >
-            {isRetrying ? "재시도 중..." : "마지막 실패 재시도"}
-          </button>
+        {latestAuditId || canRetry ? (
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+            {latestAuditId ? (
+              <Link
+                aria-label={`${label} 감사 상세`}
+                className="font-semibold text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+                href={`/dashboard/audit?q=${encodeURIComponent(latestAuditId)}&expand=${encodeURIComponent(latestAuditId)}`}
+              >
+                감사 상세
+              </Link>
+            ) : null}
+            {canRetry ? (
+              <button
+                type="button"
+                onClick={() => onRetry?.()}
+                disabled={isRetrying}
+                className={[
+                  "w-full rounded-md border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-medium text-amber-800 sm:w-auto",
+                  "transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60",
+                  "dark:border-amber-500/40 dark:bg-slate-900 dark:text-amber-100 dark:hover:bg-amber-500/10",
+                ].join(" ")}
+              >
+                {isRetrying ? "재시도 중..." : "마지막 실패 재시도"}
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
       {history.last_provider ? <p>채널: {history.last_provider}</p> : null}
