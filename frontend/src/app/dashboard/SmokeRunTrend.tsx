@@ -9,8 +9,10 @@ import {
   getSmokeRunFailureRate,
 } from "./smokeRunFailureRate";
 import {
+  filterAndPrioritizeSmokeArtifactRuns,
   getSmokeArtifactExpiryState,
   getSmokeArtifactRemainingLabel,
+  type SmokeArtifactFilter,
   type SmokeArtifactExpiryState,
 } from "./smokeArtifactExpiry";
 
@@ -58,6 +60,7 @@ export function SmokeRunTrend({
   timezone,
 }: SmokeRunTrendProps) {
   const [rangeDays, setRangeDays] = useState<7 | 30>(7);
+  const [artifactFilter, setArtifactFilter] = useState<SmokeArtifactFilter>("all");
   const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
   useEffect(() => {
     const refreshClock = () => setPeriodReferenceTime(Date.now());
@@ -85,7 +88,12 @@ export function SmokeRunTrend({
     periodReferenceTime,
     failureRateWindowDays,
   ).filter((run) => run.status === "failure");
-  const displayedFailedRuns = failedRuns.slice(0, 5);
+  const filteredFailedRuns = filterAndPrioritizeSmokeArtifactRuns(
+    failedRuns,
+    artifactFilter,
+    periodReferenceTime,
+  );
+  const displayedFailedRuns = filteredFailedRuns.slice(0, 5);
   const artifactCount = displayedFailedRuns.filter((run) =>
     Boolean(
       run.artifact_url &&
@@ -168,10 +176,23 @@ export function SmokeRunTrend({
           className="inline-flex flex-wrap items-center gap-1 rounded-md border border-rose-200 bg-white/70 px-2 py-0.5 dark:border-rose-500/30 dark:bg-slate-950/50"
           data-artifact-count={artifactCount}
           data-artifact-expiry-count={artifactExpiryCount}
+          data-artifact-filter={artifactFilter}
           data-expired-artifact-count={expiredArtifactCount}
+          data-filtered-run-count={filteredFailedRuns.length}
           data-testid="smoke-failure-run-links"
         >
           <span className="font-semibold">실패 실행</span>
+          <select
+            aria-label="실패 실행 Artifact 필터"
+            className="rounded border border-current/20 bg-white/80 px-1 py-0.5 font-semibold dark:bg-slate-950/70"
+            value={artifactFilter}
+            onChange={(event) => setArtifactFilter(event.target.value as SmokeArtifactFilter)}
+          >
+            <option value="all">전체</option>
+            <option value="available">다운로드 가능</option>
+            <option value="expiring_soon">만료 임박</option>
+            <option value="expired">만료됨</option>
+          </select>
           {displayedFailedRuns.map((run, index) => {
             const runLabel = run.run_number ? `#${run.run_number}` : `${index + 1}번`;
             const artifactExpiryState = getSmokeArtifactExpiryState(
@@ -183,7 +204,13 @@ export function SmokeRunTrend({
               periodReferenceTime,
             );
             return (
-              <span key={run.run_url} className="inline-flex items-center gap-1">
+              <span
+                key={run.run_url}
+                className="inline-flex items-center gap-1"
+                data-artifact-expires-at={run.artifact_expires_at || undefined}
+                data-artifact-state={artifactExpiryState || (run.artifact_url ? "available" : "none")}
+                data-testid="smoke-failure-run"
+              >
                 <a
                   className="font-semibold text-rose-700 underline underline-offset-2 dark:text-rose-300"
                   href={run.run_url}
@@ -231,7 +258,8 @@ export function SmokeRunTrend({
               </span>
             );
           })}
-          {failedRuns.length > 5 ? <span>외 {failedRuns.length - 5}건</span> : null}
+          {displayedFailedRuns.length === 0 ? <span>조건에 맞는 실행 없음</span> : null}
+          {filteredFailedRuns.length > 5 ? <span>외 {filteredFailedRuns.length - 5}건</span> : null}
         </span>
       ) : null}
     </div>

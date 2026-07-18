@@ -5,6 +5,7 @@ import {
   getSmokeRunFailureRate,
 } from "../frontend/src/app/dashboard/smokeRunFailureRate.ts";
 import {
+  filterAndPrioritizeSmokeArtifactRuns,
   getSmokeArtifactExpiryState,
   getSmokeArtifactRemainingLabel,
 } from "../frontend/src/app/dashboard/smokeArtifactExpiry.ts";
@@ -87,5 +88,29 @@ assert.equal(getSmokeArtifactRemainingLabel("2026-07-18T00:00:30Z", now), "1분 
 assert.equal(getSmokeArtifactRemainingLabel("2026-07-18T01:01:00Z", now), "1시간 1분 남음");
 assert.equal(getSmokeArtifactRemainingLabel("2026-07-19T00:30:00Z", now), "1일 30분 남음");
 assert.equal(getSmokeArtifactRemainingLabel("2026-07-20T03:30:00Z", now), "2일 3시간 남음");
+
+const artifactRuns = [
+  { id: "none", artifact_url: null, artifact_expires_at: null },
+  { id: "expired", artifact_url: "expired", artifact_expires_at: "2026-07-17T00:00:00Z" },
+  { id: "unknown", artifact_url: "unknown", artifact_expires_at: null },
+  { id: "active", artifact_url: "active", artifact_expires_at: "2026-07-22T00:00:01Z" },
+  { id: "soon", artifact_url: "soon", artifact_expires_at: "2026-07-19T00:00:00Z" },
+];
+assert.deepEqual(
+  filterAndPrioritizeSmokeArtifactRuns(artifactRuns, "all", now).map((run) => run.id),
+  ["soon", "active", "unknown", "expired", "none"],
+);
+assert.deepEqual(
+  filterAndPrioritizeSmokeArtifactRuns(artifactRuns, "available", now).map((run) => run.id),
+  ["soon", "active", "unknown"],
+);
+assert.deepEqual(
+  filterAndPrioritizeSmokeArtifactRuns(artifactRuns, "expiring_soon", now).map((run) => run.id),
+  ["soon"],
+);
+assert.deepEqual(
+  filterAndPrioritizeSmokeArtifactRuns(artifactRuns, "expired", now).map((run) => run.id),
+  ["expired"],
+);
 
 console.log("운영 점검 실패율 self-test 통과");

@@ -2,6 +2,7 @@ const EXPIRING_SOON_MS = 72 * 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 
 export type SmokeArtifactExpiryState = "active" | "expiring_soon" | "expired";
+export type SmokeArtifactFilter = "all" | "available" | "expiring_soon" | "expired";
 
 export function getSmokeArtifactExpiryState(
   expiresAt: string | null,
@@ -32,4 +33,32 @@ export function getSmokeArtifactRemainingLabel(
   }
   if (hours > 0) return `${hours}시간${minutes > 0 ? ` ${minutes}분` : ""} 남음`;
   return `${minutes}분 남음`;
+}
+
+export function filterAndPrioritizeSmokeArtifactRuns<
+  T extends { artifact_url: string | null; artifact_expires_at: string | null },
+>(runs: T[], filter: SmokeArtifactFilter, referenceTime: number): T[] {
+  return runs
+    .filter((run) => {
+      const state = run.artifact_url
+        ? getSmokeArtifactExpiryState(run.artifact_expires_at, referenceTime)
+        : null;
+      if (filter === "all") return true;
+      if (filter === "available") return Boolean(run.artifact_url && state !== "expired");
+      return Boolean(run.artifact_url && state === filter);
+    })
+    .sort((left, right) =>
+      getArtifactSortValue(left, referenceTime) - getArtifactSortValue(right, referenceTime)
+    );
+}
+
+function getArtifactSortValue(
+  run: { artifact_url: string | null; artifact_expires_at: string | null },
+  referenceTime: number,
+): number {
+  if (!run.artifact_url) return Number.MAX_SAFE_INTEGER;
+  const state = getSmokeArtifactExpiryState(run.artifact_expires_at, referenceTime);
+  if (state === "expired") return Number.MAX_SAFE_INTEGER - 1;
+  const expiresAt = run.artifact_expires_at ? Date.parse(run.artifact_expires_at) : Number.NaN;
+  return Number.isFinite(expiresAt) ? expiresAt : Number.MAX_SAFE_INTEGER - 2;
 }
