@@ -14,6 +14,7 @@ const ROTATION_CSV_PERIODS = [
   { label: "최근 7일", value: "7" },
   { label: "최근 30일", value: "30" },
   { label: "최근 90일", value: "90" },
+  { label: "사용자 지정", value: "custom" },
 ] as const;
 type RotationCsvPeriod = (typeof ROTATION_CSV_PERIODS)[number]["value"];
 
@@ -22,10 +23,20 @@ const EXPORT_LINK_CLASS =
 
 export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
   const [rotationCsvPeriod, setRotationCsvPeriod] = useState<RotationCsvPeriod>("all");
+  const [rotationStartDate, setRotationStartDate] = useState("");
+  const [rotationEndDate, setRotationEndDate] = useState("");
+  const isCustomRotationRange = rotationCsvPeriod === "custom";
+  const isRotationRangeValid =
+    !isCustomRotationRange ||
+    Boolean(rotationStartDate && rotationEndDate && rotationStartDate <= rotationEndDate);
   const smokeRotationExportUrl = buildAuditExportUrl({
     event: "smoke_rotation_result",
     period_days:
-      rotationCsvPeriod === "all" ? undefined : Number(rotationCsvPeriod) as 7 | 30 | 90,
+      rotationCsvPeriod === "all" || isCustomRotationRange
+        ? undefined
+        : Number(rotationCsvPeriod) as 7 | 30 | 90,
+    start_date: isCustomRotationRange ? rotationStartDate || undefined : undefined,
+    end_date: isCustomRotationRange ? rotationEndDate || undefined : undefined,
   });
   return (
     <div className="mb-8 flex flex-wrap items-center gap-3">
@@ -47,14 +58,47 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
             <option key={period.value} value={period.value}>{period.label}</option>
           ))}
         </select>
+        {isCustomRotationRange ? (
+          <>
+            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:shadow-none">
+              시작 (UTC)
+              <input
+                aria-label="Secret 회전 CSV 시작일"
+                className="bg-transparent text-xs text-slate-700 outline-none dark:text-slate-200"
+                type="date"
+                value={rotationStartDate}
+                max={rotationEndDate || undefined}
+                onChange={(event) => setRotationStartDate(event.target.value)}
+              />
+            </label>
+            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:shadow-none">
+              종료 (UTC)
+              <input
+                aria-label="Secret 회전 CSV 종료일"
+                className="bg-transparent text-xs text-slate-700 outline-none dark:text-slate-200"
+                type="date"
+                value={rotationEndDate}
+                min={rotationStartDate || undefined}
+                onChange={(event) => setRotationEndDate(event.target.value)}
+              />
+            </label>
+          </>
+        ) : null}
         <a
           aria-label="Secret 회전 CSV 다운로드"
-          className={EXPORT_LINK_CLASS}
-          href={smokeRotationExportUrl}
+          aria-disabled={!isRotationRangeValid}
+          className={`${EXPORT_LINK_CLASS} ${isRotationRangeValid ? "" : "cursor-not-allowed opacity-50"}`}
+          href={isRotationRangeValid ? smokeRotationExportUrl : undefined}
+          tabIndex={isRotationRangeValid ? undefined : -1}
         >
           <Download className="h-4 w-4" />
           Secret 회전 CSV
         </a>
+        {isCustomRotationRange && !isRotationRangeValid ? (
+          <span className="self-center text-xs font-medium text-amber-700 dark:text-amber-300">
+            시작일과 종료일을 순서대로 선택하세요.
+          </span>
+        ) : null}
         <a
           aria-label="현재 감사 조건 CSV 다운로드"
           className={EXPORT_LINK_CLASS}
