@@ -65,6 +65,17 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     const expiredArtifacts = Array.from(
       container?.querySelectorAll('[data-testid="smoke-failure-artifact-expired"]') || []
     );
+    const runItems = Array.from(
+      container?.querySelectorAll('[data-testid="smoke-failure-run"]') || []
+    );
+    const orderValues = runItems.map((item) => {
+      const state = item.getAttribute('data-artifact-state');
+      const expiresAt = Date.parse(item.getAttribute('data-artifact-expires-at') || '');
+      if (['active', 'expiring_soon'].includes(state) && Number.isFinite(expiresAt)) return expiresAt;
+      if (state === 'available') return Number.MAX_SAFE_INTEGER - 2;
+      if (state === 'expired') return Number.MAX_SAFE_INTEGER - 1;
+      return Number.MAX_SAFE_INTEGER;
+    });
     return {
       alert: Boolean(alert),
       artifactCount: artifactLinks.length,
@@ -80,6 +91,9 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
         link.href.startsWith('https://github.com/') && link.href.includes('/actions/runs/') &&
           link.href.includes('/artifacts/')
       ),
+      artifactOrderValid: orderValues.every(
+        (value, index) => index === 0 || orderValues[index - 1] <= value
+      ),
       count: links.length,
       expiredArtifactCount: expiredArtifacts.length,
       expiredArtifactValid: expiredArtifacts.every((item) =>
@@ -93,6 +107,10 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
       expectedExpiredArtifactCount: Number(
         container?.getAttribute('data-expired-artifact-count') || 0
       ),
+      filterOptions: Array.from(
+        container?.querySelectorAll('select[aria-label="실패 실행 Artifact 필터"] option') || []
+      ).map((option) => option.value),
+      filterValue: container?.getAttribute('data-artifact-filter'),
       valid: links.every((link) =>
         link.href.startsWith('https://github.com/') && link.href.includes('/actions/runs/')
       ),
@@ -119,6 +137,43 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
       "만료된 Artifact 비활성 표시 수가 일치하지 않습니다",
     );
     assert.equal(failureLinks.expiredArtifactValid, true, "만료된 Artifact에 링크가 남았습니다");
+    assert.equal(failureLinks.artifactOrderValid, true, "Artifact가 만료 임박 순으로 정렬되지 않았습니다");
+    assert.equal(failureLinks.filterValue, "all", "Artifact 기본 필터가 전체가 아닙니다");
+    assert.deepEqual(
+      failureLinks.filterOptions,
+      ["all", "available", "expiring_soon", "expired"],
+      "Artifact 필터 선택지가 다릅니다",
+    );
+    const filterResult = await evaluate(cdp, `(async () => {
+      const select = document.querySelector('select[aria-label="실패 실행 Artifact 필터"]');
+      if (!select) return null;
+      const settle = () => new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve))
+      );
+      select.value = 'available';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      await settle();
+      const container = document.querySelector('[data-testid="smoke-failure-run-links"]');
+      const items = Array.from(container?.querySelectorAll('[data-testid="smoke-failure-run"]') || []);
+      const filteredCount = Number(container?.getAttribute('data-filtered-run-count'));
+      const result = {
+        valid: container?.getAttribute('data-artifact-filter') === 'available' &&
+          items.length === Math.min(filteredCount, 5) && items.every((item) =>
+            ['active', 'expiring_soon', 'available'].includes(
+              item.getAttribute('data-artifact-state')
+            )
+          ),
+      };
+      select.value = 'all';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      await settle();
+      return {
+        ...result,
+        restored: container?.getAttribute('data-artifact-filter'),
+      };
+    })()`);
+    assert.equal(filterResult?.valid, true, "다운로드 가능 Artifact 필터 결과가 다릅니다");
+    assert.equal(filterResult.restored, "all", "Artifact 필터가 전체로 복구되지 않았습니다");
   }
 }
 
@@ -237,6 +292,17 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
       currentCount: items.filter((item) => item.getAttribute('data-chain-current') === 'true').length,
       expectedCount: Number(panel?.getAttribute('data-chain-count')),
       firstIsOrigin: items[0]?.textContent?.includes('원본'),
+      failureDetailsValid: items.every((item, index) => {
+        const detail = chain[index]?.detail;
+        const raw = detail?.detail;
+        const expected = detail?.success === false
+          ? typeof raw === 'string' && raw.trim() ? raw.trim() : '상세 정보 없음'
+          : null;
+        const summary = item.querySelector('[data-testid="audit-retry-failure-summary"]');
+        return expected
+          ? summary?.title === expected && summary.textContent?.includes(expected)
+          : !summary;
+      }),
       ids,
       linksValid: links.length === Math.max(0, items.length - 1) && links.every((link) => {
         const id = new URL(link.href).searchParams.get('q');
@@ -261,6 +327,7 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
   assert.equal(result.count, result.expectedCount, "알림 재시도 체인 표시 건수가 다릅니다");
   assert.deepEqual(result.ids, result.apiIds, "알림 재시도 체인 ID 순서가 API와 다릅니다");
   assert.equal(result.currentCount, 1, "알림 재시도 체인의 현재 로그 표시가 다릅니다");
+  assert.equal(result.failureDetailsValid, true, "알림 재시도 체인의 실패 원인이 다릅니다");
   assert.equal(result.firstIsOrigin, true, "알림 재시도 체인의 원본 표시가 없습니다");
   assert.equal(result.parentsValid, true, "알림 재시도 체인의 부모 관계가 끊겼습니다");
   assert.equal(result.triggersValid, true, "알림 재시도 체인의 자동·수동 표시가 다릅니다");

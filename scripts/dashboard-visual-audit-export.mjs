@@ -116,6 +116,24 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
   assert.equal(emptyResult.actual, 0, "Secret 회전 CSV 0건 조건이 비어 있지 않습니다");
   assert.match(emptyResult.text, /CSV에는 헤더만 포함됩니다/);
 
+  const expectedLatestFailure = await evaluate(cdp, `(async () => {
+    const response = await fetch('/api/v1/audit?event=smoke_rotation_failed&limit=1&offset=0');
+    const latest = response.ok ? (await response.json())[0] : null;
+    if (!latest) return null;
+    const rawStep = latest.detail?.step;
+    return {
+      date: latest.created_at.slice(0, 10),
+      step: typeof rawStep === 'string' && rawStep.trim() ? rawStep.trim() : '알 수 없는 단계',
+    };
+  })()`);
+  if (expectedLatestFailure) {
+    await waitForCondition(
+      cdp,
+      `Boolean(document.querySelector('[data-testid="secret-rotation-export-latest-failure"]'))`,
+      timeoutMs,
+      "최근 Secret 회전 실패 단계를 불러오지 못했습니다",
+    );
+  }
   await waitForCondition(
     cdp,
     `Boolean(document.querySelector('[data-testid="secret-rotation-export-latest"]')) &&
@@ -127,6 +145,7 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
     const button = document.querySelector('[data-testid="secret-rotation-export-latest"]');
     const latestDate = button?.getAttribute('data-latest-date');
     const latestStatus = button?.getAttribute('data-latest-status');
+    const failure = document.querySelector('[data-testid="secret-rotation-export-latest-failure"]');
     const response = await fetch('/api/v1/audit?event=smoke_rotation_result&limit=1&offset=0');
     const latest = response.ok ? (await response.json())[0] : null;
     const expectedStatus = latest?.event === 'smoke_rotation_succeeded'
@@ -134,7 +153,16 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
       : latest?.event === 'smoke_rotation_failed' ? 'failure' : null;
     const text = button?.textContent || '';
     button?.click();
-    return { clicked: Boolean(button), expectedStatus, latestDate, latestStatus, text };
+    return {
+      clicked: Boolean(button),
+      expectedStatus,
+      latestDate,
+      latestFailureDate: failure?.getAttribute('data-latest-failure-date'),
+      latestFailureStep: failure?.getAttribute('data-latest-failure-step'),
+      latestFailureText: failure?.textContent || '',
+      latestStatus,
+      text,
+    };
   })()`);
   assert.equal(latestRecovery.clicked, true, "Secret 회전 CSV 최근 결과 날짜 버튼이 없습니다");
   assert.match(latestRecovery.latestDate || "", /^\d{4}-\d{2}-\d{2}$/);
@@ -144,6 +172,11 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
     latestRecovery.latestStatus === "success" ? /성공/ : /실패/,
     "최근 회전 결과 상태 문구가 없습니다",
   );
+  if (expectedLatestFailure) {
+    assert.equal(latestRecovery.latestFailureDate, expectedLatestFailure.date, "최근 회전 실패 날짜가 다릅니다");
+    assert.equal(latestRecovery.latestFailureStep, expectedLatestFailure.step, "최근 회전 실패 단계가 다릅니다");
+    assert.match(latestRecovery.latestFailureText, /최근 실패.*단계:/, "최근 회전 실패 단계 문구가 없습니다");
+  }
   await waitForCondition(
     cdp,
     `(() => {
