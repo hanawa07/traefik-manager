@@ -4,6 +4,10 @@ import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
 import { checkAuditFilterPersistence, checkCertificateDrawer, checkMobileSidebar, checkOptionalAdminModal } from "./dashboard-visual-interactions.mjs";
 import { checkDeploymentBottleneckSettingsPreview } from "./dashboard-visual-deployment-bottleneck-settings.mjs";
 import {
+  checkOptionalDeploymentBottleneckCleanupCancel,
+  runDeploymentBottleneckCleanupSelfTest,
+} from "./dashboard-visual-deployment-bottleneck-cleanup.mjs";
+import {
   checkManagerHttpErrorPreviewForm,
   checkManagerHttpErrorTrend,
 } from "./dashboard-visual-manager-http.mjs";
@@ -57,6 +61,13 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
     labels.push(`${profile.label} ${DASHBOARD_ROUTES.length}개 화면`);
   }
   labels.push("Docker 정상 표시", "Artifact 만료 표시");
+
+  const cleanupCancelChecked = await checkOptionalDeploymentBottleneckCleanupCancel({
+    baseUrl,
+    cdp,
+    timeoutMs,
+  });
+  if (cleanupCancelChecked) labels.push("관리자 병목 이벤트 정리 확인·취소");
 
   await cdp.send("Network.clearBrowserCookies");
   await evaluate(cdp, `localStorage.removeItem("auth")`);
@@ -328,6 +339,7 @@ function sleep(ms) {
 }
 
 export function runDashboardVisualSmokeSelfTest() {
+  runDeploymentBottleneckCleanupSelfTest();
   const mobileProfile = VISUAL_PROFILES[0];
   const desktopProfile = VISUAL_PROFILES[1];
   const serviceRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/services");

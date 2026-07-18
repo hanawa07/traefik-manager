@@ -9,6 +9,10 @@ export async function resolveSessionCookies(baseUrl) {
     throw new Error("TM_SMOKE_COOKIE 또는 TM_SMOKE_USERNAME/TM_SMOKE_PASSWORD가 필요합니다");
   }
 
+  return loginSessionCookies(baseUrl, username, password);
+}
+
+export async function loginSessionCookies(baseUrl, username, password) {
   const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },

@@ -29,6 +29,8 @@ jobs:
       TM_SMOKE_COOKIE: ${{ secrets.TM_SMOKE_COOKIE }}
       TM_SMOKE_USERNAME: ${{ secrets.TM_SMOKE_USERNAME }}
       TM_SMOKE_PASSWORD: ${{ secrets.TM_SMOKE_PASSWORD }}
+      TM_SMOKE_ADMIN_USERNAME: ${{ secrets.TM_SMOKE_ADMIN_USERNAME }}
+      TM_SMOKE_ADMIN_PASSWORD: ${{ secrets.TM_SMOKE_ADMIN_PASSWORD }}
       TM_SMOKE_ARTIFACT_DIR: smoke-artifacts
       TM_SMOKE_ALERT_DETAIL_FILE: smoke-alert-detail.txt
     steps:

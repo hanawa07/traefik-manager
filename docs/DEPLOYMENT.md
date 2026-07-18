@@ -144,6 +144,7 @@ scripts/blue-green-deploy.sh vX.Y.Z
 - GitHub Actions의 `운영 로그인·화면 스모크`는 매일 03:17(KST)에 실행되며 수동 실행도 지원합니다.
 - 운영 로그인·화면 스모크는 대시보드의 `Docker 정상`, Manager file-provider 라우터의 `file / healthy / UP`, Manager API 오류 추이 24개 기본 구간과 6시간·경로 필터 전환·임계치 감지 상태·영속 로그 회전 상태·보관 경고의 감사 링크·권장값 API, 감사 로그 조건 CSV, 설정 화면의 `Artifact 만료`와 감사 로그 보존 카드를 명시적으로 확인합니다. Manager API 오류와 요청 로그 보관 감사 상세는 운영 감사 데이터를 만들지 않고 브라우저 요청에 fixture를 주입해 매번 검사합니다. 관리자 세션에서는 저장 없이 권장값 계산·제외 경로 미리보기·입력 적용도 확인합니다.
 - 저장소 비밀값에 `TM_SMOKE_BASE_URL`과 `TM_SMOKE_COOKIE`를 등록하거나, 쿠키 대신 `TM_SMOKE_USERNAME`과 `TM_SMOKE_PASSWORD`를 등록하면 실제 인증 화면을 검사합니다.
+- `TM_SMOKE_ADMIN_USERNAME`과 `TM_SMOKE_ADMIN_PASSWORD`를 함께 등록하면 관리자 전용 병목 이벤트 정리 확인창과 취소 흐름도 검사합니다. 미리보기 응답을 브라우저에서 대체하고 POST를 차단하므로 운영 이벤트는 삭제하지 않습니다.
 - 인증 비밀값이 아직 없으면 예약 작업은 브라우저 스모크 self-test만 실행하고 정상 종료합니다.
 - 인증 화면 검사에 실패하면 모바일 화면 PNG를 GitHub Actions 아티팩트로 7일간 보관합니다.
 - `TM_SMOKE_TELEGRAM_BOT_TOKEN`과 `TM_SMOKE_TELEGRAM_CHAT_ID` 비밀값이 있으면 실패 실행 링크를 Telegram으로 전송합니다.
