@@ -178,10 +178,13 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
               item.getAttribute('data-artifact-state')
             )
           ),
+        urlFilter: new URL(window.location.href).searchParams.get('artifact_filter'),
       };
+      localStorage.removeItem('traefik-manager:smoke-artifact-filter');
       return result;
     })()`);
     assert.equal(filterResult?.valid, true, "다운로드 가능 Artifact 필터 결과가 다릅니다");
+    assert.equal(filterResult?.urlFilter, "available", "Artifact 필터가 URL에 반영되지 않았습니다");
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitForCondition(
       cdp,
@@ -200,10 +203,14 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
       return {
         persisted,
         restored: container?.getAttribute('data-artifact-filter') === 'all',
+        stored: localStorage.getItem('traefik-manager:smoke-artifact-filter'),
+        urlCleared: !new URL(window.location.href).searchParams.has('artifact_filter'),
       };
     })()`);
-    assert.equal(persistedFilter.persisted, true, "Artifact 저장 필터가 선택 상자에 복원되지 않았습니다");
+    assert.equal(persistedFilter.persisted, true, "Artifact URL 필터가 선택 상자에 복원되지 않았습니다");
     assert.equal(persistedFilter.restored, true, "Artifact 필터가 전체로 복구되지 않았습니다");
+    assert.equal(persistedFilter.stored, "all", "Artifact URL 필터가 로컬 저장값에 동기화되지 않았습니다");
+    assert.equal(persistedFilter.urlCleared, true, "Artifact 전체 필터가 URL에서 제거되지 않았습니다");
   }
 }
 
@@ -361,6 +368,16 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
               recovery?.textContent?.includes('최초 실패→성공')
           : recovery?.textContent?.includes('시간 확인 불가');
       })(),
+      stageElapsedValid: items.every((item, index) => {
+        const elapsed = item.querySelector('[data-testid="audit-retry-stage-elapsed"]');
+        if (index === 0) return !elapsed;
+        const duration = Date.parse(chain[index]?.created_at) -
+          Date.parse(chain[index - 1]?.created_at);
+        return Number.isFinite(duration) && duration >= 0
+          ? Number(elapsed?.getAttribute('data-stage-elapsed-ms')) === duration &&
+              elapsed?.textContent?.includes('이전 단계 후')
+          : elapsed?.textContent?.includes('경과 시간 확인 불가');
+      }),
       successCount: Number(panel?.getAttribute('data-chain-success-count')),
       triggersValid: items.every((item, index) => {
         const trigger = chain[index]?.detail?.trigger;
@@ -381,6 +398,7 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
   assert.equal(result.firstIsOrigin, true, "알림 재시도 체인의 원본 표시가 없습니다");
   assert.equal(result.parentsValid, true, "알림 재시도 체인의 부모 관계가 끊겼습니다");
   assert.equal(result.recoveryValid, true, "알림 재시도 체인의 복구 소요 시간이 다릅니다");
+  assert.equal(result.stageElapsedValid, true, "알림 재시도 단계별 경과 시간이 다릅니다");
   assert.equal(result.successCount, result.expectedSuccessCount, "알림 재시도 성공 요약 건수가 다릅니다");
   assert.equal(result.triggersValid, true, "알림 재시도 체인의 자동·수동 표시가 다릅니다");
   assert.equal(result.linksValid, true, "알림 재시도 체인의 감사 상세 링크가 다릅니다");
