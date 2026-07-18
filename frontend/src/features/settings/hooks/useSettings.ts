@@ -9,6 +9,7 @@ export {
   useDeploymentBottleneckSettings,
   useLoginDefenseSettings,
   useSecurityAlertSettings,
+  useSmokeRotationSummary,
   useSmokeRotationStatus,
   useSettingsTestHistory,
   useTimeDisplaySettings,

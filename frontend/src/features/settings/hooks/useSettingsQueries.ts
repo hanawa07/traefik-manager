@@ -54,6 +54,13 @@ export function useSmokeRotationStatus() {
   return useSettingsQuery(settingsQueryKeys.smokeRotation, settingsApi.getSmokeRotationStatus);
 }
 
+export function useSmokeRotationSummary() {
+  return useSettingsQuery(
+    settingsQueryKeys.smokeRotationSummary,
+    settingsApi.getSmokeRotationSummary,
+  );
+}
+
 export function useSettingsTestHistory() {
   return useSettingsQuery(
     settingsQueryKeys.testHistory,

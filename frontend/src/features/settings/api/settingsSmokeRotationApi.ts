@@ -51,6 +51,10 @@ export const smokeRotationSettingsApi = {
     const response = await apiClient.get<SmokeRotationStatus>("/settings/smoke-rotation");
     return response.data;
   },
+  getSmokeRotationSummary: async (): Promise<SmokeRotationStatus> => {
+    const response = await apiClient.get<SmokeRotationStatus>("/settings/smoke-rotation?summary=true");
+    return response.data;
+  },
   refreshSmokeMonitoringHistory: async (): Promise<SmokeRotationStatus> => {
     const response = await apiClient.get<SmokeRotationStatus>(
       "/settings/smoke-rotation?refresh_monitoring_history=true",

@@ -12,6 +12,37 @@ from tests.interfaces.api.settings_router_fakes import StubSettingsRepository
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(("summary", "include_details"), [(False, True), (True, False)])
+async def test_get_smoke_rotation_status_skips_admin_details_for_summary(
+    monkeypatch,
+    summary: bool,
+    include_details: bool,
+):
+    calls = []
+
+    async def fake_status_response(_db, **kwargs):
+        calls.append(kwargs)
+        return object()
+
+    monkeypatch.setattr(settings_router, "_get_smoke_rotation_status_response", fake_status_response)
+
+    await settings_router.get_smoke_rotation_status(
+        db=object(),
+        current_user={"role": "admin"},
+        refresh_monitoring_history=True,
+        summary=summary,
+    )
+
+    assert calls == [
+        {
+            "include_recent_logs": include_details,
+            "include_monitoring_history": include_details,
+            "force_refresh_monitoring_history": include_details,
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_get_time_display_settings_returns_defaults(monkeypatch):
     StubSettingsRepository.store = {}
     monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)

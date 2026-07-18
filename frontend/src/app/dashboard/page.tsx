@@ -11,7 +11,7 @@ import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { useCertificates } from "@/features/certificates/hooks/useCertificates";
 import { useDeploymentInfo, useRefreshDeploymentLatest } from "@/features/deployment/hooks/useDeploymentInfo";
 import { useAllServicesHealth, useServices } from "@/features/services/hooks/useServices";
-import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
+import { useSmokeRotationSummary, useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import {
   useRefreshTraefikLatest,
   useTraefikDeployment,
@@ -25,6 +25,7 @@ import { ManagerHealthAlertBanner } from "./ManagerHealthAlertBanner";
 import { ManagerHealthHistoryCard } from "./ManagerHealthHistoryCard";
 import { SecurityAlertSummaryCard } from "./SecurityAlertSummaryCard";
 import { ServiceOverviewStats } from "./ServiceOverviewStats";
+import { SmokeAdminStatusSummary } from "./SmokeAdminStatusSummary";
 import { TraefikStatusBanner } from "./TraefikStatusBanner";
 
 export default function DashboardPage() {
@@ -45,6 +46,11 @@ export default function DashboardPage() {
     isLoading: isManagerHealthHistoryLoading,
   } = useManagerHealthAudit();
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
+  const {
+    data: smokeRotationSummary,
+    isError: isSmokeRotationSummaryError,
+    isLoading: isSmokeRotationSummaryLoading,
+  } = useSmokeRotationSummary();
   const { data: certificates = [] } = useCertificates();
   const {
     data: deploymentInfo,
@@ -78,6 +84,12 @@ export default function DashboardPage() {
       <ManagerHealthAlertBanner
         deployment={deploymentInfo}
         updatedAt={deploymentUpdatedAtIso}
+        timezone={displayTimezone}
+      />
+      <SmokeAdminStatusSummary
+        isError={isSmokeRotationSummaryError}
+        isLoading={isSmokeRotationSummaryLoading}
+        status={smokeRotationSummary}
         timezone={displayTimezone}
       />
       <TraefikStatusBanner
