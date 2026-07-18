@@ -67,6 +67,14 @@ async def test_deployment_bottleneck_event_cleanup_uses_effective_retention_and_
 ):
     recorded = []
     cleanup_calls = []
+    preview_calls = []
+    cleanup_result = {
+        "retention_days": 30,
+        "deleted_count": 2,
+        "retained_event_count": 3,
+        "oldest_event_at": "2026-07-01T00:00:00Z",
+        "newest_event_at": "2026-07-17T00:00:00Z",
+    }
     monkeypatch.setattr(router, "get_client_ip", lambda _: "203.0.113.11")
     monkeypatch.setattr(
         router,
@@ -76,19 +84,24 @@ async def test_deployment_bottleneck_event_cleanup_uses_effective_retention_and_
 
     def fake_cleanup(retention_days):
         cleanup_calls.append(retention_days)
-        return {
-            "retention_days": retention_days,
-            "deleted_count": 2,
-            "retained_event_count": 3,
-            "oldest_event_at": "2026-07-01T00:00:00Z",
-            "newest_event_at": "2026-07-17T00:00:00Z",
-        }
+        return cleanup_result
+
+    def fake_preview(retention_days):
+        preview_calls.append(retention_days)
+        return cleanup_result
 
     async def fake_record(**kwargs):
         recorded.append(kwargs)
 
     monkeypatch.setattr(router, "prune_manager_deployment_bottleneck_events", fake_cleanup)
+    monkeypatch.setattr(
+        router,
+        "preview_manager_deployment_bottleneck_event_cleanup",
+        fake_preview,
+    )
     monkeypatch.setattr(router.audit_service, "record", fake_record, raising=False)
+
+    preview = await router.preview_deployment_bottleneck_event_cleanup(_={})
 
     result = await router.cleanup_deployment_bottleneck_events(
         request=SimpleNamespace(),
@@ -96,12 +109,15 @@ async def test_deployment_bottleneck_event_cleanup_uses_effective_retention_and_
         actor={"username": "admin"},
     )
 
+    assert preview_calls == [30]
+    assert preview["deleted_count"] == 2
     assert cleanup_calls == [30]
     assert result["deleted_count"] == 2
     assert recorded[0]["action"] == "cleanup"
     assert recorded[0]["detail"] == {
         "event": "deployment_bottleneck_events_cleanup",
         "retention_days": 30,
+        "previous_event_count": 5,
         "deleted_count": 2,
         "retained_event_count": 3,
         "client_ip": "203.0.113.11",

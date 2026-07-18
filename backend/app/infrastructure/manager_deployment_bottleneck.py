@@ -179,14 +179,25 @@ def read_manager_deployment_bottleneck_events(
     return _read_normalized_events(_manager_deployment_bottleneck_events_path(path))[:MAX_EVENTS]
 
 
+def preview_manager_deployment_bottleneck_event_cleanup(
+    retention_days: int,
+    path: str | Path | None = None,
+    *,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    _validate_event_retention_days(retention_days)
+    lines = _read_event_lines(_manager_deployment_bottleneck_events_path(path), strict=True)
+    _, result = _calculate_event_cleanup(lines, retention_days, now)
+    return result
+
+
 def prune_manager_deployment_bottleneck_events(
     retention_days: int,
     path: str | Path | None = None,
     *,
     now: datetime | None = None,
 ) -> dict[str, object]:
-    if not MIN_EVENT_RETENTION_DAYS <= retention_days <= MAX_EVENT_RETENTION_DAYS:
-        raise ValueError("event retention days out of range")
+    _validate_event_retention_days(retention_days)
 
     events_path = _manager_deployment_bottleneck_events_path(path)
     events_path.parent.mkdir(parents=True, exist_ok=True)
@@ -194,19 +205,32 @@ def prune_manager_deployment_bottleneck_events(
     with lock_path.open("a", encoding="utf-8") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
         lines = _read_event_lines(events_path, strict=True)
-        events = _normalize_event_lines(lines)
-        reference_time = now or datetime.now(timezone.utc)
-        if reference_time.tzinfo is None:
-            reference_time = reference_time.replace(tzinfo=timezone.utc)
-        cutoff = reference_time.astimezone(timezone.utc) - timedelta(days=retention_days)
-        retained = [
-            event
-            for event in events
-            if _event_timestamp(_string(event.get("occurred_at"))) >= cutoff
-        ][:MAX_RETAINED_EVENTS]
+        retained, result = _calculate_event_cleanup(lines, retention_days, now)
         _write_events(events_path, retained)
 
-    return {
+    return result
+
+
+def _validate_event_retention_days(retention_days: int) -> None:
+    if not MIN_EVENT_RETENTION_DAYS <= retention_days <= MAX_EVENT_RETENTION_DAYS:
+        raise ValueError("event retention days out of range")
+
+
+def _calculate_event_cleanup(
+    lines: list[str],
+    retention_days: int,
+    now: datetime | None,
+) -> tuple[list[dict[str, object]], dict[str, object]]:
+    reference_time = now or datetime.now(timezone.utc)
+    if reference_time.tzinfo is None:
+        reference_time = reference_time.replace(tzinfo=timezone.utc)
+    cutoff = reference_time.astimezone(timezone.utc) - timedelta(days=retention_days)
+    retained = [
+        event
+        for event in _normalize_event_lines(lines)
+        if _event_timestamp(_string(event.get("occurred_at"))) >= cutoff
+    ][:MAX_RETAINED_EVENTS]
+    return retained, {
         "retention_days": retention_days,
         "deleted_count": len(lines) - len(retained),
         **_event_storage_summary(retained),

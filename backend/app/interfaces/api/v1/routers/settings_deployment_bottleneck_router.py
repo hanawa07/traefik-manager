@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.audit import audit_service
 from app.core.logging_config import get_client_ip
 from app.infrastructure.manager_deployment_bottleneck import (
+    preview_manager_deployment_bottleneck_event_cleanup,
     prune_manager_deployment_bottleneck_events,
     read_manager_deployment_bottleneck_config,
     read_manager_deployment_bottleneck_state,
@@ -67,6 +68,21 @@ async def update_deployment_bottleneck_settings(
     return updated
 
 
+@router.get(
+    "/deployment-bottleneck-alert/cleanup",
+    response_model=ManagerDeploymentBottleneckCleanupResponse,
+    summary="Manager 배포 병목 이벤트 정리 미리보기",
+)
+async def preview_deployment_bottleneck_event_cleanup(
+    _: dict = Depends(require_admin),
+):
+    state = read_manager_deployment_bottleneck_state()
+    return await asyncio.to_thread(
+        preview_manager_deployment_bottleneck_event_cleanup,
+        int(state["effective_event_retention_days"]),
+    )
+
+
 @router.post(
     "/deployment-bottleneck-alert/cleanup",
     response_model=ManagerDeploymentBottleneckCleanupResponse,
@@ -93,6 +109,7 @@ async def cleanup_deployment_bottleneck_events(
         detail={
             "event": "deployment_bottleneck_events_cleanup",
             "retention_days": retention_days,
+            "previous_event_count": result["deleted_count"] + result["retained_event_count"],
             "deleted_count": result["deleted_count"],
             "retained_event_count": result["retained_event_count"],
             "client_ip": get_client_ip(request),

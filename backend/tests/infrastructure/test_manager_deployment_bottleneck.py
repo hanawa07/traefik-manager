@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.infrastructure.manager_deployment_bottleneck import (
+    preview_manager_deployment_bottleneck_event_cleanup,
     prune_manager_deployment_bottleneck_events,
     read_manager_deployment_bottleneck_config,
     read_manager_deployment_bottleneck_events,
@@ -151,14 +152,24 @@ def test_bottleneck_event_cleanup_applies_retention_and_count_limit(tmp_path: Pa
         encoding="utf-8",
     )
 
+    original = events_path.read_text(encoding="utf-8")
+    preview = preview_manager_deployment_bottleneck_event_cleanup(
+        7,
+        events_path,
+        now=datetime(2026, 7, 18),
+    )
+
+    assert preview["retention_days"] == 7
+    assert preview["deleted_count"] == 3
+    assert preview["retained_event_count"] == 100
+    assert events_path.read_text(encoding="utf-8") == original
+
     result = prune_manager_deployment_bottleneck_events(
         7,
         events_path,
         now=datetime(2026, 7, 18),
     )
 
-    assert result["retention_days"] == 7
-    assert result["deleted_count"] == 3
-    assert result["retained_event_count"] == 100
+    assert result == preview
     assert len(events_path.read_text(encoding="utf-8").splitlines()) == 100
     assert events_path.stat().st_mode & 0o777 == 0o644
