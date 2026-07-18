@@ -60,7 +60,10 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
       ? "다운로드 대상 건수를 확인하지 못했습니다."
       : rotationCountStatus === "loading"
         ? "다운로드 대상 건수 확인 중..."
-        : `다운로드 대상 ${(rotationCount ?? 0).toLocaleString("ko-KR")}건`;
+        : rotationCount === 0
+          ? "다운로드 대상 0건 · CSV에는 헤더만 포함됩니다."
+          : `다운로드 대상 ${(rotationCount ?? 0).toLocaleString("ko-KR")}건`;
+  const isEmptyRotationExport = rotationCountStatus === "ready" && rotationCount === 0;
   return (
     <div className="mb-8 flex flex-wrap items-center gap-3">
       <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:shadow-none">
@@ -119,7 +122,8 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
         </a>
         <span
           aria-live="polite"
-          className={`self-center text-xs font-medium ${rotationCountStatus === "error" || rotationCountStatus === "waiting" ? "text-amber-700 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}
+          className={`self-center text-xs font-medium ${rotationCountStatus === "error" || rotationCountStatus === "waiting" || isEmptyRotationExport ? "text-amber-700 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}
+          data-empty-result={isEmptyRotationExport}
           data-result-count={rotationCount ?? ""}
           data-count-status={rotationCountStatus}
           data-testid="secret-rotation-export-count"

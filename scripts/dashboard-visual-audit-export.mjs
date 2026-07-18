@@ -94,6 +94,27 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
   assert.equal(customResult.event, "smoke_rotation_result", "사용자 지정 CSV 이벤트 조건이 누락됐습니다");
   assert.equal(customResult.fitsViewport, true, "Secret 회전 CSV 날짜 입력이 화면 너비를 넘습니다");
   await assertRotationCount({ cdp, timeoutMs });
+
+  const emptyRangeChanged = await evaluate(cdp, `(async () => {
+    const settle = () => new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve))
+    );
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    const start = document.querySelector('input[aria-label="Secret 회전 CSV 시작일"]');
+    const end = document.querySelector('input[aria-label="Secret 회전 CSV 종료일"]');
+    if (!setter || !start || !end) return false;
+    setter.call(end, '2099-01-01');
+    end.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    setter.call(start, '2099-01-01');
+    start.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    return true;
+  })()`);
+  assert.equal(emptyRangeChanged, true, "Secret 회전 CSV 0건 날짜 범위를 설정하지 못했습니다");
+  const emptyResult = await assertRotationCount({ cdp, timeoutMs });
+  assert.equal(emptyResult.actual, 0, "Secret 회전 CSV 0건 조건이 비어 있지 않습니다");
+  assert.match(emptyResult.text, /CSV에는 헤더만 포함됩니다/);
 }
 
 async function assertRotationCount({ cdp, timeoutMs }) {
@@ -121,4 +142,5 @@ async function assertRotationCount({ cdp, timeoutMs }) {
   assert.equal(result?.ok, true, "Secret 회전 CSV 예상 건수 API 응답을 받지 못했습니다");
   assert.equal(result.actual, result.expected, "Secret 회전 CSV 예상 건수가 조회 조건과 일치하지 않습니다");
   assert.match(result.text, new RegExp(`${result.expected.toLocaleString("ko-KR")}건`));
+  return result;
 }
