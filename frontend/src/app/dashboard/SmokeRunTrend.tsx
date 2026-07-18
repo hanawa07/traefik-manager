@@ -74,7 +74,18 @@ export function SmokeRunTrend({
     failureRateWindowDays,
   ).filter((run) => run.status === "failure");
   const displayedFailedRuns = failedRuns.slice(0, 5);
-  const artifactCount = displayedFailedRuns.filter((run) => run.artifact_url).length;
+  const artifactCount = displayedFailedRuns.filter((run) =>
+    Boolean(
+      run.artifact_url &&
+      getSmokeArtifactExpiryState(run.artifact_expires_at, periodReferenceTime) !== "expired",
+    )
+  ).length;
+  const expiredArtifactCount = displayedFailedRuns.filter((run) =>
+    Boolean(
+      run.artifact_url &&
+      getSmokeArtifactExpiryState(run.artifact_expires_at, periodReferenceTime) === "expired",
+    )
+  ).length;
   const artifactExpiryCount = displayedFailedRuns.filter((run) =>
     run.artifact_url && getSmokeArtifactExpiryState(run.artifact_expires_at, periodReferenceTime)
   ).length;
@@ -141,6 +152,7 @@ export function SmokeRunTrend({
           className="inline-flex flex-wrap items-center gap-1 rounded-md border border-rose-200 bg-white/70 px-2 py-0.5 dark:border-rose-500/30 dark:bg-slate-950/50"
           data-artifact-count={artifactCount}
           data-artifact-expiry-count={artifactExpiryCount}
+          data-expired-artifact-count={expiredArtifactCount}
           data-testid="smoke-failure-run-links"
         >
           <span className="font-semibold">실패 실행</span>
@@ -161,7 +173,16 @@ export function SmokeRunTrend({
                 >
                   {runLabel}
                 </a>
-                {run.artifact_url ? (
+                {run.artifact_url && artifactExpiryState === "expired" ? (
+                  <span
+                    aria-disabled="true"
+                    className="cursor-not-allowed font-semibold text-slate-500 line-through dark:text-slate-400"
+                    data-testid="smoke-failure-artifact-expired"
+                    title="보관 기간이 끝나 실패 화면을 다운로드할 수 없습니다"
+                  >
+                    화면 만료
+                  </span>
+                ) : run.artifact_url ? (
                   <a
                     aria-label={`${runLabel} 실패 화면 Artifact`}
                     className="font-semibold text-cyan-700 underline underline-offset-2 dark:text-cyan-300"
