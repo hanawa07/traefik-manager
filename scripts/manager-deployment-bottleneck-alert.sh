@@ -7,6 +7,7 @@ readonly ALERT_SCRIPT="${TM_HOST_OPERATION_ALERT_SCRIPT:-${SCRIPT_DIR}/request-h
 readonly CONFIG_FILE="${TM_DEPLOY_BOTTLENECK_CONFIG_FILE:-${SCRIPT_DIR}/../traefik-config/.runtime/manager-deployment-bottleneck.conf}"
 readonly STAGE_PAIR_PATTERN='"(prepare|build|migration_preflight|candidate_health|route_switch|leader_handover|public_probe|state_write)":[0-9]+'
 readonly MAX_EVENT_LINES=100
+readonly EVENT_WARNING_COUNT=80
 THRESHOLD_MS="${TM_DEPLOY_BOTTLENECK_ALERT_THRESHOLD_MS:-60000}"
 CONSECUTIVE_COUNT="${TM_DEPLOY_BOTTLENECK_ALERT_CONSECUTIVE:-3}"
 EVENT_RETENTION_DAYS="${TM_DEPLOY_BOTTLENECK_EVENT_RETENTION_DAYS:-90}"
@@ -189,6 +190,47 @@ append_alert_event() {
   mv -f "${temporary_file}" "${events_file}"
 }
 
+check_event_storage_alert() {
+  local events_file="$1"
+  local warning_state_file="${events_file}.storage-warning.state"
+  local event_count=0
+  local run_url
+  if [[ -f "${events_file}" ]]; then
+    event_count="$(wc -l < "${events_file}")" || event_count=0
+  fi
+
+  if (( event_count >= EVENT_WARNING_COUNT )); then
+    [[ ! -f "${warning_state_file}" ]] || return 0
+    if run_url="$(
+      "${ALERT_SCRIPT}" \
+        "Manager deployment bottleneck event storage" \
+        "이벤트 보관량 ${event_count}/${MAX_EVENT_LINES}건: ${EVENT_WARNING_COUNT}건 경고 기준 도달" \
+        warning
+    )"; then
+      if write_alert_state "${warning_state_file}" "${event_count}" "${run_url}"; then
+        echo "Manager 병목 이벤트 보관 경고 요청: ${run_url}"
+      else
+        echo "Manager 병목 이벤트 보관 경고 상태를 기록하지 못했습니다" >&2
+      fi
+    else
+      echo "Manager 병목 이벤트 보관 경고를 요청하지 못했습니다" >&2
+    fi
+    return 0
+  fi
+
+  [[ -f "${warning_state_file}" ]] || return 0
+  if "${ALERT_SCRIPT}" \
+    "Manager deployment bottleneck event storage" \
+    "이벤트 보관량 ${event_count}/${MAX_EVENT_LINES}건: ${EVENT_WARNING_COUNT}건 미만으로 복구" \
+    recovery >/dev/null; then
+    rm -f "${warning_state_file}"
+    echo "Manager 병목 이벤트 보관 복구 알림 요청"
+  else
+    echo "Manager 병목 이벤트 보관 복구 알림을 요청하지 못했습니다" >&2
+  fi
+  return 0
+}
+
 check_history() (
   local history_file="$1"
   local state_file="${TM_DEPLOY_BOTTLENECK_ALERT_STATE_FILE:-${history_file}.bottleneck-alert.state}"
@@ -213,6 +255,7 @@ check_history() (
       rm -f "${state_file}"
     fi
     write_check_status "${status_file}" no_history 0 "" "" "" 0 "" ""
+    check_event_storage_alert "${events_file}"
     return 0
   fi
   analysis="$(analyze_streak "${history_file}")"
@@ -230,6 +273,7 @@ check_history() (
     (( count == 0 )) || status="pending"
     write_check_status "${status_file}" "${status}" "${count}" "${incident_key}" \
       "${latest_version}" "${slowest_stage}" "${slowest_ms}" "" ""
+    check_event_storage_alert "${events_file}"
     return 0
   fi
 
@@ -242,6 +286,7 @@ check_history() (
     alerted_at="$(read_state_value "${state_file}" alerted_at)"
     write_check_status "${status_file}" alerted "${count}" "${incident_key}" \
       "${latest_version}" "${slowest_stage}" "${slowest_ms}" "${run_url}" "${alerted_at}"
+    check_event_storage_alert "${events_file}"
     return 0
   fi
   if ! run_url="$(
@@ -252,6 +297,7 @@ check_history() (
   )"; then
     write_check_status "${status_file}" request_failed "${count}" "${incident_key}" \
       "${latest_version}" "${slowest_stage}" "${slowest_ms}" "" ""
+    check_event_storage_alert "${events_file}"
     return 1
   fi
   write_alert_state "${state_file}" "${incident_key}" "${run_url}"
@@ -262,6 +308,7 @@ check_history() (
     "${latest_version}" "${slowest_stage}" "${slowest_ms}" "${run_url}"; then
     echo "Manager 병목 발생 이력을 기록하지 못했습니다" >&2
   fi
+  check_event_storage_alert "${events_file}"
   echo "Manager 연속 병목 운영 알림 요청: ${run_url}"
 )
 
@@ -277,6 +324,8 @@ append_fixture() {
 run_self_test() {
   local temporary_dir history_file state_file status_file events_file fake_alert capture_file
   local config_history config_state config_status config_events config_file config_capture
+  local storage_history storage_state storage_status storage_events storage_capture
+  local occurred_at index temporary_events
   temporary_dir="$(mktemp -d)"
   trap 'rm -rf "${temporary_dir}"' RETURN
   history_file="${temporary_dir}/history.jsonl"
@@ -358,6 +407,36 @@ SCRIPT
   grep -Fq 'event_retention_source=settings' "${config_status}"
   [[ "$(wc -l < "${config_capture}")" == "1" ]]
   [[ "$(wc -l < "${config_events}")" == "1" ]]
+
+  storage_history="${temporary_dir}/storage-history.jsonl"
+  storage_state="${temporary_dir}/storage-alert.state"
+  storage_status="${temporary_dir}/storage-alert.status"
+  storage_events="${temporary_dir}/storage-alert.events.jsonl"
+  storage_capture="${temporary_dir}/storage-capture"
+  occurred_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  for ((index = 0; index < EVENT_WARNING_COUNT; index++)); do
+    printf '{"event":"cleared","occurred_at":"%s"}\n' "${occurred_at}" >> "${storage_events}"
+  done
+  run_fixture_check \
+    "${storage_history}" "${storage_state}" "${storage_status}" \
+    "${fake_alert}" "${storage_capture}" "${storage_events}"
+  [[ "$(wc -l < "${storage_capture}")" == "1" ]]
+  [[ -f "${storage_events}.storage-warning.state" ]]
+  grep -Fq '보관량 80/100건' "${storage_capture}"
+  grep -Fq 'warning' "${storage_capture}"
+  run_fixture_check \
+    "${storage_history}" "${storage_state}" "${storage_status}" \
+    "${fake_alert}" "${storage_capture}" "${storage_events}"
+  [[ "$(wc -l < "${storage_capture}")" == "1" ]]
+  temporary_events="${storage_events}.trim"
+  head -n $((EVENT_WARNING_COUNT - 1)) "${storage_events}" > "${temporary_events}"
+  mv -f "${temporary_events}" "${storage_events}"
+  run_fixture_check \
+    "${storage_history}" "${storage_state}" "${storage_status}" \
+    "${fake_alert}" "${storage_capture}" "${storage_events}"
+  [[ "$(wc -l < "${storage_capture}")" == "2" ]]
+  [[ ! -e "${storage_events}.storage-warning.state" ]]
+  grep -Fq 'recovery' "${storage_capture}"
   echo "Manager 연속 병목 알림 self-test 통과"
 }
 

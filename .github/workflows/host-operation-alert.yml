@@ -1,5 +1,5 @@
-name: 호스트 운영 장애 알림
-run-name: ${{ inputs.status == 'recovery' && '호스트 운영 복구 알림' || '호스트 운영 장애 알림' }}
+name: 호스트 운영 알림
+run-name: ${{ inputs.status == 'recovery' && '호스트 운영 복구 알림' || inputs.status == 'warning' && '호스트 운영 경고 알림' || '호스트 운영 장애 알림' }}
 
 on:
   workflow_dispatch:
@@ -19,6 +19,7 @@ on:
         type: choice
         options:
           - failure
+          - warning
           - recovery
       dry_run:
         description: "Telegram 전송 없이 workflow만 점검"
@@ -40,26 +41,28 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TM_SMOKE_TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TM_SMOKE_TELEGRAM_CHAT_ID }}
     steps:
-      - name: Telegram 호스트 장애 알림
+      - name: Telegram 호스트 운영 알림
         shell: bash
         run: |
           set -euo pipefail
+          title="[호스트] Traefik Manager 운영 장애"
+          if [[ "$ALERT_STATUS" == "warning" ]]; then
+            title="[호스트] Traefik Manager 운영 경고"
+          elif [[ "$ALERT_STATUS" == "recovery" ]]; then
+            title="[호스트] Traefik Manager 운영 복구"
+          fi
+          message="${title}
+          작업: ${ALERT_SOURCE}
+          상세: ${ALERT_DETAIL:0:500}
+          실행: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           if [[ "$DRY_RUN" == "true" ]]; then
-            echo "::notice::호스트 운영 장애 알림 dry-run 통과"
+            echo "::notice::${title} dry-run 통과"
             exit 0
           fi
           if [[ -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_CHAT_ID" ]]; then
             echo "::error::Telegram 비밀값이 없습니다."
             exit 1
           fi
-          title="[호스트] Traefik Manager 운영 장애"
-          if [[ "$ALERT_STATUS" == "recovery" ]]; then
-            title="[호스트] Traefik Manager 운영 복구"
-          fi
-          message="${title}
-          작업: ${ALERT_SOURCE}
-          단계: ${ALERT_DETAIL:0:500}
-          실행: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           curl --fail --silent --show-error --output /dev/null \
             --request POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \

@@ -9,8 +9,8 @@ readonly DRY_RUN="${TM_HOST_OPERATION_ALERT_DRY_RUN:-false}"
 validate_input() {
   local status="$1"
   local dry_run="$2"
-  [[ "${status}" == "failure" || "${status}" == "recovery" ]] \
-    || { echo "알림 상태는 failure 또는 recovery여야 합니다" >&2; return 1; }
+  [[ "${status}" == "failure" || "${status}" == "warning" || "${status}" == "recovery" ]] \
+    || { echo "알림 상태는 failure, warning, recovery 중 하나여야 합니다" >&2; return 1; }
   [[ "${dry_run}" == "true" || "${dry_run}" == "false" ]] \
     || { echo "dry-run 값은 true 또는 false여야 합니다" >&2; return 1; }
 }
@@ -52,12 +52,12 @@ SCRIPT
     TM_HOST_OPERATION_ALERT_DRY_RUN=true \
     TM_HOST_OPERATION_ALERT_CAPTURE="${capture_file}" \
     TM_HOST_OPERATION_ALERT_DISPATCHED="${temporary_dir}/dispatched" \
-      "${SCRIPT_PATH}" "blue-green rollback" "복원 실패" failure
+      "${SCRIPT_PATH}" "Manager bottleneck event storage" "보관량 80/100건" warning
   )"
   [[ "${run_url}" == "https://github.com/hanawa07/traefik-manager/actions/runs/101" ]]
-  grep -Fxq 'source=blue-green rollback' "${capture_file}"
-  grep -Fxq 'detail=복원 실패' "${capture_file}"
-  grep -Fxq 'status=failure' "${capture_file}"
+  grep -Fxq 'source=Manager bottleneck event storage' "${capture_file}"
+  grep -Fxq 'detail=보관량 80/100건' "${capture_file}"
+  grep -Fxq 'status=warning' "${capture_file}"
   grep -Fxq 'dry_run=true' "${capture_file}"
   echo "호스트 운영 알림 요청 self-test 통과"
 }
@@ -71,7 +71,7 @@ source_name="${1:-}"
 detail="${2:-}"
 status="${3:-failure}"
 if [[ -z "${source_name}" || -z "${detail}" ]]; then
-  echo "사용법: $0 SOURCE DETAIL [failure|recovery]" >&2
+  echo "사용법: $0 SOURCE DETAIL [failure|warning|recovery]" >&2
   exit 2
 fi
 validate_input "${status}" "${DRY_RUN}"
