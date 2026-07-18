@@ -123,14 +123,27 @@ export async function checkAuditCsvExports({ cdp, timeoutMs, today }) {
     timeoutMs,
     "Secret 회전 CSV 복구 버튼을 불러오지 못했습니다",
   );
-  const latestRecovery = await evaluate(cdp, `(() => {
+  const latestRecovery = await evaluate(cdp, `(async () => {
     const button = document.querySelector('[data-testid="secret-rotation-export-latest"]');
     const latestDate = button?.getAttribute('data-latest-date');
+    const latestStatus = button?.getAttribute('data-latest-status');
+    const response = await fetch('/api/v1/audit?event=smoke_rotation_result&limit=1&offset=0');
+    const latest = response.ok ? (await response.json())[0] : null;
+    const expectedStatus = latest?.event === 'smoke_rotation_succeeded'
+      ? 'success'
+      : latest?.event === 'smoke_rotation_failed' ? 'failure' : null;
+    const text = button?.textContent || '';
     button?.click();
-    return { clicked: Boolean(button), latestDate };
+    return { clicked: Boolean(button), expectedStatus, latestDate, latestStatus, text };
   })()`);
   assert.equal(latestRecovery.clicked, true, "Secret 회전 CSV 최근 결과 날짜 버튼이 없습니다");
   assert.match(latestRecovery.latestDate || "", /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(latestRecovery.latestStatus, latestRecovery.expectedStatus, "최근 회전 결과 상태가 다릅니다");
+  assert.match(
+    latestRecovery.text,
+    latestRecovery.latestStatus === "success" ? /성공/ : /실패/,
+    "최근 회전 결과 상태 문구가 없습니다",
+  );
   await waitForCondition(
     cdp,
     `(() => {

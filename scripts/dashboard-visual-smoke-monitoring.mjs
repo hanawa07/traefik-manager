@@ -28,6 +28,30 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     timeoutMs,
     "운영 점검 추이가 30일 범위로 전환되지 않았습니다",
   );
+  const refreshedClock = await evaluate(cdp, `(async () => {
+    const trend = document.querySelector('[data-testid="smoke-run-trend"]');
+    const before = Number(trend?.getAttribute('data-artifact-reference-time'));
+    const expected = before + 60_000;
+    const originalNow = Date.now;
+    try {
+      Date.now = () => expected;
+      window.dispatchEvent(new Event('focus'));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return {
+        after: Number(trend?.getAttribute('data-artifact-reference-time')),
+        before,
+        expected,
+      };
+    } finally {
+      Date.now = originalNow;
+    }
+  })()`);
+  assert.ok(Number.isFinite(refreshedClock.before), "Artifact 기준 시각이 없습니다");
+  assert.equal(
+    refreshedClock.after,
+    refreshedClock.expected,
+    "Artifact 기준 시각이 화면 복귀 시 갱신되지 않았습니다",
+  );
   const failureLinks = await evaluate(cdp, `(() => {
     const alert = document.querySelector('[data-testid="smoke-failure-rate"][role="alert"]');
     const container = document.querySelector('[data-testid="smoke-failure-run-links"]');
@@ -223,6 +247,13 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
         return index === 0 ? !parentId : Boolean(parentId && ids.includes(parentId));
       }),
       responseOk: response.ok,
+      triggersValid: items.every((item, index) => {
+        const trigger = chain[index]?.detail?.trigger;
+        const expected = ['automatic_retry', 'manual_retry'].includes(trigger) ? trigger : null;
+        const label = expected === 'automatic_retry' ? '자동' : expected === 'manual_retry' ? '수동' : null;
+        return item.getAttribute('data-chain-trigger') === expected &&
+          (!label || item.textContent?.includes(label));
+      }),
     };
   })()`);
   assert.equal(result.responseOk, true, "알림 재시도 체인 API 응답을 받지 못했습니다");
@@ -232,6 +263,7 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
   assert.equal(result.currentCount, 1, "알림 재시도 체인의 현재 로그 표시가 다릅니다");
   assert.equal(result.firstIsOrigin, true, "알림 재시도 체인의 원본 표시가 없습니다");
   assert.equal(result.parentsValid, true, "알림 재시도 체인의 부모 관계가 끊겼습니다");
+  assert.equal(result.triggersValid, true, "알림 재시도 체인의 자동·수동 표시가 다릅니다");
   assert.equal(result.linksValid, true, "알림 재시도 체인의 감사 상세 링크가 다릅니다");
   return true;
 }
