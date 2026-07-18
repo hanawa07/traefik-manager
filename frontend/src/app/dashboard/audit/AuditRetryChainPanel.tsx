@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { formatManagerDeploymentDurationMs } from "@/features/deployment/lib/managerDeploymentDisplay";
 import { useAuditRetryChain } from "@/features/audit/hooks/useAudit";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
@@ -25,6 +26,24 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
   if (chain.length <= 1) return null;
   const successCount = chain.filter((item) => item.detail?.success === true).length;
   const failureCount = chain.filter((item) => item.detail?.success === false).length;
+  const firstFailureIndex = chain.findIndex((item) => item.detail?.success === false);
+  const firstFailure = firstFailureIndex >= 0 ? chain[firstFailureIndex] : null;
+  const firstSuccess = firstFailureIndex >= 0
+    ? chain.slice(firstFailureIndex + 1).find((item) => item.detail?.success === true)
+    : null;
+  const firstFailureTime = firstFailure ? Date.parse(firstFailure.created_at) : Number.NaN;
+  const firstSuccessTime = firstSuccess ? Date.parse(firstSuccess.created_at) : Number.NaN;
+  const recoveryDurationMs = Number.isFinite(firstFailureTime) && Number.isFinite(firstSuccessTime)
+    && firstSuccessTime >= firstFailureTime
+    ? firstSuccessTime - firstFailureTime
+    : null;
+  const recoveryLabel = recoveryDurationMs !== null
+    ? `최초 실패→성공 ${formatManagerDeploymentDurationMs(recoveryDurationMs)}`
+    : firstSuccess
+      ? "최초 실패→성공 시간 확인 불가"
+      : failureCount > 0
+        ? "최초 실패 후 아직 성공 없음"
+        : null;
 
   return (
     <div
@@ -44,6 +63,15 @@ export function AuditRetryChainPanel({ enabled, logId, timezone }: AuditRetryCha
         <span className="rounded-full bg-rose-100 px-2 py-0.5 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200">
           실패 {failureCount}
         </span>
+        {recoveryLabel ? (
+          <span
+            className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            data-recovery-duration-ms={recoveryDurationMs ?? undefined}
+            data-testid="audit-retry-recovery-duration"
+          >
+            {recoveryLabel}
+          </span>
+        ) : null}
       </div>
       <ol className="space-y-2 border-l-2 border-amber-200 pl-3 dark:border-amber-500/30">
         {chain.map((item, index) => {

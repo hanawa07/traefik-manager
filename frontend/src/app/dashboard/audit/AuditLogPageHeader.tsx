@@ -93,6 +93,13 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
       : "알 수 없는 단계"
     : null;
   const latestRotationFailureDate = latestRotationFailure?.created_at.slice(0, 10);
+  const latestRotationFailureExportUrl = latestRotationFailureDate
+    ? buildAuditExportUrl({
+        event: "smoke_rotation_failed",
+        start_date: latestRotationFailureDate,
+        end_date: latestRotationFailureDate,
+      })
+    : null;
   const setRotationRange = (date: string) => {
     setRotationCsvPeriod("custom");
     setRotationStartDate(date);
@@ -196,6 +203,18 @@ export function AuditLogPageHeader({ exportUrl }: AuditLogPageHeaderProps) {
           >
             최근 실패 {latestRotationFailureDate} UTC · 단계: {latestRotationFailureStep}
           </Link>
+        ) : null}
+        {isEmptyRotationExport && latestRotationFailureDate && latestRotationFailureExportUrl ? (
+          <a
+            aria-label="최근 Secret 회전 실패 날짜 CSV 다운로드"
+            className="inline-flex self-center items-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-500/30 dark:bg-slate-900 dark:text-rose-200 dark:hover:bg-rose-950"
+            data-latest-failure-date={latestRotationFailureDate}
+            data-testid="secret-rotation-export-latest-failure-csv"
+            href={latestRotationFailureExportUrl}
+          >
+            <Download className="h-3.5 w-3.5" />
+            실패 날짜 CSV
+          </a>
         ) : null}
         {isEmptyRotationExport ? (
           <button
