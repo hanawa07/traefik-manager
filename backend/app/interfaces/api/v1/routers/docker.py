@@ -71,12 +71,28 @@ def _enrich_bottleneck_alert(
 ) -> dict[str, object]:
     run_url = alert.get("run_url")
     run_status = run_statuses.get(run_url) if isinstance(run_url, str) else None
+    storage_run_url = alert.get("storage_warning_run_url")
+    storage_run_status = (
+        run_statuses.get(storage_run_url) if isinstance(storage_run_url, str) else None
+    )
     return {
         **alert,
         "run_status": run_status.get("external_watchdog_last_alert_run_status") if run_status else None,
         "run_conclusion": run_status.get("external_watchdog_last_alert_run_conclusion") if run_status else None,
         "run_checked_at": run_status.get("external_watchdog_last_alert_run_checked_at") if run_status else None,
         "run_error": run_status.get("external_watchdog_last_alert_run_error") if run_status else None,
+        "storage_warning_run_status": storage_run_status.get(
+            "external_watchdog_last_alert_run_status"
+        ) if storage_run_status else None,
+        "storage_warning_run_conclusion": storage_run_status.get(
+            "external_watchdog_last_alert_run_conclusion"
+        ) if storage_run_status else None,
+        "storage_warning_run_checked_at": storage_run_status.get(
+            "external_watchdog_last_alert_run_checked_at"
+        ) if storage_run_status else None,
+        "storage_warning_run_error": storage_run_status.get(
+            "external_watchdog_last_alert_run_error"
+        ) if storage_run_status else None,
     }
 
 
@@ -163,6 +179,7 @@ async def get_deployment_info(
         ) = read_manager_deployment_history_archive_with_summary()
         bottleneck_alert = read_manager_deployment_bottleneck_state()
         bottleneck_run_url = bottleneck_alert.get("run_url")
+        bottleneck_storage_run_url = bottleneck_alert.get("storage_warning_run_url")
         deployment_alert_urls = list(
             dict.fromkeys(
                 entry["alert_run_url"]
@@ -176,6 +193,11 @@ async def get_deployment_info(
         run_urls.extend(url for url in deployment_alert_urls if url not in run_urls)
         if isinstance(bottleneck_run_url, str) and bottleneck_run_url not in run_urls:
             run_urls.append(bottleneck_run_url)
+        if (
+            isinstance(bottleneck_storage_run_url, str)
+            and bottleneck_storage_run_url not in run_urls
+        ):
+            run_urls.append(bottleneck_storage_run_url)
         reader = GitHubActionsRunStatusReader()
         run_statuses = await reader.get_statuses(run_urls)
         run_status = run_statuses.get(last_run_url) or await reader.get_status(last_run_url)

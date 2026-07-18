@@ -130,7 +130,8 @@ def read_manager_deployment_bottleneck_state(
         minimum=MIN_EVENT_RETENTION_DAYS,
         maximum=MAX_EVENT_RETENTION_DAYS,
     )
-    events = _read_normalized_events(_manager_deployment_bottleneck_events_path(events_path))
+    event_history_path = _manager_deployment_bottleneck_events_path(events_path)
+    events = _read_normalized_events(event_history_path)
     return {
         "status": status,
         "configured_threshold_ms": config["threshold_ms"],
@@ -168,6 +169,7 @@ def read_manager_deployment_bottleneck_state(
         ),
         "alerted_at": _iso_datetime(values.get("alerted_at")),
         "run_url": run_url,
+        **_read_event_storage_warning(event_history_path),
         **_event_storage_summary(events),
         "events": events[:MAX_EVENTS],
     }
@@ -239,6 +241,18 @@ def _calculate_event_cleanup(
 
 def _manager_deployment_bottleneck_events_path(path: str | Path | None) -> Path:
     return Path(path or f"{settings.MANAGER_DEPLOYMENT_BOTTLENECK_CONFIG_PATH}.events.jsonl")
+
+
+def _read_event_storage_warning(events_path: Path) -> dict[str, object]:
+    values = _read_pairs(Path(f"{events_path}.storage-warning.state"))
+    run_url = values.get("run_url") or None
+    if run_url and not build_actions_run_api_url(run_url):
+        run_url = None
+    return {
+        "storage_warning_active": bool(values),
+        "storage_warning_alerted_at": _iso_datetime(values.get("alerted_at")),
+        "storage_warning_run_url": run_url,
+    }
 
 
 def _read_normalized_events(events_path: Path) -> list[dict[str, object]]:

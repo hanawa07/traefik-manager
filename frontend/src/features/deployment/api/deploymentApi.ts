@@ -164,6 +164,13 @@ export interface ManagerDeploymentBottleneckAlert {
   run_conclusion: string | null;
   run_checked_at: string | null;
   run_error: string | null;
+  storage_warning_active: boolean;
+  storage_warning_alerted_at: string | null;
+  storage_warning_run_url: string | null;
+  storage_warning_run_status: string | null;
+  storage_warning_run_conclusion: string | null;
+  storage_warning_run_checked_at: string | null;
+  storage_warning_run_error: string | null;
   retained_event_count?: number;
   oldest_event_at?: string | null;
   newest_event_at?: string | null;

@@ -265,6 +265,13 @@ class ManagerDeploymentBottleneckAlertResponse(BaseModel):
     run_conclusion: str | None = None
     run_checked_at: datetime | None = None
     run_error: str | None = None
+    storage_warning_active: bool = False
+    storage_warning_alerted_at: datetime | None = None
+    storage_warning_run_url: str | None = None
+    storage_warning_run_status: str | None = None
+    storage_warning_run_conclusion: str | None = None
+    storage_warning_run_checked_at: datetime | None = None
+    storage_warning_run_error: str | None = None
     retained_event_count: int = Field(default=0, ge=0, le=100)
     oldest_event_at: datetime | None = None
     newest_event_at: datetime | None = None

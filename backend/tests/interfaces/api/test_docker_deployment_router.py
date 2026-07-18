@@ -165,7 +165,13 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
         for run_id in range(789, 795)
     ]
     bottleneck_run_url = "https://github.com/hanawa07/traefik-manager/actions/runs/999"
-    requested_run_urls = [*watchdog_run_urls, *deployment_run_urls[:5], bottleneck_run_url]
+    storage_run_url = "https://github.com/hanawa07/traefik-manager/actions/runs/1000"
+    requested_run_urls = [
+        *watchdog_run_urls,
+        *deployment_run_urls[:5],
+        bottleneck_run_url,
+        storage_run_url,
+    ]
     requested_at = datetime(2026, 7, 13, tzinfo=timezone.utc)
 
     class FakeDockerClient:
@@ -241,6 +247,8 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
             "oldest_event_at": requested_at,
             "newest_event_at": requested_at,
             "run_url": bottleneck_run_url,
+            "storage_warning_active": True,
+            "storage_warning_run_url": storage_run_url,
         },
     )
     monkeypatch.setattr(
@@ -292,6 +300,10 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
     assert result["deployment_history_archive_summary"]["detailed_count"] == 1
     assert result["deployment_bottleneck_alert"]["run_status"] == "completed"
     assert result["deployment_bottleneck_alert"]["run_conclusion"] == "success"
+    assert (
+        result["deployment_bottleneck_alert"]["storage_warning_run_conclusion"]
+        == "success"
+    )
     assert result["deployment_bottleneck_alert"]["retained_event_count"] == 4
     assert [run["conclusion"] for run in result["external_watchdog_alert_runs"]] == [
         "success",

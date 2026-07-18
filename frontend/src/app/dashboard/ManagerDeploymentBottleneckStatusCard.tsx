@@ -31,7 +31,8 @@ export function ManagerDeploymentBottleneckStatusCard({
 }: ManagerDeploymentBottleneckStatusCardProps) {
   if (!alert) return null;
   const retainedEventCount = alert.retained_event_count ?? alert.events?.length ?? 0;
-  const storageWarning = retainedEventCount >= MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_WARNING_COUNT;
+  const storageWarning = alert.storage_warning_active
+    || retainedEventCount >= MANAGER_DEPLOYMENT_BOTTLENECK_EVENT_WARNING_COUNT;
   const failed = alert.status === "request_failed" || isExternalWatchdogRunFailure(alert.run_conclusion);
   const warning = alert.status === "pending" || alert.status === "alerted" || Boolean(alert.run_error) || storageWarning;
   const tone = failed
@@ -51,6 +52,11 @@ export function ManagerDeploymentBottleneckStatusCard({
     alert.run_status,
     alert.run_conclusion,
     alert.run_error,
+  );
+  const storageRunLabel = getExternalWatchdogRunLabel(
+    alert.storage_warning_run_status,
+    alert.storage_warning_run_conclusion,
+    alert.storage_warning_run_error,
   );
 
   return (
@@ -85,6 +91,22 @@ export function ManagerDeploymentBottleneckStatusCard({
       {storageWarning ? (
         <p className="mt-1 font-semibold" data-manager-deployment-bottleneck-storage-warning>
           이력 보관 한도에 가까움 · 설정에서 보관 기간을 줄이거나 오래된 이벤트를 정리하세요.
+        </p>
+      ) : null}
+      {alert.storage_warning_run_url ? (
+        <p className="mt-1" data-manager-deployment-bottleneck-storage-run>
+          <a
+            className="font-semibold underline underline-offset-2"
+            href={alert.storage_warning_run_url}
+            rel="noreferrer"
+            target="_blank"
+          >
+            보관 경고 워크플로 {storageRunLabel}
+          </a>
+          {alert.storage_warning_run_checked_at
+            ? ` · 확인 ${formatDateTime(alert.storage_warning_run_checked_at, timezone)}`
+            : ""}
+          {alert.storage_warning_run_error ? ` · ${alert.storage_warning_run_error}` : ""}
         </p>
       ) : null}
       {settingsDiffer ? (

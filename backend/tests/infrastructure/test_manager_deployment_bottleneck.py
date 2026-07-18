@@ -137,6 +137,27 @@ def test_bottleneck_events_return_recent_valid_transitions(tmp_path: Path):
     assert state["newest_event_at"] == "2026-07-17T01:00:00Z"
 
 
+def test_bottleneck_state_reads_event_storage_warning_run(tmp_path: Path):
+    events_path = tmp_path / "bottleneck.events.jsonl"
+    warning_path = Path(f"{events_path}.storage-warning.state")
+    warning_path.write_text(
+        "incident_key=84\n"
+        "run_url=https://github.com/hanawa07/traefik-manager/actions/runs/101\n"
+        "alerted_at=2026-07-18T00:00:00Z\n",
+        encoding="utf-8",
+    )
+
+    state = read_manager_deployment_bottleneck_state(
+        tmp_path / "missing.status",
+        tmp_path / "missing.conf",
+        events_path,
+    )
+
+    assert state["storage_warning_active"] is True
+    assert state["storage_warning_alerted_at"] == "2026-07-18T00:00:00Z"
+    assert state["storage_warning_run_url"].endswith("/actions/runs/101")
+
+
 def test_bottleneck_event_cleanup_applies_retention_and_count_limit(tmp_path: Path):
     events_path = tmp_path / "runtime" / "bottleneck.events.jsonl"
     events_path.parent.mkdir()
