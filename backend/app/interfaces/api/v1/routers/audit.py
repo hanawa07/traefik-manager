@@ -6,12 +6,19 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.security_alert_retry_timing import (
+    read_automatic_retry_delay_warning_minutes,
+)
 from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.models import AuditLogModel
+from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
+    SQLiteSystemSettingsRepository,
+)
 from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.routers.audit_export import router as audit_export_router
 from app.interfaces.api.v1.routers.audit_certificate_summary import build_certificate_summary
+from app.interfaces.api.v1.routers.audit_delayed_retries import load_delayed_automatic_retries
 from app.interfaces.api.v1.routers.audit_delivery_retry_chain import build_delivery_retry_chain
 from app.interfaces.api.v1.routers.audit_log_filters import (
     build_audit_log_conditions,
@@ -49,6 +56,7 @@ async def list_audit_logs(
     security_only: bool = Query(False),
     provider: Optional[str] = Query(None),
     delivery_success: Optional[bool] = Query(None),
+    retry_delay: Optional[Literal["delayed"]] = Query(None),
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
@@ -75,6 +83,14 @@ async def list_audit_logs(
         provider=provider,
         delivery_success=delivery_success,
     )
+    if retry_delay == "delayed":
+        warning_minutes = await read_automatic_retry_delay_warning_minutes(
+            SQLiteSystemSettingsRepository(db)
+        )
+        delayed_logs = await load_delayed_automatic_retries(db, conditions, warning_minutes)
+        response.headers["X-Total-Count"] = str(len(delayed_logs))
+        return [to_audit_log_response(log) for log in delayed_logs[offset : offset + limit]]
+
     total_result = await db.execute(select(func.count(AuditLogModel.id)).where(*conditions))
     response.headers["X-Total-Count"] = str(total_result.scalar_one())
     query = (

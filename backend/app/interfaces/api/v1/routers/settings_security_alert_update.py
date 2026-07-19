@@ -12,6 +12,9 @@ from app.application.manager_http_error_monitoring import (
     MANAGER_HTTP_NOT_FOUND_THRESHOLD_KEY,
     MANAGER_HTTP_SERVER_ERROR_THRESHOLD_KEY,
 )
+from app.application.security_alert_retry_timing import (
+    AUTOMATIC_RETRY_DELAY_WARNING_MINUTES_KEY,
+)
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.interfaces.api.v1.routers.settings_security_alert_response import build_security_alert_response
 from app.interfaces.api.v1.routers.settings_security_alert_helpers import (
@@ -22,9 +25,6 @@ from app.interfaces.api.v1.routers.settings_security_alert_helpers import (
     normalize_security_alert_event_routes,
     resolve_security_alert_provider,
     validate_security_alert_provider_config,
-)
-from app.interfaces.api.v1.schemas.settings_security_alert_schemas import (
-    AUTOMATIC_RETRY_DELAY_WARNING_MINUTES_KEY,
 )
 from app.interfaces.api.v1.schemas.settings_schemas import (
     SecurityAlertSettingsResponse,

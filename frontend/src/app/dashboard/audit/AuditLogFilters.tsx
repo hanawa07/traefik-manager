@@ -31,6 +31,7 @@ interface AuditLogFiltersProps {
   startDate: string;
   endDate: string;
   managerHealthCounts?: AuditManagerHealthSummary;
+  delayedRetryCount?: number;
   managerHealthWindowMinutes: ManagerHealthWindowMinutes;
   searchText: string;
   onFilterChange: (filter: AuditFilterKey) => void;
@@ -61,6 +62,7 @@ export function AuditLogFilters({
   startDate,
   endDate,
   managerHealthCounts,
+  delayedRetryCount,
   managerHealthWindowMinutes,
   searchText,
   onFilterChange,
@@ -169,6 +171,7 @@ export function AuditLogFilters({
             <button
               key={filter.key}
               aria-pressed={active}
+              data-audit-count={filter.key === "delayed_retry" ? delayedRetryCount : undefined}
               data-audit-filter={filter.key}
               type="button"
               onClick={() => onFilterChange(filter.key)}
@@ -180,6 +183,9 @@ export function AuditLogFilters({
               )}
             >
               {filter.label}
+              {filter.key === "delayed_retry" && delayedRetryCount !== undefined
+                ? ` (${delayedRetryCount})`
+                : ""}
             </button>
           );
         })}

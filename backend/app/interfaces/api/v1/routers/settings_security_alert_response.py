@@ -5,6 +5,9 @@ from app.application.manager_health_monitoring import (
 from app.application.manager_http_error_monitoring import (
     read_manager_http_error_monitoring_values,
 )
+from app.application.security_alert_retry_timing import (
+    read_automatic_retry_delay_warning_minutes,
+)
 from app.core.config import settings
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.interfaces.api.v1.routers.settings_security_alert_helpers import (
@@ -15,14 +18,7 @@ from app.interfaces.api.v1.routers.settings_security_alert_helpers import (
 )
 from app.interfaces.api.v1.routers.settings_value_helpers import (
     get_bool_setting,
-    get_int_setting,
     split_networks,
-)
-from app.interfaces.api.v1.schemas.settings_security_alert_schemas import (
-    AUTOMATIC_RETRY_DELAY_WARNING_MINUTES_KEY,
-    DEFAULT_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
-    MAX_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
-    MIN_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
 )
 from app.interfaces.api.v1.schemas.settings_schemas import SecurityAlertSettingsResponse
 
@@ -34,15 +30,7 @@ async def build_security_alert_response(
         await read_manager_health_monitoring_values(repo)
     )
     external_watchdog_stale_minutes = await read_external_watchdog_stale_minutes(repo)
-    retry_delay_warning_minutes = await get_int_setting(
-        repo,
-        AUTOMATIC_RETRY_DELAY_WARNING_MINUTES_KEY,
-        default=DEFAULT_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
-    )
-    retry_delay_warning_minutes = max(
-        MIN_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
-        min(MAX_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES, retry_delay_warning_minutes),
-    )
+    retry_delay_warning_minutes = await read_automatic_retry_delay_warning_minutes(repo)
     manager_http_errors = await read_manager_http_error_monitoring_values(repo)
     provider = await repo.get("security_alert_provider") or "generic"
     telegram_bot_token = await repo.get("security_alert_telegram_bot_token")

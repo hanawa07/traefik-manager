@@ -2,6 +2,7 @@ export const auditFilters = [
   { key: "all", label: "전체" },
   { key: "security", label: "보안 이벤트" },
   { key: "alert_delivery", label: "알림 전송" },
+  { key: "delayed_retry", label: "지연 재시도" },
   { key: "settings_update", label: "설정 변경" },
   { key: "settings_test", label: "설정 테스트" },
   { key: "settings_rollback", label: "설정 롤백" },

@@ -31,6 +31,7 @@ export interface AuditLogQueryParams {
   security_only?: boolean;
   provider?: string;
   delivery_success?: boolean;
+  retry_delay?: "delayed";
 }
 
 export interface AuditLogPage {

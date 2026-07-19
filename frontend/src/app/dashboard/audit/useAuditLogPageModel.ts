@@ -109,6 +109,7 @@ export function useAuditLogPageModel() {
   });
   const exportUrl = buildAuditExportUrl(withoutAuditPagination(auditQuery));
   const { data: logPage, isLoading, isFetching, isError, error } = useAuditPage(auditQuery);
+  const { data: delayedRetryPage } = useAuditPage({ limit: 1, offset: 0, retry_delay: "delayed" });
   const { data: managerHealthSummary } = useManagerHealthSummary(managerHealthWindowMinutes);
   const { data: timeDisplaySettings } = useTimeDisplaySettings();
   const auditActions = useAuditLogActions();
@@ -225,6 +226,7 @@ export function useAuditLogPageModel() {
     filters: {
       selectedDeliveryProvider,
       selectedDeliveryStatus,
+      delayedRetryCount: delayedRetryPage?.total,
       selectedFilter,
       selectedManagerSource,
       selectedManagerStatus,

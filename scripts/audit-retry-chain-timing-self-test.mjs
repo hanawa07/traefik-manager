@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { getAuditRetryChainTiming } from "../frontend/src/features/audit/lib/auditRetryChainTiming.ts";
+import { getAuditRetryDelayChange } from "../frontend/src/features/audit/lib/auditRetryDelayChange.ts";
 
 const recoveredChain = [
   { created_at: "2026-07-19T00:00:00Z", detail: { success: false } },
@@ -46,6 +47,23 @@ assert.equal(
   getAuditRetryChainTiming([{ created_at: recoveredChain[0].created_at, detail: { success: true } }])
     .recoveryState,
   "none",
+);
+assert.deepEqual(
+  getAuditRetryDelayChange([
+    { key: "automatic_retry_delay_warning_minutes", before: 10, after: 25 },
+  ]),
+  {
+    afterMinutes: 25,
+    beforeMinutes: 10,
+    deltaMinutes: 15,
+    direction: "up",
+  },
+);
+assert.equal(
+  getAuditRetryDelayChange([
+    { key: "automatic_retry_delay_warning_minutes", before: 10, after: 10 },
+  ]),
+  null,
 );
 
 console.log("알림 비발송 재시도 체인 timing fixture self-test 통과");

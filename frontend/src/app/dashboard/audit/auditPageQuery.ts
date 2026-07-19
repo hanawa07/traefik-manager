@@ -70,6 +70,7 @@ function buildFilterQuery(
   if (selectedFilter === "all") return {};
   if (selectedFilter === "security") return { security_only: true };
   if (selectedFilter === "alert_delivery") return { action: "alert" };
+  if (selectedFilter === "delayed_retry") return { retry_delay: "delayed" };
   if (selectedFilter === "manager_health") {
     return {
       resource_type: "manager_component",

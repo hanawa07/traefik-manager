@@ -24,15 +24,14 @@ from app.application.manager_http_error_monitoring import (
     MIN_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
     normalize_manager_http_excluded_paths,
 )
+from app.application.security_alert_retry_timing import (
+    DEFAULT_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
+    MAX_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
+    MIN_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES,
+)
 
 
 SecurityAlertRoute = Literal["default", "disabled", "telegram", "pagerduty", "email"]
-AUTOMATIC_RETRY_DELAY_WARNING_MINUTES_KEY = (
-    "security_alert_automatic_retry_delay_warning_minutes"
-)
-DEFAULT_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES = 10
-MIN_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES = 5
-MAX_AUTOMATIC_RETRY_DELAY_WARNING_MINUTES = 1440
 
 
 def normalize_email_recipients(value: list[str]) -> list[str]:

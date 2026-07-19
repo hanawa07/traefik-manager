@@ -9,9 +9,16 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import desc, select
 
+from app.application.security_alert_retry_timing import (
+    read_automatic_retry_delay_warning_minutes,
+)
 from app.infrastructure.persistence.database import AsyncSessionLocal
 from app.infrastructure.persistence.models import AuditLogModel
+from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
+    SQLiteSystemSettingsRepository,
+)
 from app.interfaces.api.dependencies import get_current_user
+from app.interfaces.api.v1.routers.audit_delayed_retries import load_delayed_automatic_retries
 from app.interfaces.api.v1.routers.audit_log_filters import (
     build_audit_log_conditions,
     validate_audit_log_filters,
@@ -51,6 +58,7 @@ async def export_audit_logs(
     security_only: bool = Query(False),
     provider: str | None = Query(None),
     delivery_success: bool | None = Query(None),
+    retry_delay: Literal["delayed"] | None = Query(None),
     _: dict = Depends(get_current_user),
 ):
     validate_audit_log_filters(
@@ -74,43 +82,56 @@ async def export_audit_logs(
     )
     filename = f"audit-logs-{datetime.now(timezone.utc):%Y%m%d}.csv"
     return StreamingResponse(
-        _iter_csv(conditions),
+        _iter_csv(conditions, delayed_only=retry_delay == "delayed"),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
-async def _iter_csv(conditions):
+async def _iter_csv(conditions, *, delayed_only: bool = False):
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(CSV_COLUMNS)
     yield "\ufeff" + output.getvalue()
 
     async with AsyncSessionLocal() as db:
+        if delayed_only:
+            warning_minutes = await read_automatic_retry_delay_warning_minutes(
+                SQLiteSystemSettingsRepository(db)
+            )
+            logs = await load_delayed_automatic_retries(db, conditions, warning_minutes)
+            for log in logs:
+                yield _write_csv_log(writer, output, log)
+            return
+
         rows = await db.stream_scalars(
             select(AuditLogModel)
             .where(*conditions)
             .order_by(desc(AuditLogModel.created_at), desc(AuditLogModel.id))
         )
         async for log in rows:
-            output.seek(0)
-            output.truncate(0)
-            detail = log.detail if isinstance(log.detail, dict) else {}
-            rotation_values = _smoke_rotation_csv_values(detail)
-            writer.writerow(
-                (
-                    log.created_at.isoformat(),
-                    _safe_cell(log.actor),
-                    _safe_cell(log.action),
-                    _safe_cell(log.resource_type),
-                    _safe_cell(log.resource_id),
-                    _safe_cell(log.resource_name),
-                    _safe_cell(detail.get("event")),
-                    *(_safe_cell(value) for value in rotation_values),
-                    _safe_cell(json.dumps(detail, ensure_ascii=False, separators=(",", ":"))),
-                )
-            )
-            yield output.getvalue()
+            yield _write_csv_log(writer, output, log)
+
+
+def _write_csv_log(writer, output: io.StringIO, log: AuditLogModel) -> str:
+    output.seek(0)
+    output.truncate(0)
+    detail = log.detail if isinstance(log.detail, dict) else {}
+    rotation_values = _smoke_rotation_csv_values(detail)
+    writer.writerow(
+        (
+            log.created_at.isoformat(),
+            _safe_cell(log.actor),
+            _safe_cell(log.action),
+            _safe_cell(log.resource_type),
+            _safe_cell(log.resource_id),
+            _safe_cell(log.resource_name),
+            _safe_cell(detail.get("event")),
+            *(_safe_cell(value) for value in rotation_values),
+            _safe_cell(json.dumps(detail, ensure_ascii=False, separators=(",", ":"))),
+        )
+    )
+    return output.getvalue()
 
 
 def _smoke_rotation_csv_values(detail: dict) -> tuple[str, str, str, str]:
