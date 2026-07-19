@@ -65,8 +65,25 @@ export const auditPeriodOptions = [
   { days: 90, label: "90일" },
 ] as const;
 
+export const auditBulkPeriodOptions = [
+  { key: "all", label: "전체 기간" },
+  { key: "7", label: "최근 7일" },
+  { key: "30", label: "최근 30일" },
+  { key: "90", label: "최근 90일" },
+] as const;
+
+export const auditBulkNotificationStatusOptions = [
+  { key: "all", label: "알림 전체" },
+  { key: "success", label: "알림 성공" },
+  { key: "failure", label: "알림 실패" },
+  { key: "none", label: "알림 기록 없음" },
+] as const;
+
 export type AuditFilterKey = (typeof auditFilters)[number]["key"];
 export type AuditPeriodDays = (typeof auditPeriodOptions)[number]["days"];
+export type AuditBulkPeriod = (typeof auditBulkPeriodOptions)[number]["key"];
+export type AuditBulkNotificationStatus =
+  (typeof auditBulkNotificationStatusOptions)[number]["key"];
 export type DeliveryStatusKey = (typeof deliveryStatusOptions)[number]["key"];
 export type DeliveryProviderKey = (typeof deliveryProviderOptions)[number]["key"];
 export type ManagerSourceKey = (typeof managerSourceOptions)[number]["key"];
@@ -107,6 +124,20 @@ export function parseAuditPeriodDays(value: string | null): AuditPeriodDays {
   const days = Number(value);
   return auditPeriodOptions.some((option) => option.days === days)
     ? (days as AuditPeriodDays)
+    : "all";
+}
+
+export function parseAuditBulkPeriod(value: string | null): AuditBulkPeriod {
+  return auditBulkPeriodOptions.some((option) => option.key === value)
+    ? (value as AuditBulkPeriod)
+    : "all";
+}
+
+export function parseAuditBulkNotificationStatus(
+  value: string | null,
+): AuditBulkNotificationStatus {
+  return auditBulkNotificationStatusOptions.some((option) => option.key === value)
+    ? (value as AuditBulkNotificationStatus)
     : "all";
 }
 

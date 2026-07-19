@@ -6,6 +6,8 @@ export {
 } from "./audit-page-helpers/auditDisplayConfig";
 export {
   auditFilters,
+  auditBulkNotificationStatusOptions,
+  auditBulkPeriodOptions,
   auditPeriodOptions,
   deliveryProviderOptions,
   deliveryStatusOptions,
@@ -18,9 +20,13 @@ export {
   isManagerSourceKey,
   isManagerStatusKey,
   parseAuditDate,
+  parseAuditBulkNotificationStatus,
+  parseAuditBulkPeriod,
   parseAuditPeriodDays,
   parseManagerHealthWindowMinutes,
   type AuditFilterKey,
+  type AuditBulkNotificationStatus,
+  type AuditBulkPeriod,
   type AuditPeriodDays,
   type DeliveryProviderKey,
   type DeliveryStatusKey,

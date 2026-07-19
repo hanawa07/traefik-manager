@@ -4,6 +4,8 @@ import { RotateCcw, Search, X } from "lucide-react";
 import type { AuditManagerHealthSummary } from "@/features/audit/api/auditApi";
 
 import {
+  auditBulkNotificationStatusOptions,
+  auditBulkPeriodOptions,
   auditFilters,
   auditPeriodOptions,
   deliveryProviderOptions,
@@ -11,6 +13,8 @@ import {
   managerHealthWindowOptions,
   managerSourceOptions,
   managerStatusOptions,
+  type AuditBulkNotificationStatus,
+  type AuditBulkPeriod,
   type AuditFilterKey,
   type AuditPeriodDays,
   type DeliveryProviderKey,
@@ -22,6 +26,8 @@ import {
 } from "./auditPageHelpers";
 
 interface AuditLogFiltersProps {
+  selectedBulkNotificationStatus: AuditBulkNotificationStatus;
+  selectedBulkPeriod: AuditBulkPeriod;
   selectedFilter: AuditFilterKey;
   selectedDeliveryStatus: DeliveryStatusKey;
   selectedDeliveryProvider: DeliveryProviderKey;
@@ -34,6 +40,8 @@ interface AuditLogFiltersProps {
   delayedRetryCount?: number;
   managerHealthWindowMinutes: ManagerHealthWindowMinutes;
   searchText: string;
+  onBulkNotificationStatusChange: (status: AuditBulkNotificationStatus) => void;
+  onBulkPeriodChange: (period: AuditBulkPeriod) => void;
   onFilterChange: (filter: AuditFilterKey) => void;
   onManagerSourceChange: (source: ManagerSourceKey) => void;
   onManagerStatusChange: (status: ManagerStatusKey) => void;
@@ -53,6 +61,8 @@ interface ActiveCondition {
 }
 
 export function AuditLogFilters({
+  selectedBulkNotificationStatus,
+  selectedBulkPeriod,
   selectedFilter,
   selectedDeliveryStatus,
   selectedDeliveryProvider,
@@ -65,6 +75,8 @@ export function AuditLogFilters({
   delayedRetryCount,
   managerHealthWindowMinutes,
   searchText,
+  onBulkNotificationStatusChange,
+  onBulkPeriodChange,
   onFilterChange,
   onManagerSourceChange,
   onManagerStatusChange,
@@ -100,6 +112,30 @@ export function AuditLogFilters({
       label: `기간: ${startDate || "처음"} ~ ${endDate || "현재"}`,
       onRemove: () => onDateRangeChange("", ""),
     });
+  }
+  if (selectedBulkPeriod !== "all") {
+    const label = auditBulkPeriodOptions.find(
+      (option) => option.key === selectedBulkPeriod,
+    )?.label;
+    if (label) {
+      activeConditions.push({
+        key: "bulk-period",
+        label: `일괄 기간: ${label}`,
+        onRemove: () => onBulkPeriodChange("all"),
+      });
+    }
+  }
+  if (selectedBulkNotificationStatus !== "all") {
+    const label = auditBulkNotificationStatusOptions.find(
+      (option) => option.key === selectedBulkNotificationStatus,
+    )?.label.replace(/^알림 /, "");
+    if (label) {
+      activeConditions.push({
+        key: "bulk-notification-status",
+        label: `일괄 알림: ${label}`,
+        onRemove: () => onBulkNotificationStatusChange("all"),
+      });
+    }
   }
   if (selectedFilter !== "all") {
     const label = auditFilters.find((filter) => filter.key === selectedFilter)?.label;

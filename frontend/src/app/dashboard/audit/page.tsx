@@ -20,6 +20,7 @@ export default function AuditLogPage() {
 
 function AuditLogPageContent() {
   const {
+    bulkOperations,
     deliveryFeedback,
     errorMessage,
     exportUrl,
@@ -56,6 +57,7 @@ function AuditLogPageContent() {
       <AuditFeedbackBanner feedback={deliveryFeedback} />
 
       <AuditBulkOperationsOverview
+        {...bulkOperations}
         isRetryPending={table.isRetryPending}
         onRetryDelivery={table.onRetryDelivery}
         retryTargetId={table.retryTargetId}

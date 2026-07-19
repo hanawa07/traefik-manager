@@ -11,8 +11,7 @@ import {
   RotateCw,
   XCircle,
 } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   buildAuditExportUrl,
@@ -22,43 +21,40 @@ import { useAuditBulkOperations } from "@/features/audit/hooks/useAudit";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
+import {
+  auditBulkNotificationStatusOptions,
+  auditBulkPeriodOptions,
+  type AuditBulkNotificationStatus,
+  type AuditBulkPeriod,
+} from "./auditPageHelpers";
 import { AuditRetryChainPanel } from "./AuditRetryChainPanel";
 
 const PAGE_SIZE = 5;
 const MAX_VISIBLE_OPERATIONS = 20;
-type BulkPeriod = "all" | "7" | "30" | "90";
-type BulkNotificationStatus = "all" | AuditBulkOperationSummary["notification_status"];
-
 interface AuditBulkOperationsOverviewProps {
   isRetryPending: boolean;
+  notificationStatus: AuditBulkNotificationStatus;
+  period: AuditBulkPeriod;
   retryTargetId: string | null;
   timezone?: string;
+  onNotificationStatusChange: (status: AuditBulkNotificationStatus) => void;
+  onPeriodChange: (period: AuditBulkPeriod) => void;
   onRetryDelivery: (auditLogId: string) => void;
 }
 
 export function AuditBulkOperationsOverview({
   isRetryPending,
+  notificationStatus,
+  period,
   retryTargetId,
   timezone,
+  onNotificationStatusChange,
+  onPeriodChange,
   onRetryDelivery,
 }: AuditBulkOperationsOverviewProps) {
-  const searchParams = useSearchParams();
-  const [period, setPeriod] = useState<BulkPeriod>(() =>
-    parseBulkPeriod(searchParams.get("bulk_period")),
-  );
-  const [notificationStatus, setNotificationStatus] = useState<BulkNotificationStatus>(() =>
-    parseBulkNotificationStatus(searchParams.get("bulk_status")),
-  );
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  useEffect(() => {
-    const resetFilters = () => {
-      setPeriod("all");
-      setNotificationStatus("all");
-      setVisibleCount(PAGE_SIZE);
-    };
-    window.addEventListener("audit-filters-reset", resetFilters);
-    return () => window.removeEventListener("audit-filters-reset", resetFilters);
-  }, []);
+  const filterKey = `${period}:${notificationStatus}`;
+  const [pagination, setPagination] = useState({ filterKey, visibleCount: PAGE_SIZE });
+  const visibleCount = pagination.filterKey === filterKey ? pagination.visibleCount : PAGE_SIZE;
   const canManage = useAuthStore((state) => state.role === "admin");
   const requestLimit = Math.min(visibleCount + 1, MAX_VISIBLE_OPERATIONS);
   const query = useAuditBulkOperations({
@@ -101,33 +97,23 @@ export function AuditBulkOperationsOverview({
             aria-label="일괄 작업 기간"
             className="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-cyan-500/30 dark:bg-slate-900 dark:text-slate-200"
             value={period}
-            onChange={(event) => {
-              const value = event.target.value as BulkPeriod;
-              setPeriod(value);
-              replaceBulkFilter("bulk_period", value, "all");
-              setVisibleCount(PAGE_SIZE);
-            }}
+            onChange={(event) => onPeriodChange(event.target.value as AuditBulkPeriod)}
           >
-            <option value="all">전체 기간</option>
-            <option value="7">최근 7일</option>
-            <option value="30">최근 30일</option>
-            <option value="90">최근 90일</option>
+            {auditBulkPeriodOptions.map((option) => (
+              <option key={option.key} value={option.key}>{option.label}</option>
+            ))}
           </select>
           <select
             aria-label="일괄 작업 알림 상태"
             className="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-cyan-500/30 dark:bg-slate-900 dark:text-slate-200"
             value={notificationStatus}
-            onChange={(event) => {
-              const value = event.target.value as BulkNotificationStatus;
-              setNotificationStatus(value);
-              replaceBulkFilter("bulk_status", value, "all");
-              setVisibleCount(PAGE_SIZE);
-            }}
+            onChange={(event) =>
+              onNotificationStatusChange(event.target.value as AuditBulkNotificationStatus)
+            }
           >
-            <option value="all">알림 전체</option>
-            <option value="success">알림 성공</option>
-            <option value="failure">알림 실패</option>
-            <option value="none">알림 기록 없음</option>
+            {auditBulkNotificationStatusOptions.map((option) => (
+              <option key={option.key} value={option.key}>{option.label}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -153,7 +139,12 @@ export function AuditBulkOperationsOverview({
         <button
           className="mx-auto mt-4 block rounded-lg border border-cyan-300 bg-white px-4 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100 dark:border-cyan-500/40 dark:bg-slate-900 dark:text-cyan-200 dark:hover:bg-cyan-950"
           type="button"
-          onClick={() => setVisibleCount((current) => Math.min(current + PAGE_SIZE, MAX_VISIBLE_OPERATIONS))}
+          onClick={() =>
+            setPagination({
+              filterKey,
+              visibleCount: Math.min(visibleCount + PAGE_SIZE, MAX_VISIBLE_OPERATIONS),
+            })
+          }
         >
           일괄 작업 더보기
         </button>
@@ -292,24 +283,4 @@ function getRoutingModeLabel(routingMode: string | null) {
   if (routingMode === "disabled") return "라우팅 비활성 전환";
   if (routingMode === "maintenance") return "점검 안내 전환";
   return "운영 상태 일괄 변경";
-}
-
-function parseBulkPeriod(value: string | null): BulkPeriod {
-  return value === "7" || value === "30" || value === "90" ? value : "all";
-}
-
-function parseBulkNotificationStatus(value: string | null): BulkNotificationStatus {
-  return value === "success" || value === "failure" || value === "none" ? value : "all";
-}
-
-function replaceBulkFilter(key: string, value: string, defaultValue: string) {
-  const params = new URLSearchParams(window.location.search);
-  if (value === defaultValue) params.delete(key);
-  else params.set(key, value);
-  const query = params.toString();
-  window.history.replaceState(
-    window.history.state,
-    "",
-    `${window.location.pathname}${query ? `?${query}` : ""}`,
-  );
 }

@@ -79,6 +79,22 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
       timeoutMs,
       "일괄 작업의 전체 재시도 이력이 펼쳐지지 않았습니다",
     );
+
+    const resetRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 전체 필터 초기화");
+    await clickAriaLabel(cdp, "감사 필터 전체 초기화");
+    const reset = await resetRequest;
+    const resetUrl = new URL(reset.request.url);
+    assert.equal(resetUrl.searchParams.has("period_days"), false);
+    assert.equal(resetUrl.searchParams.has("notification_status"), false);
+    await fulfillJson(cdp, reset, [summary]);
+    await waitForBulkControls(cdp, "all", "all", timeoutMs);
+    await waitForCondition(
+      cdp,
+      `document.querySelector('button[aria-label="감사 필터 전체 초기화"]')?.disabled === true &&
+        document.body.innerText.includes('적용 조건') && document.body.innerText.includes('전체 로그')`,
+      timeoutMs,
+      "전체 초기화가 일괄 작업 조건까지 제거하지 못했습니다",
+    );
   } finally {
     await cdp.send("Fetch.disable");
   }
@@ -86,6 +102,8 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
 }
 
 async function waitForBulkControls(cdp, period, status, timeoutMs) {
+  const periodLabel = { "7": "최근 7일", "30": "최근 30일", "90": "최근 90일" }[period];
+  const statusLabel = { success: "성공", failure: "실패", none: "기록 없음" }[status];
   await waitForCondition(
     cdp,
     `(() => {
@@ -93,7 +111,9 @@ async function waitForBulkControls(cdp, period, status, timeoutMs) {
       return document.querySelector('select[aria-label="일괄 작업 기간"]')?.value === ${JSON.stringify(period)} &&
         document.querySelector('select[aria-label="일괄 작업 알림 상태"]')?.value === ${JSON.stringify(status)} &&
         ${period === "all" ? "!params.has('bulk_period')" : `params.get('bulk_period') === '${period}'`} &&
-        ${status === "all" ? "!params.has('bulk_status')" : `params.get('bulk_status') === '${status}'`};
+        ${status === "all" ? "!params.has('bulk_status')" : `params.get('bulk_status') === '${status}'`} &&
+        ${periodLabel ? `Boolean(document.querySelector('button[aria-label="일괄 기간: ${periodLabel} 조건 제거"]'))` : `!document.querySelector('button[aria-label^="일괄 기간:"]')`} &&
+        ${statusLabel ? `Boolean(document.querySelector('button[aria-label="일괄 알림: ${statusLabel} 조건 제거"]'))` : `!document.querySelector('button[aria-label^="일괄 알림:"]')`};
     })()`,
     timeoutMs,
     "일괄 작업 URL 필터가 화면에 복원되지 않았습니다",

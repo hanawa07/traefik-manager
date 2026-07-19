@@ -8,6 +8,8 @@ import { useAuditPage, useManagerHealthSummary } from "@/features/audit/hooks/us
 import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 
 import {
+  type AuditBulkNotificationStatus,
+  type AuditBulkPeriod,
   type AuditFilterKey,
   type AuditPeriodDays,
   type DeliveryProviderKey,
@@ -22,6 +24,8 @@ import {
   isManagerStatusKey,
   isManagerHttpErrorEvent,
   isManagerHttpLogStorageEvent,
+  parseAuditBulkNotificationStatus,
+  parseAuditBulkPeriod,
   parseAuditDate,
   parseAuditPeriodDays,
   parseManagerHealthWindowMinutes,
@@ -87,6 +91,13 @@ export function useAuditLogPageModel() {
       const value = searchParams.get("delivery_provider");
       return isDeliveryProviderKey(value) ? value : "all";
     });
+  const [selectedBulkPeriod, setSelectedBulkPeriod] = useState<AuditBulkPeriod>(() =>
+    parseAuditBulkPeriod(searchParams.get("bulk_period")),
+  );
+  const [selectedBulkNotificationStatus, setSelectedBulkNotificationStatus] =
+    useState<AuditBulkNotificationStatus>(() =>
+      parseAuditBulkNotificationStatus(searchParams.get("bulk_status")),
+    );
   const [managerHealthWindowMinutes, setManagerHealthWindowMinutes] =
     useState<ManagerHealthWindowMinutes>(() =>
       parseManagerHealthWindowMinutes(searchParams.get("manager_window")),
@@ -163,6 +174,14 @@ export function useAuditLogPageModel() {
     setSelectedDeliveryProvider(provider);
     replaceFilterQueryParams([["delivery_provider", provider, "all"]]);
   };
+  const handleBulkPeriodChange = (period: AuditBulkPeriod) => {
+    setSelectedBulkPeriod(period);
+    replaceAuditQueryParam("bulk_period", period, "all");
+  };
+  const handleBulkNotificationStatusChange = (status: AuditBulkNotificationStatus) => {
+    setSelectedBulkNotificationStatus(status);
+    replaceAuditQueryParam("bulk_status", status, "all");
+  };
   const handleManagerHealthWindowChange = (minutes: ManagerHealthWindowMinutes) => {
     setManagerHealthWindowMinutes(minutes);
     replaceFilterQueryParams([["manager_window", String(minutes), "10080"]]);
@@ -203,6 +222,8 @@ export function useAuditLogPageModel() {
     setSelectedManagerStatus("all");
     setSelectedDeliveryStatus("all");
     setSelectedDeliveryProvider("all");
+    setSelectedBulkPeriod("all");
+    setSelectedBulkNotificationStatus("all");
     setManagerHealthWindowMinutes(10080);
     setSelectedPeriod("all");
     setStartDate("");
@@ -211,8 +232,7 @@ export function useAuditLogPageModel() {
     setSearchText("");
     setCurrentPage(1);
     setExpandedLogId(null);
-    window.history.replaceState(null, "", window.location.pathname);
-    window.dispatchEvent(new Event("audit-filters-reset"));
+    window.history.replaceState(window.history.state, "", window.location.pathname);
   };
   const handleDelayedRetryPeriodChange = (period: 1 | 7 | 30) => {
     handleResetFilters();
@@ -226,12 +246,20 @@ export function useAuditLogPageModel() {
   };
 
   return {
+    bulkOperations: {
+      notificationStatus: selectedBulkNotificationStatus,
+      period: selectedBulkPeriod,
+      onNotificationStatusChange: handleBulkNotificationStatusChange,
+      onPeriodChange: handleBulkPeriodChange,
+    },
     deliveryFeedback: auditActions.deliveryFeedback,
     errorMessage: error instanceof Error ? error.message : FALLBACK_AUDIT_LOAD_ERROR,
     exportUrl,
     filters: {
       selectedDeliveryProvider,
       selectedDeliveryStatus,
+      selectedBulkNotificationStatus,
+      selectedBulkPeriod,
       delayedRetryCount: delayedRetryPage?.total,
       selectedFilter,
       selectedManagerSource,
@@ -244,6 +272,8 @@ export function useAuditLogPageModel() {
       managerHealthWindowMinutes,
       onDeliveryProviderChange: handleDeliveryProviderChange,
       onDeliveryStatusChange: handleDeliveryStatusChange,
+      onBulkNotificationStatusChange: handleBulkNotificationStatusChange,
+      onBulkPeriodChange: handleBulkPeriodChange,
       onFilterChange: handleFilterChange,
       onManagerSourceChange: handleManagerSourceChange,
       onManagerStatusChange: handleManagerStatusChange,
@@ -312,5 +342,9 @@ function replaceAuditQueryParams(values: [key: string, value: string, defaultVal
     else params.set(key, value);
   });
   const query = params.toString();
-  window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${window.location.pathname}${query ? `?${query}` : ""}`,
+  );
 }
