@@ -1,5 +1,8 @@
 "use client";
 
+import { Download } from "lucide-react";
+
+import { buildAuditExportUrl } from "@/features/audit/api/auditApi";
 import { useAudit } from "@/features/audit/hooks/useAudit";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
@@ -11,6 +14,7 @@ export function AuditBulkOperationPanel({
   timezone?: string;
 }) {
   const query = useAudit({ bulk_operation_id: operationId, limit: 100 });
+  const exportUrl = buildAuditExportUrl({ bulk_operation_id: operationId });
   if (query.isLoading) {
     return <p className="text-xs text-slate-500 dark:text-slate-400">일괄 변경 기록 확인 중...</p>;
   }
@@ -29,7 +33,20 @@ export function AuditBulkOperationPanel({
         <p className="text-xs font-semibold uppercase tracking-wider text-cyan-800 dark:text-cyan-200">
           서비스 운영 상태 일괄 변경 · {logs.length}건
         </p>
-        <code className="break-all text-[10px] text-cyan-700 dark:text-cyan-300">{operationId}</code>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <a
+            aria-label="일괄 변경 감사 기록 CSV 다운로드"
+            className="inline-flex items-center gap-1 rounded-lg border border-cyan-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-cyan-800 hover:bg-cyan-100 dark:border-cyan-500/40 dark:bg-slate-900 dark:text-cyan-200 dark:hover:bg-cyan-950"
+            download
+            href={exportUrl}
+          >
+            <Download className="h-3.5 w-3.5" />
+            일괄 기록 CSV
+          </a>
+          <code className="max-w-full break-all text-[10px] text-cyan-700 dark:text-cyan-300">
+            {operationId}
+          </code>
+        </div>
       </div>
       <ul className="space-y-2">
         {logs.map((log) => {

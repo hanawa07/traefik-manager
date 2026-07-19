@@ -4,6 +4,7 @@ import json
 import re
 from datetime import date, datetime, timezone
 from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
@@ -33,6 +34,9 @@ CSV_COLUMNS = (
     "resource_id",
     "resource_name",
     "event",
+    "bulk_operation_id",
+    "routing_mode_before",
+    "routing_mode_after",
     "rotation_result",
     "failed_secret",
     "attempt_count",
@@ -58,6 +62,7 @@ async def export_audit_logs(
     security_only: bool = Query(False),
     provider: str | None = Query(None),
     delivery_success: bool | None = Query(None),
+    bulk_operation_id: UUID | None = Query(None),
     retry_delay: Literal["delayed"] | None = Query(None),
     _: dict = Depends(get_current_user),
 ):
@@ -79,8 +84,13 @@ async def export_audit_logs(
         security_only=security_only,
         provider=provider,
         delivery_success=delivery_success,
+        bulk_operation_id=str(bulk_operation_id) if bulk_operation_id else None,
     )
-    filename = f"audit-logs-{datetime.now(timezone.utc):%Y%m%d}.csv"
+    filename = (
+        f"audit-bulk-{bulk_operation_id}.csv"
+        if bulk_operation_id
+        else f"audit-logs-{datetime.now(timezone.utc):%Y%m%d}.csv"
+    )
     return StreamingResponse(
         _iter_csv(conditions, delayed_only=retry_delay == "delayed"),
         media_type="text/csv; charset=utf-8",
@@ -117,6 +127,7 @@ def _write_csv_log(writer, output: io.StringIO, log: AuditLogModel) -> str:
     output.seek(0)
     output.truncate(0)
     detail = log.detail if isinstance(log.detail, dict) else {}
+    bulk_routing_values = _bulk_routing_csv_values(detail)
     rotation_values = _smoke_rotation_csv_values(detail)
     writer.writerow(
         (
@@ -127,11 +138,22 @@ def _write_csv_log(writer, output: io.StringIO, log: AuditLogModel) -> str:
             _safe_cell(log.resource_id),
             _safe_cell(log.resource_name),
             _safe_cell(detail.get("event")),
+            *(_safe_cell(value) for value in bulk_routing_values),
             *(_safe_cell(value) for value in rotation_values),
             _safe_cell(json.dumps(detail, ensure_ascii=False, separators=(",", ":"))),
         )
     )
     return output.getvalue()
+
+
+def _bulk_routing_csv_values(detail: dict) -> tuple[str, str, str]:
+    before = detail.get("before")
+    after = detail.get("after")
+    return (
+        str(detail.get("bulk_operation_id") or ""),
+        str(before.get("routing_mode") or "") if isinstance(before, dict) else "",
+        str(after.get("routing_mode") or "") if isinstance(after, dict) else "",
+    )
 
 
 def _smoke_rotation_csv_values(detail: dict) -> tuple[str, str, str, str]:

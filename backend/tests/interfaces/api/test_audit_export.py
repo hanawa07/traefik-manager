@@ -1,6 +1,7 @@
 import csv
 import io
 from datetime import datetime
+from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
@@ -108,6 +109,64 @@ async def test_export_audit_logs_uses_date_and_search_filters(monkeypatch):
     assert rotation_rows[0]["failure_step"].startswith("GitHub secret 갱신 실패")
     delayed_rows = list(csv.DictReader(io.StringIO(delayed_response.content.decode("utf-8-sig"))))
     assert [row["resource_name"] for row in delayed_rows] == ["지연 자동 재시도"]
+
+
+@pytest.mark.asyncio
+async def test_export_audit_logs_filters_bulk_operation(monkeypatch):
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(AuditLogModel.__table__.create)
+        await connection.run_sync(SystemSettingModel.__table__.create)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    operation_id = uuid4()
+
+    async with session_factory() as db:
+        db.add_all(
+            [
+                make_log(
+                    resource_type="service",
+                    resource_name="English",
+                    event="service_update",
+                    created_at=datetime(2026, 7, 19, 12),
+                    detail_extra={
+                        "bulk_operation_id": str(operation_id),
+                        "before": {"routing_mode": "active"},
+                        "after": {"routing_mode": "maintenance"},
+                    },
+                ),
+                make_log(
+                    resource_type="service",
+                    resource_name="Other",
+                    event="service_update",
+                    created_at=datetime(2026, 7, 19, 12),
+                    detail_extra={"bulk_operation_id": str(uuid4())},
+                ),
+            ]
+        )
+        await db.commit()
+
+    monkeypatch.setattr(audit_export_router, "AsyncSessionLocal", session_factory)
+    app = FastAPI()
+    app.include_router(audit_router.router, prefix="/audit")
+    app.dependency_overrides[audit_router.get_current_user] = lambda: {
+        "username": "admin"
+    }
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(
+            "/audit/export.csv",
+            params={"bulk_operation_id": str(operation_id)},
+        )
+
+    await engine.dispose()
+    rows = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig"))))
+    assert response.status_code == 200
+    assert response.headers["content-disposition"] == (
+        f'attachment; filename="audit-bulk-{operation_id}.csv"'
+    )
+    assert [row["resource_name"] for row in rows] == ["English"]
+    assert rows[0]["bulk_operation_id"] == str(operation_id)
+    assert rows[0]["routing_mode_before"] == "active"
+    assert rows[0]["routing_mode_after"] == "maintenance"
 
 
 @pytest.mark.parametrize("value", ["=cmd", "+cmd", "-cmd", "@cmd", "\t=cmd", "\r=cmd"])
