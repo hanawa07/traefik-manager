@@ -63,3 +63,4 @@ def test_active_background_runtime_runs_startup_checks_and_background_loops():
     }
     assert "manager_health_loop" in task_targets
     assert "audit_retention_loop" in task_targets
+    assert "maintenance_expiry_loop" in task_targets

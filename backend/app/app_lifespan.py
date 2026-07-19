@@ -239,6 +239,35 @@ async def alert_retry_loop() -> None:
     )
 
 
+async def transition_expired_maintenance_once() -> None:
+    from app.infrastructure.traefik.maintenance_expiry_monitor import (
+        transition_expired_maintenance_services_once,
+    )
+
+    try:
+        result = await transition_expired_maintenance_services_once()
+        if result["transitioned_count"]:
+            logger.info(
+                "점검 종료 자동 전환 완료 (%d개): %s",
+                result["transitioned_count"],
+                ", ".join(result["transitioned_names"]),
+            )
+    except Exception:
+        logger.warning("점검 종료 자동 전환 실패 (다음 주기에 재시도)", exc_info=True)
+
+
+async def maintenance_expiry_loop() -> None:
+    from app.infrastructure.traefik.maintenance_expiry_monitor import (
+        MAINTENANCE_EXPIRY_CHECK_INTERVAL_SECONDS,
+        run_periodic_maintenance_expiry_check,
+    )
+
+    await run_periodic_maintenance_expiry_check(
+        interval_seconds=MAINTENANCE_EXPIRY_CHECK_INTERVAL_SECONDS,
+        check_once=transition_expired_maintenance_once,
+    )
+
+
 async def load_certificate_preflight_interval_seconds() -> int:
     try:
         async with AsyncSessionLocal() as session:
@@ -259,6 +288,7 @@ async def run_active_background_tasks() -> None:
     await cleanup_audit_logs_once()
     await check_certificate_alerts_once()
     await check_certificate_preflight_once()
+    await transition_expired_maintenance_once()
 
     tasks = [
         asyncio.create_task(auth_cleanup_loop()),
@@ -267,6 +297,7 @@ async def run_active_background_tasks() -> None:
         asyncio.create_task(certificate_preflight_loop()),
         asyncio.create_task(alert_retry_loop()),
         asyncio.create_task(manager_health_loop()),
+        asyncio.create_task(maintenance_expiry_loop()),
     ]
     try:
         await asyncio.gather(*tasks)
