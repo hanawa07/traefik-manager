@@ -1,6 +1,11 @@
 import apiClient from "@/shared/lib/apiClient";
 
-import type { Service, ServiceCreate, ServiceUpdate } from "./serviceTypes";
+import type {
+  BulkRoutingNotificationResult,
+  Service,
+  ServiceCreate,
+  ServiceUpdate,
+} from "./serviceTypes";
 
 export const serviceCrudApi = {
   list: async (): Promise<Service[]> => {
@@ -28,6 +33,15 @@ export const serviceCrudApi = {
         ? { "X-Bulk-Operation-ID": options.bulkOperationId }
         : undefined,
     });
+    return res.data;
+  },
+
+  completeBulkRoutingOperation: async (
+    operationId: string,
+  ): Promise<BulkRoutingNotificationResult> => {
+    const res = await apiClient.post<BulkRoutingNotificationResult>(
+      `/services/bulk-routing/${operationId}/complete`,
+    );
     return res.data;
   },
 

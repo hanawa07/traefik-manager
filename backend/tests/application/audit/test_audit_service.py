@@ -42,3 +42,29 @@ async def test_record_triggers_security_alert_notifier_for_recorded_log(monkeypa
     assert len(db.added) == 1
     assert notified[0][0] is db
     assert notified[0][1].detail["event"] == "login_suspicious"
+
+
+@pytest.mark.asyncio
+async def test_record_can_skip_notification(monkeypatch):
+    db = StubDbSession()
+    notified = []
+
+    async def fake_notify_if_needed(db_session, audit_log):
+        notified.append((db_session, audit_log))
+        return True
+
+    monkeypatch.setattr(audit_service.security_alert_notifier, "notify_if_needed", fake_notify_if_needed)
+
+    await audit_service.record(
+        db=db,
+        actor="admin",
+        action="update",
+        resource_type="service",
+        resource_id="abc",
+        resource_name="service",
+        detail={"event": "service_update"},
+        notify=False,
+    )
+
+    assert db.flushed is True
+    assert notified == []

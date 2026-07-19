@@ -116,15 +116,17 @@ export default function ServicesPage() {
         setToastNotice({
           tone: "warning",
           message: "운영 상태 일부 변경 실패",
-          detail: `${result.successCount}개 적용, ${serviceNames.length}개 실패: ${serviceNames.join(", ")}`,
+          detail: `${result.successCount}개 적용, ${serviceNames.length}개 실패: ${serviceNames.join(", ")}${result.notificationCompleted ? "" : " · 묶음 알림 요청 실패"}`,
         });
         return;
       }
       setSelectedServiceIds([]);
       setBulkRoutingFailure(null);
       setToastNotice({
-        tone: "success",
-        message: "운영 상태 일괄 변경 완료",
+        tone: result.notificationCompleted ? "success" : "warning",
+        message: result.notificationCompleted
+          ? "운영 상태 일괄 변경 완료"
+          : "운영 상태 변경 완료, 묶음 알림 요청 실패",
         detail: result.successCount > 0 ? `${result.successCount}개 서비스를 ${label} 상태로 변경했습니다.` : "이미 같은 상태여서 변경된 서비스가 없습니다.",
       });
     } catch (error) {

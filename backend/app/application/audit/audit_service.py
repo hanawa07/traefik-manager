@@ -16,6 +16,7 @@ async def record(
     resource_id: str,
     resource_name: str,
     detail: dict[str, Any] | None = None,
+    notify: bool = True,
 ) -> None:
     """감사 로그를 DB에 기록합니다. 기록 실패 시 로그만 남기고 예외를 발생시키지 않습니다."""
     try:
@@ -29,6 +30,7 @@ async def record(
         )
         db.add(audit_log)
         await db.flush()  # 호출한 곳에서 세션을 커밋할 것이므로 flush만 수행
-        await security_alert_notifier.notify_if_needed(db, audit_log)
+        if notify:
+            await security_alert_notifier.notify_if_needed(db, audit_log)
     except Exception as e:
         logger.error(f"Failed to record audit log: {e}", exc_info=True)

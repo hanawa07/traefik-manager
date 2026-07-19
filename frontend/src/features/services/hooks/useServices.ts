@@ -78,7 +78,15 @@ export function useBulkUpdateServiceRoutingMode() {
           { bulkOperationId: operationId },
         ),
       );
-      return { ...result, operationId };
+      let notificationCompleted = true;
+      if (targets.length > 0) {
+        try {
+          await serviceApi.completeBulkRoutingOperation(operationId);
+        } catch {
+          notificationCompleted = false;
+        }
+      }
+      return { ...result, operationId, notificationCompleted };
     },
     onSettled: async () => {
       await Promise.all([

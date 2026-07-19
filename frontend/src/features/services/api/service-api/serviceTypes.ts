@@ -108,6 +108,13 @@ export interface ServiceUpdate {
   authentik_group_id?: string | null;
 }
 
+export interface BulkRoutingNotificationResult {
+  operation_id: string;
+  service_count: number;
+  notification_sent: boolean;
+  already_processed: boolean;
+}
+
 export interface AuthentikGroup {
   id: string;
   name: string;

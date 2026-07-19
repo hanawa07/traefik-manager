@@ -6,6 +6,7 @@ export type {
   AuthentikGroup,
   AuthMode,
   BasicAuthCredential,
+  BulkRoutingNotificationResult,
   FramePolicy,
   RoutingMode,
   Service,

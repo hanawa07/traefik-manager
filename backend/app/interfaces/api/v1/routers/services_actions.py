@@ -107,6 +107,7 @@ async def update_service_action(
                     **({"bulk_operation_id": bulk_operation_id} if bulk_operation_id else {}),
                     **({"rollback_payload": rollback_payload} if rollback_payload is not None else {}),
                 },
+                notify=bulk_operation_id is None,
             )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

@@ -31,6 +31,9 @@ from app.interfaces.api.v1.routers.services_health_actions import (
     get_service_health_action,
     list_services_health_action,
 )
+from app.interfaces.api.v1.routers.services_bulk_routing_notification import (
+    complete_bulk_routing_notification_action,
+)
 from app.interfaces.api.v1.routers.services_gateway_diagnostics import (
     connect_service_gateway_network_action,
     diagnose_service_gateway_action,
@@ -39,6 +42,7 @@ from app.interfaces.api.v1.routers.services_gateway_diagnostics import (
 from app.interfaces.api.v1.routers.services_rollback_action import rollback_service_change_action
 from app.interfaces.api.v1.schemas.service_schemas import (
     AuthentikGroupResponse,
+    BulkRoutingNotificationResponse,
     ServiceCreate,
     ServiceGatewayDiagnosisResponse,
     ServiceGatewayNetworkConnectResponse,
@@ -109,6 +113,22 @@ async def list_services_health(
     _: dict = Depends(get_current_user),
 ):
     return await list_services_health_action(use_cases=use_cases, upstream_checker=upstream_checker)
+
+
+@router.post(
+    "/bulk-routing/{operation_id}/complete",
+    response_model=BulkRoutingNotificationResponse,
+    summary="서비스 운영 상태 일괄 변경 알림 완료",
+)
+async def complete_bulk_routing_notification(
+    operation_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_write_access),
+):
+    return await complete_bulk_routing_notification_action(
+        operation_id=operation_id,
+        db=db,
+    )
 
 
 @router.get("/{service_id}/health", response_model=UpstreamHealthResponse, summary="개별 서비스 업스트림 헬스 체크")

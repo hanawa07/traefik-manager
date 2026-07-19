@@ -93,6 +93,7 @@ async def test_update_service_records_bulk_operation_id(monkeypatch):
     )
 
     assert recorded[0]["detail"]["bulk_operation_id"] == str(operation_id)
+    assert recorded[0]["notify"] is False
 
 
 @pytest.mark.asyncio

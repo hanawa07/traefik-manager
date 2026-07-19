@@ -202,6 +202,11 @@ def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
         changed_keys = detail.get("changed_keys")
         if isinstance(changed_keys, list) and changed_keys:
             lines.append(f"변경 키: {', '.join(str(item) for item in changed_keys)}")
+        bulk_service_names = detail.get("bulk_service_names")
+        if isinstance(bulk_service_names, list) and bulk_service_names:
+            lines.append(f"서비스: {', '.join(str(item) for item in bulk_service_names)}")
+        if detail.get("bulk_operation_id"):
+            lines.append(f"일괄 작업 ID: {detail.get('bulk_operation_id')}")
         if detail.get("days_remaining") is not None:
             lines.append(f"남은 기간: {detail.get('days_remaining')}일")
         if detail.get("expires_at"):

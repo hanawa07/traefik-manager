@@ -67,6 +67,13 @@ class AuthentikGroupResponse(BaseModel):
     name: str
 
 
+class BulkRoutingNotificationResponse(BaseModel):
+    operation_id: UUID
+    service_count: int
+    notification_sent: bool
+    already_processed: bool
+
+
 class UpstreamHealthResponse(BaseModel):
     service_id: UUID
     domain: str
