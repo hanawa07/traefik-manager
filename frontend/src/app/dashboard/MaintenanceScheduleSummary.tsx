@@ -1,33 +1,82 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Clock3, Construction } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarPlus,
+  CheckCircle2,
+  Clock3,
+  Construction,
+  Loader2,
+  Play,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import type { Service } from "@/features/services/api/serviceApi";
+import { useUpdateServiceMaintenance } from "@/features/services/hooks/useServices";
 import {
+  extendMaintenanceUntil,
   formatMaintenanceRemaining,
   getMaintenanceSchedule,
   type MaintenanceScheduleEntry,
+  type MaintenanceScheduleService,
 } from "@/features/services/lib/maintenanceSchedule";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 interface MaintenanceScheduleSummaryProps {
+  canManage: boolean;
   isLoading: boolean;
   services: Service[];
   timezone?: string;
 }
 
+interface MaintenanceFeedback {
+  message: string;
+  tone: "error" | "success";
+}
+
 export function MaintenanceScheduleSummary({
+  canManage,
   isLoading,
   services,
   timezone,
 }: MaintenanceScheduleSummaryProps) {
   const [now, setNow] = useState(Date.now);
+  const [feedback, setFeedback] = useState<MaintenanceFeedback | null>(null);
+  const maintenanceUpdate = useUpdateServiceMaintenance();
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  const handleExtend = async (service: MaintenanceScheduleService, hours: number) => {
+    setFeedback(null);
+    try {
+      await maintenanceUpdate.mutateAsync({
+        serviceId: service.id,
+        maintenanceUntil: extendMaintenanceUntil(service.maintenance_until, hours),
+        routingMode: "maintenance",
+      });
+      setFeedback({ message: `${service.name} 점검 종료를 ${hours}시간 연장했습니다.`, tone: "success" });
+    } catch (error) {
+      setFeedback({ message: getMaintenanceUpdateError(error), tone: "error" });
+    }
+  };
+
+  const handleActivate = async (service: MaintenanceScheduleService) => {
+    if (!window.confirm(`${service.name} 서비스를 지금 정상 운영으로 전환할까요?`)) return;
+    setFeedback(null);
+    try {
+      await maintenanceUpdate.mutateAsync({
+        serviceId: service.id,
+        maintenanceUntil: null,
+        routingMode: "active",
+      });
+      setFeedback({ message: `${service.name} 서비스를 정상 운영으로 전환했습니다.`, tone: "success" });
+    } catch (error) {
+      setFeedback({ message: getMaintenanceUpdateError(error), tone: "error" });
+    }
+  };
 
   if (isLoading) {
     return <div className="card mb-6 h-32 animate-pulse dark:bg-slate-900" />;
@@ -55,6 +104,15 @@ export function MaintenanceScheduleSummary({
         </span>
       </div>
 
+      {feedback ? (
+        <p
+          className={`border-b px-5 py-2 text-xs font-semibold ${feedback.tone === "success" ? "border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-950/30 dark:text-emerald-200" : "border-rose-100 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-950/30 dark:text-rose-200"}`}
+          role={feedback.tone === "error" ? "alert" : "status"}
+        >
+          {feedback.message}
+        </p>
+      ) : null}
+
       {entries.length === 0 ? (
         <div className="flex items-center gap-2 px-5 py-4 text-sm text-emerald-700 dark:text-emerald-300">
           <CheckCircle2 className="h-4 w-4" />
@@ -75,7 +133,20 @@ export function MaintenanceScheduleSummary({
           </div>
           <ul className="divide-y divide-slate-100 px-5 py-2 dark:divide-slate-800">
             {entries.slice(0, 3).map((entry) => (
-              <MaintenanceScheduleRow entry={entry} key={entry.service.id} now={now} timezone={timezone} />
+              <MaintenanceScheduleRow
+                canManage={canManage}
+                entry={entry}
+                isCurrentUpdate={
+                  maintenanceUpdate.isPending &&
+                  maintenanceUpdate.variables?.serviceId === entry.service.id
+                }
+                isUpdatePending={maintenanceUpdate.isPending}
+                key={entry.service.id}
+                now={now}
+                timezone={timezone}
+                onActivate={handleActivate}
+                onExtend={handleExtend}
+              />
             ))}
           </ul>
           <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 text-xs dark:border-slate-800">
@@ -96,12 +167,22 @@ export function MaintenanceScheduleSummary({
 }
 
 function MaintenanceScheduleRow({
+  canManage,
   entry,
+  isCurrentUpdate,
+  isUpdatePending,
   now,
+  onActivate,
+  onExtend,
   timezone,
 }: {
+  canManage: boolean;
   entry: MaintenanceScheduleEntry;
+  isCurrentUpdate: boolean;
+  isUpdatePending: boolean;
   now: number;
+  onActivate: (service: MaintenanceScheduleService) => Promise<void>;
+  onExtend: (service: MaintenanceScheduleService, hours: number) => Promise<void>;
   timezone?: string;
 }) {
   const remaining = formatMaintenanceRemaining(entry.service.maintenance_until, now);
@@ -126,6 +207,51 @@ function MaintenanceScheduleRow({
             : formatDateTime(entry.service.maintenance_until, timezone)}
         </p>
       </div>
+      {canManage ? (
+        <div className="flex basis-full flex-wrap items-center justify-end gap-2 pl-7">
+          {isCurrentUpdate ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-200">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              반영 중
+            </span>
+          ) : (
+            <>
+              <button
+                className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/30 dark:bg-slate-900 dark:text-amber-200 dark:hover:bg-amber-950"
+                disabled={isUpdatePending}
+                type="button"
+                onClick={() => void onExtend(entry.service, 1)}
+              >
+                <CalendarPlus className="h-3.5 w-3.5" />
+                1시간 연장
+              </button>
+              <button
+                className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/30 dark:bg-slate-900 dark:text-amber-200 dark:hover:bg-amber-950"
+                disabled={isUpdatePending}
+                type="button"
+                onClick={() => void onExtend(entry.service, 24)}
+              >
+                <CalendarPlus className="h-3.5 w-3.5" />
+                1일 연장
+              </button>
+              <button
+                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400"
+                disabled={isUpdatePending}
+                type="button"
+                onClick={() => void onActivate(entry.service)}
+              >
+                <Play className="h-3.5 w-3.5" />
+                지금 정상 운영
+              </button>
+            </>
+          )}
+        </div>
+      ) : null}
     </li>
   );
+}
+
+function getMaintenanceUpdateError(error: unknown) {
+  const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+  return detail || "점검 일정을 변경하지 못했습니다.";
 }

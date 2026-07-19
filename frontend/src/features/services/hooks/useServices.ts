@@ -53,6 +53,31 @@ export function useUpdateService(id: string) {
   });
 }
 
+export function useUpdateServiceMaintenance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      serviceId,
+      maintenanceUntil,
+      routingMode,
+    }: {
+      serviceId: string;
+      maintenanceUntil: string | null;
+      routingMode: RoutingMode;
+    }) => serviceApi.update(serviceId, {
+      maintenance_until: maintenanceUntil,
+      routing_mode: routingMode,
+    }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: QUERY_KEY }),
+        qc.invalidateQueries({ queryKey: TRAEFIK_ROUTER_STATUS_QUERY_KEY }),
+        qc.invalidateQueries({ queryKey: AUDIT_LOGS_QUERY_KEY }),
+      ]);
+    },
+  });
+}
+
 export function useBulkUpdateServiceRoutingMode() {
   const qc = useQueryClient();
   return useMutation({

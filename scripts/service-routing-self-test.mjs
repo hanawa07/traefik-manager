@@ -6,6 +6,7 @@ import {
   getRoutingUpdateTargets,
 } from "../frontend/src/features/services/lib/serviceRouting.ts";
 import {
+  extendMaintenanceUntil,
   formatMaintenanceRemaining,
   getMaintenanceSchedule,
   toKoreanDateTimeLocal,
@@ -53,6 +54,14 @@ assert.equal(formatMaintenanceRemaining("2030-01-02T00:25:00Z", maintenanceNow),
 assert.equal(formatMaintenanceRemaining("2030-01-02T02:05:00Z", maintenanceNow), "2시간 5분 남음");
 assert.equal(formatMaintenanceRemaining("2030-01-03T02:00:00Z", maintenanceNow), "1일 2시간 남음");
 assert.equal(formatMaintenanceRemaining("2030-01-01T23:59:00Z", maintenanceNow), "종료 처리 중");
+assert.equal(
+  extendMaintenanceUntil("2030-01-02T02:00:00Z", 1, maintenanceNow),
+  "2030-01-02T03:00:00.000Z",
+);
+assert.equal(
+  extendMaintenanceUntil("2030-01-01T23:59:00Z", 24, maintenanceNow),
+  "2030-01-03T00:00:00.000Z",
+);
 const maintenanceSchedule = getMaintenanceSchedule([
   { id: "active", name: "Active", domain: "active.test", routing_mode: "active", maintenance_until: null },
   { id: "later", name: "Later", domain: "later.test", routing_mode: "maintenance", maintenance_until: "2030-01-04T00:00:00Z" },

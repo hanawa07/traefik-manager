@@ -45,6 +45,16 @@ export function formatMaintenanceRemaining(value: string | null | undefined, now
   return `${minutes}분 남음`;
 }
 
+export function extendMaintenanceUntil(
+  value: string | null | undefined,
+  hours: number,
+  now = Date.now(),
+) {
+  const timestamp = value ? Date.parse(value) : Number.NaN;
+  const baseTimestamp = Number.isNaN(timestamp) || timestamp < now ? now : timestamp;
+  return new Date(baseTimestamp + hours * 60 * 60 * 1_000).toISOString();
+}
+
 export function getMaintenanceSchedule(
   services: MaintenanceScheduleService[],
   now = Date.now(),

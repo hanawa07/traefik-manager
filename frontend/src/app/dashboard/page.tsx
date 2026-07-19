@@ -121,6 +121,7 @@ export default function DashboardPage() {
       <SecurityAlertSummaryCard summary={securitySummary} timezone={displayTimezone} />
       <CertificateAlertSummaryCard certificates={certificates} summary={certificateSummary} timezone={displayTimezone} />
       <MaintenanceScheduleSummary
+        canManage={canManage}
         isLoading={isLoading}
         services={services}
         timezone={displayTimezone}
