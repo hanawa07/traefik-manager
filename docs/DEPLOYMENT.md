@@ -140,6 +140,7 @@ scripts/blue-green-deploy.sh vX.Y.Z
 - 브라우저에서 `https://<FRONTEND_DOMAIN>` 접속 시 로그인 페이지가 보입니다.
 - `curl -Ik https://<FRONTEND_DOMAIN>` 응답이 `200` 또는 `302`입니다.
 - 서비스 목록과 의존 API, 모바일 다크모드 주요 화면을 함께 확인하려면 `TM_SMOKE_COOKIE='tm_session=...; tm_csrf=...' ./scripts/check-services.sh`를 실행합니다. `TM_SMOKE_BASE_URL`이 없으면 `.env`의 `FRONTEND_DOMAIN`을 사용합니다.
+- 점검 안내 라우팅을 실제 Traefik file-provider까지 확인하려면 `scripts/smoke-maintenance-route.sh`를 실행합니다. 이 스모크는 `.invalid` 임시 Host만 사용하고 DB·DNS·인증서를 변경하지 않으며 확인 직후 라우터 파일을 제거합니다.
 - 운영 세션 쿠키 대신 테스트 계정으로 확인하려면 `TM_SMOKE_USERNAME`과 `TM_SMOKE_PASSWORD`를 사용합니다. Turnstile이 필요한 환경에서는 기존 세션 쿠키 방식이 더 안전합니다.
 - GitHub Actions의 `운영 로그인·화면 스모크`는 매일 03:17(KST)에 실행되며 수동 실행도 지원합니다.
 - 운영 로그인·화면 스모크는 대시보드의 `Docker 정상`, Manager file-provider 라우터의 `file / healthy / UP`, Manager API 오류 추이 24개 기본 구간과 6시간·경로 필터 전환·임계치 감지 상태·영속 로그 회전 상태·보관 경고의 감사 링크·권장값 API, 감사 로그 조건 CSV, 설정 화면의 `Artifact 만료`와 감사 로그 보존 카드를 명시적으로 확인합니다. Manager API 오류와 요청 로그 보관 감사 상세는 운영 감사 데이터를 만들지 않고 브라우저 요청에 fixture를 주입해 매번 검사합니다. 관리자 세션에서는 저장 없이 권장값 계산·제외 경로 미리보기·입력 적용도 확인합니다.
