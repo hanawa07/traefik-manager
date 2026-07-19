@@ -74,6 +74,7 @@ export function useServiceFormModel({ defaultValues, onSubmit }: UseServiceFormM
       setValue,
       errors,
       onSubmit: handleSubmit(submitForm),
+      routingMode: watchValues.routingMode,
       tlsEnabled: watchValues.tlsEnabled,
       authMode: watchValues.authMode,
       apiKeyValue: watchValues.apiKeyValue,

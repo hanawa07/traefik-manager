@@ -9,6 +9,8 @@ def serialize_service(service: Service) -> dict:
         "upstream_host": service.upstream_host,
         "upstream_port": service.upstream_port,
         "routing_mode": service.routing_mode,
+        "maintenance_message": service.maintenance_message,
+        "maintenance_until": service.maintenance_until,
         "upstream_scheme": service.upstream_scheme,
         "skip_tls_verify": service.skip_tls_verify,
         "tls_enabled": service.tls_enabled,

@@ -1,3 +1,4 @@
+from datetime import timezone
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +23,8 @@ class SQLiteServiceRepository(ServiceRepository):
             existing.upstream_host = service.upstream.host
             existing.upstream_port = service.upstream.port
             existing.routing_mode = service.routing_mode
+            existing.maintenance_message = service.maintenance_message
+            existing.maintenance_until = service.maintenance_until
             existing.upstream_scheme = service.upstream_scheme
             existing.skip_tls_verify = service.skip_tls_verify
             existing.tls_enabled = service.tls_enabled
@@ -56,6 +59,8 @@ class SQLiteServiceRepository(ServiceRepository):
                 upstream_host=service.upstream.host,
                 upstream_port=service.upstream.port,
                 routing_mode=service.routing_mode,
+                maintenance_message=service.maintenance_message,
+                maintenance_until=service.maintenance_until,
                 upstream_scheme=service.upstream_scheme,
                 skip_tls_verify=service.skip_tls_verify,
                 tls_enabled=service.tls_enabled,
@@ -113,6 +118,12 @@ class SQLiteServiceRepository(ServiceRepository):
             domain=DomainName(model.domain),
             upstream=Upstream(model.upstream_host, model.upstream_port),
             routing_mode=model.routing_mode or "active",
+            maintenance_message=model.maintenance_message or "",
+            maintenance_until=(
+                model.maintenance_until.replace(tzinfo=timezone.utc)
+                if model.maintenance_until is not None and model.maintenance_until.tzinfo is None
+                else model.maintenance_until
+            ),
             tls_enabled=model.tls_enabled,
             auth_enabled=model.auth_enabled,
             auth_mode=model.auth_mode or "none",

@@ -3,10 +3,11 @@ import { useWatch, type Control } from "react-hook-form";
 import type { ServiceFormData } from "./serviceFormSchema";
 
 export function useServiceFormWatchValues(control: Control<ServiceFormData>) {
-  const [tlsEnabled, authMode, apiKeyValue, basicAuthEnabled, rateLimitEnabled, upstreamScheme, healthcheckEnabled] =
+  const [routingMode, tlsEnabled, authMode, apiKeyValue, basicAuthEnabled, rateLimitEnabled, upstreamScheme, healthcheckEnabled] =
     useWatch({
       control,
       name: [
+        "routing_mode",
         "tls_enabled",
         "auth_mode",
         "api_key",
@@ -18,6 +19,7 @@ export function useServiceFormWatchValues(control: Control<ServiceFormData>) {
     });
 
   return {
+    routingMode,
     tlsEnabled,
     authMode,
     apiKeyValue,

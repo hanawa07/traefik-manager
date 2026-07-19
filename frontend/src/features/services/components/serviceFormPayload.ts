@@ -1,4 +1,5 @@
 import type { ServiceCreate } from "../api/serviceApi";
+import { toKoreanDateTimeLocal, toMaintenanceUntilIso } from "../lib/maintenanceSchedule";
 import type { ServiceFormData, ServiceFormDefaultValues } from "./serviceFormSchema";
 import {
   parseAllowedIps,
@@ -23,6 +24,8 @@ export function createServiceFormDefaultValues(defaultValues?: ServiceFormDefaul
     upstream_host: defaultValues?.upstream_host || "",
     upstream_port: defaultValues?.upstream_port ?? 80,
     routing_mode: defaultValues?.routing_mode || "active",
+    maintenance_message: defaultValues?.maintenance_message || "",
+    maintenance_until: toKoreanDateTimeLocal(defaultValues?.maintenance_until),
     upstream_scheme: defaultValues?.upstream_scheme || "http",
     skip_tls_verify: defaultValues?.skip_tls_verify ?? false,
     tls_enabled: defaultValues?.tls_enabled ?? true,
@@ -70,6 +73,8 @@ export function buildServiceSubmitPayload(data: ServiceFormData): ServiceCreate 
     upstream_host: data.upstream_host,
     upstream_port: data.upstream_port,
     routing_mode: data.routing_mode,
+    maintenance_message: data.maintenance_message.trim(),
+    maintenance_until: toMaintenanceUntilIso(data.maintenance_until),
     upstream_scheme: data.upstream_scheme,
     skip_tls_verify: data.upstream_scheme === "https" ? data.skip_tls_verify : false,
     tls_enabled: data.tls_enabled,

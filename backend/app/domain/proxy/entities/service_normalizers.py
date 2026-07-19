@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from ipaddress import ip_network
 import re
 
@@ -6,6 +7,7 @@ AUTH_MODE_VALUES = {"none", "authentik", "token"}
 ROUTING_MODE_VALUES = {"active", "disabled", "maintenance"}
 DEFAULT_HEALTHCHECK_PATH = "/"
 DEFAULT_HEALTHCHECK_TIMEOUT_MS = 3000
+MAINTENANCE_MESSAGE_MAX_LENGTH = 300
 
 
 def normalize_auth_mode(auth_mode: str, auth_enabled: bool | None = None) -> str:
@@ -29,6 +31,21 @@ def normalize_routing_mode(routing_mode: str) -> str:
     if normalized not in ROUTING_MODE_VALUES:
         raise ValueError("라우팅 상태는 active, disabled, maintenance 중 하나여야 합니다")
     return normalized
+
+
+def normalize_maintenance_message(message: str) -> str:
+    normalized = " ".join(message.split())
+    if len(normalized) > MAINTENANCE_MESSAGE_MAX_LENGTH:
+        raise ValueError(f"점검 안내 문구는 {MAINTENANCE_MESSAGE_MAX_LENGTH}자 이하여야 합니다")
+    return normalized
+
+
+def normalize_maintenance_until(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("점검 종료 예정 시각에는 시간대 정보가 필요합니다")
+    return value.astimezone(timezone.utc)
 
 
 def normalize_healthcheck_path(healthcheck_path: str) -> str:

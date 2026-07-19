@@ -12,11 +12,16 @@ def service_resource_id(service) -> str:
 
 
 def service_audit_summary(service) -> dict[str, object]:
+    maintenance_until = getattr(service, "maintenance_until", None)
     return {
         "name": getattr(service, "name", ""),
         "upstream_host": getattr(service, "upstream_host", ""),
         "upstream_port": getattr(service, "upstream_port", 0),
         "routing_mode": getattr(service, "routing_mode", "active"),
+        "maintenance_message": getattr(service, "maintenance_message", ""),
+        "maintenance_until": (
+            maintenance_until.isoformat() if maintenance_until is not None else None
+        ),
         "upstream_scheme": getattr(service, "upstream_scheme", "http"),
         "skip_tls_verify": bool(getattr(service, "skip_tls_verify", False)),
         "tls_enabled": bool(getattr(service, "tls_enabled", True)),
@@ -64,6 +69,8 @@ def build_service_rollback_payload(before_service, after_service) -> dict[str, o
         "upstream_host",
         "upstream_port",
         "routing_mode",
+        "maintenance_message",
+        "maintenance_until",
         "upstream_scheme",
         "skip_tls_verify",
         "tls_enabled",

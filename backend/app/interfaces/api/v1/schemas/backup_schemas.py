@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 
 class BackupServiceItem(BaseModel):
@@ -9,6 +9,8 @@ class BackupServiceItem(BaseModel):
     upstream_host: str
     upstream_port: int
     routing_mode: Literal["active", "disabled", "maintenance"] = "active"
+    maintenance_message: str = Field(default="", max_length=300)
+    maintenance_until: AwareDatetime | None = None
     upstream_scheme: str = "http"
     skip_tls_verify: bool = False
     tls_enabled: bool = True

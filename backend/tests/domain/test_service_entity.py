@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pytest
 from app.domain.proxy.entities.service import Service
 
@@ -77,6 +79,24 @@ def test_routing_mode_can_be_updated_and_rejects_unknown_values(make_service):
 
     with pytest.raises(ValueError, match="라우팅 상태는 active, disabled, maintenance"):
         service.update(routing_mode="paused")
+
+
+def test_maintenance_notice_normalizes_message_and_can_clear_until(make_service):
+    service = make_service(
+        maintenance_message="  데이터베이스\n점검 중입니다.  ",
+        maintenance_until=datetime(2030, 1, 2, 3, 4, tzinfo=timezone.utc),
+    )
+
+    assert service.maintenance_message == "데이터베이스 점검 중입니다."
+    assert service.maintenance_until == datetime(2030, 1, 2, 3, 4, tzinfo=timezone.utc)
+
+    service.update(clear_maintenance_until=True)
+    assert service.maintenance_until is None
+
+
+def test_maintenance_until_requires_timezone(make_service):
+    with pytest.raises(ValueError, match="시간대 정보"):
+        make_service(maintenance_until=datetime(2030, 1, 2, 3, 4))
 
 
 def test_healthcheck_update_normalizes_and_stores_policy(make_service):

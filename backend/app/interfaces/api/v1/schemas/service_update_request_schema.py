@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from app.interfaces.api.v1.schemas.service_basic_auth_schemas import BasicAuthCredential
 from app.interfaces.api.v1.schemas.service_request_cross_validators import validate_service_update_cross_fields
@@ -24,6 +24,8 @@ class ServiceUpdate(BaseModel):
     upstream_host: str | None = None
     upstream_port: int | None = None
     routing_mode: Literal["active", "disabled", "maintenance"] | None = None
+    maintenance_message: str | None = Field(default=None, max_length=300)
+    maintenance_until: AwareDatetime | None = None
     upstream_scheme: str | None = None
     skip_tls_verify: bool | None = None
     tls_enabled: bool | None = None

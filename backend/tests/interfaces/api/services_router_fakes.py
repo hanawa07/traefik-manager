@@ -78,6 +78,8 @@ def make_service(**overrides):
         "upstream_host": "app",
         "upstream_port": 8080,
         "routing_mode": "active",
+        "maintenance_message": "",
+        "maintenance_until": None,
         "upstream_scheme": "http",
         "skip_tls_verify": False,
         "tls_enabled": True,

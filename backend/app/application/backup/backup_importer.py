@@ -83,6 +83,11 @@ class BackupImporter:
             upstream_host=item["upstream_host"],
             upstream_port=item["upstream_port"],
             routing_mode=item.get("routing_mode", "active"),
+            maintenance_message=item.get("maintenance_message", ""),
+            maintenance_until=item.get("maintenance_until"),
+            clear_maintenance_until=(
+                "maintenance_until" in item and item.get("maintenance_until") is None
+            ),
             upstream_scheme=item.get("upstream_scheme", "http"),
             skip_tls_verify=item.get("skip_tls_verify", False),
             tls_enabled=item["tls_enabled"],
@@ -111,6 +116,8 @@ class BackupImporter:
             upstream_host=item["upstream_host"],
             upstream_port=item["upstream_port"],
             routing_mode=item.get("routing_mode", "active"),
+            maintenance_message=item.get("maintenance_message", ""),
+            maintenance_until=item.get("maintenance_until"),
             upstream_scheme=item.get("upstream_scheme", "http"),
             skip_tls_verify=item.get("skip_tls_verify", False),
             tls_enabled=item["tls_enabled"],

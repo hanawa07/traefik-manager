@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
+from app.interfaces.api.v1.schemas.backup_schemas import BackupServiceItem
 from app.interfaces.api.v1.schemas.service_schemas import ServiceCreate, ServiceUpdate
 
 
@@ -52,3 +53,24 @@ def test_service_create_rejects_invalid_shared_fields():
 def test_service_update_rejects_invalid_custom_headers():
     with pytest.raises(ValidationError, match="유효하지 않은 헤더 값입니다"):
         ServiceUpdate(custom_headers={"X-Test": "bad\nvalue"})
+
+
+def test_maintenance_until_requires_timezone_at_api_boundaries():
+    with pytest.raises(ValidationError, match="timezone"):
+        ServiceCreate(
+            name="svc",
+            domain="svc.example.com",
+            upstream_host="app",
+            upstream_port=8080,
+            maintenance_until="2030-01-02T03:04:00",
+        )
+
+    with pytest.raises(ValidationError, match="timezone"):
+        BackupServiceItem(
+            name="svc",
+            domain="svc.example.com",
+            upstream_host="app",
+            upstream_port=8080,
+            auth_enabled=False,
+            maintenance_until="2030-01-02T03:04:00",
+        )

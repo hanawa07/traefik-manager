@@ -13,6 +13,8 @@ class ServiceModel(Base):
     upstream_host: Mapped[str] = mapped_column(String(255), nullable=False)
     upstream_port: Mapped[int] = mapped_column(nullable=False)
     routing_mode: Mapped[str] = mapped_column(String(20), nullable=False, server_default="active")
+    maintenance_message: Mapped[str] = mapped_column(String(300), nullable=False, server_default="")
+    maintenance_until: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     upstream_scheme: Mapped[str] = mapped_column(String(10), nullable=False, server_default="http")
     skip_tls_verify: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     tls_enabled: Mapped[bool] = mapped_column(Boolean, default=True)

@@ -32,6 +32,8 @@ from .service_normalizers import (
     normalize_healthcheck_path,
     normalize_healthcheck_timeout_ms,
     normalize_middleware_template_ids,
+    normalize_maintenance_message,
+    normalize_maintenance_until,
     normalize_rate_limit,
     normalize_routing_mode,
 )
@@ -59,6 +61,8 @@ class Service:
     created_at: datetime
     updated_at: datetime
     routing_mode: str = "active"
+    maintenance_message: str = ""
+    maintenance_until: datetime | None = None
     auth_mode: str = "none"  # "none" | "authentik" | "token"
     api_key: str | None = None
     https_redirect_enabled: bool = True
@@ -101,6 +105,8 @@ class Service:
         upstream_host: str,
         upstream_port: int,
         routing_mode: str = "active",
+        maintenance_message: str = "",
+        maintenance_until: datetime | None = None,
         tls_enabled: bool = True,
         auth_enabled: bool | None = None,
         auth_mode: str = "none",
@@ -151,6 +157,8 @@ class Service:
             domain=DomainName(domain),
             upstream=Upstream(upstream_host, upstream_port),
             routing_mode=normalize_routing_mode(routing_mode),
+            maintenance_message=normalize_maintenance_message(maintenance_message),
+            maintenance_until=normalize_maintenance_until(maintenance_until),
             tls_enabled=tls_enabled,
             auth_enabled=auth_state.auth_enabled,
             auth_mode=auth_state.auth_mode,
@@ -185,6 +193,9 @@ class Service:
         upstream_host: str | None = None,
         upstream_port: int | None = None,
         routing_mode: str | None = None,
+        maintenance_message: str | None = None,
+        maintenance_until: datetime | None = None,
+        clear_maintenance_until: bool = False,
         tls_enabled: bool | None = None,
         auth_enabled: bool | None = None,
         auth_mode: str | None = None,
@@ -211,6 +222,12 @@ class Service:
             self.name = name
         if routing_mode is not None:
             self.routing_mode = normalize_routing_mode(routing_mode)
+        if maintenance_message is not None:
+            self.maintenance_message = normalize_maintenance_message(maintenance_message)
+        if clear_maintenance_until:
+            self.maintenance_until = None
+        elif maintenance_until is not None:
+            self.maintenance_until = normalize_maintenance_until(maintenance_until)
         if upstream_host is not None or upstream_port is not None:
             host = upstream_host or self.upstream.host
             port = upstream_port or self.upstream.port

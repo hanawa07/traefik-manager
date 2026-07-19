@@ -132,6 +132,20 @@ async def test_save_persists_routing_mode_on_insert(make_service):
     assert session.added.routing_mode == "disabled"
 
 
+@pytest.mark.asyncio
+async def test_save_persists_maintenance_notice_on_insert(make_service):
+    session = StubAsyncSession()
+    repository = SQLiteServiceRepository(session)
+    until = datetime(2030, 1, 2, 3, 4, tzinfo=timezone.utc)
+
+    await repository.save(
+        make_service(maintenance_message="점검 중입니다.", maintenance_until=until)
+    )
+
+    assert session.added.maintenance_message == "점검 중입니다."
+    assert session.added.maintenance_until == until
+
+
 def test_to_entity_restores_healthcheck_policy():
     now = datetime.now(timezone.utc)
     model = ServiceModel(

@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { CirclePause, Construction, RadioTower } from "lucide-react";
-import type { UseFormRegister } from "react-hook-form";
+import type { FieldErrors, UseFormRegister } from "react-hook-form";
 
 import type { RoutingMode } from "../api/serviceApi";
 import type { ServiceFormData } from "./serviceFormSchema";
@@ -36,9 +36,13 @@ const ROUTING_MODES: {
 ];
 
 export default function ServiceRoutingModeFields({
+  errors,
   register,
+  routingMode,
 }: {
+  errors: FieldErrors<ServiceFormData>;
   register: UseFormRegister<ServiceFormData>;
+  routingMode: ServiceFormData["routing_mode"];
 }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/40">
@@ -70,6 +74,39 @@ export default function ServiceRoutingModeFields({
           );
         })}
       </div>
+      {routingMode === "maintenance" ? (
+        <div className="mt-4 grid gap-4 border-t border-amber-200 pt-4 dark:border-amber-500/20 lg:grid-cols-2">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
+            점검 안내 문구
+            <textarea
+              {...register("maintenance_message")}
+              className="input mt-1 min-h-24 resize-y"
+              maxLength={300}
+              placeholder="예: 서버 업데이트를 진행하고 있습니다."
+            />
+            {errors.maintenance_message ? (
+              <span className="mt-1 block text-xs text-rose-600 dark:text-rose-300">
+                {errors.maintenance_message.message}
+              </span>
+            ) : null}
+          </label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
+            점검 종료 예정 시각 (한국 시간)
+            <input
+              {...register("maintenance_until")}
+              className="input mt-1"
+              type="datetime-local"
+            />
+            {errors.maintenance_until ? (
+              <span className="mt-1 block text-xs text-rose-600 dark:text-rose-300">
+                {errors.maintenance_until.message}
+              </span>
+            ) : (
+              <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">선택 사항입니다.</span>
+            )}
+          </label>
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -20,6 +20,7 @@ interface ServiceFormFieldsProps {
   setValue: UseFormSetValue<ServiceFormData>;
   errors: FieldErrors<ServiceFormData>;
   onSubmit: (event?: React.BaseSyntheticEvent) => Promise<void>;
+  routingMode: ServiceFormData["routing_mode"];
   tlsEnabled: boolean;
   authMode: ServiceFormData["auth_mode"];
   apiKeyValue: string | null | undefined;
@@ -50,6 +51,7 @@ export default function ServiceFormFields({
   setValue,
   errors,
   onSubmit,
+  routingMode,
   tlsEnabled,
   authMode,
   apiKeyValue,
@@ -76,7 +78,7 @@ export default function ServiceFormFields({
 }: ServiceFormFieldsProps) {
   return (
     <form onSubmit={onSubmit} className="space-y-5">
-      <ServiceRoutingModeFields register={register} />
+      <ServiceRoutingModeFields errors={errors} register={register} routingMode={routingMode} />
 
       <ServiceBasicInfoFields
         register={register}

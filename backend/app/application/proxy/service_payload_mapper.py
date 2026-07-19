@@ -11,6 +11,8 @@ def create_service_from_payload(data: Any) -> Service:
         upstream_host=data.upstream_host,
         upstream_port=data.upstream_port,
         routing_mode=getattr(data, "routing_mode", "active"),
+        maintenance_message=getattr(data, "maintenance_message", ""),
+        maintenance_until=getattr(data, "maintenance_until", None),
         tls_enabled=data.tls_enabled,
         auth_mode=data.auth_mode,
         api_key=data.api_key,
@@ -50,6 +52,12 @@ def apply_service_update_payload(service: Service, update_payload: dict[str, Any
         upstream_host=update_payload.get("upstream_host"),
         upstream_port=update_payload.get("upstream_port"),
         routing_mode=update_payload.get("routing_mode"),
+        maintenance_message=update_payload.get("maintenance_message"),
+        maintenance_until=update_payload.get("maintenance_until"),
+        clear_maintenance_until=(
+            "maintenance_until" in update_payload
+            and update_payload.get("maintenance_until") is None
+        ),
         tls_enabled=update_payload.get("tls_enabled"),
         auth_mode=update_payload.get("auth_mode"),
         api_key=update_payload.get("api_key"),

@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pytest
 from app.infrastructure.traefik.config_generator import TraefikConfigGenerator
 
@@ -131,15 +133,42 @@ def test_generate_frame_policy_off_skips_frame_headers(generator, make_service):
 
 
 def test_generate_maintenance_routes_to_manager_without_original_upstream(generator, make_service):
-    service = make_service(domain="paused.example.com", routing_mode="maintenance")
+    service = make_service(
+        domain="paused.example.com",
+        routing_mode="maintenance",
+        maintenance_message="데이터베이스 점검 중입니다.",
+        maintenance_until=datetime(2030, 1, 2, 3, 4, tzinfo=timezone.utc),
+    )
 
     config = generator.generate(service)
 
     routers = config["http"]["routers"]
     assert routers["paused-example-com"]["service"] == "traefik-manager-frontend-file@file"
-    assert routers["paused-example-com"]["middlewares"] == ["paused-example-com-maintenance-path"]
+    assert routers["paused-example-com"]["middlewares"] == [
+        "paused-example-com-maintenance-path",
+        "paused-example-com-maintenance-context",
+    ]
     assert routers["paused-example-com-maintenance-assets"]["priority"] == 200
     assert config["http"]["middlewares"]["paused-example-com-maintenance-path"] == {
         "replacePath": {"path": "/maintenance"}
     }
+    assert config["http"]["middlewares"]["paused-example-com-maintenance-context"] == {
+        "headers": {
+            "customRequestHeaders": {
+                "X-TM-Maintenance-Message": "%EB%8D%B0%EC%9D%B4%ED%84%B0%EB%B2%A0%EC%9D%B4%EC%8A%A4%20%EC%A0%90%EA%B2%80%20%EC%A4%91%EC%9E%85%EB%8B%88%EB%8B%A4.",
+                "X-TM-Maintenance-Until": "2030-01-02T03:04:00Z",
+            }
+        }
+    }
     assert "10.0.0.1:8080" not in str(config)
+
+
+def test_generate_maintenance_without_notice_keeps_generic_page(generator, make_service):
+    config = generator.generate(
+        make_service(domain="paused.example.com", routing_mode="maintenance")
+    )
+
+    router = config["http"]["routers"]["paused-example-com"]
+    middlewares = config["http"]["middlewares"]
+    assert router["middlewares"] == ["paused-example-com-maintenance-path"]
+    assert "paused-example-com-maintenance-context" not in middlewares

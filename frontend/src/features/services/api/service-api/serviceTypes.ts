@@ -9,6 +9,8 @@ export interface Service {
   upstream_host: string;
   upstream_port: number;
   routing_mode: RoutingMode;
+  maintenance_message: string;
+  maintenance_until: string | null;
   upstream_scheme: "http" | "https";
   skip_tls_verify: boolean;
   tls_enabled: boolean;
@@ -49,6 +51,8 @@ export interface ServiceCreate {
   upstream_host: string;
   upstream_port: number;
   routing_mode: RoutingMode;
+  maintenance_message?: string;
+  maintenance_until?: string | null;
   upstream_scheme: "http" | "https";
   skip_tls_verify: boolean;
   tls_enabled: boolean;
@@ -78,6 +82,8 @@ export interface ServiceUpdate {
   upstream_host?: string;
   upstream_port?: number;
   routing_mode?: RoutingMode;
+  maintenance_message?: string;
+  maintenance_until?: string | null;
   upstream_scheme?: "http" | "https";
   skip_tls_verify?: boolean;
   tls_enabled?: boolean;

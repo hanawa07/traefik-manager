@@ -13,6 +13,8 @@ class ServiceResponse(BaseModel):
     upstream_host: str
     upstream_port: int
     routing_mode: str
+    maintenance_message: str
+    maintenance_until: datetime | None = None
     upstream_scheme: str
     skip_tls_verify: bool
     tls_enabled: bool

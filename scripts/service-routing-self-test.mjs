@@ -5,6 +5,10 @@ import {
   countServiceRoutingModes,
   getRoutingUpdateTargets,
 } from "../frontend/src/features/services/lib/serviceRouting.ts";
+import {
+  toKoreanDateTimeLocal,
+  toMaintenanceUntilIso,
+} from "../frontend/src/features/services/lib/maintenanceSchedule.ts";
 
 const services = [
   { id: "active", routing_mode: "active" },
@@ -40,5 +44,7 @@ assert.deepEqual(updateEvents, [
   "start:maintenance:maintenance",
   "end:maintenance",
 ]);
+assert.equal(toMaintenanceUntilIso("2030-01-02T12:04"), "2030-01-02T03:04:00.000Z");
+assert.equal(toKoreanDateTimeLocal("2030-01-02T03:04:00Z"), "2030-01-02T12:04");
 
-console.log("서비스 운영 상태 집계·순차 일괄 변경·실패 식별 self-test 통과");
+console.log("서비스 운영 상태 집계·순차 일괄 변경·점검 시각 self-test 통과");

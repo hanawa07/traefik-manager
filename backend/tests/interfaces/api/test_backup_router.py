@@ -14,6 +14,8 @@ class StubBackupUseCases:
                     "upstream_host": "homepage",
                     "upstream_port": 3000,
                     "routing_mode": "active",
+                    "maintenance_message": "",
+                    "maintenance_until": None,
                     "upstream_scheme": "http",
                     "skip_tls_verify": False,
                     "tls_enabled": True,

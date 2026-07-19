@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from app.domain.proxy.entities.service import Service
 from app.infrastructure.traefik.service_router_builder import assign_entrypoint
 
@@ -34,6 +36,15 @@ def build_maintenance_service_config(*, service: Service, safe_name_getter, tls_
             }
         }
     }
+    context_headers = _build_maintenance_context_headers(service)
+    if context_headers:
+        context_name = f"{router_name}-maintenance-context"
+        middlewares[context_name] = {
+            "headers": {
+                "customRequestHeaders": context_headers,
+            }
+        }
+        routers[router_name]["middlewares"].append(context_name)
     if service.tls_enabled and service.https_redirect_enabled:
         redirect_name = f"{router_name}-maintenance-redirect"
         middlewares[redirect_name] = {
@@ -55,3 +66,18 @@ def build_maintenance_service_config(*, service: Service, safe_name_getter, tls_
             "middlewares": middlewares,
         }
     }
+
+
+def _build_maintenance_context_headers(service: Service) -> dict[str, str]:
+    headers: dict[str, str] = {}
+    if service.maintenance_message:
+        headers["X-TM-Maintenance-Message"] = quote(
+            service.maintenance_message,
+            safe="",
+        )
+    if service.maintenance_until:
+        headers["X-TM-Maintenance-Until"] = service.maintenance_until.isoformat().replace(
+            "+00:00",
+            "Z",
+        )
+    return headers

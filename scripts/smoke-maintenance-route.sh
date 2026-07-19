@@ -50,6 +50,7 @@ response_body="$(mktemp)"
 
 docker exec -i "${backend_container}" python - "${SMOKE_DOMAIN}" > "${temporary_config}" <<'PY'
 import sys
+from datetime import datetime, timezone
 
 from app.domain.proxy.entities.service import Service
 from app.infrastructure.traefik.config_generator import TraefikConfigGenerator
@@ -60,6 +61,8 @@ service = Service.create(
     upstream_host="unused.invalid",
     upstream_port=80,
     routing_mode="maintenance",
+    maintenance_message="안전한 점검 라우팅 검증 중입니다.",
+    maintenance_until=datetime(2030, 1, 2, 3, 4, tzinfo=timezone.utc),
     tls_enabled=False,
     https_redirect_enabled=False,
 )
@@ -79,12 +82,18 @@ while (( SECONDS < deadline )); do
       --write-out '%{http_code}' --header "Host: ${SMOKE_DOMAIN}" \
       "${BASE_URL%/}/smoke-check" 2>/dev/null || printf '000'
   )"
-  if [[ "${status}" == "200" ]] && grep -q '더 나은 상태로' "${response_body}"; then
+  if [[ "${status}" == "200" ]] \
+    && grep -q '더 나은 상태로' "${response_body}" \
+    && grep -q '안전한 점검 라우팅 검증 중입니다.' "${response_body}" \
+    && grep -q '2030년 1월 2일' "${response_body}"; then
     break
   fi
   sleep 0.2
 done
-if [[ "${status}" != "200" ]] || ! grep -q '더 나은 상태로' "${response_body}"; then
+if [[ "${status}" != "200" ]] \
+  || ! grep -q '더 나은 상태로' "${response_body}" \
+  || ! grep -q '안전한 점검 라우팅 검증 중입니다.' "${response_body}" \
+  || ! grep -q '2030년 1월 2일' "${response_body}"; then
   echo "점검 안내 라우팅 스모크 실패: HTTP ${status}" >&2
   exit 1
 fi

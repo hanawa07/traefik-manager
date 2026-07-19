@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from app.interfaces.api.v1.schemas.service_basic_auth_schemas import BasicAuthCredential
 from app.interfaces.api.v1.schemas.service_request_cross_validators import validate_service_create_cross_fields
@@ -30,6 +30,8 @@ class ServiceCreate(BaseModel):
     upstream_host: str
     upstream_port: int
     routing_mode: Literal["active", "disabled", "maintenance"] = "active"
+    maintenance_message: str = Field(default="", max_length=300)
+    maintenance_until: AwareDatetime | None = None
     upstream_scheme: str = "http"
     skip_tls_verify: bool = False
     tls_enabled: bool = True
