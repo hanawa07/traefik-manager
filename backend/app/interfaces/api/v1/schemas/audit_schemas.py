@@ -1,7 +1,9 @@
 from datetime import datetime
+from typing import Any, Literal
 from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict
-from typing import Any
+
 
 class AuditLogResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -64,6 +66,17 @@ class AuditManagerHealthSummaryResponse(BaseModel):
     api_recovered_count: int
     watchdog_unhealthy_count: int
     watchdog_recovered_count: int
+
+
+class AuditBulkOperationSummaryResponse(BaseModel):
+    operation_id: UUID
+    actor: str
+    service_count: int
+    service_names: list[str]
+    routing_mode_after: str | None = None
+    completed_at: datetime
+    notification_status: Literal["success", "failure", "none"]
+    notification_provider: str | None = None
 
 
 class AuditDeliveryRetryResponse(BaseModel):

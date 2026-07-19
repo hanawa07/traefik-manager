@@ -40,6 +40,17 @@ export interface AuditLogPage {
   total: number;
 }
 
+export interface AuditBulkOperationSummary {
+  operation_id: string;
+  actor: string;
+  service_count: number;
+  service_names: string[];
+  routing_mode_after: string | null;
+  completed_at: string;
+  notification_status: "success" | "failure" | "none";
+  notification_provider: string | null;
+}
+
 export function buildAuditExportUrl(params: AuditLogQueryParams): string {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -116,6 +127,13 @@ export const auditApi = {
     const res = await apiClient.get<AuditLogItem[]>("/audit", { params });
     const total = Number(res.headers["x-total-count"]);
     return { items: res.data, total: Number.isFinite(total) ? total : res.data.length };
+  },
+
+  getBulkOperations: async (limit = 5): Promise<AuditBulkOperationSummary[]> => {
+    const res = await apiClient.get<AuditBulkOperationSummary[]>("/audit/bulk-operations", {
+      params: { limit },
+    });
+    return res.data;
   },
 
   getRetryChain: async (auditLogId: string): Promise<AuditLogItem[]> => {

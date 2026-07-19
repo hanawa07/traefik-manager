@@ -16,6 +16,9 @@ from app.infrastructure.persistence.repositories.sqlite_system_settings_reposito
     SQLiteSystemSettingsRepository,
 )
 from app.interfaces.api.dependencies import get_current_user, require_admin
+from app.interfaces.api.v1.routers.audit_bulk_operations import (
+    router as audit_bulk_operations_router,
+)
 from app.interfaces.api.v1.routers.audit_export import router as audit_export_router
 from app.interfaces.api.v1.routers.audit_certificate_summary import build_certificate_summary
 from app.interfaces.api.v1.routers.audit_delayed_retries import load_delayed_automatic_retries
@@ -36,6 +39,7 @@ from app.interfaces.api.v1.schemas.audit_schemas import (
 )
 
 router = APIRouter()
+router.include_router(audit_bulk_operations_router)
 router.include_router(audit_export_router)
 
 

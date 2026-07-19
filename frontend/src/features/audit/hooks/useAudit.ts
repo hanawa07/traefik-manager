@@ -22,6 +22,14 @@ export const useAuditPage = (params: AuditLogQueryParams, enabled = true) => {
   });
 };
 
+export const useAuditBulkOperations = (limit = 5) => {
+  return useQuery({
+    queryKey: ["audit-bulk-operations", limit],
+    queryFn: () => auditApi.getBulkOperations(limit),
+    staleTime: 15_000,
+  });
+};
+
 export const useAuditRetryChain = (auditLogId: string, enabled: boolean) => {
   return useQuery({
     queryKey: ["audit-logs", "retry-chain", auditLogId],
@@ -109,6 +117,7 @@ export const useAuditRetryDelivery = () => {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["audit-logs"] }),
+        queryClient.invalidateQueries({ queryKey: ["audit-bulk-operations"] }),
         queryClient.invalidateQueries({ queryKey: ["settings", "test-history"] }),
       ]);
     },

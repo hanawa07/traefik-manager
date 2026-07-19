@@ -3,6 +3,7 @@
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Suspense } from "react";
 import { AuditFeedbackBanner } from "./AuditFeedbackBanner";
+import { AuditBulkOperationsOverview } from "./AuditBulkOperationsOverview";
 import { AuditDelayedRetryTrend } from "./AuditDelayedRetryTrend";
 import { AuditLogFilters } from "./AuditLogFilters";
 import { AuditLogPageHeader } from "./AuditLogPageHeader";
@@ -54,6 +55,7 @@ function AuditLogPageContent() {
       <AuditFeedbackBanner feedback={rollbackFeedback} />
       <AuditFeedbackBanner feedback={deliveryFeedback} />
 
+      <AuditBulkOperationsOverview timezone={table.timezone} />
       <AuditLogTable {...table} />
     </div>
   );

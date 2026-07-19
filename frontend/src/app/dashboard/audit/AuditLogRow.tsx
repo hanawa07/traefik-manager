@@ -69,8 +69,7 @@ export function AuditLogRow({
     diffRows.length > 0 ||
     deliveryRows.length > 0 ||
     managerDetailRows.length > 0 ||
-    smokeRotationDetailRows.length > 0 ||
-    bulkOperationId !== null;
+    smokeRotationDetailRows.length > 0;
   const rollbackResourceType = isRollbackResourceType(log.resource_type) ? log.resource_type : null;
   const rollbackSupported =
     detail?.rollback_supported === true && log.action === "update" && rollbackResourceType !== null;
@@ -127,7 +126,6 @@ export function AuditLogRow({
               deliveryRows={deliveryRows}
               managerDetailRows={managerDetailRows}
               smokeRotationDetailRows={smokeRotationDetailRows}
-              bulkOperationId={bulkOperationId}
               rollbackSupported={rollbackSupported}
               rollbackResourceType={rollbackResourceType}
               retryChainSupported={retryChainSupported}
