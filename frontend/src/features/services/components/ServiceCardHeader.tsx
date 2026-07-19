@@ -6,10 +6,18 @@ import type { Service } from "../api/serviceApi";
 interface ServiceCardHeaderProps {
   service: Service;
   canManage: boolean;
+  selected?: boolean;
+  onSelectionChange?: (service: Service, selected: boolean) => void;
   onDelete: (service: Service) => void;
 }
 
-export default function ServiceCardHeader({ service, canManage, onDelete }: ServiceCardHeaderProps) {
+export default function ServiceCardHeader({
+  service,
+  canManage,
+  selected = false,
+  onSelectionChange,
+  onDelete,
+}: ServiceCardHeaderProps) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0 flex-1">
@@ -32,6 +40,17 @@ export default function ServiceCardHeader({ service, canManage, onDelete }: Serv
 
       {canManage ? (
         <div className="flex flex-shrink-0 items-center gap-1">
+          {onSelectionChange ? (
+            <label className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+              <span className="sr-only">{service.name} 선택</span>
+              <input
+                checked={selected}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-900"
+                onChange={(event) => onSelectionChange(service, event.target.checked)}
+                type="checkbox"
+              />
+            </label>
+          ) : null}
           <Link
             href={`/dashboard/services/${service.id}`}
             className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:text-slate-500 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"

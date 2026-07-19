@@ -3,10 +3,14 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import type { RoutingMode, Service } from "@/features/services/api/serviceApi";
+import { useBulkUpdateServiceRoutingMode } from "@/features/services/hooks/useServices";
 import ToastNotice, { type ToastNoticeValue } from "@/shared/components/ToastNotice";
 import DeleteServiceModal from "./DeleteServiceModal";
 import { ServiceSaveDiagnosisBanner } from "./ServiceSaveDiagnosisBanner";
+import ServiceBulkRoutingActions from "./ServiceBulkRoutingActions";
 import ServicesListSection from "./ServicesListSection";
+import ServiceRoutingSummary from "./ServiceRoutingSummary";
 import ServicesToolbar from "./ServicesToolbar";
 import type { ServiceDiagnosisHistoryMap } from "./serviceGatewayDiagnosisAuditSnapshots";
 import {
@@ -22,8 +26,14 @@ export default function ServicesPage() {
   const [saveDiagnosisNotice, setSaveDiagnosisNotice] = useState<ServiceSaveDiagnosisNotice | null>(null);
   const [diagnosisSnapshots, setDiagnosisSnapshots] = useState<ServiceDiagnosisSnapshotMap>({});
   const [toastNotice, setToastNotice] = useState<ToastNoticeValue | null>(null);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [bulkRoutingMode, setBulkRoutingMode] = useState<RoutingMode>("active");
+  const bulkRoutingUpdate = useBulkUpdateServiceRoutingMode();
   const combinedDiagnosisSnapshots = { ...model.diagnosisSnapshots, ...diagnosisSnapshots };
   const combinedDiagnosisHistories = mergeDiagnosisHistories(model.diagnosisHistories, diagnosisSnapshots);
+  const visibleServiceIds = model.filteredServices.map((service) => service.id);
+  const allVisibleSelected =
+    visibleServiceIds.length > 0 && visibleServiceIds.every((id) => selectedServiceIds.includes(id));
 
   useEffect(() => {
     const notice = consumeServiceSaveDiagnosisNotice();
@@ -32,9 +42,60 @@ export default function ServicesPage() {
     setDiagnosisSnapshots(readServiceDiagnosisSnapshots());
   }, []);
 
+  useEffect(() => {
+    const existingIds = new Set(model.services.map((service) => service.id));
+    setSelectedServiceIds((current) => {
+      const next = current.filter((id) => existingIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [model.services]);
+
   const handleDiagnosisNoticeChange = (notice: ServiceSaveDiagnosisNotice) => {
     setSaveDiagnosisNotice(notice);
     setDiagnosisSnapshots((current) => ({ ...current, [notice.serviceId]: notice }));
+  };
+
+  const handleServiceSelection = (service: Service, selected: boolean) => {
+    setSelectedServiceIds((current) =>
+      selected
+        ? Array.from(new Set([...current, service.id]))
+        : current.filter((id) => id !== service.id),
+    );
+  };
+
+  const handleToggleVisibleSelection = () => {
+    const visibleIds = new Set(visibleServiceIds);
+    setSelectedServiceIds((current) =>
+      allVisibleSelected
+        ? current.filter((id) => !visibleIds.has(id))
+        : Array.from(new Set([...current, ...visibleServiceIds])),
+    );
+  };
+
+  const handleBulkRoutingApply = async () => {
+    const label = getRoutingModeLabel(bulkRoutingMode);
+    const consequence = getRoutingModeConsequence(bulkRoutingMode);
+    if (!window.confirm(`${selectedServiceIds.length}개 서비스를 '${label}' 상태로 변경합니까?\n\n${consequence}`)) return;
+
+    try {
+      const changedCount = await bulkRoutingUpdate.mutateAsync({
+        services: model.services,
+        selectedServiceIds,
+        routingMode: bulkRoutingMode,
+      });
+      setSelectedServiceIds([]);
+      setToastNotice({
+        tone: "success",
+        message: "운영 상태 일괄 변경 완료",
+        detail: changedCount > 0 ? `${changedCount}개 서비스를 ${label} 상태로 변경했습니다.` : "이미 같은 상태여서 변경된 서비스가 없습니다.",
+      });
+    } catch (error) {
+      setToastNotice({
+        tone: "warning",
+        message: "운영 상태 일부 변경 실패",
+        detail: error instanceof Error ? error.message : "목록을 새로고침한 뒤 다시 시도해 주세요.",
+      });
+    }
   };
 
   return (
@@ -65,6 +126,14 @@ export default function ServicesPage() {
         />
       ) : null}
 
+      {!model.isLoading ? (
+        <ServiceRoutingSummary
+          services={model.services}
+          activeFilter={model.healthFilter}
+          onFilterChange={model.setHealthFilter}
+        />
+      ) : null}
+
       {/* 검색 + 정렬 툴바 */}
       <ServicesToolbar
         search={model.search}
@@ -76,6 +145,20 @@ export default function ServicesPage() {
         onSortKeyChange={model.setSortKey}
         onSortDirChange={model.setSortDir}
       />
+
+      {model.canManage && !model.isLoading ? (
+        <ServiceBulkRoutingActions
+          allVisibleSelected={allVisibleSelected}
+          isPending={bulkRoutingUpdate.isPending}
+          onApply={handleBulkRoutingApply}
+          onClear={() => setSelectedServiceIds([])}
+          onRoutingModeChange={setBulkRoutingMode}
+          onToggleVisible={handleToggleVisibleSelection}
+          routingMode={bulkRoutingMode}
+          selectedCount={selectedServiceIds.length}
+          visibleCount={visibleServiceIds.length}
+        />
+      ) : null}
 
       {/* 목록 */}
       <ServicesListSection
@@ -90,8 +173,10 @@ export default function ServicesPage() {
         displayTimeZone={model.displayTimeZone}
         diagnosisHistories={combinedDiagnosisHistories}
         diagnosisSnapshots={combinedDiagnosisSnapshots}
+        selectedServiceIds={selectedServiceIds}
         onClearSearch={() => model.setSearch("")}
         onDelete={model.setDeleteTarget}
+        onSelectionChange={handleServiceSelection}
       />
 
       {/* 삭제 확인 모달 */}
@@ -103,6 +188,18 @@ export default function ServicesPage() {
       />
     </div>
   );
+}
+
+function getRoutingModeLabel(mode: RoutingMode) {
+  if (mode === "disabled") return "라우팅 비활성";
+  if (mode === "maintenance") return "점검 안내";
+  return "정상 운영";
+}
+
+function getRoutingModeConsequence(mode: RoutingMode) {
+  if (mode === "disabled") return "선택한 도메인의 Traefik 라우터가 제거되어 외부 요청은 404로 응답합니다.";
+  if (mode === "maintenance") return "선택한 도메인은 원래 앱 대신 공개 점검 안내 화면을 제공합니다.";
+  return "선택한 도메인이 원래 업스트림 앱으로 다시 연결됩니다.";
 }
 
 function buildServiceSaveToast(notice: ServiceSaveDiagnosisNotice): ToastNoticeValue {

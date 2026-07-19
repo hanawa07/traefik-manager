@@ -20,8 +20,10 @@ interface ServicesListSectionProps {
   displayTimeZone?: string;
   diagnosisHistories: ServiceDiagnosisHistoryMap;
   diagnosisSnapshots: ServiceDiagnosisSnapshotMap;
+  selectedServiceIds: string[];
   onClearSearch: () => void;
   onDelete: (service: Service) => void;
+  onSelectionChange: (service: Service, selected: boolean) => void;
 }
 
 export default function ServicesListSection({
@@ -36,8 +38,10 @@ export default function ServicesListSection({
   displayTimeZone,
   diagnosisHistories,
   diagnosisSnapshots,
+  selectedServiceIds,
   onClearSearch,
   onDelete,
+  onSelectionChange,
 }: ServicesListSectionProps) {
   if (isLoading) return <ServicesLoadingGrid />;
   if (services.length === 0) {
@@ -66,6 +70,8 @@ export default function ServicesListSection({
           certificate={certificateMap[service.domain]}
           gatewayDiagnosisHistory={diagnosisHistories[service.id]}
           lastGatewayDiagnosis={diagnosisSnapshots[service.id]?.diagnosis}
+          selected={selectedServiceIds.includes(service.id)}
+          onSelectionChange={canManage ? onSelectionChange : undefined}
         />
       ))}
     </div>

@@ -53,7 +53,7 @@ export function matchesHealthFilter(
 ) {
   const health = healthMap?.[service.id];
   if (healthFilter === "all") return true;
-  if (healthFilter === "disabled" || healthFilter === "maintenance") {
+  if (healthFilter === "active" || healthFilter === "disabled" || healthFilter === "maintenance") {
     return service.routing_mode === healthFilter;
   }
   if (!health) return false;

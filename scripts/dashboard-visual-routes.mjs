@@ -98,7 +98,12 @@ export const DASHBOARD_ROUTES = [
   },
   { label: "미들웨어", path: "/dashboard/middlewares", marker: "공용 템플릿" },
   { label: "리다이렉트", path: "/dashboard/redirects", marker: "도메인 리다이렉트 호스트 관리" },
-  { label: "서비스", path: "/dashboard/services", marker: "Traefik 라우팅 서비스 관리" },
+  {
+    label: "서비스",
+    path: "/dashboard/services",
+    marker: "Traefik 라우팅 서비스 관리",
+    requiredMarkers: ["운영 상태", "정상 운영", "라우팅 비활성", "점검 안내 중"],
+  },
   {
     label: "설정",
     path: "/dashboard/settings",

@@ -19,6 +19,8 @@ interface ServiceCardProps {
   certificate?: Certificate;
   lastGatewayDiagnosis?: ServiceGatewayDiagnosis | null;
   gatewayDiagnosisHistory?: ServiceGatewayDiagnosis[];
+  selected?: boolean;
+  onSelectionChange?: (service: Service, selected: boolean) => void;
 }
 
 export default function ServiceCard({
@@ -33,6 +35,8 @@ export default function ServiceCard({
   certificate,
   gatewayDiagnosisHistory,
   lastGatewayDiagnosis,
+  selected,
+  onSelectionChange,
 }: ServiceCardProps) {
   const isActive = service.routing_mode === "active";
   return (
@@ -41,7 +45,13 @@ export default function ServiceCard({
       data-routing-mode={service.routing_mode}
       data-service-id={service.id}
     >
-      <ServiceCardHeader service={service} canManage={canManage} onDelete={onDelete} />
+      <ServiceCardHeader
+        service={service}
+        canManage={canManage}
+        selected={selected}
+        onSelectionChange={onSelectionChange}
+        onDelete={onDelete}
+      />
       <ServiceCardBadges
         service={service}
         routerActive={routerActive}
