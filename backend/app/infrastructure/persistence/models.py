@@ -131,4 +131,9 @@ class SystemSettingModel(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     key: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     value: Mapped[str | None] = mapped_column(String(1024), nullable=True)
-    updated_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[DateTime | None] = mapped_column(
+        DateTime,
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=True,
+    )
