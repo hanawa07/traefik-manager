@@ -55,6 +55,14 @@ export function AuditBulkOperationsOverview({
   const filterKey = `${period}:${notificationStatus}`;
   const [pagination, setPagination] = useState({ filterKey, visibleCount: PAGE_SIZE });
   const visibleCount = pagination.filterKey === filterKey ? pagination.visibleCount : PAGE_SIZE;
+  const handlePeriodChange = (nextPeriod: AuditBulkPeriod) => {
+    setPagination({ filterKey: `${nextPeriod}:${notificationStatus}`, visibleCount: PAGE_SIZE });
+    onPeriodChange(nextPeriod);
+  };
+  const handleNotificationStatusChange = (nextStatus: AuditBulkNotificationStatus) => {
+    setPagination({ filterKey: `${period}:${nextStatus}`, visibleCount: PAGE_SIZE });
+    onNotificationStatusChange(nextStatus);
+  };
   const canManage = useAuthStore((state) => state.role === "admin");
   const requestLimit = Math.min(visibleCount + 1, MAX_VISIBLE_OPERATIONS);
   const query = useAuditBulkOperations({
@@ -97,7 +105,7 @@ export function AuditBulkOperationsOverview({
             aria-label="일괄 작업 기간"
             className="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-cyan-500/30 dark:bg-slate-900 dark:text-slate-200"
             value={period}
-            onChange={(event) => onPeriodChange(event.target.value as AuditBulkPeriod)}
+            onChange={(event) => handlePeriodChange(event.target.value as AuditBulkPeriod)}
           >
             {auditBulkPeriodOptions.map((option) => (
               <option key={option.key} value={option.key}>{option.label}</option>
@@ -108,7 +116,7 @@ export function AuditBulkOperationsOverview({
             className="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-cyan-500/30 dark:bg-slate-900 dark:text-slate-200"
             value={notificationStatus}
             onChange={(event) =>
-              onNotificationStatusChange(event.target.value as AuditBulkNotificationStatus)
+              handleNotificationStatusChange(event.target.value as AuditBulkNotificationStatus)
             }
           >
             {auditBulkNotificationStatusOptions.map((option) => (
