@@ -107,7 +107,12 @@ export default function ServicesPage() {
 
 function buildServiceSaveToast(notice: ServiceSaveDiagnosisNotice): ToastNoticeValue {
   const actionText = notice.action === "created" ? "추가" : "수정";
-  const diagnosisStatus = notice.error ? "진단 확인 필요" : getDiagnosisStatusLabel(notice.diagnosis?.status);
+  const routingModeNotice = notice.diagnosis?.checks.some((check) => check.key === "routing_mode");
+  const diagnosisStatus = notice.error
+    ? "진단 확인 필요"
+    : routingModeNotice
+      ? notice.diagnosis?.summary
+      : getDiagnosisStatusLabel(notice.diagnosis?.status);
   return {
     tone: notice.diagnosis?.status === "fail" || notice.error ? "warning" : "success",
     message: `서비스 ${actionText} 저장 완료`,

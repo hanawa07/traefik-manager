@@ -14,6 +14,8 @@ export const HEALTH_FILTER_OPTIONS: { value: HealthFilter; label: string }[] = [
   { value: "down", label: "DOWN만" },
   { value: "up", label: "UP만" },
   { value: "unknown", label: "체크 안 함" },
+  { value: "disabled", label: "라우팅 비활성" },
+  { value: "maintenance", label: "점검 안내 중" },
   { value: "dns", label: "DNS 실패" },
   { value: "connection_refused", label: "연결 거부" },
   { value: "timeout", label: "타임아웃" },

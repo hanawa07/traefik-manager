@@ -12,6 +12,7 @@ import ServiceAuthenticationFields from "./ServiceAuthenticationFields";
 import ServiceBasicInfoFields from "./ServiceBasicInfoFields";
 import ServiceFormSubmitActions from "./ServiceFormSubmitActions";
 import ServiceNetworkSecurityFields from "./ServiceNetworkSecurityFields";
+import ServiceRoutingModeFields from "./ServiceRoutingModeFields";
 import type { ServiceFormData } from "./serviceFormSchema";
 
 interface ServiceFormFieldsProps {
@@ -75,6 +76,8 @@ export default function ServiceFormFields({
 }: ServiceFormFieldsProps) {
   return (
     <form onSubmit={onSubmit} className="space-y-5">
+      <ServiceRoutingModeFields register={register} />
+
       <ServiceBasicInfoFields
         register={register}
         errors={errors}

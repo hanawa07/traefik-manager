@@ -1,10 +1,11 @@
-import type { AuthMode, FramePolicy } from "../api/serviceApi";
+import type { AuthMode, FramePolicy, RoutingMode } from "../api/serviceApi";
 
 export interface ServiceFormDefaultValues {
   name?: string;
   domain?: string;
   upstream_host?: string;
   upstream_port?: number;
+  routing_mode?: RoutingMode;
   upstream_scheme?: "http" | "https";
   skip_tls_verify?: boolean;
   tls_enabled?: boolean;

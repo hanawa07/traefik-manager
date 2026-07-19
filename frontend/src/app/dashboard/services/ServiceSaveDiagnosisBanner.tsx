@@ -24,6 +24,7 @@ export function ServiceSaveDiagnosisBanner({
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const diagnosis = notice.diagnosis;
+  const isRoutingModeNotice = diagnosis?.checks.some((check) => check.key === "routing_mode") ?? false;
   const status = notice.error || connectionError ? "warning" : diagnosis?.status ?? "warning";
   const targetNetwork = getTargetNetwork(diagnosis);
   const canConnectNetwork = canManage && Boolean(targetNetwork) && !connectionError;
@@ -64,7 +65,7 @@ export function ServiceSaveDiagnosisBanner({
           <div className="flex items-center gap-2">
             <StatusIcon status={status} />
             <h2 className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-              서비스 {notice.action === "created" ? "추가" : "수정"} 후 자동 게이트웨이 진단
+              서비스 {notice.action === "created" ? "추가" : "수정"} 후 {isRoutingModeNotice ? "운영 상태 적용" : "자동 게이트웨이 진단"}
             </h2>
           </div>
           <p className="mt-1 text-sm text-gray-700 dark:text-slate-200">

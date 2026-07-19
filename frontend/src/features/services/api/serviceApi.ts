@@ -7,6 +7,7 @@ export type {
   AuthMode,
   BasicAuthCredential,
   FramePolicy,
+  RoutingMode,
   Service,
   ServiceCreate,
   ServiceGatewayDiagnosis,

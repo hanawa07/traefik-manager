@@ -10,6 +10,7 @@ const serviceFormBaseSchema = z.object({
   ),
   upstream_host: z.string().min(1, "업스트림 호스트를 입력하세요"),
   upstream_port: z.coerce.number().min(1).max(65535, "1~65535 범위의 포트를 입력하세요"),
+  routing_mode: z.enum(["active", "disabled", "maintenance"]),
   upstream_scheme: z.enum(["http", "https"]),
   skip_tls_verify: z.boolean(),
   tls_enabled: z.boolean(),

@@ -1,5 +1,6 @@
 export type AuthMode = "none" | "authentik" | "token";
 export type FramePolicy = "deny" | "sameorigin" | "off";
+export type RoutingMode = "active" | "disabled" | "maintenance";
 
 export interface Service {
   id: string;
@@ -7,6 +8,7 @@ export interface Service {
   domain: string;
   upstream_host: string;
   upstream_port: number;
+  routing_mode: RoutingMode;
   upstream_scheme: "http" | "https";
   skip_tls_verify: boolean;
   tls_enabled: boolean;
@@ -46,6 +48,7 @@ export interface ServiceCreate {
   domain: string;
   upstream_host: string;
   upstream_port: number;
+  routing_mode: RoutingMode;
   upstream_scheme: "http" | "https";
   skip_tls_verify: boolean;
   tls_enabled: boolean;
@@ -74,6 +77,7 @@ export interface ServiceUpdate {
   name?: string;
   upstream_host?: string;
   upstream_port?: number;
+  routing_mode?: RoutingMode;
   upstream_scheme?: "http" | "https";
   skip_tls_verify?: boolean;
   tls_enabled?: boolean;

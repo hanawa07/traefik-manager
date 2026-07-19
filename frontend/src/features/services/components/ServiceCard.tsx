@@ -34,8 +34,13 @@ export default function ServiceCard({
   gatewayDiagnosisHistory,
   lastGatewayDiagnosis,
 }: ServiceCardProps) {
+  const isActive = service.routing_mode === "active";
   return (
-    <div className="card p-5 transition-shadow hover:shadow-md">
+    <div
+      className="card p-5 transition-shadow hover:shadow-md"
+      data-routing-mode={service.routing_mode}
+      data-service-id={service.id}
+    >
       <ServiceCardHeader service={service} canManage={canManage} onDelete={onDelete} />
       <ServiceCardBadges
         service={service}
@@ -44,15 +49,19 @@ export default function ServiceCard({
         certificate={certificate}
         lastGatewayDiagnosis={lastGatewayDiagnosis}
       />
-      <ServiceCardDiagnosisHistory history={gatewayDiagnosisHistory} displayTimeZone={displayTimeZone} />
-      <ServiceCardHealthDetails
-        upstreamHealth={upstreamHealth}
-        certificate={certificate}
-        displayTimeZone={displayTimeZone}
-        lastSuccessAt={lastSuccessAt}
-        lastFailureAt={lastFailureAt}
-      />
-      <ServiceGatewayDiagnosisPanel service={service} canManage={canManage} />
+      {isActive ? (
+        <>
+          <ServiceCardDiagnosisHistory history={gatewayDiagnosisHistory} displayTimeZone={displayTimeZone} />
+          <ServiceCardHealthDetails
+            upstreamHealth={upstreamHealth}
+            certificate={certificate}
+            displayTimeZone={displayTimeZone}
+            lastSuccessAt={lastSuccessAt}
+            lastFailureAt={lastFailureAt}
+          />
+          <ServiceGatewayDiagnosisPanel service={service} canManage={canManage} />
+        </>
+      ) : null}
     </div>
   );
 }

@@ -25,6 +25,11 @@ export async function runServiceSaveDiagnosis(
   let lastDiagnosis: ServiceGatewayDiagnosis | null = null;
 
   try {
+    if (service.routing_mode !== "active") {
+      lastDiagnosis = await serviceApi.recordGatewayDiagnosis(service.id);
+      return buildNotice({ action, diagnosis: lastDiagnosis, error: null, service });
+    }
+
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       await delay(RETRY_DELAY_MS);
       lastDiagnosis = await serviceApi.recordGatewayDiagnosis(service.id);

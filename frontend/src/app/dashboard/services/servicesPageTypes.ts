@@ -5,6 +5,8 @@ export type HealthFilter =
   | "up"
   | "down"
   | "unknown"
+  | "disabled"
+  | "maintenance"
   | "dns"
   | "connection_refused"
   | "timeout"
