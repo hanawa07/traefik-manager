@@ -30,6 +30,7 @@ import {
   runSmokeSessionCapabilitiesSelfTest,
 } from "./smoke-session-capabilities.mjs";
 import { runSmokeCiSummarySelfTest, writeSmokeCiSummary } from "./smoke-ci-summary.mjs";
+import { runAuditSecuritySettingChangesSelfTest } from "./dashboard-visual-audit-security-setting-changes.mjs";
 
 const DEFAULT_TIMEOUT_MS = 40_000;
 
@@ -489,6 +490,7 @@ async function runSelfTest() {
   await runSmokeAdminReadOnlySelfTest();
   await runRemoteSmokeStatusSelfTest();
   runSmokeCiSummarySelfTest();
+  runAuditSecuritySettingChangesSelfTest();
   runSmokeSessionCapabilitiesSelfTest();
   runDashboardVisualSmokeSelfTest();
   console.log("서비스 브라우저 스모크 self-test 통과");

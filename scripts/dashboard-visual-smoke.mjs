@@ -15,6 +15,7 @@ import { checkManagerDeploymentHistory } from "./dashboard-visual-manager-deploy
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
 import { checkSecurityAlertRetryDelaySetting } from "./dashboard-visual-security-alert-settings.mjs";
 import { checkAuditDelayedRetryFilter } from "./dashboard-visual-audit-delayed-retry.mjs";
+import { checkAuditSecuritySettingChanges } from "./dashboard-visual-audit-security-setting-changes.mjs";
 import {
   checkAuditRetryChain,
   checkSettingsTestAuditLinks,
@@ -47,7 +48,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
         }
         if (route.path === "/dashboard/audit") {
           await checkAuditDelayedRetryFilter({ cdp, timeoutMs });
-          labels.push(`${profile.label} 지연 재시도 필터·건수·CSV`);
+          const securityChangeCount = await checkAuditSecuritySettingChanges({ cdp, timeoutMs });
+          labels.push(`${profile.label} 지연 재시도 필터·건수·CSV·기간 클릭${securityChangeCount ? `·보안 변경 카드 ${securityChangeCount}종` : ""}`);
           const retryChainChecked = await checkAuditRetryChain({ cdp, timeoutMs });
           if (retryChainChecked) labels.push(`${profile.label} 알림 재시도 전체 체인·단계 경과·지연 강조`);
           await checkSmokeRotationAuditDetail({ cdp, timeoutMs });
@@ -92,7 +94,6 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
     labels.push(`${profile.label} ${DASHBOARD_ROUTES.length}개 화면`);
   }
   labels.push("Docker 정상 표시", "Artifact 필터 건수·정렬·URL 공유·복사 성공 초기화·실패 fallback·새로고침 유지");
-
   const cleanupCancelChecked = await checkOptionalDeploymentBottleneckCleanupCancel({
     baseUrl,
     cdp,
@@ -112,7 +113,6 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
 
   return { adminChecked: cleanupCancelChecked, labels };
 }
-
 async function withVisualProfile(cdp, profile, callback) {
   await cdp.send("Emulation.setDeviceMetricsOverride", profile.viewport);
   await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: profile.mobile });
