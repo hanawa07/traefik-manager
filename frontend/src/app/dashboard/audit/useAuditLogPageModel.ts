@@ -212,6 +212,7 @@ export function useAuditLogPageModel() {
     setCurrentPage(1);
     setExpandedLogId(null);
     window.history.replaceState(null, "", window.location.pathname);
+    window.dispatchEvent(new Event("audit-filters-reset"));
   };
   const handleDelayedRetryPeriodChange = (period: 1 | 7 | 30) => {
     handleResetFilters();

@@ -12,7 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   buildAuditExportUrl,
@@ -43,9 +43,22 @@ export function AuditBulkOperationsOverview({
   onRetryDelivery,
 }: AuditBulkOperationsOverviewProps) {
   const searchParams = useSearchParams();
-  const period = parseBulkPeriod(searchParams.get("bulk_period"));
-  const notificationStatus = parseBulkNotificationStatus(searchParams.get("bulk_status"));
+  const [period, setPeriod] = useState<BulkPeriod>(() =>
+    parseBulkPeriod(searchParams.get("bulk_period")),
+  );
+  const [notificationStatus, setNotificationStatus] = useState<BulkNotificationStatus>(() =>
+    parseBulkNotificationStatus(searchParams.get("bulk_status")),
+  );
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => {
+    const resetFilters = () => {
+      setPeriod("all");
+      setNotificationStatus("all");
+      setVisibleCount(PAGE_SIZE);
+    };
+    window.addEventListener("audit-filters-reset", resetFilters);
+    return () => window.removeEventListener("audit-filters-reset", resetFilters);
+  }, []);
   const canManage = useAuthStore((state) => state.role === "admin");
   const requestLimit = Math.min(visibleCount + 1, MAX_VISIBLE_OPERATIONS);
   const query = useAuditBulkOperations({
@@ -89,7 +102,9 @@ export function AuditBulkOperationsOverview({
             className="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-cyan-500/30 dark:bg-slate-900 dark:text-slate-200"
             value={period}
             onChange={(event) => {
-              replaceBulkFilter("bulk_period", event.target.value, "all");
+              const value = event.target.value as BulkPeriod;
+              setPeriod(value);
+              replaceBulkFilter("bulk_period", value, "all");
               setVisibleCount(PAGE_SIZE);
             }}
           >
@@ -103,7 +118,9 @@ export function AuditBulkOperationsOverview({
             className="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-cyan-500/30 dark:bg-slate-900 dark:text-slate-200"
             value={notificationStatus}
             onChange={(event) => {
-              replaceBulkFilter("bulk_status", event.target.value, "all");
+              const value = event.target.value as BulkNotificationStatus;
+              setNotificationStatus(value);
+              replaceBulkFilter("bulk_status", value, "all");
               setVisibleCount(PAGE_SIZE);
             }}
           >

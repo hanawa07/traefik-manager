@@ -17,7 +17,7 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     ],
   });
   try {
-    const initialRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+    const initialRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 최초 목록");
     const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
     await cdp.send("Page.navigate", { url: `${origin}/dashboard/audit` });
     const initial = await initialRequest;
@@ -26,14 +26,14 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     await loaded;
     await waitForBulkControls(cdp, "all", "all", timeoutMs);
 
-    const periodRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+    const periodRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 기간 필터");
     await changeSelect(cdp, "일괄 작업 기간", "30");
     const period = await periodRequest;
     assert.equal(new URL(period.request.url).searchParams.get("period_days"), "30");
     await fulfillJson(cdp, period, [summary]);
     await waitForBulkControls(cdp, "30", "all", timeoutMs);
 
-    const statusRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+    const statusRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 상태 필터");
     await changeSelect(cdp, "일괄 작업 알림 상태", "failure");
     const status = await statusRequest;
     const statusUrl = new URL(status.request.url);
@@ -42,7 +42,7 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     await fulfillJson(cdp, status, [summary]);
     await waitForBulkControls(cdp, "30", "failure", timeoutMs);
 
-    const reloadRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+    const reloadRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 필터 새로고침");
     const reloaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
     await cdp.send("Page.reload", { ignoreCache: true });
     const reload = await reloadRequest;
@@ -63,7 +63,7 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
       "일괄 작업 재시도 횟수와 최근 실패 원인이 표시되지 않았습니다",
     );
 
-    const chainRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+    const chainRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 재시도 이력");
     await clickAriaLabel(cdp, `${BULK_OPERATION_ID} 알림 재시도 전체 이력`);
     const chain = await chainRequest;
     assertRequest(chain, "GET", `/api/v1/audit/retry-chain/${RETRY_ID}`);
@@ -104,8 +104,7 @@ async function changeSelect(cdp, label, value) {
   const changed = await evaluate(cdp, `(() => {
     const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)});
     if (!(select instanceof HTMLSelectElement)) return false;
-    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
-    setter?.call(select, ${JSON.stringify(value)});
+    select.value = ${JSON.stringify(value)};
     select.dispatchEvent(new Event('change', { bubbles: true }));
     return true;
   })()`);
@@ -115,6 +114,19 @@ async function changeSelect(cdp, label, value) {
 function assertRequest(request, method, pathname) {
   assert.equal(request.request.method, method);
   assert.equal(new URL(request.request.url).pathname, pathname);
+}
+
+async function waitForFetch(cdp, timeoutMs, label) {
+  try {
+    return await cdp.waitFor("Fetch.requestPaused", timeoutMs);
+  } catch (error) {
+    const state = await evaluate(cdp, `({
+      period: document.querySelector('select[aria-label="일괄 작업 기간"]')?.value,
+      status: document.querySelector('select[aria-label="일괄 작업 알림 상태"]')?.value,
+      url: location.href,
+    })`);
+    throw new Error(`${label}: ${error.message} (${JSON.stringify(state)})`);
+  }
 }
 
 async function fulfillJson(cdp, request, value) {

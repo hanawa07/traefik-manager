@@ -16,7 +16,7 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
     ],
   });
   try {
-    const initialRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+    const initialRequest = waitForFetch(cdp, timeoutMs, "점검 서비스 목록");
     const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
     await cdp.send("Page.navigate", { url: `${origin}/dashboard` });
     const initial = await initialRequest;
@@ -51,7 +51,7 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
 
     await installRequestCapture(cdp);
     try {
-      const patchRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+      const patchRequest = waitForFetch(cdp, timeoutMs, "점검 연장 PATCH");
       await clickAriaLabel(cdp, `${SERVICE_NAME} 점검 1시간 연장`);
       const patch = await patchRequest;
       assertRequest(patch, "PATCH", `/api/v1/services/${SERVICE_ID}`);
@@ -64,7 +64,7 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
         routing_mode: "maintenance",
       });
 
-      const refreshedListRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+      const refreshedListRequest = waitForFetch(cdp, timeoutMs, "점검 연장 후 서비스 목록");
       services = [{ ...services[0], maintenance_until: expectedUntil }, ...services.slice(1)];
       await fulfillJson(cdp, patch, services[0]);
       const refreshedList = await refreshedListRequest;
@@ -145,6 +145,12 @@ async function restoreRequestCapture(cdp) {
 function assertRequest(request, method, pathname) {
   assert.equal(request.request.method, method);
   assert.equal(new URL(request.request.url).pathname, pathname);
+}
+
+function waitForFetch(cdp, timeoutMs, label) {
+  return cdp.waitFor("Fetch.requestPaused", timeoutMs).catch((error) => {
+    throw new Error(`${label}: ${error.message}`);
+  });
 }
 
 async function fulfillJson(cdp, request, value) {
