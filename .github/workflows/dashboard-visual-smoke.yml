@@ -14,6 +14,11 @@ on:
         required: false
         default: false
         type: boolean
+      suppress_failure_notification:
+        description: "수동 실행 실패 시 Telegram 알림 생략"
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: "17 18 * * *"
 
@@ -118,13 +123,13 @@ jobs:
 
       - name: 반복 실패 알림 cooldown 확인
         id: alert_cooldown
-        if: failure() && inputs.test_failure_notification != true && inputs.test_admin_stale_notification != true
+        if: failure() && inputs.test_failure_notification != true && inputs.test_admin_stale_notification != true && inputs.suppress_failure_notification != true
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/smoke-alert-cooldown.mjs >> "$GITHUB_OUTPUT"
 
       - name: Telegram 실패 알림
-        if: failure() && steps.alert_cooldown.outputs.suppress != 'true'
+        if: failure() && inputs.suppress_failure_notification != true && steps.alert_cooldown.outputs.suppress != 'true'
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TM_SMOKE_TELEGRAM_BOT_TOKEN }}
