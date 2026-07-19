@@ -82,6 +82,11 @@ def security_alert_summary(response: SecurityAlertSettingsResponse) -> dict[str,
         "automatic_retry_delay_warning_minutes": (
             response.automatic_retry_delay_warning_minutes
         ),
+        "manager_http_error_monitoring_enabled": response.manager_http_error_monitoring_enabled,
+        "manager_http_error_window_minutes": response.manager_http_error_window_minutes,
+        "manager_http_not_found_threshold": response.manager_http_not_found_threshold,
+        "manager_http_server_error_threshold": response.manager_http_server_error_threshold,
+        "manager_http_excluded_paths_count": len(response.manager_http_excluded_paths),
         "provider": response.provider,
         "event_routes": response.event_routes,
         "change_event_routes": response.change_event_routes,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 import { getAuditRetryChainTiming } from "../frontend/src/features/audit/lib/auditRetryChainTiming.ts";
-import { getAuditRetryDelayChange } from "../frontend/src/features/audit/lib/auditRetryDelayChange.ts";
+import { getAuditSecuritySettingChanges } from "../frontend/src/features/audit/lib/auditSecuritySettingChanges.ts";
 
 const recoveredChain = [
   { created_at: "2026-07-19T00:00:00Z", detail: { success: false } },
@@ -49,21 +49,58 @@ assert.equal(
   "none",
 );
 assert.deepEqual(
-  getAuditRetryDelayChange([
+  getAuditSecuritySettingChanges("settings_update_security_alert", [
     { key: "automatic_retry_delay_warning_minutes", before: 10, after: 25 },
+    { key: "manager_http_server_error_threshold", before: 10, after: 7 },
   ]),
-  {
-    afterMinutes: 25,
-    beforeMinutes: 10,
-    deltaMinutes: 15,
-    direction: "up",
-  },
+  [
+    {
+      afterLabel: "25분",
+      beforeLabel: "10분",
+      deltaLabel: "+15분",
+      direction: "up",
+      key: "automatic_retry_delay_warning_minutes",
+      label: "자동 재시도 지연 임계치",
+    },
+    {
+      afterLabel: "7건",
+      beforeLabel: "10건",
+      deltaLabel: "-3건",
+      direction: "down",
+      key: "manager_http_server_error_threshold",
+      label: "5xx 경고 임계치",
+    },
+  ],
 );
-assert.equal(
-  getAuditRetryDelayChange([
-    { key: "automatic_retry_delay_warning_minutes", before: 10, after: 10 },
+assert.deepEqual(
+  getAuditSecuritySettingChanges("settings_update_login_defense", [
+    { key: "suspicious_block_enabled", before: false, after: true },
+    { key: "turnstile_mode", before: "off", after: "risk_based" },
   ]),
-  null,
+  [
+    {
+      afterLabel: "사용",
+      beforeLabel: "사용 안 함",
+      deltaLabel: null,
+      direction: null,
+      key: "suspicious_block_enabled",
+      label: "의심 IP 자동 차단",
+    },
+    {
+      afterLabel: "위험 기반",
+      beforeLabel: "사용 안 함",
+      deltaLabel: null,
+      direction: null,
+      key: "turnstile_mode",
+      label: "Turnstile 모드",
+    },
+  ],
+);
+assert.deepEqual(
+  getAuditSecuritySettingChanges("settings_update_cloudflare", [
+    { key: "enabled", before: false, after: true },
+  ]),
+  [],
 );
 
-console.log("알림 비발송 재시도 체인 timing fixture self-test 통과");
+console.log("알림 재시도 체인과 보안 설정 변경 fixture self-test 통과");

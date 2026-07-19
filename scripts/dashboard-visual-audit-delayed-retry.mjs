@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { clickAriaLabel, evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 export async function checkAuditDelayedRetryFilter({ cdp, timeoutMs }) {
+  await checkDelayedRetryTrend(cdp, timeoutMs);
   await waitForCondition(
     cdp,
     `document.querySelector('[data-audit-filter="delayed_retry"]')?.getAttribute('data-audit-count') !== null`,
@@ -44,4 +45,38 @@ export async function checkAuditDelayedRetryFilter({ cdp, timeoutMs }) {
   })()`);
   assert.equal(exportMatches, true, "지연 재시도 조건이 CSV 링크에 반영되지 않았습니다");
   await clickAriaLabel(cdp, "감사 필터 전체 초기화");
+}
+
+async function checkDelayedRetryTrend(cdp, timeoutMs) {
+  await waitForCondition(
+    cdp,
+    `[1, 7, 30].every((days) =>
+      document.querySelector('[data-testid="audit-delayed-retry-trend"] [data-period-days="' + days + '"]')
+        ?.getAttribute('data-total') !== ''
+    )`,
+    timeoutMs,
+    "지연 재시도 기간별 추이를 불러오지 못했습니다",
+  );
+  const summary = await evaluate(cdp, `(async () => {
+    const periods = [1, 7, 30];
+    const apiCounts = await Promise.all(periods.map(async (days) => {
+      const response = await fetch('/api/v1/audit?retry_delay=delayed&limit=1&period_days=' + days);
+      return { ok: response.ok, total: Number(response.headers.get('x-total-count')) };
+    }));
+    const uiCounts = periods.map((days) => Number(
+      document.querySelector('[data-testid="audit-delayed-retry-trend"] [data-period-days="' + days + '"]')
+        ?.getAttribute('data-total')
+    ));
+    return { apiCounts, uiCounts };
+  })()`);
+  assert.ok(summary.apiCounts.every((item) => item.ok), "지연 재시도 추이 API 응답을 받지 못했습니다");
+  assert.deepEqual(
+    summary.uiCounts,
+    summary.apiCounts.map((item) => item.total),
+    "지연 재시도 추이 건수가 API와 다릅니다",
+  );
+  assert.ok(
+    summary.uiCounts[0] <= summary.uiCounts[1] && summary.uiCounts[1] <= summary.uiCounts[2],
+    "지연 재시도 누적 건수 순서가 올바르지 않습니다",
+  );
 }

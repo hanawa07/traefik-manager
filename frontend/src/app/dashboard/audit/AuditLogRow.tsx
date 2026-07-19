@@ -118,6 +118,7 @@ export function AuditLogRow({
           <td colSpan={6} className="px-6 py-5">
             <AuditLogDetailPanel
               logId={log.id}
+              event={managerEvent}
               diffRows={diffRows}
               deliveryRows={deliveryRows}
               managerDetailRows={managerDetailRows}

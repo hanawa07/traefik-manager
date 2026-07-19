@@ -9,7 +9,7 @@ import { AuditDetailList } from "./AuditDetailList";
 import { AuditDiffDetails } from "./AuditDiffDetails";
 import { AuditRetryDeliveryPanel, AuditRollbackPanel } from "./AuditLogActionPanels";
 import { AuditRetryChainPanel } from "./AuditRetryChainPanel";
-import { AuditRetryDelayChange } from "./AuditRetryDelayChange";
+import { AuditSecuritySettingChanges } from "./AuditSecuritySettingChanges";
 
 type AuditDiffRows = ReturnType<typeof getAuditDiffRows>;
 type AuditDeliveryRows = ReturnType<typeof getDeliveryDetailRows>;
@@ -18,6 +18,7 @@ type SmokeRotationDetailRows = ReturnType<typeof getSmokeRotationDetailRows>;
 
 interface AuditLogDetailPanelProps {
   logId: string;
+  event: unknown;
   diffRows: AuditDiffRows;
   deliveryRows: AuditDeliveryRows;
   managerDetailRows: AuditManagerDetailRows;
@@ -35,6 +36,7 @@ interface AuditLogDetailPanelProps {
 
 export function AuditLogDetailPanel({
   logId,
+  event,
   diffRows,
   deliveryRows,
   managerDetailRows,
@@ -63,7 +65,7 @@ export function AuditLogDetailPanel({
         testId="smoke-rotation-audit-detail"
         title="Secret 회전 상세"
       />
-      <AuditRetryDelayChange diffRows={diffRows} />
+      <AuditSecuritySettingChanges event={event} diffRows={diffRows} />
       <AuditDiffDetails logId={logId} diffRows={diffRows} />
       <AuditDetailList logId={logId} rows={deliveryRows} title="전송 상세" />
       <AuditRetryChainPanel enabled={retryChainSupported} logId={logId} timezone={timezone} />

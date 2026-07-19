@@ -3,6 +3,7 @@
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Suspense } from "react";
 import { AuditFeedbackBanner } from "./AuditFeedbackBanner";
+import { AuditDelayedRetryTrend } from "./AuditDelayedRetryTrend";
 import { AuditLogFilters } from "./AuditLogFilters";
 import { AuditLogPageHeader } from "./AuditLogPageHeader";
 import { AuditLogTable } from "./AuditLogTable";
@@ -46,6 +47,7 @@ function AuditLogPageContent() {
     <div className="mx-auto max-w-[1600px]">
       <AuditLogPageHeader exportUrl={exportUrl} />
 
+      <AuditDelayedRetryTrend />
       <AuditLogFilters {...filters} />
 
       <AuditFeedbackBanner feedback={rollbackFeedback} />
