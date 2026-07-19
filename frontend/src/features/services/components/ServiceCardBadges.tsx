@@ -24,7 +24,10 @@ export default function ServiceCardBadges({
 }: ServiceCardBadgesProps) {
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4 dark:border-slate-800">
-      <ServiceCardRoutingModeBadge routingMode={service.routing_mode} />
+      <ServiceCardRoutingModeBadge
+        routingMode={service.routing_mode}
+        maintenanceUntil={service.maintenance_until}
+      />
       <ServiceCardSecurityBadges service={service} />
       <ServiceCardCertificateBadge service={service} certificate={certificate} />
       <ServiceCardMiddlewareBadge service={service} />

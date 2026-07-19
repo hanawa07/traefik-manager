@@ -6,6 +6,7 @@ import {
   getRoutingUpdateTargets,
 } from "../frontend/src/features/services/lib/serviceRouting.ts";
 import {
+  formatMaintenanceRemaining,
   toKoreanDateTimeLocal,
   toMaintenanceUntilIso,
 } from "../frontend/src/features/services/lib/maintenanceSchedule.ts";
@@ -46,5 +47,10 @@ assert.deepEqual(updateEvents, [
 ]);
 assert.equal(toMaintenanceUntilIso("2030-01-02T12:04"), "2030-01-02T03:04:00.000Z");
 assert.equal(toKoreanDateTimeLocal("2030-01-02T03:04:00Z"), "2030-01-02T12:04");
+const maintenanceNow = Date.parse("2030-01-02T00:00:00Z");
+assert.equal(formatMaintenanceRemaining("2030-01-02T00:25:00Z", maintenanceNow), "25분 남음");
+assert.equal(formatMaintenanceRemaining("2030-01-02T02:05:00Z", maintenanceNow), "2시간 5분 남음");
+assert.equal(formatMaintenanceRemaining("2030-01-03T02:00:00Z", maintenanceNow), "1일 2시간 남음");
+assert.equal(formatMaintenanceRemaining("2030-01-01T23:59:00Z", maintenanceNow), "종료 처리 중");
 
-console.log("서비스 운영 상태 집계·순차 일괄 변경·점검 시각 self-test 통과");
+console.log("서비스 운영 상태 집계·순차 일괄 변경·점검 시각·잔여시간 self-test 통과");
