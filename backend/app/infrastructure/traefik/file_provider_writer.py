@@ -58,6 +58,9 @@ class FileProviderWriter:
         service: Service,
         middleware_templates: list[MiddlewareTemplate] | None = None,
     ) -> None:
+        if service.routing_mode == "disabled":
+            self.delete(service)
+            return
         self.config_path.mkdir(parents=True, exist_ok=True)
         file_path = self._get_service_file_path(service)
         self._write_text_atomic(

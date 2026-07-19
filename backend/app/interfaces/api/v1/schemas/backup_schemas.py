@@ -8,6 +8,7 @@ class BackupServiceItem(BaseModel):
     domain: str
     upstream_host: str
     upstream_port: int
+    routing_mode: Literal["active", "disabled", "maintenance"] = "active"
     upstream_scheme: str = "http"
     skip_tls_verify: bool = False
     tls_enabled: bool = True

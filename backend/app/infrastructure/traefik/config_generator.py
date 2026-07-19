@@ -9,6 +9,9 @@ from app.infrastructure.traefik.dashboard_config_builder import (
 from app.infrastructure.traefik.middleware_template_config_builder import (
     build_shared_middleware_templates_config,
 )
+from app.infrastructure.traefik.maintenance_service_config_builder import (
+    build_maintenance_service_config,
+)
 from app.infrastructure.traefik.redirect_config_builder import build_redirect_host_config
 from app.infrastructure.traefik.service_config_builder import (
     build_frame_policy_headers,
@@ -29,6 +32,12 @@ class TraefikConfigGenerator:
         service: Service,
         middleware_templates: list[MiddlewareTemplate] | None = None,
     ) -> dict:
+        if service.routing_mode == "maintenance":
+            return build_maintenance_service_config(
+                service=service,
+                safe_name_getter=self._to_safe_name,
+                tls_config_builder=self._build_tls_config,
+            )
         return build_service_config(
             service=service,
             middleware_templates=middleware_templates or [],

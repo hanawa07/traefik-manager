@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -47,6 +48,20 @@ async def get_service_health_action(
 
 
 async def _check_service_upstream(service, upstream_checker):
+    if service.routing_mode != "active":
+        mode_label = "라우팅 비활성" if service.routing_mode == "disabled" else "점검 안내 중"
+        return {
+            "status": "unknown",
+            "status_code": None,
+            "latency_ms": None,
+            "error": mode_label,
+            "error_kind": f"routing_{service.routing_mode}",
+            "checked_url": (
+                f"{service.upstream_scheme}://{service.upstream_host}:"
+                f"{service.upstream_port}{service.healthcheck_path}"
+            ),
+            "checked_at": datetime.now(timezone.utc),
+        }
     return await upstream_checker.check_upstream(
         service.upstream_host,
         service.upstream_port,

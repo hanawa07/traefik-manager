@@ -3,6 +3,7 @@ import re
 
 FRAME_POLICY_VALUES = {"deny", "sameorigin", "off"}
 AUTH_MODE_VALUES = {"none", "authentik", "token"}
+ROUTING_MODE_VALUES = {"active", "disabled", "maintenance"}
 DEFAULT_HEALTHCHECK_PATH = "/"
 DEFAULT_HEALTHCHECK_TIMEOUT_MS = 3000
 
@@ -20,6 +21,13 @@ def normalize_frame_policy(frame_policy: str) -> str:
     normalized = frame_policy.strip().lower()
     if normalized not in FRAME_POLICY_VALUES:
         raise ValueError("frame_policy는 deny, sameorigin, off 중 하나여야 합니다")
+    return normalized
+
+
+def normalize_routing_mode(routing_mode: str) -> str:
+    normalized = routing_mode.strip().lower()
+    if normalized not in ROUTING_MODE_VALUES:
+        raise ValueError("라우팅 상태는 active, disabled, maintenance 중 하나여야 합니다")
     return normalized
 
 

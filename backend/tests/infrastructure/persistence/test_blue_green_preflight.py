@@ -25,14 +25,14 @@ def _managed_database(tmp_path: Path, revision: str) -> str:
 
 
 def test_preflight_passes_when_database_is_already_at_head(tmp_path: Path):
-    database_url = _managed_database(tmp_path, "20260713_01")
+    database_url = _managed_database(tmp_path, "20260719_01")
 
     current, target, pending = check_blue_green_migrations(
         database_url,
         project_root=BACKEND_ROOT,
     )
 
-    assert current == target == "20260713_01"
+    assert current == target == "20260719_01"
     assert pending == ()
 
 
@@ -90,5 +90,5 @@ def test_preflight_allows_fresh_database(tmp_path: Path):
     )
 
     assert current is None
-    assert target == "20260713_01"
+    assert target == "20260719_01"
     assert pending == ()

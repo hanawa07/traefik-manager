@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.interfaces.api.v1.schemas.service_basic_auth_schemas import BasicAuthCredential
@@ -27,6 +29,7 @@ class ServiceCreate(BaseModel):
     domain: str
     upstream_host: str
     upstream_port: int
+    routing_mode: Literal["active", "disabled", "maintenance"] = "active"
     upstream_scheme: str = "http"
     skip_tls_verify: bool = False
     tls_enabled: bool = True

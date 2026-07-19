@@ -22,6 +22,7 @@ from .service_normalizers import (
     DEFAULT_HEALTHCHECK_PATH,
     DEFAULT_HEALTHCHECK_TIMEOUT_MS,
     FRAME_POLICY_VALUES,
+    ROUTING_MODE_VALUES,
     normalize_allowed_ips,
     normalize_basic_auth_users,
     normalize_blocked_paths,
@@ -32,6 +33,7 @@ from .service_normalizers import (
     normalize_healthcheck_timeout_ms,
     normalize_middleware_template_ids,
     normalize_rate_limit,
+    normalize_routing_mode,
 )
 
 __all__ = [
@@ -39,6 +41,7 @@ __all__ = [
     "DEFAULT_HEALTHCHECK_PATH",
     "DEFAULT_HEALTHCHECK_TIMEOUT_MS",
     "FRAME_POLICY_VALUES",
+    "ROUTING_MODE_VALUES",
     "Service",
 ]
 
@@ -55,6 +58,7 @@ class Service:
     auth_enabled: bool
     created_at: datetime
     updated_at: datetime
+    routing_mode: str = "active"
     auth_mode: str = "none"  # "none" | "authentik" | "token"
     api_key: str | None = None
     https_redirect_enabled: bool = True
@@ -96,6 +100,7 @@ class Service:
         domain: str,
         upstream_host: str,
         upstream_port: int,
+        routing_mode: str = "active",
         tls_enabled: bool = True,
         auth_enabled: bool | None = None,
         auth_mode: str = "none",
@@ -145,6 +150,7 @@ class Service:
             name=name,
             domain=DomainName(domain),
             upstream=Upstream(upstream_host, upstream_port),
+            routing_mode=normalize_routing_mode(routing_mode),
             tls_enabled=tls_enabled,
             auth_enabled=auth_state.auth_enabled,
             auth_mode=auth_state.auth_mode,
@@ -178,6 +184,7 @@ class Service:
         name: str | None = None,
         upstream_host: str | None = None,
         upstream_port: int | None = None,
+        routing_mode: str | None = None,
         tls_enabled: bool | None = None,
         auth_enabled: bool | None = None,
         auth_mode: str | None = None,
@@ -202,6 +209,8 @@ class Service:
     ) -> None:
         if name is not None:
             self.name = name
+        if routing_mode is not None:
+            self.routing_mode = normalize_routing_mode(routing_mode)
         if upstream_host is not None or upstream_port is not None:
             host = upstream_host or self.upstream.host
             port = upstream_port or self.upstream.port

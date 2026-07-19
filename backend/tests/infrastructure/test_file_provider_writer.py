@@ -137,3 +137,15 @@ def test_write_service_references_shared_template_without_redefining_it(writer, 
     assert shared_config["http"]["middlewares"][template.shared_name] == {
         "rateLimit": {"average": 100, "burst": 200}
     }
+
+
+def test_write_disabled_service_removes_existing_route_file(writer, tmp_path, make_service):
+    service = make_service(domain="paused.example.com")
+    writer.write(service)
+    file_path = tmp_path / "paused-example-com.yml"
+    assert file_path.exists()
+
+    service.update(routing_mode="disabled")
+    writer.write(service)
+
+    assert not file_path.exists()

@@ -3,6 +3,9 @@ from uuid import uuid4
 
 
 class StubUseCases:
+    def __init__(self, routing_mode="active"):
+        self.routing_mode = routing_mode
+
     async def list_services(self):
         return [
             SimpleNamespace(
@@ -10,6 +13,7 @@ class StubUseCases:
                 domain="svc.example.com",
                 upstream_host="example.com",
                 upstream_port=443,
+                routing_mode=self.routing_mode,
                 upstream_scheme="https",
                 skip_tls_verify=True,
                 healthcheck_enabled=False,
@@ -73,6 +77,7 @@ def make_service(**overrides):
         "domain": "svc.example.com",
         "upstream_host": "app",
         "upstream_port": 8080,
+        "routing_mode": "active",
         "upstream_scheme": "http",
         "skip_tls_verify": False,
         "tls_enabled": True,

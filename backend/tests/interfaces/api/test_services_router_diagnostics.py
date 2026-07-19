@@ -84,6 +84,25 @@ async def test_diagnose_service_gateway_flags_missing_router_and_down_upstream()
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("routing_mode", ["disabled", "maintenance"])
+async def test_diagnose_service_gateway_skips_runtime_checks_for_intentional_mode(routing_mode):
+    service_id = uuid4()
+    service = _make_service(service_id=service_id, routing_mode=routing_mode)
+
+    result = await diagnose_service_gateway_action(
+        service_id=service_id,
+        use_cases=_UseCases(service),
+        upstream_checker=_UnexpectedUpstreamChecker(),
+        traefik_client=_UnexpectedTraefikClient(),
+        docker_client=_UnexpectedDockerClient(),
+    )
+
+    assert result.status == "ok"
+    assert result.checks[0].key == "routing_mode"
+    assert result.checks[0].details["routing_mode"] == routing_mode
+
+
+@pytest.mark.asyncio
 async def test_record_service_gateway_diagnosis_persists_audit_event():
     service_id = uuid4()
     service = _make_service(service_id=service_id, upstream_host="english-app-1")
@@ -183,13 +202,14 @@ async def test_connect_service_gateway_network_rejects_non_container_upstream():
     assert exc_info.value.status_code == 400
 
 
-def _make_service(service_id, upstream_host="app"):
+def _make_service(service_id, upstream_host="app", routing_mode="active"):
     return SimpleNamespace(
         id=SimpleNamespace(value=service_id),
         name="English",
         domain="english.lizstudio.co.kr",
         upstream_host=upstream_host,
         upstream_port=3000,
+        routing_mode=routing_mode,
         upstream_scheme="http",
         skip_tls_verify=False,
         healthcheck_enabled=True,
@@ -282,3 +302,20 @@ class _AuditService:
 
     async def record(self, **kwargs):
         self.records.append(kwargs)
+
+
+class _UnexpectedUpstreamChecker:
+    async def check_upstream(self, *_args):
+        raise AssertionError("intentional routing mode must not probe upstream")
+
+
+class _UnexpectedTraefikClient:
+    async def get_router_status(self):
+        raise AssertionError("intentional routing mode must not inspect runtime router")
+
+
+class _UnexpectedDockerClient:
+    enabled = True
+
+    async def list_container_candidates(self):
+        raise AssertionError("intentional routing mode must not inspect Docker")

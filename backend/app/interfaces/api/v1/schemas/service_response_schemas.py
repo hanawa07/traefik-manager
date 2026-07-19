@@ -12,6 +12,7 @@ class ServiceResponse(BaseModel):
     domain: str
     upstream_host: str
     upstream_port: int
+    routing_mode: str
     upstream_scheme: str
     skip_tls_verify: bool
     tls_enabled: bool

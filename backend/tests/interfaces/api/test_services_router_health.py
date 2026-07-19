@@ -54,3 +54,21 @@ async def test_list_services_health_passes_scheme_and_tls_flags(monkeypatch):
     only_item = next(iter(response.values()))
     assert only_item.checked_url == "https://example.com:443/readyz"
     assert only_item.checked_at.isoformat() == "2026-03-11T14:40:00+00:00"
+
+
+@pytest.mark.asyncio
+async def test_list_services_health_skips_upstream_for_disabled_service(monkeypatch):
+    async def unexpected_check(*_args):
+        raise AssertionError("disabled service must not probe upstream")
+
+    monkeypatch.setattr(services_router.upstream_checker, "check_upstream", unexpected_check)
+
+    response = await services_router.list_services_health(
+        use_cases=StubUseCases(routing_mode="disabled"),
+        _={"username": "admin"},
+    )
+
+    only_item = next(iter(response.values()))
+    assert only_item.status == "unknown"
+    assert only_item.error == "라우팅 비활성"
+    assert only_item.error_kind == "routing_disabled"

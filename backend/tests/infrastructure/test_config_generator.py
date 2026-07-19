@@ -128,3 +128,18 @@ def test_generate_frame_policy_off_skips_frame_headers(generator, make_service):
 
     assert middleware_name not in config["http"].get("middlewares", {})
     assert middleware_name not in config["http"]["routers"][router_name].get("middlewares", [])
+
+
+def test_generate_maintenance_routes_to_manager_without_original_upstream(generator, make_service):
+    service = make_service(domain="paused.example.com", routing_mode="maintenance")
+
+    config = generator.generate(service)
+
+    routers = config["http"]["routers"]
+    assert routers["paused-example-com"]["service"] == "traefik-manager-frontend-file@file"
+    assert routers["paused-example-com"]["middlewares"] == ["paused-example-com-maintenance-path"]
+    assert routers["paused-example-com-maintenance-assets"]["priority"] == 200
+    assert config["http"]["middlewares"]["paused-example-com-maintenance-path"] == {
+        "replacePath": {"path": "/maintenance"}
+    }
+    assert "10.0.0.1:8080" not in str(config)

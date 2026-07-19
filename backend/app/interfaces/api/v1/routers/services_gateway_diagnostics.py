@@ -29,6 +29,9 @@ async def diagnose_service_gateway_action(
     if not service:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="서비스를 찾을 수 없습니다")
 
+    if service.routing_mode != "active":
+        return _build_intentional_routing_diagnosis(service)
+
     checks = [
         await _check_traefik_router(service, traefik_client),
         await _check_upstream(service, upstream_checker),
@@ -360,6 +363,32 @@ def _build_network_connect_response(
         message=message,
         upstream_networks=sorted(set(upstream_networks)),
         checked_at=datetime.now(timezone.utc),
+    )
+
+
+def _build_intentional_routing_diagnosis(service) -> ServiceGatewayDiagnosisResponse:
+    is_disabled = service.routing_mode == "disabled"
+    label = "라우팅 비활성" if is_disabled else "점검 안내 중"
+    message = (
+        "Traefik 라우터와 업스트림 점검을 의도적으로 건너뜁니다."
+        if is_disabled
+        else "업스트림 대신 공개 점검 안내 페이지를 제공합니다."
+    )
+    return ServiceGatewayDiagnosisResponse(
+        service_id=service.id.value if hasattr(service.id, "value") else service.id,
+        domain=str(service.domain),
+        status="ok",
+        summary=f"{label} 상태가 적용되어 있습니다.",
+        checked_at=datetime.now(timezone.utc),
+        checks=[
+            {
+                "key": "routing_mode",
+                "label": label,
+                "status": "ok",
+                "message": message,
+                "details": {"routing_mode": service.routing_mode},
+            }
+        ],
     )
 
 

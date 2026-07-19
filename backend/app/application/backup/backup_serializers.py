@@ -8,6 +8,7 @@ def serialize_service(service: Service) -> dict:
         "domain": str(service.domain),
         "upstream_host": service.upstream_host,
         "upstream_port": service.upstream_port,
+        "routing_mode": service.routing_mode,
         "upstream_scheme": service.upstream_scheme,
         "skip_tls_verify": service.skip_tls_verify,
         "tls_enabled": service.tls_enabled,

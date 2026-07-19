@@ -122,6 +122,16 @@ async def test_save_persists_healthcheck_policy_on_insert(make_service):
     assert session.added.healthcheck_expected_statuses == [200, 204]
 
 
+@pytest.mark.asyncio
+async def test_save_persists_routing_mode_on_insert(make_service):
+    session = StubAsyncSession()
+    repository = SQLiteServiceRepository(session)
+
+    await repository.save(make_service(routing_mode="disabled"))
+
+    assert session.added.routing_mode == "disabled"
+
+
 def test_to_entity_restores_healthcheck_policy():
     now = datetime.now(timezone.utc)
     model = ServiceModel(

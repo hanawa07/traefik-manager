@@ -13,6 +13,7 @@ class StubBackupUseCases:
                     "domain": "home.example.com",
                     "upstream_host": "homepage",
                     "upstream_port": 3000,
+                    "routing_mode": "active",
                     "upstream_scheme": "http",
                     "skip_tls_verify": False,
                     "tls_enabled": True,

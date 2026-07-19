@@ -21,6 +21,7 @@ class SQLiteServiceRepository(ServiceRepository):
             existing.domain = str(service.domain)
             existing.upstream_host = service.upstream.host
             existing.upstream_port = service.upstream.port
+            existing.routing_mode = service.routing_mode
             existing.upstream_scheme = service.upstream_scheme
             existing.skip_tls_verify = service.skip_tls_verify
             existing.tls_enabled = service.tls_enabled
@@ -54,6 +55,7 @@ class SQLiteServiceRepository(ServiceRepository):
                 domain=str(service.domain),
                 upstream_host=service.upstream.host,
                 upstream_port=service.upstream.port,
+                routing_mode=service.routing_mode,
                 upstream_scheme=service.upstream_scheme,
                 skip_tls_verify=service.skip_tls_verify,
                 tls_enabled=service.tls_enabled,
@@ -110,6 +112,7 @@ class SQLiteServiceRepository(ServiceRepository):
             name=model.name,
             domain=DomainName(model.domain),
             upstream=Upstream(model.upstream_host, model.upstream_port),
+            routing_mode=model.routing_mode or "active",
             tls_enabled=model.tls_enabled,
             auth_enabled=model.auth_enabled,
             auth_mode=model.auth_mode or "none",

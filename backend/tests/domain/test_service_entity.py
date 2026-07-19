@@ -68,6 +68,17 @@ def test_healthcheck_path_must_start_with_slash():
         )
 
 
+def test_routing_mode_can_be_updated_and_rejects_unknown_values(make_service):
+    service = make_service(routing_mode="maintenance")
+
+    assert service.routing_mode == "maintenance"
+    service.update(routing_mode="disabled")
+    assert service.routing_mode == "disabled"
+
+    with pytest.raises(ValueError, match="라우팅 상태는 active, disabled, maintenance"):
+        service.update(routing_mode="paused")
+
+
 def test_healthcheck_update_normalizes_and_stores_policy(make_service):
     service = make_service()
 
