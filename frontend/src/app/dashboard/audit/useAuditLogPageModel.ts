@@ -213,6 +213,11 @@ export function useAuditLogPageModel() {
     setExpandedLogId(null);
     window.history.replaceState(null, "", window.location.pathname);
   };
+  const handleDelayedRetryPeriodChange = (period: 1 | 7 | 30) => {
+    handleResetFilters();
+    handleFilterChange("delayed_retry");
+    handlePeriodChange(period);
+  };
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     setExpandedLogId(null);
@@ -250,6 +255,10 @@ export function useAuditLogPageModel() {
     isError,
     isLoading,
     rollbackFeedback: auditActions.rollbackFeedback,
+    trend: {
+      selectedPeriod: selectedFilter === "delayed_retry" ? selectedPeriod : null,
+      onSelectPeriod: handleDelayedRetryPeriodChange,
+    },
     table: {
       currentPage,
       expandedLogId: visibleExpandedLogId,

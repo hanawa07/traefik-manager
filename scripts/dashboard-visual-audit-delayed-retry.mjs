@@ -79,4 +79,40 @@ async function checkDelayedRetryTrend(cdp, timeoutMs) {
     summary.uiCounts[0] <= summary.uiCounts[1] && summary.uiCounts[1] <= summary.uiCounts[2],
     "지연 재시도 누적 건수 순서가 올바르지 않습니다",
   );
+
+  const clicked = await evaluate(cdp, `(() => {
+    const button = document.querySelector(
+      '[data-testid="audit-delayed-retry-trend"] [data-period-days="7"]'
+    );
+    button?.click();
+    return Boolean(button);
+  })()`);
+  assert.equal(clicked, true, "7일 지연 재시도 추이 카드를 찾지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `new URLSearchParams(location.search).get('filter') === 'delayed_retry' &&
+      new URLSearchParams(location.search).get('period') === '7' &&
+      document.querySelector('[data-period-days="7"]')?.getAttribute('aria-pressed') === 'true' &&
+      document.querySelector('[aria-label="감사 로그 페이지"]')?.getAttribute('data-audit-total') ===
+        ${JSON.stringify(String(summary.apiCounts[1].total))}`,
+    timeoutMs,
+    "7일 지연 재시도 추이 필터가 표와 URL에 반영되지 않았습니다",
+  );
+  const exportMatches = await evaluate(cdp, `(() => {
+    const link = Array.from(document.querySelectorAll('a')).find(
+      (item) => item.textContent?.includes('현재 조건 CSV')
+    );
+    if (!link) return false;
+    const params = new URL(link.href).searchParams;
+    return params.get('retry_delay') === 'delayed' && params.get('period_days') === '7';
+  })()`);
+  assert.equal(exportMatches, true, "7일 지연 재시도 조건이 CSV 링크에 반영되지 않았습니다");
+  await clickAriaLabel(cdp, "감사 필터 전체 초기화");
+  await waitForCondition(
+    cdp,
+    `!new URLSearchParams(location.search).has('filter') &&
+      !new URLSearchParams(location.search).has('period')`,
+    timeoutMs,
+    "지연 재시도 추이 필터가 초기화되지 않았습니다",
+  );
 }

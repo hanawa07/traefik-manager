@@ -27,6 +27,7 @@ function AuditLogPageContent() {
     isLoading,
     rollbackFeedback,
     table,
+    trend,
   } = useAuditLogPageModel();
 
   if (isLoading) {
@@ -47,7 +48,7 @@ function AuditLogPageContent() {
     <div className="mx-auto max-w-[1600px]">
       <AuditLogPageHeader exportUrl={exportUrl} />
 
-      <AuditDelayedRetryTrend />
+      <AuditDelayedRetryTrend {...trend} />
       <AuditLogFilters {...filters} />
 
       <AuditFeedbackBanner feedback={rollbackFeedback} />
