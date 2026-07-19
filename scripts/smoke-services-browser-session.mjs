@@ -29,6 +29,7 @@ import {
   resolveSmokeSessionCapabilities,
   runSmokeSessionCapabilitiesSelfTest,
 } from "./smoke-session-capabilities.mjs";
+import { runSmokeCiSummarySelfTest, writeSmokeCiSummary } from "./smoke-ci-summary.mjs";
 
 const DEFAULT_TIMEOUT_MS = 40_000;
 
@@ -168,6 +169,14 @@ async function main() {
       cookiePairs,
       visualResult.adminChecked || adminReadOnlyChecked,
     );
+    await writeSmokeCiSummary({
+      adminReadOnlyChecked,
+      apiCheckCount: results.length,
+      capabilities,
+      role: session.role,
+      username: session.username,
+      visualCheckCount: visualResult.labels.length,
+    });
 
     const services = results.find((item) => item.label === "서비스 목록")?.data ?? [];
     console.log(`서비스 브라우저 스모크 통과: ${baseUrl}`);
@@ -479,6 +488,7 @@ async function runSelfTest() {
   assert.equal(rotationCheck.failureMessage({ is_stale: false, stale_after_days: 35 }), null);
   await runSmokeAdminReadOnlySelfTest();
   await runRemoteSmokeStatusSelfTest();
+  runSmokeCiSummarySelfTest();
   runSmokeSessionCapabilitiesSelfTest();
   runDashboardVisualSmokeSelfTest();
   console.log("서비스 브라우저 스모크 self-test 통과");
