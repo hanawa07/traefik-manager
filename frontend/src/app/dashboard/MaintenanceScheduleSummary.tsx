@@ -18,6 +18,8 @@ import {
   extendMaintenanceUntil,
   formatMaintenanceRemaining,
   getMaintenanceSchedule,
+  toKoreanDateTimeLocal,
+  toMaintenanceUntilIso,
   type MaintenanceScheduleEntry,
   type MaintenanceScheduleService,
 } from "@/features/services/lib/maintenanceSchedule";
@@ -74,6 +76,23 @@ export function MaintenanceScheduleSummary({
         routingMode: "active",
       });
       setFeedback({ message: `${service.name} 서비스를 정상 운영으로 전환했습니다.`, tone: "success" });
+    } catch (error) {
+      setFeedback({ message: getMaintenanceUpdateError(error), tone: "error" });
+    }
+  };
+
+  const handleSetUntil = async (
+    service: MaintenanceScheduleService,
+    maintenanceUntil: string,
+  ) => {
+    setFeedback(null);
+    try {
+      await maintenanceUpdate.mutateAsync({
+        serviceId: service.id,
+        maintenanceUntil,
+        routingMode: "maintenance",
+      });
+      setFeedback({ message: `${service.name} 점검 종료 시각을 변경했습니다.`, tone: "success" });
     } catch (error) {
       setFeedback({ message: getMaintenanceUpdateError(error), tone: "error" });
     }
@@ -155,6 +174,7 @@ export function MaintenanceScheduleSummary({
                 timezone={timezone}
                 onActivate={handleActivate}
                 onExtend={handleExtend}
+                onSetUntil={handleSetUntil}
               />
             ))}
           </ul>
@@ -199,6 +219,7 @@ function MaintenanceScheduleRow({
   now,
   onActivate,
   onExtend,
+  onSetUntil,
   timezone,
 }: {
   canManage: boolean;
@@ -208,6 +229,7 @@ function MaintenanceScheduleRow({
   now: number;
   onActivate: (service: MaintenanceScheduleService) => Promise<void>;
   onExtend: (service: MaintenanceScheduleService, hours: number) => Promise<void>;
+  onSetUntil: (service: MaintenanceScheduleService, maintenanceUntil: string) => Promise<void>;
   timezone?: string;
 }) {
   const remaining = formatMaintenanceRemaining(entry.service.maintenance_until, now);
@@ -246,6 +268,12 @@ function MaintenanceScheduleRow({
             </span>
           ) : (
             <>
+              <MaintenanceUntilEditor
+                disabled={isUpdatePending}
+                key={entry.service.maintenance_until ?? "unscheduled"}
+                service={entry.service}
+                onSetUntil={onSetUntil}
+              />
               <button
                 aria-label={`${entry.service.name} 점검 1시간 연장`}
                 className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/30 dark:bg-slate-900 dark:text-amber-200 dark:hover:bg-amber-950"
@@ -281,6 +309,43 @@ function MaintenanceScheduleRow({
         </div>
       ) : null}
     </li>
+  );
+}
+
+function MaintenanceUntilEditor({
+  disabled,
+  service,
+  onSetUntil,
+}: {
+  disabled: boolean;
+  service: MaintenanceScheduleService;
+  onSetUntil: (service: MaintenanceScheduleService, maintenanceUntil: string) => Promise<void>;
+}) {
+  const [value, setValue] = useState(() => toKoreanDateTimeLocal(service.maintenance_until));
+  const maintenanceUntil = toMaintenanceUntilIso(value);
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <label className="inline-flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+        종료 시각
+        <input
+          aria-label={`${service.name} 점검 종료 시각`}
+          className="w-[12.5rem] rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-800 outline-none focus:border-amber-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:[color-scheme:dark]"
+          disabled={disabled}
+          onChange={(event) => setValue(event.target.value)}
+          type="datetime-local"
+          value={value}
+        />
+      </label>
+      <button
+        aria-label={`${service.name} 점검 종료 시각 적용`}
+        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+        disabled={disabled || !maintenanceUntil}
+        onClick={() => maintenanceUntil && void onSetUntil(service, maintenanceUntil)}
+        type="button"
+      >
+        적용
+      </button>
+    </div>
   );
 }
 

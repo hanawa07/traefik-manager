@@ -81,6 +81,52 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
         "점검 종료 연장 결과가 화면에 반영되지 않았습니다",
       );
 
+      const directUntilLocal = "2035-02-03T14:30";
+      const directUntil = "2035-02-03T05:30:00.000Z";
+      const changed = await evaluate(cdp, `(() => {
+        const input = document.querySelector('input[aria-label="${SERVICE_NAME} 점검 종료 시각"]');
+        if (!(input instanceof HTMLInputElement)) return false;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        setter?.call(input, ${JSON.stringify(directUntilLocal)});
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        return input.value === ${JSON.stringify(directUntilLocal)};
+      })()`);
+      assert.equal(changed, true, "점검 종료 시각 입력값을 변경하지 못했습니다");
+      await waitForCondition(
+        cdp,
+        `document.querySelector('input[aria-label="${SERVICE_NAME} 점검 종료 시각"]')?.value === ${JSON.stringify(directUntilLocal)} &&
+          document.querySelector('button[aria-label="${SERVICE_NAME} 점검 종료 시각 적용"]')?.disabled === false`,
+        timeoutMs,
+        "점검 종료 시각 직접 편집값이 반영되지 않았습니다",
+      );
+
+      const directPatchRequest = waitForFetch(cdp, timeoutMs, "점검 종료 시각 PATCH");
+      await clickAriaLabel(cdp, `${SERVICE_NAME} 점검 종료 시각 적용`);
+      const directPatch = await directPatchRequest;
+      assertRequest(directPatch, "PATCH", `/api/v1/services/${SERVICE_ID}`);
+      assert.deepEqual(JSON.parse(directPatch.request.postData || "{}"), {
+        maintenance_until: directUntil,
+        routing_mode: "maintenance",
+      });
+
+      const directRefreshedListRequest = waitForFetch(cdp, timeoutMs, "점검 시각 변경 후 서비스 목록");
+      services = [{ ...services[0], maintenance_until: directUntil }, ...services.slice(1)];
+      await fulfillJson(cdp, directPatch, services[0]);
+      const directRefreshedList = await directRefreshedListRequest;
+      assertRequest(directRefreshedList, "GET", "/api/v1/services");
+      await fulfillJson(cdp, directRefreshedList, services);
+      await waitForCondition(
+        cdp,
+        `(() => {
+          const row = document.querySelector('[data-maintenance-service-id="${SERVICE_ID}"]');
+          return row?.getAttribute('data-maintenance-until') === ${JSON.stringify(directUntil)} &&
+            document.body.innerText.includes('${SERVICE_NAME} 점검 종료 시각을 변경했습니다.');
+        })()`,
+        timeoutMs,
+        "점검 종료 시각 직접 편집 결과가 화면에 반영되지 않았습니다",
+      );
+
       await clickAriaLabel(cdp, `${SERVICE_NAME} 지금 정상 운영`);
       await waitForCondition(
         cdp,
@@ -96,7 +142,7 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
       assert.match(capture.confirms[0], /점검 스모크 1.*지금 정상 운영/);
       assert.deepEqual(
         capture.requests.map((request) => request.method),
-        ["PATCH"],
+        ["PATCH", "PATCH"],
         "즉시 정상 운영을 취소한 뒤 추가 변경 요청이 발생했습니다",
       );
     } finally {
