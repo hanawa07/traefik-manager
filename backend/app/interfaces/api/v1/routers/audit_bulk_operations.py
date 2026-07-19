@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, Query
+from datetime import datetime, timedelta, timezone
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,16 +22,26 @@ router = APIRouter()
 )
 async def list_bulk_operations(
     limit: int = Query(5, ge=1, le=20),
+    period_days: int | None = Query(None, ge=1),
+    notification_status: Literal["success", "failure", "none"] | None = Query(None),
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
+    if period_days is not None and period_days not in {7, 30, 90}:
+        raise HTTPException(status_code=422, detail="기간은 7, 30, 90일 중 하나여야 합니다")
     operation_column = AuditLogModel.detail["bulk_operation_id"].as_string()
     event_column = AuditLogModel.detail["event"].as_string()
+    cutoff = (
+        datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=period_days)
+        if period_days
+        else None
+    )
     operation_ids = await _load_recent_operation_ids(
         db,
         operation_column=operation_column,
         event_column=event_column,
-        limit=limit,
+        limit=None if notification_status else limit,
+        cutoff=cutoff,
     )
     if not operation_ids:
         return []
@@ -53,11 +66,18 @@ async def list_bulk_operations(
         )
         .order_by(desc(AuditLogModel.created_at), desc(AuditLogModel.id))
     )
-    return _build_summaries(
+    summaries = _build_summaries(
         operation_ids,
         list(service_result.scalars().all()),
         list(delivery_result.scalars().all()),
     )
+    if notification_status:
+        summaries = [
+            summary
+            for summary in summaries
+            if summary.notification_status == notification_status
+        ]
+    return summaries[:limit]
 
 
 async def _load_recent_operation_ids(
@@ -65,10 +85,11 @@ async def _load_recent_operation_ids(
     *,
     operation_column,
     event_column,
-    limit: int,
+    limit: int | None,
+    cutoff: datetime | None,
 ) -> list[str]:
     latest_at = func.max(AuditLogModel.created_at).label("latest_at")
-    result = await db.execute(
+    query = (
         select(operation_column.label("operation_id"), latest_at)
         .where(
             AuditLogModel.action == "update",
@@ -76,10 +97,17 @@ async def _load_recent_operation_ids(
             event_column == "service_update",
             operation_column.is_not(None),
         )
+    )
+    if cutoff:
+        query = query.where(AuditLogModel.created_at >= cutoff)
+    query = (
+        query
         .group_by(operation_column)
         .order_by(latest_at.desc())
-        .limit(limit)
     )
+    if limit:
+        query = query.limit(limit)
+    result = await db.execute(query)
     return [row.operation_id for row in result if isinstance(row.operation_id, str)]
 
 
@@ -127,6 +155,7 @@ def _build_summaries(
                 notification_status=(
                     "success" if success is True else "failure" if success is False else "none"
                 ),
+                notification_audit_id=delivery.id if delivery else None,
                 notification_provider=(
                     delivery_detail.get("provider")
                     if isinstance(delivery_detail.get("provider"), str)

@@ -48,7 +48,14 @@ export interface AuditBulkOperationSummary {
   routing_mode_after: string | null;
   completed_at: string;
   notification_status: "success" | "failure" | "none";
+  notification_audit_id: string | null;
   notification_provider: string | null;
+}
+
+export interface AuditBulkOperationQueryParams {
+  limit?: number;
+  period_days?: 7 | 30 | 90;
+  notification_status?: AuditBulkOperationSummary["notification_status"];
 }
 
 export function buildAuditExportUrl(params: AuditLogQueryParams): string {
@@ -129,9 +136,11 @@ export const auditApi = {
     return { items: res.data, total: Number.isFinite(total) ? total : res.data.length };
   },
 
-  getBulkOperations: async (limit = 5): Promise<AuditBulkOperationSummary[]> => {
+  getBulkOperations: async (
+    params?: AuditBulkOperationQueryParams,
+  ): Promise<AuditBulkOperationSummary[]> => {
     const res = await apiClient.get<AuditBulkOperationSummary[]>("/audit/bulk-operations", {
-      params: { limit },
+      params,
     });
     return res.data;
   },

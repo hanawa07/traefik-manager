@@ -1,16 +1,47 @@
 "use client";
 
-import { BellOff, CheckCircle2, Download, Layers3, XCircle } from "lucide-react";
+import { BellOff, CheckCircle2, Download, Layers3, Loader2, RotateCw, XCircle } from "lucide-react";
+import { useState } from "react";
 
 import {
   buildAuditExportUrl,
   type AuditBulkOperationSummary,
 } from "@/features/audit/api/auditApi";
 import { useAuditBulkOperations } from "@/features/audit/hooks/useAudit";
+import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
-export function AuditBulkOperationsOverview({ timezone }: { timezone?: string }) {
-  const query = useAuditBulkOperations();
+const PAGE_SIZE = 5;
+const MAX_VISIBLE_OPERATIONS = 20;
+type BulkPeriod = "all" | "7" | "30" | "90";
+type BulkNotificationStatus = "all" | AuditBulkOperationSummary["notification_status"];
+
+interface AuditBulkOperationsOverviewProps {
+  isRetryPending: boolean;
+  retryTargetId: string | null;
+  timezone?: string;
+  onRetryDelivery: (auditLogId: string) => void;
+}
+
+export function AuditBulkOperationsOverview({
+  isRetryPending,
+  retryTargetId,
+  timezone,
+  onRetryDelivery,
+}: AuditBulkOperationsOverviewProps) {
+  const [period, setPeriod] = useState<BulkPeriod>("all");
+  const [notificationStatus, setNotificationStatus] = useState<BulkNotificationStatus>("all");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const canManage = useAuthStore((state) => state.role === "admin");
+  const requestLimit = Math.min(visibleCount + 1, MAX_VISIBLE_OPERATIONS);
+  const query = useAuditBulkOperations({
+    limit: requestLimit,
+    period_days: period === "all" ? undefined : Number(period) as 7 | 30 | 90,
+    notification_status: notificationStatus === "all" ? undefined : notificationStatus,
+  });
+  const summaries = (query.data ?? []).slice(0, visibleCount);
+  const hasActiveFilter = period !== "all" || notificationStatus !== "all";
+  const hasMore = visibleCount < MAX_VISIBLE_OPERATIONS && (query.data?.length ?? 0) > visibleCount;
   if (query.isLoading) {
     return <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">최근 일괄 작업 확인 중...</p>;
   }
@@ -21,14 +52,14 @@ export function AuditBulkOperationsOverview({ timezone }: { timezone?: string })
       </p>
     );
   }
-  if (!query.data?.length) return null;
+  if (!query.data?.length && !hasActiveFilter) return null;
 
   return (
     <section
       className="mb-6 rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-sky-50 p-5 shadow-sm dark:border-cyan-500/25 dark:from-cyan-950/30 dark:via-slate-900 dark:to-sky-950/20 dark:shadow-none"
       data-testid="audit-bulk-operations-overview"
     >
-      <div className="mb-4 flex items-start gap-3">
+      <div className="mb-4 flex flex-wrap items-start gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-600 text-white dark:bg-cyan-500 dark:text-slate-950">
           <Layers3 className="h-4 w-4" />
         </span>
@@ -38,29 +69,89 @@ export function AuditBulkOperationsOverview({ timezone }: { timezone?: string })
             같은 작업 ID의 변경 기록과 알림 결과를 한 장으로 묶었습니다.
           </p>
         </div>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <select
+            aria-label="일괄 작업 기간"
+            className="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-cyan-500/30 dark:bg-slate-900 dark:text-slate-200"
+            value={period}
+            onChange={(event) => {
+              setPeriod(event.target.value as BulkPeriod);
+              setVisibleCount(PAGE_SIZE);
+            }}
+          >
+            <option value="all">전체 기간</option>
+            <option value="7">최근 7일</option>
+            <option value="30">최근 30일</option>
+            <option value="90">최근 90일</option>
+          </select>
+          <select
+            aria-label="일괄 작업 알림 상태"
+            className="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-cyan-500/30 dark:bg-slate-900 dark:text-slate-200"
+            value={notificationStatus}
+            onChange={(event) => {
+              setNotificationStatus(event.target.value as BulkNotificationStatus);
+              setVisibleCount(PAGE_SIZE);
+            }}
+          >
+            <option value="all">알림 전체</option>
+            <option value="success">알림 성공</option>
+            <option value="failure">알림 실패</option>
+            <option value="none">알림 기록 없음</option>
+          </select>
+        </div>
       </div>
-      <div className="grid gap-3 lg:grid-cols-2">
-        {query.data.map((summary) => (
-          <BulkOperationCard key={summary.operation_id} summary={summary} timezone={timezone} />
-        ))}
-      </div>
+      {summaries.length > 0 ? (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {summaries.map((summary) => (
+            <BulkOperationCard
+              key={summary.operation_id}
+              canManage={canManage}
+              isRetryPending={isRetryPending && retryTargetId === summary.notification_audit_id}
+              onRetryDelivery={onRetryDelivery}
+              summary={summary}
+              timezone={timezone}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-xl border border-dashed border-cyan-200 px-4 py-6 text-center text-sm text-slate-500 dark:border-cyan-500/30 dark:text-slate-400">
+          선택한 조건에 맞는 일괄 작업이 없습니다.
+        </p>
+      )}
+      {hasMore ? (
+        <button
+          className="mx-auto mt-4 block rounded-lg border border-cyan-300 bg-white px-4 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100 dark:border-cyan-500/40 dark:bg-slate-900 dark:text-cyan-200 dark:hover:bg-cyan-950"
+          type="button"
+          onClick={() => setVisibleCount((current) => Math.min(current + PAGE_SIZE, MAX_VISIBLE_OPERATIONS))}
+        >
+          일괄 작업 더보기
+        </button>
+      ) : null}
     </section>
   );
 }
 
 function BulkOperationCard({
+  canManage,
+  isRetryPending,
+  onRetryDelivery,
   summary,
   timezone,
 }: {
+  canManage: boolean;
+  isRetryPending: boolean;
+  onRetryDelivery: (auditLogId: string) => void;
   summary: AuditBulkOperationSummary;
   timezone?: string;
 }) {
   const exportUrl = buildAuditExportUrl({ bulk_operation_id: summary.operation_id });
   const serviceNames = summary.service_names.join(", ");
+  const retryAuditId = summary.notification_audit_id;
   return (
     <article
       className="rounded-xl border border-cyan-100 bg-white/90 p-4 dark:border-cyan-500/20 dark:bg-slate-950/60"
       data-bulk-operation-id={summary.operation_id}
+      data-notification-status={summary.notification_status}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
@@ -71,7 +162,20 @@ function BulkOperationCard({
             {serviceNames}
           </p>
         </div>
-        <NotificationStatus summary={summary} />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <NotificationStatus summary={summary} />
+          {canManage && summary.notification_status === "failure" && retryAuditId ? (
+            <button
+              className="inline-flex items-center gap-1 rounded-full border border-rose-300 bg-white px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/40 dark:bg-slate-900 dark:text-rose-200 dark:hover:bg-rose-950"
+              disabled={isRetryPending}
+              type="button"
+              onClick={() => onRetryDelivery(retryAuditId)}
+            >
+              {isRetryPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}
+              전송 재시도
+            </button>
+          ) : null}
+        </div>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-slate-100 pt-3 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
         <span>{summary.actor}</span>

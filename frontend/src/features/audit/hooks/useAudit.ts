@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  type AuditBulkOperationQueryParams,
   type AuditDeliveryRetryResult,
   type AuditLogQueryParams,
   auditApi,
@@ -22,10 +23,10 @@ export const useAuditPage = (params: AuditLogQueryParams, enabled = true) => {
   });
 };
 
-export const useAuditBulkOperations = (limit = 5) => {
+export const useAuditBulkOperations = (params?: AuditBulkOperationQueryParams) => {
   return useQuery({
-    queryKey: ["audit-bulk-operations", limit],
-    queryFn: () => auditApi.getBulkOperations(limit),
+    queryKey: ["audit-bulk-operations", params],
+    queryFn: () => auditApi.getBulkOperations(params),
     staleTime: 15_000,
   });
 };

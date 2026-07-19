@@ -55,7 +55,12 @@ function AuditLogPageContent() {
       <AuditFeedbackBanner feedback={rollbackFeedback} />
       <AuditFeedbackBanner feedback={deliveryFeedback} />
 
-      <AuditBulkOperationsOverview timezone={table.timezone} />
+      <AuditBulkOperationsOverview
+        isRetryPending={table.isRetryPending}
+        onRetryDelivery={table.onRetryDelivery}
+        retryTargetId={table.retryTargetId}
+        timezone={table.timezone}
+      />
       <AuditLogTable {...table} />
     </div>
   );

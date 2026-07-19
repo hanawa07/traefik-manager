@@ -76,6 +76,7 @@ class AuditBulkOperationSummaryResponse(BaseModel):
     routing_mode_after: str | None = None
     completed_at: datetime
     notification_status: Literal["success", "failure", "none"]
+    notification_audit_id: UUID | None = None
     notification_provider: str | None = None
 
 

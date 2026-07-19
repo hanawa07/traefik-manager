@@ -18,8 +18,10 @@ async def test_bulk_operations_group_services_and_latest_delivery_status():
         await connection.run_sync(AuditLogModel.__table__.create)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     now = datetime.now(timezone.utc)
+    ancient_operation_id = uuid4()
     older_operation_id = uuid4()
     latest_operation_id = uuid4()
+    latest_failure = _delivery_log(latest_operation_id, False, now + timedelta(seconds=1))
 
     async with session_factory() as session:
         session.add_all(
@@ -28,7 +30,8 @@ async def test_bulk_operations_group_services_and_latest_delivery_status():
                 _service_log(older_operation_id, "Homepage", now - timedelta(minutes=2)),
                 _delivery_log(older_operation_id, True, now - timedelta(minutes=1)),
                 _service_log(latest_operation_id, "Manager", now),
-                _delivery_log(latest_operation_id, False, now + timedelta(seconds=1)),
+                latest_failure,
+                _service_log(ancient_operation_id, "Legacy", now - timedelta(days=10)),
             ]
         )
         await session.commit()
@@ -44,6 +47,22 @@ async def test_bulk_operations_group_services_and_latest_delivery_status():
             transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
             response = await client.get("/audit/bulk-operations", params={"limit": 2})
+            failure_response = await client.get(
+                "/audit/bulk-operations",
+                params={"notification_status": "failure", "limit": 2},
+            )
+            none_response = await client.get(
+                "/audit/bulk-operations",
+                params={"notification_status": "none", "limit": 2},
+            )
+            period_response = await client.get(
+                "/audit/bulk-operations",
+                params={"period_days": 7, "limit": 20},
+            )
+            invalid_period_response = await client.get(
+                "/audit/bulk-operations",
+                params={"period_days": 1},
+            )
 
     await engine.dispose()
 
@@ -57,10 +76,19 @@ async def test_bulk_operations_group_services_and_latest_delivery_status():
         "routing_mode_after": "maintenance",
         "completed_at": "ignored",
         "notification_status": "failure",
+        "notification_audit_id": str(latest_failure.id),
         "notification_provider": "telegram",
     }
     assert older_item["service_names"] == ["English", "Homepage"]
     assert older_item["notification_status"] == "success"
+    assert [item["operation_id"] for item in failure_response.json()] == [
+        str(latest_operation_id)
+    ]
+    assert [item["operation_id"] for item in none_response.json()] == [
+        str(ancient_operation_id)
+    ]
+    assert len(period_response.json()) == 2
+    assert invalid_period_response.status_code == 422
 
 
 def _service_log(operation_id, service_name: str, created_at: datetime):
