@@ -1,6 +1,17 @@
 "use client";
 
-import { BellOff, CheckCircle2, Download, Layers3, Loader2, RotateCw, XCircle } from "lucide-react";
+import {
+  BellOff,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  Layers3,
+  Loader2,
+  RotateCw,
+  XCircle,
+} from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import {
@@ -10,6 +21,8 @@ import {
 import { useAuditBulkOperations } from "@/features/audit/hooks/useAudit";
 import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+
+import { AuditRetryChainPanel } from "./AuditRetryChainPanel";
 
 const PAGE_SIZE = 5;
 const MAX_VISIBLE_OPERATIONS = 20;
@@ -29,8 +42,9 @@ export function AuditBulkOperationsOverview({
   timezone,
   onRetryDelivery,
 }: AuditBulkOperationsOverviewProps) {
-  const [period, setPeriod] = useState<BulkPeriod>("all");
-  const [notificationStatus, setNotificationStatus] = useState<BulkNotificationStatus>("all");
+  const searchParams = useSearchParams();
+  const period = parseBulkPeriod(searchParams.get("bulk_period"));
+  const notificationStatus = parseBulkNotificationStatus(searchParams.get("bulk_status"));
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const canManage = useAuthStore((state) => state.role === "admin");
   const requestLimit = Math.min(visibleCount + 1, MAX_VISIBLE_OPERATIONS);
@@ -75,7 +89,7 @@ export function AuditBulkOperationsOverview({
             className="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-cyan-500/30 dark:bg-slate-900 dark:text-slate-200"
             value={period}
             onChange={(event) => {
-              setPeriod(event.target.value as BulkPeriod);
+              replaceBulkFilter("bulk_period", event.target.value, "all");
               setVisibleCount(PAGE_SIZE);
             }}
           >
@@ -89,7 +103,7 @@ export function AuditBulkOperationsOverview({
             className="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-cyan-500/30 dark:bg-slate-900 dark:text-slate-200"
             value={notificationStatus}
             onChange={(event) => {
-              setNotificationStatus(event.target.value as BulkNotificationStatus);
+              replaceBulkFilter("bulk_status", event.target.value, "all");
               setVisibleCount(PAGE_SIZE);
             }}
           >
@@ -144,9 +158,11 @@ function BulkOperationCard({
   summary: AuditBulkOperationSummary;
   timezone?: string;
 }) {
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const exportUrl = buildAuditExportUrl({ bulk_operation_id: summary.operation_id });
   const serviceNames = summary.service_names.join(", ");
   const retryAuditId = summary.notification_audit_id;
+  const retryHistoryAuditId = summary.notification_attempt_count > 1 ? retryAuditId : null;
   return (
     <article
       className="rounded-xl border border-cyan-100 bg-white/90 p-4 dark:border-cyan-500/20 dark:bg-slate-950/60"
@@ -177,9 +193,31 @@ function BulkOperationCard({
           ) : null}
         </div>
       </div>
+      {summary.last_failure_detail ? (
+        <p
+          className="mt-3 line-clamp-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:bg-rose-950/40 dark:text-rose-200"
+          title={summary.last_failure_detail}
+        >
+          최근 실패 원인: {summary.last_failure_detail}
+        </p>
+      ) : null}
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-slate-100 pt-3 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
         <span>{summary.actor}</span>
         <time dateTime={summary.completed_at}>{formatDateTime(summary.completed_at, timezone)}</time>
+        {summary.notification_attempt_count > 0 ? (
+          <span>전송 {summary.notification_attempt_count}회</span>
+        ) : null}
+        {retryHistoryAuditId ? (
+          <button
+            aria-expanded={isHistoryOpen}
+            className="inline-flex items-center gap-1 font-semibold text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100"
+            type="button"
+            onClick={() => setIsHistoryOpen((current) => !current)}
+          >
+            {isHistoryOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            {isHistoryOpen ? "이력 닫기" : "전체 이력"}
+          </button>
+        ) : null}
         <a
           aria-label={`${summary.service_count}개 서비스 일괄 변경 CSV 다운로드`}
           className="ml-auto inline-flex items-center gap-1 font-semibold text-cyan-700 hover:text-cyan-900 dark:text-cyan-300 dark:hover:text-cyan-100"
@@ -193,6 +231,11 @@ function BulkOperationCard({
           {summary.operation_id}
         </code>
       </div>
+      {retryHistoryAuditId && isHistoryOpen ? (
+        <div className="mt-3">
+          <AuditRetryChainPanel enabled logId={retryHistoryAuditId} timezone={timezone} />
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -230,4 +273,24 @@ function getRoutingModeLabel(routingMode: string | null) {
   if (routingMode === "disabled") return "라우팅 비활성 전환";
   if (routingMode === "maintenance") return "점검 안내 전환";
   return "운영 상태 일괄 변경";
+}
+
+function parseBulkPeriod(value: string | null): BulkPeriod {
+  return value === "7" || value === "30" || value === "90" ? value : "all";
+}
+
+function parseBulkNotificationStatus(value: string | null): BulkNotificationStatus {
+  return value === "success" || value === "failure" || value === "none" ? value : "all";
+}
+
+function replaceBulkFilter(key: string, value: string, defaultValue: string) {
+  const params = new URLSearchParams(window.location.search);
+  if (value === defaultValue) params.delete(key);
+  else params.set(key, value);
+  const query = params.toString();
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${window.location.pathname}${query ? `?${query}` : ""}`,
+  );
 }

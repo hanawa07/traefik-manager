@@ -50,6 +50,8 @@ export interface AuditBulkOperationSummary {
   notification_status: "success" | "failure" | "none";
   notification_audit_id: string | null;
   notification_provider: string | null;
+  notification_attempt_count: number;
+  last_failure_detail: string | null;
 }
 
 export interface AuditBulkOperationQueryParams {

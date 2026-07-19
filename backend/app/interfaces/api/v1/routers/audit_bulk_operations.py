@@ -122,11 +122,13 @@ def _build_summaries(
         if operation_id in grouped_services:
             grouped_services[operation_id].append(log)
 
-    latest_delivery: dict[str, AuditLogModel] = {}
+    deliveries_by_operation: dict[str, list[AuditLogModel]] = {
+        item: [] for item in operation_ids
+    }
     for log in delivery_logs:
         operation_id = (log.detail or {}).get("source_resource_id")
-        if operation_id in grouped_services and operation_id not in latest_delivery:
-            latest_delivery[operation_id] = log
+        if operation_id in deliveries_by_operation:
+            deliveries_by_operation[operation_id].append(log)
 
     summaries = []
     for operation_id in operation_ids:
@@ -141,7 +143,8 @@ def _build_summaries(
                 if (mode := _routing_mode_after(log)) is not None
             )
         )
-        delivery = latest_delivery.get(operation_id)
+        operation_deliveries = deliveries_by_operation[operation_id]
+        delivery = operation_deliveries[0] if operation_deliveries else None
         delivery_detail = (delivery.detail or {}) if delivery else {}
         success = delivery_detail.get("success")
         summaries.append(
@@ -161,9 +164,22 @@ def _build_summaries(
                     if isinstance(delivery_detail.get("provider"), str)
                     else None
                 ),
+                notification_attempt_count=len(operation_deliveries),
+                last_failure_detail=_latest_failure_detail(operation_deliveries),
             )
         )
     return summaries
+
+
+def _latest_failure_detail(deliveries: list[AuditLogModel]) -> str | None:
+    for delivery in deliveries:
+        detail = delivery.detail or {}
+        failure_detail = detail.get("detail")
+        if detail.get("success") is False and isinstance(failure_detail, str):
+            failure_detail = failure_detail.strip()
+            if failure_detail:
+                return failure_detail
+    return None
 
 
 def _routing_mode_after(log: AuditLogModel) -> str | None:

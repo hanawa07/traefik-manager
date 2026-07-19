@@ -78,6 +78,8 @@ class AuditBulkOperationSummaryResponse(BaseModel):
     notification_status: Literal["success", "failure", "none"]
     notification_audit_id: UUID | None = None
     notification_provider: str | None = None
+    notification_attempt_count: int = 0
+    last_failure_detail: str | None = None
 
 
 class AuditDeliveryRetryResponse(BaseModel):

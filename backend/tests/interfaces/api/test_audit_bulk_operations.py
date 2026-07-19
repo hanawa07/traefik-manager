@@ -21,15 +21,41 @@ async def test_bulk_operations_group_services_and_latest_delivery_status():
     ancient_operation_id = uuid4()
     older_operation_id = uuid4()
     latest_operation_id = uuid4()
-    latest_failure = _delivery_log(latest_operation_id, False, now + timedelta(seconds=1))
+    first_failure = _delivery_log(
+        latest_operation_id,
+        False,
+        now + timedelta(milliseconds=500),
+        detail="연결 시간 초과",
+    )
+    latest_failure = _delivery_log(
+        latest_operation_id,
+        False,
+        now + timedelta(seconds=1),
+        detail="Telegram API 응답 없음",
+        retry_of_audit_id=first_failure.id,
+    )
+    older_failure = _delivery_log(
+        older_operation_id,
+        False,
+        now - timedelta(seconds=90),
+        detail="일시적 전송 실패",
+    )
+    older_success = _delivery_log(
+        older_operation_id,
+        True,
+        now - timedelta(minutes=1),
+        retry_of_audit_id=older_failure.id,
+    )
 
     async with session_factory() as session:
         session.add_all(
             [
                 _service_log(older_operation_id, "English", now - timedelta(minutes=3)),
                 _service_log(older_operation_id, "Homepage", now - timedelta(minutes=2)),
-                _delivery_log(older_operation_id, True, now - timedelta(minutes=1)),
+                older_failure,
+                older_success,
                 _service_log(latest_operation_id, "Manager", now),
+                first_failure,
                 latest_failure,
                 _service_log(ancient_operation_id, "Legacy", now - timedelta(days=10)),
             ]
@@ -78,9 +104,13 @@ async def test_bulk_operations_group_services_and_latest_delivery_status():
         "notification_status": "failure",
         "notification_audit_id": str(latest_failure.id),
         "notification_provider": "telegram",
+        "notification_attempt_count": 2,
+        "last_failure_detail": "Telegram API 응답 없음",
     }
     assert older_item["service_names"] == ["English", "Homepage"]
     assert older_item["notification_status"] == "success"
+    assert older_item["notification_attempt_count"] == 2
+    assert older_item["last_failure_detail"] == "일시적 전송 실패"
     assert [item["operation_id"] for item in failure_response.json()] == [
         str(latest_operation_id)
     ]
@@ -107,7 +137,25 @@ def _service_log(operation_id, service_name: str, created_at: datetime):
     )
 
 
-def _delivery_log(operation_id, success: bool, created_at: datetime):
+def _delivery_log(
+    operation_id,
+    success: bool,
+    created_at: datetime,
+    *,
+    detail: str | None = None,
+    retry_of_audit_id=None,
+):
+    detail_extra = {
+        "success": success,
+        "provider": "telegram",
+        "source_event": "service_update",
+        "source_resource_type": "service",
+        "source_resource_id": str(operation_id),
+    }
+    if detail:
+        detail_extra["detail"] = detail
+    if retry_of_audit_id:
+        detail_extra["retry_of_audit_id"] = str(retry_of_audit_id)
     return make_log(
         actor="system",
         action="alert",
@@ -115,11 +163,5 @@ def _delivery_log(operation_id, success: bool, created_at: datetime):
         resource_name="운영 변경 알림 전송 결과",
         event=f"change_alert_delivery_{'success' if success else 'failure'}",
         created_at=created_at,
-        detail_extra={
-            "success": success,
-            "provider": "telegram",
-            "source_event": "service_update",
-            "source_resource_type": "service",
-            "source_resource_id": str(operation_id),
-        },
+        detail_extra=detail_extra,
     )
