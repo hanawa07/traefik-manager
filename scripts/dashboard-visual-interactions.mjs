@@ -26,9 +26,10 @@ export async function checkCertificateDrawer({ artifactDir, cdp, profile, timeou
   return true;
 }
 
-export async function checkOptionalAdminModal({ artifactDir, cdp, profile, timeoutMs }) {
+export async function checkOptionalAdminModal({ artifactDir, canManageUsers, cdp, profile, timeoutMs }) {
   const opened = await clickButton(cdp, "사용자 추가");
-  if (!opened) return false;
+  assert.equal(opened, canManageUsers, "세션 역할과 사용자 추가 권한이 다릅니다");
+  if (!canManageUsers) return false;
 
   await waitForDialog(cdp, "사용자 추가", timeoutMs);
   await assertDialogFitsViewport(cdp, "사용자 추가");

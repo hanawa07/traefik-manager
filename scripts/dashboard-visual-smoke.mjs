@@ -14,6 +14,7 @@ import {
 import { checkManagerDeploymentHistory } from "./dashboard-visual-manager-deployment.mjs";
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
 import { checkSecurityAlertRetryDelaySetting } from "./dashboard-visual-security-alert-settings.mjs";
+import { checkAuditDelayedRetryFilter } from "./dashboard-visual-audit-delayed-retry.mjs";
 import {
   checkAuditRetryChain,
   checkSettingsTestAuditLinks,
@@ -22,8 +23,7 @@ import {
 } from "./dashboard-visual-smoke-monitoring.mjs";
 import { checkWatchdogFilterPersistence } from "./dashboard-visual-watchdog.mjs";
 import { assertDashboardShell } from "./dashboard-visual-shell.mjs";
-
-export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeoutMs }) {
+export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabilities, cdp, timeoutMs }) {
   const labels = [];
   for (const profile of VISUAL_PROFILES) {
     await withVisualProfile(cdp, profile, async () => {
@@ -46,6 +46,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
           if (opened) labels.push(`${profile.label} 인증서 drawer`);
         }
         if (route.path === "/dashboard/audit") {
+          await checkAuditDelayedRetryFilter({ cdp, timeoutMs });
+          labels.push(`${profile.label} 지연 재시도 필터·건수·CSV`);
           const retryChainChecked = await checkAuditRetryChain({ cdp, timeoutMs });
           if (retryChainChecked) labels.push(`${profile.label} 알림 재시도 전체 체인·단계 경과·지연 강조`);
           await checkSmokeRotationAuditDetail({ cdp, timeoutMs });
@@ -58,19 +60,31 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, cdp, timeo
           if (historyLinked) labels.push(`${profile.label} 설정 테스트 감사 상세 링크`);
           const previewed = await checkManagerHttpErrorPreviewForm({
             artifactDir,
+            canManageSettings: capabilities.canManage,
             cdp,
             profile,
             timeoutMs,
           });
           if (previewed) labels.push(`${profile.label} API 오류 권장값 계산`);
-          const retryDelayEditable = await checkSecurityAlertRetryDelaySetting({ cdp, timeoutMs });
+          const retryDelayEditable = await checkSecurityAlertRetryDelaySetting({
+            canManageSettings: capabilities.canManage,
+            cdp,
+            timeoutMs,
+          });
           labels.push(`${profile.label} 자동 재시도 지연 설정${retryDelayEditable ? "·편집 범위" : ""}`);
           const bottleneckPreviewed = await checkDeploymentBottleneckSettingsPreview({
+            canManageSettings: capabilities.canManage,
             cdp,
             timeoutMs,
           });
           if (bottleneckPreviewed) labels.push(`${profile.label} 배포 병목 호스트 적용값 비교`);
-          const opened = await checkOptionalAdminModal({ artifactDir, cdp, profile, timeoutMs });
+          const opened = await checkOptionalAdminModal({
+            artifactDir,
+            canManageUsers: capabilities.canManage,
+            cdp,
+            profile,
+            timeoutMs,
+          });
           if (opened) labels.push(`${profile.label} 사용자 추가 모달`);
         }
       }

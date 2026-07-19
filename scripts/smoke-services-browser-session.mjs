@@ -25,6 +25,10 @@ import {
   runRemoteSmokeStatusSelfTest,
   writeSmokeAlertDetail,
 } from "./smoke-remote-status.mjs";
+import {
+  resolveSmokeSessionCapabilities,
+  runSmokeSessionCapabilitiesSelfTest,
+} from "./smoke-session-capabilities.mjs";
 
 const DEFAULT_TIMEOUT_MS = 40_000;
 
@@ -149,9 +153,12 @@ async function main() {
       results.push({ ...check, data: result.data });
     }
 
+    const session = results.find((item) => item.label === "현재 세션")?.data;
+    const capabilities = resolveSmokeSessionCapabilities(session);
     const visualResult = await runDashboardVisualSmoke({
       artifactDir: process.env.TM_SMOKE_ARTIFACT_DIR,
       baseUrl,
+      capabilities,
       cdp,
       timeoutMs,
     });
@@ -162,7 +169,6 @@ async function main() {
       visualResult.adminChecked || adminReadOnlyChecked,
     );
 
-    const session = results.find((item) => item.label === "현재 세션")?.data;
     const services = results.find((item) => item.label === "서비스 목록")?.data ?? [];
     console.log(`서비스 브라우저 스모크 통과: ${baseUrl}`);
     console.log(`- 세션: ${session.username} (${session.role})`);
@@ -473,6 +479,7 @@ async function runSelfTest() {
   assert.equal(rotationCheck.failureMessage({ is_stale: false, stale_after_days: 35 }), null);
   await runSmokeAdminReadOnlySelfTest();
   await runRemoteSmokeStatusSelfTest();
+  runSmokeSessionCapabilitiesSelfTest();
   runDashboardVisualSmokeSelfTest();
   console.log("서비스 브라우저 스모크 self-test 통과");
 }

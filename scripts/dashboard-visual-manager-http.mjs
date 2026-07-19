@@ -164,6 +164,7 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
 
 export async function checkManagerHttpErrorPreviewForm({
   artifactDir,
+  canManageSettings,
   cdp,
   profile,
   timeoutMs = 15_000,
@@ -176,7 +177,8 @@ export async function checkManagerHttpErrorPreviewForm({
     edit?.click();
     return Boolean(edit);
   })()`);
-  if (!opened) return false;
+  assert.equal(opened, canManageSettings, "세션 역할과 Manager API 오류 설정 편집 권한이 다릅니다");
+  if (!canManageSettings) return false;
 
   await waitForCondition(
     cdp,

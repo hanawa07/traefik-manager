@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
-export async function checkDeploymentBottleneckSettingsPreview({ cdp, timeoutMs }) {
+export async function checkDeploymentBottleneckSettingsPreview({ canManageSettings, cdp, timeoutMs }) {
   const opened = await evaluate(cdp, `(() => {
     const card = document.querySelector('[data-testid="deployment-bottleneck-settings-card"]');
     const edit = Array.from(card?.querySelectorAll('button') || []).find(
@@ -11,7 +11,8 @@ export async function checkDeploymentBottleneckSettingsPreview({ cdp, timeoutMs 
     edit?.click();
     return Boolean(edit);
   })()`);
-  if (!opened) return false;
+  assert.equal(opened, canManageSettings, "세션 역할과 배포 병목 설정 편집 권한이 다릅니다");
+  if (!canManageSettings) return false;
 
   await waitForCondition(
     cdp,

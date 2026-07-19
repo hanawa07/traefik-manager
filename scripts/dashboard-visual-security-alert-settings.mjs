@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
-export async function checkSecurityAlertRetryDelaySetting({ cdp, timeoutMs }) {
+export async function checkSecurityAlertRetryDelaySetting({ canManageSettings, cdp, timeoutMs }) {
   await waitForCondition(
     cdp,
     `Boolean(document.querySelector('[data-testid="security-alert-retry-delay-summary"]'))`,
@@ -32,7 +32,8 @@ export async function checkSecurityAlertRetryDelaySetting({ cdp, timeoutMs }) {
     edit?.click();
     return Boolean(edit);
   })()`);
-  if (!opened) return false;
+  assert.equal(opened, canManageSettings, "세션 역할과 보안 알림 설정 편집 권한이 다릅니다");
+  if (!canManageSettings) return false;
   await waitForCondition(
     cdp,
     `Boolean(document.querySelector('input[aria-label="자동 재시도 지연 판정 시간"]'))`,
