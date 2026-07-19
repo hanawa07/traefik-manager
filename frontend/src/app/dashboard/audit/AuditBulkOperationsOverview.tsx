@@ -209,8 +209,10 @@ function BulkOperationCard({
         ) : null}
         {retryHistoryAuditId ? (
           <button
+            aria-label={`${summary.operation_id} 알림 재시도 전체 이력`}
             aria-expanded={isHistoryOpen}
             className="inline-flex items-center gap-1 font-semibold text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100"
+            data-bulk-operation-history
             type="button"
             onClick={() => setIsHistoryOpen((current) => !current)}
           >

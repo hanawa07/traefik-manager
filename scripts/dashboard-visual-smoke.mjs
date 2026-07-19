@@ -3,25 +3,16 @@ import assert from "node:assert/strict";
 import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
 import { checkAuditFilterPersistence, checkCertificateDrawer, checkMobileSidebar, checkOptionalAdminModal } from "./dashboard-visual-interactions.mjs";
 import { checkDeploymentBottleneckSettingsPreview } from "./dashboard-visual-deployment-bottleneck-settings.mjs";
-import {
-  checkOptionalDeploymentBottleneckCleanupCancel,
-  runDeploymentBottleneckCleanupSelfTest,
-} from "./dashboard-visual-deployment-bottleneck-cleanup.mjs";
-import {
-  checkManagerHttpErrorPreviewForm,
-  checkManagerHttpErrorTrend,
-} from "./dashboard-visual-manager-http.mjs";
+import { checkOptionalDeploymentBottleneckCleanupCancel, runDeploymentBottleneckCleanupSelfTest } from "./dashboard-visual-deployment-bottleneck-cleanup.mjs";
+import { checkManagerHttpErrorPreviewForm, checkManagerHttpErrorTrend } from "./dashboard-visual-manager-http.mjs";
 import { checkManagerDeploymentHistory } from "./dashboard-visual-manager-deployment.mjs";
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
 import { checkSecurityAlertRetryDelaySetting } from "./dashboard-visual-security-alert-settings.mjs";
 import { checkAuditDelayedRetryFilter } from "./dashboard-visual-audit-delayed-retry.mjs";
+import { checkAuditBulkOperationFixture, runAuditBulkOperationFixtureSelfTest } from "./dashboard-visual-audit-bulk-operations.mjs";
 import { checkAuditSecuritySettingChanges } from "./dashboard-visual-audit-security-setting-changes.mjs";
-import {
-  checkAuditRetryChain,
-  checkSettingsTestAuditLinks,
-  checkSmokeRotationAuditDetail,
-  checkSmokeRunTrendRange,
-} from "./dashboard-visual-smoke-monitoring.mjs";
+import { checkAuditRetryChain, checkSettingsTestAuditLinks, checkSmokeRotationAuditDetail, checkSmokeRunTrendRange } from "./dashboard-visual-smoke-monitoring.mjs";
+import { checkMaintenanceScheduleFixture, runMaintenanceScheduleFixtureSelfTest } from "./dashboard-visual-maintenance-schedule.mjs";
 import { checkWatchdogFilterPersistence } from "./dashboard-visual-watchdog.mjs";
 import { assertDashboardShell } from "./dashboard-visual-shell.mjs";
 export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabilities, cdp, timeoutMs }) {
@@ -100,6 +91,13 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
     timeoutMs,
   });
   if (cleanupCancelChecked) labels.push("관리자 병목 이벤트 정리 확인·취소");
+  const maintenanceChecked = await checkMaintenanceScheduleFixture({
+    canManage: cleanupCancelChecked, cdp, timeoutMs,
+  });
+  const bulkOperationChecked = await checkAuditBulkOperationFixture({
+    canManage: cleanupCancelChecked, cdp, timeoutMs,
+  });
+  if (maintenanceChecked && bulkOperationChecked) labels.push("관리자 점검 일정·일괄 작업 비파괴 fixture");
 
   await cdp.send("Network.clearBrowserCookies");
   await evaluate(cdp, `localStorage.removeItem("auth")`);
@@ -371,6 +369,8 @@ function sleep(ms) {
 
 export function runDashboardVisualSmokeSelfTest() {
   runDeploymentBottleneckCleanupSelfTest();
+  runMaintenanceScheduleFixtureSelfTest();
+  runAuditBulkOperationFixtureSelfTest();
   const mobileProfile = VISUAL_PROFILES[0];
   const desktopProfile = VISUAL_PROFILES[1];
   const serviceRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/services");
