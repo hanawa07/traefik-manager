@@ -23,6 +23,7 @@ import { DashboardServicesTable } from "./DashboardServicesTable";
 import { ManagerDeploymentCard } from "./ManagerDeploymentCard";
 import { ManagerHealthAlertBanner } from "./ManagerHealthAlertBanner";
 import { ManagerHealthHistoryCard } from "./ManagerHealthHistoryCard";
+import { MaintenanceScheduleSummary } from "./MaintenanceScheduleSummary";
 import { SecurityAlertSummaryCard } from "./SecurityAlertSummaryCard";
 import { ServiceOverviewStats } from "./ServiceOverviewStats";
 import { SmokeAdminStatusSummary } from "./SmokeAdminStatusSummary";
@@ -119,6 +120,11 @@ export default function DashboardPage() {
       />
       <SecurityAlertSummaryCard summary={securitySummary} timezone={displayTimezone} />
       <CertificateAlertSummaryCard certificates={certificates} summary={certificateSummary} timezone={displayTimezone} />
+      <MaintenanceScheduleSummary
+        isLoading={isLoading}
+        services={services}
+        timezone={displayTimezone}
+      />
       <ServiceOverviewStats
         isLoading={isLoading}
         totalServices={totalServices}

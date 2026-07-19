@@ -1,4 +1,21 @@
 const KOREA_OFFSET_MS = 9 * 60 * 60 * 1000;
+const MAINTENANCE_SOON_MS = 24 * 60 * 60 * 1000;
+
+export interface MaintenanceScheduleService {
+  id: string;
+  name: string;
+  domain: string;
+  routing_mode: string;
+  maintenance_until: string | null;
+}
+
+export type MaintenanceTiming = "overdue" | "soon" | "scheduled" | "unscheduled";
+
+export interface MaintenanceScheduleEntry {
+  service: MaintenanceScheduleService;
+  endTimestamp: number | null;
+  timing: MaintenanceTiming;
+}
 
 export function toKoreanDateTimeLocal(value?: string | null) {
   if (!value) return "";
@@ -26,4 +43,27 @@ export function formatMaintenanceRemaining(value: string | null | undefined, now
   if (days > 0) return `${days}일${hours > 0 ? ` ${hours}시간` : ""} 남음`;
   if (hours > 0) return `${hours}시간${minutes > 0 ? ` ${minutes}분` : ""} 남음`;
   return `${minutes}분 남음`;
+}
+
+export function getMaintenanceSchedule(
+  services: MaintenanceScheduleService[],
+  now = Date.now(),
+): MaintenanceScheduleEntry[] {
+  return services
+    .filter((service) => service.routing_mode === "maintenance")
+    .map((service) => {
+      const parsedTimestamp = service.maintenance_until
+        ? Date.parse(service.maintenance_until)
+        : Number.NaN;
+      const endTimestamp = Number.isNaN(parsedTimestamp) ? null : parsedTimestamp;
+      const timing: MaintenanceTiming = endTimestamp === null
+        ? "unscheduled"
+        : endTimestamp <= now
+          ? "overdue"
+          : endTimestamp - now <= MAINTENANCE_SOON_MS
+            ? "soon"
+            : "scheduled";
+      return { service, endTimestamp, timing };
+    })
+    .sort((a, b) => (a.endTimestamp ?? Number.POSITIVE_INFINITY) - (b.endTimestamp ?? Number.POSITIVE_INFINITY));
 }
