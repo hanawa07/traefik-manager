@@ -32,7 +32,7 @@ const updateResult = await applyRoutingModeUpdates(services.slice(0, 3), "mainte
   if (id === "disabled") throw new Error("expected test failure");
   updateEvents.push(`end:${id}`);
 });
-assert.deepEqual(updateResult, { successCount: 2, failedCount: 1 });
+assert.deepEqual(updateResult, { successCount: 2, failedServiceIds: ["disabled"] });
 assert.deepEqual(updateEvents, [
   "start:active:maintenance",
   "end:active",
@@ -41,4 +41,4 @@ assert.deepEqual(updateEvents, [
   "end:maintenance",
 ]);
 
-console.log("서비스 운영 상태 집계·순차 일괄 변경 self-test 통과");
+console.log("서비스 운영 상태 집계·순차 일괄 변경·실패 식별 self-test 통과");

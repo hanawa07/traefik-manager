@@ -5,6 +5,7 @@ import {
   type getManagerHttpErrorDetailRows,
   type getSmokeRotationDetailRows,
 } from "./auditPageHelpers";
+import { AuditBulkOperationPanel } from "./AuditBulkOperationPanel";
 import { AuditDetailList } from "./AuditDetailList";
 import { AuditDiffDetails } from "./AuditDiffDetails";
 import { AuditRetryDeliveryPanel, AuditRollbackPanel } from "./AuditLogActionPanels";
@@ -23,6 +24,7 @@ interface AuditLogDetailPanelProps {
   deliveryRows: AuditDeliveryRows;
   managerDetailRows: AuditManagerDetailRows;
   smokeRotationDetailRows: SmokeRotationDetailRows;
+  bulkOperationId: string | null;
   rollbackSupported: boolean;
   rollbackResourceType: RollbackResourceType | null;
   retryChainSupported: boolean;
@@ -41,6 +43,7 @@ export function AuditLogDetailPanel({
   deliveryRows,
   managerDetailRows,
   smokeRotationDetailRows,
+  bulkOperationId,
   rollbackSupported,
   rollbackResourceType,
   retryChainSupported,
@@ -66,6 +69,9 @@ export function AuditLogDetailPanel({
         title="Secret 회전 상세"
       />
       <AuditSecuritySettingChanges event={event} diffRows={diffRows} />
+      {bulkOperationId ? (
+        <AuditBulkOperationPanel operationId={bulkOperationId} timezone={timezone} />
+      ) : null}
       <AuditDiffDetails logId={logId} diffRows={diffRows} />
       <AuditDetailList logId={logId} rows={deliveryRows} title="전송 상세" />
       <AuditRetryChainPanel enabled={retryChainSupported} logId={logId} timezone={timezone} />

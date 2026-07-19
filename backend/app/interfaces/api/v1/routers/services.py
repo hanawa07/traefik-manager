@@ -1,6 +1,7 @@
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Header, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.audit import audit_service
@@ -207,6 +208,10 @@ async def update_service(
     use_cases: ServiceUseCases = Depends(get_use_cases),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_write_access),
+    x_bulk_operation_id: Annotated[
+        UUID | None,
+        Header(alias="X-Bulk-Operation-ID"),
+    ] = None,
 ):
     return await update_service_action(
         service_id=service_id,
@@ -215,6 +220,7 @@ async def update_service(
         db=db,
         current_user=current_user,
         audit_service=audit_service,
+        bulk_operation_id=str(x_bulk_operation_id) if x_bulk_operation_id else None,
     )
 
 

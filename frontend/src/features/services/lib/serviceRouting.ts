@@ -26,13 +26,16 @@ export async function applyRoutingModeUpdates(
   routingMode: RoutingMode,
   update: (serviceId: string, routingMode: RoutingMode) => Promise<unknown>,
 ) {
-  let failedCount = 0;
+  const failedServiceIds: string[] = [];
   for (const service of services) {
     try {
       await update(service.id, routingMode);
     } catch {
-      failedCount += 1;
+      failedServiceIds.push(service.id);
     }
   }
-  return { successCount: services.length - failedCount, failedCount };
+  return {
+    successCount: services.length - failedServiceIds.length,
+    failedServiceIds,
+  };
 }

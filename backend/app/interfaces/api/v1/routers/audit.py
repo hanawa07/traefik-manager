@@ -56,6 +56,7 @@ async def list_audit_logs(
     security_only: bool = Query(False),
     provider: Optional[str] = Query(None),
     delivery_success: Optional[bool] = Query(None),
+    bulk_operation_id: Optional[UUID] = Query(None),
     retry_delay: Optional[Literal["delayed"]] = Query(None),
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
@@ -82,6 +83,9 @@ async def list_audit_logs(
         security_only=security_only,
         provider=provider,
         delivery_success=delivery_success,
+        bulk_operation_id=(
+            str(bulk_operation_id) if isinstance(bulk_operation_id, UUID) else None
+        ),
     )
     if retry_delay == "delayed":
         warning_minutes = await read_automatic_retry_delay_warning_minutes(

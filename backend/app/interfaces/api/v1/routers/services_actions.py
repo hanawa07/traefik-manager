@@ -80,6 +80,7 @@ async def update_service_action(
     db: AsyncSession,
     current_user: dict,
     audit_service,
+    bulk_operation_id: str | None = None,
 ):
     try:
         before_service = await use_cases.get_service(service_id)
@@ -103,6 +104,7 @@ async def update_service_action(
                     "after": after_summary,
                     "summary": after_summary,
                     "rollback_supported": rollback_payload is not None,
+                    **({"bulk_operation_id": bulk_operation_id} if bulk_operation_id else {}),
                     **({"rollback_payload": rollback_payload} if rollback_payload is not None else {}),
                 },
             )

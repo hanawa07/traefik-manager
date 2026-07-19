@@ -18,8 +18,16 @@ export const serviceCrudApi = {
     return res.data;
   },
 
-  update: async (id: string, data: ServiceUpdate): Promise<Service> => {
-    const res = await apiClient.patch<Service>(`/services/${id}`, data);
+  update: async (
+    id: string,
+    data: ServiceUpdate,
+    options?: { bulkOperationId?: string },
+  ): Promise<Service> => {
+    const res = await apiClient.patch<Service>(`/services/${id}`, data, {
+      headers: options?.bulkOperationId
+        ? { "X-Bulk-Operation-ID": options.bulkOperationId }
+        : undefined,
+    });
     return res.data;
   },
 

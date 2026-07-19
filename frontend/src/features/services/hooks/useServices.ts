@@ -60,27 +60,32 @@ export function useBulkUpdateServiceRoutingMode() {
       services,
       selectedServiceIds,
       routingMode,
+      bulkOperationId,
     }: {
       services: Service[];
       selectedServiceIds: string[];
       routingMode: RoutingMode;
+      bulkOperationId?: string;
     }) => {
+      const operationId = bulkOperationId ?? crypto.randomUUID();
       const targets = getRoutingUpdateTargets(services, selectedServiceIds, routingMode);
-      const { successCount, failedCount } = await applyRoutingModeUpdates(
+      const result = await applyRoutingModeUpdates(
         targets,
         routingMode,
-        (serviceId, mode) => serviceApi.update(serviceId, { routing_mode: mode }),
+        (serviceId, mode) => serviceApi.update(
+          serviceId,
+          { routing_mode: mode },
+          { bulkOperationId: operationId },
+        ),
       );
-      if (failedCount > 0) {
-        throw new Error(`${successCount}개 적용, ${failedCount}개 실패`);
-      }
-      return successCount;
+      return { ...result, operationId };
     },
     onSettled: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: QUERY_KEY }),
         qc.invalidateQueries({ queryKey: TRAEFIK_ROUTER_STATUS_QUERY_KEY }),
         qc.invalidateQueries({ queryKey: [...QUERY_KEY, "health-all"] }),
+        qc.invalidateQueries({ queryKey: AUDIT_LOGS_QUERY_KEY }),
       ]);
     },
   });

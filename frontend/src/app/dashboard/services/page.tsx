@@ -21,6 +21,13 @@ import {
 } from "./serviceSaveDiagnosis";
 import { useServicesPageModel } from "./useServicesPageModel";
 
+interface BulkRoutingFailure {
+  operationId: string;
+  routingMode: RoutingMode;
+  serviceIds: string[];
+  serviceNames: string[];
+}
+
 export default function ServicesPage() {
   const model = useServicesPageModel();
   const [saveDiagnosisNotice, setSaveDiagnosisNotice] = useState<ServiceSaveDiagnosisNotice | null>(null);
@@ -28,6 +35,7 @@ export default function ServicesPage() {
   const [toastNotice, setToastNotice] = useState<ToastNoticeValue | null>(null);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [bulkRoutingMode, setBulkRoutingMode] = useState<RoutingMode>("active");
+  const [bulkRoutingFailure, setBulkRoutingFailure] = useState<BulkRoutingFailure | null>(null);
   const bulkRoutingUpdate = useBulkUpdateServiceRoutingMode();
   const combinedDiagnosisSnapshots = { ...model.diagnosisSnapshots, ...diagnosisSnapshots };
   const combinedDiagnosisHistories = mergeDiagnosisHistories(model.diagnosisHistories, diagnosisSnapshots);
@@ -56,6 +64,7 @@ export default function ServicesPage() {
   };
 
   const handleServiceSelection = (service: Service, selected: boolean) => {
+    setBulkRoutingFailure(null);
     setSelectedServiceIds((current) =>
       selected
         ? Array.from(new Set([...current, service.id]))
@@ -64,6 +73,7 @@ export default function ServicesPage() {
   };
 
   const handleToggleVisibleSelection = () => {
+    setBulkRoutingFailure(null);
     const visibleIds = new Set(visibleServiceIds);
     setSelectedServiceIds((current) =>
       allVisibleSelected
@@ -72,22 +82,50 @@ export default function ServicesPage() {
     );
   };
 
-  const handleBulkRoutingApply = async () => {
-    const label = getRoutingModeLabel(bulkRoutingMode);
-    const consequence = getRoutingModeConsequence(bulkRoutingMode);
-    if (!window.confirm(`${selectedServiceIds.length}개 서비스를 '${label}' 상태로 변경합니까?\n\n${consequence}`)) return;
+  const executeBulkRoutingUpdate = async (
+    serviceIds: string[],
+    routingMode: RoutingMode,
+    operationId?: string,
+    confirmChange = true,
+  ) => {
+    const label = getRoutingModeLabel(routingMode);
+    const consequence = getRoutingModeConsequence(routingMode);
+    if (
+      confirmChange &&
+      !window.confirm(`${serviceIds.length}개 서비스를 '${label}' 상태로 변경합니까?\n\n${consequence}`)
+    ) return;
 
     try {
-      const changedCount = await bulkRoutingUpdate.mutateAsync({
+      const result = await bulkRoutingUpdate.mutateAsync({
         services: model.services,
-        selectedServiceIds,
-        routingMode: bulkRoutingMode,
+        selectedServiceIds: serviceIds,
+        routingMode,
+        bulkOperationId: operationId,
       });
+      if (result.failedServiceIds.length > 0) {
+        const serviceNames = result.failedServiceIds.map(
+          (id) => model.services.find((service) => service.id === id)?.name ?? id,
+        );
+        setSelectedServiceIds(result.failedServiceIds);
+        setBulkRoutingFailure({
+          operationId: result.operationId,
+          routingMode,
+          serviceIds: result.failedServiceIds,
+          serviceNames,
+        });
+        setToastNotice({
+          tone: "warning",
+          message: "운영 상태 일부 변경 실패",
+          detail: `${result.successCount}개 적용, ${serviceNames.length}개 실패: ${serviceNames.join(", ")}`,
+        });
+        return;
+      }
       setSelectedServiceIds([]);
+      setBulkRoutingFailure(null);
       setToastNotice({
         tone: "success",
         message: "운영 상태 일괄 변경 완료",
-        detail: changedCount > 0 ? `${changedCount}개 서비스를 ${label} 상태로 변경했습니다.` : "이미 같은 상태여서 변경된 서비스가 없습니다.",
+        detail: result.successCount > 0 ? `${result.successCount}개 서비스를 ${label} 상태로 변경했습니다.` : "이미 같은 상태여서 변경된 서비스가 없습니다.",
       });
     } catch (error) {
       setToastNotice({
@@ -96,6 +134,29 @@ export default function ServicesPage() {
         detail: error instanceof Error ? error.message : "목록을 새로고침한 뒤 다시 시도해 주세요.",
       });
     }
+  };
+
+  const handleBulkRoutingApply = () =>
+    executeBulkRoutingUpdate(selectedServiceIds, bulkRoutingMode);
+
+  const handleBulkRoutingRetry = () => {
+    if (!bulkRoutingFailure) return;
+    return executeBulkRoutingUpdate(
+      bulkRoutingFailure.serviceIds,
+      bulkRoutingFailure.routingMode,
+      bulkRoutingFailure.operationId,
+      false,
+    );
+  };
+
+  const handleBulkRoutingModeChange = (mode: RoutingMode) => {
+    setBulkRoutingMode(mode);
+    setBulkRoutingFailure(null);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedServiceIds([]);
+    setBulkRoutingFailure(null);
   };
 
   return (
@@ -149,10 +210,12 @@ export default function ServicesPage() {
       {model.canManage && !model.isLoading ? (
         <ServiceBulkRoutingActions
           allVisibleSelected={allVisibleSelected}
+          failureNames={bulkRoutingFailure?.serviceNames ?? []}
           isPending={bulkRoutingUpdate.isPending}
           onApply={handleBulkRoutingApply}
-          onClear={() => setSelectedServiceIds([])}
-          onRoutingModeChange={setBulkRoutingMode}
+          onClear={handleClearSelection}
+          onRetry={handleBulkRoutingRetry}
+          onRoutingModeChange={handleBulkRoutingModeChange}
           onToggleVisible={handleToggleVisibleSelection}
           routingMode={bulkRoutingMode}
           selectedCount={selectedServiceIds.length}

@@ -64,6 +64,7 @@ def build_audit_log_conditions(
     security_only: bool,
     provider: str | None,
     delivery_success: bool | None,
+    bulk_operation_id: str | None = None,
 ) -> list[ColumnElement[bool]]:
     conditions: list[ColumnElement[bool]] = []
     event_column = AuditLogModel.detail["event"].as_string()
@@ -107,4 +108,8 @@ def build_audit_log_conditions(
         conditions.append(AuditLogModel.detail["provider"].as_string() == provider)
     if delivery_success is not None:
         conditions.append(AuditLogModel.detail["success"].as_boolean() == delivery_success)
+    if bulk_operation_id:
+        conditions.append(
+            AuditLogModel.detail["bulk_operation_id"].as_string() == bulk_operation_id
+        )
     return conditions

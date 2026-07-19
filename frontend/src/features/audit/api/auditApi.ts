@@ -32,6 +32,7 @@ export interface AuditLogQueryParams {
   provider?: string;
   delivery_success?: boolean;
   retry_delay?: "delayed";
+  bulk_operation_id?: string;
 }
 
 export interface AuditLogPage {

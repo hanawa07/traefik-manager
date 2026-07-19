@@ -61,13 +61,16 @@ export function AuditLogRow({
     ...getManagerHttpLogStorageDetailRows(managerEvent, detail),
   ];
   const smokeRotationDetailRows = getSmokeRotationDetailRows(managerEvent, detail);
+  const bulkOperationId =
+    typeof detail?.bulk_operation_id === "string" ? detail.bulk_operation_id : null;
   const retryChainSupported = log.event?.includes("_alert_delivery_") === true;
   const retrySupported = log.event?.endsWith("_delivery_failure") === true;
   const canExpand =
     diffRows.length > 0 ||
     deliveryRows.length > 0 ||
     managerDetailRows.length > 0 ||
-    smokeRotationDetailRows.length > 0;
+    smokeRotationDetailRows.length > 0 ||
+    bulkOperationId !== null;
   const rollbackResourceType = isRollbackResourceType(log.resource_type) ? log.resource_type : null;
   const rollbackSupported =
     detail?.rollback_supported === true && log.action === "update" && rollbackResourceType !== null;
@@ -102,6 +105,7 @@ export function AuditLogRow({
         <td className="px-6 py-4">
           <AuditTargetCell
             canExpand={canExpand}
+            contextLabel={bulkOperationId ? "일괄 상태 변경" : undefined}
             isExpanded={isExpanded}
             onToggleExpanded={() => onExpandedLogChange(isExpanded ? null : log.id)}
             resourceName={log.resource_name}
@@ -123,6 +127,7 @@ export function AuditLogRow({
               deliveryRows={deliveryRows}
               managerDetailRows={managerDetailRows}
               smokeRotationDetailRows={smokeRotationDetailRows}
+              bulkOperationId={bulkOperationId}
               rollbackSupported={rollbackSupported}
               rollbackResourceType={rollbackResourceType}
               retryChainSupported={retryChainSupported}

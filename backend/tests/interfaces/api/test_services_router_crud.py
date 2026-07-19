@@ -70,6 +70,32 @@ async def test_update_service_records_diff_audit(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_update_service_records_bulk_operation_id(monkeypatch):
+    service_id = uuid4()
+    operation_id = uuid4()
+    before_service = make_service(id=service_id, routing_mode="active")
+    after_service = make_service(id=service_id, routing_mode="maintenance")
+    use_cases = StubServiceCrudUseCases(before_service=before_service, after_service=after_service)
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(services_router.audit_service, "record", fake_record, raising=False)
+
+    await services_router.update_service(
+        service_id=service_id,
+        data=services_router.ServiceUpdate(routing_mode="maintenance"),
+        use_cases=use_cases,
+        db=object(),
+        current_user={"username": "admin"},
+        x_bulk_operation_id=operation_id,
+    )
+
+    assert recorded[0]["detail"]["bulk_operation_id"] == str(operation_id)
+
+
+@pytest.mark.asyncio
 async def test_update_service_marks_rollback_unsupported_for_token_or_basic_auth(monkeypatch):
     service_id = uuid4()
     before_service = make_service(id=service_id, auth_mode="token", api_key="secret-token")
