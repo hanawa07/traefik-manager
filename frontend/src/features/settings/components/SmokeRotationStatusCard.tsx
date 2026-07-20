@@ -53,10 +53,12 @@ interface SmokeRotationStatusCardProps {
   errorMessage: string;
   isSaving: boolean;
   isRefreshingHistory: boolean;
+  isTrackingManualRun: boolean;
   isTestingStaleAlert: boolean;
   onEdit: () => void;
   onSave: () => void;
   onRefreshHistory: () => void;
+  onManualRunOpen: () => void;
   onTestStaleAlert: () => void;
   onCancel: () => void;
   onFormChange: (value: SmokeMonitoringSettingsInput) => void;
@@ -74,10 +76,12 @@ export function SmokeRotationStatusCard({
   errorMessage,
   isSaving,
   isRefreshingHistory,
+  isTrackingManualRun,
   isTestingStaleAlert,
   onEdit,
   onSave,
   onRefreshHistory,
+  onManualRunOpen,
   onTestStaleAlert,
   onCancel,
   onFormChange,
@@ -271,6 +275,7 @@ export function SmokeRotationStatusCard({
                 <a
                   className="text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
                   href={status.monitoring_workflow_url}
+                  onClick={onManualRunOpen}
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -282,6 +287,17 @@ export function SmokeRotationStatusCard({
                 >
                   실행 창에서 &quot;수동 실행 실패 시 Telegram 알림 생략&quot;을 체크할 수 있습니다.
                 </span>
+                {canManage ? (
+                  <span
+                    aria-live="polite"
+                    className="text-[11px] font-normal text-slate-500 dark:text-slate-400"
+                    data-testid="smoke-manual-tracking-status"
+                  >
+                    {isTrackingManualRun
+                      ? "새 실행 결과 확인 중..."
+                      : "링크를 열면 새 실행 결과를 6분간 자동 확인합니다."}
+                  </span>
+                ) : null}
               </span>
             }
           />

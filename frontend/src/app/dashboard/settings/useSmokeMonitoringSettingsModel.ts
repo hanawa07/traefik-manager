@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { SmokeMonitoringSettingsInput } from "@/features/settings/api/settingsApi";
 import {
@@ -8,6 +8,7 @@ import {
   useTestSmokeAdminStaleAlert,
   useUpdateSmokeMonitoringSettings,
 } from "@/features/settings/hooks/useSettings";
+import { findNewSmokeRun } from "@/features/settings/lib/smokeManualRunTracking";
 import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
 import { getSettingsModelErrorMessage } from "./settingsModelErrors";
 
@@ -18,6 +19,8 @@ const DEFAULT_FORM: SmokeMonitoringSettingsInput = {
   monitoring_failure_rate_min_runs: 3,
   monitoring_failure_rate_window_days: 7,
 };
+const MANUAL_RUN_POLL_INTERVAL_MS = 30_000;
+const MANUAL_RUN_TRACKING_TIMEOUT_MS = 6 * 60_000;
 
 export function useSmokeMonitoringSettingsModel(
   canManage: boolean,
@@ -32,6 +35,16 @@ export function useSmokeMonitoringSettingsModel(
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState(DEFAULT_FORM);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isTrackingManualRun, setIsTrackingManualRun] = useState(false);
+  const manualRunTimerRef = useRef<number | null>(null);
+  const manualRunGenerationRef = useRef(0);
+
+  useEffect(() => () => {
+    manualRunGenerationRef.current += 1;
+    if (manualRunTimerRef.current !== null) {
+      window.clearTimeout(manualRunTimerRef.current);
+    }
+  }, []);
 
   const handleEdit = () => {
     setFormValue({
@@ -99,6 +112,72 @@ export function useSmokeMonitoringSettingsModel(
     }
   };
 
+  const handleManualRunOpen = () => {
+    if (!canManage) return;
+    if (manualRunTimerRef.current !== null) {
+      window.clearTimeout(manualRunTimerRef.current);
+    }
+    const generation = manualRunGenerationRef.current + 1;
+    manualRunGenerationRef.current = generation;
+    const startedAt = Date.now();
+    const knownRunUrls = (query.data?.monitoring_recent_runs ?? []).map((run) => run.run_url);
+    setIsTrackingManualRun(true);
+
+    const finish = () => {
+      if (manualRunGenerationRef.current !== generation) return;
+      manualRunGenerationRef.current += 1;
+      if (manualRunTimerRef.current !== null) {
+        window.clearTimeout(manualRunTimerRef.current);
+      }
+      manualRunTimerRef.current = null;
+      setIsTrackingManualRun(false);
+    };
+    const poll = async () => {
+      try {
+        const refreshed = await refreshHistory.mutateAsync();
+        if (manualRunGenerationRef.current !== generation) return;
+        if (refreshed.monitoring_history_error) {
+          finish();
+          onToast({
+            tone: "warning",
+            message: "새 실행 결과 자동 확인 중지",
+            detail: refreshed.monitoring_history_error,
+          });
+          return;
+        }
+        const newRun = findNewSmokeRun(refreshed.monitoring_recent_runs, knownRunUrls);
+        if (newRun) {
+          finish();
+          onToast({
+            tone: newRun.status === "success" ? "success" : newRun.status === "failure" ? "error" : "warning",
+            message: `새 수동 점검 ${newRun.status === "success" ? "성공" : newRun.status === "failure" ? "실패" : "건너뜀"}`,
+            detail: newRun.run_number ? `GitHub Actions #${newRun.run_number}` : "GitHub Actions 실행 결과를 확인했습니다.",
+          });
+          return;
+        }
+        if (Date.now() - startedAt >= MANUAL_RUN_TRACKING_TIMEOUT_MS) {
+          finish();
+          onToast({
+            tone: "warning",
+            message: "새 실행 결과를 아직 찾지 못했습니다",
+            detail: "GitHub 실행 후 설정 화면의 지금 새로고침을 눌러 확인하세요.",
+          });
+          return;
+        }
+        manualRunTimerRef.current = window.setTimeout(poll, MANUAL_RUN_POLL_INTERVAL_MS);
+      } catch (error) {
+        if (manualRunGenerationRef.current !== generation) return;
+        finish();
+        onToast({
+          tone: "error",
+          message: "새 실행 결과 자동 확인 실패",
+          detail: getSettingsModelErrorMessage(error, "GitHub 실행 이력을 확인하지 못했습니다"),
+        });
+      }
+    };
+    manualRunTimerRef.current = window.setTimeout(poll, MANUAL_RUN_POLL_INTERVAL_MS);
+  };
+
   const handleTestStaleAlert = async () => {
     if (!window.confirm("저장된 Telegram 채널로 관리자 점검 지연 테스트 알림을 전송할까요?")) {
       return;
@@ -131,10 +210,12 @@ export function useSmokeMonitoringSettingsModel(
     errorMessage,
     isSaving: update.isPending,
     isRefreshingHistory: refreshHistory.isPending,
+    isTrackingManualRun,
     isTestingStaleAlert: testStaleAlert.isPending,
     onEdit: handleEdit,
     onSave: handleSave,
     onRefreshHistory: handleRefreshHistory,
+    onManualRunOpen: handleManualRunOpen,
     onTestStaleAlert: handleTestStaleAlert,
     onCancel: () => setIsEditing(false),
     onFormChange: setFormValue,

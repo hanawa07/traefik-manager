@@ -10,6 +10,7 @@ import {
   getSmokeArtifactExpiryState,
   getSmokeArtifactRemainingLabel,
 } from "../frontend/src/app/dashboard/smokeArtifactExpiry.ts";
+import { findNewSmokeRun } from "../frontend/src/features/settings/lib/smokeManualRunTracking.ts";
 
 const now = Date.parse("2026-07-18T00:00:00Z");
 const high = getSmokeRunFailureRate(
@@ -119,5 +120,12 @@ assert.deepEqual(getSmokeArtifactFilterCounts(artifactRuns, now), {
   expiring_soon: 1,
   expired: 1,
 });
+
+const smokeRuns = [
+  { run_url: "new", status: "success", completed_at: "2026-07-18T00:00:00Z" },
+  { run_url: "known", status: "failure", completed_at: "2026-07-17T00:00:00Z" },
+];
+assert.equal(findNewSmokeRun(smokeRuns, ["known"])?.run_url, "new");
+assert.equal(findNewSmokeRun(smokeRuns, ["new", "known"]), null);
 
 console.log("운영 점검 실패율 self-test 통과");
