@@ -12,6 +12,8 @@ import {
   SettingsSummaryRow,
 } from "@/features/settings/components/SettingsCardPrimitives";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import type { TrackedManualSmokeRun } from "@/features/settings/lib/smokeManualRunTracking";
+import { SmokeManualRunResult } from "./SmokeManualRunResult";
 import { SmokeMonitoringSettingsEditForm } from "./SmokeMonitoringSettingsEditForm";
 import { SmokeStaleAlertHistory } from "./SmokeStaleAlertHistory";
 
@@ -54,6 +56,7 @@ interface SmokeRotationStatusCardProps {
   isSaving: boolean;
   isRefreshingHistory: boolean;
   isTrackingManualRun: boolean;
+  lastManualRun: TrackedManualSmokeRun | null;
   isTestingStaleAlert: boolean;
   onEdit: () => void;
   onSave: () => void;
@@ -77,6 +80,7 @@ export function SmokeRotationStatusCard({
   isSaving,
   isRefreshingHistory,
   isTrackingManualRun,
+  lastManualRun,
   isTestingStaleAlert,
   onEdit,
   onSave,
@@ -299,6 +303,12 @@ export function SmokeRotationStatusCard({
               </span>
             }
           />
+          {lastManualRun ? (
+            <SettingsSummaryRow
+              label="마지막 수동 점검 결과"
+              value={<SmokeManualRunResult run={lastManualRun} timezone={timezone} />}
+            />
+          ) : null}
           {status.monitoring_history_error ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
               {status.monitoring_history_error}. 저장된 최근 성공 기록은 그대로 표시됩니다.

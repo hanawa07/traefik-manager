@@ -12,6 +12,7 @@ import { checkAuditDelayedRetryFilter } from "./dashboard-visual-audit-delayed-r
 import { checkAuditBulkOperationFixture, runAuditBulkOperationFixtureSelfTest } from "./dashboard-visual-audit-bulk-operations.mjs";
 import { checkAuditSecuritySettingChanges } from "./dashboard-visual-audit-security-setting-changes.mjs";
 import { checkAuditRetryChain, checkSettingsTestAuditLinks, checkSmokeRotationAuditDetail, checkSmokeRunTrendRange } from "./dashboard-visual-smoke-monitoring.mjs";
+import { checkManualSmokeRunResultPersistence } from "./dashboard-visual-smoke-manual-run.mjs";
 import { checkMaintenanceScheduleFixture, runMaintenanceScheduleFixtureSelfTest } from "./dashboard-visual-maintenance-schedule.mjs";
 import { checkWatchdogFilterPersistence } from "./dashboard-visual-watchdog.mjs";
 import { assertDashboardShell } from "./dashboard-visual-shell.mjs";
@@ -49,6 +50,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
           labels.push(`${profile.label} 감사 필터 조합·자동 펼침·레이아웃`);
         }
         if (route.path === "/dashboard/settings") {
+          await checkManualSmokeRunResultPersistence({ cdp, timeoutMs });
+          labels.push(`${profile.label} 마지막 수동 점검 결과 새로고침 유지`);
           const historyLinked = await checkSettingsTestAuditLinks({ cdp });
           if (historyLinked) labels.push(`${profile.label} 설정 테스트 감사 상세 링크`);
           const previewed = await checkManagerHttpErrorPreviewForm({
@@ -98,7 +101,6 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
     canManage: cleanupCancelChecked, cdp, timeoutMs,
   });
   if (maintenanceChecked && bulkOperationChecked) labels.push("관리자 점검 일정·일괄 작업 비파괴 fixture");
-
   await cdp.send("Network.clearBrowserCookies");
   await evaluate(cdp, `localStorage.removeItem("auth")`);
   const loginRoute = { label: "로그인", path: "/login", marker: "로그인" };
@@ -108,7 +110,6 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
     );
   }
   labels.push("로그인 2개 화면");
-
   return { adminChecked: cleanupCancelChecked, labels };
 }
 async function withVisualProfile(cdp, profile, callback) {
@@ -194,7 +195,6 @@ async function checkRenderedRoute(cdp, route, artifactDir, profile) {
       viewportHeight: document.documentElement.clientHeight,
     };
   })()`);
-
   await captureVisualScreenshot({ artifactDir, cdp, name: screenshotName(profile, route.path) });
   assertVisualSnapshot(snapshot, route, profile);
 }

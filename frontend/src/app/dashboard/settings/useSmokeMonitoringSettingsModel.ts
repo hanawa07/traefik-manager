@@ -8,7 +8,13 @@ import {
   useTestSmokeAdminStaleAlert,
   useUpdateSmokeMonitoringSettings,
 } from "@/features/settings/hooks/useSettings";
-import { findNewSmokeRun } from "@/features/settings/lib/smokeManualRunTracking";
+import {
+  findNewSmokeRun,
+  getTrackedManualSmokeRun,
+  LAST_MANUAL_SMOKE_RUN_STORAGE_KEY,
+  parseTrackedManualSmokeRun,
+  type TrackedManualSmokeRun,
+} from "@/features/settings/lib/smokeManualRunTracking";
 import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
 import { getSettingsModelErrorMessage } from "./settingsModelErrors";
 
@@ -36,6 +42,7 @@ export function useSmokeMonitoringSettingsModel(
   const [formValue, setFormValue] = useState(DEFAULT_FORM);
   const [errorMessage, setErrorMessage] = useState("");
   const [isTrackingManualRun, setIsTrackingManualRun] = useState(false);
+  const [lastManualRun, setLastManualRun] = useState<TrackedManualSmokeRun | null>(null);
   const manualRunTimerRef = useRef<number | null>(null);
   const manualRunGenerationRef = useRef(0);
 
@@ -43,6 +50,16 @@ export function useSmokeMonitoringSettingsModel(
     manualRunGenerationRef.current += 1;
     if (manualRunTimerRef.current !== null) {
       window.clearTimeout(manualRunTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      setLastManualRun(
+        parseTrackedManualSmokeRun(window.localStorage.getItem(LAST_MANUAL_SMOKE_RUN_STORAGE_KEY)),
+      );
+    } catch {
+      setLastManualRun(null);
     }
   }, []);
 
@@ -147,6 +164,18 @@ export function useSmokeMonitoringSettingsModel(
         }
         const newRun = findNewSmokeRun(refreshed.monitoring_recent_runs, knownRunUrls);
         if (newRun) {
+          const trackedRun = getTrackedManualSmokeRun(newRun);
+          if (trackedRun) {
+            setLastManualRun(trackedRun);
+            try {
+              window.localStorage.setItem(
+                LAST_MANUAL_SMOKE_RUN_STORAGE_KEY,
+                JSON.stringify(trackedRun),
+              );
+            } catch {
+              // The result still remains visible for the current page session.
+            }
+          }
           finish();
           onToast({
             tone: newRun.status === "success" ? "success" : newRun.status === "failure" ? "error" : "warning",
@@ -212,6 +241,7 @@ export function useSmokeMonitoringSettingsModel(
     isSaving: update.isPending,
     isRefreshingHistory: refreshHistory.isPending,
     isTrackingManualRun,
+    lastManualRun,
     isTestingStaleAlert: testStaleAlert.isPending,
     onEdit: handleEdit,
     onSave: handleSave,

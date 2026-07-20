@@ -10,7 +10,11 @@ import {
   getSmokeArtifactExpiryState,
   getSmokeArtifactRemainingLabel,
 } from "../frontend/src/app/dashboard/smokeArtifactExpiry.ts";
-import { findNewSmokeRun } from "../frontend/src/features/settings/lib/smokeManualRunTracking.ts";
+import {
+  findNewSmokeRun,
+  getTrackedManualSmokeRun,
+  parseTrackedManualSmokeRun,
+} from "../frontend/src/features/settings/lib/smokeManualRunTracking.ts";
 
 const now = Date.parse("2026-07-18T00:00:00Z");
 const high = getSmokeRunFailureRate(
@@ -127,5 +131,21 @@ const smokeRuns = [
 ];
 assert.equal(findNewSmokeRun(smokeRuns, ["known"])?.run_url, "new");
 assert.equal(findNewSmokeRun(smokeRuns, ["new", "known"]), null);
+
+const trackedManualRun = getTrackedManualSmokeRun({
+  completed_at: "2026-07-20T06:00:00Z",
+  run_number: 123,
+  run_url: "https://github.com/hanawa07/traefik-manager/actions/runs/123",
+  status: "success",
+});
+assert.deepEqual(parseTrackedManualSmokeRun(JSON.stringify(trackedManualRun)), trackedManualRun);
+assert.equal(parseTrackedManualSmokeRun("not-json"), null);
+assert.equal(parseTrackedManualSmokeRun(JSON.stringify({ ...trackedManualRun, status: "running" })), null);
+assert.equal(
+  parseTrackedManualSmokeRun(
+    JSON.stringify({ ...trackedManualRun, run_url: "https://example.com/actions/runs/123" }),
+  ),
+  null,
+);
 
 console.log("운영 점검 실패율 self-test 통과");
