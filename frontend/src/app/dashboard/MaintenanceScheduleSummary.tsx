@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock3,
   Construction,
+  History,
   Loader2,
   Play,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import {
   type MaintenanceScheduleService,
 } from "@/features/services/lib/maintenanceSchedule";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { MaintenanceScheduleHistoryPanel } from "./MaintenanceScheduleHistoryPanel";
 
 interface MaintenanceScheduleSummaryProps {
   canManage: boolean;
@@ -233,6 +235,7 @@ function MaintenanceScheduleRow({
   timezone?: string;
 }) {
   const remaining = formatMaintenanceRemaining(entry.service.maintenance_until, now);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   return (
     <li
       className="flex flex-wrap items-center gap-3 py-3"
@@ -259,6 +262,16 @@ function MaintenanceScheduleRow({
             : formatDateTime(entry.service.maintenance_until, timezone)}
         </p>
       </div>
+      <button
+        aria-expanded={isHistoryOpen}
+        aria-label={`${entry.service.name} 점검 종료 시각 변경 이력`}
+        className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-amber-800 dark:text-slate-300 dark:hover:text-amber-200"
+        onClick={() => setIsHistoryOpen((current) => !current)}
+        type="button"
+      >
+        <History className="h-3.5 w-3.5" />
+        {isHistoryOpen ? "이력 닫기" : "변경 이력"}
+      </button>
       {canManage ? (
         <div className="flex basis-full flex-wrap items-center justify-end gap-2 pl-7">
           {isCurrentUpdate ? (
@@ -306,6 +319,11 @@ function MaintenanceScheduleRow({
               </button>
             </>
           )}
+        </div>
+      ) : null}
+      {isHistoryOpen ? (
+        <div className="basis-full pl-7">
+          <MaintenanceScheduleHistoryPanel serviceId={entry.service.id} timezone={timezone} />
         </div>
       ) : null}
     </li>

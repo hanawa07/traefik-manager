@@ -13,6 +13,7 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
     patterns: [
       { requestStage: "Request", urlPattern: "*/api/v1/services" },
       { requestStage: "Request", urlPattern: `*/api/v1/services/${SERVICE_ID}` },
+      { requestStage: "Request", urlPattern: `*/api/v1/audit*search=${SERVICE_ID}*` },
     ],
   });
   try {
@@ -47,6 +48,29 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
         document.querySelector('[data-maintenance-schedule-toggle]')?.getAttribute('aria-expanded') === 'true'`,
       timeoutMs,
       "점검 일정 전체 목록이 펼쳐지지 않았습니다",
+    );
+
+    const historyRequest = waitForFetch(cdp, timeoutMs, "점검 종료 시각 변경 이력");
+    await clickAriaLabel(cdp, `${SERVICE_NAME} 점검 종료 시각 변경 이력`);
+    const history = await historyRequest;
+    assertRequest(history, "GET", "/api/v1/audit");
+    const historyUrl = new URL(history.request.url);
+    assert.equal(historyUrl.searchParams.get("resource_type"), "service");
+    assert.equal(historyUrl.searchParams.get("action"), "update");
+    assert.equal(historyUrl.searchParams.get("event"), "service_update");
+    assert.equal(historyUrl.searchParams.get("search"), SERVICE_ID);
+    await fulfillJson(cdp, history, buildMaintenanceHistory());
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const panel = document.querySelector('[data-testid="maintenance-schedule-history"]');
+        const latest = panel?.querySelector('[data-maintenance-history-before="unset"]');
+        return panel?.getAttribute('data-maintenance-history-count') === '2' &&
+          latest?.getAttribute('data-maintenance-history-after') === '2035-02-03T05:30:00.000Z' &&
+          panel.textContent?.includes('smoke-admin');
+      })()`,
+      timeoutMs,
+      "점검 종료 시각 변경 이력이 펼쳐지지 않았습니다",
     );
 
     await installRequestCapture(cdp);
@@ -249,9 +273,49 @@ function buildMaintenanceServices(now = Date.now()) {
   }));
 }
 
+function buildMaintenanceHistory() {
+  return [
+    {
+      id: "00000000-0000-4000-8000-000000000111",
+      actor: "smoke-admin",
+      action: "update",
+      resource_type: "service",
+      resource_id: SERVICE_ID,
+      resource_name: SERVICE_NAME,
+      event: "service_update",
+      created_at: "2035-02-03T05:30:01.000Z",
+      detail: {
+        event: "service_update",
+        changed_keys: ["maintenance_until"],
+        before: { maintenance_until: null },
+        after: { maintenance_until: "2035-02-03T05:30:00.000Z" },
+      },
+    },
+    {
+      id: "00000000-0000-4000-8000-000000000112",
+      actor: "smoke-admin",
+      action: "update",
+      resource_type: "service",
+      resource_id: SERVICE_ID,
+      resource_name: SERVICE_NAME,
+      event: "service_update",
+      created_at: "2035-02-02T05:30:01.000Z",
+      detail: {
+        event: "service_update",
+        changed_keys: ["maintenance_until", "routing_mode"],
+        before: { maintenance_until: "2035-02-02T04:30:00.000Z" },
+        after: { maintenance_until: "2035-02-02T05:30:00.000Z" },
+      },
+    },
+  ];
+}
+
 export function runMaintenanceScheduleFixtureSelfTest() {
   const services = buildMaintenanceServices(Date.parse("2030-01-01T00:00:00Z"));
+  const history = buildMaintenanceHistory();
   assert.equal(services.length, 5);
   assert.equal(services[0].id, SERVICE_ID);
   assert.equal(services[4].maintenance_until, "2030-01-02T06:00:00.000Z");
+  assert.equal(history.length, 2);
+  assert.equal(history[0].detail.before.maintenance_until, null);
 }
