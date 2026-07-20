@@ -99,6 +99,33 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
       timeoutMs,
       "점검 종료 시각 기간 필터가 적용되지 않았습니다",
     );
+
+    const startDateRequest = waitForFetch(cdp, timeoutMs, "점검 종료 시각 시작일 필터");
+    await changeDateInput(cdp, "점검 변경 이력 시작일", "2035-02-01");
+    const startDateHistory = await startDateRequest;
+    const startDateUrl = new URL(startDateHistory.request.url);
+    assert.equal(startDateUrl.searchParams.get("start_date"), "2035-02-01");
+    assert.equal(startDateUrl.searchParams.has("period_days"), false);
+    await fulfillJson(cdp, startDateHistory, buildMaintenanceHistory());
+
+    const endDateRequest = waitForFetch(cdp, timeoutMs, "점검 종료 시각 종료일 필터");
+    await changeDateInput(cdp, "점검 변경 이력 종료일", "2035-02-03");
+    const endDateHistory = await endDateRequest;
+    const endDateUrl = new URL(endDateHistory.request.url);
+    assert.equal(endDateUrl.searchParams.get("start_date"), "2035-02-01");
+    assert.equal(endDateUrl.searchParams.get("end_date"), "2035-02-03");
+    await fulfillJson(cdp, endDateHistory, buildMaintenanceHistory());
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const panel = document.querySelector('[data-testid="maintenance-schedule-history"]');
+        return panel?.getAttribute('data-maintenance-history-period') === 'custom' &&
+          panel.getAttribute('data-maintenance-history-start-date') === '2035-02-01' &&
+          panel.getAttribute('data-maintenance-history-end-date') === '2035-02-03';
+      })()`,
+      timeoutMs,
+      "점검 종료 시각 직접 날짜 범위가 적용되지 않았습니다",
+    );
     await clickAriaLabel(cdp, `${SERVICE_NAME} 점검 종료 시각 변경 이력`);
     await waitForCondition(
       cdp,
@@ -365,4 +392,17 @@ async function changeSelect(cdp, label, value) {
     return true;
   })()`);
   assert.equal(changed, true, `${label}: 선택 항목을 찾지 못했습니다`);
+}
+
+async function changeDateInput(cdp, label, value) {
+  const changed = await evaluate(cdp, `(() => {
+    const input = document.querySelector(${JSON.stringify(`input[aria-label="${label}"]`)});
+    if (!(input instanceof HTMLInputElement)) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, ${JSON.stringify(value)});
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return input.value === ${JSON.stringify(value)};
+  })()`);
+  assert.equal(changed, true, `${label}: 날짜 입력을 변경하지 못했습니다`);
 }

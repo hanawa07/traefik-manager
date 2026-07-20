@@ -12,19 +12,28 @@ interface MaintenanceScheduleHistoryPanelProps {
   timezone?: string;
 }
 
+type MaintenanceHistoryPeriod = "all" | "7" | "30" | "90" | "custom";
+
 export function MaintenanceScheduleHistoryPanel({
   serviceId,
   timezone,
 }: MaintenanceScheduleHistoryPanelProps) {
   const [actor, setActor] = useState("all");
-  const [period, setPeriod] = useState<"all" | "7" | "30" | "90">("all");
+  const [period, setPeriod] = useState<MaintenanceHistoryPeriod>("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const query = useAuditPage({
     limit: 100,
     offset: 0,
     resource_type: "service",
     action: "update",
     event: "service_update",
-    period_days: period === "all" ? undefined : Number(period) as 7 | 30 | 90,
+    period_days:
+      period === "7" || period === "30" || period === "90"
+        ? Number(period) as 7 | 30 | 90
+        : undefined,
+    start_date: startDate || undefined,
+    end_date: endDate || undefined,
     search: serviceId,
   });
   const historyLogs = (query.data?.items ?? []).filter(
@@ -35,6 +44,23 @@ export function MaintenanceScheduleHistoryPanel({
   const logs = selectedActor === "all"
     ? historyLogs
     : historyLogs.filter((log) => log.actor === selectedActor);
+  const handlePeriodChange = (value: MaintenanceHistoryPeriod) => {
+    setPeriod(value);
+    setStartDate("");
+    setEndDate("");
+  };
+  const handleStartDateChange = (value: string) => {
+    const nextEndDate = value && endDate && value > endDate ? "" : endDate;
+    setStartDate(value);
+    setEndDate(nextEndDate);
+    setPeriod(value || nextEndDate ? "custom" : "all");
+  };
+  const handleEndDateChange = (value: string) => {
+    const nextStartDate = value && startDate && value < startDate ? "" : startDate;
+    setStartDate(nextStartDate);
+    setEndDate(value);
+    setPeriod(value || nextStartDate ? "custom" : "all");
+  };
 
   if (query.isLoading) {
     return <p className="text-xs text-slate-500 dark:text-slate-400">변경 이력 확인 중...</p>;
@@ -43,16 +69,39 @@ export function MaintenanceScheduleHistoryPanel({
     <div className="grid gap-2">
       {!query.isError ? (
         <div className="flex flex-wrap justify-end gap-2">
+          <label className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
+            시작
+            <input
+              aria-label="점검 변경 이력 시작일"
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              max={endDate || undefined}
+              type="date"
+              value={startDate}
+              onChange={(event) => handleStartDateChange(event.target.value)}
+            />
+          </label>
+          <label className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
+            종료
+            <input
+              aria-label="점검 변경 이력 종료일"
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              min={startDate || undefined}
+              type="date"
+              value={endDate}
+              onChange={(event) => handleEndDateChange(event.target.value)}
+            />
+          </label>
           <select
             aria-label="점검 변경 이력 기간"
             className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
             value={period}
-            onChange={(event) => setPeriod(event.target.value as typeof period)}
+            onChange={(event) => handlePeriodChange(event.target.value as MaintenanceHistoryPeriod)}
           >
             <option value="all">전체 기간</option>
             <option value="7">최근 7일</option>
             <option value="30">최근 30일</option>
             <option value="90">최근 90일</option>
+            <option disabled value="custom">직접 지정</option>
           </select>
           <select
             aria-label="점검 변경 이력 변경자"
@@ -73,7 +122,9 @@ export function MaintenanceScheduleHistoryPanel({
           className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"
           data-maintenance-history-count={logs.length}
           data-maintenance-history-actor={selectedActor}
+          data-maintenance-history-end-date={endDate}
           data-maintenance-history-period={period}
+          data-maintenance-history-start-date={startDate}
           data-testid="maintenance-schedule-history"
         >
           {logs.map((log) => {
