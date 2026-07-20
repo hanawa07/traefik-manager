@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly SCRIPT_PATH="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/$(basename -- "${BASH_SOURCE[0]}")"
+SCRIPT_PATH="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/$(basename -- "${BASH_SOURCE[0]}")"
+readonly SCRIPT_PATH
 readonly GH_BIN="${TM_HOST_OPERATION_ALERT_GH_BIN:-gh}"
 readonly REPOSITORY="${TM_HOST_OPERATION_ALERT_REPOSITORY:-hanawa07/traefik-manager}"
 readonly DRY_RUN="${TM_HOST_OPERATION_ALERT_DRY_RUN:-false}"
