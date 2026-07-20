@@ -26,6 +26,10 @@ import {
 } from "@/features/services/lib/maintenanceSchedule";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { MaintenanceScheduleHistoryPanel } from "./MaintenanceScheduleHistoryPanel";
+import {
+  readMaintenanceHistoryServiceId,
+  replaceMaintenanceHistoryServiceId,
+} from "./maintenanceHistoryServiceQuery";
 
 interface MaintenanceScheduleSummaryProps {
   canManage: boolean;
@@ -48,11 +52,21 @@ export function MaintenanceScheduleSummary({
   const [now, setNow] = useState(Date.now);
   const [feedback, setFeedback] = useState<MaintenanceFeedback | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [historyServiceId, setHistoryServiceId] = useState<string | null>(null);
   const maintenanceUpdate = useUpdateServiceMaintenance();
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
+  useEffect(() => {
+    setHistoryServiceId(readMaintenanceHistoryServiceId());
+  }, []);
+
+  const handleHistoryToggle = (serviceId: string) => {
+    const nextServiceId = historyServiceId === serviceId ? null : serviceId;
+    setHistoryServiceId(nextServiceId);
+    replaceMaintenanceHistoryServiceId(nextServiceId);
+  };
 
   const handleExtend = async (service: MaintenanceScheduleService, hours: number) => {
     setFeedback(null);
@@ -108,7 +122,17 @@ export function MaintenanceScheduleSummary({
   const soonCount = entries.filter((entry) => entry.timing === "soon").length;
   const overdueCount = entries.filter((entry) => entry.timing === "overdue").length;
   const unscheduledCount = entries.filter((entry) => entry.timing === "unscheduled").length;
-  const visibleEntries = showAll ? entries : entries.slice(0, 3);
+  const isExpanded = showAll || historyServiceId !== null;
+  const visibleEntries = isExpanded ? entries : entries.slice(0, 3);
+  const handleScheduleToggle = () => {
+    if (isExpanded) {
+      setShowAll(false);
+      setHistoryServiceId(null);
+      replaceMaintenanceHistoryServiceId(null);
+      return;
+    }
+    setShowAll(true);
+  };
 
   return (
     <section
@@ -170,19 +194,21 @@ export function MaintenanceScheduleSummary({
                   maintenanceUpdate.isPending &&
                   maintenanceUpdate.variables?.serviceId === entry.service.id
                 }
+                isHistoryOpen={historyServiceId === entry.service.id}
                 isUpdatePending={maintenanceUpdate.isPending}
                 key={entry.service.id}
                 now={now}
                 timezone={timezone}
                 onActivate={handleActivate}
                 onExtend={handleExtend}
+                onHistoryToggle={handleHistoryToggle}
                 onSetUntil={handleSetUntil}
               />
             ))}
           </ul>
           <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 text-xs dark:border-slate-800">
             <span className="text-slate-500 dark:text-slate-400">
-              {entries.length > 3 && !showAll
+              {entries.length > 3 && !isExpanded
                 ? `${entries.length - 3}개 서비스가 더 있습니다.`
                 : "종료 시각순으로 표시합니다."}
             </span>
@@ -190,13 +216,13 @@ export function MaintenanceScheduleSummary({
               {entries.length > 3 ? (
                 <button
                   aria-controls="maintenance-schedule-list"
-                  aria-expanded={showAll}
+                  aria-expanded={isExpanded}
                   className="font-semibold text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100"
                   data-maintenance-schedule-toggle
                   type="button"
-                  onClick={() => setShowAll((current) => !current)}
+                  onClick={handleScheduleToggle}
                 >
-                  {showAll ? "간단히 보기" : `전체 ${entries.length}개 보기`}
+                  {isExpanded ? "간단히 보기" : `전체 ${entries.length}개 보기`}
                 </button>
               ) : null}
               <Link
@@ -217,25 +243,28 @@ function MaintenanceScheduleRow({
   canManage,
   entry,
   isCurrentUpdate,
+  isHistoryOpen,
   isUpdatePending,
   now,
   onActivate,
   onExtend,
+  onHistoryToggle,
   onSetUntil,
   timezone,
 }: {
   canManage: boolean;
   entry: MaintenanceScheduleEntry;
   isCurrentUpdate: boolean;
+  isHistoryOpen: boolean;
   isUpdatePending: boolean;
   now: number;
   onActivate: (service: MaintenanceScheduleService) => Promise<void>;
   onExtend: (service: MaintenanceScheduleService, hours: number) => Promise<void>;
+  onHistoryToggle: (serviceId: string) => void;
   onSetUntil: (service: MaintenanceScheduleService, maintenanceUntil: string) => Promise<void>;
   timezone?: string;
 }) {
   const remaining = formatMaintenanceRemaining(entry.service.maintenance_until, now);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   return (
     <li
       className="flex flex-wrap items-center gap-3 py-3"
@@ -267,7 +296,7 @@ function MaintenanceScheduleRow({
         aria-expanded={isHistoryOpen}
         aria-label={`${entry.service.name} 점검 종료 시각 변경 이력`}
         className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-amber-800 dark:text-slate-300 dark:hover:text-amber-200"
-        onClick={() => setIsHistoryOpen((current) => !current)}
+        onClick={() => onHistoryToggle(entry.service.id)}
         type="button"
       >
         <History className="h-3.5 w-3.5" />

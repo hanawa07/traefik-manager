@@ -70,7 +70,8 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
         return panel?.getAttribute('data-maintenance-history-count') === '2' &&
           latest?.getAttribute('data-maintenance-history-after') === '2035-02-03T05:30:00.000Z' &&
           panel.textContent?.includes('smoke-admin') && auditUrl?.pathname === '/dashboard/audit' &&
-          auditUrl.searchParams.get('q') === '${SERVICE_ID}';
+          auditUrl.searchParams.get('q') === '${SERVICE_ID}' &&
+          new URLSearchParams(location.search).get('maintenance_history_service') === '${SERVICE_ID}';
       })()`,
       timeoutMs,
       "점검 종료 시각 변경 이력이 펼쳐지지 않았습니다",
@@ -136,22 +137,14 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
     await cdp.send("Page.reload", { ignoreCache: true });
     const reloadServices = await reloadServicesRequest;
     assertRequest(reloadServices, "GET", "/api/v1/services");
+    const restoredHistoryRequest = waitForFetch(cdp, timeoutMs, "점검 이력 URL 자동 복원");
     await fulfillJson(cdp, reloadServices, services);
-    await reloaded;
-    await waitForCondition(
-      cdp,
-      `Boolean(document.querySelector('button[aria-label="${SERVICE_NAME} 점검 종료 시각 변경 이력"]'))`,
-      timeoutMs,
-      "점검 이력 URL 새로고침 후 서비스가 표시되지 않았습니다",
-    );
-
-    const restoredHistoryRequest = waitForFetch(cdp, timeoutMs, "점검 이력 URL 복원");
-    await clickAriaLabel(cdp, `${SERVICE_NAME} 점검 종료 시각 변경 이력`);
     const restoredHistory = await restoredHistoryRequest;
     const restoredUrl = new URL(restoredHistory.request.url);
     assert.equal(restoredUrl.searchParams.get("start_date"), "2035-02-01");
     assert.equal(restoredUrl.searchParams.get("end_date"), "2035-02-03");
     await fulfillJson(cdp, restoredHistory, buildMaintenanceHistory());
+    await reloaded;
     await waitForCondition(
       cdp,
       `(() => {
@@ -169,7 +162,8 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
     await waitForCondition(
       cdp,
       `!document.querySelector('[data-testid="maintenance-schedule-history"]') &&
-        document.querySelector('button[aria-label="${SERVICE_NAME} 점검 종료 시각 변경 이력"]')?.getAttribute('aria-expanded') === 'false'`,
+        document.querySelector('button[aria-label="${SERVICE_NAME} 점검 종료 시각 변경 이력"]')?.getAttribute('aria-expanded') === 'false' &&
+        !new URLSearchParams(location.search).has('maintenance_history_service')`,
       timeoutMs,
       "점검 종료 시각 변경 이력이 닫히지 않았습니다",
     );
