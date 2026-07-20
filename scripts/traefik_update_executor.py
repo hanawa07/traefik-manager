@@ -349,6 +349,9 @@ def _rollback(
             "backup_dir": str(backup_dir) if backup_dir else None,
             "backup_created": backup_dir is not None,
             "rollback_performed": True,
+            "alert_request_status": (
+                "pending" if rollback_status == "rollback_failed" else "not_needed"
+            ),
             "validations": [*validations, *rollback_validations],
         },
     )

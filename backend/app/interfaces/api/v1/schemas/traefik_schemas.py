@@ -85,6 +85,14 @@ class TraefikUpdateHistoryEntryResponse(BaseModel):
     backup_dir: str | None = None
     backup_created: bool
     rollback_performed: bool
+    alert_request_status: Literal[
+        "not_needed", "pending", "requested", "request_failed"
+    ] = "not_needed"
+    alert_run_url: str | None = None
+    alert_run_status: str | None = None
+    alert_run_conclusion: str | None = None
+    alert_run_checked_at: datetime | None = None
+    alert_run_error: str | None = None
     validations: list[TraefikUpdateValidationResponse] = Field(default_factory=list)
 
 

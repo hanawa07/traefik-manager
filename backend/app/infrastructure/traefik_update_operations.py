@@ -6,6 +6,7 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from app.core.config import settings
+from app.infrastructure.github_actions_run import build_actions_run_api_url
 
 MAX_HISTORY_BYTES = 128 * 1024
 MAX_HISTORY_ENTRIES = 20
@@ -14,6 +15,7 @@ RUNNER_HEARTBEAT_MAX_AGE_SECONDS = 180
 REQUEST_FILENAME = "traefik-update-request.json"
 VERSION_PATTERN = re.compile(r"^v\d+\.\d+\.\d+$")
 HISTORY_STATUSES = {"running", "success", "rejected", "rolled_back", "rollback_failed"}
+ALERT_REQUEST_STATUSES = {"not_needed", "pending", "requested", "request_failed"}
 VALIDATION_STATUSES = {"ok", "fail"}
 RUNNER_STATUSES = {"ready", "running", "error"}
 
@@ -211,6 +213,9 @@ def _normalize_history_entry(raw: object) -> dict[str, object] | None:
     validations = _normalize_validations(raw.get("validations"))
     if validations is None:
         return None
+    alert_result = _normalize_alert_result(raw, status)
+    if alert_result is None:
+        return None
     return {
         "request_id": request_id,
         "actor": actor,
@@ -224,7 +229,32 @@ def _normalize_history_entry(raw: object) -> dict[str, object] | None:
         "backup_dir": backup_dir,
         "backup_created": raw["backup_created"],
         "rollback_performed": raw["rollback_performed"],
+        **alert_result,
         "validations": validations,
+    }
+
+
+def _normalize_alert_result(
+    raw: dict[str, object],
+    update_status: object,
+) -> dict[str, str | None] | None:
+    default_status = "pending" if update_status == "rollback_failed" else "not_needed"
+    alert_status = raw.get("alert_request_status", default_status)
+    alert_run_url = raw.get("alert_run_url")
+    if alert_run_url == "":
+        alert_run_url = None
+    if alert_status not in ALERT_REQUEST_STATUSES:
+        return None
+    if update_status != "rollback_failed" and alert_status != "not_needed":
+        return None
+    if alert_status == "requested":
+        if not isinstance(alert_run_url, str) or not build_actions_run_api_url(alert_run_url):
+            return None
+    elif alert_run_url is not None:
+        return None
+    return {
+        "alert_request_status": str(alert_status),
+        "alert_run_url": alert_run_url,
     }
 
 

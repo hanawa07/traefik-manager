@@ -52,6 +52,7 @@ printf '%s\n' '{"status":"정상"}'
 SCRIPT
 cat > "${fake_alert}" <<'SCRIPT'
 #!/usr/bin/env bash
+[[ "${TM_TEST_FAIL_ALERT:-false}" != "true" ]] || exit 44
 printf '%s\n' "$@" > "${TM_TEST_ALERT_CAPTURE}"
 printf '%s\n' 'https://github.com/hanawa07/traefik-manager/actions/runs/123'
 SCRIPT
@@ -76,6 +77,7 @@ run_runner() {
   TM_TEST_ALERT_CAPTURE="${alert_capture}" \
   TM_TEST_FAIL_PULL="${TM_TEST_FAIL_PULL:-false}" \
   TM_TEST_FAIL_UP="${TM_TEST_FAIL_UP:-false}" \
+  TM_TEST_FAIL_ALERT="${TM_TEST_FAIL_ALERT:-false}" \
   TM_TEST_IMAGE_FILE="${temporary_dir}/image" \
     "${SCRIPT_DIR}/traefik-update-runner.py"
 }
@@ -99,10 +101,20 @@ if TM_TEST_FAIL_PULL=true TM_TEST_FAIL_UP=true run_runner; then
   exit 1
 fi
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"status":"rollback_failed"'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_request_status":"requested"'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_run_url":"https://github.com/hanawa07/traefik-manager/actions/runs/123"'
 grep -Fq 'image: traefik:v3.7.9' "${compose_dir}/docker-compose.yml"
 grep -Fxq 'Traefik 패치 업데이트 자동 롤백' "${alert_capture}"
 grep -Fxq 'v3.7.10 업데이트와 자동 롤백 실패 · 요청 33333333-3333-4333-8333-333333333333' "${alert_capture}"
 grep -Fxq 'failure' "${alert_capture}"
 grep -Fq '호스트 운영 알림 요청 완료' "${state_dir}/traefik-update-runner.json"
 [[ ! -e "${request_dir}/traefik-update-request.json" ]]
+
+write_request '44444444-4444-4444-8444-444444444444' 'v3.7.10'
+if TM_TEST_FAIL_PULL=true TM_TEST_FAIL_UP=true TM_TEST_FAIL_ALERT=true run_runner; then
+  echo "알림 요청 실패가 성공으로 종료되었습니다" >&2
+  exit 1
+fi
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_request_status":"request_failed"'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_run_url":null'
 echo "Traefik 안전 업데이트 실행기 self-test 통과"

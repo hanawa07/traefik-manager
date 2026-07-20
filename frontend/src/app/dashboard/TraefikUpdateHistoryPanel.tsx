@@ -1,10 +1,13 @@
 "use client";
 
-import { CheckCircle2, Clock3, Download, RotateCcw, ServerCog } from "lucide-react";
+import { CheckCircle2, Clock3, Download, ExternalLink, RotateCcw, ServerCog } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
-import type { TraefikUpdateOperations } from "@/features/traefik/api/traefikApi";
+import type {
+  TraefikUpdateHistoryEntry,
+  TraefikUpdateOperations,
+} from "@/features/traefik/api/traefikApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 import {
@@ -21,6 +24,10 @@ import {
   downloadTraefikUpdateHistory,
   type TraefikUpdateHistoryExportFormat,
 } from "./traefikUpdateHistoryExport";
+import {
+  getExternalWatchdogRunLabel,
+  isExternalWatchdogRunFailure,
+} from "./managerWatchdogStatus";
 
 interface TraefikUpdateHistoryPanelProps {
   isError: boolean;
@@ -182,6 +189,7 @@ function TraefikUpdateHistoryPanelContent({
                     </span>
                   ) : null}
                 </div>
+                <UpdateAlertRun entry={entry} timezone={timezone} />
                 {entry.validations.length ? (
                   <details className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
                     <summary className="cursor-pointer font-semibold">검증 상세</summary>
@@ -197,6 +205,56 @@ function TraefikUpdateHistoryPanelContent({
           })}
         </ol>
       )}
+    </div>
+  );
+}
+
+function UpdateAlertRun({
+  entry,
+  timezone,
+}: {
+  entry: TraefikUpdateHistoryEntry;
+  timezone?: string;
+}) {
+  const status = entry.alert_request_status;
+  if (!status || status === "not_needed") return null;
+
+  const resultLabel = getExternalWatchdogRunLabel(
+    entry.alert_run_status,
+    entry.alert_run_conclusion,
+    entry.alert_run_error,
+  );
+  const failed = status === "request_failed"
+    || isExternalWatchdogRunFailure(entry.alert_run_conclusion);
+  const lookupFailed = Boolean(entry.alert_run_error);
+  const className = failed
+    ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
+    : lookupFailed || status === "pending"
+      ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+      : "border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-200";
+  const requestLabel = status === "request_failed"
+    ? "운영 알림 요청 실패"
+    : status === "pending" ? "운영 알림 요청 중" : "운영 알림 요청됨";
+  return (
+    <div
+      className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-2.5 py-2 text-[11px] font-semibold ${className}`}
+      data-traefik-update-alert={status}
+    >
+      <span>{requestLabel}</span>
+      {status === "requested" && entry.alert_run_url ? (
+        <a
+          className="inline-flex items-center gap-1 underline underline-offset-2"
+          href={entry.alert_run_url}
+          rel="noreferrer"
+          target="_blank"
+        >
+          <ExternalLink className="h-3 w-3" /> 알림 실행 {resultLabel}
+        </a>
+      ) : null}
+      {entry.alert_run_checked_at ? (
+        <span>확인 {formatDateTime(entry.alert_run_checked_at, timezone)}</span>
+      ) : null}
+      {entry.alert_run_error ? <span>{entry.alert_run_error}</span> : null}
     </div>
   );
 }

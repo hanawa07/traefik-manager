@@ -114,6 +114,58 @@ def test_read_traefik_update_operations_returns_latest_request_state(tmp_path):
     assert len(result["history"]) == 1
     assert result["history"][0]["status"] == "success"
     assert result["history"][0]["backup_created"] is True
+    assert result["history"][0]["alert_request_status"] == "not_needed"
+    assert result["history"][0]["alert_run_url"] is None
+
+
+def test_read_traefik_update_operations_keeps_latest_rollback_alert_result(tmp_path):
+    request_dir = tmp_path / "requests"
+    request_dir.mkdir()
+    request_id = "11111111-1111-4111-8111-111111111111"
+    base_entry = {
+        "request_id": request_id,
+        "actor": "lizstudio",
+        "status": "rollback_failed",
+        "from_version": "v3.7.8",
+        "target_version": "v3.7.9",
+        "requested_at": "2026-07-20T01:00:00Z",
+        "started_at": "2026-07-20T01:00:01Z",
+        "completed_at": "2026-07-20T01:00:05Z",
+        "message": "rollback failed",
+        "backup_dir": "/tmp/backups/request",
+        "backup_created": True,
+        "rollback_performed": True,
+        "validations": [],
+    }
+    history_path = tmp_path / "history.jsonl"
+    history_path.write_text(
+        "\n".join(
+            [
+                json.dumps(base_entry),
+                json.dumps(
+                    {
+                        **base_entry,
+                        "alert_request_status": "requested",
+                        "alert_run_url": (
+                            "https://github.com/hanawa07/traefik-manager/"
+                            "actions/runs/123"
+                        ),
+                    }
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = read_traefik_update_operations(
+        history_path=history_path,
+        request_dir=request_dir,
+        runner_status_path=tmp_path / "missing.json",
+    )
+
+    assert len(result["history"]) == 1
+    assert result["history"][0]["alert_request_status"] == "requested"
+    assert result["history"][0]["alert_run_url"].endswith("/actions/runs/123")
 
 
 def test_read_traefik_update_operations_rejects_stale_runner(tmp_path):

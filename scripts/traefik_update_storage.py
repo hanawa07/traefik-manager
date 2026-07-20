@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -12,6 +13,10 @@ from traefik_update_models import (
     UpdateRequest,
     parse_datetime,
     utc_now,
+)
+
+ALERT_RUN_URL_PATTERN = re.compile(
+    r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/actions/runs/[1-9][0-9]*$"
 )
 
 
@@ -64,6 +69,8 @@ def history_entry(
         "backup_dir": None,
         "backup_created": False,
         "rollback_performed": False,
+        "alert_request_status": "not_needed",
+        "alert_run_url": None,
         "validations": [],
     }
 
@@ -82,6 +89,40 @@ def append_history(config: RunnerConfig, entry: dict[str, Any]) -> None:
             "\n".join(lines[-MAX_HISTORY_LINES:]) + "\n",
             0o644,
         )
+
+
+def append_alert_result(
+    config: RunnerConfig,
+    request_id: str,
+    status: str,
+    run_url: str | None,
+) -> None:
+    if status not in {"requested", "request_failed"}:
+        raise ValueError("지원하지 않는 호스트 알림 상태입니다")
+    if status == "requested":
+        if not isinstance(run_url, str) or not ALERT_RUN_URL_PATTERN.fullmatch(run_url):
+            raise ValueError("호스트 알림 실행 URL이 올바르지 않습니다")
+    elif run_url is not None:
+        raise ValueError("실패한 호스트 알림에는 실행 URL을 저장할 수 없습니다")
+
+    for line in reversed(config.history_path.read_text(encoding="utf-8").splitlines()):
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(entry, dict) and entry.get("request_id") == request_id:
+            if entry.get("status") != "rollback_failed":
+                raise ValueError("자동 롤백 실패 이력에만 알림 결과를 저장할 수 있습니다")
+            append_history(
+                config,
+                {
+                    **entry,
+                    "alert_request_status": status,
+                    "alert_run_url": run_url,
+                },
+            )
+            return
+    raise ValueError("호스트 알림을 연결할 업데이트 이력을 찾지 못했습니다")
 
 
 def write_heartbeat(config: RunnerConfig, status: str, detail: str) -> None:

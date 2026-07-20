@@ -10,6 +10,7 @@ from app.infrastructure.docker.traefik_deployment import (
     TraefikDeploymentInspector,
     is_patch_update,
 )
+from app.infrastructure.github_actions_run import GitHubActionsRunStatusReader
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
 from app.infrastructure.traefik_update_operations import (
@@ -26,6 +27,14 @@ from app.interfaces.api.v1.schemas.traefik_schemas import (
 )
 
 router = APIRouter()
+
+MAX_ALERT_RUN_STATUS_LOOKUPS = 5
+ALERT_RUN_STATUS_FIELDS = {
+    "alert_run_status": "external_watchdog_last_alert_run_status",
+    "alert_run_conclusion": "external_watchdog_last_alert_run_conclusion",
+    "alert_run_checked_at": "external_watchdog_last_alert_run_checked_at",
+    "alert_run_error": "external_watchdog_last_alert_run_error",
+}
 
 
 def get_traefik_update_client() -> TraefikApiClient:
@@ -44,7 +53,41 @@ def get_traefik_update_docker_client() -> DockerClient:
 async def get_traefik_update_operations(
     _: dict = Depends(get_current_user),
 ):
-    return await asyncio.to_thread(read_traefik_update_operations)
+    operations = await asyncio.to_thread(read_traefik_update_operations)
+    history = operations.get("history")
+    if not isinstance(history, list):
+        return operations
+    run_urls = list(dict.fromkeys(
+        entry.get("alert_run_url")
+        for entry in history
+        if isinstance(entry, dict) and isinstance(entry.get("alert_run_url"), str)
+    ))[:MAX_ALERT_RUN_STATUS_LOOKUPS]
+    if not run_urls:
+        return operations
+    run_statuses = await GitHubActionsRunStatusReader().get_statuses(run_urls)
+    operations["history"] = [
+        _with_alert_run_status(entry, run_statuses)
+        for entry in history
+    ]
+    return operations
+
+
+def _with_alert_run_status(
+    entry: object,
+    run_statuses: dict[str, dict[str, object]],
+) -> object:
+    if not isinstance(entry, dict):
+        return entry
+    run_status = run_statuses.get(str(entry.get("alert_run_url")))
+    if not run_status:
+        return entry
+    return {
+        **entry,
+        **{
+            target: run_status.get(source)
+            for target, source in ALERT_RUN_STATUS_FIELDS.items()
+        },
+    }
 
 
 @router.post(

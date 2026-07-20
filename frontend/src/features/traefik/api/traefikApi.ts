@@ -73,6 +73,12 @@ export interface TraefikUpdateHistoryEntry {
   backup_dir: string | null;
   backup_created: boolean;
   rollback_performed: boolean;
+  alert_request_status: "not_needed" | "pending" | "requested" | "request_failed";
+  alert_run_url: string | null;
+  alert_run_status: string | null;
+  alert_run_conclusion: string | null;
+  alert_run_checked_at: string | null;
+  alert_run_error: string | null;
   validations: TraefikUpdateValidation[];
 }
 

@@ -9,6 +9,44 @@ from app.interfaces.api.v1.schemas.traefik_schemas import TraefikUpdateRequest
 
 
 @pytest.mark.asyncio
+async def test_get_traefik_update_operations_adds_alert_run_result(monkeypatch):
+    run_url = "https://github.com/hanawa07/traefik-manager/actions/runs/123"
+    operations = {
+        "runner": {"available": True, "message": "ready"},
+        "pending_request": False,
+        "history": [{"request_id": "fixture", "alert_run_url": run_url}],
+    }
+    monkeypatch.setattr(
+        traefik_updates,
+        "read_traefik_update_operations",
+        lambda: operations,
+    )
+
+    class FakeRunStatusReader:
+        async def get_statuses(self, run_urls):
+            assert run_urls == [run_url]
+            return {
+                run_url: {
+                    "external_watchdog_last_alert_run_status": "completed",
+                    "external_watchdog_last_alert_run_conclusion": "success",
+                    "external_watchdog_last_alert_run_checked_at": None,
+                    "external_watchdog_last_alert_run_error": None,
+                }
+            }
+
+    monkeypatch.setattr(
+        traefik_updates,
+        "GitHubActionsRunStatusReader",
+        FakeRunStatusReader,
+    )
+
+    result = await traefik_updates.get_traefik_update_operations(_={})
+
+    assert result["history"][0]["alert_run_status"] == "completed"
+    assert result["history"][0]["alert_run_conclusion"] == "success"
+
+
+@pytest.mark.asyncio
 async def test_request_traefik_patch_update_queues_verified_latest_patch(monkeypatch):
     queued = {
         "request_id": "11111111-1111-4111-8111-111111111111",
