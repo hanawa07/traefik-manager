@@ -24,14 +24,14 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     assertRequest(initial, "GET", "/api/v1/audit/bulk-operations");
     await fulfillJson(cdp, initial, [summary], 6);
     await loaded;
-    await waitForBulkControls(cdp, "all", "all", timeoutMs);
+    await waitForBulkControls(cdp, "all", "all", timeoutMs, 1, "최초 목록");
 
     const nextPageRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 다음 페이지");
     await clickAriaLabel(cdp, "다음 일괄 작업 페이지");
     const nextPage = await nextPageRequest;
     assert.equal(new URL(nextPage.request.url).searchParams.get("offset"), "5");
     await fulfillJson(cdp, nextPage, [summary], 6);
-    await waitForBulkControls(cdp, "all", "all", timeoutMs, 2);
+    await waitForBulkControls(cdp, "all", "all", timeoutMs, 2, "다음 페이지");
 
     const reloadPageRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 현재 페이지 새로고침");
     const pageReloaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
@@ -40,17 +40,21 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     assert.equal(new URL(reloadPage.request.url).searchParams.get("offset"), "5");
     await fulfillJson(cdp, reloadPage, [summary], 6);
     await pageReloaded;
-    await waitForBulkControls(cdp, "all", "all", timeoutMs, 2);
+    await waitForBulkControls(cdp, "all", "all", timeoutMs, 2, "페이지 새로고침");
 
+    const previousPageRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 이전 페이지");
     await clickAriaLabel(cdp, "이전 일괄 작업 페이지");
-    await waitForBulkControls(cdp, "all", "all", timeoutMs);
+    const previousPage = await previousPageRequest;
+    assert.equal(new URL(previousPage.request.url).searchParams.get("offset"), "0");
+    await fulfillJson(cdp, previousPage, [summary], 6);
+    await waitForBulkControls(cdp, "all", "all", timeoutMs, 1, "이전 페이지");
 
     const periodRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 기간 필터");
     await changeSelect(cdp, "일괄 작업 기간", "30");
     const period = await periodRequest;
     assert.equal(new URL(period.request.url).searchParams.get("period_days"), "30");
     await fulfillJson(cdp, period, [summary], 6);
-    await waitForBulkControls(cdp, "30", "all", timeoutMs);
+    await waitForBulkControls(cdp, "30", "all", timeoutMs, 1, "기간 필터");
 
     const statusRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 상태 필터");
     await changeSelect(cdp, "일괄 작업 알림 상태", "failure");
@@ -59,7 +63,7 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     assert.equal(statusUrl.searchParams.get("period_days"), "30");
     assert.equal(statusUrl.searchParams.get("notification_status"), "failure");
     await fulfillJson(cdp, status, [summary], 6);
-    await waitForBulkControls(cdp, "30", "failure", timeoutMs);
+    await waitForBulkControls(cdp, "30", "failure", timeoutMs, 1, "상태 필터");
 
     const reloadRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 필터 새로고침");
     const reloaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
@@ -70,7 +74,7 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     assert.equal(reloadUrl.searchParams.get("notification_status"), "failure");
     await fulfillJson(cdp, reload, [summary], 6);
     await reloaded;
-    await waitForBulkControls(cdp, "30", "failure", timeoutMs);
+    await waitForBulkControls(cdp, "30", "failure", timeoutMs, 1, "필터 새로고침");
     await waitForCondition(
       cdp,
       `(() => {
@@ -106,7 +110,7 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     assert.equal(resetUrl.searchParams.has("period_days"), false);
     assert.equal(resetUrl.searchParams.has("notification_status"), false);
     await fulfillJson(cdp, reset, [summary], 6);
-    await waitForBulkControls(cdp, "all", "all", timeoutMs);
+    await waitForBulkControls(cdp, "all", "all", timeoutMs, 1, "전체 초기화");
     await waitForCondition(
       cdp,
       `document.querySelector('button[aria-label="감사 필터 전체 초기화"]')?.disabled === true &&
@@ -120,29 +124,46 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
   return true;
 }
 
-async function waitForBulkControls(cdp, period, status, timeoutMs, page = 1) {
+async function waitForBulkControls(cdp, period, status, timeoutMs, page = 1, stage = "") {
   const periodLabel = { "7": "최근 7일", "30": "최근 30일", "90": "최근 90일" }[period];
   const statusLabel = { success: "성공", failure: "실패", none: "기록 없음" }[status];
-  await waitForCondition(
-    cdp,
-    `(() => {
-      const params = new URLSearchParams(location.search);
-      return document.querySelector('select[aria-label="일괄 작업 기간"]')?.value === ${JSON.stringify(period)} &&
-        document.querySelector('select[aria-label="일괄 작업 알림 상태"]')?.value === ${JSON.stringify(status)} &&
-        document.querySelector('[data-bulk-result-count]')?.getAttribute('data-bulk-result-count') === '1' &&
-        document.querySelector('[data-bulk-result-count]')?.getAttribute('data-bulk-total-count') === '6' &&
-        document.querySelector('[data-bulk-result-count]')?.textContent?.includes('조건 결과 6건 · 현재 1건 표시') &&
-        document.querySelector('[data-bulk-page]')?.getAttribute('data-bulk-page') === '${page}' &&
-        document.querySelector('[data-bulk-page]')?.getAttribute('data-bulk-total-pages') === '2' &&
-        ${period === "all" ? "!params.has('bulk_period')" : `params.get('bulk_period') === '${period}'`} &&
-        ${status === "all" ? "!params.has('bulk_status')" : `params.get('bulk_status') === '${status}'`} &&
-        ${page === 1 ? "!params.has('bulk_page')" : `params.get('bulk_page') === '${page}'`} &&
-        ${periodLabel ? `Boolean(document.querySelector('button[aria-label="일괄 기간: ${periodLabel} 조건 제거"]'))` : `!document.querySelector('button[aria-label^="일괄 기간:"]')`} &&
-        ${statusLabel ? `Boolean(document.querySelector('button[aria-label="일괄 알림: ${statusLabel} 조건 제거"]'))` : `!document.querySelector('button[aria-label^="일괄 알림:"]')`};
-    })()`,
-    timeoutMs,
-    "일괄 작업 URL 필터가 화면에 복원되지 않았습니다",
-  );
+  try {
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const params = new URLSearchParams(location.search);
+        return document.querySelector('select[aria-label="일괄 작업 기간"]')?.value === ${JSON.stringify(period)} &&
+          document.querySelector('select[aria-label="일괄 작업 알림 상태"]')?.value === ${JSON.stringify(status)} &&
+          document.querySelector('[data-bulk-result-count]')?.getAttribute('data-bulk-result-count') === '1' &&
+          document.querySelector('[data-bulk-result-count]')?.getAttribute('data-bulk-total-count') === '6' &&
+          document.querySelector('[data-bulk-result-count]')?.textContent?.includes('조건 결과 6건 · 현재 1건 표시') &&
+          document.querySelector('[data-bulk-page]')?.getAttribute('data-bulk-page') === '${page}' &&
+          document.querySelector('[data-bulk-page]')?.getAttribute('data-bulk-total-pages') === '2' &&
+          ${period === "all" ? "!params.has('bulk_period')" : `params.get('bulk_period') === '${period}'`} &&
+          ${status === "all" ? "!params.has('bulk_status')" : `params.get('bulk_status') === '${status}'`} &&
+          ${page === 1 ? "!params.has('bulk_page')" : `params.get('bulk_page') === '${page}'`} &&
+          ${periodLabel ? `Boolean(document.querySelector('button[aria-label="일괄 기간: ${periodLabel} 조건 제거"]'))` : `!document.querySelector('button[aria-label^="일괄 기간:"]')`} &&
+          ${statusLabel ? `Boolean(document.querySelector('button[aria-label="일괄 알림: ${statusLabel} 조건 제거"]'))` : `!document.querySelector('button[aria-label^="일괄 알림:"]')`};
+      })()`,
+      timeoutMs,
+      "일괄 작업 URL 필터가 화면에 복원되지 않았습니다",
+    );
+  } catch (error) {
+    const state = await evaluate(cdp, `(() => {
+      const count = document.querySelector('[data-bulk-result-count]');
+      const pagination = document.querySelector('[data-bulk-page]');
+      return {
+        period: document.querySelector('select[aria-label="일괄 작업 기간"]')?.value,
+        status: document.querySelector('select[aria-label="일괄 작업 알림 상태"]')?.value,
+        resultCount: count?.getAttribute('data-bulk-result-count'),
+        totalCount: count?.getAttribute('data-bulk-total-count'),
+        page: pagination?.getAttribute('data-bulk-page'),
+        totalPages: pagination?.getAttribute('data-bulk-total-pages'),
+        url: location.href,
+      };
+    })()`);
+    throw new Error(`${error.message}: expected=${JSON.stringify({ page, period, stage, status })}, actual=${JSON.stringify(state)}`);
+  }
 }
 
 async function changeSelect(cdp, label, value) {
