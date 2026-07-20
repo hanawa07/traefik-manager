@@ -341,7 +341,10 @@ export function SmokeRotationStatusCard({
               </button>
             ) : null}
           </div>
-          <details className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-950">
+          <details
+            className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-950"
+            data-testid="smoke-recent-run-history"
+          >
             <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
               최근 GitHub 원격 실행 {recentRuns.length}건
             </summary>
@@ -369,6 +372,7 @@ export function SmokeRotationStatusCard({
                       {run.artifact_url ? (
                         <a
                           className="inline-flex items-center gap-1 font-medium text-rose-700 underline-offset-2 hover:underline dark:text-rose-300"
+                          data-testid="smoke-recent-run-artifact-link"
                           href={run.artifact_url}
                           target="_blank"
                           rel="noreferrer"

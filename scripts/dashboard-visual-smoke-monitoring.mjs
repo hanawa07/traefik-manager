@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
+import { checkSmokeRecentRunArtifact } from "./dashboard-visual-smoke-history.mjs";
 
 export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
   const initial = await evaluate(cdp, `(() => {
@@ -246,7 +247,7 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
   }
 }
 
-export async function checkSettingsTestAuditLinks({ cdp }) {
+export async function checkSettingsTestAuditLinks({ cdp, timeoutMs }) {
   const result = await evaluate(cdp, `(() => {
     const histories = Array.from(
       document.querySelectorAll('[data-testid="settings-test-recent-history"]')
@@ -299,6 +300,7 @@ export async function checkSettingsTestAuditLinks({ cdp }) {
       }),
     };
   })()`);
+  await checkSmokeRecentRunArtifact({ cdp, timeoutMs });
   if (!result.count) return false;
   assert.equal(result.valid, true, "설정 테스트 감사 상세 링크 조건이 올바르지 않습니다");
   assert.ok(result.historyCount > 0, "설정 테스트 최근 이력 펼침 목록이 표시되지 않았습니다");
