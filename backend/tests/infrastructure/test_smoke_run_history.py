@@ -105,6 +105,19 @@ def test_select_smoke_run_groups_keeps_latest_failure_outside_recent_five() -> N
     assert latest_failure["id"] == 4
 
 
+def test_select_smoke_run_groups_excludes_test_runs_from_default_history() -> None:
+    runs = [
+        _run(id=12, conclusion="failure", display_title="[테스트] 실패 알림"),
+        _run(id=11),
+        _run(id=10, conclusion="failure"),
+    ]
+
+    recent, latest_failure = select_smoke_run_groups(runs)
+
+    assert [run["id"] for run in recent] == [11, 10]
+    assert latest_failure["id"] == 10
+
+
 def test_select_smoke_run_groups_filters_requested_day_range() -> None:
     runs = [
         _run(id=10, updated_at="2026-07-17T00:00:00Z"),
