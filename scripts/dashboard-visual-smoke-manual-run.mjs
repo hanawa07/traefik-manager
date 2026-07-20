@@ -28,7 +28,7 @@ export async function checkManualSmokeRunResultPersistence({ cdp, timeoutMs }) {
   const result = await evaluate(cdp, `(() => {
     const link = document.querySelector('[data-testid="smoke-last-manual-run"]');
     return {
-      label: link?.closest('[data-settings-summary-row]')?.textContent || link?.parentElement?.parentElement?.textContent,
+      label: link?.closest('div')?.textContent,
       status: link?.getAttribute('data-manual-run-status'),
       url: link?.href,
     };
