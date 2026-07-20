@@ -47,24 +47,20 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
       body: Buffer.from(JSON.stringify(fixture)).toString("base64"),
     });
     await loaded;
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const history = document.querySelector('[data-testid="smoke-recent-run-history"]');
+        if (history instanceof HTMLDetailsElement) history.open = true;
+        const artifact = history?.querySelector('[data-testid="smoke-recent-run-artifact-link"]');
+        const run = history?.querySelector('a[href="${RUN_URL}"]');
+        return history?.open && artifact?.href === ${JSON.stringify(ARTIFACT_URL)} &&
+          artifact.textContent?.includes('실패 화면') && run?.textContent?.includes('#987');
+      })()`,
+      timeoutMs,
+      "최근 운영 점검 이력에 실패 화면 Artifact 링크가 표시되지 않았습니다",
+    );
   } finally {
     await cdp.send("Fetch.disable");
   }
-
-  await evaluate(cdp, `(() => {
-    const history = document.querySelector('[data-testid="smoke-recent-run-history"]');
-    if (history instanceof HTMLDetailsElement) history.open = true;
-  })()`);
-  await waitForCondition(
-    cdp,
-    `(() => {
-      const history = document.querySelector('[data-testid="smoke-recent-run-history"]');
-      const artifact = history?.querySelector('[data-testid="smoke-recent-run-artifact-link"]');
-      const run = history?.querySelector('a[href="${RUN_URL}"]');
-      return history?.open && artifact?.href === ${JSON.stringify(ARTIFACT_URL)} &&
-        artifact.textContent?.includes('실패 화면') && run?.textContent?.includes('#987');
-    })()`,
-    timeoutMs,
-    "최근 운영 점검 이력에 실패 화면 Artifact 링크가 표시되지 않았습니다",
-  );
 }
