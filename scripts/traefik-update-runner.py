@@ -7,8 +7,13 @@ import sys
 from pathlib import Path
 
 from traefik_update_executor import process_request
-from traefik_update_models import RunnerConfig, message
-from traefik_update_storage import append_alert_result, read_request, write_heartbeat
+from traefik_update_models import ALERT_RETRY_OPERATION, RunnerConfig, UpdateRequest, message
+from traefik_update_storage import (
+    append_alert_result,
+    read_request,
+    validate_alert_retry,
+    write_heartbeat,
+)
 
 
 def main() -> int:
@@ -48,12 +53,14 @@ def _run_once(config: RunnerConfig) -> int:
         config.request_path.unlink(missing_ok=True)
         return 1
 
-    write_heartbeat(
-        config,
-        "running",
-        f"{request.target_version} 업데이트를 처리하는 중입니다",
-    )
     try:
+        if request.operation == ALERT_RETRY_OPERATION:
+            return _retry_rollback_alert(config, request)
+        write_heartbeat(
+            config,
+            "running",
+            f"{request.target_version} 업데이트를 처리하는 중입니다",
+        )
         result = process_request(config, request)
     except Exception as exc:
         write_heartbeat(
@@ -65,18 +72,11 @@ def _run_once(config: RunnerConfig) -> int:
     finally:
         config.request_path.unlink(missing_ok=True)
     if result == "rollback_failed":
-        alert_status = "request_failed"
-        alert_url = None
-        try:
-            alert_url = _request_rollback_failure_alert(request.request_id, request.target_version)
-            alert_status = "requested"
-            detail = f"호스트 운영 알림 요청 완료: {alert_url}"
-        except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
-            detail = f"호스트 운영 알림 요청도 실패했습니다: {message(exc)}"
-        try:
-            append_alert_result(config, request.request_id, alert_status, alert_url)
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
-            detail = f"{detail}. 알림 결과 이력 저장 실패: {message(exc)}"
+        _, detail = _request_and_record_rollback_alert(
+            config,
+            request.request_id,
+            request.target_version,
+        )
         write_heartbeat(
             config,
             "error",
@@ -85,6 +85,51 @@ def _run_once(config: RunnerConfig) -> int:
         return 1
     write_heartbeat(config, "ready", f"마지막 업데이트 결과: {result}")
     return 0
+
+
+def _retry_rollback_alert(config: RunnerConfig, request: UpdateRequest) -> int:
+    source_request_id = request.source_request_id
+    if source_request_id is None:
+        raise ValueError("알림 재시도 원본 요청 ID가 없습니다")
+    validate_alert_retry(config, source_request_id, request.target_version)
+    write_heartbeat(config, "running", "자동 롤백 실패 운영 알림을 다시 요청하는 중입니다")
+    succeeded, detail = _request_and_record_rollback_alert(
+        config,
+        source_request_id,
+        request.target_version,
+    )
+    write_heartbeat(
+        config,
+        "ready" if succeeded else "error",
+        f"롤백 실패 알림 재시도 {'완료' if succeeded else '실패'}: {detail}",
+    )
+    return 0 if succeeded else 1
+
+
+def _request_and_record_rollback_alert(
+    config: RunnerConfig,
+    request_id: str,
+    target_version: str,
+) -> tuple[bool, str]:
+    alert_status = "request_failed"
+    alert_url = None
+    try:
+        alert_url = _request_rollback_failure_alert(request_id, target_version)
+        alert_status = "requested"
+        detail = f"호스트 운영 알림 요청 완료: {alert_url}"
+    except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+        detail = f"호스트 운영 알림 요청도 실패했습니다: {message(exc)}"
+    try:
+        append_alert_result(
+            config,
+            request_id,
+            target_version,
+            alert_status,
+            alert_url,
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return False, f"{detail}. 알림 결과 이력 저장 실패: {message(exc)}"
+    return alert_status == "requested", detail
 
 
 def _request_rollback_failure_alert(request_id: str, target_version: str) -> str:

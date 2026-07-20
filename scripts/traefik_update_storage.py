@@ -6,8 +6,10 @@ from typing import Any
 from uuid import UUID
 
 from traefik_update_models import (
+    ALERT_RETRY_OPERATION,
     MAX_HISTORY_LINES,
     MAX_REQUEST_BYTES,
+    PATCH_UPDATE_OPERATION,
     VERSION_PATTERN,
     RunnerConfig,
     UpdateRequest,
@@ -25,11 +27,10 @@ def read_request(path: Path) -> UpdateRequest:
     if path.is_symlink() or not path.is_file() or stat.st_size > MAX_REQUEST_BYTES:
         raise ValueError("요청 파일 형식이 올바르지 않습니다")
     raw = json.loads(path.read_text(encoding="utf-8"))
-    if (
-        not isinstance(raw, dict)
-        or raw.get("schema_version") != 1
-        or raw.get("operation") != "traefik_patch_update"
-    ):
+    if not isinstance(raw, dict) or raw.get("schema_version") != 1:
+        raise ValueError("지원하지 않는 업데이트 요청입니다")
+    operation = raw.get("operation")
+    if operation not in {PATCH_UPDATE_OPERATION, ALERT_RETRY_OPERATION}:
         raise ValueError("지원하지 않는 업데이트 요청입니다")
     request_id = raw.get("request_id")
     target_version = raw.get("target_version")
@@ -48,7 +49,24 @@ def read_request(path: Path) -> UpdateRequest:
         raise ValueError("요청자가 올바르지 않습니다")
     if not isinstance(requested_at, str) or parse_datetime(requested_at) is None:
         raise ValueError("요청 시각이 올바르지 않습니다")
-    return UpdateRequest(request_id, target_version, actor, requested_at)
+    source_request_id = raw.get("source_request_id")
+    if operation == ALERT_RETRY_OPERATION:
+        if (
+            not isinstance(source_request_id, str)
+            or str(UUID(source_request_id)) != source_request_id
+            or source_request_id == request_id
+        ):
+            raise ValueError("알림 재시도 원본 요청 ID가 올바르지 않습니다")
+    elif source_request_id is not None:
+        raise ValueError("패치 업데이트 요청에는 원본 요청 ID를 지정할 수 없습니다")
+    return UpdateRequest(
+        request_id,
+        target_version,
+        actor,
+        requested_at,
+        str(operation),
+        source_request_id,
+    )
 
 
 def history_entry(
@@ -94,6 +112,7 @@ def append_history(config: RunnerConfig, entry: dict[str, Any]) -> None:
 def append_alert_result(
     config: RunnerConfig,
     request_id: str,
+    target_version: str,
     status: str,
     run_url: str | None,
 ) -> None:
@@ -105,23 +124,39 @@ def append_alert_result(
     elif run_url is not None:
         raise ValueError("실패한 호스트 알림에는 실행 URL을 저장할 수 없습니다")
 
+    entry = _latest_history_entry(config, request_id)
+    if entry.get("status") != "rollback_failed":
+        raise ValueError("자동 롤백 실패 이력에만 알림 결과를 저장할 수 있습니다")
+    if entry.get("target_version") != target_version:
+        raise ValueError("알림 재시도 대상 버전이 원본 업데이트와 다릅니다")
+    append_history(
+        config,
+        {
+            **entry,
+            "alert_request_status": status,
+            "alert_run_url": run_url,
+        },
+    )
+
+
+def validate_alert_retry(config: RunnerConfig, request_id: str, target_version: str) -> None:
+    entry = _latest_history_entry(config, request_id)
+    if (
+        entry.get("status") != "rollback_failed"
+        or entry.get("alert_request_status") != "request_failed"
+        or entry.get("target_version") != target_version
+    ):
+        raise ValueError("재시도할 수 있는 자동 롤백 실패 알림이 아닙니다")
+
+
+def _latest_history_entry(config: RunnerConfig, request_id: str) -> dict[str, Any]:
     for line in reversed(config.history_path.read_text(encoding="utf-8").splitlines()):
         try:
             entry = json.loads(line)
         except json.JSONDecodeError:
             continue
         if isinstance(entry, dict) and entry.get("request_id") == request_id:
-            if entry.get("status") != "rollback_failed":
-                raise ValueError("자동 롤백 실패 이력에만 알림 결과를 저장할 수 있습니다")
-            append_history(
-                config,
-                {
-                    **entry,
-                    "alert_request_status": status,
-                    "alert_run_url": run_url,
-                },
-            )
-            return
+            return entry
     raise ValueError("호스트 알림을 연결할 업데이트 이력을 찾지 못했습니다")
 
 

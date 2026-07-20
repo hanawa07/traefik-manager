@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REQUEST_FILENAME = "traefik-update-request.json"
+PATCH_UPDATE_OPERATION = "traefik_patch_update"
+ALERT_RETRY_OPERATION = "traefik_rollback_alert_retry"
 VERSION_PATTERN = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 MAX_REQUEST_BYTES = 4096
 MAX_HISTORY_LINES = 200
@@ -110,6 +112,8 @@ class UpdateRequest:
     target_version: str
     actor: str
     requested_at: str
+    operation: str = PATCH_UPDATE_OPERATION
+    source_request_id: str | None = None
 
 
 @dataclass(frozen=True)

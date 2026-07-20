@@ -16,6 +16,7 @@ from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
 from app.infrastructure.traefik_update_operations import (
     TraefikUpdateAlreadyPendingError,
     TraefikUpdateQueueUnavailableError,
+    queue_traefik_alert_retry,
     queue_traefik_patch_update,
     read_traefik_update_operations,
 )
@@ -91,6 +92,74 @@ def _with_alert_run_status(
 
 
 @router.post(
+    "/update-operations/{request_id}/alert-retry",
+    response_model=TraefikUpdateRequestResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Traefik 자동 롤백 실패 알림 재시도",
+)
+async def retry_traefik_rollback_alert(
+    request_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    actor: dict = Depends(require_admin),
+):
+    operations = await asyncio.to_thread(read_traefik_update_operations)
+    _require_runner_available(operations)
+    history = operations.get("history")
+    entry = next(
+        (
+            item
+            for item in history
+            if isinstance(item, dict) and item.get("request_id") == request_id
+        ),
+        None,
+    ) if isinstance(history, list) else None
+    if entry is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="자동 롤백 실패 이력을 찾을 수 없습니다",
+        )
+    if (
+        entry.get("status") != "rollback_failed"
+        or entry.get("alert_request_status") != "request_failed"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="알림 요청에 실패한 자동 롤백 이력만 재시도할 수 있습니다",
+        )
+    try:
+        queued = await asyncio.to_thread(
+            queue_traefik_alert_retry,
+            source_request_id=request_id,
+            target_version=str(entry["target_version"]),
+            actor=actor["username"],
+        )
+    except TraefikUpdateAlreadyPendingError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except TraefikUpdateQueueUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    await audit_service.record(
+        db=db,
+        actor=actor["username"],
+        action="request",
+        resource_type="traefik",
+        resource_id=str(queued["request_id"]),
+        resource_name="Traefik 자동 롤백 실패 알림 재시도",
+        detail={
+            "event": "traefik_rollback_alert_retry_requested",
+            "source_request_id": request_id,
+            "target_version": entry["target_version"],
+            "client_ip": get_client_ip(request),
+        },
+    )
+    return queued
+
+
+@router.post(
     "/update-requests",
     response_model=TraefikUpdateRequestResponse,
     status_code=status.HTTP_202_ACCEPTED,
@@ -115,13 +184,7 @@ async def request_traefik_patch_update(
     _validate_safe_patch_request(deployment, target_version)
 
     operations = await asyncio.to_thread(read_traefik_update_operations)
-    runner = operations["runner"]
-    if not isinstance(runner, dict) or not runner.get("available"):
-        runner_message = runner.get("message") if isinstance(runner, dict) else None
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=runner_message or "Traefik 호스트 업데이트 실행기를 사용할 수 없습니다",
-        )
+    _require_runner_available(operations)
 
     try:
         queued = await asyncio.to_thread(
@@ -152,6 +215,17 @@ async def request_traefik_patch_update(
         },
     )
     return queued
+
+
+def _require_runner_available(operations: dict[str, object]) -> None:
+    runner = operations.get("runner")
+    if isinstance(runner, dict) and runner.get("available"):
+        return
+    runner_message = runner.get("message") if isinstance(runner, dict) else None
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=runner_message or "Traefik 호스트 업데이트 실행기를 사용할 수 없습니다",
+    )
 
 
 def _validate_safe_patch_request(deployment: dict, target_version: str) -> None:

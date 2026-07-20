@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from fastapi import HTTPException
@@ -6,6 +6,90 @@ from starlette.requests import Request
 
 from app.interfaces.api.v1.routers import traefik_updates
 from app.interfaces.api.v1.schemas.traefik_schemas import TraefikUpdateRequest
+
+
+@pytest.mark.asyncio
+async def test_retry_traefik_rollback_alert_queues_failed_request(monkeypatch):
+    source_request_id = "11111111-1111-4111-8111-111111111111"
+    queued = {
+        "request_id": "22222222-2222-4222-8222-222222222222",
+        "target_version": "v3.7.9",
+        "status": "queued",
+        "requested_at": "2026-07-20T01:00:00Z",
+        "message": "queued",
+    }
+    monkeypatch.setattr(
+        traefik_updates,
+        "read_traefik_update_operations",
+        lambda: {
+            "runner": {"available": True, "message": "ready"},
+            "pending_request": False,
+            "history": [
+                {
+                    "request_id": source_request_id,
+                    "status": "rollback_failed",
+                    "target_version": "v3.7.9",
+                    "alert_request_status": "request_failed",
+                }
+            ],
+        },
+    )
+    queue_retry = Mock(return_value=queued)
+    monkeypatch.setattr(traefik_updates, "queue_traefik_alert_retry", queue_retry)
+    record_audit = AsyncMock()
+    monkeypatch.setattr(traefik_updates.audit_service, "record", record_audit)
+
+    result = await traefik_updates.retry_traefik_rollback_alert(
+        request_id=source_request_id,
+        request=Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": f"/api/v1/traefik/update-operations/{source_request_id}/alert-retry",
+                "headers": [],
+                "client": ("127.0.0.1", 1234),
+            }
+        ),
+        db=object(),
+        actor={"username": "lizstudio"},
+    )
+
+    assert result == queued
+    assert queue_retry.call_args.kwargs["source_request_id"] == source_request_id
+    assert record_audit.await_args.kwargs["detail"]["event"] == (
+        "traefik_rollback_alert_retry_requested"
+    )
+
+
+@pytest.mark.asyncio
+async def test_retry_traefik_rollback_alert_rejects_completed_alert(monkeypatch):
+    source_request_id = "11111111-1111-4111-8111-111111111111"
+    monkeypatch.setattr(
+        traefik_updates,
+        "read_traefik_update_operations",
+        lambda: {
+            "runner": {"available": True, "message": "ready"},
+            "pending_request": False,
+            "history": [
+                {
+                    "request_id": source_request_id,
+                    "status": "rollback_failed",
+                    "target_version": "v3.7.9",
+                    "alert_request_status": "requested",
+                }
+            ],
+        },
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await traefik_updates.retry_traefik_rollback_alert(
+            request_id=source_request_id,
+            request=object(),
+            db=object(),
+            actor={"username": "lizstudio"},
+        )
+
+    assert exc_info.value.status_code == 409
 
 
 @pytest.mark.asyncio

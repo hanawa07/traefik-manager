@@ -18,6 +18,8 @@ HISTORY_STATUSES = {"running", "success", "rejected", "rolled_back", "rollback_f
 ALERT_REQUEST_STATUSES = {"not_needed", "pending", "requested", "request_failed"}
 VALIDATION_STATUSES = {"ok", "fail"}
 RUNNER_STATUSES = {"ready", "running", "error"}
+PATCH_UPDATE_OPERATION = "traefik_patch_update"
+ALERT_RETRY_OPERATION = "traefik_rollback_alert_retry"
 
 
 class TraefikUpdateQueueUnavailableError(RuntimeError):
@@ -35,17 +37,59 @@ def queue_traefik_patch_update(
     request_dir: str | Path | None = None,
     now: datetime | None = None,
 ) -> dict[str, object]:
-    normalized_version = _normalize_version(target_version)
-    normalized_actor = _normalize_actor(actor)
-    queued_at = now or datetime.now(timezone.utc)
     payload = {
         "schema_version": 1,
-        "operation": "traefik_patch_update",
+        "operation": PATCH_UPDATE_OPERATION,
         "request_id": str(uuid4()),
-        "target_version": normalized_version,
-        "actor": normalized_actor,
-        "requested_at": queued_at.isoformat().replace("+00:00", "Z"),
+        "target_version": _normalize_version(target_version),
+        "actor": _normalize_actor(actor),
+        "requested_at": (now or datetime.now(timezone.utc))
+        .isoformat()
+        .replace("+00:00", "Z"),
     }
+    _publish_request(payload, request_dir)
+    return {
+        "request_id": payload["request_id"],
+        "target_version": payload["target_version"],
+        "status": "queued",
+        "requested_at": payload["requested_at"],
+        "message": "호스트 실행기에 Traefik 패치 업데이트를 요청했습니다",
+    }
+
+
+def queue_traefik_alert_retry(
+    *,
+    source_request_id: str,
+    target_version: str,
+    actor: str,
+    request_dir: str | Path | None = None,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    payload = {
+        "schema_version": 1,
+        "operation": ALERT_RETRY_OPERATION,
+        "request_id": str(uuid4()),
+        "source_request_id": _normalize_request_id(source_request_id),
+        "target_version": _normalize_version(target_version),
+        "actor": _normalize_actor(actor),
+        "requested_at": (now or datetime.now(timezone.utc))
+        .isoformat()
+        .replace("+00:00", "Z"),
+    }
+    _publish_request(payload, request_dir)
+    return {
+        "request_id": payload["request_id"],
+        "target_version": payload["target_version"],
+        "status": "queued",
+        "requested_at": payload["requested_at"],
+        "message": "호스트 실행기에 자동 롤백 실패 알림 재시도를 요청했습니다",
+    }
+
+
+def _publish_request(
+    payload: dict[str, object],
+    request_dir: str | Path | None,
+) -> None:
     directory = Path(request_dir or settings.TRAEFIK_UPDATE_REQUEST_DIR)
     if not directory.is_dir():
         raise TraefikUpdateQueueUnavailableError(
@@ -83,14 +127,6 @@ def queue_traefik_patch_update(
             ) from exc
     finally:
         temporary_path.unlink(missing_ok=True)
-
-    return {
-        "request_id": payload["request_id"],
-        "target_version": normalized_version,
-        "status": "queued",
-        "requested_at": payload["requested_at"],
-        "message": "호스트 실행기에 Traefik 패치 업데이트를 요청했습니다",
-    }
 
 
 def read_traefik_update_operations(
@@ -304,6 +340,12 @@ def _normalize_actor(value: str) -> str:
     if not normalized or len(normalized) > 100 or any(ord(character) < 32 for character in normalized):
         raise ValueError("유효하지 않은 업데이트 요청자입니다")
     return normalized
+
+
+def _normalize_request_id(value: str) -> str:
+    if not _is_uuid(value):
+        raise ValueError("유효하지 않은 원본 업데이트 요청 ID입니다")
+    return value
 
 
 def _is_uuid(value: object) -> bool:

@@ -76,6 +76,7 @@ export function TraefikStatusBanner({
         operations={updateOperations.data}
       />
       <TraefikUpdateHistoryPanel
+        canManage={canManage}
         isError={updateOperations.isError}
         isLoading={updateOperations.isLoading}
         operations={updateOperations.data}

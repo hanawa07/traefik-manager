@@ -160,6 +160,13 @@ export const traefikApi = {
     return res.data;
   },
 
+  retryRollbackAlert: async (requestId: string): Promise<TraefikUpdateRequestResponse> => {
+    const res = await apiClient.post<TraefikUpdateRequestResponse>(
+      `/traefik/update-operations/${requestId}/alert-retry`,
+    );
+    return res.data;
+  },
+
   middlewares: async (): Promise<TraefikMiddlewareList> => {
     const res = await apiClient.get<TraefikMiddlewareList>("/traefik/middlewares");
     return res.data;

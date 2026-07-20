@@ -66,6 +66,15 @@ write_request() {
     > "${request_dir}/traefik-update-request.json"
 }
 
+write_alert_retry_request() {
+  local request_id="$1"
+  local source_request_id="$2"
+  local target_version="$3"
+  printf '%s\n' \
+    "{\"schema_version\":1,\"operation\":\"traefik_rollback_alert_retry\",\"request_id\":\"${request_id}\",\"source_request_id\":\"${source_request_id}\",\"target_version\":\"${target_version}\",\"actor\":\"self-test\",\"requested_at\":\"2026-07-20T00:00:00Z\"}" \
+    > "${request_dir}/traefik-update-request.json"
+}
+
 run_runner() {
   TM_MANAGER_DEPLOY_STATE_DIR="${state_dir}" \
   TM_TRAEFIK_UPDATE_REQUEST_DIR="${request_dir}" \
@@ -82,6 +91,9 @@ run_runner() {
     "${SCRIPT_DIR}/traefik-update-runner.py"
 }
 
+for history_index in $(seq 1 205); do
+  printf '{"fixture":%s}\n' "${history_index}" >> "${state_dir}/traefik-updates.jsonl"
+done
 write_request '11111111-1111-4111-8111-111111111111' 'v3.7.9'
 run_runner
 grep -Fq 'image: traefik:v3.7.9' "${compose_dir}/docker-compose.yml"
@@ -89,6 +101,7 @@ grep -Fq '"status":"success"' "${state_dir}/traefik-updates.jsonl"
 grep -Fq '"status":"ready"' "${state_dir}/traefik-update-runner.json"
 [[ ! -e "${request_dir}/traefik-update-request.json" ]]
 find "${compose_dir}/backups" -type f -name acme.json -print -quit | grep -q .
+[[ "$(wc -l < "${state_dir}/traefik-updates.jsonl")" -eq 200 ]]
 
 write_request '22222222-2222-4222-8222-222222222222' 'v3.8.0'
 run_runner
@@ -117,4 +130,24 @@ if TM_TEST_FAIL_PULL=true TM_TEST_FAIL_UP=true TM_TEST_FAIL_ALERT=true run_runne
 fi
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_request_status":"request_failed"'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_run_url":null'
+
+write_alert_retry_request \
+  '55555555-5555-4555-8555-555555555554' \
+  '44444444-4444-4444-8444-444444444444' \
+  'v3.7.11'
+if run_runner; then
+  echo "원본과 다른 버전의 알림 재시도가 성공으로 종료되었습니다" >&2
+  exit 1
+fi
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_request_status":"request_failed"'
+
+write_alert_retry_request \
+  '55555555-5555-4555-8555-555555555555' \
+  '44444444-4444-4444-8444-444444444444' \
+  'v3.7.10'
+run_runner
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_request_status":"requested"'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_run_url":"https://github.com/hanawa07/traefik-manager/actions/runs/123"'
+grep -Fxq 'v3.7.10 업데이트와 자동 롤백 실패 · 요청 44444444-4444-4444-8444-444444444444' "${alert_capture}"
+grep -Fq '롤백 실패 알림 재시도 완료' "${state_dir}/traefik-update-runner.json"
 echo "Traefik 안전 업데이트 실행기 self-test 통과"

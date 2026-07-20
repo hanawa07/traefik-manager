@@ -55,6 +55,17 @@ export function useRequestTraefikPatchUpdate() {
   });
 }
 
+export function useRetryTraefikRollbackAlert() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (requestId: string) => traefikApi.retryRollbackAlert(requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TRAEFIK_UPDATE_OPERATIONS_QUERY_KEY });
+    },
+  });
+}
+
 export function useTraefikRouterStatus() {
   return useQuery({
     queryKey: ["traefik-router-status"],
