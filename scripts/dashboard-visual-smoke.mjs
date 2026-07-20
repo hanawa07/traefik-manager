@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-
 import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
 import { checkAuditFilterPersistence, checkCertificateDrawer, checkMobileSidebar, checkOptionalAdminModal } from "./dashboard-visual-interactions.mjs";
 import { checkDeploymentBottleneckSettingsPreview } from "./dashboard-visual-deployment-bottleneck-settings.mjs";
@@ -14,6 +13,7 @@ import { checkAuditSecuritySettingChanges } from "./dashboard-visual-audit-secur
 import { checkAuditRetryChain, checkSettingsTestAuditLinks, checkSmokeRotationAuditDetail, checkSmokeRunTrendRange } from "./dashboard-visual-smoke-monitoring.mjs";
 import { checkManualSmokeRunResultPersistence } from "./dashboard-visual-smoke-manual-run.mjs";
 import { checkMaintenanceScheduleFixture, runMaintenanceScheduleFixtureSelfTest } from "./dashboard-visual-maintenance-schedule.mjs";
+import { checkTraefikUpdateHistory } from "./dashboard-visual-traefik-update-history.mjs";
 import { checkWatchdogFilterPersistence } from "./dashboard-visual-watchdog.mjs";
 import { assertDashboardShell } from "./dashboard-visual-shell.mjs";
 export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabilities, cdp, timeoutMs }) {
@@ -29,6 +29,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
           labels.push(`${profile.label} Manager file-provider 라우터`);
           const deploymentHistory = await checkManagerDeploymentHistory({ cdp, timeoutMs });
           if (deploymentHistory) labels.push(`${profile.label} 배포 이력 결과 건수·필터 알림·사용자 지정 파일명`);
+          if (!profile.mobile && await checkTraefikUpdateHistory({ cdp, timeoutMs })) labels.push(`${profile.label} Traefik 업데이트 필터 복원·알림 결과·JSON·CSV`);
           const opened = await checkMobileSidebar({ artifactDir, cdp, profile, timeoutMs });
           if (opened) labels.push(`${profile.label} 사이드바`);
           await checkWatchdogFilterPersistence({ cdp, timeoutMs });
@@ -128,7 +129,6 @@ async function withVisualProfile(cdp, profile, callback) {
     }
   }
 }
-
 async function checkRoute({ artifactDir, baseUrl, cdp, profile, route, timeoutMs }) {
   try {
     await navigateAndWait(cdp, `${baseUrl}${route.path}`, timeoutMs);
