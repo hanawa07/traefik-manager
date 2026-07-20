@@ -1,7 +1,23 @@
-import { CheckCircle2, Clock3, RotateCcw, ServerCog } from "lucide-react";
+"use client";
+
+import { CheckCircle2, Clock3, Download, RotateCcw, ServerCog } from "lucide-react";
+import { useState } from "react";
 
 import type { TraefikUpdateOperations } from "@/features/traefik/api/traefikApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+
+import {
+  DEFAULT_TRAEFIK_UPDATE_HISTORY_FILTERS,
+  filterTraefikUpdateHistory,
+  isTraefikUpdateHistoryDateRangeValid,
+  type TraefikUpdateHistoryFilters,
+  type TraefikUpdateHistoryPeriod,
+  type TraefikUpdateHistoryStatus,
+} from "./traefikUpdateHistoryFilter";
+import {
+  downloadTraefikUpdateHistory,
+  type TraefikUpdateHistoryExportFormat,
+} from "./traefikUpdateHistoryExport";
 
 interface TraefikUpdateHistoryPanelProps {
   isError: boolean;
@@ -17,6 +33,29 @@ export function TraefikUpdateHistoryPanel({
   timezone,
 }: TraefikUpdateHistoryPanelProps) {
   const history = operations?.history ?? [];
+  const [filters, setFilters] = useState<TraefikUpdateHistoryFilters>(
+    DEFAULT_TRAEFIK_UPDATE_HISTORY_FILTERS,
+  );
+  const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
+  const [exportNotice, setExportNotice] = useState("");
+  const dateRangeValid = isTraefikUpdateHistoryDateRangeValid(filters);
+  const filteredHistory = filterTraefikUpdateHistory(
+    history,
+    filters,
+    periodReferenceTime,
+  );
+  const updateFilters = (updates: Partial<TraefikUpdateHistoryFilters>) => {
+    setFilters((current) => ({ ...current, ...updates }));
+    setExportNotice("");
+  };
+  const handleExport = (format: TraefikUpdateHistoryExportFormat) => {
+    try {
+      const filename = downloadTraefikUpdateHistory(filteredHistory, filters, format, timezone);
+      setExportNotice(`${filename} · ${filteredHistory.length}건 내보내기 완료`);
+    } catch {
+      setExportNotice(`${format.toUpperCase()} 파일을 생성하지 못했습니다.`);
+    }
+  };
   return (
     <div
       className="mt-4 rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-950/55"
@@ -41,6 +80,25 @@ export function TraefikUpdateHistoryPanel({
           호스트 실행기가 업데이트 요청을 처리하고 있습니다.
         </p>
       ) : null}
+      {!isLoading && !isError && history.length > 0 ? (
+        <HistoryFilters
+          dateRangeValid={dateRangeValid}
+          filteredCount={filteredHistory.length}
+          filters={filters}
+          onExport={handleExport}
+          onFiltersChange={updateFilters}
+          onPeriodChange={(period) => {
+            setPeriodReferenceTime(Date.now());
+            updateFilters({ dateFrom: "", dateTo: "", period });
+          }}
+          totalCount={history.length}
+        />
+      ) : null}
+      {exportNotice ? (
+        <p aria-live="polite" className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+          {exportNotice}
+        </p>
+      ) : null}
       {isLoading ? (
         <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">업데이트 이력 확인 중...</p>
       ) : isError ? (
@@ -51,9 +109,19 @@ export function TraefikUpdateHistoryPanel({
         <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
           Manager에서 요청한 업데이트 이력이 아직 없습니다.
         </p>
+      ) : filteredHistory.length === 0 ? (
+        <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+          {dateRangeValid
+            ? "선택한 조건에 맞는 업데이트 이력이 없습니다."
+            : "시작일은 종료일보다 늦을 수 없습니다."}
+        </p>
       ) : (
-        <ol className="mt-3 grid gap-2" data-testid="traefik-update-history">
-          {history.slice(0, 5).map((entry) => {
+        <ol
+          className="mt-3 grid gap-2"
+          data-testid="traefik-update-history"
+          data-traefik-update-filter-status={filters.status}
+        >
+          {filteredHistory.map((entry) => {
             const successfulChecks = entry.validations.filter((check) => check.status === "ok").length;
             return (
               <li
@@ -110,6 +178,132 @@ export function TraefikUpdateHistoryPanel({
           })}
         </ol>
       )}
+    </div>
+  );
+}
+
+const STATUS_OPTIONS: readonly { label: string; value: TraefikUpdateHistoryStatus }[] = [
+  { label: "전체 상태", value: "all" },
+  { label: "완료", value: "success" },
+  { label: "처리 중", value: "running" },
+  { label: "요청 거부", value: "rejected" },
+  { label: "자동 롤백", value: "rolled_back" },
+  { label: "롤백 실패", value: "rollback_failed" },
+];
+
+const PERIOD_OPTIONS: readonly { label: string; value: TraefikUpdateHistoryPeriod }[] = [
+  { label: "전체 기간", value: "all" },
+  { label: "최근 24시간", value: "1" },
+  { label: "최근 7일", value: "7" },
+  { label: "최근 30일", value: "30" },
+  { label: "최근 90일", value: "90" },
+];
+
+function HistoryFilters({
+  dateRangeValid,
+  filteredCount,
+  filters,
+  onExport,
+  onFiltersChange,
+  onPeriodChange,
+  totalCount,
+}: {
+  dateRangeValid: boolean;
+  filteredCount: number;
+  filters: TraefikUpdateHistoryFilters;
+  onExport: (format: TraefikUpdateHistoryExportFormat) => void;
+  onFiltersChange: (updates: Partial<TraefikUpdateHistoryFilters>) => void;
+  onPeriodChange: (period: TraefikUpdateHistoryPeriod) => void;
+  totalCount: number;
+}) {
+  const hasActiveFilters = filters.status !== "all"
+    || filters.period !== "all"
+    || Boolean(filters.dateFrom)
+    || Boolean(filters.dateTo);
+  const controlClassName = "min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+  return (
+    <div className="mt-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-900/80">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="grid min-w-0 gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+          업데이트 상태
+          <select
+            aria-label="업데이트 이력 상태"
+            className={controlClassName}
+            onChange={(event) => onFiltersChange({
+              status: event.target.value as TraefikUpdateHistoryStatus,
+            })}
+            value={filters.status}
+          >
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="grid min-w-0 gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+          상대 기간
+          <select
+            aria-label="업데이트 이력 기간"
+            className={controlClassName}
+            onChange={(event) => onPeriodChange(
+              event.target.value as TraefikUpdateHistoryPeriod,
+            )}
+            value={filters.period}
+          >
+            {PERIOD_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="grid min-w-0 gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+          시작일
+          <input
+            aria-label="업데이트 이력 시작일"
+            className={controlClassName}
+            max={filters.dateTo || undefined}
+            onChange={(event) => onFiltersChange({ dateFrom: event.target.value, period: "all" })}
+            type="date"
+            value={filters.dateFrom}
+          />
+        </label>
+        <label className="grid min-w-0 gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+          종료일
+          <input
+            aria-label="업데이트 이력 종료일"
+            className={controlClassName}
+            min={filters.dateFrom || undefined}
+            onChange={(event) => onFiltersChange({ dateTo: event.target.value, period: "all" })}
+            type="date"
+            value={filters.dateTo}
+          />
+        </label>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+        <span aria-live="polite" className="text-[11px] text-slate-500 dark:text-slate-400">
+          현재 결과 {filteredCount}/{totalCount}건
+        </span>
+        <div className="flex flex-wrap gap-1.5 sm:ml-auto">
+          {(["json", "csv"] as const).map((format) => (
+            <button
+              aria-label={`현재 업데이트 이력 ${filteredCount}건 ${format.toUpperCase()} 다운로드`}
+              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:border-cyan-300 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-cyan-500 dark:hover:text-cyan-200"
+              disabled={!dateRangeValid || filteredCount === 0}
+              key={format}
+              onClick={() => onExport(format)}
+              type="button"
+            >
+              <Download className="h-3 w-3" /> {format.toUpperCase()}
+            </button>
+          ))}
+          <button
+            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:border-cyan-300 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-cyan-500 dark:hover:text-cyan-200"
+            disabled={!hasActiveFilters}
+            onClick={() => onFiltersChange(DEFAULT_TRAEFIK_UPDATE_HISTORY_FILTERS)}
+            type="button"
+          >
+            <RotateCcw className="h-3 w-3" /> 초기화
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
