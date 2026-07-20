@@ -51,7 +51,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
         }
         if (route.path === "/dashboard/settings") {
           await checkManualSmokeRunResultPersistence({ cdp, timeoutMs });
-          labels.push(`${profile.label} 마지막 수동 점검 결과 새로고침 유지`);
+          labels.push(`${profile.label} 마지막 수동 점검 결과 새로고침 유지·삭제`);
           const historyLinked = await checkSettingsTestAuditLinks({ cdp });
           if (historyLinked) labels.push(`${profile.label} 설정 테스트 감사 상세 링크`);
           const previewed = await checkManagerHttpErrorPreviewForm({

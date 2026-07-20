@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
+import { clickAriaLabel, evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 const STORAGE_KEY = "traefik-manager:last-manual-smoke-run";
 const RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/runs/123";
@@ -36,6 +36,24 @@ export async function checkManualSmokeRunResultPersistence({ cdp, timeoutMs }) {
   assert.equal(result.status, "success");
   assert.equal(result.url, RUN_URL);
   assert.match(result.label || "", /마지막 수동 점검 결과/);
-  await evaluate(cdp, `localStorage.removeItem(${JSON.stringify(STORAGE_KEY)})`);
+  await clickAriaLabel(cdp, "마지막 수동 점검 결과 기록 지우기");
+  await waitForCondition(
+    cdp,
+    `!document.querySelector('[data-testid="smoke-last-manual-run"]') &&
+      localStorage.getItem(${JSON.stringify(STORAGE_KEY)}) === null`,
+    timeoutMs,
+    "마지막 수동 점검 결과가 삭제되지 않았습니다",
+  );
+  const deletedReload = cdp.waitFor("Page.loadEventFired", timeoutMs);
+  await cdp.send("Page.reload", { ignoreCache: true });
+  await deletedReload;
+  await waitForCondition(
+    cdp,
+    `document.querySelector('[data-testid="smoke-manual-suppress-notice"]') &&
+      !document.querySelector('[data-testid="smoke-last-manual-run"]') &&
+      localStorage.getItem(${JSON.stringify(STORAGE_KEY)}) === null`,
+    timeoutMs,
+    "삭제한 수동 점검 결과가 새로고침 후 다시 나타났습니다",
+  );
   return true;
 }

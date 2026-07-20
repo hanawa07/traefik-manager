@@ -62,6 +62,7 @@ interface SmokeRotationStatusCardProps {
   onSave: () => void;
   onRefreshHistory: () => void;
   onManualRunOpen: () => void;
+  onClearManualRun: () => void;
   onTestStaleAlert: () => void;
   onCancel: () => void;
   onFormChange: (value: SmokeMonitoringSettingsInput) => void;
@@ -86,6 +87,7 @@ export function SmokeRotationStatusCard({
   onSave,
   onRefreshHistory,
   onManualRunOpen,
+  onClearManualRun,
   onTestStaleAlert,
   onCancel,
   onFormChange,
@@ -306,7 +308,13 @@ export function SmokeRotationStatusCard({
           {lastManualRun ? (
             <SettingsSummaryRow
               label="마지막 수동 점검 결과"
-              value={<SmokeManualRunResult run={lastManualRun} timezone={timezone} />}
+              value={
+                <SmokeManualRunResult
+                  onClear={onClearManualRun}
+                  run={lastManualRun}
+                  timezone={timezone}
+                />
+              }
             />
           ) : null}
           {status.monitoring_history_error ? (

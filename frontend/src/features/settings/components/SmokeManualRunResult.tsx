@@ -14,23 +14,35 @@ const STATUS_STYLES: Record<TrackedManualSmokeRun["status"], string> = {
 };
 
 export function SmokeManualRunResult({
+  onClear,
   run,
   timezone,
 }: {
+  onClear: () => void;
   run: TrackedManualSmokeRun;
   timezone?: string;
 }) {
   return (
-    <a
-      className={`font-medium underline-offset-2 hover:underline ${STATUS_STYLES[run.status]}`}
-      data-manual-run-status={run.status}
-      data-testid="smoke-last-manual-run"
-      href={run.run_url}
-      rel="noreferrer"
-      target="_blank"
-    >
-      {STATUS_LABELS[run.status]} · {run.run_number ? `#${run.run_number} · ` : ""}
-      {formatDateTime(run.completed_at, timezone)}
-    </a>
+    <span className="inline-flex flex-wrap items-center justify-end gap-2">
+      <a
+        className={`font-medium underline-offset-2 hover:underline ${STATUS_STYLES[run.status]}`}
+        data-manual-run-status={run.status}
+        data-testid="smoke-last-manual-run"
+        href={run.run_url}
+        rel="noreferrer"
+        target="_blank"
+      >
+        {STATUS_LABELS[run.status]} · {run.run_number ? `#${run.run_number} · ` : ""}
+        {formatDateTime(run.completed_at, timezone)}
+      </a>
+      <button
+        aria-label="마지막 수동 점검 결과 기록 지우기"
+        className="text-[11px] font-semibold text-slate-500 underline-offset-2 hover:text-rose-700 hover:underline dark:text-slate-400 dark:hover:text-rose-300"
+        type="button"
+        onClick={onClear}
+      >
+        기록 지우기
+      </button>
+    </span>
   );
 }

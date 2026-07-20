@@ -208,6 +208,14 @@ export function useSmokeMonitoringSettingsModel(
     manualRunTimerRef.current = window.setTimeout(poll, MANUAL_RUN_POLL_INTERVAL_MS);
   };
 
+  const handleClearManualRun = () => {
+    try {
+      window.localStorage.removeItem(LAST_MANUAL_SMOKE_RUN_STORAGE_KEY);
+    } finally {
+      setLastManualRun(null);
+    }
+  };
+
   const handleTestStaleAlert = async () => {
     if (!window.confirm("저장된 Telegram 채널로 관리자 점검 지연 테스트 알림을 전송할까요?")) {
       return;
@@ -247,6 +255,7 @@ export function useSmokeMonitoringSettingsModel(
     onSave: handleSave,
     onRefreshHistory: handleRefreshHistory,
     onManualRunOpen: handleManualRunOpen,
+    onClearManualRun: handleClearManualRun,
     onTestStaleAlert: handleTestStaleAlert,
     onCancel: () => setIsEditing(false),
     onFormChange: setFormValue,
