@@ -6,7 +6,7 @@ const DAY_MS = 24 * 60 * 60 * 1_000;
 const FIXTURE_DATE = new Date(Date.now() - 2 * DAY_MS).toISOString().slice(0, 10);
 const ALERT_RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/runs/123";
 
-const FIXTURE = {
+export const TRAEFIK_UPDATE_HISTORY_FIXTURE = {
   runner: {
     available: true,
     status: "ready",
@@ -230,7 +230,7 @@ async function reloadWithFixture({ cdp, timeoutMs }) {
       requestId: request.requestId,
       responseCode: 200,
       responseHeaders: [{ name: "Content-Type", value: "application/json" }],
-      body: Buffer.from(JSON.stringify(FIXTURE)).toString("base64"),
+      body: Buffer.from(JSON.stringify(TRAEFIK_UPDATE_HISTORY_FIXTURE)).toString("base64"),
     });
     await loaded;
   } finally {

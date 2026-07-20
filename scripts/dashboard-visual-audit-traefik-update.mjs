@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
+import { TRAEFIK_UPDATE_HISTORY_FIXTURE } from "./dashboard-visual-traefik-update-history.mjs";
 
 const AUDIT_ID = "00000000-0000-4000-8000-000000000011";
-const RETRY_REQUEST_ID = "22222222-2222-4222-8222-222222222222";
-const SOURCE_REQUEST_ID = "33333333-3333-4333-8333-333333333333";
+const RETRY_REQUEST_ID = "33333333-3333-4333-8333-333333333333";
+const SOURCE_REQUEST_ID = "11111111-1111-4111-8111-111111111111";
 const FIXTURE = {
   id: AUDIT_ID,
   actor: "security-admin",
@@ -67,8 +68,53 @@ export async function checkTraefikAuditAutoExpand(cdp, timeoutMs) {
       timeoutMs,
       "Traefik 재시도 감사 자동 펼침과 원본 이력 링크가 표시되지 않았습니다",
     );
-    return true;
   } finally {
     await cdp.send("Fetch.disable");
   }
+
+  await cdp.send("Fetch.enable", {
+    patterns: [{ requestStage: "Request", urlPattern: "*/api/v1/traefik/update-operations*" }],
+  });
+  try {
+    const requestPaused = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+    const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
+    const clicked = await evaluate(cdp, `(() => {
+      const source = document.querySelector(
+        '[data-traefik-update-source="${SOURCE_REQUEST_ID}"]',
+      );
+      const link = source?.querySelector('a');
+      link?.click();
+      return Boolean(link);
+    })()`);
+    assert.equal(clicked, true, "Traefik 원본 업데이트 이력 링크를 클릭하지 못했습니다");
+    const request = await requestPaused;
+    await cdp.send("Fetch.fulfillRequest", {
+      requestId: request.requestId,
+      responseCode: 200,
+      responseHeaders: [{ name: "Content-Type", value: "application/json" }],
+      body: Buffer.from(JSON.stringify(TRAEFIK_UPDATE_HISTORY_FIXTURE)).toString("base64"),
+    });
+    await loaded;
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const entries = document.querySelectorAll(
+          '[data-testid="traefik-update-history"] li[data-traefik-update-request-id]',
+        );
+        return location.pathname === '/dashboard' &&
+          location.hash === '#traefik-update-history' &&
+          new URLSearchParams(location.search).get('traefik_update_actor') ===
+            '${SOURCE_REQUEST_ID}' &&
+          document.querySelector('[data-traefik-update-actor-filter]')?.value ===
+            '${SOURCE_REQUEST_ID}' &&
+          entries.length === 1 &&
+          entries[0].getAttribute('data-traefik-update-request-id') === '${SOURCE_REQUEST_ID}';
+      })()`,
+      timeoutMs,
+      "Traefik 원본 요청 UUID로 업데이트 이력이 한 건만 표시되지 않았습니다",
+    );
+  } finally {
+    await cdp.send("Fetch.disable");
+  }
+  return true;
 }

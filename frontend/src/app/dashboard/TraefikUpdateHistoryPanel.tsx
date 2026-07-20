@@ -150,6 +150,7 @@ function TraefikUpdateHistoryPanelContent({
             return (
               <li
                 className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs dark:border-slate-700 dark:bg-slate-900"
+                data-traefik-update-request-id={entry.request_id}
                 data-traefik-update-status={entry.status}
                 key={entry.request_id}
               >
