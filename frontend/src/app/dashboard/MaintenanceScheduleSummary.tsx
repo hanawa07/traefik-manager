@@ -263,6 +263,7 @@ function MaintenanceScheduleRow({
         </p>
       </div>
       <button
+        aria-controls={`maintenance-history-${entry.service.id}`}
         aria-expanded={isHistoryOpen}
         aria-label={`${entry.service.name} 점검 종료 시각 변경 이력`}
         className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-amber-800 dark:text-slate-300 dark:hover:text-amber-200"
@@ -322,7 +323,7 @@ function MaintenanceScheduleRow({
         </div>
       ) : null}
       {isHistoryOpen ? (
-        <div className="basis-full pl-7">
+        <div className="basis-full pl-7" id={`maintenance-history-${entry.service.id}`}>
           <MaintenanceScheduleHistoryPanel serviceId={entry.service.id} timezone={timezone} />
         </div>
       ) : null}
