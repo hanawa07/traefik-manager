@@ -8,7 +8,7 @@ import { createServer } from "node:net";
 import {
   runDashboardVisualSmoke,
   runDashboardVisualSmokeSelfTest,
-} from "./dashboard-visual-smoke.mjs";
+} from "./dashboard-visual-runner.mjs";
 import {
   formatCookieHeader,
   parseCookieHeader,
@@ -492,6 +492,6 @@ async function runSelfTest() {
   runSmokeCiSummarySelfTest();
   runAuditSecuritySettingChangesSelfTest();
   runSmokeSessionCapabilitiesSelfTest();
-  runDashboardVisualSmokeSelfTest();
+  await runDashboardVisualSmokeSelfTest();
   console.log("서비스 브라우저 스모크 self-test 통과");
 }

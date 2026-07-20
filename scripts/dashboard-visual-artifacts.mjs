@@ -26,3 +26,34 @@ export async function captureVisualDom({ artifactDir, cdp, name }) {
   await mkdir(artifactDir, { recursive: true });
   await writeFile(join(artifactDir, `${name}.html`), html, "utf8");
 }
+
+function buildVisualFailureMetadata({ capturedAt, message, page }) {
+  return {
+    captured_at: capturedAt,
+    check_name: message,
+    screen_path: page?.path || null,
+    page_title: page?.title || null,
+  };
+}
+
+export async function writeVisualFailureMetadata({ artifactDir, cdp, message }) {
+  if (!artifactDir) return;
+  const page = await cdp
+    .send("Runtime.evaluate", {
+      expression:
+        "({ path: location.pathname + location.search + location.hash, title: document.title })",
+      returnByValue: true,
+    })
+    .then((response) => response.result?.value, () => null);
+  const metadata = buildVisualFailureMetadata({
+    capturedAt: new Date().toISOString(),
+    message,
+    page,
+  });
+  await mkdir(artifactDir, { recursive: true });
+  await writeFile(
+    join(artifactDir, "failure-metadata.json"),
+    `${JSON.stringify(metadata, null, 2)}\n`,
+    "utf8",
+  );
+}
