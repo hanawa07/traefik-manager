@@ -287,17 +287,15 @@ export function SmokeRotationStatusCard({
                 >
                   실행 창에서 &quot;수동 실행 실패 시 Telegram 알림 생략&quot;을 체크할 수 있습니다.
                 </span>
-                {canManage ? (
-                  <span
-                    aria-live="polite"
-                    className="text-[11px] font-normal text-slate-500 dark:text-slate-400"
-                    data-testid="smoke-manual-tracking-status"
-                  >
-                    {isTrackingManualRun
-                      ? "새 실행 결과 확인 중..."
-                      : "링크를 열면 새 실행 결과를 6분간 자동 확인합니다."}
-                  </span>
-                ) : null}
+                <span
+                  aria-live="polite"
+                  className="text-[11px] font-normal text-slate-500 dark:text-slate-400"
+                  data-testid="smoke-manual-tracking-status"
+                >
+                  {canManage && isTrackingManualRun
+                    ? "새 실행 결과 확인 중..."
+                    : `${canManage ? "" : "관리자 계정으로 "}링크를 열면 새 실행 결과를 6분간 자동 확인합니다.`}
+                </span>
               </span>
             }
           />
