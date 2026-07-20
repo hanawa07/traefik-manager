@@ -72,6 +72,14 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
       timeoutMs,
       "점검 종료 시각 변경 이력이 펼쳐지지 않았습니다",
     );
+    await clickAriaLabel(cdp, `${SERVICE_NAME} 점검 종료 시각 변경 이력`);
+    await waitForCondition(
+      cdp,
+      `!document.querySelector('[data-testid="maintenance-schedule-history"]') &&
+        document.querySelector('button[aria-label="${SERVICE_NAME} 점검 종료 시각 변경 이력"]')?.getAttribute('aria-expanded') === 'false'`,
+      timeoutMs,
+      "점검 종료 시각 변경 이력이 닫히지 않았습니다",
+    );
 
     await installRequestCapture(cdp);
     try {
