@@ -61,6 +61,7 @@ export interface AuditBulkOperationPage {
 
 export interface AuditBulkOperationQueryParams {
   limit?: number;
+  offset?: number;
   period_days?: 7 | 30 | 90;
   notification_status?: AuditBulkOperationSummary["notification_status"];
 }

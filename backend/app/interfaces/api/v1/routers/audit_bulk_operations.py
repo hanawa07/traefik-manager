@@ -23,6 +23,7 @@ router = APIRouter()
 async def list_bulk_operations(
     response: Response,
     limit: int = Query(5, ge=1, le=20),
+    offset: int = Query(0, ge=0),
     period_days: int | None = Query(None, ge=1),
     notification_status: Literal["success", "failure", "none"] | None = Query(None),
     db: AsyncSession = Depends(get_db),
@@ -46,7 +47,11 @@ async def list_bulk_operations(
     if not all_operation_ids:
         response.headers["X-Total-Count"] = "0"
         return []
-    operation_ids = all_operation_ids if notification_status else all_operation_ids[:limit]
+    operation_ids = (
+        all_operation_ids
+        if notification_status
+        else all_operation_ids[offset : offset + limit]
+    )
 
     service_result = await db.execute(
         select(AuditLogModel)
@@ -79,10 +84,12 @@ async def list_bulk_operations(
             for summary in summaries
             if summary.notification_status == notification_status
         ]
-    response.headers["X-Total-Count"] = str(
-        len(summaries) if notification_status else len(all_operation_ids)
-    )
-    return summaries[:limit]
+        total_count = len(summaries)
+        summaries = summaries[offset : offset + limit]
+    else:
+        total_count = len(all_operation_ids)
+    response.headers["X-Total-Count"] = str(total_count)
+    return summaries
 
 
 async def _load_recent_operation_ids(

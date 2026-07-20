@@ -4,6 +4,8 @@ import {
   BellOff,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Download,
   Layers3,
@@ -30,7 +32,6 @@ import {
 import { AuditRetryChainPanel } from "./AuditRetryChainPanel";
 
 const PAGE_SIZE = 5;
-const MAX_VISIBLE_OPERATIONS = 20;
 interface AuditBulkOperationsOverviewProps {
   isRetryPending: boolean;
   notificationStatus: AuditBulkNotificationStatus;
@@ -53,28 +54,27 @@ export function AuditBulkOperationsOverview({
   onRetryDelivery,
 }: AuditBulkOperationsOverviewProps) {
   const filterKey = `${period}:${notificationStatus}`;
-  const [pagination, setPagination] = useState({ filterKey, visibleCount: PAGE_SIZE });
-  const visibleCount = pagination.filterKey === filterKey ? pagination.visibleCount : PAGE_SIZE;
+  const [pagination, setPagination] = useState({ filterKey, page: 1 });
+  const page = pagination.filterKey === filterKey ? pagination.page : 1;
   const handlePeriodChange = (nextPeriod: AuditBulkPeriod) => {
-    setPagination({ filterKey: `${nextPeriod}:${notificationStatus}`, visibleCount: PAGE_SIZE });
+    setPagination({ filterKey: `${nextPeriod}:${notificationStatus}`, page: 1 });
     onPeriodChange(nextPeriod);
   };
   const handleNotificationStatusChange = (nextStatus: AuditBulkNotificationStatus) => {
-    setPagination({ filterKey: `${period}:${nextStatus}`, visibleCount: PAGE_SIZE });
+    setPagination({ filterKey: `${period}:${nextStatus}`, page: 1 });
     onNotificationStatusChange(nextStatus);
   };
   const canManage = useAuthStore((state) => state.role === "admin");
-  const requestLimit = Math.min(visibleCount, MAX_VISIBLE_OPERATIONS);
   const query = useAuditBulkOperations({
-    limit: requestLimit,
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
     period_days: period === "all" ? undefined : Number(period) as 7 | 30 | 90,
     notification_status: notificationStatus === "all" ? undefined : notificationStatus,
   });
-  const loadedSummaries = query.data?.items ?? [];
-  const summaries = loadedSummaries.slice(0, visibleCount);
-  const totalCount = query.data?.total ?? loadedSummaries.length;
+  const summaries = query.data?.items ?? [];
+  const totalCount = query.data?.total ?? summaries.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const hasActiveFilter = period !== "all" || notificationStatus !== "all";
-  const hasMore = visibleCount < MAX_VISIBLE_OPERATIONS && totalCount > visibleCount;
   if (query.isLoading) {
     return <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">최근 일괄 작업 확인 중...</p>;
   }
@@ -85,7 +85,7 @@ export function AuditBulkOperationsOverview({
       </p>
     );
   }
-  if (!loadedSummaries.length && !hasActiveFilter) return null;
+  if (!summaries.length && !hasActiveFilter && page === 1) return null;
 
   return (
     <section
@@ -153,19 +153,36 @@ export function AuditBulkOperationsOverview({
           선택한 조건에 맞는 일괄 작업이 없습니다.
         </p>
       )}
-      {hasMore ? (
-        <button
-          className="mx-auto mt-4 block rounded-lg border border-cyan-300 bg-white px-4 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100 dark:border-cyan-500/40 dark:bg-slate-900 dark:text-cyan-200 dark:hover:bg-cyan-950"
-          type="button"
-          onClick={() =>
-            setPagination({
-              filterKey,
-              visibleCount: Math.min(visibleCount + PAGE_SIZE, MAX_VISIBLE_OPERATIONS),
-            })
-          }
-        >
-          일괄 작업 더보기
-        </button>
+      {totalCount > PAGE_SIZE ? (
+        <nav aria-label="일괄 작업 페이지" className="mt-4 flex items-center justify-center gap-3">
+          <button
+            aria-label="이전 일괄 작업 페이지"
+            className="btn-secondary inline-flex items-center gap-1 px-3 py-1.5 text-xs"
+            disabled={page === 1}
+            type="button"
+            onClick={() => setPagination({ filterKey, page: page - 1 })}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            이전
+          </button>
+          <span
+            className="text-xs font-semibold text-slate-600 dark:text-slate-300"
+            data-bulk-page={page}
+            data-bulk-total-pages={totalPages}
+          >
+            {page} / {totalPages}
+          </span>
+          <button
+            aria-label="다음 일괄 작업 페이지"
+            className="btn-secondary inline-flex items-center gap-1 px-3 py-1.5 text-xs"
+            disabled={page >= totalPages}
+            type="button"
+            onClick={() => setPagination({ filterKey, page: page + 1 })}
+          >
+            다음
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </nav>
       ) : null}
     </section>
   );

@@ -73,9 +73,17 @@ async def test_bulk_operations_group_services_and_latest_delivery_status():
             transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
             response = await client.get("/audit/bulk-operations", params={"limit": 2})
+            page_response = await client.get(
+                "/audit/bulk-operations",
+                params={"limit": 1, "offset": 1},
+            )
             failure_response = await client.get(
                 "/audit/bulk-operations",
                 params={"notification_status": "failure", "limit": 2},
+            )
+            empty_failure_page = await client.get(
+                "/audit/bulk-operations",
+                params={"notification_status": "failure", "limit": 1, "offset": 1},
             )
             none_response = await client.get(
                 "/audit/bulk-operations",
@@ -112,10 +120,16 @@ async def test_bulk_operations_group_services_and_latest_delivery_status():
     assert older_item["notification_status"] == "success"
     assert older_item["notification_attempt_count"] == 2
     assert older_item["last_failure_detail"] == "일시적 전송 실패"
+    assert [item["operation_id"] for item in page_response.json()] == [
+        str(older_operation_id)
+    ]
+    assert page_response.headers["x-total-count"] == "3"
     assert [item["operation_id"] for item in failure_response.json()] == [
         str(latest_operation_id)
     ]
     assert failure_response.headers["x-total-count"] == "1"
+    assert empty_failure_page.json() == []
+    assert empty_failure_page.headers["x-total-count"] == "1"
     assert [item["operation_id"] for item in none_response.json()] == [
         str(ancient_operation_id)
     ]

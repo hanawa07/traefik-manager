@@ -26,6 +26,16 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     await loaded;
     await waitForBulkControls(cdp, "all", "all", timeoutMs);
 
+    const nextPageRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 다음 페이지");
+    await clickAriaLabel(cdp, "다음 일괄 작업 페이지");
+    const nextPage = await nextPageRequest;
+    assert.equal(new URL(nextPage.request.url).searchParams.get("offset"), "5");
+    await fulfillJson(cdp, nextPage, [summary], 6);
+    await waitForBulkControls(cdp, "all", "all", timeoutMs, 2);
+
+    await clickAriaLabel(cdp, "이전 일괄 작업 페이지");
+    await waitForBulkControls(cdp, "all", "all", timeoutMs);
+
     const periodRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 기간 필터");
     await changeSelect(cdp, "일괄 작업 기간", "30");
     const period = await periodRequest;
@@ -101,7 +111,7 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
   return true;
 }
 
-async function waitForBulkControls(cdp, period, status, timeoutMs) {
+async function waitForBulkControls(cdp, period, status, timeoutMs, page = 1) {
   const periodLabel = { "7": "최근 7일", "30": "최근 30일", "90": "최근 90일" }[period];
   const statusLabel = { success: "성공", failure: "실패", none: "기록 없음" }[status];
   await waitForCondition(
@@ -113,6 +123,8 @@ async function waitForBulkControls(cdp, period, status, timeoutMs) {
         document.querySelector('[data-bulk-result-count]')?.getAttribute('data-bulk-result-count') === '1' &&
         document.querySelector('[data-bulk-result-count]')?.getAttribute('data-bulk-total-count') === '6' &&
         document.querySelector('[data-bulk-result-count]')?.textContent?.includes('조건 결과 6건 · 현재 1건 표시') &&
+        document.querySelector('[data-bulk-page]')?.getAttribute('data-bulk-page') === '${page}' &&
+        document.querySelector('[data-bulk-page]')?.getAttribute('data-bulk-total-pages') === '2' &&
         ${period === "all" ? "!params.has('bulk_period')" : `params.get('bulk_period') === '${period}'`} &&
         ${status === "all" ? "!params.has('bulk_status')" : `params.get('bulk_status') === '${status}'`} &&
         ${periodLabel ? `Boolean(document.querySelector('button[aria-label="일괄 기간: ${periodLabel} 조건 제거"]'))` : `!document.querySelector('button[aria-label^="일괄 기간:"]')`} &&
