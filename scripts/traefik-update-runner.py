@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 import fcntl
 import json
+import os
+import subprocess
 import sys
+from pathlib import Path
 
 from traefik_update_executor import process_request
 from traefik_update_models import RunnerConfig, message
@@ -62,10 +65,41 @@ def _run_once(config: RunnerConfig) -> int:
     finally:
         config.request_path.unlink(missing_ok=True)
     if result == "rollback_failed":
-        write_heartbeat(config, "error", "업데이트와 자동 롤백에 실패했습니다")
+        try:
+            alert_url = _request_rollback_failure_alert(request.request_id, request.target_version)
+            detail = f"호스트 운영 알림 요청 완료: {alert_url}"
+        except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+            detail = f"호스트 운영 알림 요청도 실패했습니다: {message(exc)}"
+        write_heartbeat(
+            config,
+            "error",
+            f"업데이트와 자동 롤백에 실패했습니다. {detail}",
+        )
         return 1
     write_heartbeat(config, "ready", f"마지막 업데이트 결과: {result}")
     return 0
+
+
+def _request_rollback_failure_alert(request_id: str, target_version: str) -> str:
+    alert_script = os.environ.get(
+        "TM_HOST_OPERATION_ALERT_SCRIPT",
+        str(Path(__file__).resolve().with_name("request-host-operation-alert.sh")),
+    )
+    completed = subprocess.run(
+        [
+            alert_script,
+            "Traefik 패치 업데이트 자동 롤백",
+            f"{target_version} 업데이트와 자동 롤백 실패 · 요청 {request_id}",
+            "failure",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(completed.stderr.strip() or f"exit {completed.returncode}")
+    return completed.stdout.strip() or "실행 URL 확인 불가"
 
 
 if __name__ == "__main__":
