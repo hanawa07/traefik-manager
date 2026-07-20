@@ -26,6 +26,8 @@ interface TraefikUpdateHistoryPanelProps {
   timezone?: string;
 }
 
+const MAX_VISIBLE_ENTRIES = 5;
+
 export function TraefikUpdateHistoryPanel({
   isError,
   isLoading,
@@ -83,6 +85,7 @@ export function TraefikUpdateHistoryPanel({
       {!isLoading && !isError ? (
         <HistoryFilters
           dateRangeValid={dateRangeValid}
+          displayedCount={Math.min(filteredHistory.length, MAX_VISIBLE_ENTRIES)}
           filteredCount={filteredHistory.length}
           filters={filters}
           onExport={handleExport}
@@ -121,7 +124,7 @@ export function TraefikUpdateHistoryPanel({
           data-testid="traefik-update-history"
           data-traefik-update-filter-status={filters.status}
         >
-          {filteredHistory.map((entry) => {
+          {filteredHistory.slice(0, MAX_VISIBLE_ENTRIES).map((entry) => {
             const successfulChecks = entry.validations.filter((check) => check.status === "ok").length;
             return (
               <li
@@ -201,6 +204,7 @@ const PERIOD_OPTIONS: readonly { label: string; value: TraefikUpdateHistoryPerio
 
 function HistoryFilters({
   dateRangeValid,
+  displayedCount,
   filteredCount,
   filters,
   onExport,
@@ -209,6 +213,7 @@ function HistoryFilters({
   totalCount,
 }: {
   dateRangeValid: boolean;
+  displayedCount: number;
   filteredCount: number;
   filters: TraefikUpdateHistoryFilters;
   onExport: (format: TraefikUpdateHistoryExportFormat) => void;
@@ -280,6 +285,7 @@ function HistoryFilters({
       <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2 dark:border-slate-700">
         <span aria-live="polite" className="text-[11px] text-slate-500 dark:text-slate-400">
           현재 결과 {filteredCount}/{totalCount}건
+          {displayedCount < filteredCount ? ` · 화면 ${displayedCount}건` : ""}
         </span>
         <div className="flex flex-wrap gap-1.5 sm:ml-auto">
           {(["json", "csv"] as const).map((format) => (
