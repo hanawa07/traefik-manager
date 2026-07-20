@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,7 @@ router = APIRouter()
     summary="서비스 일괄 변경 작업 요약",
 )
 async def list_bulk_operations(
+    response: Response,
     limit: int = Query(5, ge=1, le=20),
     period_days: int | None = Query(None, ge=1),
     notification_status: Literal["success", "failure", "none"] | None = Query(None),
@@ -36,15 +37,16 @@ async def list_bulk_operations(
         if period_days
         else None
     )
-    operation_ids = await _load_recent_operation_ids(
+    all_operation_ids = await _load_recent_operation_ids(
         db,
         operation_column=operation_column,
         event_column=event_column,
-        limit=None if notification_status else limit,
         cutoff=cutoff,
     )
-    if not operation_ids:
+    if not all_operation_ids:
+        response.headers["X-Total-Count"] = "0"
         return []
+    operation_ids = all_operation_ids if notification_status else all_operation_ids[:limit]
 
     service_result = await db.execute(
         select(AuditLogModel)
@@ -77,6 +79,9 @@ async def list_bulk_operations(
             for summary in summaries
             if summary.notification_status == notification_status
         ]
+    response.headers["X-Total-Count"] = str(
+        len(summaries) if notification_status else len(all_operation_ids)
+    )
     return summaries[:limit]
 
 
@@ -85,7 +90,6 @@ async def _load_recent_operation_ids(
     *,
     operation_column,
     event_column,
-    limit: int | None,
     cutoff: datetime | None,
 ) -> list[str]:
     latest_at = func.max(AuditLogModel.created_at).label("latest_at")
@@ -100,13 +104,7 @@ async def _load_recent_operation_ids(
     )
     if cutoff:
         query = query.where(AuditLogModel.created_at >= cutoff)
-    query = (
-        query
-        .group_by(operation_column)
-        .order_by(latest_at.desc())
-    )
-    if limit:
-        query = query.limit(limit)
+    query = query.group_by(operation_column).order_by(latest_at.desc())
     result = await db.execute(query)
     return [row.operation_id for row in result if isinstance(row.operation_id, str)]
 

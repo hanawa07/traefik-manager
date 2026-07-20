@@ -64,15 +64,17 @@ export function AuditBulkOperationsOverview({
     onNotificationStatusChange(nextStatus);
   };
   const canManage = useAuthStore((state) => state.role === "admin");
-  const requestLimit = Math.min(visibleCount + 1, MAX_VISIBLE_OPERATIONS);
+  const requestLimit = Math.min(visibleCount, MAX_VISIBLE_OPERATIONS);
   const query = useAuditBulkOperations({
     limit: requestLimit,
     period_days: period === "all" ? undefined : Number(period) as 7 | 30 | 90,
     notification_status: notificationStatus === "all" ? undefined : notificationStatus,
   });
-  const summaries = (query.data ?? []).slice(0, visibleCount);
+  const loadedSummaries = query.data?.items ?? [];
+  const summaries = loadedSummaries.slice(0, visibleCount);
+  const totalCount = query.data?.total ?? loadedSummaries.length;
   const hasActiveFilter = period !== "all" || notificationStatus !== "all";
-  const hasMore = visibleCount < MAX_VISIBLE_OPERATIONS && (query.data?.length ?? 0) > visibleCount;
+  const hasMore = visibleCount < MAX_VISIBLE_OPERATIONS && totalCount > visibleCount;
   if (query.isLoading) {
     return <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">최근 일괄 작업 확인 중...</p>;
   }
@@ -83,7 +85,7 @@ export function AuditBulkOperationsOverview({
       </p>
     );
   }
-  if (!query.data?.length && !hasActiveFilter) return null;
+  if (!loadedSummaries.length && !hasActiveFilter) return null;
 
   return (
     <section
@@ -105,8 +107,9 @@ export function AuditBulkOperationsOverview({
             aria-live="polite"
             className="inline-flex items-center rounded-lg bg-cyan-100 px-2.5 py-1.5 text-xs font-bold text-cyan-800 dark:bg-cyan-500/15 dark:text-cyan-200"
             data-bulk-result-count={summaries.length}
+            data-bulk-total-count={totalCount}
           >
-            조건 결과 {summaries.length}건 표시
+            조건 결과 {totalCount}건 · 현재 {summaries.length}건 표시
           </span>
           <select
             aria-label="일괄 작업 기간"

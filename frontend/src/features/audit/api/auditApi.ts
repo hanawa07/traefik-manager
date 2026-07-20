@@ -54,6 +54,11 @@ export interface AuditBulkOperationSummary {
   last_failure_detail: string | null;
 }
 
+export interface AuditBulkOperationPage {
+  items: AuditBulkOperationSummary[];
+  total: number;
+}
+
 export interface AuditBulkOperationQueryParams {
   limit?: number;
   period_days?: 7 | 30 | 90;
@@ -140,11 +145,12 @@ export const auditApi = {
 
   getBulkOperations: async (
     params?: AuditBulkOperationQueryParams,
-  ): Promise<AuditBulkOperationSummary[]> => {
+  ): Promise<AuditBulkOperationPage> => {
     const res = await apiClient.get<AuditBulkOperationSummary[]>("/audit/bulk-operations", {
       params,
     });
-    return res.data;
+    const total = Number(res.headers["x-total-count"]);
+    return { items: res.data, total: Number.isFinite(total) ? total : res.data.length };
   },
 
   getRetryChain: async (auditLogId: string): Promise<AuditLogItem[]> => {

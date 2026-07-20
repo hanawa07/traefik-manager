@@ -93,6 +93,7 @@ async def test_bulk_operations_group_services_and_latest_delivery_status():
     await engine.dispose()
 
     assert response.status_code == 200
+    assert response.headers["x-total-count"] == "3"
     latest_item, older_item = response.json()
     assert latest_item | {"completed_at": "ignored"} == {
         "operation_id": str(latest_operation_id),
@@ -114,10 +115,13 @@ async def test_bulk_operations_group_services_and_latest_delivery_status():
     assert [item["operation_id"] for item in failure_response.json()] == [
         str(latest_operation_id)
     ]
+    assert failure_response.headers["x-total-count"] == "1"
     assert [item["operation_id"] for item in none_response.json()] == [
         str(ancient_operation_id)
     ]
+    assert none_response.headers["x-total-count"] == "1"
     assert len(period_response.json()) == 2
+    assert period_response.headers["x-total-count"] == "2"
     assert invalid_period_response.status_code == 422
 
 

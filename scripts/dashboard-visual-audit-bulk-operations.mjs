@@ -22,7 +22,7 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     await cdp.send("Page.navigate", { url: `${origin}/dashboard/audit` });
     const initial = await initialRequest;
     assertRequest(initial, "GET", "/api/v1/audit/bulk-operations");
-    await fulfillJson(cdp, initial, [summary]);
+    await fulfillJson(cdp, initial, [summary], 6);
     await loaded;
     await waitForBulkControls(cdp, "all", "all", timeoutMs);
 
@@ -30,7 +30,7 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     await changeSelect(cdp, "일괄 작업 기간", "30");
     const period = await periodRequest;
     assert.equal(new URL(period.request.url).searchParams.get("period_days"), "30");
-    await fulfillJson(cdp, period, [summary]);
+    await fulfillJson(cdp, period, [summary], 6);
     await waitForBulkControls(cdp, "30", "all", timeoutMs);
 
     const statusRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 상태 필터");
@@ -39,7 +39,7 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     const statusUrl = new URL(status.request.url);
     assert.equal(statusUrl.searchParams.get("period_days"), "30");
     assert.equal(statusUrl.searchParams.get("notification_status"), "failure");
-    await fulfillJson(cdp, status, [summary]);
+    await fulfillJson(cdp, status, [summary], 6);
     await waitForBulkControls(cdp, "30", "failure", timeoutMs);
 
     const reloadRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 필터 새로고침");
@@ -49,7 +49,7 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     const reloadUrl = new URL(reload.request.url);
     assert.equal(reloadUrl.searchParams.get("period_days"), "30");
     assert.equal(reloadUrl.searchParams.get("notification_status"), "failure");
-    await fulfillJson(cdp, reload, [summary]);
+    await fulfillJson(cdp, reload, [summary], 6);
     await reloaded;
     await waitForBulkControls(cdp, "30", "failure", timeoutMs);
     await waitForCondition(
@@ -86,7 +86,7 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     const resetUrl = new URL(reset.request.url);
     assert.equal(resetUrl.searchParams.has("period_days"), false);
     assert.equal(resetUrl.searchParams.has("notification_status"), false);
-    await fulfillJson(cdp, reset, [summary]);
+    await fulfillJson(cdp, reset, [summary], 6);
     await waitForBulkControls(cdp, "all", "all", timeoutMs);
     await waitForCondition(
       cdp,
@@ -111,7 +111,8 @@ async function waitForBulkControls(cdp, period, status, timeoutMs) {
       return document.querySelector('select[aria-label="일괄 작업 기간"]')?.value === ${JSON.stringify(period)} &&
         document.querySelector('select[aria-label="일괄 작업 알림 상태"]')?.value === ${JSON.stringify(status)} &&
         document.querySelector('[data-bulk-result-count]')?.getAttribute('data-bulk-result-count') === '1' &&
-        document.querySelector('[data-bulk-result-count]')?.textContent?.includes('조건 결과 1건 표시') &&
+        document.querySelector('[data-bulk-result-count]')?.getAttribute('data-bulk-total-count') === '6' &&
+        document.querySelector('[data-bulk-result-count]')?.textContent?.includes('조건 결과 6건 · 현재 1건 표시') &&
         ${period === "all" ? "!params.has('bulk_period')" : `params.get('bulk_period') === '${period}'`} &&
         ${status === "all" ? "!params.has('bulk_status')" : `params.get('bulk_status') === '${status}'`} &&
         ${periodLabel ? `Boolean(document.querySelector('button[aria-label="일괄 기간: ${periodLabel} 조건 제거"]'))` : `!document.querySelector('button[aria-label^="일괄 기간:"]')`} &&
@@ -151,11 +152,15 @@ async function waitForFetch(cdp, timeoutMs, label) {
   }
 }
 
-async function fulfillJson(cdp, request, value) {
+async function fulfillJson(cdp, request, value, totalCount) {
+  const responseHeaders = [{ name: "Content-Type", value: "application/json" }];
+  if (totalCount !== undefined) {
+    responseHeaders.push({ name: "X-Total-Count", value: String(totalCount) });
+  }
   await cdp.send("Fetch.fulfillRequest", {
     requestId: request.requestId,
     responseCode: 200,
-    responseHeaders: [{ name: "Content-Type", value: "application/json" }],
+    responseHeaders,
     body: Buffer.from(JSON.stringify(value)).toString("base64"),
   });
 }
