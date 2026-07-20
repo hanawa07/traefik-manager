@@ -46,6 +46,7 @@ export async function checkTraefikAlertRetryAdminFixture({
   timeoutMs,
 }) {
   await cdp.send("Network.clearBrowserCookies");
+  await evaluate(cdp, `localStorage.removeItem("auth")`);
   for (const cookie of cookies) {
     await cdp.send("Network.setCookie", { url: baseUrl, ...cookie });
   }
