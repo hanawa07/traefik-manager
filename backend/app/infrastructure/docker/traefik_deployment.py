@@ -98,7 +98,7 @@ def _build_version_delta_check(current_version: str | None, target_version: str 
     comparison = compare_versions(current_version, target_version)
     if comparison == 0:
         return _check("version_delta", "버전 차이", "ok", "현재 Traefik이 최신 버전입니다.")
-    if comparison is not None and comparison < 0 and _is_patch_update(current_version, target_version):
+    if comparison is not None and comparison < 0 and is_patch_update(current_version, target_version):
         return _check("version_delta", "버전 차이", "ok", "패치 업데이트로 감지되었습니다.")
     if comparison is not None and comparison < 0:
         return _check("version_delta", "버전 차이", "warning", "패치 업데이트가 아니므로 릴리스 노트 확인이 필요합니다.")
@@ -177,7 +177,7 @@ def _is_update_available(current_version: str | None, target_version: str | None
     return comparison < 0 if comparison is not None else None
 
 
-def _is_patch_update(current_version: str | None, target_version: str | None) -> bool:
+def is_patch_update(current_version: str | None, target_version: str | None) -> bool:
     current = _version_parts(current_version)
     target = _version_parts(target_version)
     return bool(current and target and current[:2] == target[:2] and target[2] > current[2])

@@ -26,6 +26,7 @@ x-backend-common: &backend-common
     - backend-data:/app/data
     - /home/lizstudio/docker/traefik/letsencrypt/acme.json:/acme.json:ro
     - ${SMOKE_ROTATION_HOST_STATE_DIR:-/home/lizstudio/.local/state/traefik-manager}:/host-state/traefik-manager:ro
+    - ${SMOKE_ROTATION_HOST_STATE_DIR:-/home/lizstudio/.local/state/traefik-manager}/traefik-update-requests:/host-requests/traefik-updates:rw
   cap_drop:
     - ALL
   security_opt:

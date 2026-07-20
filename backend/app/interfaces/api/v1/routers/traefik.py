@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
 
-from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
 from app.infrastructure.docker.client import DockerClient
 from app.infrastructure.docker.traefik_deployment import TraefikDeploymentInspector
+from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
 from app.interfaces.api.dependencies import get_current_user
+from app.interfaces.api.v1.routers import traefik_updates
 from app.interfaces.api.v1.schemas.traefik_schemas import (
     TraefikDeploymentStatusResponse,
     TraefikHealthResponse,
@@ -12,6 +13,7 @@ from app.interfaces.api.v1.schemas.traefik_schemas import (
 )
 
 router = APIRouter()
+router.include_router(traefik_updates.router)
 
 
 def get_traefik_client() -> TraefikApiClient:
@@ -39,7 +41,9 @@ async def get_traefik_deployment_status(
     _: dict = Depends(get_current_user),
 ):
     health = await traefik_client.get_health(refresh_latest=refresh_latest)
-    return await TraefikDeploymentInspector(docker_client).get_status(latest_version=health.get("latest_version"))
+    return await TraefikDeploymentInspector(docker_client).get_status(
+        latest_version=health.get("latest_version")
+    )
 
 
 @router.get("/routers", response_model=TraefikRouterStatusResponse, summary="Traefik 라우터 상태")

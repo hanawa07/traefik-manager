@@ -126,6 +126,15 @@ scripts/blue-green-deploy.sh vX.Y.Z
 
 배포 전 `scripts/blue-green-deploy.sh --self-test`, `scripts/test-blue-green-rollback-failure.sh`, `scripts/manager-deployment-history.sh --self-test`, `scripts/manager-deployment-bottleneck-alert.sh --self-test`, `scripts/request-host-operation-alert.sh --self-test`와 `scripts/manager-deployment-probe.sh --self-test`를 실행할 수 있습니다. 격리 rollback 시험은 운영 route나 Docker를 건드리지 않고 실제 상태 머신에 복구 실패를 주입합니다. GitHub의 `운영 로그인·화면 스모크`도 배포 관련 self-test를 매번 수행합니다.
 
+## Traefik 패치 안전 업데이트
+
+호스트에 `setfacl`을 제공하는 `acl` 패키지를 설치하고 한 번 `scripts/install-traefik-update-runner.sh`를 실행하면 user systemd path/timer가 Manager의 업데이트 요청을 처리합니다.
+
+- backend에는 Docker 쓰기 권한 대신 ACL로 backend UID만 허용한 `traefik-update-requests` 디렉터리 하나를 쓰기 가능으로 마운트합니다.
+- 자동 요청은 동일 메이저·마이너의 상향 패치 버전만 허용하고, 호스트 실행기가 공식 Traefik 이미지·Compose 서비스·`proxy_net`·ACME 파일을 다시 검증합니다.
+- 실행기는 Compose와 `acme.json`을 백업한 뒤 Traefik 서비스만 재생성합니다. 컨테이너 버전·네트워크·Manager 공개 health 검증이 실패하면 이전 Compose로 자동 롤백합니다.
+- 요청, 백업 위치, 검증, 롤백 결과는 `~/.local/state/traefik-manager/traefik-updates.jsonl`에 최대 200줄로 보관되며 대시보드에서 확인할 수 있습니다.
+
 ## 검증 체크리스트
 
 - `curl https://<FRONTEND_DOMAIN>/api/health`가 `{"status":"정상"}`을 반환하며, 이 경로는 frontend를 거쳐 backend까지 확인합니다.

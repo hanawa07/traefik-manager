@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -44,6 +45,53 @@ class TraefikDeploymentStatusResponse(BaseModel):
     apply_blocked_reason: str | None = None
     checks: list[TraefikDeploymentCheckResponse] = Field(default_factory=list)
     commands: list[TraefikDeploymentCommandResponse] = Field(default_factory=list)
+
+
+class TraefikUpdateRequest(BaseModel):
+    target_version: str = Field(pattern=r"^v?\d+\.\d+\.\d+$")
+
+
+class TraefikUpdateRequestResponse(BaseModel):
+    request_id: str
+    target_version: str
+    status: Literal["queued"]
+    requested_at: datetime
+    message: str
+
+
+class TraefikUpdateRunnerResponse(BaseModel):
+    available: bool
+    status: Literal["ready", "running", "error", "stale", "unavailable"]
+    checked_at: datetime | None = None
+    message: str
+
+
+class TraefikUpdateValidationResponse(BaseModel):
+    key: str
+    status: Literal["ok", "fail"]
+    message: str
+
+
+class TraefikUpdateHistoryEntryResponse(BaseModel):
+    request_id: str
+    actor: str
+    status: Literal["running", "success", "rejected", "rolled_back", "rollback_failed"]
+    from_version: str
+    target_version: str
+    requested_at: datetime
+    started_at: datetime
+    completed_at: datetime | None = None
+    message: str
+    backup_dir: str | None = None
+    backup_created: bool
+    rollback_performed: bool
+    validations: list[TraefikUpdateValidationResponse] = Field(default_factory=list)
+
+
+class TraefikUpdateOperationsResponse(BaseModel):
+    runner: TraefikUpdateRunnerResponse
+    pending_request: bool
+    history: list[TraefikUpdateHistoryEntryResponse] = Field(default_factory=list)
 
 
 class TraefikRouterItemResponse(BaseModel):
