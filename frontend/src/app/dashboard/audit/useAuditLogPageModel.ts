@@ -98,6 +98,7 @@ export function useAuditLogPageModel() {
     useState<AuditBulkNotificationStatus>(() =>
       parseAuditBulkNotificationStatus(searchParams.get("bulk_status")),
     );
+  const [bulkPage, setBulkPage] = useState(() => parseAuditPage(searchParams.get("bulk_page")));
   const [managerHealthWindowMinutes, setManagerHealthWindowMinutes] =
     useState<ManagerHealthWindowMinutes>(() =>
       parseManagerHealthWindowMinutes(searchParams.get("manager_window")),
@@ -176,11 +177,23 @@ export function useAuditLogPageModel() {
   };
   const handleBulkPeriodChange = (period: AuditBulkPeriod) => {
     setSelectedBulkPeriod(period);
-    replaceAuditQueryParam("bulk_period", period, "all");
+    setBulkPage(1);
+    replaceAuditQueryParams([
+      ["bulk_period", period, "all"],
+      ["bulk_page", "1", "1"],
+    ]);
   };
   const handleBulkNotificationStatusChange = (status: AuditBulkNotificationStatus) => {
     setSelectedBulkNotificationStatus(status);
-    replaceAuditQueryParam("bulk_status", status, "all");
+    setBulkPage(1);
+    replaceAuditQueryParams([
+      ["bulk_status", status, "all"],
+      ["bulk_page", "1", "1"],
+    ]);
+  };
+  const handleBulkPageChange = (page: number) => {
+    setBulkPage(page);
+    replaceAuditQueryParam("bulk_page", String(page), "1");
   };
   const handleManagerHealthWindowChange = (minutes: ManagerHealthWindowMinutes) => {
     setManagerHealthWindowMinutes(minutes);
@@ -224,6 +237,7 @@ export function useAuditLogPageModel() {
     setSelectedDeliveryProvider("all");
     setSelectedBulkPeriod("all");
     setSelectedBulkNotificationStatus("all");
+    setBulkPage(1);
     setManagerHealthWindowMinutes(10080);
     setSelectedPeriod("all");
     setStartDate("");
@@ -248,8 +262,10 @@ export function useAuditLogPageModel() {
   return {
     bulkOperations: {
       notificationStatus: selectedBulkNotificationStatus,
+      page: bulkPage,
       period: selectedBulkPeriod,
       onNotificationStatusChange: handleBulkNotificationStatusChange,
+      onPageChange: handleBulkPageChange,
       onPeriodChange: handleBulkPeriodChange,
     },
     deliveryFeedback: auditActions.deliveryFeedback,

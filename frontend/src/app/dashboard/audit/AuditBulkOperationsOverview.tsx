@@ -35,10 +35,12 @@ const PAGE_SIZE = 5;
 interface AuditBulkOperationsOverviewProps {
   isRetryPending: boolean;
   notificationStatus: AuditBulkNotificationStatus;
+  page: number;
   period: AuditBulkPeriod;
   retryTargetId: string | null;
   timezone?: string;
   onNotificationStatusChange: (status: AuditBulkNotificationStatus) => void;
+  onPageChange: (page: number) => void;
   onPeriodChange: (period: AuditBulkPeriod) => void;
   onRetryDelivery: (auditLogId: string) => void;
 }
@@ -46,24 +48,15 @@ interface AuditBulkOperationsOverviewProps {
 export function AuditBulkOperationsOverview({
   isRetryPending,
   notificationStatus,
+  page,
   period,
   retryTargetId,
   timezone,
   onNotificationStatusChange,
+  onPageChange,
   onPeriodChange,
   onRetryDelivery,
 }: AuditBulkOperationsOverviewProps) {
-  const filterKey = `${period}:${notificationStatus}`;
-  const [pagination, setPagination] = useState({ filterKey, page: 1 });
-  const page = pagination.filterKey === filterKey ? pagination.page : 1;
-  const handlePeriodChange = (nextPeriod: AuditBulkPeriod) => {
-    setPagination({ filterKey: `${nextPeriod}:${notificationStatus}`, page: 1 });
-    onPeriodChange(nextPeriod);
-  };
-  const handleNotificationStatusChange = (nextStatus: AuditBulkNotificationStatus) => {
-    setPagination({ filterKey: `${period}:${nextStatus}`, page: 1 });
-    onNotificationStatusChange(nextStatus);
-  };
   const canManage = useAuthStore((state) => state.role === "admin");
   const query = useAuditBulkOperations({
     limit: PAGE_SIZE,
@@ -115,7 +108,7 @@ export function AuditBulkOperationsOverview({
             aria-label="일괄 작업 기간"
             className="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-cyan-500/30 dark:bg-slate-900 dark:text-slate-200"
             value={period}
-            onChange={(event) => handlePeriodChange(event.target.value as AuditBulkPeriod)}
+            onChange={(event) => onPeriodChange(event.target.value as AuditBulkPeriod)}
           >
             {auditBulkPeriodOptions.map((option) => (
               <option key={option.key} value={option.key}>{option.label}</option>
@@ -126,7 +119,7 @@ export function AuditBulkOperationsOverview({
             className="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-cyan-500/30 dark:bg-slate-900 dark:text-slate-200"
             value={notificationStatus}
             onChange={(event) =>
-              handleNotificationStatusChange(event.target.value as AuditBulkNotificationStatus)
+              onNotificationStatusChange(event.target.value as AuditBulkNotificationStatus)
             }
           >
             {auditBulkNotificationStatusOptions.map((option) => (
@@ -160,7 +153,7 @@ export function AuditBulkOperationsOverview({
             className="btn-secondary inline-flex items-center gap-1 px-3 py-1.5 text-xs"
             disabled={page === 1}
             type="button"
-            onClick={() => setPagination({ filterKey, page: page - 1 })}
+            onClick={() => onPageChange(page - 1)}
           >
             <ChevronLeft className="h-3.5 w-3.5" />
             이전
@@ -177,7 +170,7 @@ export function AuditBulkOperationsOverview({
             className="btn-secondary inline-flex items-center gap-1 px-3 py-1.5 text-xs"
             disabled={page >= totalPages}
             type="button"
-            onClick={() => setPagination({ filterKey, page: page + 1 })}
+            onClick={() => onPageChange(page + 1)}
           >
             다음
             <ChevronRight className="h-3.5 w-3.5" />

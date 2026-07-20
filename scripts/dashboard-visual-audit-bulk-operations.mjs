@@ -33,6 +33,15 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     await fulfillJson(cdp, nextPage, [summary], 6);
     await waitForBulkControls(cdp, "all", "all", timeoutMs, 2);
 
+    const reloadPageRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 현재 페이지 새로고침");
+    const pageReloaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
+    await cdp.send("Page.reload", { ignoreCache: true });
+    const reloadPage = await reloadPageRequest;
+    assert.equal(new URL(reloadPage.request.url).searchParams.get("offset"), "5");
+    await fulfillJson(cdp, reloadPage, [summary], 6);
+    await pageReloaded;
+    await waitForBulkControls(cdp, "all", "all", timeoutMs, 2);
+
     await clickAriaLabel(cdp, "이전 일괄 작업 페이지");
     await waitForBulkControls(cdp, "all", "all", timeoutMs);
 
@@ -127,6 +136,7 @@ async function waitForBulkControls(cdp, period, status, timeoutMs, page = 1) {
         document.querySelector('[data-bulk-page]')?.getAttribute('data-bulk-total-pages') === '2' &&
         ${period === "all" ? "!params.has('bulk_period')" : `params.get('bulk_period') === '${period}'`} &&
         ${status === "all" ? "!params.has('bulk_status')" : `params.get('bulk_status') === '${status}'`} &&
+        ${page === 1 ? "!params.has('bulk_page')" : `params.get('bulk_page') === '${page}'`} &&
         ${periodLabel ? `Boolean(document.querySelector('button[aria-label="일괄 기간: ${periodLabel} 조건 제거"]'))` : `!document.querySelector('button[aria-label^="일괄 기간:"]')`} &&
         ${statusLabel ? `Boolean(document.querySelector('button[aria-label="일괄 알림: ${statusLabel} 조건 제거"]'))` : `!document.querySelector('button[aria-label^="일괄 알림:"]')`};
     })()`,
