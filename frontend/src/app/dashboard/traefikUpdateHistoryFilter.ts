@@ -92,6 +92,7 @@ export function filterTraefikUpdateHistory(
     if (filters.status !== "all" && entry.status !== filters.status) return false;
     if (
       actor
+      && !entry.request_id.toLowerCase().includes(actor)
       && !entry.actor.toLowerCase().includes(actor)
       && !entry.alert_retry_actor?.toLowerCase().includes(actor)
     ) return false;

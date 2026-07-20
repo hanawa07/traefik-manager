@@ -23,6 +23,7 @@ interface AuditLogDetailPanelProps {
   deliveryRows: AuditDeliveryRows;
   managerDetailRows: AuditManagerDetailRows;
   smokeRotationDetailRows: SmokeRotationDetailRows;
+  sourceTraefikRequestId: string | null;
   rollbackSupported: boolean;
   rollbackResourceType: RollbackResourceType | null;
   retryChainSupported: boolean;
@@ -41,6 +42,7 @@ export function AuditLogDetailPanel({
   deliveryRows,
   managerDetailRows,
   smokeRotationDetailRows,
+  sourceTraefikRequestId,
   rollbackSupported,
   rollbackResourceType,
   retryChainSupported,
@@ -53,6 +55,23 @@ export function AuditLogDetailPanel({
 }: AuditLogDetailPanelProps) {
   return (
     <div className="space-y-4">
+      {sourceTraefikRequestId ? (
+        <section
+          className="rounded-xl border border-cyan-200 bg-cyan-50/70 p-4 dark:border-cyan-500/30 dark:bg-cyan-500/10"
+          data-traefik-update-source={sourceTraefikRequestId}
+        >
+          <p className="text-xs font-bold text-cyan-900 dark:text-cyan-100">Traefik 원본 업데이트</p>
+          <code className="mt-1 block break-all text-[11px] text-cyan-800 dark:text-cyan-200">
+            {sourceTraefikRequestId}
+          </code>
+          <a
+            className="mt-2 inline-flex text-xs font-semibold text-cyan-700 underline underline-offset-2 dark:text-cyan-200"
+            href={`/dashboard?traefik_update_actor=${encodeURIComponent(sourceTraefikRequestId)}#traefik-update-history`}
+          >
+            원본 업데이트 이력 보기
+          </a>
+        </section>
+      ) : null}
       <AuditDetailList
         logId={logId}
         rows={managerDetailRows}

@@ -82,6 +82,7 @@ function TraefikUpdateHistoryPanelContent({
     <div
       className="mt-4 rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-950/55"
       data-traefik-update-runner={operations?.runner.status || "loading"}
+      id="traefik-update-history"
       data-testid="traefik-update-operations"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -281,14 +282,14 @@ function HistoryFilters({
           </select>
         </label>
         <label className="grid min-w-0 gap-1 text-[11px] text-slate-500 dark:text-slate-400">
-          요청자
+          요청자 또는 요청 ID
           <input
-            aria-label="업데이트 이력 요청자"
+            aria-label="업데이트 이력 요청자 또는 요청 ID"
             className={controlClassName}
             data-traefik-update-actor-filter
             maxLength={100}
             onChange={(event) => onFiltersChange({ actor: event.target.value })}
-            placeholder="원 요청자 또는 재시도 요청자"
+            placeholder="요청자 또는 요청 UUID"
             type="search"
             value={filters.actor}
           />

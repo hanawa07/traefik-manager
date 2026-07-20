@@ -48,7 +48,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
           await checkSmokeRotationAuditDetail({ cdp, timeoutMs });
           labels.push(`${profile.label} Secret 회전 실패 상세`);
           await checkAuditFilterPersistence({ cdp, profile, timeoutMs });
-          labels.push(`${profile.label} 감사 필터 조합·자동 펼침·레이아웃`);
+          labels.push(`${profile.label} 감사 필터 조합·Traefik 자동 펼침·역링크·레이아웃`);
         }
         if (route.path === "/dashboard/settings") {
           await checkManualSmokeRunResultPersistence({ cdp, timeoutMs });

@@ -129,7 +129,7 @@ export function useAuditLogPageModel() {
   const autoExpandedLogId =
     requestedExpandedLogId === "latest"
       ? logPage?.items.find(isManagerHttpLog)?.id
-      : requestedExpandedLogId;
+      : requestedExpandedLogId === "first" ? logPage?.items[0]?.id : requestedExpandedLogId;
   const visibleExpandedLogId = expandedLogId === undefined ? autoExpandedLogId ?? null : expandedLogId;
 
   const replaceFilterQueryParams = (

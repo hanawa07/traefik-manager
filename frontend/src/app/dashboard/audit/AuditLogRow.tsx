@@ -61,6 +61,11 @@ export function AuditLogRow({
     ...getManagerHttpLogStorageDetailRows(managerEvent, detail),
   ];
   const smokeRotationDetailRows = getSmokeRotationDetailRows(managerEvent, detail);
+  const sourceTraefikRequestId =
+    managerEvent === "traefik_rollback_alert_retry_requested" &&
+    typeof detail?.source_request_id === "string"
+      ? detail.source_request_id
+      : null;
   const bulkOperationId =
     typeof detail?.bulk_operation_id === "string" ? detail.bulk_operation_id : null;
   const retryChainSupported = log.event?.includes("_alert_delivery_") === true;
@@ -69,7 +74,8 @@ export function AuditLogRow({
     diffRows.length > 0 ||
     deliveryRows.length > 0 ||
     managerDetailRows.length > 0 ||
-    smokeRotationDetailRows.length > 0;
+    smokeRotationDetailRows.length > 0 ||
+    sourceTraefikRequestId !== null;
   const rollbackResourceType = isRollbackResourceType(log.resource_type) ? log.resource_type : null;
   const rollbackSupported =
     detail?.rollback_supported === true && log.action === "update" && rollbackResourceType !== null;
@@ -126,6 +132,7 @@ export function AuditLogRow({
               deliveryRows={deliveryRows}
               managerDetailRows={managerDetailRows}
               smokeRotationDetailRows={smokeRotationDetailRows}
+              sourceTraefikRequestId={sourceTraefikRequestId}
               rollbackSupported={rollbackSupported}
               rollbackResourceType={rollbackResourceType}
               retryChainSupported={retryChainSupported}

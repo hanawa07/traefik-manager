@@ -90,7 +90,7 @@ export function TraefikUpdateAlertRun({
           <a
             className="inline-flex items-center gap-1 underline underline-offset-2"
             data-traefik-update-alert-audit={entry.alert_retry_request_id}
-            href={`/dashboard/audit?q=${encodeURIComponent(entry.alert_retry_request_id)}`}
+            href={`/dashboard/audit?q=${encodeURIComponent(entry.alert_retry_request_id)}&expand=first`}
           >
             <ExternalLink className="h-3 w-3" /> 감사 로그
           </a>

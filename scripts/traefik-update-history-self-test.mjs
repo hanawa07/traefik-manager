@@ -70,6 +70,13 @@ assert.deepEqual(
 assert.deepEqual(
   filterTraefikUpdateHistory(entries, {
     ...DEFAULT_TRAEFIK_UPDATE_HISTORY_FILTERS,
+    actor: "ROLLBACK",
+  }, referenceTime).map((item) => item.request_id),
+  ["rollback"],
+);
+assert.deepEqual(
+  filterTraefikUpdateHistory(entries, {
+    ...DEFAULT_TRAEFIK_UPDATE_HISTORY_FILTERS,
     dateFrom: "2026-07-10",
     dateTo: "2026-07-10",
   }, referenceTime).map((item) => item.request_id),

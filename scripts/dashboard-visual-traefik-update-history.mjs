@@ -83,7 +83,7 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
         alert.textContent.includes('재시도 security-admin') &&
         auditUrl?.pathname === '/dashboard/audit' &&
         auditUrl.searchParams.get('q') === '33333333-3333-4333-8333-333333333333' &&
-        !auditUrl.searchParams.has('expand') &&
+        auditUrl.searchParams.get('expand') === 'first' &&
         alert.querySelector('a')?.href === ${JSON.stringify(ALERT_RUN_URL)};
     })()`,
     timeoutMs,

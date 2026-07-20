@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { checkAuditCsvExports } from "./dashboard-visual-audit-export.mjs";
 import { checkManagerHttpAuditAutoExpand } from "./dashboard-visual-audit-manager-http.mjs";
+import { checkTraefikAuditAutoExpand } from "./dashboard-visual-audit-traefik-update.mjs";
 import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
 import {
   clickAriaLabel,
@@ -171,6 +172,7 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
     "감사 로그 전체 초기화가 기본값을 복원하지 못했습니다",
   );
   await checkManagerHttpAuditAutoExpand(cdp, timeoutMs);
+  await checkTraefikAuditAutoExpand(cdp, timeoutMs);
   return true;
 }
 
