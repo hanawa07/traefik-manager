@@ -110,6 +110,8 @@ async function waitForBulkControls(cdp, period, status, timeoutMs) {
       const params = new URLSearchParams(location.search);
       return document.querySelector('select[aria-label="일괄 작업 기간"]')?.value === ${JSON.stringify(period)} &&
         document.querySelector('select[aria-label="일괄 작업 알림 상태"]')?.value === ${JSON.stringify(status)} &&
+        document.querySelector('[data-bulk-result-count]')?.getAttribute('data-bulk-result-count') === '1' &&
+        document.querySelector('[data-bulk-result-count]')?.textContent?.includes('조건 결과 1건 표시') &&
         ${period === "all" ? "!params.has('bulk_period')" : `params.get('bulk_period') === '${period}'`} &&
         ${status === "all" ? "!params.has('bulk_status')" : `params.get('bulk_status') === '${status}'`} &&
         ${periodLabel ? `Boolean(document.querySelector('button[aria-label="일괄 기간: ${periodLabel} 조건 제거"]'))` : `!document.querySelector('button[aria-label^="일괄 기간:"]')`} &&

@@ -101,6 +101,13 @@ export function AuditBulkOperationsOverview({
           </p>
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
+          <span
+            aria-live="polite"
+            className="inline-flex items-center rounded-lg bg-cyan-100 px-2.5 py-1.5 text-xs font-bold text-cyan-800 dark:bg-cyan-500/15 dark:text-cyan-200"
+            data-bulk-result-count={summaries.length}
+          >
+            조건 결과 {summaries.length}건 표시
+          </span>
           <select
             aria-label="일괄 작업 기간"
             className="rounded-lg border border-cyan-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-cyan-500/30 dark:bg-slate-900 dark:text-slate-200"
