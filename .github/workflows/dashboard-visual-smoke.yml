@@ -114,12 +114,16 @@ jobs:
             exit 0
           fi
           if [[ "${{ inputs.test_failure_notification }}" == "true" ]]; then
+            mkdir -p "$TM_SMOKE_ARTIFACT_DIR"
+            printf '%s\n' '<!doctype html><title>failure notification test</title>' > "$TM_SMOKE_ARTIFACT_DIR/notification-test.html"
+            printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' | base64 --decode > "$TM_SMOKE_ARTIFACT_DIR/notification-test.png"
             echo "::error::실패 알림 경로 점검을 위해 의도적으로 종료합니다."
             exit 1
           fi
           node scripts/smoke-services-browser-session.mjs
 
       - name: 실패 화면 업로드
+        id: failure_artifact
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -143,6 +147,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TM_SMOKE_TELEGRAM_CHAT_ID }}
           TEST_FAILURE_NOTIFICATION: ${{ inputs.test_failure_notification }}
           TEST_ADMIN_STALE_NOTIFICATION: ${{ inputs.test_admin_stale_notification }}
+          FAILURE_ARTIFACT_URL: ${{ steps.failure_artifact.outputs.artifact-url }}
         run: |
           if [[ -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_CHAT_ID" ]]; then
             echo "::notice::Telegram 비밀값이 없어 실패 알림을 건너뜁니다."
@@ -166,6 +171,10 @@ jobs:
           if [[ -n "$detail" ]]; then
             message="${message}
           상세: ${detail}"
+          fi
+          if [[ -n "$FAILURE_ARTIFACT_URL" ]]; then
+            message="${message}
+          실패 화면·DOM: ${FAILURE_ARTIFACT_URL}"
           fi
           curl --fail --silent --show-error --output /dev/null \
             --request POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
