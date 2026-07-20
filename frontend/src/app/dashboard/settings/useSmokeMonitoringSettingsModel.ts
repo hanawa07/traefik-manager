@@ -211,9 +211,10 @@ export function useSmokeMonitoringSettingsModel(
   const handleClearManualRun = () => {
     try {
       window.localStorage.removeItem(LAST_MANUAL_SMOKE_RUN_STORAGE_KEY);
-    } finally {
-      setLastManualRun(null);
+    } catch {
+      // The result still remains hidden for the current page session.
     }
+    setLastManualRun(null);
   };
 
   const handleTestStaleAlert = async () => {
