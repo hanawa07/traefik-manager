@@ -42,6 +42,19 @@ export async function checkAuditBulkOperationFixture({ canManage, cdp, timeoutMs
     await pageReloaded;
     await waitForBulkControls(cdp, "all", "all", timeoutMs, 2, "페이지 새로고침");
 
+    const overflowRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 범위 초과 페이지");
+    const overflowLoaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
+    await cdp.send("Page.navigate", { url: `${origin}/dashboard/audit?bulk_page=99` });
+    const overflow = await overflowRequest;
+    assert.equal(new URL(overflow.request.url).searchParams.get("offset"), "490");
+    const normalizedRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 마지막 페이지 보정");
+    await fulfillJson(cdp, overflow, [], 6);
+    await overflowLoaded;
+    const normalized = await normalizedRequest;
+    assert.equal(new URL(normalized.request.url).searchParams.get("offset"), "5");
+    await fulfillJson(cdp, normalized, [summary], 6);
+    await waitForBulkControls(cdp, "all", "all", timeoutMs, 2, "범위 초과 페이지 보정");
+
     const previousPageRequest = waitForFetch(cdp, timeoutMs, "일괄 작업 이전 페이지");
     await clickAriaLabel(cdp, "이전 일괄 작업 페이지");
     const previousPage = await previousPageRequest;

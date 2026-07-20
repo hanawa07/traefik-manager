@@ -13,7 +13,7 @@ import {
   RotateCw,
   XCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   buildAuditExportUrl,
@@ -68,6 +68,9 @@ export function AuditBulkOperationsOverview({
   const totalCount = query.data?.total ?? summaries.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const hasActiveFilter = period !== "all" || notificationStatus !== "all";
+  useEffect(() => {
+    if (query.data && page > totalPages) onPageChange(totalPages);
+  }, [onPageChange, page, query.data, totalPages]);
   if (query.isLoading) {
     return <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">최근 일괄 작업 확인 중...</p>;
   }
