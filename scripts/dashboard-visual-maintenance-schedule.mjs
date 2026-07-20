@@ -65,9 +65,12 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
       `(() => {
         const panel = document.querySelector('[data-testid="maintenance-schedule-history"]');
         const latest = panel?.querySelector('[data-maintenance-history-before="unset"]');
+        const auditLink = document.querySelector('[data-testid="maintenance-history-audit-link"]');
+        const auditUrl = auditLink ? new URL(auditLink.href) : null;
         return panel?.getAttribute('data-maintenance-history-count') === '2' &&
           latest?.getAttribute('data-maintenance-history-after') === '2035-02-03T05:30:00.000Z' &&
-          panel.textContent?.includes('smoke-admin');
+          panel.textContent?.includes('smoke-admin') && auditUrl?.pathname === '/dashboard/audit' &&
+          auditUrl.searchParams.get('q') === '${SERVICE_ID}';
       })()`,
       timeoutMs,
       "점검 종료 시각 변경 이력이 펼쳐지지 않았습니다",
