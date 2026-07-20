@@ -80,7 +80,7 @@ export function TraefikUpdateHistoryPanel({
           호스트 실행기가 업데이트 요청을 처리하고 있습니다.
         </p>
       ) : null}
-      {!isLoading && !isError && history.length > 0 ? (
+      {!isLoading && !isError ? (
         <HistoryFilters
           dateRangeValid={dateRangeValid}
           filteredCount={filteredHistory.length}
