@@ -114,6 +114,7 @@ export const DASHBOARD_ROUTES = [
       "관리자 전용 점검 최근 성공",
       "관리자 점검 지연 판정",
       "실패율 경고 기준",
+      "수동 실행 실패 시 Telegram 알림 생략",
       "최근 dry-run 결과",
       "dry-run 최근 이력",
       "회전 실패 단계",

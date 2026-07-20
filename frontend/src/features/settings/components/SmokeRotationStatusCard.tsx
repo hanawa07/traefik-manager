@@ -267,14 +267,22 @@ export function SmokeRotationStatusCard({
           <SettingsSummaryRow
             label="수동 점검"
             value={
-              <a
-                className="text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
-                href={status.monitoring_workflow_url}
-                target="_blank"
-                rel="noreferrer"
-              >
-                GitHub Actions에서 실행
-              </a>
+              <span className="flex max-w-md flex-col items-end gap-1 text-right">
+                <a
+                  className="text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+                  href={status.monitoring_workflow_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  GitHub Actions에서 실행
+                </a>
+                <span
+                  className="text-[11px] font-normal text-slate-500 dark:text-slate-400"
+                  data-testid="smoke-manual-suppress-notice"
+                >
+                  실행 창에서 &quot;수동 실행 실패 시 Telegram 알림 생략&quot;을 체크할 수 있습니다.
+                </span>
+              </span>
             }
           />
           {status.monitoring_history_error ? (
