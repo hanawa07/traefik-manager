@@ -152,6 +152,7 @@ export function useSmokeMonitoringSettingsModel(
             tone: newRun.status === "success" ? "success" : newRun.status === "failure" ? "error" : "warning",
             message: `새 수동 점검 ${newRun.status === "success" ? "성공" : newRun.status === "failure" ? "실패" : "건너뜀"}`,
             detail: newRun.run_number ? `GitHub Actions #${newRun.run_number}` : "GitHub Actions 실행 결과를 확인했습니다.",
+            link: { href: newRun.run_url, label: "GitHub 실행 보기" },
           });
           return;
         }

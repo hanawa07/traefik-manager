@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 export interface ToastNoticeValue {
   detail?: string | null;
+  link?: { href: string; label: string };
   message: string;
   tone: "success" | "warning" | "error";
 }
@@ -15,7 +16,7 @@ interface ToastNoticeProps {
 
 export default function ToastNotice({ notice, onClose, timeoutMs = 5000 }: ToastNoticeProps) {
   useEffect(() => {
-    if (!notice) return;
+    if (!notice || notice.link) return;
     const timer = window.setTimeout(onClose, timeoutMs);
     return () => window.clearTimeout(timer);
   }, [notice, onClose, timeoutMs]);
@@ -29,6 +30,17 @@ export default function ToastNotice({ notice, onClose, timeoutMs = 5000 }: Toast
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{notice.message}</p>
           {notice.detail ? <p className="mt-1 break-words text-xs text-gray-500 dark:text-slate-300">{notice.detail}</p> : null}
+          {notice.link ? (
+            <a
+              className="mt-2 inline-flex text-xs font-semibold text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+              data-testid="toast-action-link"
+              href={notice.link.href}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {notice.link.label}
+            </a>
+          ) : null}
         </div>
         <button
           type="button"
