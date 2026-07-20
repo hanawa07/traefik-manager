@@ -17,9 +17,10 @@ import {
   splitCombinedSetCookie,
 } from "./smoke-session-auth.mjs";
 import {
-  checkOptionalSmokeAdminReadOnly,
+  resolveOptionalSmokeAdminReadOnlySession,
   runSmokeAdminReadOnlySelfTest,
 } from "./smoke-admin-read-only.mjs";
+import { checkTraefikAlertRetryAdminFixture } from "./dashboard-visual-traefik-alert-retry.mjs";
 import {
   recordRemoteSmokeSuccess,
   runRemoteSmokeStatusSelfTest,
@@ -118,12 +119,13 @@ async function main() {
   const baseUrl = resolveBaseUrl();
   const timeoutMs = Number(process.env.TM_SMOKE_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);
   const cookiePairs = await resolveSessionCookies(baseUrl);
-  let adminReadOnlyChecked = false;
+  let adminCookies;
   try {
-    adminReadOnlyChecked = await checkOptionalSmokeAdminReadOnly(baseUrl);
+    adminCookies = await resolveOptionalSmokeAdminReadOnlySession(baseUrl);
   } catch (error) {
     throw new Error(`관리자 전용 점검 실패: ${error.message}`);
   }
+  const adminReadOnlyChecked = Boolean(adminCookies);
   const chrome = await launchChrome(timeoutMs);
 
   try {
@@ -164,6 +166,11 @@ async function main() {
       cdp,
       timeoutMs,
     });
+    if (adminCookies && await checkTraefikAlertRetryAdminFixture({
+      baseUrl, cdp, cookies: adminCookies, timeoutMs,
+    })) {
+      visualResult.labels.push("관리자 Traefik 알림 재시도 요청");
+    }
     if (adminReadOnlyChecked) visualResult.labels.push("관리자 읽기 전용 403");
     await recordRemoteSmokeSuccess(
       baseUrl,
@@ -188,10 +195,6 @@ async function main() {
   } finally {
     await chrome.close();
   }
-}
-
-function findCsrfCookie(cookies) {
-  return cookies.find((cookie) => cookie.name.toLowerCase().includes("csrf"));
 }
 
 function resolveBaseUrl() {
@@ -480,10 +483,6 @@ async function runSelfTest() {
   assert.deepEqual(parseSetCookieHeaders(["tm_session=abc; Path=/; HttpOnly"]), [
     { name: "tm_session", value: "abc" },
   ]);
-  assert.equal(findCsrfCookie([
-    { name: "tm_session", value: "abc" },
-    { name: "tm_csrf", value: "def" },
-  ])?.value, "def");
   const rotationCheck = CHECKS.find((check) => check.label === "스모크 회전 상태");
   assert.match(rotationCheck.failureMessage({ is_stale: true, stale_after_days: 35 }), /35일/);
   assert.equal(rotationCheck.failureMessage({ is_stale: false, stale_after_days: 35 }), null);

@@ -5,8 +5,8 @@ import { formatCookieHeader, loginSessionCookies } from "./smoke-session-auth.mj
 const PROBE_USER_ID = "00000000-0000-0000-0000-000000000000";
 const READ_ONLY_DETAIL = "전용 스모크 관리자 계정은 조회만 할 수 있습니다";
 
-export async function checkOptionalSmokeAdminReadOnly(baseUrl, env = process.env) {
-  if (env.TM_SMOKE_ADMIN_EXPECT_READ_ONLY !== "1") return false;
+export async function resolveOptionalSmokeAdminReadOnlySession(baseUrl, env = process.env) {
+  if (env.TM_SMOKE_ADMIN_EXPECT_READ_ONLY !== "1") return null;
 
   const username = env.TM_SMOKE_ADMIN_USERNAME;
   const password = env.TM_SMOKE_ADMIN_PASSWORD;
@@ -16,7 +16,7 @@ export async function checkOptionalSmokeAdminReadOnly(baseUrl, env = process.env
 
   const cookies = await loginSessionCookies(baseUrl, username, password);
   await assertSmokeAdminReadOnly(baseUrl, cookies);
-  return true;
+  return cookies;
 }
 
 export async function assertSmokeAdminReadOnly(baseUrl, cookies, fetchImpl = fetch) {
@@ -54,5 +54,5 @@ export async function runSmokeAdminReadOnlySelfTest() {
   assert.equal(new URL(captured.url).pathname, `/api/v1/users/${PROBE_USER_ID}`);
   assert.equal(captured.options.method, "PUT");
   assert.equal(captured.options.headers["x-csrf-token"], "csrf");
-  assert.equal(await checkOptionalSmokeAdminReadOnly("https://manager.example.com", {}), false);
+  assert.equal(await resolveOptionalSmokeAdminReadOnlySession("https://manager.example.com", {}), null);
 }
