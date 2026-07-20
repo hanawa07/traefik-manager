@@ -1,7 +1,8 @@
 "use client";
 
 import { CheckCircle2, Clock3, Download, RotateCcw, ServerCog } from "lucide-react";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
 import type { TraefikUpdateOperations } from "@/features/traefik/api/traefikApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
@@ -10,6 +11,8 @@ import {
   DEFAULT_TRAEFIK_UPDATE_HISTORY_FILTERS,
   filterTraefikUpdateHistory,
   isTraefikUpdateHistoryDateRangeValid,
+  readTraefikUpdateHistoryFilters,
+  replaceTraefikUpdateHistoryQuery,
   type TraefikUpdateHistoryFilters,
   type TraefikUpdateHistoryPeriod,
   type TraefikUpdateHistoryStatus,
@@ -29,14 +32,25 @@ interface TraefikUpdateHistoryPanelProps {
 const MAX_VISIBLE_ENTRIES = 5;
 
 export function TraefikUpdateHistoryPanel({
+  ...props
+}: TraefikUpdateHistoryPanelProps) {
+  return (
+    <Suspense fallback={null}>
+      <TraefikUpdateHistoryPanelContent {...props} />
+    </Suspense>
+  );
+}
+
+function TraefikUpdateHistoryPanelContent({
   isError,
   isLoading,
   operations,
   timezone,
 }: TraefikUpdateHistoryPanelProps) {
+  const searchParams = useSearchParams();
   const history = operations?.history ?? [];
-  const [filters, setFilters] = useState<TraefikUpdateHistoryFilters>(
-    DEFAULT_TRAEFIK_UPDATE_HISTORY_FILTERS,
+  const [filters, setFilters] = useState<TraefikUpdateHistoryFilters>(() =>
+    readTraefikUpdateHistoryFilters(searchParams),
   );
   const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
   const [exportNotice, setExportNotice] = useState("");
@@ -47,7 +61,9 @@ export function TraefikUpdateHistoryPanel({
     periodReferenceTime,
   );
   const updateFilters = (updates: Partial<TraefikUpdateHistoryFilters>) => {
-    setFilters((current) => ({ ...current, ...updates }));
+    const nextFilters = { ...filters, ...updates };
+    setFilters(nextFilters);
+    replaceTraefikUpdateHistoryQuery(nextFilters);
     setExportNotice("");
   };
   const handleExport = (format: TraefikUpdateHistoryExportFormat) => {
@@ -234,6 +250,7 @@ function HistoryFilters({
           <select
             aria-label="업데이트 이력 상태"
             className={controlClassName}
+            data-traefik-update-status-filter
             onChange={(event) => onFiltersChange({
               status: event.target.value as TraefikUpdateHistoryStatus,
             })}
@@ -249,6 +266,7 @@ function HistoryFilters({
           <select
             aria-label="업데이트 이력 기간"
             className={controlClassName}
+            data-traefik-update-period-filter
             onChange={(event) => onPeriodChange(
               event.target.value as TraefikUpdateHistoryPeriod,
             )}
@@ -264,6 +282,7 @@ function HistoryFilters({
           <input
             aria-label="업데이트 이력 시작일"
             className={controlClassName}
+            data-traefik-update-date-from
             max={filters.dateTo || undefined}
             onChange={(event) => onFiltersChange({ dateFrom: event.target.value, period: "all" })}
             type="date"
@@ -275,6 +294,7 @@ function HistoryFilters({
           <input
             aria-label="업데이트 이력 종료일"
             className={controlClassName}
+            data-traefik-update-date-to
             min={filters.dateFrom || undefined}
             onChange={(event) => onFiltersChange({ dateTo: event.target.value, period: "all" })}
             type="date"
@@ -292,6 +312,7 @@ function HistoryFilters({
             <button
               aria-label={`현재 업데이트 이력 ${filteredCount}건 ${format.toUpperCase()} 다운로드`}
               className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:border-cyan-300 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-cyan-500 dark:hover:text-cyan-200"
+              data-traefik-update-export={format}
               disabled={!dateRangeValid || filteredCount === 0}
               key={format}
               onClick={() => onExport(format)}
@@ -302,6 +323,7 @@ function HistoryFilters({
           ))}
           <button
             className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:border-cyan-300 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-cyan-500 dark:hover:text-cyan-200"
+            data-traefik-update-filter-reset
             disabled={!hasActiveFilters}
             onClick={() => onFiltersChange(DEFAULT_TRAEFIK_UPDATE_HISTORY_FILTERS)}
             type="button"

@@ -4,6 +4,8 @@ import {
   DEFAULT_TRAEFIK_UPDATE_HISTORY_FILTERS,
   filterTraefikUpdateHistory,
   isTraefikUpdateHistoryDateRangeValid,
+  readTraefikUpdateHistoryFilters,
+  replaceTraefikUpdateHistoryQuery,
 } from "../frontend/src/app/dashboard/traefikUpdateHistoryFilter.ts";
 import { buildTraefikUpdateHistoryExport } from "../frontend/src/app/dashboard/traefikUpdateHistoryExport.ts";
 
@@ -71,4 +73,48 @@ const json = JSON.parse(buildTraefikUpdateHistoryExport(
 ).content);
 assert.equal(json.metadata.result_count, 3);
 assert.equal(json.metadata.timezone, "Asia/Seoul");
+
+assert.deepEqual(
+  readTraefikUpdateHistoryFilters(new URLSearchParams(
+    "traefik_update_status=rollback_failed&traefik_update_period=30",
+  )),
+  { dateFrom: "", dateTo: "", period: "30", status: "rollback_failed" },
+);
+assert.deepEqual(
+  readTraefikUpdateHistoryFilters(new URLSearchParams(
+    "traefik_update_status=invalid&traefik_update_period=7&traefik_update_from=2026-02-31&traefik_update_to=2026-07-20",
+  )),
+  { dateFrom: "", dateTo: "2026-07-20", period: "all", status: "all" },
+);
+
+let currentUrl = "https://manager.example.com/dashboard?maintenance_history_actor=ops#updates";
+globalThis.window = {
+  history: {
+    replaceState: (state, _unused, nextUrl) => {
+      currentUrl = new URL(nextUrl, currentUrl).href;
+      globalThis.window.history.state = state;
+      globalThis.window.location.href = currentUrl;
+    },
+    state: { fixture: true },
+  },
+  location: { href: currentUrl },
+};
+replaceTraefikUpdateHistoryQuery({
+  dateFrom: "2026-07-10",
+  dateTo: "2026-07-20",
+  period: "all",
+  status: "rollback_failed",
+});
+let updatedUrl = new URL(currentUrl);
+assert.equal(updatedUrl.searchParams.get("maintenance_history_actor"), "ops");
+assert.equal(updatedUrl.searchParams.get("traefik_update_from"), "2026-07-10");
+assert.equal(updatedUrl.searchParams.get("traefik_update_to"), "2026-07-20");
+assert.equal(updatedUrl.searchParams.get("traefik_update_status"), "rollback_failed");
+assert.equal(updatedUrl.hash, "#updates");
+replaceTraefikUpdateHistoryQuery(DEFAULT_TRAEFIK_UPDATE_HISTORY_FILTERS);
+updatedUrl = new URL(currentUrl);
+assert.equal(updatedUrl.searchParams.has("traefik_update_from"), false);
+assert.equal(updatedUrl.searchParams.has("traefik_update_to"), false);
+assert.equal(updatedUrl.searchParams.has("traefik_update_status"), false);
+assert.equal(updatedUrl.searchParams.get("maintenance_history_actor"), "ops");
 console.log("Traefik 업데이트 이력 필터·내보내기 self-test 통과");
