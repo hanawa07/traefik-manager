@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly SCRIPT_PATH="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/$(basename -- "${BASH_SOURCE[0]}")"
-readonly SCRIPT_DIR="$(dirname -- "${SCRIPT_PATH}")"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
+readonly SCRIPT_DIR
+readonly SCRIPT_PATH
 readonly ALERT_SCRIPT="${TM_HOST_OPERATION_ALERT_SCRIPT:-${SCRIPT_DIR}/request-host-operation-alert.sh}"
 readonly CONFIG_FILE="${TM_DEPLOY_BOTTLENECK_CONFIG_FILE:-${SCRIPT_DIR}/../traefik-config/.runtime/manager-deployment-bottleneck.conf}"
 readonly STAGE_PAIR_PATTERN='"(prepare|build|migration_preflight|candidate_health|route_switch|leader_handover|public_probe|state_write)":[0-9]+'
@@ -42,15 +44,21 @@ load_config() {
 }
 
 validate_config() {
-  [[ "${THRESHOLD_MS}" =~ ^[1-9][0-9]*$ ]] \
-    && (( THRESHOLD_MS >= 1000 && THRESHOLD_MS <= 900000 )) \
-    || { echo "배포 병목 알림 기준은 1000~900000ms 정수여야 합니다" >&2; return 1; }
-  [[ "${CONSECUTIVE_COUNT}" =~ ^[1-9][0-9]*$ ]] \
-    && (( CONSECUTIVE_COUNT <= 20 )) \
-    || { echo "배포 병목 연속 횟수는 1~20 정수여야 합니다" >&2; return 1; }
-  [[ "${EVENT_RETENTION_DAYS}" =~ ^[1-9][0-9]*$ ]] \
-    && (( EVENT_RETENTION_DAYS <= 3650 )) \
-    || { echo "배포 병목 이벤트 보관 기간은 1~3650일 정수여야 합니다" >&2; return 1; }
+  if ! [[ "${THRESHOLD_MS}" =~ ^[1-9][0-9]*$ ]] \
+    || (( THRESHOLD_MS < 1000 || THRESHOLD_MS > 900000 )); then
+    echo "배포 병목 알림 기준은 1000~900000ms 정수여야 합니다" >&2
+    return 1
+  fi
+  if ! [[ "${CONSECUTIVE_COUNT}" =~ ^[1-9][0-9]*$ ]] \
+    || (( CONSECUTIVE_COUNT > 20 )); then
+    echo "배포 병목 연속 횟수는 1~20 정수여야 합니다" >&2
+    return 1
+  fi
+  if ! [[ "${EVENT_RETENTION_DAYS}" =~ ^[1-9][0-9]*$ ]] \
+    || (( EVENT_RETENTION_DAYS > 3650 )); then
+    echo "배포 병목 이벤트 보관 기간은 1~3650일 정수여야 합니다" >&2
+    return 1
+  fi
 }
 
 analyze_streak() {
@@ -150,7 +158,9 @@ prune_alert_events() {
     [[ "${occurred_at}" != "${line}" ]] || continue
     occurred_at="${occurred_at%%\"*}"
     occurred_epoch="$(date -u -d "${occurred_at}" +%s 2>/dev/null || true)"
-    [[ "${occurred_epoch}" =~ ^[0-9]+$ ]] && (( occurred_epoch >= cutoff )) || continue
+    if ! [[ "${occurred_epoch}" =~ ^[0-9]+$ ]] || (( occurred_epoch < cutoff )); then
+      continue
+    fi
     printf '%s\n' "${line}" >> "${temporary_file}"
   done < <(tail -n "${MAX_EVENT_LINES}" "${events_file}")
   chmod 644 "${temporary_file}"

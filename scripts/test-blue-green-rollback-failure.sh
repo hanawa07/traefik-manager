@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly TEST_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+TEST_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly TEST_SCRIPT_DIR
 temporary_dir="$(mktemp -d)"
 trap 'rm -rf "${temporary_dir}"' EXIT
 export TM_MANAGER_DEPLOY_STATE_DIR="${temporary_dir}/state"
@@ -17,6 +18,7 @@ SCRIPT
 chmod 700 "${TM_HOST_OPERATION_ALERT_SCRIPT}"
 
 # Source the production state machine, then replace only host-facing recovery calls.
+# shellcheck source=scripts/blue-green-deploy.sh
 source "${TEST_SCRIPT_DIR}/blue-green-deploy.sh"
 start_existing_slot() {
   touch "${temporary_dir}/recovery-attempted"

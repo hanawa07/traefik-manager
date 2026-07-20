@@ -52,6 +52,8 @@ manager_deployment_stage_start() {
     return 1
   fi
   manager_deployment_stage_finish
+  # Caller-owned state consumed by the blue-green rollback handler.
+  # shellcheck disable=SC2034
   deployment_stage="${stage}"
   MANAGER_DEPLOYMENT_CURRENT_STAGE="${stage}"
   MANAGER_DEPLOYMENT_CURRENT_STAGE_STARTED_MS="$(manager_deployment_stage_now_ms)"

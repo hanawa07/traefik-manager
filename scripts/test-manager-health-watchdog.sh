@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly TEMP_DIR="$(mktemp -d)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+TEMP_DIR="$(mktemp -d)"
+readonly SCRIPT_DIR
+readonly TEMP_DIR
 readonly FAKE_BIN="${TEMP_DIR}/bin"
 readonly STATE_DIR="${TEMP_DIR}/state"
 readonly STATUS_FILE="${TEMP_DIR}/health-status"
@@ -17,27 +19,27 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "${FAKE_BIN}" "${STATE_DIR}"
-printf '%s\n' \
-  '#!/usr/bin/env bash' \
-  'set -euo pipefail' \
-  'printf "%s\n" "$*" >> "${TM_WATCHDOG_FAKE_CURL_LOG}"' \
-  'status="$(<"${TM_WATCHDOG_FAKE_STATUS_FILE}")"' \
-  'if [[ "${status}" == "healthy" ]]; then printf "200"; else printf "503"; fi' \
-  > "${FAKE_BIN}/curl"
-printf '%s\n' \
-  '#!/usr/bin/env bash' \
-  'set -euo pipefail' \
-  'if [[ "${1:-} ${2:-}" == "run list" ]]; then' \
-  '  counter="$(<"${TM_WATCHDOG_FAKE_RUN_COUNTER_FILE}")"' \
-  '  run_id="$((100 + counter))"' \
-  '  printf "%s\thttps://github.com/hanawa07/traefik-manager/actions/runs/%s\n" "${run_id}" "${run_id}"' \
-  '  exit 0' \
-  'fi' \
-  'printf "%s\n" "$*" >> "${TM_WATCHDOG_FAKE_DISPATCH_LOG}"' \
-  '[[ "$(<"${TM_WATCHDOG_FAKE_DISPATCH_STATUS_FILE}")" == "success" ]] || exit 1' \
-  'counter="$(<"${TM_WATCHDOG_FAKE_RUN_COUNTER_FILE}")"' \
-  'printf "%s" "$((counter + 1))" > "${TM_WATCHDOG_FAKE_RUN_COUNTER_FILE}"' \
-  > "${FAKE_BIN}/gh"
+cat > "${FAKE_BIN}/curl" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "${TM_WATCHDOG_FAKE_CURL_LOG}"
+status="$(<"${TM_WATCHDOG_FAKE_STATUS_FILE}")"
+if [[ "${status}" == "healthy" ]]; then printf '200'; else printf '503'; fi
+SCRIPT
+cat > "${FAKE_BIN}/gh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-} ${2:-}" == "run list" ]]; then
+  counter="$(<"${TM_WATCHDOG_FAKE_RUN_COUNTER_FILE}")"
+  run_id="$((100 + counter))"
+  printf '%s\thttps://github.com/hanawa07/traefik-manager/actions/runs/%s\n' "${run_id}" "${run_id}"
+  exit 0
+fi
+printf '%s\n' "$*" >> "${TM_WATCHDOG_FAKE_DISPATCH_LOG}"
+[[ "$(<"${TM_WATCHDOG_FAKE_DISPATCH_STATUS_FILE}")" == "success" ]] || exit 1
+counter="$(<"${TM_WATCHDOG_FAKE_RUN_COUNTER_FILE}")"
+printf '%s' "$((counter + 1))" > "${TM_WATCHDOG_FAKE_RUN_COUNTER_FILE}"
+SCRIPT
 chmod +x "${FAKE_BIN}/curl" "${FAKE_BIN}/gh"
 
 run_watchdog() {

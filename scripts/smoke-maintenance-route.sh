@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+readonly SCRIPT_DIR
+readonly REPO_ROOT
 readonly CONFIG_DIR="${TM_MAINTENANCE_SMOKE_CONFIG_DIR:-${REPO_ROOT}/traefik-config/dynamic}"
 readonly SELF_CONFIG="${CONFIG_DIR}/traefik-manager-self.yml"
 readonly SMOKE_DOMAIN="${TM_MAINTENANCE_SMOKE_DOMAIN:-manager-maintenance-smoke.invalid}"

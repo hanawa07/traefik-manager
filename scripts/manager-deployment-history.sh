@@ -130,7 +130,10 @@ run_self_test() {
   [[ "$(wc -l < "${history_file}")" == "3" ]]
   [[ "$(wc -l < "${history_file}.1")" == "4" ]]
   [[ "$(wc -l < "${history_file}.daily")" == "5" ]]
-  ! grep -Fq '"completed_at":"2026-07-09T00:01:00Z"' "${history_file}.daily"
+  if grep -Fq '"completed_at":"2026-07-09T00:01:00Z"' "${history_file}.daily"; then
+    echo "보관 기한이 지난 일별 이력이 남아 있습니다" >&2
+    return 1
+  fi
   grep -Fq '"completed_at":"2026-07-10T00:01:00Z"' "${history_file}.daily"
   grep -Fq '"completed_at":"2026-07-13T00:01:00Z"' "${history_file}.daily"
   grep -Fq '"completed_at":"2026-07-14T00:01:00Z"' "${history_file}.daily"

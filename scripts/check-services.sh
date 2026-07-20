@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+ROOT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 
 if [ -z "${TM_SMOKE_BASE_URL:-}" ] && [ -z "${FRONTEND_DOMAIN:-}" ] && [ -f "$ROOT_DIR/.env" ]; then
   FRONTEND_DOMAIN=$(

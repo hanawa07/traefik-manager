@@ -2,8 +2,10 @@
 set -euo pipefail
 
 export PATH="/usr/local/bin:/usr/bin:/bin:${PATH:-}"
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+readonly SCRIPT_DIR
+readonly REPO_ROOT
 readonly ROUTE_FILE="${REPO_ROOT}/traefik-config/dynamic/traefik-manager-self.yml"
 readonly STATE_DIR="${TM_MANAGER_DEPLOY_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/traefik-manager}"
 readonly STATE_FILE="${STATE_DIR}/blue-green-deployment.state"
@@ -18,6 +20,7 @@ readonly DRAIN_SECONDS="${TM_BLUE_GREEN_DRAIN_SECONDS:-2}"
 readonly HISTORY_MAX_ENTRIES="${TM_DEPLOY_HISTORY_MAX_ENTRIES:-200}"
 readonly HISTORY_RETAIN_ENTRIES="${TM_DEPLOY_HISTORY_RETAIN_ENTRIES:-100}"
 readonly HISTORY_DAILY_RETAIN_ENTRIES="${TM_DEPLOY_HISTORY_DAILY_RETAIN_ENTRIES:-365}"
+# shellcheck source=scripts/manager-deployment-stage-timing.sh
 source "${SCRIPT_DIR}/manager-deployment-stage-timing.sh"
 
 probe_pid=""

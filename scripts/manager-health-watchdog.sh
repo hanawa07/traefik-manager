@@ -2,8 +2,10 @@
 set -euo pipefail
 
 export PATH="/usr/local/bin:/usr/bin:/bin:${PATH:-}"
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+readonly SCRIPT_DIR
+readonly REPO_ROOT
 readonly STATE_DIR="${TM_MANAGER_WATCHDOG_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/traefik-manager}"
 readonly STATE_FILE="${STATE_DIR}/manager-health-watchdog.state"
 readonly LOCK_FILE="${STATE_DIR}/manager-health-watchdog.lock"
