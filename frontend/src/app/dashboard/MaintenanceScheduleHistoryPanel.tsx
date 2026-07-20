@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 import type { AuditLogItem } from "@/features/audit/api/auditApi";
 import { useAuditPage } from "@/features/audit/hooks/useAudit";
@@ -15,29 +16,64 @@ export function MaintenanceScheduleHistoryPanel({
   serviceId,
   timezone,
 }: MaintenanceScheduleHistoryPanelProps) {
+  const [actor, setActor] = useState("all");
+  const [period, setPeriod] = useState<"all" | "7" | "30" | "90">("all");
   const query = useAuditPage({
-    limit: 20,
+    limit: 100,
     offset: 0,
     resource_type: "service",
     action: "update",
     event: "service_update",
+    period_days: period === "all" ? undefined : Number(period) as 7 | 30 | 90,
     search: serviceId,
   });
-  const logs = (query.data?.items ?? []).filter(
+  const historyLogs = (query.data?.items ?? []).filter(
     (log) => log.resource_id === serviceId && hasMaintenanceUntilChange(log),
   );
+  const actors = Array.from(new Set(historyLogs.map((log) => log.actor))).sort();
+  const selectedActor = actor === "all" || actors.includes(actor) ? actor : "all";
+  const logs = selectedActor === "all"
+    ? historyLogs
+    : historyLogs.filter((log) => log.actor === selectedActor);
 
   if (query.isLoading) {
     return <p className="text-xs text-slate-500 dark:text-slate-400">변경 이력 확인 중...</p>;
   }
   return (
     <div className="grid gap-2">
+      {!query.isError ? (
+        <div className="flex flex-wrap justify-end gap-2">
+          <select
+            aria-label="점검 변경 이력 기간"
+            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+            value={period}
+            onChange={(event) => setPeriod(event.target.value as typeof period)}
+          >
+            <option value="all">전체 기간</option>
+            <option value="7">최근 7일</option>
+            <option value="30">최근 30일</option>
+            <option value="90">최근 90일</option>
+          </select>
+          <select
+            aria-label="점검 변경 이력 변경자"
+            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+            disabled={!actors.length}
+            value={selectedActor}
+            onChange={(event) => setActor(event.target.value)}
+          >
+            <option value="all">모든 변경자</option>
+            {actors.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </div>
+      ) : null}
       {query.isError ? (
         <p className="text-xs text-rose-700 dark:text-rose-300">변경 이력을 불러오지 못했습니다.</p>
       ) : logs.length ? (
         <ol
           className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"
           data-maintenance-history-count={logs.length}
+          data-maintenance-history-actor={selectedActor}
+          data-maintenance-history-period={period}
           data-testid="maintenance-schedule-history"
         >
           {logs.map((log) => {

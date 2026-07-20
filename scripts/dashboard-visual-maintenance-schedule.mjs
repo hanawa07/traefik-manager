@@ -75,6 +75,30 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
       timeoutMs,
       "점검 종료 시각 변경 이력이 펼쳐지지 않았습니다",
     );
+
+    await changeSelect(cdp, "점검 변경 이력 변경자", "ops-admin");
+    await waitForCondition(
+      cdp,
+      `document.querySelector('[data-testid="maintenance-schedule-history"]')?.getAttribute('data-maintenance-history-count') === '1' &&
+        document.querySelector('[data-testid="maintenance-schedule-history"]')?.getAttribute('data-maintenance-history-actor') === 'ops-admin' &&
+        document.querySelector('[data-testid="maintenance-schedule-history"]')?.textContent?.includes('ops-admin')`,
+      timeoutMs,
+      "점검 종료 시각 변경자 필터가 적용되지 않았습니다",
+    );
+    await changeSelect(cdp, "점검 변경 이력 변경자", "all");
+
+    const periodHistoryRequest = waitForFetch(cdp, timeoutMs, "점검 종료 시각 기간 필터");
+    await changeSelect(cdp, "점검 변경 이력 기간", "30");
+    const periodHistory = await periodHistoryRequest;
+    assert.equal(new URL(periodHistory.request.url).searchParams.get("period_days"), "30");
+    await fulfillJson(cdp, periodHistory, buildMaintenanceHistory());
+    await waitForCondition(
+      cdp,
+      `document.querySelector('[data-testid="maintenance-schedule-history"]')?.getAttribute('data-maintenance-history-count') === '2' &&
+        document.querySelector('[data-testid="maintenance-schedule-history"]')?.getAttribute('data-maintenance-history-period') === '30'`,
+      timeoutMs,
+      "점검 종료 시각 기간 필터가 적용되지 않았습니다",
+    );
     await clickAriaLabel(cdp, `${SERVICE_NAME} 점검 종료 시각 변경 이력`);
     await waitForCondition(
       cdp,
@@ -288,7 +312,7 @@ function buildMaintenanceHistory() {
   return [
     {
       id: "00000000-0000-4000-8000-000000000111",
-      actor: "smoke-admin",
+      actor: "ops-admin",
       action: "update",
       resource_type: "service",
       resource_id: SERVICE_ID,
@@ -329,4 +353,16 @@ export function runMaintenanceScheduleFixtureSelfTest() {
   assert.equal(services[4].maintenance_until, "2030-01-02T06:00:00.000Z");
   assert.equal(history.length, 2);
   assert.equal(history[0].detail.before.maintenance_until, null);
+  assert.equal(history[0].actor, "ops-admin");
+}
+
+async function changeSelect(cdp, label, value) {
+  const changed = await evaluate(cdp, `(() => {
+    const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)});
+    if (!(select instanceof HTMLSelectElement)) return false;
+    select.value = ${JSON.stringify(value)};
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(changed, true, `${label}: 선택 항목을 찾지 못했습니다`);
 }
