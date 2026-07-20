@@ -138,6 +138,12 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
     assertRequest(reloadServices, "GET", "/api/v1/services");
     await fulfillJson(cdp, reloadServices, services);
     await reloaded;
+    await waitForCondition(
+      cdp,
+      `Boolean(document.querySelector('button[aria-label="${SERVICE_NAME} 점검 종료 시각 변경 이력"]'))`,
+      timeoutMs,
+      "점검 이력 URL 새로고침 후 서비스가 표시되지 않았습니다",
+    );
 
     const restoredHistoryRequest = waitForFetch(cdp, timeoutMs, "점검 이력 URL 복원");
     await clickAriaLabel(cdp, `${SERVICE_NAME} 점검 종료 시각 변경 이력`);
