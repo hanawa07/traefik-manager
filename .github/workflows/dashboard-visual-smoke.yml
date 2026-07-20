@@ -53,6 +53,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: 전체 셸 스크립트 정적 검사
+        run: git ls-files -z '*.sh' | xargs -0 shellcheck
+
       - name: 프론트 상태·필터 self-test
         run: |
           npm --prefix frontend run test:audit-retry-chain
