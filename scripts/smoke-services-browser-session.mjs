@@ -167,6 +167,7 @@ async function main() {
       timeoutMs,
     });
     if (adminCookies && await checkTraefikAlertRetryAdminFixture({
+      artifactDir: process.env.TM_SMOKE_ARTIFACT_DIR,
       baseUrl, cdp, cookies: adminCookies, timeoutMs,
     })) {
       visualResult.labels.push("관리자 Traefik 알림 재시도 요청");

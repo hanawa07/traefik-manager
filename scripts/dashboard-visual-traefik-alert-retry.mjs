@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 
+import {
+  captureVisualDom,
+  captureVisualScreenshot,
+} from "./dashboard-visual-artifacts.mjs";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 const SOURCE_REQUEST_ID = "33333333-3333-4333-8333-333333333333";
@@ -29,6 +33,7 @@ const FIXTURE = {
     rollback_performed: true,
     alert_request_status: "request_failed",
     alert_run_url: null,
+    alert_retry_request_id: "22222222-2222-4222-8222-222222222222",
     alert_retry_actor: "security-admin",
     alert_retry_requested_at: "2026-07-20T03:01:00Z",
     alert_run_status: null,
@@ -40,6 +45,7 @@ const FIXTURE = {
 };
 
 export async function checkTraefikAlertRetryAdminFixture({
+  artifactDir,
   baseUrl,
   cdp,
   cookies,
@@ -68,6 +74,20 @@ export async function checkTraefikAlertRetryAdminFixture({
     );
     await assertRetryPost({ cdp, cookies, timeoutMs });
     return true;
+  } catch (error) {
+    await Promise.allSettled([
+      captureVisualScreenshot({
+        artifactDir,
+        cdp,
+        name: "admin-traefik-alert-retry-failure",
+      }),
+      captureVisualDom({
+        artifactDir,
+        cdp,
+        name: "admin-traefik-alert-retry-failure",
+      }),
+    ]);
+    throw error;
   } finally {
     await cdp.send("Fetch.disable").catch(() => undefined);
     await cdp.send("Network.clearBrowserCookies");

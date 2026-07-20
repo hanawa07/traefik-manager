@@ -14,3 +14,15 @@ export async function captureVisualScreenshot({ artifactDir, cdp, name }) {
   await mkdir(artifactDir, { recursive: true });
   await writeFile(join(artifactDir, `${name}.png`), Buffer.from(screenshot.data, "base64"));
 }
+
+export async function captureVisualDom({ artifactDir, cdp, name }) {
+  if (!artifactDir) return;
+  const response = await cdp.send("Runtime.evaluate", {
+    expression: "document.documentElement.outerHTML",
+    returnByValue: true,
+  });
+  const html = response.result?.value;
+  assert.equal(typeof html, "string", `${name}: DOM 생성 실패`);
+  await mkdir(artifactDir, { recursive: true });
+  await writeFile(join(artifactDir, `${name}.html`), html, "utf8");
+}
