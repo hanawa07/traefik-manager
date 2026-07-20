@@ -173,6 +173,18 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
       timeoutMs,
       "점검 종료 시각 변경 이력이 닫히지 않았습니다",
     );
+    const expandedAfterReload = await evaluate(cdp, `(() => {
+      const button = document.querySelector('[data-maintenance-schedule-toggle]');
+      button?.click();
+      return Boolean(button);
+    })()`);
+    assert.equal(expandedAfterReload, true, "새로고침 후 점검 일정 전체 보기 버튼이 없습니다");
+    await waitForCondition(
+      cdp,
+      "document.querySelectorAll('[data-maintenance-service-id]').length === 5",
+      timeoutMs,
+      "새로고침 후 점검 일정 전체 목록이 펼쳐지지 않았습니다",
+    );
 
     await installRequestCapture(cdp);
     try {
