@@ -30,6 +30,8 @@ const FIXTURE = {
       rollback_performed: true,
       alert_request_status: "requested",
       alert_run_url: ALERT_RUN_URL,
+      alert_retry_actor: "security-admin",
+      alert_retry_requested_at: `${FIXTURE_DATE}T03:00:30Z`,
       alert_run_status: "completed",
       alert_run_conclusion: "success",
       alert_run_checked_at: `${FIXTURE_DATE}T03:01:00Z`,
@@ -53,6 +55,8 @@ const FIXTURE = {
       rollback_performed: false,
       alert_request_status: "not_needed",
       alert_run_url: null,
+      alert_retry_actor: null,
+      alert_retry_requested_at: null,
       alert_run_status: null,
       alert_run_conclusion: null,
       alert_run_checked_at: null,
@@ -72,6 +76,7 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
       );
       const alert = document.querySelector('[data-traefik-update-alert="requested"]');
       return entries.length === 2 && alert?.textContent?.includes('알림 실행 성공') &&
+        alert.textContent.includes('재시도 security-admin') &&
         alert.querySelector('a')?.href === ${JSON.stringify(ALERT_RUN_URL)};
     })()`,
     timeoutMs,
@@ -123,7 +128,7 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
     new RegExp(`traefik-updates-rollback_failed-${FIXTURE_DATE}-to-${FIXTURE_DATE}-\\d{4}-\\d{2}-\\d{2}\\.json$`),
   );
   const payload = JSON.parse(json.text);
-  assert.equal(payload.metadata.schema_version, 2);
+  assert.equal(payload.metadata.schema_version, 3);
   assert.equal(payload.metadata.result_count, 1);
   assert.deepEqual(payload.metadata.filters, {
     date_from: FIXTURE_DATE,
@@ -132,15 +137,17 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
     status: "rollback_failed",
   });
   assert.equal(payload.entries[0].alert_run_url, ALERT_RUN_URL);
+  assert.equal(payload.entries[0].alert_retry_actor, "security-admin");
   assert.equal(payload.entries[0].alert_run_conclusion, "success");
 
   const csv = await captureDownload(cdp, "csv");
   assert.deepEqual(csv.bytes, [239, 187, 191], "Traefik CSV UTF-8 BOM이 없습니다");
   assert.match(csv.text, /^metadata,value\r\n/);
-  assert.match(csv.text, /\r\nschema_version,"2"\r\n/);
+  assert.match(csv.text, /\r\nschema_version,"3"\r\n/);
   assert.match(csv.text, /\r\nresult_count,"1"\r\n/);
-  assert.match(csv.text, /alert_request_status,alert_run_url,alert_run_status/);
+  assert.match(csv.text, /alert_request_status,alert_run_url,alert_retry_actor,alert_retry_requested_at/);
   assert.match(csv.text, /github\.com\/hanawa07\/traefik-manager\/actions\/runs\/123/);
+  assert.match(csv.text, /security-admin/);
   assert.match(csv.text, /"'=smoke-admin"/);
 
   await evaluate(cdp, `document.querySelector('[data-traefik-update-filter-reset]')?.click()`);

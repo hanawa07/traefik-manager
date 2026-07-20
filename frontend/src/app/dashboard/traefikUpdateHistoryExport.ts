@@ -19,6 +19,8 @@ const CSV_COLUMNS: readonly (keyof TraefikUpdateHistoryEntry)[] = [
   "rollback_performed",
   "alert_request_status",
   "alert_run_url",
+  "alert_retry_actor",
+  "alert_retry_requested_at",
   "alert_run_status",
   "alert_run_conclusion",
   "alert_run_checked_at",
@@ -42,7 +44,7 @@ export function buildTraefikUpdateHistoryExport(
       status: filters.status,
     },
     result_count: entries.length,
-    schema_version: 2,
+    schema_version: 3,
     timezone: timezone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   };
   const period = filters.dateFrom || filters.dateTo

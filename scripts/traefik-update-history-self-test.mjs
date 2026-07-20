@@ -24,6 +24,8 @@ const entry = (requestId, status, completedAt, actor = "self-test", overrides = 
   rollback_performed: status.includes("rollback"),
   alert_request_status: "not_needed",
   alert_run_url: null,
+  alert_retry_actor: null,
+  alert_retry_requested_at: null,
   alert_run_status: null,
   alert_run_conclusion: null,
   alert_run_checked_at: null,
@@ -36,6 +38,8 @@ const entries = [
   entry("rollback", "rollback_failed", "2026-07-10T12:00:00Z", "=fixture", {
     alert_request_status: "requested",
     alert_run_url: "https://github.com/hanawa07/traefik-manager/actions/runs/123",
+    alert_retry_actor: "security-admin",
+    alert_retry_requested_at: "2026-07-10T12:00:30Z",
     alert_run_status: "completed",
     alert_run_conclusion: "success",
     alert_run_checked_at: "2026-07-10T12:01:00Z",
@@ -74,10 +78,11 @@ const csv = buildTraefikUpdateHistoryExport(
 );
 assert.equal(csv.filename, "traefik-updates-rollback_failed-all-time-2026-07-20.csv");
 assert.equal(csv.content.startsWith("\uFEFFmetadata,value\r\n"), true);
-assert.match(csv.content, /schema_version,"2"/);
+assert.match(csv.content, /schema_version,"3"/);
 assert.match(csv.content, /result_count,"1"/);
-assert.match(csv.content, /alert_request_status,alert_run_url,alert_run_status/);
+assert.match(csv.content, /alert_request_status,alert_run_url,alert_retry_actor,alert_retry_requested_at/);
 assert.match(csv.content, /github\.com\/hanawa07\/traefik-manager\/actions\/runs\/123/);
+assert.match(csv.content, /security-admin/);
 assert.match(csv.content, /"'=fixture"/);
 
 const json = JSON.parse(buildTraefikUpdateHistoryExport(
@@ -88,9 +93,10 @@ const json = JSON.parse(buildTraefikUpdateHistoryExport(
   "2026-07-20T12:00:00Z",
 ).content);
 assert.equal(json.metadata.result_count, 3);
-assert.equal(json.metadata.schema_version, 2);
+assert.equal(json.metadata.schema_version, 3);
 assert.equal(json.metadata.timezone, "Asia/Seoul");
 assert.equal(json.entries[1].alert_run_conclusion, "success");
+assert.equal(json.entries[1].alert_retry_actor, "security-admin");
 
 assert.deepEqual(
   readTraefikUpdateHistoryFilters(new URLSearchParams(

@@ -89,6 +89,8 @@ def history_entry(
         "rollback_performed": False,
         "alert_request_status": "not_needed",
         "alert_run_url": None,
+        "alert_retry_actor": None,
+        "alert_retry_requested_at": None,
         "validations": [],
     }
 
@@ -115,6 +117,8 @@ def append_alert_result(
     target_version: str,
     status: str,
     run_url: str | None,
+    retry_actor: str | None = None,
+    retry_requested_at: str | None = None,
 ) -> None:
     if status not in {"requested", "request_failed"}:
         raise ValueError("지원하지 않는 호스트 알림 상태입니다")
@@ -123,6 +127,16 @@ def append_alert_result(
             raise ValueError("호스트 알림 실행 URL이 올바르지 않습니다")
     elif run_url is not None:
         raise ValueError("실패한 호스트 알림에는 실행 URL을 저장할 수 없습니다")
+    if (retry_actor is None) != (retry_requested_at is None):
+        raise ValueError("알림 재시도 요청자와 요청 시각은 함께 저장해야 합니다")
+    if retry_actor is not None and (
+        not retry_actor
+        or len(retry_actor) > 100
+        or any(ord(character) < 32 for character in retry_actor)
+    ):
+        raise ValueError("알림 재시도 요청자가 올바르지 않습니다")
+    if retry_requested_at is not None and parse_datetime(retry_requested_at) is None:
+        raise ValueError("알림 재시도 요청 시각이 올바르지 않습니다")
 
     entry = _latest_history_entry(config, request_id)
     if entry.get("status") != "rollback_failed":
@@ -135,6 +149,8 @@ def append_alert_result(
             **entry,
             "alert_request_status": status,
             "alert_run_url": run_url,
+            "alert_retry_actor": retry_actor,
+            "alert_retry_requested_at": retry_requested_at,
         },
     )
 

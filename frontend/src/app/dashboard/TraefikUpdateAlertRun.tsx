@@ -81,6 +81,11 @@ export function TraefikUpdateAlertRun({
         {entry.alert_run_checked_at ? (
           <span>확인 {formatDateTime(entry.alert_run_checked_at, timezone)}</span>
         ) : null}
+        {entry.alert_retry_actor && entry.alert_retry_requested_at ? (
+          <span data-traefik-update-alert-retry-meta>
+            재시도 {entry.alert_retry_actor} · {formatDateTime(entry.alert_retry_requested_at, timezone)}
+          </span>
+        ) : null}
         {entry.alert_run_error ? <span>{entry.alert_run_error}</span> : null}
         {status === "request_failed" && canManage ? (
           <button

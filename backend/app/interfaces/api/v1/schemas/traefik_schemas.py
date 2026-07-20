@@ -89,6 +89,8 @@ class TraefikUpdateHistoryEntryResponse(BaseModel):
         "not_needed", "pending", "requested", "request_failed"
     ] = "not_needed"
     alert_run_url: str | None = None
+    alert_retry_actor: str | None = None
+    alert_retry_requested_at: datetime | None = None
     alert_run_status: str | None = None
     alert_run_conclusion: str | None = None
     alert_run_checked_at: datetime | None = None

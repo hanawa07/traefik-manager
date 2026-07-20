@@ -146,6 +146,8 @@ def test_read_traefik_update_operations_returns_latest_request_state(tmp_path):
     assert result["history"][0]["backup_created"] is True
     assert result["history"][0]["alert_request_status"] == "not_needed"
     assert result["history"][0]["alert_run_url"] is None
+    assert result["history"][0]["alert_retry_actor"] is None
+    assert result["history"][0]["alert_retry_requested_at"] is None
 
 
 def test_read_traefik_update_operations_keeps_latest_rollback_alert_result(tmp_path):
@@ -180,6 +182,8 @@ def test_read_traefik_update_operations_keeps_latest_rollback_alert_result(tmp_p
                             "https://github.com/hanawa07/traefik-manager/"
                             "actions/runs/123"
                         ),
+                        "alert_retry_actor": "security-admin",
+                        "alert_retry_requested_at": "2026-07-20T01:01:00Z",
                     }
                 ),
             ]
@@ -196,6 +200,8 @@ def test_read_traefik_update_operations_keeps_latest_rollback_alert_result(tmp_p
     assert len(result["history"]) == 1
     assert result["history"][0]["alert_request_status"] == "requested"
     assert result["history"][0]["alert_run_url"].endswith("/actions/runs/123")
+    assert result["history"][0]["alert_retry_actor"] == "security-admin"
+    assert result["history"][0]["alert_retry_requested_at"] == "2026-07-20T01:01:00Z"
 
 
 def test_read_traefik_update_operations_rejects_stale_runner(tmp_path):

@@ -116,6 +116,8 @@ fi
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"status":"rollback_failed"'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_request_status":"requested"'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_run_url":"https://github.com/hanawa07/traefik-manager/actions/runs/123"'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_actor":null'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_requested_at":null'
 grep -Fq 'image: traefik:v3.7.9' "${compose_dir}/docker-compose.yml"
 grep -Fxq 'Traefik 패치 업데이트 자동 롤백' "${alert_capture}"
 grep -Fxq 'v3.7.10 업데이트와 자동 롤백 실패 · 요청 33333333-3333-4333-8333-333333333333' "${alert_capture}"
@@ -148,6 +150,8 @@ write_alert_retry_request \
 run_runner
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_request_status":"requested"'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_run_url":"https://github.com/hanawa07/traefik-manager/actions/runs/123"'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_actor":"self-test"'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_requested_at":"2026-07-20T00:00:00Z"'
 grep -Fxq 'v3.7.10 업데이트와 자동 롤백 실패 · 요청 44444444-4444-4444-8444-444444444444' "${alert_capture}"
 grep -Fq '롤백 실패 알림 재시도 완료' "${state_dir}/traefik-update-runner.json"
 echo "Traefik 안전 업데이트 실행기 self-test 통과"

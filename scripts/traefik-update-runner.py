@@ -97,6 +97,8 @@ def _retry_rollback_alert(config: RunnerConfig, request: UpdateRequest) -> int:
         config,
         source_request_id,
         request.target_version,
+        retry_actor=request.actor,
+        retry_requested_at=request.requested_at,
     )
     write_heartbeat(
         config,
@@ -110,6 +112,8 @@ def _request_and_record_rollback_alert(
     config: RunnerConfig,
     request_id: str,
     target_version: str,
+    retry_actor: str | None = None,
+    retry_requested_at: str | None = None,
 ) -> tuple[bool, str]:
     alert_status = "request_failed"
     alert_url = None
@@ -126,6 +130,8 @@ def _request_and_record_rollback_alert(
             target_version,
             alert_status,
             alert_url,
+            retry_actor=retry_actor,
+            retry_requested_at=retry_requested_at,
         )
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         return False, f"{detail}. 알림 결과 이력 저장 실패: {message(exc)}"
