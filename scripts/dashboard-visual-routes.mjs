@@ -114,6 +114,7 @@ export const DASHBOARD_ROUTES = [
     path: "/dashboard/settings",
     marker: "운영 로그인·화면 점검",
     requiredMarkers: [
+      "[테스트] 실행은 최근 실행·실패율 집계에서 제외합니다.",
       "Artifact 만료",
       "관리자 전용 점검 최근 성공",
       "관리자 점검 지연 판정",

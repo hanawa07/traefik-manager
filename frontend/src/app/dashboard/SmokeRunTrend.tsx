@@ -15,7 +15,7 @@ import {
   getSmokeArtifactRemainingLabel,
   type SmokeArtifactFilter,
   type SmokeArtifactExpiryState,
-} from "./smokeArtifactExpiry";
+} from "@/shared/lib/smokeArtifactExpiry";
 
 const STATUS_LABELS = {
   failure: "실패",

@@ -9,7 +9,7 @@ import {
   getSmokeArtifactFilterCounts,
   getSmokeArtifactExpiryState,
   getSmokeArtifactRemainingLabel,
-} from "../frontend/src/app/dashboard/smokeArtifactExpiry.ts";
+} from "../frontend/src/shared/lib/smokeArtifactExpiry.ts";
 import {
   findNewSmokeRun,
   getTrackedManualSmokeRun,

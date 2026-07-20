@@ -1,4 +1,4 @@
-import { Download, MonitorCheck, RefreshCw, Send } from "lucide-react";
+import { MonitorCheck, RefreshCw, Send } from "lucide-react";
 
 import type {
   SmokeMonitoringSettingsInput,
@@ -13,6 +13,7 @@ import {
 } from "@/features/settings/components/SettingsCardPrimitives";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import type { TrackedManualSmokeRun } from "@/features/settings/lib/smokeManualRunTracking";
+import { SmokeArtifactLink } from "./SmokeArtifactLink";
 import { SmokeManualRunResult } from "./SmokeManualRunResult";
 import { SmokeMonitoringSettingsEditForm } from "./SmokeMonitoringSettingsEditForm";
 import { SmokeStaleAlertHistory } from "./SmokeStaleAlertHistory";
@@ -101,6 +102,7 @@ export function SmokeRotationStatusCard({
   const recentRuns = status?.monitoring_recent_runs ?? [];
   const latestFailure =
     status?.monitoring_latest_failure ?? recentRuns.find((run) => run.status === "failure");
+  const artifactReferenceTime = Date.parse(status?.monitoring_history_checked_at || "");
   const suppressedRuns = recentRuns.filter((run) => run.notification_suppressed);
   const latestSuppressed = suppressedRuns[0];
   const secretRetryCount = status?.detail?.match(/GitHub secret 갱신 실패: .+ \(시도 (\d+\/\d+)\)$/)?.[1];
@@ -134,6 +136,9 @@ export function SmokeRotationStatusCard({
         <SettingsSummary>
           <div className="rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-xs text-cyan-900 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200">
             전용 viewer로 일반 화면을, 전용 admin으로 관리자 안전 흐름을 확인합니다. 비밀번호 공격이나 침입 징후는 별도 로그인 보안 방어 설정에서 처리합니다.
+            <span className="mt-1 block" data-testid="smoke-test-run-exclusion-note">
+              [테스트] 실행은 최근 실행·실패율 집계에서 제외합니다.
+            </span>
           </div>
           <SettingsSummaryRow
             label="예약 자동 점검"
@@ -239,16 +244,14 @@ export function SmokeRotationStatusCard({
             <SettingsSummaryRow
               label="최근 실패 화면"
               value={
-                <a
-                  className="inline-flex items-center gap-1 font-medium text-rose-700 underline-offset-2 hover:underline dark:text-rose-300"
-                  href={latestFailure.artifact_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="GitHub 로그인 후 실패 화면 ZIP 다운로드"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  artifact 받기
-                </a>
+                <SmokeArtifactLink
+                  artifactUrl={latestFailure.artifact_url}
+                  expiresAt={latestFailure.artifact_expires_at}
+                  label="artifact 받기"
+                  expiredLabel="artifact 만료"
+                  expiredTestId="smoke-latest-failure-artifact-expired"
+                  referenceTime={artifactReferenceTime}
+                />
               }
             />
           ) : null}
@@ -370,17 +373,15 @@ export function SmokeRotationStatusCard({
                         {run.run_number ? `#${run.run_number}` : "실행 보기"}
                       </a>
                       {run.artifact_url ? (
-                        <a
-                          className="inline-flex items-center gap-1 font-medium text-rose-700 underline-offset-2 hover:underline dark:text-rose-300"
-                          data-testid="smoke-recent-run-artifact-link"
-                          href={run.artifact_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="GitHub 로그인 후 실패 화면 ZIP 다운로드"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          실패 화면
-                        </a>
+                        <SmokeArtifactLink
+                          artifactUrl={run.artifact_url}
+                          expiresAt={run.artifact_expires_at}
+                          label="실패 화면"
+                          expiredLabel="화면 만료"
+                          testId="smoke-recent-run-artifact-link"
+                          expiredTestId="smoke-recent-run-artifact-expired"
+                          referenceTime={artifactReferenceTime}
+                        />
                       ) : null}
                       {run.artifact_expires_at ? (
                         <span className="font-medium text-amber-700 dark:text-amber-300">
