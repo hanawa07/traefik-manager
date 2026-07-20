@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { AuditLogItem } from "@/features/audit/api/auditApi";
 import { useAuditPage } from "@/features/audit/hooks/useAudit";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { parseAuditDate } from "./audit/auditPageHelpers";
 
 interface MaintenanceScheduleHistoryPanelProps {
   serviceId: string;
@@ -14,14 +15,19 @@ interface MaintenanceScheduleHistoryPanelProps {
 
 type MaintenanceHistoryPeriod = "all" | "7" | "30" | "90" | "custom";
 
+interface MaintenanceHistoryFilters {
+  actor: string;
+  endDate: string;
+  period: MaintenanceHistoryPeriod;
+  startDate: string;
+}
+
 export function MaintenanceScheduleHistoryPanel({
   serviceId,
   timezone,
 }: MaintenanceScheduleHistoryPanelProps) {
-  const [actor, setActor] = useState("all");
-  const [period, setPeriod] = useState<MaintenanceHistoryPeriod>("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [filters, setFilters] = useState(readMaintenanceHistoryFilters);
+  const { actor, endDate, period, startDate } = filters;
   const query = useAuditPage({
     limit: 100,
     offset: 0,
@@ -44,22 +50,29 @@ export function MaintenanceScheduleHistoryPanel({
   const logs = selectedActor === "all"
     ? historyLogs
     : historyLogs.filter((log) => log.actor === selectedActor);
+  const updateFilters = (updates: Partial<MaintenanceHistoryFilters>) => {
+    const next = { ...filters, ...updates };
+    setFilters(next);
+    replaceMaintenanceHistoryFilters(next);
+  };
   const handlePeriodChange = (value: MaintenanceHistoryPeriod) => {
-    setPeriod(value);
-    setStartDate("");
-    setEndDate("");
+    updateFilters({ endDate: "", period: value, startDate: "" });
   };
   const handleStartDateChange = (value: string) => {
     const nextEndDate = value && endDate && value > endDate ? "" : endDate;
-    setStartDate(value);
-    setEndDate(nextEndDate);
-    setPeriod(value || nextEndDate ? "custom" : "all");
+    updateFilters({
+      endDate: nextEndDate,
+      period: value || nextEndDate ? "custom" : "all",
+      startDate: value,
+    });
   };
   const handleEndDateChange = (value: string) => {
     const nextStartDate = value && startDate && value < startDate ? "" : startDate;
-    setStartDate(nextStartDate);
-    setEndDate(value);
-    setPeriod(value || nextStartDate ? "custom" : "all");
+    updateFilters({
+      endDate: value,
+      period: value || nextStartDate ? "custom" : "all",
+      startDate: nextStartDate,
+    });
   };
 
   if (query.isLoading) {
@@ -108,7 +121,7 @@ export function MaintenanceScheduleHistoryPanel({
             className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
             disabled={!actors.length}
             value={selectedActor}
-            onChange={(event) => setActor(event.target.value)}
+            onChange={(event) => updateFilters({ actor: event.target.value })}
           >
             <option value="all">모든 변경자</option>
             {actors.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -175,4 +188,46 @@ function getMaintenanceUntil(log: AuditLogItem, key: "after" | "before") {
 
 function formatMaintenanceUntil(value: string | null, timezone?: string) {
   return value ? formatDateTime(value, timezone) : "미설정";
+}
+
+function readMaintenanceHistoryFilters(): MaintenanceHistoryFilters {
+  if (typeof window === "undefined") {
+    return { actor: "all", endDate: "", period: "all", startDate: "" };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const startDate = parseAuditDate(params.get("maintenance_history_start"));
+  const parsedEndDate = parseAuditDate(params.get("maintenance_history_end"));
+  const endDate = startDate && parsedEndDate && startDate > parsedEndDate ? "" : parsedEndDate;
+  const actor = (params.get("maintenance_history_actor") || "all").slice(0, 100);
+  return {
+    actor: actor || "all",
+    endDate,
+    period: startDate || endDate
+      ? "custom"
+      : parseMaintenanceHistoryPeriod(params.get("maintenance_history_period")),
+    startDate,
+  };
+}
+
+function parseMaintenanceHistoryPeriod(value: string | null): MaintenanceHistoryPeriod {
+  return value === "7" || value === "30" || value === "90" ? value : "all";
+}
+
+function replaceMaintenanceHistoryFilters(filters: MaintenanceHistoryFilters) {
+  const url = new URL(window.location.href);
+  const values: [key: string, value: string, defaultValue: string][] = [
+    ["maintenance_history_actor", filters.actor, "all"],
+    ["maintenance_history_period", filters.period, "all"],
+    ["maintenance_history_start", filters.startDate, ""],
+    ["maintenance_history_end", filters.endDate, ""],
+  ];
+  values.forEach(([key, value, defaultValue]) => {
+    if (value === defaultValue) url.searchParams.delete(key);
+    else url.searchParams.set(key, value);
+  });
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${url.pathname}${url.search}${url.hash}`,
+  );
 }

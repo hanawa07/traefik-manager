@@ -81,11 +81,11 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
       cdp,
       `document.querySelector('[data-testid="maintenance-schedule-history"]')?.getAttribute('data-maintenance-history-count') === '1' &&
         document.querySelector('[data-testid="maintenance-schedule-history"]')?.getAttribute('data-maintenance-history-actor') === 'ops-admin' &&
-        document.querySelector('[data-testid="maintenance-schedule-history"]')?.textContent?.includes('ops-admin')`,
+        document.querySelector('[data-testid="maintenance-schedule-history"]')?.textContent?.includes('ops-admin') &&
+        new URLSearchParams(location.search).get('maintenance_history_actor') === 'ops-admin'`,
       timeoutMs,
       "점검 종료 시각 변경자 필터가 적용되지 않았습니다",
     );
-    await changeSelect(cdp, "점검 변경 이력 변경자", "all");
 
     const periodHistoryRequest = waitForFetch(cdp, timeoutMs, "점검 종료 시각 기간 필터");
     await changeSelect(cdp, "점검 변경 이력 기간", "30");
@@ -94,8 +94,9 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
     await fulfillJson(cdp, periodHistory, buildMaintenanceHistory());
     await waitForCondition(
       cdp,
-      `document.querySelector('[data-testid="maintenance-schedule-history"]')?.getAttribute('data-maintenance-history-count') === '2' &&
-        document.querySelector('[data-testid="maintenance-schedule-history"]')?.getAttribute('data-maintenance-history-period') === '30'`,
+      `document.querySelector('[data-testid="maintenance-schedule-history"]')?.getAttribute('data-maintenance-history-count') === '1' &&
+        document.querySelector('[data-testid="maintenance-schedule-history"]')?.getAttribute('data-maintenance-history-period') === '30' &&
+        new URLSearchParams(location.search).get('maintenance_history_period') === '30'`,
       timeoutMs,
       "점검 종료 시각 기간 필터가 적용되지 않았습니다",
     );
@@ -121,10 +122,42 @@ export async function checkMaintenanceScheduleFixture({ canManage, cdp, timeoutM
         const panel = document.querySelector('[data-testid="maintenance-schedule-history"]');
         return panel?.getAttribute('data-maintenance-history-period') === 'custom' &&
           panel.getAttribute('data-maintenance-history-start-date') === '2035-02-01' &&
-          panel.getAttribute('data-maintenance-history-end-date') === '2035-02-03';
+          panel.getAttribute('data-maintenance-history-end-date') === '2035-02-03' &&
+          new URLSearchParams(location.search).get('maintenance_history_period') === 'custom' &&
+          new URLSearchParams(location.search).get('maintenance_history_start') === '2035-02-01' &&
+          new URLSearchParams(location.search).get('maintenance_history_end') === '2035-02-03';
       })()`,
       timeoutMs,
       "점검 종료 시각 직접 날짜 범위가 적용되지 않았습니다",
+    );
+
+    const reloadServicesRequest = waitForFetch(cdp, timeoutMs, "점검 이력 URL 새로고침 서비스 목록");
+    const reloaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
+    await cdp.send("Page.reload", { ignoreCache: true });
+    const reloadServices = await reloadServicesRequest;
+    assertRequest(reloadServices, "GET", "/api/v1/services");
+    await fulfillJson(cdp, reloadServices, services);
+    await reloaded;
+
+    const restoredHistoryRequest = waitForFetch(cdp, timeoutMs, "점검 이력 URL 복원");
+    await clickAriaLabel(cdp, `${SERVICE_NAME} 점검 종료 시각 변경 이력`);
+    const restoredHistory = await restoredHistoryRequest;
+    const restoredUrl = new URL(restoredHistory.request.url);
+    assert.equal(restoredUrl.searchParams.get("start_date"), "2035-02-01");
+    assert.equal(restoredUrl.searchParams.get("end_date"), "2035-02-03");
+    await fulfillJson(cdp, restoredHistory, buildMaintenanceHistory());
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const panel = document.querySelector('[data-testid="maintenance-schedule-history"]');
+        return panel?.getAttribute('data-maintenance-history-count') === '1' &&
+          panel.getAttribute('data-maintenance-history-actor') === 'ops-admin' &&
+          panel.getAttribute('data-maintenance-history-period') === 'custom' &&
+          panel.getAttribute('data-maintenance-history-start-date') === '2035-02-01' &&
+          panel.getAttribute('data-maintenance-history-end-date') === '2035-02-03';
+      })()`,
+      timeoutMs,
+      "점검 이력 URL 필터가 새로고침 후 복원되지 않았습니다",
     );
     await clickAriaLabel(cdp, `${SERVICE_NAME} 점검 종료 시각 변경 이력`);
     await waitForCondition(
