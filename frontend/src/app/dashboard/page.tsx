@@ -94,6 +94,7 @@ export default function DashboardPage() {
         timezone={displayTimezone}
       />
       <TraefikStatusBanner
+        canManage={canManage}
         deployment={traefikDeployment}
         health={traefikHealth}
         isRefreshingLatest={refreshTraefikLatest.isPending}

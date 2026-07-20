@@ -55,6 +55,7 @@ export const DASHBOARD_ROUTES = [
       "404 Not Found",
       "5xx 서버 오류",
       "Manager 상태 전이 이력",
+      "Traefik 호스트 업데이트 이력",
       "점검 종료 일정",
       "외부 watchdog",
       "연속 실패",

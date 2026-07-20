@@ -1,10 +1,13 @@
 import { ExternalLink, RefreshCw } from "lucide-react";
 
 import type { TraefikDeploymentStatus, TraefikHealth } from "@/features/traefik/api/traefikApi";
+import { useTraefikUpdateOperations } from "@/features/traefik/hooks/useTraefik";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { TraefikUpdateHistoryPanel } from "./TraefikUpdateHistoryPanel";
 import { TraefikUpdatePlanPanel } from "./TraefikUpdatePlanPanel";
 
 interface TraefikStatusBannerProps {
+  canManage: boolean;
   deployment?: TraefikDeploymentStatus;
   health?: TraefikHealth;
   isRefreshingLatest?: boolean;
@@ -14,6 +17,7 @@ interface TraefikStatusBannerProps {
 }
 
 export function TraefikStatusBanner({
+  canManage,
   deployment,
   health,
   isRefreshingLatest = false,
@@ -23,6 +27,7 @@ export function TraefikStatusBanner({
 }: TraefikStatusBannerProps) {
   const tone = getTraefikStatusTone(health);
   const versionStatus = getTraefikVersionStatus(health);
+  const updateOperations = useTraefikUpdateOperations();
 
   return (
     <div className={`mb-4 rounded-lg border px-3 py-3 sm:mb-6 sm:px-4 ${tone.border} ${tone.bg}`}>
@@ -64,7 +69,18 @@ export function TraefikStatusBanner({
       {refreshLatestError ? (
         <p className="mt-2 text-xs font-semibold text-red-700 dark:text-red-200">{refreshLatestError}</p>
       ) : null}
-      <TraefikUpdatePlanPanel deployment={deployment} health={health} />
+      <TraefikUpdatePlanPanel
+        canManage={canManage}
+        deployment={deployment}
+        health={health}
+        operations={updateOperations.data}
+      />
+      <TraefikUpdateHistoryPanel
+        isError={updateOperations.isError}
+        isLoading={updateOperations.isLoading}
+        operations={updateOperations.data}
+        timezone={timezone}
+      />
     </div>
   );
 }

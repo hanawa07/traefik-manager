@@ -1,23 +1,55 @@
-import { CheckCircle2, Clipboard, RotateCcw, ShieldAlert } from "lucide-react";
+import { CheckCircle2, Clipboard, Loader2, RotateCcw, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
-import type { TraefikDeploymentStatus, TraefikHealth } from "@/features/traefik/api/traefikApi";
+import type {
+  TraefikDeploymentStatus,
+  TraefikHealth,
+  TraefikUpdateOperations,
+} from "@/features/traefik/api/traefikApi";
+import { useRequestTraefikPatchUpdate } from "@/features/traefik/hooks/useTraefik";
 import { buildTraefikUpdatePlan, type TraefikUpdateRisk } from "./traefikUpdatePlan";
 
 interface TraefikUpdatePlanPanelProps {
+  canManage: boolean;
   deployment?: TraefikDeploymentStatus;
   health?: TraefikHealth;
+  operations?: TraefikUpdateOperations;
 }
 
-export function TraefikUpdatePlanPanel({ deployment, health }: TraefikUpdatePlanPanelProps) {
+export function TraefikUpdatePlanPanel({
+  canManage,
+  deployment,
+  health,
+  operations,
+}: TraefikUpdatePlanPanelProps) {
   const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
+  const [requestFeedback, setRequestFeedback] = useState<string | null>(null);
+  const requestUpdate = useRequestTraefikPatchUpdate();
   const plan = buildTraefikUpdatePlan(health, deployment);
   if (!plan) return null;
+  const canRequest = canManage
+    && plan.risk === "low"
+    && operations?.runner.available === true
+    && !operations.pending_request;
+  const requestBlockedReason = getRequestBlockedReason(plan.risk, operations);
 
   const copyCommand = async (label: string, command: string) => {
     await navigator.clipboard.writeText(command);
     setCopiedCommand(label);
     window.setTimeout(() => setCopiedCommand(null), 1800);
+  };
+
+  const handleRequestUpdate = async () => {
+    if (!window.confirm(
+      `${plan.latestVersion} 패치 업데이트를 호스트 실행기에 요청할까요? 백업 후 적용하며 검증 실패 시 자동 롤백합니다.`,
+    )) return;
+    setRequestFeedback(null);
+    try {
+      const result = await requestUpdate.mutateAsync(plan.latestVersion);
+      setRequestFeedback(result.message);
+    } catch (error) {
+      setRequestFeedback(getRequestError(error));
+    }
   };
 
   return (
@@ -32,8 +64,21 @@ export function TraefikUpdatePlanPanel({ deployment, health }: TraefikUpdatePlan
           </div>
           <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">{plan.summary}</p>
         </div>
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
-          {plan.canApply ? "자동 적용 가능" : "명령 확인 후 적용"}
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+            {canRequest ? "호스트 안전 요청 가능" : plan.canApply ? "자동 적용 가능" : "명령 확인 후 적용"}
+          </div>
+          {canManage ? (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-700 px-3 py-2 text-xs font-bold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-cyan-400 dark:text-slate-950 dark:hover:bg-cyan-300"
+              disabled={!canRequest || requestUpdate.isPending}
+              onClick={() => void handleRequestUpdate()}
+              type="button"
+            >
+              {requestUpdate.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+              {requestUpdate.isPending ? "요청 중" : `${plan.latestVersion} 안전 업데이트 요청`}
+            </button>
+          ) : null}
         </div>
       </div>
       <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
@@ -41,9 +86,17 @@ export function TraefikUpdatePlanPanel({ deployment, health }: TraefikUpdatePlan
         <TraefikDeploymentFact label="목표 이미지" value={plan.targetImage || "-"} />
         <TraefikDeploymentFact label="Compose 위치" value={plan.composeWorkingDir || "-"} monospace />
       </div>
-      {plan.applyBlockedReason ? (
+      {canManage && !canRequest ? (
         <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
-          {plan.applyBlockedReason}
+          {requestBlockedReason || plan.applyBlockedReason}
+        </p>
+      ) : null}
+      {requestFeedback ? (
+        <p
+          className={`mt-2 rounded-lg px-3 py-2 text-xs font-semibold ${requestUpdate.isError ? "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200" : "bg-cyan-50 text-cyan-800 dark:bg-cyan-500/10 dark:text-cyan-200"}`}
+          role={requestUpdate.isError ? "alert" : "status"}
+        >
+          {requestFeedback}
         </p>
       ) : null}
 
@@ -114,4 +167,20 @@ function getRiskClassName(risk: TraefikUpdateRisk) {
   if (risk === "medium") return "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-100";
   if (risk === "high") return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200";
   return "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200";
+}
+
+function getRequestBlockedReason(
+  risk: TraefikUpdateRisk,
+  operations?: TraefikUpdateOperations,
+) {
+  if (risk !== "low") return "안전 자동 요청은 동일 메이저·마이너의 패치 업데이트만 지원합니다.";
+  if (operations?.pending_request) return "이미 처리 중인 Traefik 업데이트 요청이 있습니다.";
+  if (!operations) return "호스트 업데이트 실행기 상태를 확인하는 중입니다.";
+  if (!operations.runner.available) return operations.runner.message;
+  return null;
+}
+
+function getRequestError(error: unknown) {
+  const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+  return detail || "Traefik 호스트 업데이트를 요청하지 못했습니다.";
 }

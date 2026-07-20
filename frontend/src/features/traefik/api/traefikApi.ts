@@ -47,6 +47,49 @@ export interface TraefikDeploymentStatus {
   commands: TraefikDeploymentCommand[];
 }
 
+export interface TraefikUpdateRunner {
+  available: boolean;
+  status: "ready" | "running" | "error" | "stale" | "unavailable";
+  checked_at: string | null;
+  message: string;
+}
+
+export interface TraefikUpdateValidation {
+  key: string;
+  status: "ok" | "fail";
+  message: string;
+}
+
+export interface TraefikUpdateHistoryEntry {
+  request_id: string;
+  actor: string;
+  status: "running" | "success" | "rejected" | "rolled_back" | "rollback_failed";
+  from_version: string;
+  target_version: string;
+  requested_at: string;
+  started_at: string;
+  completed_at: string | null;
+  message: string;
+  backup_dir: string | null;
+  backup_created: boolean;
+  rollback_performed: boolean;
+  validations: TraefikUpdateValidation[];
+}
+
+export interface TraefikUpdateOperations {
+  runner: TraefikUpdateRunner;
+  pending_request: boolean;
+  history: TraefikUpdateHistoryEntry[];
+}
+
+export interface TraefikUpdateRequestResponse {
+  request_id: string;
+  target_version: string;
+  status: "queued";
+  requested_at: string;
+  message: string;
+}
+
 export interface TraefikRouterItem {
   name: string;
   status: string;
@@ -95,6 +138,18 @@ export const traefikApi = {
   deployment: async (request: TraefikHealthRequest = {}): Promise<TraefikDeploymentStatus> => {
     const res = await apiClient.get<TraefikDeploymentStatus>("/traefik/deployment", {
       params: request.refreshLatest ? { refresh_latest: true } : undefined,
+    });
+    return res.data;
+  },
+
+  updateOperations: async (): Promise<TraefikUpdateOperations> => {
+    const res = await apiClient.get<TraefikUpdateOperations>("/traefik/update-operations");
+    return res.data;
+  },
+
+  requestPatchUpdate: async (targetVersion: string): Promise<TraefikUpdateRequestResponse> => {
+    const res = await apiClient.post<TraefikUpdateRequestResponse>("/traefik/update-requests", {
+      target_version: targetVersion,
     });
     return res.data;
   },
