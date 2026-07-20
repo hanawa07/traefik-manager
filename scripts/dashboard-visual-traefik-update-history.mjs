@@ -30,6 +30,7 @@ const FIXTURE = {
       rollback_performed: true,
       alert_request_status: "requested",
       alert_run_url: ALERT_RUN_URL,
+      alert_retry_request_id: "33333333-3333-4333-8333-333333333333",
       alert_retry_actor: "security-admin",
       alert_retry_requested_at: `${FIXTURE_DATE}T03:00:30Z`,
       alert_run_status: "completed",
@@ -55,6 +56,7 @@ const FIXTURE = {
       rollback_performed: false,
       alert_request_status: "not_needed",
       alert_run_url: null,
+      alert_retry_request_id: null,
       alert_retry_actor: null,
       alert_retry_requested_at: null,
       alert_run_status: null,
@@ -75,14 +77,43 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
         '[data-testid="traefik-update-history"] li[data-traefik-update-status]',
       );
       const alert = document.querySelector('[data-traefik-update-alert="requested"]');
+      const auditLink = alert?.querySelector('[data-traefik-update-alert-audit]');
+      const auditUrl = auditLink ? new URL(auditLink.href) : null;
       return entries.length === 2 && alert?.textContent?.includes('알림 실행 성공') &&
         alert.textContent.includes('재시도 security-admin') &&
+        auditUrl?.pathname === '/dashboard/audit' &&
+        auditUrl.searchParams.get('q') === '33333333-3333-4333-8333-333333333333' &&
+        !auditUrl.searchParams.has('expand') &&
         alert.querySelector('a')?.href === ${JSON.stringify(ALERT_RUN_URL)};
     })()`,
     timeoutMs,
     "Traefik 업데이트 알림 fixture가 표시되지 않았습니다",
   );
 
+  await setInput({
+    cdp,
+    label: "요청자",
+    selector: "[data-traefik-update-actor-filter]",
+    value: "security-admin",
+  });
+  await setSelect({
+    cdp,
+    selector: "[data-traefik-update-retry-filter]",
+    value: "retried",
+  });
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const params = new URLSearchParams(location.search);
+      return params.get('traefik_update_actor') === 'security-admin' &&
+        params.get('traefik_update_retry') === 'retried' &&
+        document.querySelectorAll(
+          '[data-testid="traefik-update-history"] li[data-traefik-update-status]',
+        ).length === 1;
+    })()`,
+    timeoutMs,
+    "Traefik 업데이트 요청자·재시도 필터가 적용되지 않았습니다",
+  );
   await setSelect({
     cdp,
     selector: "[data-traefik-update-status-filter]",
@@ -97,8 +128,18 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
     timeoutMs,
     "Traefik 업데이트 상태 필터가 적용되지 않았습니다",
   );
-  await setDateInput({ cdp, kind: "from", value: FIXTURE_DATE });
-  await setDateInput({ cdp, kind: "to", value: FIXTURE_DATE });
+  await setInput({
+    cdp,
+    label: "시작일",
+    selector: "[data-traefik-update-date-from]",
+    value: FIXTURE_DATE,
+  });
+  await setInput({
+    cdp,
+    label: "종료일",
+    selector: "[data-traefik-update-date-to]",
+    value: FIXTURE_DATE,
+  });
   await waitForFilterQuery(cdp, timeoutMs);
 
   await reloadWithFixture({ cdp, timeoutMs });
@@ -108,6 +149,9 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
       const params = new URLSearchParams(location.search);
       return document.querySelector('[data-traefik-update-status-filter]')?.value ===
           'rollback_failed' &&
+        document.querySelector('[data-traefik-update-actor-filter]')?.value ===
+          'security-admin' &&
+        document.querySelector('[data-traefik-update-retry-filter]')?.value === 'retried' &&
         document.querySelector('[data-traefik-update-period-filter]')?.value === 'all' &&
         document.querySelector('[data-traefik-update-date-from]')?.value ===
           ${JSON.stringify(FIXTURE_DATE)} &&
@@ -128,24 +172,29 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
     new RegExp(`traefik-updates-rollback_failed-${FIXTURE_DATE}-to-${FIXTURE_DATE}-\\d{4}-\\d{2}-\\d{2}\\.json$`),
   );
   const payload = JSON.parse(json.text);
-  assert.equal(payload.metadata.schema_version, 3);
+  assert.equal(payload.metadata.schema_version, 4);
   assert.equal(payload.metadata.result_count, 1);
   assert.deepEqual(payload.metadata.filters, {
     date_from: FIXTURE_DATE,
     date_to: FIXTURE_DATE,
     period: "all",
+    actor: "security-admin",
+    retry: "retried",
     status: "rollback_failed",
   });
   assert.equal(payload.entries[0].alert_run_url, ALERT_RUN_URL);
+  assert.equal(payload.entries[0].alert_retry_request_id, "33333333-3333-4333-8333-333333333333");
   assert.equal(payload.entries[0].alert_retry_actor, "security-admin");
   assert.equal(payload.entries[0].alert_run_conclusion, "success");
 
   const csv = await captureDownload(cdp, "csv");
   assert.deepEqual(csv.bytes, [239, 187, 191], "Traefik CSV UTF-8 BOM이 없습니다");
   assert.match(csv.text, /^metadata,value\r\n/);
-  assert.match(csv.text, /\r\nschema_version,"3"\r\n/);
+  assert.match(csv.text, /\r\nschema_version,"4"\r\n/);
   assert.match(csv.text, /\r\nresult_count,"1"\r\n/);
-  assert.match(csv.text, /alert_request_status,alert_run_url,alert_retry_actor,alert_retry_requested_at/);
+  assert.match(csv.text, /\r\nfilter_actor,"security-admin"\r\n/);
+  assert.match(csv.text, /\r\nfilter_retry,"retried"\r\n/);
+  assert.match(csv.text, /alert_request_status,alert_run_url,alert_retry_request_id,alert_retry_actor/);
   assert.match(csv.text, /github\.com\/hanawa07\/traefik-manager\/actions\/runs\/123/);
   assert.match(csv.text, /security-admin/);
   assert.match(csv.text, /"'=smoke-admin"/);
@@ -158,6 +207,7 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
       return document.querySelectorAll(
         '[data-testid="traefik-update-history"] li[data-traefik-update-status]',
       ).length === 2 && !params.has('traefik_update_status') &&
+        !params.has('traefik_update_actor') && !params.has('traefik_update_retry') &&
         !params.has('traefik_update_period') && !params.has('traefik_update_from') &&
         !params.has('traefik_update_to');
     })()`,
@@ -200,18 +250,16 @@ async function setSelect({ cdp, selector, value }) {
   assert.equal(changed, true, `Traefik 업데이트 ${selector} 선택 요소를 찾지 못했습니다`);
 }
 
-async function setDateInput({ cdp, kind, value }) {
+async function setInput({ cdp, label, selector, value }) {
   const changed = await evaluate(cdp, `(() => {
-    const input = document.querySelector(
-      ${JSON.stringify(`[data-traefik-update-date-${kind}]`)},
-    );
+    const input = document.querySelector(${JSON.stringify(selector)});
     if (!(input instanceof HTMLInputElement)) return false;
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
     setter?.call(input, ${JSON.stringify(value)});
     input.dispatchEvent(new Event('input', { bubbles: true }));
     return true;
   })()`);
-  assert.equal(changed, true, `Traefik 업데이트 ${kind} 날짜를 입력하지 못했습니다`);
+  assert.equal(changed, true, `Traefik 업데이트 ${label} 입력 요소를 찾지 못했습니다`);
 }
 
 async function waitForFilterQuery(cdp, timeoutMs) {
@@ -221,6 +269,8 @@ async function waitForFilterQuery(cdp, timeoutMs) {
       const params = new URLSearchParams(location.search);
       return params.get('traefik_update_from') === ${JSON.stringify(FIXTURE_DATE)} &&
         params.get('traefik_update_to') === ${JSON.stringify(FIXTURE_DATE)} &&
+        params.get('traefik_update_actor') === 'security-admin' &&
+        params.get('traefik_update_retry') === 'retried' &&
         !params.has('traefik_update_period');
     })()`,
     timeoutMs,

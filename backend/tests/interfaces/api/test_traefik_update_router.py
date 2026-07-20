@@ -59,6 +59,8 @@ async def test_retry_traefik_rollback_alert_queues_failed_request(monkeypatch):
     assert record_audit.await_args.kwargs["detail"]["event"] == (
         "traefik_rollback_alert_retry_requested"
     )
+    assert record_audit.await_args.kwargs["resource_id"] == queued["request_id"]
+    assert record_audit.await_args.kwargs["detail"]["source_request_id"] == source_request_id
 
 
 @pytest.mark.asyncio

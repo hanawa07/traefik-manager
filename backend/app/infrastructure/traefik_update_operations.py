@@ -277,6 +277,7 @@ def _normalize_alert_result(
     default_status = "pending" if update_status == "rollback_failed" else "not_needed"
     alert_status = raw.get("alert_request_status", default_status)
     alert_run_url = raw.get("alert_run_url")
+    alert_retry_request_id = raw.get("alert_retry_request_id")
     alert_retry_actor = raw.get("alert_retry_actor")
     alert_retry_requested_at = raw.get("alert_retry_requested_at")
     if alert_run_url == "":
@@ -305,9 +306,14 @@ def _normalize_alert_result(
         or not _parse_datetime(alert_retry_requested_at)
     ):
         return None
+    if alert_retry_request_id is not None and (
+        alert_retry_actor is None or not _is_uuid(alert_retry_request_id)
+    ):
+        return None
     return {
         "alert_request_status": str(alert_status),
         "alert_run_url": alert_run_url,
+        "alert_retry_request_id": alert_retry_request_id,
         "alert_retry_actor": alert_retry_actor,
         "alert_retry_requested_at": alert_retry_requested_at,
     }

@@ -75,6 +75,7 @@ export interface TraefikUpdateHistoryEntry {
   rollback_performed: boolean;
   alert_request_status: "not_needed" | "pending" | "requested" | "request_failed";
   alert_run_url: string | null;
+  alert_retry_request_id: string | null;
   alert_retry_actor: string | null;
   alert_retry_requested_at: string | null;
   alert_run_status: string | null;

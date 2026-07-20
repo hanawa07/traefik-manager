@@ -5,10 +5,26 @@ import pytest
 
 from app.infrastructure.traefik_update_operations import (
     TraefikUpdateAlreadyPendingError,
+    _normalize_alert_result,
     queue_traefik_alert_retry,
     queue_traefik_patch_update,
     read_traefik_update_operations,
 )
+
+
+def test_normalize_alert_result_keeps_legacy_retry_metadata_without_request_id():
+    result = _normalize_alert_result(
+        {
+            "alert_request_status": "request_failed",
+            "alert_retry_actor": "legacy-admin",
+            "alert_retry_requested_at": "2026-07-20T01:01:00Z",
+        },
+        "rollback_failed",
+    )
+
+    assert result is not None
+    assert result["alert_retry_request_id"] is None
+    assert result["alert_retry_actor"] == "legacy-admin"
 
 
 def test_queue_traefik_patch_update_creates_single_strict_request(tmp_path):
@@ -146,6 +162,7 @@ def test_read_traefik_update_operations_returns_latest_request_state(tmp_path):
     assert result["history"][0]["backup_created"] is True
     assert result["history"][0]["alert_request_status"] == "not_needed"
     assert result["history"][0]["alert_run_url"] is None
+    assert result["history"][0]["alert_retry_request_id"] is None
     assert result["history"][0]["alert_retry_actor"] is None
     assert result["history"][0]["alert_retry_requested_at"] is None
 
@@ -182,6 +199,7 @@ def test_read_traefik_update_operations_keeps_latest_rollback_alert_result(tmp_p
                             "https://github.com/hanawa07/traefik-manager/"
                             "actions/runs/123"
                         ),
+                        "alert_retry_request_id": "22222222-2222-4222-8222-222222222222",
                         "alert_retry_actor": "security-admin",
                         "alert_retry_requested_at": "2026-07-20T01:01:00Z",
                     }
@@ -200,6 +218,9 @@ def test_read_traefik_update_operations_keeps_latest_rollback_alert_result(tmp_p
     assert len(result["history"]) == 1
     assert result["history"][0]["alert_request_status"] == "requested"
     assert result["history"][0]["alert_run_url"].endswith("/actions/runs/123")
+    assert result["history"][0]["alert_retry_request_id"] == (
+        "22222222-2222-4222-8222-222222222222"
+    )
     assert result["history"][0]["alert_retry_actor"] == "security-admin"
     assert result["history"][0]["alert_retry_requested_at"] == "2026-07-20T01:01:00Z"
 

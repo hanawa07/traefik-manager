@@ -19,6 +19,7 @@ const CSV_COLUMNS: readonly (keyof TraefikUpdateHistoryEntry)[] = [
   "rollback_performed",
   "alert_request_status",
   "alert_run_url",
+  "alert_retry_request_id",
   "alert_retry_actor",
   "alert_retry_requested_at",
   "alert_run_status",
@@ -38,13 +39,15 @@ export function buildTraefikUpdateHistoryExport(
   const metadata = {
     exported_at: exportedAt,
     filters: {
+      actor: filters.actor.trim() || null,
       date_from: filters.dateFrom || null,
       date_to: filters.dateTo || null,
       period: filters.period,
+      retry: filters.retry,
       status: filters.status,
     },
     result_count: entries.length,
-    schema_version: 3,
+    schema_version: 4,
     timezone: timezone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   };
   const period = filters.dateFrom || filters.dateTo
@@ -59,7 +62,9 @@ export function buildTraefikUpdateHistoryExport(
     ["exported_at", metadata.exported_at],
     ["timezone", metadata.timezone],
     ["result_count", metadata.result_count],
+    ["filter_actor", metadata.filters.actor],
     ["filter_status", metadata.filters.status],
+    ["filter_retry", metadata.filters.retry],
     ["filter_period", metadata.filters.period],
     ["filter_date_from", metadata.filters.date_from],
     ["filter_date_to", metadata.filters.date_to],

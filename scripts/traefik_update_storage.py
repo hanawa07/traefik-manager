@@ -89,6 +89,7 @@ def history_entry(
         "rollback_performed": False,
         "alert_request_status": "not_needed",
         "alert_run_url": None,
+        "alert_retry_request_id": None,
         "alert_retry_actor": None,
         "alert_retry_requested_at": None,
         "validations": [],
@@ -117,6 +118,7 @@ def append_alert_result(
     target_version: str,
     status: str,
     run_url: str | None,
+    retry_request_id: str | None = None,
     retry_actor: str | None = None,
     retry_requested_at: str | None = None,
 ) -> None:
@@ -137,6 +139,11 @@ def append_alert_result(
         raise ValueError("알림 재시도 요청자가 올바르지 않습니다")
     if retry_requested_at is not None and parse_datetime(retry_requested_at) is None:
         raise ValueError("알림 재시도 요청 시각이 올바르지 않습니다")
+    if retry_request_id is not None and (
+        retry_actor is None
+        or str(UUID(retry_request_id)) != retry_request_id
+    ):
+        raise ValueError("알림 재시도 요청 ID가 올바르지 않습니다")
 
     entry = _latest_history_entry(config, request_id)
     if entry.get("status") != "rollback_failed":
@@ -149,6 +156,7 @@ def append_alert_result(
             **entry,
             "alert_request_status": status,
             "alert_run_url": run_url,
+            "alert_retry_request_id": retry_request_id,
             "alert_retry_actor": retry_actor,
             "alert_retry_requested_at": retry_requested_at,
         },

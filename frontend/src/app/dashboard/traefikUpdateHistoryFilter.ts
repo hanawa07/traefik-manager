@@ -1,12 +1,15 @@
 import type { TraefikUpdateHistoryEntry } from "@/features/traefik/api/traefikApi";
 
 export type TraefikUpdateHistoryPeriod = "all" | "1" | "7" | "30" | "90";
+export type TraefikUpdateHistoryRetry = "all" | "retried" | "not_retried";
 export type TraefikUpdateHistoryStatus = "all" | TraefikUpdateHistoryEntry["status"];
 
 export interface TraefikUpdateHistoryFilters {
+  actor: string;
   dateFrom: string;
   dateTo: string;
   period: TraefikUpdateHistoryPeriod;
+  retry: TraefikUpdateHistoryRetry;
   status: TraefikUpdateHistoryStatus;
 }
 
@@ -17,16 +20,20 @@ interface QueryReader {
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export const DEFAULT_TRAEFIK_UPDATE_HISTORY_FILTERS: TraefikUpdateHistoryFilters = {
+  actor: "",
   dateFrom: "",
   dateTo: "",
   period: "all",
+  retry: "all",
   status: "all",
 };
 
 export const TRAEFIK_UPDATE_HISTORY_QUERY = {
+  actor: "traefik_update_actor",
   dateFrom: "traefik_update_from",
   dateTo: "traefik_update_to",
   period: "traefik_update_period",
+  retry: "traefik_update_retry",
   status: "traefik_update_status",
 } as const;
 
@@ -36,11 +43,13 @@ export function readTraefikUpdateHistoryFilters(
   const dateFrom = parseDate(params.get(TRAEFIK_UPDATE_HISTORY_QUERY.dateFrom));
   const dateTo = parseDate(params.get(TRAEFIK_UPDATE_HISTORY_QUERY.dateTo));
   return {
+    actor: (params.get(TRAEFIK_UPDATE_HISTORY_QUERY.actor) || "").trim().slice(0, 100),
     dateFrom,
     dateTo,
     period: dateFrom || dateTo
       ? "all"
       : parsePeriod(params.get(TRAEFIK_UPDATE_HISTORY_QUERY.period)),
+    retry: parseRetry(params.get(TRAEFIK_UPDATE_HISTORY_QUERY.retry)),
     status: parseStatus(params.get(TRAEFIK_UPDATE_HISTORY_QUERY.status)),
   };
 }
@@ -50,9 +59,11 @@ export function replaceTraefikUpdateHistoryQuery(
 ): void {
   const url = new URL(window.location.href);
   const values = [
+    [TRAEFIK_UPDATE_HISTORY_QUERY.actor, filters.actor.trim(), ""],
     [TRAEFIK_UPDATE_HISTORY_QUERY.dateFrom, filters.dateFrom, ""],
     [TRAEFIK_UPDATE_HISTORY_QUERY.dateTo, filters.dateTo, ""],
     [TRAEFIK_UPDATE_HISTORY_QUERY.period, filters.period, "all"],
+    [TRAEFIK_UPDATE_HISTORY_QUERY.retry, filters.retry, "all"],
     [TRAEFIK_UPDATE_HISTORY_QUERY.status, filters.status, "all"],
   ] as const;
   values.forEach(([key, value, defaultValue]) => {
@@ -75,9 +86,18 @@ export function filterTraefikUpdateHistory(
   const dateFrom = getDateBoundary(filters.dateFrom);
   const dateTo = getDateBoundary(filters.dateTo, true);
   const hasTimeFilter = periodCutoff !== null || dateFrom !== null || dateTo !== null;
+  const actor = filters.actor.trim().toLowerCase();
 
   return entries.filter((entry) => {
     if (filters.status !== "all" && entry.status !== filters.status) return false;
+    if (
+      actor
+      && !entry.actor.toLowerCase().includes(actor)
+      && !entry.alert_retry_actor?.toLowerCase().includes(actor)
+    ) return false;
+    const retried = Boolean(entry.alert_retry_requested_at);
+    if (filters.retry === "retried" && !retried) return false;
+    if (filters.retry === "not_retried" && retried) return false;
     if (!hasTimeFilter) return true;
     const occurredAt = Date.parse(entry.completed_at || entry.started_at);
     return Number.isFinite(occurredAt)
@@ -117,6 +137,10 @@ function parsePeriod(value: string | null): TraefikUpdateHistoryPeriod {
   return value === "1" || value === "7" || value === "30" || value === "90"
     ? value
     : "all";
+}
+
+function parseRetry(value: string | null): TraefikUpdateHistoryRetry {
+  return value === "retried" || value === "not_retried" ? value : "all";
 }
 
 function parseStatus(value: string | null): TraefikUpdateHistoryStatus {

@@ -15,6 +15,7 @@ import {
   replaceTraefikUpdateHistoryQuery,
   type TraefikUpdateHistoryFilters,
   type TraefikUpdateHistoryPeriod,
+  type TraefikUpdateHistoryRetry,
   type TraefikUpdateHistoryStatus,
 } from "./traefikUpdateHistoryFilter";
 import {
@@ -228,6 +229,12 @@ const PERIOD_OPTIONS: readonly { label: string; value: TraefikUpdateHistoryPerio
   { label: "최근 90일", value: "90" },
 ];
 
+const RETRY_OPTIONS: readonly { label: string; value: TraefikUpdateHistoryRetry }[] = [
+  { label: "재시도 전체", value: "all" },
+  { label: "재시도 있음", value: "retried" },
+  { label: "재시도 없음", value: "not_retried" },
+];
+
 function HistoryFilters({
   dateRangeValid,
   displayedCount,
@@ -249,12 +256,14 @@ function HistoryFilters({
 }) {
   const hasActiveFilters = filters.status !== "all"
     || filters.period !== "all"
+    || filters.retry !== "all"
+    || Boolean(filters.actor.trim())
     || Boolean(filters.dateFrom)
     || Boolean(filters.dateTo);
   const controlClassName = "min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
   return (
     <div className="mt-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-900/80">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <label className="grid min-w-0 gap-1 text-[11px] text-slate-500 dark:text-slate-400">
           업데이트 상태
           <select
@@ -267,6 +276,35 @@ function HistoryFilters({
             value={filters.status}
           >
             {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="grid min-w-0 gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+          요청자
+          <input
+            aria-label="업데이트 이력 요청자"
+            className={controlClassName}
+            data-traefik-update-actor-filter
+            maxLength={100}
+            onChange={(event) => onFiltersChange({ actor: event.target.value })}
+            placeholder="원 요청자 또는 재시도 요청자"
+            type="search"
+            value={filters.actor}
+          />
+        </label>
+        <label className="grid min-w-0 gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+          재시도 여부
+          <select
+            aria-label="업데이트 이력 재시도 여부"
+            className={controlClassName}
+            data-traefik-update-retry-filter
+            onChange={(event) => onFiltersChange({
+              retry: event.target.value as TraefikUpdateHistoryRetry,
+            })}
+            value={filters.retry}
+          >
+            {RETRY_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>

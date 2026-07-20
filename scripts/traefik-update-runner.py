@@ -97,6 +97,7 @@ def _retry_rollback_alert(config: RunnerConfig, request: UpdateRequest) -> int:
         config,
         source_request_id,
         request.target_version,
+        retry_request_id=request.request_id,
         retry_actor=request.actor,
         retry_requested_at=request.requested_at,
     )
@@ -112,6 +113,7 @@ def _request_and_record_rollback_alert(
     config: RunnerConfig,
     request_id: str,
     target_version: str,
+    retry_request_id: str | None = None,
     retry_actor: str | None = None,
     retry_requested_at: str | None = None,
 ) -> tuple[bool, str]:
@@ -130,6 +132,7 @@ def _request_and_record_rollback_alert(
             target_version,
             alert_status,
             alert_url,
+            retry_request_id=retry_request_id,
             retry_actor=retry_actor,
             retry_requested_at=retry_requested_at,
         )

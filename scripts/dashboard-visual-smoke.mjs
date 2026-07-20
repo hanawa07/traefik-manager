@@ -29,7 +29,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
           labels.push(`${profile.label} Manager file-provider 라우터`);
           const deploymentHistory = await checkManagerDeploymentHistory({ cdp, timeoutMs });
           if (deploymentHistory) labels.push(`${profile.label} 배포 이력 결과 건수·필터 알림·사용자 지정 파일명`);
-          if (!profile.mobile && await checkTraefikUpdateHistory({ cdp, timeoutMs })) labels.push(`${profile.label} Traefik 업데이트 필터 복원·알림 결과·JSON·CSV`);
+          if (!profile.mobile && await checkTraefikUpdateHistory({ cdp, timeoutMs })) labels.push(`${profile.label} Traefik 업데이트 요청자·재시도 필터 복원·감사 링크·JSON·CSV`);
           const opened = await checkMobileSidebar({ artifactDir, cdp, profile, timeoutMs });
           if (opened) labels.push(`${profile.label} 사이드바`);
           await checkWatchdogFilterPersistence({ cdp, timeoutMs });
