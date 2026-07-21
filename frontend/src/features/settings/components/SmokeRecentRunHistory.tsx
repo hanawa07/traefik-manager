@@ -66,6 +66,8 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
   const total = history?.monitoring_history_total ?? runs.length;
   const totalPages = history?.monitoring_history_total_pages ?? (total ? 1 : 0);
   const referenceTime = Date.parse(history?.monitoring_history_checked_at || "");
+  const filtersAreDefault =
+    search === "" && appliedSearch === "" && runStatus === "all" && days === 30 && page === 1;
 
   const applySearch = () => {
     const value = search.trim();
@@ -101,6 +103,19 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
   const changePage = (value: number) => {
     setPage(value);
     replaceHistoryUrl({ smoke_page: value === 1 ? null : String(value) });
+  };
+  const resetFilters = () => {
+    setSearch("");
+    setAppliedSearch("");
+    setRunStatus("all");
+    setDays(30);
+    setPage(1);
+    replaceHistoryUrl({
+      smoke_days: null,
+      smoke_page: null,
+      smoke_search: null,
+      smoke_status: null,
+    });
   };
 
   return (
@@ -166,13 +181,24 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
             <option value={30}>30일</option>
           </select>
         </label>
-        <span
-          aria-live="polite"
-          className="text-[11px] text-gray-500 dark:text-slate-400"
-          data-testid="smoke-recent-run-filter-count"
-        >
-          {runs.length}/{total}건
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            className="btn-secondary px-2.5 py-1.5 text-xs"
+            data-testid="smoke-recent-run-reset-filters"
+            disabled={filtersAreDefault}
+            onClick={resetFilters}
+            type="button"
+          >
+            초기화
+          </button>
+          <span
+            aria-live="polite"
+            className="whitespace-nowrap text-[11px] text-gray-500 dark:text-slate-400"
+            data-testid="smoke-recent-run-filter-count"
+          >
+            {runs.length}/{total}건
+          </span>
+        </div>
       </div>
       <p
         className="mt-2 text-[11px] text-gray-500 dark:text-slate-400"
@@ -236,7 +262,16 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
                       {formatDateTime(run.completed_at, timezone)}
                     </span>
                     {run.commit_sha ? (
-                      <code className="text-gray-500 dark:text-slate-400">{run.commit_sha}</code>
+                      <a
+                        aria-label={`커밋 ${run.commit_sha} 보기`}
+                        className="text-gray-500 underline-offset-2 hover:underline dark:text-slate-400"
+                        data-testid="smoke-recent-run-commit-link"
+                        href={githubCommitUrl(run.run_url, run.commit_sha)}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        <code>{run.commit_sha}</code>
+                      </a>
                     ) : null}
                   </div>
                   {run.summary ? (
@@ -291,6 +326,10 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
       ) : null}
     </details>
   );
+}
+
+function githubCommitUrl(runUrl: string, commitSha: string): string {
+  return `${runUrl.split("/actions/runs/")[0]}/commit/${encodeURIComponent(commitSha)}`;
 }
 
 function readHistoryFilters(): {
