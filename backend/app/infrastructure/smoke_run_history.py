@@ -6,6 +6,10 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.infrastructure.smoke_run_details import (
+    read_smoke_artifacts,
+    read_smoke_job_steps,
+)
 from app.infrastructure.smoke_workflow_runs import (
     parse_run_timestamp,
     read_smoke_workflow_runs,
@@ -125,17 +129,23 @@ class GitHubSmokeRunHistoryReader:
                 jobs, artifacts = await asyncio.gather(
                     asyncio.gather(
                         *(
-                            self._read_job_steps(client, api_url, run["id"])
+                            read_smoke_job_steps(
+                                client,
+                                api_url,
+                                run["id"],
+                                force_refresh=force_refresh,
+                            )
                             if _needs_job_details(run)
                             else _empty_steps()
                             for run in detail_runs
                         )
                     ),
-                    self._read_artifacts(
+                    read_smoke_artifacts(
                         client,
                         api_url,
                         public_url,
                         artifact_run_ids,
+                        force_refresh=force_refresh,
                     )
                     if artifact_run_ids
                     else _empty_artifacts(),
@@ -175,58 +185,6 @@ class GitHubSmokeRunHistoryReader:
             "status_filter": status_filter,
             "error": None,
         }
-
-    async def _read_job_steps(
-        self,
-        client: httpx.AsyncClient,
-        api_url: str,
-        run_id: int,
-    ) -> list[dict[str, Any]]:
-        try:
-            response = await client.get(
-                f"{api_url}/actions/runs/{run_id}/jobs",
-                params={"per_page": 10},
-            )
-            response.raise_for_status()
-            payload = response.json()
-        except (httpx.HTTPError, ValueError, TypeError):
-            return []
-
-        jobs = payload.get("jobs") if isinstance(payload, dict) else None
-        if not isinstance(jobs, list):
-            return []
-        return [
-            step
-            for job in jobs
-            if isinstance(job, dict) and isinstance(job.get("steps"), list)
-            for step in job["steps"]
-            if isinstance(step, dict)
-        ]
-
-    async def _read_artifacts(
-        self,
-        client: httpx.AsyncClient,
-        api_url: str,
-        public_url: str,
-        run_ids: set[int],
-    ) -> dict[int, dict[str, str | None]]:
-        try:
-            response = await client.get(
-                f"{api_url}/actions/artifacts",
-                params={"per_page": 100},
-            )
-            response.raise_for_status()
-            payload = response.json()
-        except (httpx.HTTPError, ValueError, TypeError):
-            return {}
-
-        artifacts = payload.get("artifacts") if isinstance(payload, dict) else None
-        return build_smoke_artifacts(
-            artifacts,
-            run_ids=run_ids,
-            public_url=public_url,
-        )
-
 
 def build_smoke_run_item(
     run: dict[str, Any],
@@ -279,37 +237,6 @@ def build_smoke_run_item(
         "artifact_url": artifact.get("url") if status == "failure" and artifact else None,
         "artifact_expires_at": artifact.get("expires_at") if status == "failure" and artifact else None,
     }
-
-
-def build_smoke_artifacts(
-    raw_artifacts: object,
-    *,
-    run_ids: set[int],
-    public_url: str,
-) -> dict[int, dict[str, str | None]]:
-    if not isinstance(raw_artifacts, list):
-        return {}
-    details: dict[int, dict[str, str | None]] = {}
-    for artifact in raw_artifacts:
-        workflow_run = artifact.get("workflow_run") if isinstance(artifact, dict) else None
-        run_id = workflow_run.get("id") if isinstance(workflow_run, dict) else None
-        artifact_id = artifact.get("id") if isinstance(artifact, dict) else None
-        if (
-            not isinstance(run_id, int)
-            or run_id not in run_ids
-            or not isinstance(artifact_id, int)
-            or artifact.get("name") != f"dashboard-visual-smoke-{run_id}"
-            or artifact.get("expired") is not False
-        ):
-            continue
-        details.setdefault(
-            run_id,
-            {
-                "url": f"{public_url}/actions/runs/{run_id}/artifacts/{artifact_id}",
-                "expires_at": _clean_text(artifact.get("expires_at")),
-            },
-        )
-    return details
 
 
 async def _empty_steps() -> list[dict[str, Any]]:

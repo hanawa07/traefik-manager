@@ -3,6 +3,8 @@ from typing import Any
 
 import httpx
 
+from app.infrastructure.github_api_rate_limit import record_github_api_rate_limit
+
 _GITHUB_PAGE_SIZE = 100
 _CACHE_SECONDS = 600
 _RUN_CACHE: dict[
@@ -37,6 +39,7 @@ async def read_smoke_workflow_runs(
             f"{api_url}/actions/workflows/{workflow_file}/runs",
             params={"per_page": _GITHUB_PAGE_SIZE, "page": page},
         )
+        record_github_api_rate_limit(response.headers)
         response.raise_for_status()
         payload = response.json()
         page_runs = payload.get("workflow_runs") if isinstance(payload, dict) else None

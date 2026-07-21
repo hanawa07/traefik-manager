@@ -4,11 +4,11 @@ import pytest
 
 from app.infrastructure.smoke_run_history import (
     GitHubSmokeRunHistoryReader,
-    build_smoke_artifacts,
     build_smoke_run_item,
     paginate_smoke_runs,
     select_smoke_run_groups,
 )
+from app.infrastructure.smoke_run_details import build_smoke_artifacts
 
 
 def _run(**overrides):

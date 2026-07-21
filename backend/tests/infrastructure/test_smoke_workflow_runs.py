@@ -7,6 +7,7 @@ from app.infrastructure.smoke_workflow_runs import read_smoke_workflow_runs
 
 class _Response:
     def __init__(self, runs: list[dict]) -> None:
+        self.headers: dict[str, str] = {}
         self._runs = runs
 
     def raise_for_status(self) -> None:
