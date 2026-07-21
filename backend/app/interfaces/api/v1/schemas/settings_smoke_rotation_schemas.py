@@ -60,6 +60,10 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_history_per_page: int = 5
     monitoring_history_total: int = 0
     monitoring_history_total_pages: int = 0
+    monitoring_history_search: str = ""
+    monitoring_history_status: Literal["all", "success", "failure"] = "all"
+    monitoring_failure_metadata_count: int = 0
+    monitoring_failure_metadata_limit: int = 20
 
 
 class SmokeMonitoringSettingsUpdateRequest(BaseModel):

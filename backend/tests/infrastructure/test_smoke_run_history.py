@@ -139,6 +139,25 @@ def test_select_smoke_run_groups_filters_requested_day_range() -> None:
     assert latest_failure["id"] == 9
 
 
+def test_select_smoke_run_groups_filters_search_and_status_before_paging() -> None:
+    runs = [
+        _run(id=12, run_number=900, head_sha="abc1234", conclusion="failure"),
+        _run(id=11, run_number=901, head_sha="def5678", conclusion="success"),
+        _run(id=10, run_number=902, head_sha="abc9999", conclusion="success"),
+    ]
+
+    filtered, latest_failure = select_smoke_run_groups(
+        runs,
+        recent_days=30,
+        now=datetime(2026, 7, 18, tzinfo=timezone.utc),
+        search="ABC",
+        status_filter="failure",
+    )
+
+    assert [run["id"] for run in filtered] == [12]
+    assert latest_failure["id"] == 12
+
+
 def test_paginate_smoke_runs_returns_requested_five_item_page() -> None:
     runs = [_run(id=run_id) for run_id in range(12, 0, -1)]
 
@@ -162,6 +181,8 @@ async def test_history_reader_rejects_non_github_source_without_request() -> Non
         "per_page": 5,
         "total": 0,
         "total_pages": 0,
+        "search": "",
+        "status_filter": "all",
         "error": "GitHub 저장소 주소를 확인하지 못했습니다",
     }
 
@@ -178,6 +199,8 @@ async def test_history_reader_force_refresh_bypasses_cache() -> None:
             *,
             recent_days: int | None = None,
             page: int = 1,
+            search: str = "",
+            status_filter: str = "all",
         ) -> dict:
             self.calls += 1
             return {
@@ -188,6 +211,8 @@ async def test_history_reader_force_refresh_bypasses_cache() -> None:
                 "per_page": 5,
                 "total": 0,
                 "total_pages": 0,
+                "search": search,
+                "status_filter": status_filter,
                 "error": None,
             }
 
@@ -205,7 +230,7 @@ async def test_history_reader_force_refresh_bypasses_cache() -> None:
 @pytest.mark.asyncio
 async def test_history_reader_caches_each_day_range_separately() -> None:
     class CountingReader(GitHubSmokeRunHistoryReader):
-        calls: list[tuple[int | None, int]] = []
+        calls: list[tuple[int | None, int, str, str]] = []
 
         async def _fetch_history(
             self,
@@ -214,8 +239,10 @@ async def test_history_reader_caches_each_day_range_separately() -> None:
             *,
             recent_days: int | None = None,
             page: int = 1,
+            search: str = "",
+            status_filter: str = "all",
         ) -> dict:
-            self.calls.append((recent_days, page))
+            self.calls.append((recent_days, page, search, status_filter))
             return {
                 "runs": [],
                 "latest_failure": None,
@@ -224,6 +251,8 @@ async def test_history_reader_caches_each_day_range_separately() -> None:
                 "per_page": 5,
                 "total": 0,
                 "total_pages": 0,
+                "search": search,
+                "status_filter": status_filter,
                 "error": None,
             }
 
@@ -234,5 +263,11 @@ async def test_history_reader_caches_each_day_range_separately() -> None:
     await reader.get_history(source_url, recent_days=30)
     await reader.get_history(source_url, recent_days=7)
     await reader.get_history(source_url, recent_days=7, page=2)
+    await reader.get_history(source_url, recent_days=7, search="123")
 
-    assert reader.calls == [(7, 1), (30, 1), (7, 2)]
+    assert reader.calls == [
+        (7, 1, "", "all"),
+        (30, 1, "", "all"),
+        (7, 2, "", "all"),
+        (7, 1, "123", "all"),
+    ]

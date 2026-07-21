@@ -21,6 +21,7 @@ from app.infrastructure.persistence.repositories.sqlite_system_settings_reposito
 )
 from app.infrastructure.smoke_run_history import GitHubSmokeRunHistoryReader
 from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
+    SMOKE_FAILURE_METADATA_LIMIT,
     attach_smoke_failure_metadata,
     read_smoke_failure_metadata,
 )
@@ -44,6 +45,8 @@ async def get_smoke_rotation_status_response(
     include_monitoring_history: bool = False,
     monitoring_history_days: int | None = None,
     monitoring_history_page: int = 1,
+    monitoring_history_search: str = "",
+    monitoring_history_status: str = "all",
     force_refresh_monitoring_history: bool = False,
     history_reader: Any = smoke_run_history_reader,
 ) -> SmokeRotationStatusResponse:
@@ -76,18 +79,24 @@ async def get_smoke_rotation_status_response(
         "per_page": 5,
         "total": 0,
         "total_pages": 0,
+        "search": monitoring_history_search,
+        "status_filter": monitoring_history_status,
         "error": None,
     }
+    failure_metadata = {}
     if include_monitoring_history:
         run_history = await history_reader.get_history(
             settings.TRAEFIK_MANAGER_IMAGE_SOURCE,
             force_refresh=force_refresh_monitoring_history,
             recent_days=history_days,
             page=monitoring_history_page,
+            search=monitoring_history_search,
+            status_filter=monitoring_history_status,
         )
+        failure_metadata = await read_smoke_failure_metadata(repo)
         attach_smoke_failure_metadata(
             run_history,
-            await read_smoke_failure_metadata(repo),
+            failure_metadata,
         )
     return SmokeRotationStatusResponse(
         status=status,
@@ -111,4 +120,8 @@ async def get_smoke_rotation_status_response(
         monitoring_history_per_page=run_history["per_page"],
         monitoring_history_total=run_history["total"],
         monitoring_history_total_pages=run_history["total_pages"],
+        monitoring_history_search=run_history["search"],
+        monitoring_history_status=run_history["status_filter"],
+        monitoring_failure_metadata_count=len(failure_metadata),
+        monitoring_failure_metadata_limit=SMOKE_FAILURE_METADATA_LIMIT,
     )

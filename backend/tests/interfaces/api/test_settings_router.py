@@ -63,6 +63,8 @@ async def test_get_smoke_rotation_status_skips_admin_details_for_summary(
             "include_monitoring_history": include_history,
             "monitoring_history_days": expected_history_days,
             "monitoring_history_page": 1,
+            "monitoring_history_search": "",
+            "monitoring_history_status": "all",
             "force_refresh_monitoring_history": role == "admin" and not summary,
         }
     ]
@@ -87,6 +89,17 @@ async def test_get_smoke_rotation_status_rejects_invalid_history_page():
             current_user={"role": "admin"},
             history=True,
             history_page=0,
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_smoke_rotation_status_rejects_invalid_history_filter():
+    with pytest.raises(HTTPException, match="history_status 값을 확인해주세요"):
+        await settings_router.get_smoke_rotation_status(
+            db=object(),
+            current_user={"role": "admin"},
+            history=True,
+            history_status="skipped",
         )
 
 

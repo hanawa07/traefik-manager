@@ -6,6 +6,11 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.infrastructure.smoke_workflow_runs import (
+    parse_run_timestamp,
+    read_smoke_workflow_runs,
+)
+
 WORKFLOW_FILE = "dashboard-visual-smoke.yml"
 RECENT_RUN_LIMIT = 5
 _CACHE_SECONDS = 600
@@ -15,7 +20,7 @@ _REPOSITORY_PART_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 class GitHubSmokeRunHistoryReader:
     """Read recent smoke results from the repository's public Actions metadata."""
 
-    _cache: dict[tuple[str, int | None, int], tuple[datetime, dict[str, Any]]] = {}
+    _cache: dict[tuple[str, int | None, int, str, str], tuple[datetime, dict[str, Any]]] = {}
     _lock = asyncio.Lock()
 
     async def get_history(
@@ -25,7 +30,12 @@ class GitHubSmokeRunHistoryReader:
         force_refresh: bool = False,
         recent_days: int | None = None,
         page: int = 1,
+        search: str | None = None,
+        status_filter: str = "all",
     ) -> dict[str, Any]:
+        normalized_search = _normalize_history_search(search)
+        if status_filter not in {"all", "success", "failure"}:
+            return _history_error("이력 상태 필터를 확인하지 못했습니다", recent_days=recent_days)
         if page < 1:
             return _history_error("이력 페이지를 확인하지 못했습니다", recent_days=recent_days)
         repository_urls = _resolve_repository_urls(source_url)
@@ -34,10 +44,12 @@ class GitHubSmokeRunHistoryReader:
                 "GitHub 저장소 주소를 확인하지 못했습니다",
                 recent_days=recent_days,
                 page=page,
+                search=normalized_search,
+                status_filter=status_filter,
             )
 
         api_url, public_url = repository_urls
-        cache_key = (api_url, recent_days, page)
+        cache_key = (api_url, recent_days, page, normalized_search, status_filter)
         now = datetime.now(timezone.utc)
         cached = self._cache.get(cache_key)
         if not force_refresh and cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
@@ -53,6 +65,8 @@ class GitHubSmokeRunHistoryReader:
                 public_url,
                 recent_days=recent_days,
                 page=page,
+                search=normalized_search,
+                status_filter=status_filter,
             )
             history["checked_at"] = datetime.now(timezone.utc).isoformat()
             if history["error"] and cached and cached[1]["runs"]:
@@ -70,6 +84,8 @@ class GitHubSmokeRunHistoryReader:
         *,
         recent_days: int | None = None,
         page: int = 1,
+        search: str = "",
+        status_filter: str = "all",
     ) -> dict[str, Any]:
         try:
             async with httpx.AsyncClient(
@@ -80,16 +96,17 @@ class GitHubSmokeRunHistoryReader:
                     "X-GitHub-Api-Version": "2022-11-28",
                 },
             ) as client:
-                response = await client.get(
-                    f"{api_url}/actions/workflows/{WORKFLOW_FILE}/runs",
-                    params={"per_page": 100},
+                raw_runs = await read_smoke_workflow_runs(
+                    client,
+                    api_url,
+                    WORKFLOW_FILE,
+                    recent_days=recent_days,
                 )
-                response.raise_for_status()
-                payload = response.json()
-                raw_runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
                 all_runs, latest_failure_run = select_smoke_run_groups(
                     raw_runs,
                     recent_days=recent_days,
+                    search=search,
+                    status_filter=status_filter,
                 )
                 runs, total, total_pages = paginate_smoke_runs(all_runs, page=page)
                 detail_runs = list(runs)
@@ -125,6 +142,8 @@ class GitHubSmokeRunHistoryReader:
                 "GitHub 실행 이력을 확인하지 못했습니다",
                 recent_days=recent_days,
                 page=page,
+                search=search,
+                status_filter=status_filter,
             )
 
         job_steps = {
@@ -149,6 +168,8 @@ class GitHubSmokeRunHistoryReader:
             "per_page": RECENT_RUN_LIMIT,
             "total": total,
             "total_pages": total_pages,
+            "search": search,
+            "status_filter": status_filter,
             "error": None,
         }
 
@@ -301,6 +322,8 @@ def select_smoke_run_groups(
     *,
     recent_days: int | None = None,
     now: datetime | None = None,
+    search: str = "",
+    status_filter: str = "all",
 ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
     if not isinstance(raw_runs, list):
         raise ValueError("workflow_runs must be a list")
@@ -313,27 +336,56 @@ def select_smoke_run_groups(
         and run.get("status") == "completed"
         and not str(run.get("display_title") or "").startswith("[테스트]")
     ]
-    if recent_days is None:
-        latest_failure = next(
-            (run for run in operational_runs if run.get("conclusion") != "success"),
-            None,
-        )
-        return operational_runs[:RECENT_RUN_LIMIT], latest_failure
-    if recent_days <= 0:
-        raise ValueError("recent_days must be positive")
-
-    cutoff = (now or datetime.now(timezone.utc)) - timedelta(days=recent_days)
-    recent_runs = [
-        run
-        for run in operational_runs
-        if (updated_at := _parse_run_timestamp(run["updated_at"])) is not None
-        and updated_at >= cutoff
-    ]
+    if recent_days is not None:
+        if recent_days <= 0:
+            raise ValueError("recent_days must be positive")
+        cutoff = (now or datetime.now(timezone.utc)) - timedelta(days=recent_days)
+        operational_runs = [
+            run
+            for run in operational_runs
+            if (updated_at := parse_run_timestamp(run["updated_at"])) is not None
+            and updated_at >= cutoff
+        ]
     latest_failure = next(
-        (run for run in recent_runs if run.get("conclusion") != "success"),
+        (run for run in operational_runs if run.get("conclusion") != "success"),
         None,
     )
-    return recent_runs, latest_failure
+    filtered_runs = filter_smoke_runs(
+        operational_runs,
+        search=search,
+        status_filter=status_filter,
+    )
+    return (
+        filtered_runs if recent_days is not None else filtered_runs[:RECENT_RUN_LIMIT],
+        latest_failure,
+    )
+
+
+def filter_smoke_runs(
+    runs: list[dict[str, Any]],
+    *,
+    search: str,
+    status_filter: str,
+) -> list[dict[str, Any]]:
+    if status_filter not in {"all", "success", "failure"}:
+        raise ValueError("unsupported status filter")
+    needle = _normalize_history_search(search).casefold()
+    return [
+        run
+        for run in runs
+        if (
+            status_filter == "all"
+            or (status_filter == "success" and run.get("conclusion") == "success")
+            or (status_filter == "failure" and run.get("conclusion") != "success")
+        )
+        and (
+            not needle
+            or any(
+                needle in str(run.get(key) or "").casefold()
+                for key in ("run_number", "head_sha")
+            )
+        )
+    ]
 
 
 def paginate_smoke_runs(
@@ -350,16 +402,6 @@ def paginate_smoke_runs(
         total,
         (total + RECENT_RUN_LIMIT - 1) // RECENT_RUN_LIMIT,
     )
-
-
-def _parse_run_timestamp(value: str) -> datetime | None:
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
 
 
 def _needs_job_details(run: dict[str, Any]) -> bool:
@@ -401,11 +443,17 @@ def _clean_text(value: object) -> str | None:
     return text or None
 
 
+def _normalize_history_search(value: str | None) -> str:
+    return (value or "").strip()[:100]
+
+
 def _history_error(
     message: str,
     *,
     recent_days: int | None = None,
     page: int = 1,
+    search: str = "",
+    status_filter: str = "all",
 ) -> dict[str, Any]:
     return {
         "runs": [],
@@ -416,6 +464,8 @@ def _history_error(
         "per_page": RECENT_RUN_LIMIT,
         "total": 0,
         "total_pages": 0,
+        "search": search,
+        "status_filter": status_filter,
         "error": message,
     }
 
@@ -432,5 +482,7 @@ def _copy_history(history: dict[str, Any]) -> dict[str, Any]:
         "per_page": history["per_page"],
         "total": history["total"],
         "total_pages": history["total_pages"],
+        "search": history["search"],
+        "status_filter": history["status_filter"],
         "error": history["error"],
     }

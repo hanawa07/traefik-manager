@@ -149,11 +149,18 @@ async def get_smoke_rotation_status(
     history: bool = False,
     history_days: int | None = None,
     history_page: int = 1,
+    history_search: str | None = None,
+    history_status: str = "all",
 ):
     if history_days not in {None, 7, 30}:
         raise HTTPException(status_code=422, detail="history_days는 7 또는 30이어야 합니다")
     if history_page < 1:
         raise HTTPException(status_code=422, detail="history_page는 1 이상이어야 합니다")
+    normalized_search = (history_search or "").strip()
+    if len(normalized_search) > 100:
+        raise HTTPException(status_code=422, detail="history_search는 100자 이하여야 합니다")
+    if history_status not in {"all", "success", "failure"}:
+        raise HTTPException(status_code=422, detail="history_status 값을 확인해주세요")
     is_admin = current_user["role"] == "admin"
     include_admin_details = is_admin and not summary
     include_monitoring_history = include_admin_details or (is_admin and history)
@@ -163,6 +170,8 @@ async def get_smoke_rotation_status(
         include_monitoring_history=include_monitoring_history,
         monitoring_history_days=(history_days or 30) if include_monitoring_history else None,
         monitoring_history_page=history_page,
+        monitoring_history_search=normalized_search,
+        monitoring_history_status=history_status,
         force_refresh_monitoring_history=include_admin_details and refresh_monitoring_history,
     )
 
