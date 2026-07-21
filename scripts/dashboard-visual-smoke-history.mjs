@@ -68,6 +68,9 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
       monitoring_history_status: 'all',
       monitoring_failure_metadata_count: 1,
       monitoring_failure_metadata_limit: 20,
+      monitoring_github_rate_limit_remaining: 42,
+      monitoring_github_rate_limit_limit: 60,
+      monitoring_github_rate_limit_reset_at: '2026-07-21T07:00:00Z',
       monitoring_latest_failure: expiredRun,
       monitoring_recent_runs: [failedRun, expiredRun, successRun],
     };
@@ -144,6 +147,8 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
         const checkName = metadata?.querySelector('[data-testid="smoke-failure-check-name"]');
         const latestMetadata = document.querySelector('[data-testid="smoke-latest-failure-metadata-preview"]');
         if (latestMetadata instanceof HTMLDetailsElement) latestMetadata.open = true;
+        const latestCommit = document.querySelector('[data-testid="smoke-latest-failure-commit-link"]');
+        const rateLimit = document.querySelector('[data-testid="smoke-github-rate-limit"]');
         const retention = history?.querySelector('[data-testid="smoke-failure-metadata-retention"]');
         const run = history?.querySelector('a[href="${RUN_URL}"]');
         const commit = history?.querySelector('[data-testid="smoke-recent-run-commit-link"]');
@@ -159,6 +164,9 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
           metadata?.textContent?.includes('/dashboard/settings') &&
           checkName?.textContent?.includes('설정 화면 검사 실패') &&
           latestMetadata?.textContent?.includes('만료된 실패 화면 검사') &&
+          latestCommit?.href === ${JSON.stringify(COMMIT_URL)} &&
+          rateLimit?.textContent?.includes('GitHub API 42/60회 남음') &&
+          rateLimit?.textContent?.includes('초기화') &&
           retention?.textContent?.includes('실패 정보 1/20건 보관') &&
           exclusionNote?.textContent?.includes('[테스트] 실행은 최근 실행·실패율 집계에서 제외');
       })()`,
