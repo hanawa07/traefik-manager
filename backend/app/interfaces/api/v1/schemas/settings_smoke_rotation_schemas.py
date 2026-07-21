@@ -64,6 +64,9 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_history_status: Literal["all", "success", "failure"] = "all"
     monitoring_failure_metadata_count: int = 0
     monitoring_failure_metadata_limit: int = 20
+    monitoring_github_rate_limit_remaining: int | None = None
+    monitoring_github_rate_limit_limit: int | None = None
+    monitoring_github_rate_limit_reset_at: str | None = None
 
 
 class SmokeMonitoringSettingsUpdateRequest(BaseModel):

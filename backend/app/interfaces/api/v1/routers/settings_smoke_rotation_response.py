@@ -16,6 +16,7 @@ from app.core.smoke_rotation_status import (
     is_smoke_rotation_stale,
     is_smoke_success_stale,
 )
+from app.infrastructure.github_api_rate_limit import read_github_api_rate_limit
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
     SQLiteSystemSettingsRepository,
 )
@@ -98,6 +99,11 @@ async def get_smoke_rotation_status_response(
             run_history,
             failure_metadata,
         )
+    github_rate_limit = (
+        read_github_api_rate_limit()
+        if include_monitoring_history
+        else {"remaining": None, "limit": None, "reset_at": None}
+    )
     return SmokeRotationStatusResponse(
         status=status,
         last_attempt_at=await repo.get(SMOKE_ROTATION_LAST_ATTEMPT_AT_KEY),
@@ -124,4 +130,7 @@ async def get_smoke_rotation_status_response(
         monitoring_history_status=run_history["status_filter"],
         monitoring_failure_metadata_count=len(failure_metadata),
         monitoring_failure_metadata_limit=SMOKE_FAILURE_METADATA_LIMIT,
+        monitoring_github_rate_limit_remaining=github_rate_limit["remaining"],
+        monitoring_github_rate_limit_limit=github_rate_limit["limit"],
+        monitoring_github_rate_limit_reset_at=github_rate_limit["reset_at"],
     )

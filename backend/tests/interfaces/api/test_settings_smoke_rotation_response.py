@@ -253,7 +253,7 @@ async def test_get_smoke_rotation_status_includes_logs_for_admin(tmp_path, monke
 
 
 @pytest.mark.asyncio
-async def test_get_smoke_rotation_status_includes_remote_history_for_admin() -> None:
+async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monkeypatch) -> None:
     StubRepository.values = {
         "dashboard_smoke_failure_metadata": (
             '[{"run_id": 456, "captured_at": "2026-07-11T06:54:58Z", '
@@ -262,6 +262,14 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin() -> 
         ),
     }
     history_reader = StubHistoryReader()
+    monkeypatch.setattr(
+        "app.interfaces.api.v1.routers.settings_smoke_rotation_response.read_github_api_rate_limit",
+        lambda: {
+            "remaining": 42,
+            "limit": 60,
+            "reset_at": "2026-07-21T07:00:00+00:00",
+        },
+    )
 
     result = await get_smoke_rotation_status_response(
         object(),
@@ -293,6 +301,9 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin() -> 
     assert result.monitoring_history_status == "failure"
     assert result.monitoring_failure_metadata_count == 1
     assert result.monitoring_failure_metadata_limit == 20
+    assert result.monitoring_github_rate_limit_remaining == 42
+    assert result.monitoring_github_rate_limit_limit == 60
+    assert result.monitoring_github_rate_limit_reset_at == "2026-07-21T07:00:00+00:00"
     assert history_reader.force_refresh is True
     assert history_reader.recent_days == 30
     assert history_reader.page == 2

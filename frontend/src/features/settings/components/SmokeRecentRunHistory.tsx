@@ -10,6 +10,7 @@ import {
   type SmokeRotationStatus,
 } from "@/features/settings/api/settingsApi";
 import { settingsQueryKeys } from "@/features/settings/hooks/settingsQueryKeys";
+import { githubCommitUrl } from "@/features/settings/lib/smokeGithubUrls";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { SmokeArtifactExpiryLabel } from "./SmokeArtifactExpiryLabel";
 import { SmokeArtifactLink } from "./SmokeArtifactLink";
@@ -326,10 +327,6 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
       ) : null}
     </details>
   );
-}
-
-function githubCommitUrl(runUrl: string, commitSha: string): string {
-  return `${runUrl.split("/actions/runs/")[0]}/commit/${encodeURIComponent(commitSha)}`;
 }
 
 function readHistoryFilters(): {

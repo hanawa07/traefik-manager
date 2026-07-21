@@ -64,6 +64,9 @@ export interface SmokeRotationStatus {
   monitoring_history_status: SmokeHistoryStatus;
   monitoring_failure_metadata_count: number;
   monitoring_failure_metadata_limit: number;
+  monitoring_github_rate_limit_remaining: number | null;
+  monitoring_github_rate_limit_limit: number | null;
+  monitoring_github_rate_limit_reset_at: string | null;
   status: SmokeRotationState;
   last_attempt_at: string | null;
   last_success_at: string | null;

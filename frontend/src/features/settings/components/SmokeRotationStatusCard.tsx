@@ -12,6 +12,7 @@ import {
   SettingsSummaryRow,
 } from "@/features/settings/components/SettingsCardPrimitives";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { githubCommitUrl } from "@/features/settings/lib/smokeGithubUrls";
 import type { TrackedManualSmokeRun } from "@/features/settings/lib/smokeManualRunTracking";
 import { SmokeArtifactExpiryLabel } from "./SmokeArtifactExpiryLabel";
 import { SmokeArtifactLink } from "./SmokeArtifactLink";
@@ -231,6 +232,22 @@ export function SmokeRotationStatusCard({
           {latestFailure?.summary ? (
             <SettingsSummaryRow label="최근 실패 요약" value={latestFailure.summary} />
           ) : null}
+          {latestFailure?.commit_sha ? (
+            <SettingsSummaryRow
+              label="최근 실패 커밋"
+              value={
+                <a
+                  className="text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+                  data-testid="smoke-latest-failure-commit-link"
+                  href={githubCommitUrl(latestFailure.run_url, latestFailure.commit_sha)}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <code>{latestFailure.commit_sha}</code>
+                </a>
+              }
+            />
+          ) : null}
           {latestFailure?.failure_metadata ? (
             <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4">
               <span className="text-gray-500 dark:text-slate-400">최근 실패 정보</span>
@@ -335,10 +352,22 @@ export function SmokeRotationStatusCard({
             </div>
           ) : null}
           <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-950">
-            <p className="text-xs text-gray-500 dark:text-slate-400">
-              GitHub 이력 확인 {formatDateTime(status.monitoring_history_checked_at, timezone)} ·
-              10분간 캐시
-            </p>
+            <div className="space-y-1 text-xs text-gray-500 dark:text-slate-400">
+              <p>
+                GitHub 이력 확인 {formatDateTime(status.monitoring_history_checked_at, timezone)} ·
+                10분간 캐시
+              </p>
+              {status.monitoring_github_rate_limit_remaining !== null &&
+              status.monitoring_github_rate_limit_limit !== null ? (
+                <p data-testid="smoke-github-rate-limit">
+                  GitHub API {status.monitoring_github_rate_limit_remaining}/
+                  {status.monitoring_github_rate_limit_limit}회 남음 · 초기화 {formatDateTime(
+                    status.monitoring_github_rate_limit_reset_at,
+                    timezone,
+                  )}
+                </p>
+              ) : null}
+            </div>
             {canManage ? (
               <button
                 type="button"
