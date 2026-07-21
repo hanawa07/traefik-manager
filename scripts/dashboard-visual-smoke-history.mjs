@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 const RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/runs/987";
+const COMMIT_URL = "https://github.com/hanawa07/traefik-manager/commit/abcdef0";
 const ARTIFACT_URL = `${RUN_URL}/artifacts/654`;
 const EXPIRED_RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/runs/986";
 const EXPIRED_ARTIFACT_URL = `${EXPIRED_RUN_URL}/artifacts/653`;
@@ -145,8 +146,10 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
         if (latestMetadata instanceof HTMLDetailsElement) latestMetadata.open = true;
         const retention = history?.querySelector('[data-testid="smoke-failure-metadata-retention"]');
         const run = history?.querySelector('a[href="${RUN_URL}"]');
+        const commit = history?.querySelector('[data-testid="smoke-recent-run-commit-link"]');
         return history?.open && artifact?.href === ${JSON.stringify(ARTIFACT_URL)} &&
           artifact.textContent?.includes('실패 화면') && run?.textContent?.includes('#987') &&
+          commit?.href === ${JSON.stringify(COMMIT_URL)} && commit.textContent?.includes('abcdef0') &&
           expiringArtifact?.textContent?.includes('만료 임박') &&
           expiredArtifact?.getAttribute('aria-disabled') === 'true' &&
           expiredArtifact.textContent?.includes('화면 만료') &&
@@ -264,47 +267,23 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
       "최근 운영 점검 필터가 새로고침 후 복원되지 않았습니다",
     );
 
-    const searchReset = await evaluate(cdp, `(() => {
-      const search = document.querySelector('[data-testid="smoke-recent-run-search"]');
-      const inputSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-      if (!(search instanceof HTMLInputElement) || !inputSetter) return false;
-      inputSetter.call(search, '');
-      search.dispatchEvent(new Event('input', { bubbles: true }));
+    const filtersReset = await evaluate(cdp, `(() => {
+      const button = document.querySelector('[data-testid="smoke-recent-run-reset-filters"]');
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+      button.click();
       return true;
     })()`);
-    assert.equal(searchReset, true, "최근 운영 점검 검색어를 초기화하지 못했습니다");
-    const resetSearchRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
-    const resetSearchSubmitted = await evaluate(cdp, `(() => {
-      const input = document.querySelector('[data-testid="smoke-recent-run-search"]');
-      const form = input?.closest('form');
-      if (!(form instanceof HTMLFormElement)) return false;
-      form.requestSubmit();
-      return true;
-    })()`);
-    assert.equal(resetSearchSubmitted, true, "최근 운영 점검 검색 초기화를 제출하지 못했습니다");
-    const resetSearchPaused = await resetSearchRequest;
-    assert.doesNotMatch(resetSearchPaused.request.url, /history_search=/);
-    assert.match(resetSearchPaused.request.url, /history_status=failure/);
-    await fulfillJsonRequest(cdp, resetSearchPaused, failureFixture);
-
-    const statusReset = await evaluate(cdp, `(() => {
-      const status = document.querySelector('[data-testid="smoke-recent-run-status-filter"]');
-      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
-      if (!(status instanceof HTMLSelectElement) || !setter) return false;
-      setter.call(status, 'all');
-      status.dispatchEvent(new Event('change', { bubbles: true }));
-      return true;
-    })()`);
-    assert.equal(statusReset, true, "최근 운영 점검 상태 필터를 초기화하지 못했습니다");
+    assert.equal(filtersReset, true, "최근 운영 점검 필터 초기화 버튼을 누르지 못했습니다");
     await waitForCondition(
       cdp,
       `(() => {
         const history = document.querySelector('[data-testid="smoke-recent-run-history"]');
         const status = history?.querySelector('[data-testid="smoke-recent-run-status-filter"]');
         const search = history?.querySelector('[data-testid="smoke-recent-run-search"]');
+        const reset = history?.querySelector('[data-testid="smoke-recent-run-reset-filters"]');
         const count = history?.querySelector('[data-testid="smoke-recent-run-filter-count"]');
         return status?.value === 'all' && search?.value === '' &&
-          count?.textContent?.includes('3/8건') &&
+          reset?.disabled === true && count?.textContent?.includes('3/8건') &&
           !location.search.includes('smoke_status') && !location.search.includes('smoke_search');
       })()`,
       timeoutMs,
@@ -358,6 +337,28 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
       })()`,
       timeoutMs,
       "최근 운영 점검 페이지 이동이 적용되지 않았습니다",
+    );
+
+    const pageFiltersReset = await evaluate(cdp, `(() => {
+      const button = document.querySelector('[data-testid="smoke-recent-run-reset-filters"]');
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+      button.click();
+      return true;
+    })()`);
+    assert.equal(pageFiltersReset, true, "최근 운영 점검 기간·페이지 필터를 초기화하지 못했습니다");
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const history = document.querySelector('[data-testid="smoke-recent-run-history"]');
+        const days = history?.querySelector('[data-testid="smoke-recent-run-days-filter"]');
+        const page = history?.querySelector('[data-testid="smoke-recent-run-page"]');
+        const reset = history?.querySelector('[data-testid="smoke-recent-run-reset-filters"]');
+        return days?.value === '30' && page?.textContent?.includes('1/2 페이지') &&
+          reset?.disabled === true && !location.search.includes('smoke_days') &&
+          !location.search.includes('smoke_page');
+      })()`,
+      timeoutMs,
+      "최근 운영 점검 기간·페이지가 기본값으로 돌아오지 않았습니다",
     );
   } finally {
     await cdp.send("Fetch.disable");
