@@ -170,12 +170,12 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
           rateLimit?.textContent?.includes('GitHub API 10/60회 남음') &&
           rateLimit?.textContent?.includes('초기화') &&
           rateLimitWarning?.textContent?.includes('수동 새로고침과 자동 결과 확인을 잠갔습니다') &&
-          refreshButton instanceof HTMLButtonElement && refreshButton.disabled &&
+          (!refreshButton || (refreshButton instanceof HTMLButtonElement && refreshButton.disabled)) &&
           retention?.textContent?.includes('실패 정보 1/20건 보관') &&
           exclusionNote?.textContent?.includes('[테스트] 실행은 최근 실행·실패율 집계에서 제외');
       })()`,
       timeoutMs,
-      "최근 운영 점검 이력에 Artifact 만료 상태가 표시되지 않았습니다",
+      "최근 운영 점검 이력 또는 GitHub API 잔여량 보호 상태가 표시되지 않았습니다",
     );
     const successRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
     const statusChanged = await evaluate(cdp, `(() => {
