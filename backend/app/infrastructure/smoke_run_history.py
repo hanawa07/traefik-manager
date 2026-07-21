@@ -15,7 +15,7 @@ _REPOSITORY_PART_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 class GitHubSmokeRunHistoryReader:
     """Read recent smoke results from the repository's public Actions metadata."""
 
-    _cache: dict[tuple[str, int | None], tuple[datetime, dict[str, Any]]] = {}
+    _cache: dict[tuple[str, int | None, int], tuple[datetime, dict[str, Any]]] = {}
     _lock = asyncio.Lock()
 
     async def get_history(
@@ -24,13 +24,20 @@ class GitHubSmokeRunHistoryReader:
         *,
         force_refresh: bool = False,
         recent_days: int | None = None,
+        page: int = 1,
     ) -> dict[str, Any]:
+        if page < 1:
+            return _history_error("이력 페이지를 확인하지 못했습니다", recent_days=recent_days)
         repository_urls = _resolve_repository_urls(source_url)
         if repository_urls is None:
-            return _history_error("GitHub 저장소 주소를 확인하지 못했습니다")
+            return _history_error(
+                "GitHub 저장소 주소를 확인하지 못했습니다",
+                recent_days=recent_days,
+                page=page,
+            )
 
         api_url, public_url = repository_urls
-        cache_key = (api_url, recent_days)
+        cache_key = (api_url, recent_days, page)
         now = datetime.now(timezone.utc)
         cached = self._cache.get(cache_key)
         if not force_refresh and cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
@@ -45,11 +52,14 @@ class GitHubSmokeRunHistoryReader:
                 api_url,
                 public_url,
                 recent_days=recent_days,
+                page=page,
             )
             history["checked_at"] = datetime.now(timezone.utc).isoformat()
             if history["error"] and cached and cached[1]["runs"]:
                 history["runs"] = cached[1]["runs"]
                 history["latest_failure"] = cached[1]["latest_failure"]
+                history["total"] = cached[1]["total"]
+                history["total_pages"] = cached[1]["total_pages"]
             GitHubSmokeRunHistoryReader._cache[cache_key] = (now, _copy_history(history))
             return history
 
@@ -59,6 +69,7 @@ class GitHubSmokeRunHistoryReader:
         public_url: str,
         *,
         recent_days: int | None = None,
+        page: int = 1,
     ) -> dict[str, Any]:
         try:
             async with httpx.AsyncClient(
@@ -76,10 +87,11 @@ class GitHubSmokeRunHistoryReader:
                 response.raise_for_status()
                 payload = response.json()
                 raw_runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
-                runs, latest_failure_run = select_smoke_run_groups(
+                all_runs, latest_failure_run = select_smoke_run_groups(
                     raw_runs,
                     recent_days=recent_days,
                 )
+                runs, total, total_pages = paginate_smoke_runs(all_runs, page=page)
                 detail_runs = list(runs)
                 if latest_failure_run and all(
                     run["id"] != latest_failure_run["id"] for run in detail_runs
@@ -109,7 +121,11 @@ class GitHubSmokeRunHistoryReader:
                     else _empty_artifacts(),
                 )
         except (httpx.HTTPError, ValueError, TypeError):
-            return _history_error("GitHub 실행 이력을 확인하지 못했습니다")
+            return _history_error(
+                "GitHub 실행 이력을 확인하지 못했습니다",
+                recent_days=recent_days,
+                page=page,
+            )
 
         job_steps = {
             run["id"]: steps for run, steps in zip(detail_runs, jobs, strict=True)
@@ -128,6 +144,11 @@ class GitHubSmokeRunHistoryReader:
             "latest_failure": items.get(latest_failure_run["id"])
             if latest_failure_run
             else None,
+            "recent_days": recent_days,
+            "page": page,
+            "per_page": RECENT_RUN_LIMIT,
+            "total": total,
+            "total_pages": total_pages,
             "error": None,
         }
 
@@ -223,6 +244,7 @@ def build_smoke_run_item(
     run_id = run["id"]
     head_sha = _clean_text(run.get("head_sha"))
     return {
+        "run_id": run_id,
         "status": status,
         "completed_at": run["updated_at"],
         "run_url": f"{public_url}/actions/runs/{run_id}",
@@ -314,6 +336,22 @@ def select_smoke_run_groups(
     return recent_runs, latest_failure
 
 
+def paginate_smoke_runs(
+    runs: list[dict[str, Any]],
+    *,
+    page: int,
+) -> tuple[list[dict[str, Any]], int, int]:
+    if page < 1:
+        raise ValueError("page must be positive")
+    total = len(runs)
+    start = (page - 1) * RECENT_RUN_LIMIT
+    return (
+        runs[start : start + RECENT_RUN_LIMIT],
+        total,
+        (total + RECENT_RUN_LIMIT - 1) // RECENT_RUN_LIMIT,
+    )
+
+
 def _parse_run_timestamp(value: str) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -363,11 +401,21 @@ def _clean_text(value: object) -> str | None:
     return text or None
 
 
-def _history_error(message: str) -> dict[str, Any]:
+def _history_error(
+    message: str,
+    *,
+    recent_days: int | None = None,
+    page: int = 1,
+) -> dict[str, Any]:
     return {
         "runs": [],
         "latest_failure": None,
         "checked_at": None,
+        "recent_days": recent_days,
+        "page": page,
+        "per_page": RECENT_RUN_LIMIT,
+        "total": 0,
+        "total_pages": 0,
         "error": message,
     }
 
@@ -379,5 +427,10 @@ def _copy_history(history: dict[str, Any]) -> dict[str, Any]:
         if history["latest_failure"]
         else None,
         "checked_at": history["checked_at"],
+        "recent_days": history["recent_days"],
+        "page": history["page"],
+        "per_page": history["per_page"],
+        "total": history["total"],
+        "total_pages": history["total_pages"],
         "error": history["error"],
     }

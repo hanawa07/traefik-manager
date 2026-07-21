@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -6,7 +7,15 @@ SmokeMonitoringFrequency = Literal["daily", "weekly"]
 SmokeFailureRateWindowDays = Literal[7, 30]
 
 
+class SmokeFailureMetadataResponse(BaseModel):
+    captured_at: datetime
+    check_name: str = Field(min_length=1, max_length=500)
+    screen_path: str | None = Field(default=None, max_length=500)
+    page_title: str | None = Field(default=None, max_length=300)
+
+
 class SmokeMonitoringRecentRunResponse(BaseModel):
+    run_id: int = Field(gt=0)
     status: Literal["success", "failure", "skipped"]
     completed_at: str
     run_url: str
@@ -16,6 +25,7 @@ class SmokeMonitoringRecentRunResponse(BaseModel):
     notification_suppressed: bool = False
     artifact_url: str | None = None
     artifact_expires_at: str | None = None
+    failure_metadata: SmokeFailureMetadataResponse | None = None
 
 
 class SmokeRotationStatusResponse(BaseModel):
@@ -45,6 +55,11 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_latest_failure: SmokeMonitoringRecentRunResponse | None = None
     monitoring_history_checked_at: str | None = None
     monitoring_history_error: str | None = None
+    monitoring_history_days: Literal[7, 30] = 30
+    monitoring_history_page: int = 1
+    monitoring_history_per_page: int = 5
+    monitoring_history_total: int = 0
+    monitoring_history_total_pages: int = 0
 
 
 class SmokeMonitoringSettingsUpdateRequest(BaseModel):
@@ -67,3 +82,11 @@ class SmokeMonitoringRunSuccessRequest(BaseModel):
 class SmokeMonitoringRunSuccessResponse(BaseModel):
     recorded_at: str
     run_url: str
+
+
+class SmokeMonitoringRunFailureRequest(SmokeFailureMetadataResponse):
+    run_id: int = Field(gt=0)
+
+
+class SmokeMonitoringRunFailureResponse(SmokeMonitoringRunFailureRequest):
+    pass

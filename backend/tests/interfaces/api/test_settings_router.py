@@ -24,7 +24,7 @@ from tests.interfaces.api.settings_router_fakes import StubSettingsRepository
         "expected_history_days",
     ),
     [
-        ("admin", False, False, 30, True, True, None),
+        ("admin", False, False, 30, True, True, 30),
         ("admin", True, False, 30, False, False, None),
         ("admin", True, True, 30, False, True, 30),
         ("viewer", True, True, 30, False, False, None),
@@ -62,6 +62,7 @@ async def test_get_smoke_rotation_status_skips_admin_details_for_summary(
             "include_recent_logs": include_logs,
             "include_monitoring_history": include_history,
             "monitoring_history_days": expected_history_days,
+            "monitoring_history_page": 1,
             "force_refresh_monitoring_history": role == "admin" and not summary,
         }
     ]
@@ -75,6 +76,17 @@ async def test_get_smoke_rotation_status_rejects_unsupported_history_days():
             current_user={"role": "admin"},
             history=True,
             history_days=8,
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_smoke_rotation_status_rejects_invalid_history_page():
+    with pytest.raises(HTTPException, match="history_page는 1 이상이어야 합니다"):
+        await settings_router.get_smoke_rotation_status(
+            db=object(),
+            current_user={"role": "admin"},
+            history=True,
+            history_page=0,
         )
 
 

@@ -20,6 +20,7 @@ class StubRepository:
 class StubHistoryReader:
     force_refresh = False
     recent_days = None
+    page = 1
 
     async def get_history(
         self,
@@ -27,12 +28,15 @@ class StubHistoryReader:
         *,
         force_refresh: bool = False,
         recent_days: int | None = None,
+        page: int = 1,
     ) -> dict:
         self.force_refresh = force_refresh
         self.recent_days = recent_days
+        self.page = page
         return {
             "runs": [
                 {
+                    "run_id": 456,
                     "status": "failure",
                     "completed_at": "2026-07-11T06:54:58Z",
                     "run_url": "https://github.com/hanawa07/traefik-manager/actions/runs/456",
@@ -45,6 +49,7 @@ class StubHistoryReader:
                 }
             ],
             "latest_failure": {
+                "run_id": 456,
                 "status": "failure",
                 "completed_at": "2026-07-11T06:54:58Z",
                 "run_url": "https://github.com/hanawa07/traefik-manager/actions/runs/456",
@@ -56,6 +61,11 @@ class StubHistoryReader:
                 "artifact_expires_at": "2026-07-18T06:54:58Z",
             },
             "checked_at": "2026-07-13T01:00:00+00:00",
+            "recent_days": recent_days,
+            "page": page,
+            "per_page": 5,
+            "total": 8,
+            "total_pages": 2,
             "error": None,
         }
 
@@ -236,7 +246,13 @@ async def test_get_smoke_rotation_status_includes_logs_for_admin(tmp_path, monke
 
 @pytest.mark.asyncio
 async def test_get_smoke_rotation_status_includes_remote_history_for_admin() -> None:
-    StubRepository.values = {}
+    StubRepository.values = {
+        "dashboard_smoke_failure_metadata": (
+            '[{"run_id": 456, "captured_at": "2026-07-11T06:54:58Z", '
+            '"check_name": "설정 화면 검사 실패", "screen_path": "/dashboard/settings", '
+            '"page_title": "설정"}]'
+        ),
+    }
     history_reader = StubHistoryReader()
 
     result = await get_smoke_rotation_status_response(
@@ -244,16 +260,25 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin() -> 
         settings_repository_factory=StubRepository,
         include_monitoring_history=True,
         monitoring_history_days=30,
+        monitoring_history_page=2,
         force_refresh_monitoring_history=True,
         history_reader=history_reader,
     )
 
     assert result.monitoring_recent_runs[0].status == "failure"
+    assert result.monitoring_recent_runs[0].run_id == 456
     assert result.monitoring_recent_runs[0].notification_suppressed is True
     assert result.monitoring_recent_runs[0].artifact_url.endswith("/artifact")
     assert result.monitoring_recent_runs[0].artifact_expires_at == "2026-07-18T06:54:58Z"
+    assert result.monitoring_recent_runs[0].failure_metadata.check_name == "설정 화면 검사 실패"
+    assert result.monitoring_recent_runs[0].failure_metadata.screen_path == "/dashboard/settings"
     assert result.monitoring_latest_failure.run_number == 78
     assert result.monitoring_history_checked_at == "2026-07-13T01:00:00+00:00"
     assert result.monitoring_history_error is None
+    assert result.monitoring_history_days == 30
+    assert result.monitoring_history_page == 2
+    assert result.monitoring_history_total == 8
+    assert result.monitoring_history_total_pages == 2
     assert history_reader.force_refresh is True
     assert history_reader.recent_days == 30
+    assert history_reader.page == 2

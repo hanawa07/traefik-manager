@@ -6,6 +6,7 @@ from app.infrastructure.smoke_run_history import (
     GitHubSmokeRunHistoryReader,
     build_smoke_artifacts,
     build_smoke_run_item,
+    paginate_smoke_runs,
     select_smoke_run_groups,
 )
 
@@ -38,6 +39,7 @@ def test_build_smoke_run_item_reports_failure_step_and_suppression() -> None:
     )
 
     assert result["status"] == "failure"
+    assert result["run_id"] == 123
     assert result["summary"] == "실패 단계: 운영 로그인·화면 검사"
     assert result["notification_suppressed"] is True
     assert result["run_url"].endswith("/actions/runs/123")
@@ -137,6 +139,16 @@ def test_select_smoke_run_groups_filters_requested_day_range() -> None:
     assert latest_failure["id"] == 9
 
 
+def test_paginate_smoke_runs_returns_requested_five_item_page() -> None:
+    runs = [_run(id=run_id) for run_id in range(12, 0, -1)]
+
+    page, total, total_pages = paginate_smoke_runs(runs, page=2)
+
+    assert [run["id"] for run in page] == [7, 6, 5, 4, 3]
+    assert total == 12
+    assert total_pages == 3
+
+
 @pytest.mark.asyncio
 async def test_history_reader_rejects_non_github_source_without_request() -> None:
     history = await GitHubSmokeRunHistoryReader().get_history("https://example.com/repository")
@@ -145,6 +157,11 @@ async def test_history_reader_rejects_non_github_source_without_request() -> Non
         "runs": [],
         "latest_failure": None,
         "checked_at": None,
+        "recent_days": None,
+        "page": 1,
+        "per_page": 5,
+        "total": 0,
+        "total_pages": 0,
         "error": "GitHub 저장소 주소를 확인하지 못했습니다",
     }
 
@@ -160,9 +177,19 @@ async def test_history_reader_force_refresh_bypasses_cache() -> None:
             _public_url: str,
             *,
             recent_days: int | None = None,
+            page: int = 1,
         ) -> dict:
             self.calls += 1
-            return {"runs": [], "latest_failure": None, "error": None}
+            return {
+                "runs": [],
+                "latest_failure": None,
+                "recent_days": recent_days,
+                "page": page,
+                "per_page": 5,
+                "total": 0,
+                "total_pages": 0,
+                "error": None,
+            }
 
     reader = CountingReader()
     source_url = "https://github.com/hanawa07/traefik-manager-force-refresh-test"
@@ -178,7 +205,7 @@ async def test_history_reader_force_refresh_bypasses_cache() -> None:
 @pytest.mark.asyncio
 async def test_history_reader_caches_each_day_range_separately() -> None:
     class CountingReader(GitHubSmokeRunHistoryReader):
-        calls: list[int | None] = []
+        calls: list[tuple[int | None, int]] = []
 
         async def _fetch_history(
             self,
@@ -186,9 +213,19 @@ async def test_history_reader_caches_each_day_range_separately() -> None:
             _public_url: str,
             *,
             recent_days: int | None = None,
+            page: int = 1,
         ) -> dict:
-            self.calls.append(recent_days)
-            return {"runs": [], "latest_failure": None, "error": None}
+            self.calls.append((recent_days, page))
+            return {
+                "runs": [],
+                "latest_failure": None,
+                "recent_days": recent_days,
+                "page": page,
+                "per_page": 5,
+                "total": 0,
+                "total_pages": 0,
+                "error": None,
+            }
 
     reader = CountingReader()
     source_url = "https://github.com/hanawa07/traefik-manager-range-cache-test"
@@ -196,5 +233,6 @@ async def test_history_reader_caches_each_day_range_separately() -> None:
     await reader.get_history(source_url, recent_days=7)
     await reader.get_history(source_url, recent_days=30)
     await reader.get_history(source_url, recent_days=7)
+    await reader.get_history(source_url, recent_days=7, page=2)
 
-    assert reader.calls == [7, 30]
+    assert reader.calls == [(7, 1), (30, 1), (7, 2)]

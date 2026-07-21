@@ -20,6 +20,10 @@ from app.infrastructure.persistence.repositories.sqlite_system_settings_reposito
     SQLiteSystemSettingsRepository,
 )
 from app.infrastructure.smoke_run_history import GitHubSmokeRunHistoryReader
+from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
+    attach_smoke_failure_metadata,
+    read_smoke_failure_metadata,
+)
 from app.interfaces.api.v1.routers.settings_smoke_monitoring_values import (
     read_smoke_monitoring_values,
 )
@@ -39,6 +43,7 @@ async def get_smoke_rotation_status_response(
     include_recent_logs: bool = False,
     include_monitoring_history: bool = False,
     monitoring_history_days: int | None = None,
+    monitoring_history_page: int = 1,
     force_refresh_monitoring_history: bool = False,
     history_reader: Any = smoke_run_history_reader,
 ) -> SmokeRotationStatusResponse:
@@ -61,17 +66,28 @@ async def get_smoke_rotation_status_response(
         stale_after_days=admin_stale_after_days,
         now=now,
     )
+    history_days = monitoring_history_days or 30
     run_history = {
         "runs": [],
         "latest_failure": None,
         "checked_at": None,
+        "recent_days": history_days,
+        "page": monitoring_history_page,
+        "per_page": 5,
+        "total": 0,
+        "total_pages": 0,
         "error": None,
     }
     if include_monitoring_history:
         run_history = await history_reader.get_history(
             settings.TRAEFIK_MANAGER_IMAGE_SOURCE,
             force_refresh=force_refresh_monitoring_history,
-            recent_days=monitoring_history_days,
+            recent_days=history_days,
+            page=monitoring_history_page,
+        )
+        attach_smoke_failure_metadata(
+            run_history,
+            await read_smoke_failure_metadata(repo),
         )
     return SmokeRotationStatusResponse(
         status=status,
@@ -90,4 +106,9 @@ async def get_smoke_rotation_status_response(
         monitoring_latest_failure=run_history["latest_failure"],
         monitoring_history_checked_at=run_history["checked_at"],
         monitoring_history_error=run_history["error"],
+        monitoring_history_days=run_history["recent_days"],
+        monitoring_history_page=run_history["page"],
+        monitoring_history_per_page=run_history["per_page"],
+        monitoring_history_total=run_history["total"],
+        monitoring_history_total_pages=run_history["total_pages"],
     )

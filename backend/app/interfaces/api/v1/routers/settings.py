@@ -45,6 +45,7 @@ from app.interfaces.api.v1.routers.settings_smoke_rotation_response import (
     get_smoke_rotation_status_response as _get_smoke_rotation_status_response,
 )
 from app.interfaces.api.v1.routers.settings_smoke_run_action import (
+    record_smoke_run_failure_action as _record_smoke_run_failure_action,
     record_smoke_run_success_action as _record_smoke_run_success_action,
 )
 from app.interfaces.api.v1.routers.settings_standard_routes import register_settings_standard_routes
@@ -52,6 +53,8 @@ from app.interfaces.api.v1.routers.settings_test_history import (
     get_settings_test_history_response as _get_settings_test_history_response,
 )
 from app.interfaces.api.v1.schemas.settings_schemas import (
+    SmokeMonitoringRunFailureRequest,
+    SmokeMonitoringRunFailureResponse,
     SmokeMonitoringRunSuccessRequest,
     SmokeMonitoringRunSuccessResponse,
     SmokeMonitoringScheduleDecisionResponse,
@@ -145,9 +148,12 @@ async def get_smoke_rotation_status(
     summary: bool = False,
     history: bool = False,
     history_days: int | None = None,
+    history_page: int = 1,
 ):
     if history_days not in {None, 7, 30}:
         raise HTTPException(status_code=422, detail="history_days는 7 또는 30이어야 합니다")
+    if history_page < 1:
+        raise HTTPException(status_code=422, detail="history_page는 1 이상이어야 합니다")
     is_admin = current_user["role"] == "admin"
     include_admin_details = is_admin and not summary
     include_monitoring_history = include_admin_details or (is_admin and history)
@@ -155,7 +161,8 @@ async def get_smoke_rotation_status(
         db,
         include_recent_logs=include_admin_details,
         include_monitoring_history=include_monitoring_history,
-        monitoring_history_days=history_days if is_admin and history else None,
+        monitoring_history_days=(history_days or 30) if include_monitoring_history else None,
+        monitoring_history_page=history_page,
         force_refresh_monitoring_history=include_admin_details and refresh_monitoring_history,
     )
 
@@ -173,6 +180,24 @@ async def record_smoke_run_success(
     return await _record_smoke_run_success_action(
         run_id=request.run_id,
         admin_checked=request.admin_checked,
+        actor=actor,
+        db=db,
+        settings_repository_factory=SQLiteSystemSettingsRepository,
+    )
+
+
+@router.post(
+    "/smoke-run-failure",
+    response_model=SmokeMonitoringRunFailureResponse,
+    summary="원격 운영 스모크 실패 메타데이터 기록",
+)
+async def record_smoke_run_failure(
+    request: SmokeMonitoringRunFailureRequest,
+    db: AsyncSession = Depends(get_db),
+    actor: dict = Depends(get_current_user),
+):
+    return await _record_smoke_run_failure_action(
+        request=request,
         actor=actor,
         db=db,
         settings_repository_factory=SQLiteSystemSettingsRepository,
