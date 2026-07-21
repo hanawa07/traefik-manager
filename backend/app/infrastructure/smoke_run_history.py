@@ -63,6 +63,7 @@ class GitHubSmokeRunHistoryReader:
             history = await self._fetch_history(
                 api_url,
                 public_url,
+                force_refresh=force_refresh,
                 recent_days=recent_days,
                 page=page,
                 search=normalized_search,
@@ -82,6 +83,7 @@ class GitHubSmokeRunHistoryReader:
         api_url: str,
         public_url: str,
         *,
+        force_refresh: bool = False,
         recent_days: int | None = None,
         page: int = 1,
         search: str = "",
@@ -101,6 +103,7 @@ class GitHubSmokeRunHistoryReader:
                     api_url,
                     WORKFLOW_FILE,
                     recent_days=recent_days,
+                    force_refresh=force_refresh,
                 )
                 all_runs, latest_failure_run = select_smoke_run_groups(
                     raw_runs,

@@ -4,6 +4,11 @@ from typing import Any
 import httpx
 
 _GITHUB_PAGE_SIZE = 100
+_CACHE_SECONDS = 600
+_RUN_CACHE: dict[
+    tuple[str, str, int | None],
+    tuple[datetime, list[dict[str, Any]]],
+] = {}
 
 
 async def read_smoke_workflow_runs(
@@ -12,7 +17,14 @@ async def read_smoke_workflow_runs(
     workflow_file: str,
     *,
     recent_days: int | None,
+    force_refresh: bool = False,
 ) -> list[dict[str, Any]]:
+    cache_key = (api_url, workflow_file, recent_days)
+    now = datetime.now(timezone.utc)
+    cached = _RUN_CACHE.get(cache_key)
+    if not force_refresh and cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
+        return cached[1]
+
     runs: list[dict[str, Any]] = []
     cutoff = (
         datetime.now(timezone.utc) - timedelta(days=recent_days)
@@ -36,6 +48,7 @@ async def read_smoke_workflow_runs(
             or len(page_runs) < _GITHUB_PAGE_SIZE
             or _page_reaches_cutoff(page_runs, cutoff)
         ):
+            _RUN_CACHE[cache_key] = (now, runs)
             return runs
         page += 1
 

@@ -52,3 +52,26 @@ async def test_read_smoke_workflow_runs_pages_only_until_requested_period() -> N
         recent_days=None,
     )
     assert default_client.calls == [1]
+
+
+@pytest.mark.asyncio
+async def test_read_smoke_workflow_runs_shares_cache_across_history_filters() -> None:
+    run = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    client = _Client([[run], [run]])
+    args = (
+        client,
+        "https://api.github.com/repos/example/cache-test",
+        "smoke.yml",
+    )
+
+    first = await read_smoke_workflow_runs(*args, recent_days=30)
+    second = await read_smoke_workflow_runs(*args, recent_days=30)
+    refreshed = await read_smoke_workflow_runs(
+        *args,
+        recent_days=30,
+        force_refresh=True,
+    )
+
+    assert second == first
+    assert refreshed == first
+    assert client.calls == [1, 1]
