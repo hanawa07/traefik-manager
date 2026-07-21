@@ -8,17 +8,19 @@ import {
   runDashboardVisualSmokeSelfTest as runDashboardVisualSmokeBaseSelfTest,
 } from "./dashboard-visual-smoke.mjs";
 import { writeVisualFailureMetadata } from "./dashboard-visual-artifacts.mjs";
+import { recordRemoteSmokeFailure } from "./smoke-remote-status.mjs";
 
 export async function runDashboardVisualSmoke(options) {
   try {
     return await runDashboardVisualSmokeBase(options);
   } catch (error) {
     const message = String(error?.message || "알 수 없는 오류");
-    await writeVisualFailureMetadata({
+    const metadata = await writeVisualFailureMetadata({
       artifactDir: options.artifactDir,
       cdp: options.cdp,
       message,
-    }).catch(() => undefined);
+    }).catch(() => writeVisualFailureMetadata({ cdp: options.cdp, message }));
+    await recordRemoteSmokeFailure(options.baseUrl, options.cookies, metadata).catch(() => undefined);
     throw error;
   }
 }

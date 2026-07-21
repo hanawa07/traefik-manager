@@ -164,6 +164,7 @@ async function main() {
       baseUrl,
       capabilities,
       cdp,
+      cookies: cookiePairs,
       timeoutMs,
     });
     if (adminCookies && await checkTraefikAlertRetryAdminFixture({

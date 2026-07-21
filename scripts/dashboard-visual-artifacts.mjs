@@ -30,26 +30,28 @@ export async function captureVisualDom({ artifactDir, cdp, name }) {
 function buildVisualFailureMetadata({ capturedAt, message, page }) {
   return {
     captured_at: capturedAt,
-    check_name: message,
-    screen_path: page?.path || null,
-    page_title: page?.title || null,
+    check_name: String(message).slice(0, 500),
+    screen_path: page?.path ? String(page.path).slice(0, 500) : null,
+    page_title: page?.title ? String(page.title).slice(0, 300) : null,
   };
 }
 
 export async function writeVisualFailureMetadata({ artifactDir, cdp, message, page }) {
-  if (!artifactDir) return;
   const currentPage = page ?? (await readVisualPage(cdp));
   const metadata = buildVisualFailureMetadata({
     capturedAt: new Date().toISOString(),
     message,
     page: currentPage,
   });
-  await mkdir(artifactDir, { recursive: true });
-  await writeFile(
-    join(artifactDir, "failure-metadata.json"),
-    `${JSON.stringify(metadata, null, 2)}\n`,
-    "utf8",
-  );
+  if (artifactDir) {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(
+      join(artifactDir, "failure-metadata.json"),
+      `${JSON.stringify(metadata, null, 2)}\n`,
+      "utf8",
+    );
+  }
+  return metadata;
 }
 
 async function readVisualPage(cdp) {
@@ -57,7 +59,7 @@ async function readVisualPage(cdp) {
   return cdp
     .send("Runtime.evaluate", {
       expression:
-        "({ path: location.pathname + location.search + location.hash, title: document.title })",
+        "({ path: location.pathname, title: document.title })",
       returnByValue: true,
     })
     .then((response) => response.result?.value, () => null);

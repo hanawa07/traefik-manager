@@ -52,6 +52,33 @@ export async function recordRemoteSmokeSuccess(
   if (message) throw new Error(message);
 }
 
+export async function recordRemoteSmokeFailure(
+  baseUrl,
+  cookies,
+  metadata,
+  env = process.env,
+  fetchImpl = fetch,
+) {
+  const runId = env.GITHUB_RUN_ID;
+  if (!runId || !metadata) return;
+
+  const csrf = cookies.find((cookie) => cookie.name.toLowerCase().includes("csrf"));
+  assert.ok(csrf, "원격 스모크 실패 기록에 필요한 CSRF 쿠키가 없습니다");
+  const response = await fetchImpl(`${baseUrl}/api/v1/settings/smoke-run-failure`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie: formatCookieHeader(cookies),
+      "x-csrf-token": csrf.value,
+    },
+    body: JSON.stringify({ run_id: Number(runId), ...metadata }),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`원격 스모크 실패 기록 API ${response.status}: ${text.slice(0, 200)}`);
+  }
+}
+
 export async function writeSmokeAlertDetail(message, env = process.env) {
   const path = env.TM_SMOKE_ALERT_DETAIL_FILE;
   if (!path || !isAlertDetail(message)) return;
@@ -103,6 +130,25 @@ export async function runRemoteSmokeStatusSelfTest() {
   assert.equal(requests.length, 2);
   assert.equal(requests[0].options.headers["x-csrf-token"], "csrf");
   assert.equal(JSON.parse(requests[0].options.body).admin_checked, true);
+  const failureRequests = [];
+  await recordRemoteSmokeFailure(
+    "https://manager.example.com",
+    cookies,
+    {
+      captured_at: "2026-07-21T01:02:03Z",
+      check_name: "설정 화면 검사 실패",
+      screen_path: "/dashboard/settings",
+      page_title: "설정",
+    },
+    { GITHUB_RUN_ID: "456" },
+    async (url, options) => {
+      failureRequests.push({ options, url });
+      return new Response("{}", { status: 200 });
+    },
+  );
+  assert.match(failureRequests[0].url, /smoke-run-failure$/);
+  assert.equal(JSON.parse(failureRequests[0].options.body).run_id, 456);
+  assert.equal(JSON.parse(failureRequests[0].options.body).screen_path, "/dashboard/settings");
   assert.match(
     getAdminSmokeAlertMessage({
       monitoring_admin_is_stale: true,
