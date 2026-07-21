@@ -5,6 +5,7 @@ export type SmokeRotationState = "never" | "running" | "success" | "failure";
 export type SmokeMonitoringFrequency = "daily" | "weekly";
 export type SmokeFailureRateWindowDays = 7 | 30;
 export type SmokeHistoryDays = 7 | 30;
+export type SmokeHistoryStatus = "all" | "success" | "failure";
 
 export interface SmokeFailureMetadata {
   captured_at: string;
@@ -59,6 +60,10 @@ export interface SmokeRotationStatus {
   monitoring_history_per_page: number;
   monitoring_history_total: number;
   monitoring_history_total_pages: number;
+  monitoring_history_search: string;
+  monitoring_history_status: SmokeHistoryStatus;
+  monitoring_failure_metadata_count: number;
+  monitoring_failure_metadata_limit: number;
   status: SmokeRotationState;
   last_attempt_at: string | null;
   last_success_at: string | null;
@@ -83,9 +88,18 @@ export const smokeRotationSettingsApi = {
   getSmokeRunHistory: async (
     days: SmokeHistoryDays,
     page: number,
+    search: string,
+    status: SmokeHistoryStatus,
   ): Promise<SmokeRotationStatus> => {
     const response = await apiClient.get<SmokeRotationStatus>("/settings/smoke-rotation", {
-      params: { history: true, history_days: days, history_page: page, summary: true },
+      params: {
+        history: true,
+        history_days: days,
+        history_page: page,
+        history_search: search || undefined,
+        history_status: status,
+        summary: true,
+      },
     });
     return response.data;
   },

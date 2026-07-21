@@ -72,6 +72,7 @@ export type {
 export type {
   SmokeFailureMetadata,
   SmokeHistoryDays,
+  SmokeHistoryStatus,
   SmokeMonitoringFrequency,
   SmokeMonitoringRecentRun,
   SmokeMonitoringSettingsInput,

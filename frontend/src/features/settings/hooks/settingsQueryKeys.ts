@@ -9,8 +9,8 @@ export const settingsQueryKeys = {
   redirectHosts: ["redirect-hosts"] as const,
   securityAlerts: ["settings", "security-alerts"] as const,
   smokeRotation: ["settings", "smoke-rotation"] as const,
-  smokeRotationHistory: (days: number, page: number) =>
-    ["settings", "smoke-rotation", "history", days, page] as const,
+  smokeRotationHistory: (days: number, page: number, search: string, status: string) =>
+    ["settings", "smoke-rotation", "history", days, page, search, status] as const,
   smokeRotationSummary: ["settings", "smoke-rotation", "summary"] as const,
   services: ["services"] as const,
   testHistory: ["settings", "test-history"] as const,

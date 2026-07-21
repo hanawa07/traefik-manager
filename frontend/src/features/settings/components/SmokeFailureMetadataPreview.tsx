@@ -3,17 +3,19 @@ import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 interface SmokeFailureMetadataPreviewProps {
   metadata: SmokeFailureMetadata;
+  testId?: string;
   timezone?: string;
 }
 
 export function SmokeFailureMetadataPreview({
   metadata,
+  testId = "smoke-failure-metadata-preview",
   timezone,
 }: SmokeFailureMetadataPreviewProps) {
   return (
     <details
       className="mt-2 rounded-md border border-rose-100 bg-rose-50/70 px-2.5 py-2 dark:border-rose-950 dark:bg-rose-950/30"
-      data-testid="smoke-failure-metadata-preview"
+      data-testid={testId}
     >
       <summary className="cursor-pointer font-medium text-rose-700 dark:text-rose-300">
         실패 정보 미리보기

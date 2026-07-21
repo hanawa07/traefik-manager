@@ -15,6 +15,7 @@ import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import type { TrackedManualSmokeRun } from "@/features/settings/lib/smokeManualRunTracking";
 import { SmokeArtifactExpiryLabel } from "./SmokeArtifactExpiryLabel";
 import { SmokeArtifactLink } from "./SmokeArtifactLink";
+import { SmokeFailureMetadataPreview } from "./SmokeFailureMetadataPreview";
 import { SmokeManualRunResult } from "./SmokeManualRunResult";
 import { SmokeMonitoringSettingsEditForm } from "./SmokeMonitoringSettingsEditForm";
 import { SmokeRecentRunHistory } from "./SmokeRecentRunHistory";
@@ -229,6 +230,18 @@ export function SmokeRotationStatusCard({
           />
           {latestFailure?.summary ? (
             <SettingsSummaryRow label="최근 실패 요약" value={latestFailure.summary} />
+          ) : null}
+          {latestFailure?.failure_metadata ? (
+            <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4">
+              <span className="text-gray-500 dark:text-slate-400">최근 실패 정보</span>
+              <div className="min-w-0 sm:w-96">
+                <SmokeFailureMetadataPreview
+                  metadata={latestFailure.failure_metadata}
+                  testId="smoke-latest-failure-metadata-preview"
+                  timezone={timezone}
+                />
+              </div>
+            </div>
           ) : null}
           {latestFailure?.artifact_url ? (
             <SettingsSummaryRow
