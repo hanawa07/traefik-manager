@@ -3,14 +3,28 @@ from typing import Any
 
 import httpx
 
-from app.infrastructure.github_api_rate_limit import record_github_api_rate_limit
+from app.infrastructure.github_api_rate_limit import (
+    github_api_rate_limit_error_message,
+    record_github_api_rate_limit,
+)
 
 _CACHE_SECONDS = 600
+_MAX_CACHE_ITEMS = 200
 _JOB_CACHE: dict[tuple[str, int], tuple[datetime, list[dict[str, Any]]]] = {}
 _ARTIFACT_CACHE: dict[
     tuple[str, str, int],
     tuple[datetime, dict[str, str | None] | None],
 ] = {}
+
+
+def _prune_cache(cache: dict[Any, tuple[datetime, Any]], now: datetime) -> None:
+    for key, (cached_at, _) in list(cache.items()):
+        if (now - cached_at).total_seconds() >= _CACHE_SECONDS:
+            cache.pop(key, None)
+    overflow = len(cache) - _MAX_CACHE_ITEMS
+    if overflow > 0:
+        for key in sorted(cache, key=lambda item: cache[item][0])[:overflow]:
+            cache.pop(key, None)
 
 
 async def read_smoke_job_steps(
@@ -22,6 +36,7 @@ async def read_smoke_job_steps(
 ) -> list[dict[str, Any]]:
     cache_key = (api_url, run_id)
     now = datetime.now(timezone.utc)
+    _prune_cache(_JOB_CACHE, now)
     cached = _JOB_CACHE.get(cache_key)
     if not force_refresh and cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
         return cached[1]
@@ -33,6 +48,13 @@ async def read_smoke_job_steps(
         record_github_api_rate_limit(response.headers)
         response.raise_for_status()
         payload = response.json()
+    except httpx.HTTPStatusError as error:
+        if github_api_rate_limit_error_message(
+            error.response.status_code,
+            error.response.headers,
+        ):
+            raise
+        return []
     except (httpx.HTTPError, ValueError, TypeError):
         return []
     jobs = payload.get("jobs") if isinstance(payload, dict) else None
@@ -46,6 +68,7 @@ async def read_smoke_job_steps(
         if isinstance(step, dict)
     ]
     _JOB_CACHE[cache_key] = (now, steps)
+    _prune_cache(_JOB_CACHE, now)
     return steps
 
 
@@ -58,6 +81,7 @@ async def read_smoke_artifacts(
     force_refresh: bool = False,
 ) -> dict[int, dict[str, str | None]]:
     now = datetime.now(timezone.utc)
+    _prune_cache(_ARTIFACT_CACHE, now)
     details: dict[int, dict[str, str | None]] = {}
     missing: set[int] = set()
     for run_id in run_ids:
@@ -76,6 +100,13 @@ async def read_smoke_artifacts(
         record_github_api_rate_limit(response.headers)
         response.raise_for_status()
         payload = response.json()
+    except httpx.HTTPStatusError as error:
+        if github_api_rate_limit_error_message(
+            error.response.status_code,
+            error.response.headers,
+        ):
+            raise
+        return details
     except (httpx.HTTPError, ValueError, TypeError):
         return details
     artifacts = payload.get("artifacts") if isinstance(payload, dict) else None
@@ -85,6 +116,7 @@ async def read_smoke_artifacts(
         _ARTIFACT_CACHE[(api_url, public_url, run_id)] = (now, detail)
         if detail is not None:
             details[run_id] = detail
+    _prune_cache(_ARTIFACT_CACHE, now)
     return details
 
 

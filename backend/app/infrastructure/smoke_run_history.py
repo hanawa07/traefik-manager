@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.infrastructure.github_api_rate_limit import github_api_rate_limit_error_message
 from app.infrastructure.smoke_run_details import (
     read_smoke_artifacts,
     read_smoke_job_steps,
@@ -150,6 +151,18 @@ class GitHubSmokeRunHistoryReader:
                     if artifact_run_ids
                     else _empty_artifacts(),
                 )
+        except httpx.HTTPStatusError as error:
+            return _history_error(
+                github_api_rate_limit_error_message(
+                    error.response.status_code,
+                    error.response.headers,
+                )
+                or "GitHub 실행 이력을 확인하지 못했습니다",
+                recent_days=recent_days,
+                page=page,
+                search=search,
+                status_filter=status_filter,
+            )
         except (httpx.HTTPError, ValueError, TypeError):
             return _history_error(
                 "GitHub 실행 이력을 확인하지 못했습니다",

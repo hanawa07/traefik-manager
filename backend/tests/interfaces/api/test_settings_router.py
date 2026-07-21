@@ -104,6 +104,28 @@ async def test_get_smoke_rotation_status_rejects_invalid_history_filter():
 
 
 @pytest.mark.asyncio
+async def test_get_smoke_rotation_status_blocks_forced_refresh_when_rate_limit_is_low(
+    monkeypatch,
+):
+    message = "GitHub API 잔여량 보호를 위해 수동 새로고침을 잠갔습니다"
+    monkeypatch.setattr(
+        settings_router,
+        "github_api_manual_refresh_block_message",
+        lambda: message,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await settings_router.get_smoke_rotation_status(
+            db=object(),
+            current_user={"role": "admin"},
+            refresh_monitoring_history=True,
+        )
+
+    assert exc.value.status_code == 429
+    assert exc.value.detail == message
+
+
+@pytest.mark.asyncio
 async def test_get_time_display_settings_returns_defaults(monkeypatch):
     StubSettingsRepository.store = {}
     monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)

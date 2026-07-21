@@ -5,6 +5,7 @@ from app.application.audit import audit_service
 from app.core.config import settings
 from app.core.logging_config import get_client_ip
 from app.core.time_display import get_server_time_context
+from app.infrastructure.github_api_rate_limit import github_api_manual_refresh_block_message
 from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
@@ -164,6 +165,10 @@ async def get_smoke_rotation_status(
     is_admin = current_user["role"] == "admin"
     include_admin_details = is_admin and not summary
     include_monitoring_history = include_admin_details or (is_admin and history)
+    if include_admin_details and refresh_monitoring_history:
+        refresh_block_message = github_api_manual_refresh_block_message()
+        if refresh_block_message:
+            raise HTTPException(status_code=429, detail=refresh_block_message)
     return await _get_smoke_rotation_status_response(
         db,
         include_recent_logs=include_admin_details,

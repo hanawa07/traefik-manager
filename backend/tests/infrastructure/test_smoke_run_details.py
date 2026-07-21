@@ -1,5 +1,8 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
+from app.infrastructure import smoke_run_details
 from app.infrastructure.smoke_run_details import (
     read_smoke_artifacts,
     read_smoke_job_steps,
@@ -76,3 +79,24 @@ async def test_smoke_run_details_cache_each_run_and_support_force_refresh() -> N
     assert first_artifacts[123]["url"].endswith("/artifacts/654")
     assert sum(url.endswith("/jobs") for url in client.calls) == 2
     assert sum(url.endswith("/artifacts") for url in client.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_smoke_run_detail_cache_removes_expired_and_oldest_items(monkeypatch) -> None:
+    now = datetime.now(timezone.utc)
+    api_url = "https://api.github.com/repos/example/detail-cache-prune-test"
+    cache = {
+        (api_url, run_id): (now - timedelta(seconds=run_id), [])
+        for run_id in range(205)
+    }
+    cache[(api_url, 999)] = (now - timedelta(seconds=601), [])
+    monkeypatch.setattr(smoke_run_details, "_JOB_CACHE", cache)
+    client = _Client()
+
+    await read_smoke_job_steps(client, api_url, 0)
+
+    assert client.calls == []
+    assert len(cache) == 200
+    assert (api_url, 999) not in cache
+    assert (api_url, 204) not in cache
+    assert (api_url, 0) in cache
