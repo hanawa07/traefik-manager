@@ -70,6 +70,8 @@ export type {
   SettingsTestHistoryStatus,
 } from "./settingsSharedTypes";
 export type {
+  SmokeFailureMetadata,
+  SmokeHistoryDays,
   SmokeMonitoringFrequency,
   SmokeMonitoringRecentRun,
   SmokeMonitoringSettingsInput,

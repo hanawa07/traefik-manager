@@ -341,8 +341,7 @@ export function SmokeRotationStatusCard({
             ) : null}
           </div>
           <SmokeRecentRunHistory
-            referenceTime={artifactReferenceTime}
-            runs={recentRuns}
+            status={status}
             timezone={timezone}
           />
 

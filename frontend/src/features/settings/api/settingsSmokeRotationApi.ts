@@ -4,6 +4,14 @@ import type { SettingsActionTestResult } from "./settingsSharedTypes";
 export type SmokeRotationState = "never" | "running" | "success" | "failure";
 export type SmokeMonitoringFrequency = "daily" | "weekly";
 export type SmokeFailureRateWindowDays = 7 | 30;
+export type SmokeHistoryDays = 7 | 30;
+
+export interface SmokeFailureMetadata {
+  captured_at: string;
+  check_name: string;
+  screen_path: string | null;
+  page_title: string | null;
+}
 
 export interface SmokeMonitoringSettingsInput {
   monitoring_enabled: boolean;
@@ -14,6 +22,7 @@ export interface SmokeMonitoringSettingsInput {
 }
 
 export interface SmokeMonitoringRecentRun {
+  run_id: number;
   status: "success" | "failure" | "skipped";
   completed_at: string;
   run_url: string;
@@ -23,6 +32,7 @@ export interface SmokeMonitoringRecentRun {
   notification_suppressed: boolean;
   artifact_url: string | null;
   artifact_expires_at: string | null;
+  failure_metadata: SmokeFailureMetadata | null;
 }
 
 export interface SmokeRotationStatus {
@@ -44,6 +54,11 @@ export interface SmokeRotationStatus {
   monitoring_latest_failure: SmokeMonitoringRecentRun | null;
   monitoring_history_checked_at: string | null;
   monitoring_history_error: string | null;
+  monitoring_history_days: SmokeHistoryDays;
+  monitoring_history_page: number;
+  monitoring_history_per_page: number;
+  monitoring_history_total: number;
+  monitoring_history_total_pages: number;
   status: SmokeRotationState;
   last_attempt_at: string | null;
   last_success_at: string | null;
@@ -63,6 +78,15 @@ export const smokeRotationSettingsApi = {
     const response = await apiClient.get<SmokeRotationStatus>(
       "/settings/smoke-rotation?summary=true&history=true&history_days=30",
     );
+    return response.data;
+  },
+  getSmokeRunHistory: async (
+    days: SmokeHistoryDays,
+    page: number,
+  ): Promise<SmokeRotationStatus> => {
+    const response = await apiClient.get<SmokeRotationStatus>("/settings/smoke-rotation", {
+      params: { history: true, history_days: days, history_page: page, summary: true },
+    });
     return response.data;
   },
   testSmokeAdminStaleAlert: async (): Promise<SettingsActionTestResult> => {
