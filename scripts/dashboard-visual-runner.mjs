@@ -53,6 +53,14 @@ export async function runDashboardVisualSmokeSelfTest() {
     const fallback = JSON.parse(await readFile(join(artifactDir, "failure-metadata.json"), "utf8"));
     assert.equal(fallback.check_name, "브라우저 연결 실패");
     assert.equal(fallback.screen_path, null);
+    await writeVisualFailureMetadata({
+      artifactDir,
+      message: "실패 알림 경로 점검",
+      page: { path: null, title: "failure notification test" },
+    });
+    const synthetic = JSON.parse(await readFile(join(artifactDir, "failure-metadata.json"), "utf8"));
+    assert.equal(synthetic.check_name, "실패 알림 경로 점검");
+    assert.equal(synthetic.page_title, "failure notification test");
   } finally {
     await rm(artifactDir, { force: true, recursive: true });
   }

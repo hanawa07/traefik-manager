@@ -36,19 +36,13 @@ function buildVisualFailureMetadata({ capturedAt, message, page }) {
   };
 }
 
-export async function writeVisualFailureMetadata({ artifactDir, cdp, message }) {
+export async function writeVisualFailureMetadata({ artifactDir, cdp, message, page }) {
   if (!artifactDir) return;
-  const page = await cdp
-    .send("Runtime.evaluate", {
-      expression:
-        "({ path: location.pathname + location.search + location.hash, title: document.title })",
-      returnByValue: true,
-    })
-    .then((response) => response.result?.value, () => null);
+  const currentPage = page ?? (await readVisualPage(cdp));
   const metadata = buildVisualFailureMetadata({
     capturedAt: new Date().toISOString(),
     message,
-    page,
+    page: currentPage,
   });
   await mkdir(artifactDir, { recursive: true });
   await writeFile(
@@ -56,4 +50,15 @@ export async function writeVisualFailureMetadata({ artifactDir, cdp, message }) 
     `${JSON.stringify(metadata, null, 2)}\n`,
     "utf8",
   );
+}
+
+async function readVisualPage(cdp) {
+  if (!cdp) return null;
+  return cdp
+    .send("Runtime.evaluate", {
+      expression:
+        "({ path: location.pathname + location.search + location.hash, title: document.title })",
+      returnByValue: true,
+    })
+    .then((response) => response.result?.value, () => null);
 }
