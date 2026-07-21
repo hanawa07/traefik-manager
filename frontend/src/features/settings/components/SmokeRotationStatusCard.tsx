@@ -13,6 +13,7 @@ import {
 } from "@/features/settings/components/SettingsCardPrimitives";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { githubCommitUrl } from "@/features/settings/lib/smokeGithubUrls";
+import { isGithubApiRefreshBlocked } from "@/features/settings/lib/smokeGithubRateLimit";
 import type { TrackedManualSmokeRun } from "@/features/settings/lib/smokeManualRunTracking";
 import { SmokeArtifactExpiryLabel } from "./SmokeArtifactExpiryLabel";
 import { SmokeArtifactLink } from "./SmokeArtifactLink";
@@ -98,6 +99,10 @@ export function SmokeRotationStatusCard({
   const suppressedRuns = recentRuns.filter((run) => run.notification_suppressed);
   const latestSuppressed = suppressedRuns[0];
   const secretRetryCount = status?.detail?.match(/GitHub secret 갱신 실패: .+ \(시도 (\d+\/\d+)\)$/)?.[1];
+  const isGithubRefreshBlocked = isGithubApiRefreshBlocked(
+    status?.monitoring_github_rate_limit_remaining,
+    status?.monitoring_github_rate_limit_reset_at,
+  );
 
   return (
     <div className="card order-6 p-6" data-testid="smoke-rotation-status-card">
@@ -329,6 +334,8 @@ export function SmokeRotationStatusCard({
                 >
                   {canManage && isTrackingManualRun
                     ? "새 실행 결과 확인 중..."
+                    : canManage && isGithubRefreshBlocked
+                      ? "GitHub API 초기화 후 새 실행 결과를 자동 확인할 수 있습니다."
                     : `${canManage ? "" : "관리자 계정으로 "}링크를 열면 새 실행 결과를 6분간 자동 확인합니다.`}
                 </span>
               </span>
@@ -359,7 +366,10 @@ export function SmokeRotationStatusCard({
               </p>
               {status.monitoring_github_rate_limit_remaining !== null &&
               status.monitoring_github_rate_limit_limit !== null ? (
-                <p data-testid="smoke-github-rate-limit">
+                <p
+                  className={isGithubRefreshBlocked ? "font-semibold text-amber-700 dark:text-amber-300" : undefined}
+                  data-testid="smoke-github-rate-limit"
+                >
                   GitHub API {status.monitoring_github_rate_limit_remaining}/
                   {status.monitoring_github_rate_limit_limit}회 남음 · 초기화 {formatDateTime(
                     status.monitoring_github_rate_limit_reset_at,
@@ -367,13 +377,22 @@ export function SmokeRotationStatusCard({
                   )}
                 </p>
               ) : null}
+              {isGithubRefreshBlocked ? (
+                <p
+                  className="font-semibold text-amber-700 dark:text-amber-300"
+                  data-testid="smoke-github-rate-limit-warning"
+                >
+                  잔여량 보호를 위해 수동 새로고침과 자동 결과 확인을 잠갔습니다.
+                </p>
+              ) : null}
             </div>
             {canManage ? (
               <button
                 type="button"
                 className="btn-secondary flex items-center justify-center gap-1.5 py-1.5 text-xs"
+                data-testid="smoke-history-refresh"
                 onClick={onRefreshHistory}
-                disabled={isRefreshingHistory}
+                disabled={isRefreshingHistory || isGithubRefreshBlocked}
               >
                 <RefreshCw
                   className={`h-3.5 w-3.5 ${isRefreshingHistory ? "animate-spin" : ""}`}

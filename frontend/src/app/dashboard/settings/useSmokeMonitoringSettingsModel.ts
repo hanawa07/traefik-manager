@@ -16,6 +16,8 @@ import {
   type TrackedManualSmokeRun,
 } from "@/features/settings/lib/smokeManualRunTracking";
 import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
+import { isGithubApiRefreshBlocked } from "@/features/settings/lib/smokeGithubRateLimit";
+import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { getSettingsModelErrorMessage } from "./settingsModelErrors";
 
 const DEFAULT_FORM: SmokeMonitoringSettingsInput = {
@@ -105,6 +107,19 @@ export function useSmokeMonitoringSettingsModel(
   };
 
   const handleRefreshHistory = async () => {
+    if (
+      isGithubApiRefreshBlocked(
+        query.data?.monitoring_github_rate_limit_remaining,
+        query.data?.monitoring_github_rate_limit_reset_at,
+      )
+    ) {
+      onToast({
+        tone: "warning",
+        message: "원격 실행 이력 새로고침 잠금",
+        detail: `GitHub API 잔여량 보호를 위해 ${formatDateTime(query.data?.monitoring_github_rate_limit_reset_at, timezone)} 이후 다시 시도해주세요.`,
+      });
+      return;
+    }
     try {
       const refreshed = await refreshHistory.mutateAsync();
       if (refreshed.monitoring_history_error) {
@@ -131,6 +146,19 @@ export function useSmokeMonitoringSettingsModel(
 
   const handleManualRunOpen = () => {
     if (!canManage) return;
+    if (
+      isGithubApiRefreshBlocked(
+        query.data?.monitoring_github_rate_limit_remaining,
+        query.data?.monitoring_github_rate_limit_reset_at,
+      )
+    ) {
+      onToast({
+        tone: "warning",
+        message: "자동 결과 확인을 시작하지 않았습니다",
+        detail: `GitHub API 초기화 시각 ${formatDateTime(query.data?.monitoring_github_rate_limit_reset_at, timezone)} 이후 사용할 수 있습니다.`,
+      });
+      return;
+    }
     if (manualRunTimerRef.current !== null) {
       window.clearTimeout(manualRunTimerRef.current);
     }
