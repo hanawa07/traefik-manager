@@ -85,7 +85,7 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
   await cdp.send("Fetch.enable", {
     patterns: [{
       requestStage: "Request",
-      urlPattern: "*/api/v1/settings/smoke-rotation",
+      urlPattern: "*/api/v1/settings/smoke-rotation*",
     }],
   });
   try {
