@@ -13,9 +13,11 @@ import {
 } from "@/features/settings/components/SettingsCardPrimitives";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import type { TrackedManualSmokeRun } from "@/features/settings/lib/smokeManualRunTracking";
+import { SmokeArtifactExpiryLabel } from "./SmokeArtifactExpiryLabel";
 import { SmokeArtifactLink } from "./SmokeArtifactLink";
 import { SmokeManualRunResult } from "./SmokeManualRunResult";
 import { SmokeMonitoringSettingsEditForm } from "./SmokeMonitoringSettingsEditForm";
+import { SmokeRecentRunHistory } from "./SmokeRecentRunHistory";
 import { SmokeStaleAlertHistory } from "./SmokeStaleAlertHistory";
 
 const STATUS_LABELS: Record<SmokeRotationState, string> = {
@@ -31,18 +33,6 @@ const STATUS_STYLES: Record<SmokeRotationState, string> = {
   success: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
   failure: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
 };
-
-const RUN_STATUS_LABELS = {
-  success: "성공",
-  failure: "실패",
-  skipped: "건너뜀",
-} as const;
-
-const RUN_STATUS_STYLES = {
-  success: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  failure: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
-  skipped: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-} as const;
 
 interface SmokeRotationStatusCardProps {
   canManage: boolean;
@@ -258,11 +248,17 @@ export function SmokeRotationStatusCard({
           <SettingsSummaryRow
             label="Artifact 만료"
             value={
-              latestFailure?.artifact_expires_at
-                ? formatDateTime(latestFailure.artifact_expires_at, timezone)
-                : canManage
-                  ? "활성 artifact 없음"
-                  : "관리자만 확인 가능"
+              latestFailure?.artifact_expires_at ? (
+                <SmokeArtifactExpiryLabel
+                  expiresAt={latestFailure.artifact_expires_at}
+                  referenceTime={artifactReferenceTime}
+                  timezone={timezone}
+                />
+              ) : canManage ? (
+                "활성 artifact 없음"
+              ) : (
+                "관리자만 확인 가능"
+              )
             }
           />
           <SettingsSummaryRow
@@ -344,72 +340,11 @@ export function SmokeRotationStatusCard({
               </button>
             ) : null}
           </div>
-          <details
-            className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-950"
-            data-testid="smoke-recent-run-history"
-          >
-            <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
-              최근 GitHub 원격 실행 {recentRuns.length}건
-            </summary>
-            {recentRuns.length ? (
-              <ol className="mt-3 space-y-2">
-                {recentRuns.map((run) => (
-                  <li
-                    key={run.run_url}
-                    className="rounded-md border border-gray-200 bg-white p-3 text-xs dark:border-slate-700 dark:bg-slate-900"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`rounded-full px-2 py-0.5 font-semibold ${RUN_STATUS_STYLES[run.status]}`}
-                      >
-                        {RUN_STATUS_LABELS[run.status]}
-                      </span>
-                      <a
-                        className="font-medium text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
-                        href={run.run_url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {run.run_number ? `#${run.run_number}` : "실행 보기"}
-                      </a>
-                      {run.artifact_url ? (
-                        <SmokeArtifactLink
-                          artifactUrl={run.artifact_url}
-                          expiresAt={run.artifact_expires_at}
-                          label="실패 화면"
-                          expiredLabel="화면 만료"
-                          testId="smoke-recent-run-artifact-link"
-                          expiredTestId="smoke-recent-run-artifact-expired"
-                          referenceTime={artifactReferenceTime}
-                        />
-                      ) : null}
-                      {run.artifact_expires_at ? (
-                        <span className="font-medium text-amber-700 dark:text-amber-300">
-                          만료 {formatDateTime(run.artifact_expires_at, timezone)}
-                        </span>
-                      ) : null}
-                      <span className="text-gray-500 dark:text-slate-400">
-                        {formatDateTime(run.completed_at, timezone)}
-                      </span>
-                      {run.commit_sha ? (
-                        <code className="text-gray-500 dark:text-slate-400">{run.commit_sha}</code>
-                      ) : null}
-                    </div>
-                    {run.summary ? (
-                      <p className="mt-2 text-gray-600 dark:text-slate-300">{run.summary}</p>
-                    ) : null}
-                    {run.notification_suppressed ? (
-                      <p className="mt-2 font-medium text-amber-700 dark:text-amber-300">
-                        중복 Telegram 알림 억제
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">표시할 원격 실행이 없습니다.</p>
-            )}
-          </details>
+          <SmokeRecentRunHistory
+            referenceTime={artifactReferenceTime}
+            runs={recentRuns}
+            timezone={timezone}
+          />
 
           <div className="my-3 border-t border-gray-200 dark:border-slate-700" />
           <SettingsSummaryRow
