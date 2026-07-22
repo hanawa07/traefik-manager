@@ -25,6 +25,18 @@ def _managed_database(tmp_path: Path, revision: str) -> str:
 
 
 def test_preflight_passes_when_database_is_already_at_head(tmp_path: Path):
+    database_url = _managed_database(tmp_path, "20260722_01")
+
+    current, target, pending = check_blue_green_migrations(
+        database_url,
+        project_root=BACKEND_ROOT,
+    )
+
+    assert current == target == "20260722_01"
+    assert pending == ()
+
+
+def test_preflight_allows_audit_event_index_migration(tmp_path: Path):
     database_url = _managed_database(tmp_path, "20260719_02")
 
     current, target, pending = check_blue_green_migrations(
@@ -32,8 +44,11 @@ def test_preflight_passes_when_database_is_already_at_head(tmp_path: Path):
         project_root=BACKEND_ROOT,
     )
 
-    assert current == target == "20260719_02"
-    assert pending == ()
+    assert (current, target, pending) == (
+        "20260719_02",
+        "20260722_01",
+        ("20260722_01",),
+    )
 
 
 def test_preflight_rejects_pending_migration_without_compatibility_marker(tmp_path: Path):
@@ -90,5 +105,5 @@ def test_preflight_allows_fresh_database(tmp_path: Path):
     )
 
     assert current is None
-    assert target == "20260719_02"
+    assert target == "20260722_01"
     assert pending == ()

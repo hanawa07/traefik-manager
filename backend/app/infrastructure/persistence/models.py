@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean, DateTime, Integer, JSON, func
+from sqlalchemy import String, Boolean, DateTime, Index, Integer, JSON, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.infrastructure.persistence.base import Base
 import uuid
@@ -123,6 +123,14 @@ class AuditLogModel(Base):
     resource_name: Mapped[str] = mapped_column(String(255), nullable=False)
     detail: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), index=True)
+
+    __table_args__ = (
+        Index(
+            "ix_audit_logs_event_created_at",
+            detail["event"].as_string(),
+            created_at,
+        ),
+    )
 
 
 class SystemSettingModel(Base):
