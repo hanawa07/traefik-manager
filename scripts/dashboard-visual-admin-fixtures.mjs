@@ -32,9 +32,15 @@ async function checkSmokeRateLimitAdminFixture({
       return response.json();
     })()`);
     assert.ok(fixture, "관리자 운영 점검 fixture를 읽지 못했습니다");
-    fixture.monitoring_github_rate_limit_remaining = 10;
+    fixture.monitoring_github_rate_limit_remaining = 42;
     fixture.monitoring_github_rate_limit_limit = 60;
-    fixture.monitoring_github_rate_limit_reset_at = new Date(Date.now() + 5_000).toISOString();
+    fixture.monitoring_github_rate_limit_reset_at = new Date(Date.now() + 60 * 60_000).toISOString();
+    fixture.monitoring_github_secondary_limit_retry_at = new Date(Date.now() + 5_000).toISOString();
+    fixture.monitoring_github_history_cache_items = 7;
+    fixture.monitoring_github_history_cache_capacity = 200;
+    fixture.monitoring_github_history_cache_hits = 3;
+    fixture.monitoring_github_history_cache_misses = 1;
+    fixture.monitoring_github_last_request_count = 6;
 
     await cdp.send("Fetch.enable", {
       patterns: [{
@@ -60,11 +66,15 @@ async function checkSmokeRateLimitAdminFixture({
       `(() => {
         const button = document.querySelector('[data-testid="smoke-history-refresh"]');
         const warning = document.querySelector('[data-testid="smoke-github-rate-limit-warning"]');
+        const cache = document.querySelector('[data-testid="smoke-github-cache-diagnostics"]');
+        const estimate = document.querySelector('[data-testid="smoke-github-request-estimate"]');
         return button instanceof HTMLButtonElement && button.disabled &&
-          warning?.textContent?.includes('수동 새로고침과 자동 결과 확인을 잠갔습니다');
+          warning?.textContent?.includes('GitHub API 보조 제한으로 새로고침을 잠갔습니다') &&
+          cache?.textContent?.includes('응답 캐시 7/200개 · 적중률 75% (3/4회)') &&
+          estimate?.textContent?.includes('지금 새로고침 약 6회');
       })()`,
       timeoutMs,
-      "관리자 GitHub API 새로고침 버튼이 잠기지 않았습니다",
+      "관리자 GitHub API 보조 제한·진단 표시를 확인하지 못했습니다",
     );
     await waitForCondition(
       cdp,
