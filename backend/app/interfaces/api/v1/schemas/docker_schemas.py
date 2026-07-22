@@ -169,6 +169,21 @@ class ManagerHttpErrorMonitorResponse(BaseModel):
     excluded_paths: list[str] = Field(default_factory=list, max_length=50)
 
 
+class ManagerSettingsHistoryLatencyResponse(BaseModel):
+    enabled: bool
+    available: bool
+    ready: bool
+    checked_at: datetime | None = None
+    last_alert_at: datetime | None = None
+    alert_active: bool
+    path: str
+    window_minutes: int = Field(ge=1, le=1440)
+    sample_count: int = Field(default=0, ge=0)
+    minimum_sample_count: int = Field(default=5, ge=1)
+    p95_ms: float | None = Field(default=None, ge=0)
+    threshold_ms: float = Field(default=100, gt=0)
+
+
 class ManagerRouteStatusResponse(BaseModel):
     available: bool
     healthy: bool
@@ -306,6 +321,7 @@ class DockerDeploymentInfoResponse(BaseModel):
     external_watchdog_alert_runs: list[ExternalWatchdogAlertRunResponse] = Field(default_factory=list)
     http_error_summary: ManagerHttpErrorSummaryResponse | None = None
     http_error_monitor: ManagerHttpErrorMonitorResponse | None = None
+    settings_history_latency_monitor: ManagerSettingsHistoryLatencyResponse | None = None
     manager_route: ManagerRouteStatusResponse | None = None
     deployment_history: list[ManagerDeploymentHistoryEntryResponse] = Field(default_factory=list)
     deployment_history_archive: list[ManagerDeploymentHistoryEntryResponse] = Field(

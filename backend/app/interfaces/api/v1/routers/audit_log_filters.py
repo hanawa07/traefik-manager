@@ -16,6 +16,7 @@ MANAGER_UNHEALTHY_EVENTS = {
     "manager_docker_unhealthy",
     "manager_http_errors_high",
     "manager_http_log_storage_warning",
+    "manager_settings_history_latency_high",
     "manager_deployment_bottleneck_storage_warning",
     "manager_watchdog_stale",
 }
@@ -23,6 +24,7 @@ MANAGER_RECOVERED_EVENTS = {
     "manager_docker_recovered",
     "manager_http_errors_recovered",
     "manager_http_log_storage_recovered",
+    "manager_settings_history_latency_recovered",
     "manager_deployment_bottleneck_storage_recovered",
     "manager_watchdog_recovered",
 }
@@ -33,6 +35,8 @@ MANAGER_SOURCE_EVENTS = {
         "manager_http_errors_recovered",
         "manager_http_log_storage_warning",
         "manager_http_log_storage_recovered",
+        "manager_settings_history_latency_high",
+        "manager_settings_history_latency_recovered",
         "manager_deployment_bottleneck_storage_warning",
         "manager_deployment_bottleneck_storage_recovered",
     },

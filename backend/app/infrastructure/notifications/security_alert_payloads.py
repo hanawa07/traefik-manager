@@ -81,6 +81,10 @@ def build_message(event: str, resource_name: str, client_ip: Any, category: str)
         return f"Manager 요청 로그 보관 경고: {resource_name}"
     if event == "manager_http_log_storage_recovered":
         return f"Manager 요청 로그 보관 복구: {resource_name}"
+    if event == "manager_settings_history_latency_high":
+        return f"Manager 설정 이력 API 지연: {resource_name}"
+    if event == "manager_settings_history_latency_recovered":
+        return f"Manager 설정 이력 API 정상화: {resource_name}"
     return f"롤백 실행: {resource_name}"
 
 
@@ -263,6 +267,21 @@ def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
             lines.append(
                 f"파일: {detail.get('file_count')}/{detail.get('max_file_count')}개 · "
                 f"회전 파일 {detail.get('rotated_file_count')}개"
+            )
+            if detail.get("cooldown_minutes") is not None:
+                lines.append(f"재발 알림 cooldown: {detail.get('cooldown_minutes')}분")
+        if event in {
+            "manager_settings_history_latency_high",
+            "manager_settings_history_latency_recovered",
+        }:
+            lines.append(f"대상 경로: {detail.get('path') or '-'}")
+            lines.append(f"집계 구간: 최근 {detail.get('window_minutes')}분")
+            lines.append(
+                f"p95: {detail.get('p95_ms')}ms / 기준 {detail.get('threshold_ms')}ms"
+            )
+            lines.append(
+                f"표본: {detail.get('sample_count')}건 / 최소 "
+                f"{detail.get('minimum_sample_count')}건"
             )
             if detail.get("cooldown_minutes") is not None:
                 lines.append(f"재발 알림 cooldown: {detail.get('cooldown_minutes')}분")

@@ -359,6 +359,46 @@ async def test_notify_if_needed_posts_manager_http_error_threshold_to_telegram(m
 
 
 @pytest.mark.asyncio
+async def test_notify_if_needed_posts_settings_history_latency_to_telegram(monkeypatch):
+    posted = []
+    audit_log = make_audit_log(
+        "manager_settings_history_latency_high",
+        resource_type="manager_component",
+        resource_id="settings-test-history",
+        resource_name="설정 이력 API",
+    )
+    audit_log.detail.update(
+        {
+            "path": "/api/v1/settings/test-history",
+            "window_minutes": 60,
+            "sample_count": 10,
+            "minimum_sample_count": 5,
+            "p95_ms": 180.0,
+            "threshold_ms": 100.0,
+            "cooldown_minutes": 60,
+        }
+    )
+    patch_settings(
+        monkeypatch,
+        {
+            "change_alerts_enabled": "true",
+            "security_alert_provider": "telegram",
+            "security_alert_telegram_bot_token": "telegram-secret",
+            "security_alert_telegram_chat_id": "10001",
+            "security_alert_change_route_manager_health": "default",
+        },
+    )
+    patch_http_client(monkeypatch, posted)
+
+    result = await security_alert_notifier.notify_if_needed(object(), audit_log)
+
+    assert result is True
+    assert "Manager 설정 이력 API 지연" in posted[0][1]["text"]
+    assert "p95: 180.0ms / 기준 100.0ms" in posted[0][1]["text"]
+    assert "표본: 10건 / 최소 5건" in posted[0][1]["text"]
+
+
+@pytest.mark.asyncio
 async def test_notify_if_needed_posts_manager_log_storage_warning_to_telegram(monkeypatch):
     posted = []
     audit_log = make_audit_log(

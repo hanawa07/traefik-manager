@@ -202,12 +202,20 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
     async def read_http_monitor(_repository):
         return {"enabled": False, "available": False}
 
+    async def read_latency_monitor(_repository):
+        return {"enabled": True, "available": True, "ready": True, "p95_ms": 30}
+
     class FakeTraefikClient:
         async def get_manager_route_status(self):
             return {"available": True, "healthy": True, "provider": "file"}
 
     monkeypatch.setattr(docker, "read_external_watchdog_stale_minutes", read_stale_minutes)
     monkeypatch.setattr(docker, "read_manager_http_error_monitor_status", read_http_monitor)
+    monkeypatch.setattr(
+        docker,
+        "read_manager_settings_history_latency_status",
+        read_latency_monitor,
+    )
     monkeypatch.setattr(
         docker,
         "read_manager_watchdog_state",
@@ -287,6 +295,7 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
 
     assert result["external_watchdog_last_alert_run_conclusion"] == "success"
     assert result["http_error_monitor"] == {"enabled": False, "available": False}
+    assert result["settings_history_latency_monitor"]["p95_ms"] == 30
     assert result["manager_route"] == {
         "available": True,
         "healthy": True,

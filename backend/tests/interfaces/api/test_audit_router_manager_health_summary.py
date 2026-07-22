@@ -18,6 +18,10 @@ async def test_manager_health_summary_counts_selected_window(monkeypatch):
                 created_at=now - timedelta(hours=1),
             ),
             make_log(
+                event="manager_settings_history_latency_high",
+                created_at=now - timedelta(hours=1),
+            ),
+            make_log(
                 event="manager_deployment_bottleneck_storage_warning",
                 created_at=now - timedelta(hours=1),
             ),
@@ -26,6 +30,10 @@ async def test_manager_health_summary_counts_selected_window(monkeypatch):
             make_log(event="manager_http_errors_recovered", created_at=now - timedelta(hours=4)),
             make_log(
                 event="manager_http_log_storage_recovered",
+                created_at=now - timedelta(hours=5),
+            ),
+            make_log(
+                event="manager_settings_history_latency_recovered",
                 created_at=now - timedelta(hours=5),
             ),
             make_log(
@@ -49,11 +57,11 @@ async def test_manager_health_summary_counts_selected_window(monkeypatch):
     )
 
     assert result.window_minutes == 1440
-    assert result.unhealthy_count == 5
-    assert result.recovered_count == 4
+    assert result.unhealthy_count == 6
+    assert result.recovered_count == 5
     assert result.docker_unhealthy_count == 1
     assert result.docker_recovered_count == 1
-    assert result.api_unhealthy_count == 3
-    assert result.api_recovered_count == 3
+    assert result.api_unhealthy_count == 4
+    assert result.api_recovered_count == 4
     assert result.watchdog_unhealthy_count == 1
     assert result.watchdog_recovered_count == 0

@@ -6,6 +6,9 @@ from app.application.manager_http_error_monitoring import read_manager_http_erro
 from app.core.manager_watchdog_state import read_manager_watchdog_state
 from app.infrastructure.docker.client import DockerClient, DockerClientError
 from app.infrastructure.docker.manager_http_log_reader import read_manager_http_error_preview
+from app.infrastructure.docker.manager_settings_history_latency_monitor import (
+    read_manager_settings_history_latency_status,
+)
 from app.infrastructure.github_actions_run import GitHubActionsRunStatusReader
 from app.infrastructure.manager_deployment_history import (
     read_manager_deployment_history,
@@ -169,6 +172,9 @@ async def get_deployment_info(
         settings_repo = SQLiteSystemSettingsRepository(db)
         stale_after_minutes = await read_external_watchdog_stale_minutes(settings_repo)
         http_error_monitor = await read_manager_http_error_monitor_status(settings_repo)
+        settings_history_latency_monitor = (
+            await read_manager_settings_history_latency_status(settings_repo)
+        )
         watchdog_state = read_manager_watchdog_state(stale_after_minutes=stale_after_minutes)
         alert_runs = watchdog_state["external_watchdog_alert_runs"]
         last_run_url = watchdog_state["external_watchdog_last_alert_run_url"]
@@ -225,6 +231,7 @@ async def get_deployment_info(
             **watchdog_state,
             **run_status,
             "http_error_monitor": http_error_monitor,
+            "settings_history_latency_monitor": settings_history_latency_monitor,
             "deployment_history": _enrich_deployment_history(
                 deployment_history,
                 run_statuses,

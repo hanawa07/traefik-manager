@@ -75,6 +75,8 @@ def get_alert_category_and_group(event: str) -> tuple[str, str] | None:
         "manager_http_errors_recovered",
         "manager_http_log_storage_warning",
         "manager_http_log_storage_recovered",
+        "manager_settings_history_latency_high",
+        "manager_settings_history_latency_recovered",
     }:
         return "change", "manager_health"
     if event.endswith("_rollback") or event.startswith("settings_rollback_"):
