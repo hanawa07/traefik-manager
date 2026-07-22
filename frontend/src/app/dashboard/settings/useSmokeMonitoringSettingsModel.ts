@@ -121,6 +121,7 @@ export function useSmokeMonitoringSettingsModel(
         query.data?.monitoring_github_rate_limit_remaining,
         query.data?.monitoring_github_rate_limit_reset_at,
         query.data?.monitoring_github_secondary_limit_retry_at,
+        query.data?.monitoring_github_refresh_reserve,
       )
     ) {
       onToast({
@@ -161,6 +162,7 @@ export function useSmokeMonitoringSettingsModel(
         query.data?.monitoring_github_rate_limit_remaining,
         query.data?.monitoring_github_rate_limit_reset_at,
         query.data?.monitoring_github_secondary_limit_retry_at,
+        query.data?.monitoring_github_refresh_reserve,
       )
     ) {
       onToast({

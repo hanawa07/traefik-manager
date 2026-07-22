@@ -49,6 +49,7 @@ export {
   type RollbackResourceType,
 } from "./audit-page-helpers/auditRollbackTypes";
 export { getSmokeRotationDetailRows } from "./audit-page-helpers/smokeRotationDetailRows";
+export { getGithubApiRateLimitDetailRows } from "./audit-page-helpers/githubApiRateLimitDetailRows";
 export {
   formatAuditValue,
   isRecord,

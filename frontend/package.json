@@ -13,6 +13,7 @@
     "test:traefik-update-history": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/traefik-update-history-self-test.mjs",
     "test:smoke-rotation-audit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/smoke-rotation-audit-detail-self-test.mjs",
     "test:smoke-failure-rate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/smoke-run-failure-rate-self-test.mjs",
+    "test:github-api-rate-limit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/github-api-rate-limit-self-test.mjs",
     "test:service-routing": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/service-routing-self-test.mjs",
     "smoke:services": "node ../scripts/smoke-services-browser-session.mjs"
   },

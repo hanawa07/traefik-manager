@@ -104,6 +104,7 @@ export function SmokeRotationStatusCard({
     status?.monitoring_github_rate_limit_remaining,
     status?.monitoring_github_rate_limit_reset_at,
     status?.monitoring_github_secondary_limit_retry_at,
+    status?.monitoring_github_refresh_reserve,
   );
 
   return (

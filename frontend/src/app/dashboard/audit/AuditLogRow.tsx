@@ -14,6 +14,7 @@ import {
   getDeploymentBottleneckCleanupDetailRows,
   getDeploymentBottleneckStorageDetailRows,
   getDeliveryDetailRows,
+  getGithubApiRateLimitDetailRows,
   getManagerHttpErrorDetailRows,
   getManagerHttpLogStorageDetailRows,
   getSmokeRotationDetailRows,
@@ -59,6 +60,7 @@ export function AuditLogRow({
     ...getDeploymentBottleneckStorageDetailRows(managerEvent, detail),
     ...getManagerHttpErrorDetailRows(managerEvent, detail),
     ...getManagerHttpLogStorageDetailRows(managerEvent, detail),
+    ...getGithubApiRateLimitDetailRows(managerEvent, detail),
   ];
   const smokeRotationDetailRows = getSmokeRotationDetailRows(managerEvent, detail);
   const sourceTraefikRequestId =

@@ -126,6 +126,42 @@ async def test_get_smoke_rotation_status_blocks_forced_refresh_when_rate_limit_i
 
 
 @pytest.mark.asyncio
+async def test_get_smoke_rotation_status_records_new_github_rate_limit_event(monkeypatch):
+    rate_limit_event = {
+        "kind": "secondary",
+        "occurred_at": "2026-07-22T01:00:00+00:00",
+        "occurrence_count": 2,
+        "retry_at": "2026-07-22T01:01:00+00:00",
+        "sequence": 3,
+    }
+    events = iter([None, rate_limit_event])
+    recorded = []
+
+    async def fake_status_response(_db, **_kwargs):
+        return object()
+
+    async def fake_record_rate_limit_audit(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(settings_router, "_get_smoke_rotation_status_response", fake_status_response)
+    monkeypatch.setattr(settings_router, "read_github_api_rate_limit_event", lambda: next(events))
+    monkeypatch.setattr(
+        settings_router,
+        "record_github_api_rate_limit_audit",
+        fake_record_rate_limit_audit,
+    )
+
+    result = await settings_router.get_smoke_rotation_status(
+        db=object(),
+        current_user={"role": "admin", "username": "lizstudio"},
+    )
+
+    assert result is not None
+    assert recorded[0]["actor"] == "lizstudio"
+    assert recorded[0]["rate_limit_event"] == rate_limit_event
+
+
+@pytest.mark.asyncio
 async def test_get_time_display_settings_returns_defaults(monkeypatch):
     StubSettingsRepository.store = {}
     monkeypatch.setattr(settings_router, "SQLiteSystemSettingsRepository", StubSettingsRepository)

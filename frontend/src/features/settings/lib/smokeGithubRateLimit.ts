@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 
-const GITHUB_API_REFRESH_RESERVE = 10;
+const GITHUB_API_DEFAULT_REFRESH_RESERVE = 10;
 
 export function isGithubApiRefreshBlocked(
   remaining: number | null | undefined,
   resetAt: string | null | undefined,
   secondaryRetryAt?: string | null,
+  refreshReserve = GITHUB_API_DEFAULT_REFRESH_RESERVE,
   now = Date.now(),
 ): boolean {
   if (isGithubSecondaryRateLimitBlocked(secondaryRetryAt, now)) return true;
-  if (remaining === null || remaining === undefined || remaining > GITHUB_API_REFRESH_RESERVE) {
+  if (remaining === null || remaining === undefined || remaining > refreshReserve) {
     return false;
   }
   const resetTime = Date.parse(resetAt || "");
@@ -20,14 +21,15 @@ export function useGithubApiRefreshBlocked(
   remaining: number | null | undefined,
   resetAt: string | null | undefined,
   secondaryRetryAt?: string | null,
+  refreshReserve = GITHUB_API_DEFAULT_REFRESH_RESERVE,
 ): boolean {
   const [, setResetTick] = useState(0);
 
   useEffect(() => {
-    if (!isGithubApiRefreshBlocked(remaining, resetAt, secondaryRetryAt)) return;
+    if (!isGithubApiRefreshBlocked(remaining, resetAt, secondaryRetryAt, refreshReserve)) return;
     const now = Date.now();
     const unblockTimes = [
-      remaining !== null && remaining !== undefined && remaining <= GITHUB_API_REFRESH_RESERVE
+      remaining !== null && remaining !== undefined && remaining <= refreshReserve
         ? Date.parse(resetAt || "")
         : Number.NaN,
       Date.parse(secondaryRetryAt || ""),
@@ -38,9 +40,9 @@ export function useGithubApiRefreshBlocked(
       Math.max(...unblockTimes) - now + 50,
     );
     return () => window.clearTimeout(timer);
-  }, [remaining, resetAt, secondaryRetryAt]);
+  }, [remaining, refreshReserve, resetAt, secondaryRetryAt]);
 
-  return isGithubApiRefreshBlocked(remaining, resetAt, secondaryRetryAt);
+  return isGithubApiRefreshBlocked(remaining, resetAt, secondaryRetryAt, refreshReserve);
 }
 
 export function isGithubSecondaryRateLimitBlocked(

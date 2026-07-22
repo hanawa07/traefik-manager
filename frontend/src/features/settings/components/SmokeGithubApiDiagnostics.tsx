@@ -43,7 +43,7 @@ export function SmokeGithubApiDiagnostics({
             data-testid="smoke-github-rate-limit"
           >
             GitHub API {status.monitoring_github_rate_limit_remaining}/
-            {status.monitoring_github_rate_limit_limit}회 남음 · 초기화 {formatDateTime(
+            {status.monitoring_github_rate_limit_limit}회 남음 · 보호 기준 {status.monitoring_github_refresh_reserve}회 · 초기화 {formatDateTime(
               status.monitoring_github_rate_limit_reset_at,
               timezone,
             )}
@@ -59,7 +59,7 @@ export function SmokeGithubApiDiagnostics({
         ) : null}
         {requestEstimate !== null ? (
           <p data-testid="smoke-github-request-estimate">
-            직전 조회 기준 · 지금 새로고침 약 {requestEstimate}회 · 자동 결과 확인 30초마다 약 {requestEstimate}회
+            직전 조회 총 {requestEstimate}회 · Workflow {status.monitoring_github_last_workflow_request_count ?? 0}회 · Job {status.monitoring_github_last_job_request_count ?? 0}회 · Artifact {status.monitoring_github_last_artifact_request_count ?? 0}회 · 지금 새로고침 약 {requestEstimate}회 · 자동 결과 확인 30초마다 약 {requestEstimate}회
             (최대 12번) · 검색·필터는 캐시 적중 시 0회
           </p>
         ) : null}

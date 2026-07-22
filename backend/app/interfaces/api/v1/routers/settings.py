@@ -5,7 +5,10 @@ from app.application.audit import audit_service
 from app.core.config import settings
 from app.core.logging_config import get_client_ip
 from app.core.time_display import get_server_time_context
-from app.infrastructure.github_api_rate_limit import github_api_manual_refresh_block_message
+from app.infrastructure.github_api_rate_limit import (
+    github_api_manual_refresh_block_message,
+    read_github_api_rate_limit_event,
+)
 from app.infrastructure.notifications import security_alert_notifier
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
@@ -16,6 +19,9 @@ from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.routers.settings_cloudflare_router import router as cloudflare_router
 from app.interfaces.api.v1.routers.settings_deployment_bottleneck_router import (
     router as deployment_bottleneck_router,
+)
+from app.interfaces.api.v1.routers.settings_github_api_rate_limit_audit import (
+    record_github_api_rate_limit_audit,
 )
 from app.interfaces.api.v1.routers.settings_audit_retention_router import (
     router as audit_retention_router,
@@ -169,7 +175,8 @@ async def get_smoke_rotation_status(
         refresh_block_message = github_api_manual_refresh_block_message()
         if refresh_block_message:
             raise HTTPException(status_code=429, detail=refresh_block_message)
-    return await _get_smoke_rotation_status_response(
+    event_before = read_github_api_rate_limit_event()
+    response = await _get_smoke_rotation_status_response(
         db,
         include_recent_logs=include_admin_details,
         include_monitoring_history=include_monitoring_history,
@@ -179,6 +186,23 @@ async def get_smoke_rotation_status(
         monitoring_history_status=history_status,
         force_refresh_monitoring_history=include_admin_details and refresh_monitoring_history,
     )
+    event_after = read_github_api_rate_limit_event()
+    before_value = event_before.get("sequence") if event_before else None
+    after_value = event_after.get("sequence") if event_after else None
+    before_sequence = before_value if isinstance(before_value, int) else 0
+    after_sequence = after_value if isinstance(after_value, int) else 0
+    if (
+        include_monitoring_history
+        and event_after
+        and after_sequence > before_sequence
+    ):
+        await record_github_api_rate_limit_audit(
+            audit_service=audit_service,
+            db=db,
+            actor=current_user["username"],
+            rate_limit_event=event_after,
+        )
+    return response
 
 
 @router.post(

@@ -68,11 +68,15 @@ export interface SmokeRotationStatus {
   monitoring_github_rate_limit_limit: number | null;
   monitoring_github_rate_limit_reset_at: string | null;
   monitoring_github_secondary_limit_retry_at: string | null;
+  monitoring_github_refresh_reserve: number;
   monitoring_github_history_cache_items: number | null;
   monitoring_github_history_cache_capacity: number | null;
   monitoring_github_history_cache_hits: number | null;
   monitoring_github_history_cache_misses: number | null;
   monitoring_github_last_request_count: number | null;
+  monitoring_github_last_workflow_request_count: number | null;
+  monitoring_github_last_job_request_count: number | null;
+  monitoring_github_last_artifact_request_count: number | null;
   status: SmokeRotationState;
   last_attempt_at: string | null;
   last_success_at: string | null;
