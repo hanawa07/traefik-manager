@@ -67,6 +67,12 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_github_rate_limit_remaining: int | None = None
     monitoring_github_rate_limit_limit: int | None = None
     monitoring_github_rate_limit_reset_at: str | None = None
+    monitoring_github_secondary_limit_retry_at: str | None = None
+    monitoring_github_history_cache_items: int | None = None
+    monitoring_github_history_cache_capacity: int | None = None
+    monitoring_github_history_cache_hits: int | None = None
+    monitoring_github_history_cache_misses: int | None = None
+    monitoring_github_last_request_count: int | None = None
 
 
 class SmokeMonitoringSettingsUpdateRequest(BaseModel):

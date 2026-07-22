@@ -6,7 +6,10 @@ from urllib.parse import urlparse
 
 import httpx
 
-from app.infrastructure.github_api_rate_limit import github_api_rate_limit_error_message
+from app.infrastructure.github_api_rate_limit import (
+    github_api_rate_limit_error_message,
+    track_github_api_requests,
+)
 from app.infrastructure.smoke_run_details import (
     read_smoke_artifacts,
     read_smoke_job_steps,
@@ -28,6 +31,8 @@ class GitHubSmokeRunHistoryReader:
 
     _cache: dict[tuple[str, int | None, int, str, str], tuple[datetime, dict[str, Any]]] = {}
     _lock = asyncio.Lock()
+    _cache_hits = 0
+    _cache_misses = 0
 
     async def get_history(
         self,
@@ -60,6 +65,7 @@ class GitHubSmokeRunHistoryReader:
         cached = self._cache.get(cache_key)
         _prune_history_cache(now)
         if not force_refresh and cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
+            GitHubSmokeRunHistoryReader._cache_hits += 1
             return _copy_history(cached[1])
 
         async with self._lock:
@@ -67,8 +73,10 @@ class GitHubSmokeRunHistoryReader:
             if current is not None:
                 cached = current
             if not force_refresh and cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
+                GitHubSmokeRunHistoryReader._cache_hits += 1
                 return _copy_history(cached[1])
 
+            GitHubSmokeRunHistoryReader._cache_misses += 1
             history = await self._fetch_history(
                 api_url,
                 public_url,
@@ -99,74 +107,78 @@ class GitHubSmokeRunHistoryReader:
         search: str = "",
         status_filter: str = "all",
     ) -> dict[str, Any]:
+        api_requests = [0]
         try:
-            async with httpx.AsyncClient(
-                timeout=4.0,
-                headers={
-                    "Accept": "application/vnd.github+json",
-                    "User-Agent": "traefik-manager",
-                    "X-GitHub-Api-Version": "2022-11-28",
-                },
-            ) as client:
-                raw_runs = await read_smoke_workflow_runs(
-                    client,
-                    api_url,
-                    WORKFLOW_FILE,
-                    recent_days=recent_days,
-                    force_refresh=force_refresh,
-                )
-                all_runs, latest_failure_run = select_smoke_run_groups(
-                    raw_runs,
-                    recent_days=recent_days,
-                    search=search,
-                    status_filter=status_filter,
-                )
-                runs, total, total_pages = paginate_smoke_runs(all_runs, page=page)
-                detail_runs = list(runs)
-                if latest_failure_run and all(
-                    run["id"] != latest_failure_run["id"] for run in detail_runs
-                ):
-                    detail_runs.append(latest_failure_run)
-                artifact_run_ids = {
-                    run["id"]
-                    for run in detail_runs
-                    if run.get("conclusion") != "success"
-                }
-                jobs, artifacts = await asyncio.gather(
-                    asyncio.gather(
-                        *(
-                            read_smoke_job_steps(
-                                client,
-                                api_url,
-                                run["id"],
-                                force_refresh=force_refresh,
-                            )
-                            if _needs_job_details(run)
-                            else _empty_steps()
-                            for run in detail_runs
-                        )
-                    ),
-                    read_smoke_artifacts(
+            with track_github_api_requests() as api_requests:
+                async with httpx.AsyncClient(
+                    timeout=4.0,
+                    headers={
+                        "Accept": "application/vnd.github+json",
+                        "User-Agent": "traefik-manager",
+                        "X-GitHub-Api-Version": "2022-11-28",
+                    },
+                ) as client:
+                    raw_runs = await read_smoke_workflow_runs(
                         client,
                         api_url,
-                        public_url,
-                        artifact_run_ids,
+                        WORKFLOW_FILE,
+                        recent_days=recent_days,
                         force_refresh=force_refresh,
                     )
-                    if artifact_run_ids
-                    else _empty_artifacts(),
-                )
+                    all_runs, latest_failure_run = select_smoke_run_groups(
+                        raw_runs,
+                        recent_days=recent_days,
+                        search=search,
+                        status_filter=status_filter,
+                    )
+                    runs, total, total_pages = paginate_smoke_runs(all_runs, page=page)
+                    detail_runs = list(runs)
+                    if latest_failure_run and all(
+                        run["id"] != latest_failure_run["id"] for run in detail_runs
+                    ):
+                        detail_runs.append(latest_failure_run)
+                    artifact_run_ids = {
+                        run["id"]
+                        for run in detail_runs
+                        if run.get("conclusion") != "success"
+                    }
+                    jobs, artifacts = await asyncio.gather(
+                        asyncio.gather(
+                            *(
+                                read_smoke_job_steps(
+                                    client,
+                                    api_url,
+                                    run["id"],
+                                    force_refresh=force_refresh,
+                                )
+                                if _needs_job_details(run)
+                                else _empty_steps()
+                                for run in detail_runs
+                            )
+                        ),
+                        read_smoke_artifacts(
+                            client,
+                            api_url,
+                            public_url,
+                            artifact_run_ids,
+                            force_refresh=force_refresh,
+                        )
+                        if artifact_run_ids
+                        else _empty_artifacts(),
+                    )
         except httpx.HTTPStatusError as error:
             return _history_error(
                 github_api_rate_limit_error_message(
                     error.response.status_code,
                     error.response.headers,
+                    error.response.text,
                 )
                 or "GitHub 실행 이력을 확인하지 못했습니다",
                 recent_days=recent_days,
                 page=page,
                 search=search,
                 status_filter=status_filter,
+                github_api_request_count=api_requests[0],
             )
         except (httpx.HTTPError, ValueError, TypeError):
             return _history_error(
@@ -175,6 +187,7 @@ class GitHubSmokeRunHistoryReader:
                 page=page,
                 search=search,
                 status_filter=status_filter,
+                github_api_request_count=api_requests[0],
             )
 
         job_steps = {
@@ -201,6 +214,7 @@ class GitHubSmokeRunHistoryReader:
             "total_pages": total_pages,
             "search": search,
             "status_filter": status_filter,
+            "github_api_request_count": api_requests[0],
             "error": None,
         }
 
@@ -406,6 +420,19 @@ def _prune_history_cache(now: datetime) -> None:
             cache.pop(key, None)
 
 
+def read_smoke_history_cache_diagnostics(
+    *,
+    now: datetime | None = None,
+) -> dict[str, int]:
+    _prune_history_cache(now or datetime.now(timezone.utc))
+    return {
+        "items": len(GitHubSmokeRunHistoryReader._cache),
+        "capacity": _MAX_CACHE_ITEMS,
+        "hits": GitHubSmokeRunHistoryReader._cache_hits,
+        "misses": GitHubSmokeRunHistoryReader._cache_misses,
+    }
+
+
 def _history_error(
     message: str,
     *,
@@ -413,6 +440,7 @@ def _history_error(
     page: int = 1,
     search: str = "",
     status_filter: str = "all",
+    github_api_request_count: int | None = None,
 ) -> dict[str, Any]:
     return {
         "runs": [],
@@ -425,6 +453,7 @@ def _history_error(
         "total_pages": 0,
         "search": search,
         "status_filter": status_filter,
+        "github_api_request_count": github_api_request_count,
         "error": message,
     }
 
@@ -443,5 +472,6 @@ def _copy_history(history: dict[str, Any]) -> dict[str, Any]:
         "total_pages": history["total_pages"],
         "search": history["search"],
         "status_filter": history["status_filter"],
+        "github_api_request_count": history.get("github_api_request_count"),
         "error": history["error"],
     }

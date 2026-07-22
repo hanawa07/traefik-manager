@@ -8,6 +8,7 @@ from app.infrastructure.smoke_run_history import (
     GitHubSmokeRunHistoryReader,
     build_smoke_run_item,
     paginate_smoke_runs,
+    read_smoke_history_cache_diagnostics,
     select_smoke_run_groups,
 )
 from app.infrastructure.smoke_run_details import build_smoke_artifacts
@@ -182,13 +183,21 @@ def test_history_response_cache_removes_expired_and_oldest_items(monkeypatch) ->
     expired_key = ("https://api.github.com/repos/example/expired", None, 1, "", "all")
     cache[expired_key] = (now - timedelta(seconds=601), {})
     monkeypatch.setattr(GitHubSmokeRunHistoryReader, "_cache", cache)
+    monkeypatch.setattr(GitHubSmokeRunHistoryReader, "_cache_hits", 3)
+    monkeypatch.setattr(GitHubSmokeRunHistoryReader, "_cache_misses", 1)
 
-    smoke_run_history._prune_history_cache(now)
+    diagnostics = read_smoke_history_cache_diagnostics(now=now)
 
     assert len(cache) == 200
     assert expired_key not in cache
     assert not any(key[0].endswith("/204") for key in cache)
     assert any(key[0].endswith("/0") for key in cache)
+    assert diagnostics == {
+        "items": 200,
+        "capacity": 200,
+        "hits": 3,
+        "misses": 1,
+    }
 
 
 @pytest.mark.asyncio
@@ -206,6 +215,7 @@ async def test_history_reader_rejects_non_github_source_without_request() -> Non
         "total_pages": 0,
         "search": "",
         "status_filter": "all",
+        "github_api_request_count": None,
         "error": "GitHub 저장소 주소를 확인하지 못했습니다",
     }
 
@@ -245,7 +255,7 @@ async def test_history_reader_explains_github_rate_limit_reset(monkeypatch) -> N
 
 
 @pytest.mark.asyncio
-async def test_history_reader_force_refresh_bypasses_cache() -> None:
+async def test_history_reader_force_refresh_bypasses_cache(monkeypatch) -> None:
     class CountingReader(GitHubSmokeRunHistoryReader):
         calls = 0
 
@@ -274,6 +284,9 @@ async def test_history_reader_force_refresh_bypasses_cache() -> None:
                 "error": None,
             }
 
+    monkeypatch.setattr(GitHubSmokeRunHistoryReader, "_cache", {})
+    monkeypatch.setattr(GitHubSmokeRunHistoryReader, "_cache_hits", 0)
+    monkeypatch.setattr(GitHubSmokeRunHistoryReader, "_cache_misses", 0)
     reader = CountingReader()
     source_url = "https://github.com/hanawa07/traefik-manager-force-refresh-test"
 
@@ -283,6 +296,27 @@ async def test_history_reader_force_refresh_bypasses_cache() -> None:
 
     assert reader.calls == 2
     assert first["checked_at"] is not None
+    assert read_smoke_history_cache_diagnostics()["hits"] == 1
+    assert read_smoke_history_cache_diagnostics()["misses"] == 2
+
+
+@pytest.mark.asyncio
+async def test_history_reader_counts_github_requests_for_next_refresh_estimate(
+    monkeypatch,
+) -> None:
+    async def fake_runs(*_args, **_kwargs):
+        github_api_rate_limit.record_github_api_rate_limit({})
+        github_api_rate_limit.record_github_api_rate_limit({})
+        return [_run()]
+
+    monkeypatch.setattr(smoke_run_history, "read_smoke_workflow_runs", fake_runs)
+
+    history = await GitHubSmokeRunHistoryReader()._fetch_history(
+        "https://api.github.com/repos/example/request-count-test",
+        "https://github.com/example/request-count-test",
+    )
+
+    assert history["github_api_request_count"] == 2
 
 
 @pytest.mark.asyncio

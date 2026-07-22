@@ -20,7 +20,10 @@ from app.infrastructure.github_api_rate_limit import read_github_api_rate_limit
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
     SQLiteSystemSettingsRepository,
 )
-from app.infrastructure.smoke_run_history import GitHubSmokeRunHistoryReader
+from app.infrastructure.smoke_run_history import (
+    GitHubSmokeRunHistoryReader,
+    read_smoke_history_cache_diagnostics,
+)
 from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
     SMOKE_FAILURE_METADATA_LIMIT,
     attach_smoke_failure_metadata,
@@ -82,6 +85,7 @@ async def get_smoke_rotation_status_response(
         "total_pages": 0,
         "search": monitoring_history_search,
         "status_filter": monitoring_history_status,
+        "github_api_request_count": None,
         "error": None,
     }
     failure_metadata = {}
@@ -102,7 +106,17 @@ async def get_smoke_rotation_status_response(
     github_rate_limit = (
         read_github_api_rate_limit()
         if include_monitoring_history
-        else {"remaining": None, "limit": None, "reset_at": None}
+        else {
+            "remaining": None,
+            "limit": None,
+            "reset_at": None,
+            "secondary_retry_at": None,
+        }
+    )
+    cache_diagnostics = (
+        read_smoke_history_cache_diagnostics()
+        if include_monitoring_history
+        else {"items": None, "capacity": None, "hits": None, "misses": None}
     )
     return SmokeRotationStatusResponse(
         status=status,
@@ -133,4 +147,12 @@ async def get_smoke_rotation_status_response(
         monitoring_github_rate_limit_remaining=github_rate_limit["remaining"],
         monitoring_github_rate_limit_limit=github_rate_limit["limit"],
         monitoring_github_rate_limit_reset_at=github_rate_limit["reset_at"],
+        monitoring_github_secondary_limit_retry_at=github_rate_limit.get(
+            "secondary_retry_at"
+        ),
+        monitoring_github_history_cache_items=cache_diagnostics["items"],
+        monitoring_github_history_cache_capacity=cache_diagnostics["capacity"],
+        monitoring_github_history_cache_hits=cache_diagnostics["hits"],
+        monitoring_github_history_cache_misses=cache_diagnostics["misses"],
+        monitoring_github_last_request_count=run_history.get("github_api_request_count"),
     )

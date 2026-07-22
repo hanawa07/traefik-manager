@@ -52,6 +52,7 @@ async def read_smoke_job_steps(
         if github_api_rate_limit_error_message(
             error.response.status_code,
             error.response.headers,
+            error.response.text,
         ):
             raise
         return []
@@ -104,6 +105,7 @@ async def read_smoke_artifacts(
         if github_api_rate_limit_error_message(
             error.response.status_code,
             error.response.headers,
+            error.response.text,
         ):
             raise
         return details
