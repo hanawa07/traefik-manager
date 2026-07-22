@@ -16,7 +16,10 @@ import {
   type TrackedManualSmokeRun,
 } from "@/features/settings/lib/smokeManualRunTracking";
 import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
-import { isGithubApiRefreshBlocked } from "@/features/settings/lib/smokeGithubRateLimit";
+import {
+  isGithubApiRefreshBlocked,
+  isGithubSecondaryRateLimitBlocked,
+} from "@/features/settings/lib/smokeGithubRateLimit";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { getSettingsModelErrorMessage } from "./settingsModelErrors";
 
@@ -47,6 +50,12 @@ export function useSmokeMonitoringSettingsModel(
   const [lastManualRun, setLastManualRun] = useState<TrackedManualSmokeRun | null>(null);
   const manualRunTimerRef = useRef<number | null>(null);
   const manualRunGenerationRef = useRef(0);
+  const isGithubSecondaryBlocked = isGithubSecondaryRateLimitBlocked(
+    query.data?.monitoring_github_secondary_limit_retry_at,
+  );
+  const githubRefreshRetryAt = isGithubSecondaryBlocked
+    ? query.data?.monitoring_github_secondary_limit_retry_at
+    : query.data?.monitoring_github_rate_limit_reset_at;
 
   useEffect(() => () => {
     manualRunGenerationRef.current += 1;
@@ -111,12 +120,13 @@ export function useSmokeMonitoringSettingsModel(
       isGithubApiRefreshBlocked(
         query.data?.monitoring_github_rate_limit_remaining,
         query.data?.monitoring_github_rate_limit_reset_at,
+        query.data?.monitoring_github_secondary_limit_retry_at,
       )
     ) {
       onToast({
         tone: "warning",
         message: "원격 실행 이력 새로고침 잠금",
-        detail: `GitHub API 잔여량 보호를 위해 ${formatDateTime(query.data?.monitoring_github_rate_limit_reset_at, timezone)} 이후 다시 시도해주세요.`,
+        detail: `GitHub API ${isGithubSecondaryBlocked ? "보조 제한" : "잔여량 보호"}으로 ${formatDateTime(githubRefreshRetryAt, timezone)} 이후 다시 시도해주세요.`,
       });
       return;
     }
@@ -150,12 +160,13 @@ export function useSmokeMonitoringSettingsModel(
       isGithubApiRefreshBlocked(
         query.data?.monitoring_github_rate_limit_remaining,
         query.data?.monitoring_github_rate_limit_reset_at,
+        query.data?.monitoring_github_secondary_limit_retry_at,
       )
     ) {
       onToast({
         tone: "warning",
         message: "자동 결과 확인을 시작하지 않았습니다",
-        detail: `GitHub API 초기화 시각 ${formatDateTime(query.data?.monitoring_github_rate_limit_reset_at, timezone)} 이후 사용할 수 있습니다.`,
+        detail: `GitHub API ${isGithubSecondaryBlocked ? "보조 제한 재시도" : "초기화"} 시각 ${formatDateTime(githubRefreshRetryAt, timezone)} 이후 사용할 수 있습니다.`,
       });
       return;
     }

@@ -1,4 +1,4 @@
-import { MonitorCheck, RefreshCw, Send } from "lucide-react";
+import { MonitorCheck, Send } from "lucide-react";
 
 import type {
   SmokeMonitoringSettingsInput,
@@ -18,6 +18,7 @@ import type { TrackedManualSmokeRun } from "@/features/settings/lib/smokeManualR
 import { SmokeArtifactExpiryLabel } from "./SmokeArtifactExpiryLabel";
 import { SmokeArtifactLink } from "./SmokeArtifactLink";
 import { SmokeFailureMetadataPreview } from "./SmokeFailureMetadataPreview";
+import { SmokeGithubApiDiagnostics } from "./SmokeGithubApiDiagnostics";
 import { SmokeManualRunResult } from "./SmokeManualRunResult";
 import { SmokeMonitoringSettingsEditForm } from "./SmokeMonitoringSettingsEditForm";
 import { SmokeRecentRunHistory } from "./SmokeRecentRunHistory";
@@ -102,6 +103,7 @@ export function SmokeRotationStatusCard({
   const isGithubRefreshBlocked = useGithubApiRefreshBlocked(
     status?.monitoring_github_rate_limit_remaining,
     status?.monitoring_github_rate_limit_reset_at,
+    status?.monitoring_github_secondary_limit_retry_at,
   );
 
   return (
@@ -358,49 +360,14 @@ export function SmokeRotationStatusCard({
               {status.monitoring_history_error}. 저장된 최근 성공 기록은 그대로 표시됩니다.
             </div>
           ) : null}
-          <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-950">
-            <div className="space-y-1 text-xs text-gray-500 dark:text-slate-400">
-              <p>
-                GitHub 이력 확인 {formatDateTime(status.monitoring_history_checked_at, timezone)} ·
-                10분간 캐시
-              </p>
-              {status.monitoring_github_rate_limit_remaining !== null &&
-              status.monitoring_github_rate_limit_limit !== null ? (
-                <p
-                  className={isGithubRefreshBlocked ? "font-semibold text-amber-700 dark:text-amber-300" : undefined}
-                  data-testid="smoke-github-rate-limit"
-                >
-                  GitHub API {status.monitoring_github_rate_limit_remaining}/
-                  {status.monitoring_github_rate_limit_limit}회 남음 · 초기화 {formatDateTime(
-                    status.monitoring_github_rate_limit_reset_at,
-                    timezone,
-                  )}
-                </p>
-              ) : null}
-              {isGithubRefreshBlocked ? (
-                <p
-                  className="font-semibold text-amber-700 dark:text-amber-300"
-                  data-testid="smoke-github-rate-limit-warning"
-                >
-                  잔여량 보호를 위해 수동 새로고침과 자동 결과 확인을 잠갔습니다.
-                </p>
-              ) : null}
-            </div>
-            {canManage ? (
-              <button
-                type="button"
-                className="btn-secondary flex items-center justify-center gap-1.5 py-1.5 text-xs"
-                data-testid="smoke-history-refresh"
-                onClick={onRefreshHistory}
-                disabled={isRefreshingHistory || isGithubRefreshBlocked}
-              >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 ${isRefreshingHistory ? "animate-spin" : ""}`}
-                />
-                {isRefreshingHistory ? "확인 중" : "지금 새로고침"}
-              </button>
-            ) : null}
-          </div>
+          <SmokeGithubApiDiagnostics
+            canManage={canManage}
+            isRefreshBlocked={isGithubRefreshBlocked}
+            isRefreshing={isRefreshingHistory}
+            onRefresh={onRefreshHistory}
+            status={status}
+            timezone={timezone}
+          />
           <SmokeRecentRunHistory
             status={status}
             timezone={timezone}
