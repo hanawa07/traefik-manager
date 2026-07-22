@@ -76,10 +76,14 @@ async function checkSmokeRateLimitAdminFixture({
         const auditSummary = document.querySelector('[data-testid="smoke-github-rate-limit-audit-summary"]');
         const alertTest = document.querySelector('[data-testid="smoke-github-rate-limit-alert-test"]');
         const alertSuccess = document.querySelector('[data-testid="smoke-github-rate-limit-alert-last-success"]');
+        const operationalSuccess = document.querySelector('[data-testid="smoke-github-rate-limit-operational-last-success"]');
+        const nextAlertAt = document.querySelector('[data-testid="smoke-github-rate-limit-next-alert-at"]');
         return button instanceof HTMLButtonElement && button.disabled &&
           alertTest instanceof HTMLButtonElement && !alertTest.disabled &&
           alertTest.textContent?.includes('운영 경로 테스트') &&
           alertSuccess?.textContent?.includes('최근 제한 알림 테스트 성공') &&
+          operationalSuccess?.textContent?.includes('최근 운영 제한 알림 성공') &&
+          nextAlertAt?.textContent?.includes('다음 재알림 가능') &&
           warning?.textContent?.includes('GitHub API 보조 제한으로 새로고침을 잠갔습니다') &&
           document.querySelector('[data-testid="smoke-github-rate-limit"]')?.textContent?.includes('보호 기준 8회') &&
           cache?.textContent?.includes('응답 캐시 7/200개 · 적중률 75% (3/4회)') &&

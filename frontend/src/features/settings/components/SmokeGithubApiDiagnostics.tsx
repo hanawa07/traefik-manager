@@ -11,6 +11,8 @@ import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 interface SmokeGithubApiDiagnosticsProps {
   alertHistory?: SettingsTestHistoryItem;
+  operationalAlertHistory?: SettingsTestHistoryItem;
+  lastTriggeredAt?: string | null;
   canManage: boolean;
   isRefreshBlocked: boolean;
   isRefreshing: boolean;
@@ -21,6 +23,8 @@ interface SmokeGithubApiDiagnosticsProps {
 
 export function SmokeGithubApiDiagnostics({
   alertHistory,
+  operationalAlertHistory,
+  lastTriggeredAt,
   canManage,
   isRefreshBlocked,
   isRefreshing,
@@ -57,6 +61,12 @@ export function SmokeGithubApiDiagnostics({
     : rateLimitAudit.data
       ? "ready"
       : "loading";
+  const triggeredAtMillis = Date.parse(lastTriggeredAt || "");
+  const nextAlertAt = Number.isFinite(triggeredAtMillis)
+    ? new Date(
+        triggeredAtMillis + status.monitoring_github_rate_limit_alert_window_hours * 60 * 60_000,
+      ).toISOString()
+    : null;
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-950">
@@ -93,6 +103,23 @@ export function SmokeGithubApiDiagnostics({
           최근 제한 알림 테스트 성공 {alertHistory?.last_success_at
             ? `${alertHistory.last_success_provider || "provider 미확인"} · ${formatDateTime(alertHistory.last_success_at, timezone)}`
             : "기록 없음"}
+        </p>
+        <p
+          data-provider={operationalAlertHistory?.last_success_provider || ""}
+          data-testid="smoke-github-rate-limit-operational-last-success"
+        >
+          최근 운영 제한 알림 성공 {operationalAlertHistory?.last_success_at
+            ? `${operationalAlertHistory.last_success_provider || "provider 미확인"} · ${formatDateTime(operationalAlertHistory.last_success_at, timezone)}`
+            : "기록 없음"}
+        </p>
+        <p
+          data-next-alert-at={nextAlertAt || ""}
+          data-testid="smoke-github-rate-limit-next-alert-at"
+          data-triggered-at={lastTriggeredAt || ""}
+        >
+          다음 재알림 가능 {nextAlertAt
+            ? formatDateTime(nextAlertAt, timezone)
+            : "경고 전송 기록 없음"}
         </p>
         {status.monitoring_github_rate_limit_remaining !== null &&
         status.monitoring_github_rate_limit_limit !== null ? (

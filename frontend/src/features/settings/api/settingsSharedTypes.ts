@@ -49,4 +49,6 @@ export interface SettingsTestHistoryStatus {
   github_api_rate_limit: SettingsTestHistoryItem;
   security_alert_delivery: SettingsTestHistoryItem;
   change_alert_delivery: SettingsTestHistoryItem;
+  github_api_rate_limit_delivery: SettingsTestHistoryItem;
+  github_api_rate_limit_last_triggered_at: string | null;
 }
