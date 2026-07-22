@@ -13,7 +13,7 @@ import {
 } from "@/features/settings/components/SettingsCardPrimitives";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { githubCommitUrl } from "@/features/settings/lib/smokeGithubUrls";
-import { isGithubApiRefreshBlocked } from "@/features/settings/lib/smokeGithubRateLimit";
+import { useGithubApiRefreshBlocked } from "@/features/settings/lib/smokeGithubRateLimit";
 import type { TrackedManualSmokeRun } from "@/features/settings/lib/smokeManualRunTracking";
 import { SmokeArtifactExpiryLabel } from "./SmokeArtifactExpiryLabel";
 import { SmokeArtifactLink } from "./SmokeArtifactLink";
@@ -99,7 +99,7 @@ export function SmokeRotationStatusCard({
   const suppressedRuns = recentRuns.filter((run) => run.notification_suppressed);
   const latestSuppressed = suppressedRuns[0];
   const secretRetryCount = status?.detail?.match(/GitHub secret 갱신 실패: .+ \(시도 (\d+\/\d+)\)$/)?.[1];
-  const isGithubRefreshBlocked = isGithubApiRefreshBlocked(
+  const isGithubRefreshBlocked = useGithubApiRefreshBlocked(
     status?.monitoring_github_rate_limit_remaining,
     status?.monitoring_github_rate_limit_reset_at,
   );
