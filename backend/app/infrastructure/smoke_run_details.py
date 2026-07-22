@@ -45,7 +45,7 @@ async def read_smoke_job_steps(
             f"{api_url}/actions/runs/{run_id}/jobs",
             params={"per_page": 10},
         )
-        record_github_api_rate_limit(response.headers)
+        record_github_api_rate_limit(response.headers, category="job")
         response.raise_for_status()
         payload = response.json()
     except httpx.HTTPStatusError as error:
@@ -53,6 +53,7 @@ async def read_smoke_job_steps(
             error.response.status_code,
             error.response.headers,
             error.response.text,
+            record_occurrence=False,
         ):
             raise
         return []
@@ -98,7 +99,7 @@ async def read_smoke_artifacts(
             f"{api_url}/actions/artifacts",
             params={"per_page": 100},
         )
-        record_github_api_rate_limit(response.headers)
+        record_github_api_rate_limit(response.headers, category="artifact")
         response.raise_for_status()
         payload = response.json()
     except httpx.HTTPStatusError as error:
@@ -106,6 +107,7 @@ async def read_smoke_artifacts(
             error.response.status_code,
             error.response.headers,
             error.response.text,
+            record_occurrence=False,
         ):
             raise
         return details

@@ -74,7 +74,12 @@ class StubHistoryReader:
             "total_pages": 2,
             "search": search,
             "status_filter": status_filter,
-            "github_api_request_count": 6,
+            "github_api_request_usage": {
+                "total": 6,
+                "workflow": 1,
+                "job": 4,
+                "artifact": 1,
+            },
             "error": None,
         }
 
@@ -270,6 +275,7 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
             "limit": 60,
             "reset_at": "2026-07-21T07:00:00+00:00",
             "secondary_retry_at": "2026-07-21T06:05:00+00:00",
+            "refresh_reserve": 8,
         },
     )
     monkeypatch.setattr(
@@ -311,11 +317,15 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
     assert result.monitoring_github_rate_limit_limit == 60
     assert result.monitoring_github_rate_limit_reset_at == "2026-07-21T07:00:00+00:00"
     assert result.monitoring_github_secondary_limit_retry_at == "2026-07-21T06:05:00+00:00"
+    assert result.monitoring_github_refresh_reserve == 8
     assert result.monitoring_github_history_cache_items == 7
     assert result.monitoring_github_history_cache_capacity == 200
     assert result.monitoring_github_history_cache_hits == 3
     assert result.monitoring_github_history_cache_misses == 1
     assert result.monitoring_github_last_request_count == 6
+    assert result.monitoring_github_last_workflow_request_count == 1
+    assert result.monitoring_github_last_job_request_count == 4
+    assert result.monitoring_github_last_artifact_request_count == 1
     assert history_reader.force_refresh is True
     assert history_reader.recent_days == 30
     assert history_reader.page == 2

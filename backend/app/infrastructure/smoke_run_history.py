@@ -107,7 +107,7 @@ class GitHubSmokeRunHistoryReader:
         search: str = "",
         status_filter: str = "all",
     ) -> dict[str, Any]:
-        api_requests = [0]
+        api_requests: dict[str, int] = {}
         try:
             with track_github_api_requests() as api_requests:
                 async with httpx.AsyncClient(
@@ -178,7 +178,7 @@ class GitHubSmokeRunHistoryReader:
                 page=page,
                 search=search,
                 status_filter=status_filter,
-                github_api_request_count=api_requests[0],
+                github_api_request_usage=api_requests,
             )
         except (httpx.HTTPError, ValueError, TypeError):
             return _history_error(
@@ -187,7 +187,7 @@ class GitHubSmokeRunHistoryReader:
                 page=page,
                 search=search,
                 status_filter=status_filter,
-                github_api_request_count=api_requests[0],
+                github_api_request_usage=api_requests,
             )
 
         job_steps = {
@@ -214,7 +214,7 @@ class GitHubSmokeRunHistoryReader:
             "total_pages": total_pages,
             "search": search,
             "status_filter": status_filter,
-            "github_api_request_count": api_requests[0],
+            "github_api_request_usage": api_requests.copy(),
             "error": None,
         }
 
@@ -440,7 +440,7 @@ def _history_error(
     page: int = 1,
     search: str = "",
     status_filter: str = "all",
-    github_api_request_count: int | None = None,
+    github_api_request_usage: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     return {
         "runs": [],
@@ -453,7 +453,7 @@ def _history_error(
         "total_pages": 0,
         "search": search,
         "status_filter": status_filter,
-        "github_api_request_count": github_api_request_count,
+        "github_api_request_usage": github_api_request_usage,
         "error": message,
     }
 
@@ -472,6 +472,6 @@ def _copy_history(history: dict[str, Any]) -> dict[str, Any]:
         "total_pages": history["total_pages"],
         "search": history["search"],
         "status_filter": history["status_filter"],
-        "github_api_request_count": history.get("github_api_request_count"),
+        "github_api_request_usage": history.get("github_api_request_usage"),
         "error": history["error"],
     }

@@ -3,29 +3,44 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 
-GITHUB_API_REFRESH_RESERVE = 10
+GITHUB_API_DEFAULT_REFRESH_RESERVE = 10
+GITHUB_API_MIN_REFRESH_RESERVE = 3
+GITHUB_API_REFRESH_SAFETY_BUFFER = 2
 _latest_rate_limit: tuple[int, int, str] | None = None
 _latest_secondary_retry_at: str | None = None
-_request_counter: ContextVar[list[int] | None] = ContextVar(
+_refresh_request_estimate: int | None = None
+_latest_rate_limit_event: dict[str, int | str | None] | None = None
+_rate_limit_event_sequence = 0
+_rate_limit_occurrence_counts = {"primary": 0, "secondary": 0}
+_request_counter: ContextVar[dict[str, int] | None] = ContextVar(
     "github_api_request_counter",
     default=None,
 )
 
 
 @contextmanager
-def track_github_api_requests() -> Iterator[list[int]]:
-    counter = [0]
+def track_github_api_requests() -> Iterator[dict[str, int]]:
+    global _refresh_request_estimate
+    counter = {"total": 0, "workflow": 0, "job": 0, "artifact": 0}
     token = _request_counter.set(counter)
     try:
         yield counter
     finally:
+        if counter["total"] > (_refresh_request_estimate or 0):
+            _refresh_request_estimate = counter["total"]
         _request_counter.reset(token)
 
 
-def record_github_api_rate_limit(headers: Mapping[str, str]) -> None:
+def record_github_api_rate_limit(
+    headers: Mapping[str, str],
+    *,
+    category: str = "other",
+) -> None:
     counter = _request_counter.get()
     if counter is not None:
-        counter[0] += 1
+        counter["total"] += 1
+        if category in {"workflow", "job", "artifact"}:
+            counter[category] += 1
     _update_github_api_rate_limit(headers)
 
 
@@ -54,7 +69,12 @@ def read_github_api_rate_limit() -> dict[str, int | str | None]:
         "limit": limit,
         "reset_at": reset_at,
         "secondary_retry_at": _latest_secondary_retry_at,
+        "refresh_reserve": _github_api_refresh_reserve(),
     }
+
+
+def read_github_api_rate_limit_event() -> dict[str, int | str | None] | None:
+    return _latest_rate_limit_event.copy() if _latest_rate_limit_event else None
 
 
 def github_api_manual_refresh_block_message(
@@ -73,7 +93,10 @@ def github_api_manual_refresh_block_message(
             )
     remaining = rate_limit["remaining"]
     reset_at = rate_limit["reset_at"]
-    if not isinstance(remaining, int) or remaining > GITHUB_API_REFRESH_RESERVE:
+    refresh_reserve = rate_limit["refresh_reserve"]
+    if not isinstance(remaining, int) or not isinstance(refresh_reserve, int):
+        return None
+    if remaining > refresh_reserve:
         return None
     if not isinstance(reset_at, str):
         return None
@@ -92,11 +115,13 @@ def github_api_rate_limit_error_message(
     response_body: str = "",
     *,
     now: datetime | None = None,
+    record_occurrence: bool = True,
 ) -> str | None:
     global _latest_secondary_retry_at
     if status_code not in {403, 429}:
         return None
     _update_github_api_rate_limit(headers)
+    current_time = now or datetime.now(timezone.utc)
     body = response_body.casefold()
     is_secondary = (
         headers.get("retry-after") is not None
@@ -105,8 +130,10 @@ def github_api_rate_limit_error_message(
         or (status_code == 429 and headers.get("x-ratelimit-remaining") != "0")
     )
     if is_secondary:
-        retry_at = _secondary_retry_at(headers, now or datetime.now(timezone.utc))
+        retry_at = _secondary_retry_at(headers, current_time)
         _latest_secondary_retry_at = retry_at
+        if record_occurrence:
+            _record_rate_limit_occurrence("secondary", current_time, retry_at)
         return (
             "GitHub API 보조 요청 제한에 걸렸습니다. "
             f"짧은 시간 요청을 줄이고 재시도 시각 이후 다시 확인하세요: {retry_at}"
@@ -114,11 +141,43 @@ def github_api_rate_limit_error_message(
     if headers.get("x-ratelimit-remaining") != "0":
         return None
     reset_at = read_github_api_rate_limit()["reset_at"]
+    if record_occurrence:
+        _record_rate_limit_occurrence(
+            "primary",
+            current_time,
+            reset_at if isinstance(reset_at, str) else None,
+        )
     return (
         f"GitHub API 요청 한도가 소진되었습니다. 초기화 시각: {reset_at}"
         if isinstance(reset_at, str)
         else "GitHub API 요청 한도가 소진되었습니다"
     )
+
+
+def _github_api_refresh_reserve() -> int:
+    if not _refresh_request_estimate:
+        return GITHUB_API_DEFAULT_REFRESH_RESERVE
+    return max(
+        GITHUB_API_MIN_REFRESH_RESERVE,
+        _refresh_request_estimate + GITHUB_API_REFRESH_SAFETY_BUFFER,
+    )
+
+
+def _record_rate_limit_occurrence(
+    kind: str,
+    occurred_at: datetime,
+    retry_at: str | None,
+) -> None:
+    global _latest_rate_limit_event, _rate_limit_event_sequence
+    _rate_limit_event_sequence += 1
+    _rate_limit_occurrence_counts[kind] += 1
+    _latest_rate_limit_event = {
+        "kind": kind,
+        "occurred_at": occurred_at.isoformat(),
+        "occurrence_count": _rate_limit_occurrence_counts[kind],
+        "retry_at": retry_at,
+        "sequence": _rate_limit_event_sequence,
+    }
 
 
 def _parse_rate_limit_headers(

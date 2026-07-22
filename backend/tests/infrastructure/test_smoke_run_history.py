@@ -215,7 +215,7 @@ async def test_history_reader_rejects_non_github_source_without_request() -> Non
         "total_pages": 0,
         "search": "",
         "status_filter": "all",
-        "github_api_request_count": None,
+        "github_api_request_usage": None,
         "error": "GitHub 저장소 주소를 확인하지 못했습니다",
     }
 
@@ -305,8 +305,8 @@ async def test_history_reader_counts_github_requests_for_next_refresh_estimate(
     monkeypatch,
 ) -> None:
     async def fake_runs(*_args, **_kwargs):
-        github_api_rate_limit.record_github_api_rate_limit({})
-        github_api_rate_limit.record_github_api_rate_limit({})
+        github_api_rate_limit.record_github_api_rate_limit({}, category="workflow")
+        github_api_rate_limit.record_github_api_rate_limit({}, category="workflow")
         return [_run()]
 
     monkeypatch.setattr(smoke_run_history, "read_smoke_workflow_runs", fake_runs)
@@ -316,7 +316,12 @@ async def test_history_reader_counts_github_requests_for_next_refresh_estimate(
         "https://github.com/example/request-count-test",
     )
 
-    assert history["github_api_request_count"] == 2
+    assert history["github_api_request_usage"] == {
+        "total": 2,
+        "workflow": 2,
+        "job": 0,
+        "artifact": 0,
+    }
 
 
 @pytest.mark.asyncio

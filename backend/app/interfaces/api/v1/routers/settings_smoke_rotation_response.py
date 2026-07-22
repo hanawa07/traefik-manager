@@ -85,7 +85,7 @@ async def get_smoke_rotation_status_response(
         "total_pages": 0,
         "search": monitoring_history_search,
         "status_filter": monitoring_history_status,
-        "github_api_request_count": None,
+        "github_api_request_usage": None,
         "error": None,
     }
     failure_metadata = {}
@@ -111,8 +111,10 @@ async def get_smoke_rotation_status_response(
             "limit": None,
             "reset_at": None,
             "secondary_retry_at": None,
+            "refresh_reserve": 10,
         }
     )
+    github_request_usage = run_history.get("github_api_request_usage") or {}
     cache_diagnostics = (
         read_smoke_history_cache_diagnostics()
         if include_monitoring_history
@@ -150,9 +152,17 @@ async def get_smoke_rotation_status_response(
         monitoring_github_secondary_limit_retry_at=github_rate_limit.get(
             "secondary_retry_at"
         ),
+        monitoring_github_refresh_reserve=github_rate_limit["refresh_reserve"],
         monitoring_github_history_cache_items=cache_diagnostics["items"],
         monitoring_github_history_cache_capacity=cache_diagnostics["capacity"],
         monitoring_github_history_cache_hits=cache_diagnostics["hits"],
         monitoring_github_history_cache_misses=cache_diagnostics["misses"],
-        monitoring_github_last_request_count=run_history.get("github_api_request_count"),
+        monitoring_github_last_request_count=github_request_usage.get("total"),
+        monitoring_github_last_workflow_request_count=github_request_usage.get(
+            "workflow"
+        ),
+        monitoring_github_last_job_request_count=github_request_usage.get("job"),
+        monitoring_github_last_artifact_request_count=github_request_usage.get(
+            "artifact"
+        ),
     )
