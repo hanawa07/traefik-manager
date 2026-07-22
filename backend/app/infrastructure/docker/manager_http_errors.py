@@ -56,10 +56,10 @@ def build_manager_http_error_summary(
         }
     )
     for line in log_text.splitlines():
-        request = _parse_request_log(line)
+        request = parse_manager_http_request_log(line)
         if request is None:
             continue
-        occurred_at, path, status_code = request
+        occurred_at, path, status_code, _ = request
         if occurred_at > current:
             continue
         if observed_since is None or occurred_at < observed_since:
@@ -115,10 +115,10 @@ def count_manager_http_errors(
     )
     if log_text is not None:
         for line in log_text.splitlines():
-            request = _parse_request_log(line)
+            request = parse_manager_http_request_log(line)
             if request is None:
                 continue
-            occurred_at, path, status_code = request
+            occurred_at, path, status_code, _ = request
             if occurred_at < window_start or occurred_at > current:
                 continue
             if _match_excluded_path(path, excluded_paths) is not None:
@@ -172,10 +172,10 @@ def build_manager_http_error_preview(
 
     if log_text is not None:
         for line in log_text.splitlines():
-            request = _parse_request_log(line)
+            request = parse_manager_http_request_log(line)
             if request is None:
                 continue
-            occurred_at, path, status_code = request
+            occurred_at, path, status_code, _ = request
             if occurred_at > current:
                 continue
             if observed_since is None or occurred_at < observed_since:
@@ -313,7 +313,9 @@ def _normalize_path_filter(value: str | None) -> str | None:
     return value.strip().lower()
 
 
-def _parse_request_log(line: str) -> tuple[datetime, str, int] | None:
+def parse_manager_http_request_log(
+    line: str,
+) -> tuple[datetime, str, int, float | None] | None:
     json_start = line.find("{")
     if json_start < 0:
         return None
@@ -326,6 +328,7 @@ def _parse_request_log(line: str) -> tuple[datetime, str, int] | None:
 
     path = payload.get("path")
     status_code = payload.get("status_code")
+    duration_value = payload.get("duration_ms")
     occurred_at = _parse_timestamp(payload.get("time"))
     if (
         occurred_at is None
@@ -335,7 +338,14 @@ def _parse_request_log(line: str) -> tuple[datetime, str, int] | None:
         or not isinstance(status_code, int)
     ):
         return None
-    return occurred_at, path, status_code
+    duration_ms = (
+        float(duration_value)
+        if isinstance(duration_value, (int, float))
+        and not isinstance(duration_value, bool)
+        and duration_value >= 0
+        else None
+    )
+    return occurred_at, path, status_code, duration_ms
 
 
 def _parse_timestamp(value: object) -> datetime | None:

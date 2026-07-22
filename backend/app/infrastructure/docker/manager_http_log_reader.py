@@ -13,6 +13,10 @@ from app.infrastructure.docker.manager_http_errors import (
     build_manager_http_error_summary,
     count_manager_http_errors,
 )
+from app.infrastructure.docker.manager_http_latency import (
+    SETTINGS_HISTORY_LATENCY_WINDOW_MINUTES,
+    build_settings_history_latency_summary,
+)
 
 
 async def read_manager_http_error_summary(
@@ -88,6 +92,20 @@ async def read_manager_http_log_storage(*, docker_enabled: bool) -> dict[str, ob
         if log_text is not None:
             return {"source": "docker", **status}
     return {"source": "unavailable", **status}
+
+
+async def read_manager_settings_history_latency(
+    *,
+    checked_at: datetime | None = None,
+) -> dict[str, object]:
+    current = checked_at or datetime.now(timezone.utc)
+    log_text, _ = await _read_request_logs(
+        docker_enabled=True,
+        since=int(
+            (current - timedelta(minutes=SETTINGS_HISTORY_LATENCY_WINDOW_MINUTES)).timestamp()
+        ),
+    )
+    return build_settings_history_latency_summary(log_text, checked_at=current)
 
 
 async def _read_request_logs(*, docker_enabled: bool, since: int) -> tuple[str | None, dict[str, object]]:
