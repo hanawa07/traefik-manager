@@ -1,4 +1,6 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
+from time import monotonic
 
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +17,46 @@ from app.interfaces.api.v1.routers.settings_time_helpers import normalize_utc
 from app.interfaces.api.v1.schemas.settings_schemas import SettingsTestHistoryResponse
 
 
+_HISTORY_CACHE_TTL_SECONDS = 10.0
+_history_cache_lock = asyncio.Lock()
+_history_cache_bind: object | None = None
+_history_cache_response: SettingsTestHistoryResponse | None = None
+_history_cache_expires_at = 0.0
+
+
 async def get_settings_test_history_response(db: AsyncSession) -> SettingsTestHistoryResponse:
+    global _history_cache_bind, _history_cache_expires_at, _history_cache_response
+
+    cached = _get_cached_response(db, monotonic())
+    if cached is not None:
+        return cached
+
+    async with _history_cache_lock:
+        cached = _get_cached_response(db, monotonic())
+        if cached is not None:
+            return cached
+
+        response = await _load_settings_test_history_response(db)
+        # ponytail: match the frontend's 10-second freshness window instead of
+        # adding cross-cutting cache invalidation to every audit writer.
+        _history_cache_bind = db.bind
+        _history_cache_response = response
+        _history_cache_expires_at = monotonic() + _HISTORY_CACHE_TTL_SECONDS
+        return response
+
+
+def _get_cached_response(
+    db: AsyncSession,
+    now: float,
+) -> SettingsTestHistoryResponse | None:
+    if _history_cache_bind is db.bind and now < _history_cache_expires_at:
+        return _history_cache_response
+    return None
+
+
+async def _load_settings_test_history_response(
+    db: AsyncSession,
+) -> SettingsTestHistoryResponse:
     logs: list[AuditLogModel] = []
     failure_counts: dict[str, int] = {}
 
