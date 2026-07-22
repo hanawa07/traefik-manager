@@ -46,8 +46,10 @@ interface SmokeRotationStatusCardProps {
   status?: SmokeRotationStatus;
   staleAlertHistory?: SettingsTestHistoryItem;
   githubRateLimitAlertHistory?: SettingsTestHistoryItem;
-  githubRateLimitDeliveryHistory?: SettingsTestHistoryItem;
-  githubRateLimitLastTriggeredAt?: string | null;
+  githubPrimaryRateLimitDeliveryHistory?: SettingsTestHistoryItem;
+  githubSecondaryRateLimitDeliveryHistory?: SettingsTestHistoryItem;
+  githubPrimaryRateLimitLastTriggeredAt?: string | null;
+  githubSecondaryRateLimitLastTriggeredAt?: string | null;
   timezone?: string;
   formValue: SmokeMonitoringSettingsInput;
   errorMessage: string;
@@ -76,8 +78,10 @@ export function SmokeRotationStatusCard({
   status,
   staleAlertHistory,
   githubRateLimitAlertHistory,
-  githubRateLimitDeliveryHistory,
-  githubRateLimitLastTriggeredAt,
+  githubPrimaryRateLimitDeliveryHistory,
+  githubSecondaryRateLimitDeliveryHistory,
+  githubPrimaryRateLimitLastTriggeredAt,
+  githubSecondaryRateLimitLastTriggeredAt,
   timezone,
   formValue,
   errorMessage,
@@ -404,8 +408,10 @@ export function SmokeRotationStatusCard({
             status={status}
             timezone={timezone}
             alertHistory={githubRateLimitAlertHistory}
-            operationalAlertHistory={githubRateLimitDeliveryHistory}
-            lastTriggeredAt={githubRateLimitLastTriggeredAt}
+            primaryOperationalAlertHistory={githubPrimaryRateLimitDeliveryHistory}
+            secondaryOperationalAlertHistory={githubSecondaryRateLimitDeliveryHistory}
+            primaryLastTriggeredAt={githubPrimaryRateLimitLastTriggeredAt}
+            secondaryLastTriggeredAt={githubSecondaryRateLimitLastTriggeredAt}
           />
           <SmokeRecentRunHistory
             status={status}

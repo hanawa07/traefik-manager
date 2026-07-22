@@ -11,8 +11,10 @@ import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 interface SmokeGithubApiDiagnosticsProps {
   alertHistory?: SettingsTestHistoryItem;
-  operationalAlertHistory?: SettingsTestHistoryItem;
-  lastTriggeredAt?: string | null;
+  primaryOperationalAlertHistory?: SettingsTestHistoryItem;
+  secondaryOperationalAlertHistory?: SettingsTestHistoryItem;
+  primaryLastTriggeredAt?: string | null;
+  secondaryLastTriggeredAt?: string | null;
   canManage: boolean;
   isRefreshBlocked: boolean;
   isRefreshing: boolean;
@@ -23,8 +25,10 @@ interface SmokeGithubApiDiagnosticsProps {
 
 export function SmokeGithubApiDiagnostics({
   alertHistory,
-  operationalAlertHistory,
-  lastTriggeredAt,
+  primaryOperationalAlertHistory,
+  secondaryOperationalAlertHistory,
+  primaryLastTriggeredAt,
+  secondaryLastTriggeredAt,
   canManage,
   isRefreshBlocked,
   isRefreshing,
@@ -61,12 +65,26 @@ export function SmokeGithubApiDiagnostics({
     : rateLimitAudit.data
       ? "ready"
       : "loading";
-  const triggeredAtMillis = Date.parse(lastTriggeredAt || "");
-  const nextAlertAt = Number.isFinite(triggeredAtMillis)
-    ? new Date(
-        triggeredAtMillis + status.monitoring_github_rate_limit_alert_window_hours * 60 * 60_000,
-      ).toISOString()
-    : null;
+  const operationalAlerts = [
+    {
+      history: primaryOperationalAlertHistory,
+      kind: "primary",
+      label: "기본 제한",
+      triggeredAt: primaryLastTriggeredAt,
+    },
+    {
+      history: secondaryOperationalAlertHistory,
+      kind: "secondary",
+      label: "보조 제한",
+      triggeredAt: secondaryLastTriggeredAt,
+    },
+  ].map((alert) => ({
+    ...alert,
+    nextAlertAt: resolveNextAlertAt(
+      alert.triggeredAt,
+      status.monitoring_github_rate_limit_alert_window_hours,
+    ),
+  }));
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-950">
@@ -104,23 +122,27 @@ export function SmokeGithubApiDiagnostics({
             ? `${alertHistory.last_success_provider || "provider 미확인"} · ${formatDateTime(alertHistory.last_success_at, timezone)}`
             : "기록 없음"}
         </p>
-        <p
-          data-provider={operationalAlertHistory?.last_success_provider || ""}
-          data-testid="smoke-github-rate-limit-operational-last-success"
-        >
-          최근 운영 제한 알림 성공 {operationalAlertHistory?.last_success_at
-            ? `${operationalAlertHistory.last_success_provider || "provider 미확인"} · ${formatDateTime(operationalAlertHistory.last_success_at, timezone)}`
-            : "기록 없음"}
-        </p>
-        <p
-          data-next-alert-at={nextAlertAt || ""}
-          data-testid="smoke-github-rate-limit-next-alert-at"
-          data-triggered-at={lastTriggeredAt || ""}
-        >
-          다음 재알림 가능 {nextAlertAt
-            ? formatDateTime(nextAlertAt, timezone)
-            : "경고 전송 기록 없음"}
-        </p>
+        {operationalAlerts.map((alert) => (
+          <div className="space-y-1" key={alert.kind}>
+            <p
+              data-provider={alert.history?.last_success_provider || ""}
+              data-testid={`smoke-github-${alert.kind}-rate-limit-operational-last-success`}
+            >
+              {alert.label} 운영 알림 성공 {alert.history?.last_success_at
+                ? `${alert.history.last_success_provider || "provider 미확인"} · ${formatDateTime(alert.history.last_success_at, timezone)}`
+                : "기록 없음"}
+            </p>
+            <p
+              data-next-alert-at={alert.nextAlertAt || ""}
+              data-testid={`smoke-github-${alert.kind}-rate-limit-next-alert-at`}
+              data-triggered-at={alert.triggeredAt || ""}
+            >
+              {alert.label} 다음 재알림 가능 {alert.nextAlertAt
+                ? formatDateTime(alert.nextAlertAt, timezone)
+                : "경고 전송 기록 없음"}
+            </p>
+          </div>
+        ))}
         {status.monitoring_github_rate_limit_remaining !== null &&
         status.monitoring_github_rate_limit_limit !== null ? (
           <p
@@ -190,4 +212,11 @@ export function SmokeGithubApiDiagnostics({
       ) : null}
     </div>
   );
+}
+
+function resolveNextAlertAt(triggeredAt: string | null | undefined, windowHours: number) {
+  const triggeredAtMillis = Date.parse(triggeredAt || "");
+  return Number.isFinite(triggeredAtMillis)
+    ? new Date(triggeredAtMillis + windowHours * 60 * 60_000).toISOString()
+    : null;
 }
