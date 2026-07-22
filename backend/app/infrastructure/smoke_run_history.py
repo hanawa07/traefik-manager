@@ -19,6 +19,7 @@ from app.infrastructure.smoke_workflow_runs import (
 WORKFLOW_FILE = "dashboard-visual-smoke.yml"
 RECENT_RUN_LIMIT = 5
 _CACHE_SECONDS = 600
+_MAX_CACHE_ITEMS = 200
 _REPOSITORY_PART_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
@@ -57,11 +58,14 @@ class GitHubSmokeRunHistoryReader:
         cache_key = (api_url, recent_days, page, normalized_search, status_filter)
         now = datetime.now(timezone.utc)
         cached = self._cache.get(cache_key)
+        _prune_history_cache(now)
         if not force_refresh and cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
             return _copy_history(cached[1])
 
         async with self._lock:
-            cached = self._cache.get(cache_key)
+            current = self._cache.get(cache_key)
+            if current is not None:
+                cached = current
             if not force_refresh and cached and (now - cached[0]).total_seconds() < _CACHE_SECONDS:
                 return _copy_history(cached[1])
 
@@ -81,6 +85,7 @@ class GitHubSmokeRunHistoryReader:
                 history["total"] = cached[1]["total"]
                 history["total_pages"] = cached[1]["total_pages"]
             GitHubSmokeRunHistoryReader._cache[cache_key] = (now, _copy_history(history))
+            _prune_history_cache(now)
             return history
 
     async def _fetch_history(
@@ -388,6 +393,17 @@ def _clean_text(value: object) -> str | None:
 
 def _normalize_history_search(value: str | None) -> str:
     return (value or "").strip()[:100]
+
+
+def _prune_history_cache(now: datetime) -> None:
+    cache = GitHubSmokeRunHistoryReader._cache
+    for key, (cached_at, _) in list(cache.items()):
+        if (now - cached_at).total_seconds() >= _CACHE_SECONDS:
+            cache.pop(key, None)
+    overflow = len(cache) - _MAX_CACHE_ITEMS
+    if overflow > 0:
+        for key in sorted(cache, key=lambda item: cache[item][0])[:overflow]:
+            cache.pop(key, None)
 
 
 def _history_error(

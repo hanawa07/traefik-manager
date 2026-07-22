@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
@@ -168,6 +168,27 @@ def test_paginate_smoke_runs_returns_requested_five_item_page() -> None:
     assert [run["id"] for run in page] == [7, 6, 5, 4, 3]
     assert total == 12
     assert total_pages == 3
+
+
+def test_history_response_cache_removes_expired_and_oldest_items(monkeypatch) -> None:
+    now = datetime.now(timezone.utc)
+    cache = {
+        (f"https://api.github.com/repos/example/{index}", None, 1, "", "all"): (
+            now - timedelta(seconds=index),
+            {},
+        )
+        for index in range(205)
+    }
+    expired_key = ("https://api.github.com/repos/example/expired", None, 1, "", "all")
+    cache[expired_key] = (now - timedelta(seconds=601), {})
+    monkeypatch.setattr(GitHubSmokeRunHistoryReader, "_cache", cache)
+
+    smoke_run_history._prune_history_cache(now)
+
+    assert len(cache) == 200
+    assert expired_key not in cache
+    assert not any(key[0].endswith("/204") for key in cache)
+    assert any(key[0].endswith("/0") for key in cache)
 
 
 @pytest.mark.asyncio
