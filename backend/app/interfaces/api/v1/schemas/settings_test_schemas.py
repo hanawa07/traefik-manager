@@ -35,6 +35,7 @@ class SettingsTestHistoryItemResponse(BaseModel):
     last_provider: str | None = None
     last_created_at: datetime | None = None
     last_success_at: datetime | None = None
+    last_success_provider: str | None = None
     last_failure_at: datetime | None = None
     last_failure_audit_id: str | None = None
     last_failure_message: str | None = None
@@ -50,5 +51,6 @@ class SettingsTestHistoryResponse(BaseModel):
     cloudflare_reconcile: SettingsTestHistoryItemResponse
     security_alert: SettingsTestHistoryItemResponse
     smoke_admin_stale: SettingsTestHistoryItemResponse
+    github_api_rate_limit: SettingsTestHistoryItemResponse
     security_alert_delivery: SettingsTestHistoryItemResponse
     change_alert_delivery: SettingsTestHistoryItemResponse

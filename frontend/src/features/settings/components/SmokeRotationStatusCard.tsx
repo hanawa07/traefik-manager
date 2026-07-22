@@ -45,6 +45,7 @@ interface SmokeRotationStatusCardProps {
   isEditing: boolean;
   status?: SmokeRotationStatus;
   staleAlertHistory?: SettingsTestHistoryItem;
+  githubRateLimitAlertHistory?: SettingsTestHistoryItem;
   timezone?: string;
   formValue: SmokeMonitoringSettingsInput;
   errorMessage: string;
@@ -72,6 +73,7 @@ export function SmokeRotationStatusCard({
   isEditing,
   status,
   staleAlertHistory,
+  githubRateLimitAlertHistory,
   timezone,
   formValue,
   errorMessage,
@@ -397,6 +399,7 @@ export function SmokeRotationStatusCard({
             onRefresh={onRefreshHistory}
             status={status}
             timezone={timezone}
+            alertHistory={githubRateLimitAlertHistory}
           />
           <SmokeRecentRunHistory
             status={status}

@@ -231,6 +231,8 @@ def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
                 f"발생 횟수: {detail.get('window_occurrence_count')}회 / "
                 f"임계치 {detail.get('alert_threshold')}회"
             )
+            if detail.get("alert_cooldown_hours") is not None:
+                lines.append(f"재알림 간격: {detail.get('alert_cooldown_hours')}시간")
         if event in {"manager_docker_unhealthy", "manager_docker_recovered"}:
             lines.append(f"Docker 상태: {detail.get('health_status') or '-'}")
             if detail.get("failing_streak") is not None:

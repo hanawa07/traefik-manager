@@ -188,6 +188,7 @@ async def test_github_api_rate_limit_dry_run_uses_manager_health_route(monkeypat
     assert posted[0][0] == "https://api.telegram.org/bottelegram-secret/sendMessage"
     assert "[테스트] GitHub API 반복 제한" in posted[0][1]["text"]
     assert "발생 횟수: 3회 / 임계치 3회" in posted[0][1]["text"]
+    assert "재알림 간격: 24시간" in posted[0][1]["text"]
 
 
 @pytest.mark.asyncio

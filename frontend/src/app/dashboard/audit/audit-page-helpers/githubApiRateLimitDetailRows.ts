@@ -28,7 +28,7 @@ export function getGithubApiRateLimitDetailRows(
       value:
         typeof detail.alert_threshold === "number" &&
         typeof detail.alert_window_hours === "number"
-          ? `${detail.alert_window_hours}시간 내 ${detail.alert_threshold}회${detail.alert_triggered === true ? " · 경고 기준 도달" : ""}`
+          ? `${detail.alert_window_hours}시간 내 ${detail.alert_threshold}회 · 재알림 ${typeof detail.alert_cooldown_hours === "number" ? `${detail.alert_cooldown_hours}시간` : "기준 미달 후"}${detail.alert_triggered === true ? " · 경고 전송" : ""}`
           : null,
     },
     {

@@ -325,6 +325,7 @@ export function useSmokeMonitoringSettingsModel(
     isEditing,
     status: query.data,
     staleAlertHistory: testHistory.data?.smoke_admin_stale,
+    githubRateLimitAlertHistory: testHistory.data?.github_api_rate_limit,
     timezone,
     formValue,
     errorMessage,

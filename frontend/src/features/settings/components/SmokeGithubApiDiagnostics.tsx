@@ -2,11 +2,15 @@ import { RefreshCw } from "lucide-react";
 import Link from "next/link";
 
 import { useAuditPage } from "@/features/audit/hooks/useAudit";
-import type { SmokeRotationStatus } from "@/features/settings/api/settingsApi";
+import type {
+  SettingsTestHistoryItem,
+  SmokeRotationStatus,
+} from "@/features/settings/api/settingsApi";
 import { isGithubSecondaryRateLimitBlocked } from "@/features/settings/lib/smokeGithubRateLimit";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 interface SmokeGithubApiDiagnosticsProps {
+  alertHistory?: SettingsTestHistoryItem;
   canManage: boolean;
   isRefreshBlocked: boolean;
   isRefreshing: boolean;
@@ -16,6 +20,7 @@ interface SmokeGithubApiDiagnosticsProps {
 }
 
 export function SmokeGithubApiDiagnostics({
+  alertHistory,
   canManage,
   isRefreshBlocked,
   isRefreshing,
@@ -78,8 +83,16 @@ export function SmokeGithubApiDiagnostics({
         </p>
         <p data-testid="smoke-github-rate-limit-alert-rule">
           반복 제한 운영 알림 {status.monitoring_github_rate_limit_alert_enabled
-            ? `${status.monitoring_github_rate_limit_alert_window_hours}시간 내 기본 ${status.monitoring_github_primary_limit_alert_threshold}회 · 보조 ${status.monitoring_github_secondary_limit_alert_threshold}회`
+            ? `${status.monitoring_github_rate_limit_alert_window_hours}시간 내 기본 ${status.monitoring_github_primary_limit_alert_threshold}회 · 보조 ${status.monitoring_github_secondary_limit_alert_threshold}회 · 같은 간격으로 재알림`
             : "사용 안 함"}
+        </p>
+        <p
+          data-provider={alertHistory?.last_success_provider || ""}
+          data-testid="smoke-github-rate-limit-alert-last-success"
+        >
+          최근 제한 알림 테스트 성공 {alertHistory?.last_success_at
+            ? `${alertHistory.last_success_provider || "provider 미확인"} · ${formatDateTime(alertHistory.last_success_at, timezone)}`
+            : "기록 없음"}
         </p>
         {status.monitoring_github_rate_limit_remaining !== null &&
         status.monitoring_github_rate_limit_limit !== null ? (

@@ -30,6 +30,7 @@ export interface SettingsTestHistoryItem {
   last_provider: string | null;
   last_created_at: string | null;
   last_success_at: string | null;
+  last_success_provider: string | null;
   last_failure_at: string | null;
   last_failure_audit_id: string | null;
   last_failure_message: string | null;
@@ -45,6 +46,7 @@ export interface SettingsTestHistoryStatus {
   cloudflare_reconcile: SettingsTestHistoryItem;
   security_alert: SettingsTestHistoryItem;
   smoke_admin_stale: SettingsTestHistoryItem;
+  github_api_rate_limit: SettingsTestHistoryItem;
   security_alert_delivery: SettingsTestHistoryItem;
   change_alert_delivery: SettingsTestHistoryItem;
 }

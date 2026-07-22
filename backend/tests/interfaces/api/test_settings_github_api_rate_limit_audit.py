@@ -62,9 +62,9 @@ async def test_github_api_rate_limit_audit_records_occurrence_without_notificati
 
 
 @pytest.mark.asyncio
-async def test_github_api_rate_limit_audit_notifies_once_at_configured_threshold() -> None:
+async def test_github_api_rate_limit_audit_realerts_after_configured_window() -> None:
     calls = []
-    counts = iter([8, 2, 9, 3])
+    counts = iter([8, 2, 0, 9, 3, 1, 10, 5, 0])
 
     class CountResult:
         def __init__(self, count: int) -> None:
@@ -115,8 +115,20 @@ async def test_github_api_rate_limit_audit_notifies_once_at_configured_threshold
         settings_repository_factory=lambda _db: Repository(),
         now=datetime(2026, 7, 22, 1, 1, tzinfo=timezone.utc),
     )
+    await record_github_api_rate_limit_audit(
+        audit_service=AuditService(),
+        db=db,
+        actor="lizstudio",
+        rate_limit_event={
+            "kind": "primary",
+            "occurred_at": "2026-07-23T01:01:00+00:00",
+            "retry_at": None,
+        },
+        settings_repository_factory=lambda _db: Repository(),
+        now=datetime(2026, 7, 23, 1, 1, tzinfo=timezone.utc),
+    )
 
-    assert [call["notify"] for call in calls] == [True, False]
+    assert [call["notify"] for call in calls] == [True, False, True]
     assert calls[0]["detail"] == {
         "event": "github_api_primary_rate_limit",
         "occurred_at": "2026-07-22T01:00:00+00:00",
@@ -124,6 +136,8 @@ async def test_github_api_rate_limit_audit_notifies_once_at_configured_threshold
         "retry_at": None,
         "alert_triggered": True,
         "alert_window_hours": 24,
+        "alert_cooldown_hours": 24,
         "alert_threshold": 3,
         "window_occurrence_count": 3,
     }
+    assert calls[2]["detail"]["alert_triggered"] is True

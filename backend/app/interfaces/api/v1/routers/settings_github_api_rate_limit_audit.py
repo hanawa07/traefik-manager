@@ -56,7 +56,14 @@ async def record_github_api_rate_limit_audit(
             )
         )
         window_count = window_result.scalar_one() + 1
-        notify = window_count == threshold
+        recent_alert_result = await db.execute(
+            select(func.count(AuditLogModel.id)).where(
+                AuditLogModel.detail["event"].as_string() == event,
+                AuditLogModel.detail["alert_triggered"].as_boolean().is_(True),
+                AuditLogModel.created_at >= cutoff,
+            )
+        )
+        notify = window_count >= threshold and recent_alert_result.scalar_one() == 0
     detail = {
         "event": event,
         "occurred_at": rate_limit_event.get("occurred_at"),
@@ -68,6 +75,9 @@ async def record_github_api_rate_limit_audit(
             {
                 "alert_triggered": notify,
                 "alert_window_hours": alert_settings[
+                    "monitoring_github_rate_limit_alert_window_hours"
+                ],
+                "alert_cooldown_hours": alert_settings[
                     "monitoring_github_rate_limit_alert_window_hours"
                 ],
                 "alert_threshold": threshold,

@@ -240,6 +240,7 @@ async def send_github_api_rate_limit_test_alert(db: AsyncSession) -> dict[str, A
             "event": event,
             "test": True,
             "alert_window_hours": 24,
+            "alert_cooldown_hours": 24,
             "alert_threshold": 3,
             "window_occurrence_count": 3,
         },

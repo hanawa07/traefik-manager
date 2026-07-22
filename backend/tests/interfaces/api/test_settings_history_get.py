@@ -70,6 +70,7 @@ async def test_get_settings_test_history_includes_delivery_summary():
     assert response.security_alert_delivery.last_failure_detail == "network down"
     assert response.security_alert_delivery.last_failure_provider == "slack"
     assert response.security_alert_delivery.last_success_at == now - timedelta(minutes=10)
+    assert response.security_alert_delivery.last_success_provider == "slack"
     assert response.security_alert_delivery.last_failure_at == now - timedelta(minutes=5)
     assert response.security_alert_delivery.recent_failure_count == 2
 
@@ -140,6 +141,18 @@ async def test_get_settings_test_history_returns_latest_cloudflare_and_security_
             },
             created_at=now,
         ),
+        make_settings_history_log(
+            log_id="7",
+            event="settings_test_github_api_rate_limit",
+            resource_id="settings_test_github_api_rate_limit",
+            resource_name="GitHub API 반복 제한 알림 dry-run",
+            detail={
+                "success": True,
+                "message": "GitHub API 반복 제한 dry-run을 전송했습니다",
+                "provider": "telegram",
+            },
+            created_at=now,
+        ),
     ]
 
     response = await settings_router.get_settings_test_history(db=StubAuditHistoryDb(logs), _={"role": "admin"})
@@ -156,6 +169,9 @@ async def test_get_settings_test_history_returns_latest_cloudflare_and_security_
     assert response.security_alert.last_event == "settings_test_security_alert"
     assert response.security_alert.last_success is False
     assert response.security_alert.last_provider == "slack"
+    assert response.github_api_rate_limit.last_success is True
+    assert response.github_api_rate_limit.last_success_at == now
+    assert response.github_api_rate_limit.last_success_provider == "telegram"
     assert response.security_alert_delivery.last_event == "security_alert_delivery_failure"
     assert response.security_alert_delivery.last_success is False
     assert response.security_alert_delivery.last_provider == "slack"

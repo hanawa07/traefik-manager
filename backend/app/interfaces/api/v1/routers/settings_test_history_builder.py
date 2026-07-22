@@ -19,6 +19,10 @@ def build_settings_test_history_response(logs: list[AuditLogModel]) -> SettingsT
         logs,
         SETTINGS_TEST_EVENTS["smoke_admin_stale"],
     )
+    github_api_rate_limit = find_latest_settings_test_event(
+        logs,
+        SETTINGS_TEST_EVENTS["github_api_rate_limit"],
+    )
     security_alert_delivery = find_latest_settings_events(logs, SETTINGS_DELIVERY_EVENTS["security_alert_delivery"])
     change_alert_delivery = find_latest_settings_events(logs, SETTINGS_DELIVERY_EVENTS["change_alert_delivery"])
     return SettingsTestHistoryResponse(
@@ -27,6 +31,7 @@ def build_settings_test_history_response(logs: list[AuditLogModel]) -> SettingsT
         cloudflare_reconcile=cloudflare_reconcile,
         security_alert=security_alert,
         smoke_admin_stale=smoke_admin_stale,
+        github_api_rate_limit=github_api_rate_limit,
         security_alert_delivery=security_alert_delivery,
         change_alert_delivery=change_alert_delivery,
     )
@@ -45,6 +50,7 @@ def find_latest_settings_events(
 ) -> SettingsTestHistoryItemResponse:
     latest: SettingsTestHistoryItemResponse | None = None
     last_success_at: datetime | None = None
+    last_success_provider: str | None = None
     last_failure_at: datetime | None = None
     last_failure_audit_id: str | None = None
     last_failure_message: str | None = None
@@ -89,6 +95,9 @@ def find_latest_settings_events(
 
         if isinstance(success, bool) and success and last_success_at is None:
             last_success_at = created_at
+            last_success_provider = (
+                detail.get("provider") if isinstance(detail.get("provider"), str) else None
+            )
 
         if isinstance(success, bool) and not success:
             if last_failure_at is None:
@@ -104,6 +113,7 @@ def find_latest_settings_events(
         return SettingsTestHistoryItemResponse()
 
     latest.last_success_at = last_success_at
+    latest.last_success_provider = last_success_provider
     latest.last_failure_at = last_failure_at
     latest.last_failure_audit_id = last_failure_audit_id
     latest.last_failure_message = last_failure_message
