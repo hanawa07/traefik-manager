@@ -130,6 +130,12 @@ class AuditLogModel(Base):
             detail["event"].as_string(),
             created_at,
         ),
+        Index(
+            "ix_audit_logs_change_alert_source_created_at",
+            detail["source_event"].as_string(),
+            created_at,
+            sqlite_where=detail["event"].as_string() == "change_alert_delivery_success",
+        ),
     )
 
 
@@ -137,6 +143,10 @@ class AuditLogModel(Base):
 AUDIT_EVENT_EXPRESSION = func.json_extract(
     AuditLogModel.detail,
     literal_column("'$.\"event\"'"),
+)
+AUDIT_SOURCE_EVENT_EXPRESSION = func.json_extract(
+    AuditLogModel.detail,
+    literal_column("'$.\"source_event\"'"),
 )
 
 
