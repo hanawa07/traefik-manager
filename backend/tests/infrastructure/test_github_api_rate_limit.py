@@ -13,11 +13,6 @@ def reset_github_api_rate_limit_state(monkeypatch) -> None:
     monkeypatch.setattr(github_api_rate_limit, "_refresh_request_estimate", None)
     monkeypatch.setattr(github_api_rate_limit, "_latest_rate_limit_event", None)
     monkeypatch.setattr(github_api_rate_limit, "_rate_limit_event_sequence", 0)
-    monkeypatch.setattr(
-        github_api_rate_limit,
-        "_rate_limit_occurrence_counts",
-        {"primary": 0, "secondary": 0},
-    )
 
 
 def test_github_api_rate_limit_keeps_lowest_remaining_for_same_window(monkeypatch) -> None:
@@ -86,7 +81,6 @@ def test_github_api_rate_limit_blocks_refresh_until_reset_and_explains_403(
     assert github_api_rate_limit.read_github_api_rate_limit_event() == {
         "kind": "primary",
         "occurred_at": "2027-01-15T07:58:00+00:00",
-        "occurrence_count": 2,
         "retry_at": "2027-01-15T08:00:00+00:00",
         "sequence": 2,
     }
@@ -122,7 +116,6 @@ def test_github_api_secondary_limit_uses_retry_after_and_separate_guidance(
     assert github_api_rate_limit.read_github_api_rate_limit_event() == {
         "kind": "secondary",
         "occurred_at": "2027-01-15T07:00:00+00:00",
-        "occurrence_count": 1,
         "retry_at": "2027-01-15T07:02:00+00:00",
         "sequence": 1,
     }

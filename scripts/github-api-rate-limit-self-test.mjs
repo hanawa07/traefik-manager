@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 
+import { auditFilters } from "../frontend/src/app/dashboard/audit/audit-page-helpers/auditFilterOptions.ts";
 import { getGithubApiRateLimitDetailRows } from "../frontend/src/app/dashboard/audit/audit-page-helpers/githubApiRateLimitDetailRows.ts";
 import {
   isGithubApiRefreshBlocked,
@@ -25,3 +26,7 @@ assert.deepEqual(rows.map((row) => row.value), [
   "2026-07-22T01:01:00+00:00",
 ]);
 assert.deepEqual(getGithubApiRateLimitDetailRows("service_update", {}), []);
+assert.equal(
+  auditFilters.some(({ key }) => key === "github_api_rate_limit"),
+  true,
+);

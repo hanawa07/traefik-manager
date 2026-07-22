@@ -1,4 +1,5 @@
 import { RefreshCw } from "lucide-react";
+import Link from "next/link";
 
 import type { SmokeRotationStatus } from "@/features/settings/api/settingsApi";
 import { isGithubSecondaryRateLimitBlocked } from "@/features/settings/lib/smokeGithubRateLimit";
@@ -81,6 +82,15 @@ export function SmokeGithubApiDiagnostics({
             잔여량 보호를 위해 수동 새로고침과 자동 결과 확인을 잠갔습니다.
           </p>
         ) : null}
+        <p>
+          <Link
+            className="font-semibold text-cyan-700 underline underline-offset-2 dark:text-cyan-300"
+            data-testid="smoke-github-audit-link"
+            href="/dashboard/audit?filter=github_api_rate_limit"
+          >
+            GitHub API 제한 감사 로그 보기
+          </Link>
+        </p>
       </div>
       {canManage ? (
         <button

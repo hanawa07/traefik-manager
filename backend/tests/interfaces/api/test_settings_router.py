@@ -130,7 +130,6 @@ async def test_get_smoke_rotation_status_records_new_github_rate_limit_event(mon
     rate_limit_event = {
         "kind": "secondary",
         "occurred_at": "2026-07-22T01:00:00+00:00",
-        "occurrence_count": 2,
         "retry_at": "2026-07-22T01:01:00+00:00",
         "sequence": 3,
     }

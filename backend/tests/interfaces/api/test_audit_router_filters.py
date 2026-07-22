@@ -131,6 +131,46 @@ async def test_list_audit_logs_filters_by_event_and_applies_pagination(audit_db)
 
 
 @pytest.mark.asyncio
+async def test_list_audit_logs_groups_github_api_rate_limit_events(audit_db):
+    now = datetime.now(timezone.utc)
+    await seed_logs(
+        audit_db,
+        [
+            make_log(event="github_api_primary_rate_limit", created_at=now),
+            make_log(event="github_api_secondary_rate_limit", created_at=now),
+            make_log(event="service_updated", created_at=now),
+        ],
+    )
+
+    response = Response()
+    result = await audit_router.list_audit_logs(
+        response=response,
+        limit=10,
+        offset=0,
+        resource_type=None,
+        action=None,
+        event="github_api_rate_limit",
+        manager_status=None,
+        manager_source=None,
+        period_days=None,
+        start_date=None,
+        end_date=None,
+        search=None,
+        security_only=False,
+        provider=None,
+        delivery_success=None,
+        db=audit_db,
+        _={"username": "admin"},
+    )
+
+    assert response.headers["x-total-count"] == "2"
+    assert {item.event for item in result} == {
+        "github_api_primary_rate_limit",
+        "github_api_secondary_rate_limit",
+    }
+
+
+@pytest.mark.asyncio
 async def test_list_audit_logs_filters_by_resource_type_and_action(audit_db):
     now = datetime.now(timezone.utc)
     await seed_logs(

@@ -11,7 +11,6 @@ _latest_secondary_retry_at: str | None = None
 _refresh_request_estimate: int | None = None
 _latest_rate_limit_event: dict[str, int | str | None] | None = None
 _rate_limit_event_sequence = 0
-_rate_limit_occurrence_counts = {"primary": 0, "secondary": 0}
 _request_counter: ContextVar[dict[str, int] | None] = ContextVar(
     "github_api_request_counter",
     default=None,
@@ -170,11 +169,9 @@ def _record_rate_limit_occurrence(
 ) -> None:
     global _latest_rate_limit_event, _rate_limit_event_sequence
     _rate_limit_event_sequence += 1
-    _rate_limit_occurrence_counts[kind] += 1
     _latest_rate_limit_event = {
         "kind": kind,
         "occurred_at": occurred_at.isoformat(),
-        "occurrence_count": _rate_limit_occurrence_counts[kind],
         "retry_at": retry_at,
         "sequence": _rate_limit_event_sequence,
     }

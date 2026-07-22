@@ -8,6 +8,10 @@ from app.infrastructure.persistence.models import AuditLogModel
 
 SECURITY_EVENTS = {"login_failure", "login_locked", "login_suspicious", "login_blocked_ip"}
 SMOKE_ROTATION_EVENTS = {"smoke_rotation_failed", "smoke_rotation_succeeded"}
+GITHUB_API_RATE_LIMIT_EVENTS = {
+    "github_api_primary_rate_limit",
+    "github_api_secondary_rate_limit",
+}
 MANAGER_UNHEALTHY_EVENTS = {
     "manager_docker_unhealthy",
     "manager_http_errors_high",
@@ -83,11 +87,12 @@ def build_audit_log_conditions(
     if action:
         conditions.append(AuditLogModel.action == action)
     if event:
-        conditions.append(
-            event_column.in_(SMOKE_ROTATION_EVENTS)
-            if event == "smoke_rotation_result"
-            else event_column == event
-        )
+        if event == "smoke_rotation_result":
+            conditions.append(event_column.in_(SMOKE_ROTATION_EVENTS))
+        elif event == "github_api_rate_limit":
+            conditions.append(event_column.in_(GITHUB_API_RATE_LIMIT_EVENTS))
+        else:
+            conditions.append(event_column == event)
     if manager_status:
         manager_events = (
             MANAGER_UNHEALTHY_EVENTS if manager_status == "unhealthy" else MANAGER_RECOVERED_EVENTS
