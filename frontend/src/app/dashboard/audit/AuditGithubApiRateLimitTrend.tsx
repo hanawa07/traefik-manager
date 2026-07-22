@@ -2,7 +2,7 @@
 
 import { ShieldAlert } from "lucide-react";
 
-import { useAuditPage } from "@/features/audit/hooks/useAudit";
+import { useAuditGithubApiRateLimitSummary } from "@/features/audit/hooks/useAudit";
 
 import type { AuditPeriodDays } from "./auditPageHelpers";
 
@@ -19,33 +19,17 @@ export function AuditGithubApiRateLimitTrend({
   selectedPeriod,
   onSelectPeriod,
 }: AuditGithubApiRateLimitTrendProps) {
-  const primaryDay = useAuditPage(rateLimitQuery("github_api_primary_rate_limit", 1));
-  const secondaryDay = useAuditPage(rateLimitQuery("github_api_secondary_rate_limit", 1));
-  const primaryWeek = useAuditPage(rateLimitQuery("github_api_primary_rate_limit", 7));
-  const secondaryWeek = useAuditPage(rateLimitQuery("github_api_secondary_rate_limit", 7));
-  const primaryMonth = useAuditPage(rateLimitQuery("github_api_primary_rate_limit", 30));
-  const secondaryMonth = useAuditPage(rateLimitQuery("github_api_secondary_rate_limit", 30));
-  const primaryQuarter = useAuditPage(rateLimitQuery("github_api_primary_rate_limit", 90));
-  const secondaryQuarter = useAuditPage(rateLimitQuery("github_api_secondary_rate_limit", 90));
+  const summary = useAuditGithubApiRateLimitSummary(startDate, endDate);
+  const periodCounts = new Map(summary.data?.periods.map((period) => [period.days, period]));
   const hasCustomRange = Boolean(startDate || endDate);
-  const primaryCustom = useAuditPage(
-    rateLimitDateQuery("github_api_primary_rate_limit", startDate, endDate),
-    hasCustomRange,
-  );
-  const secondaryCustom = useAuditPage(
-    rateLimitDateQuery("github_api_secondary_rate_limit", startDate, endDate),
-    hasCustomRange,
-  );
+  const custom = summary.data?.custom;
   const periods = [
-    rateLimitPeriod(1, "24시간", primaryDay.data?.total, secondaryDay.data?.total),
-    rateLimitPeriod(7, "7일", primaryWeek.data?.total, secondaryWeek.data?.total),
-    rateLimitPeriod(30, "30일", primaryMonth.data?.total, secondaryMonth.data?.total),
-    rateLimitPeriod(90, "90일", primaryQuarter.data?.total, secondaryQuarter.data?.total),
+    rateLimitPeriod(1, "24시간", periodCounts.get(1)?.primary, periodCounts.get(1)?.secondary),
+    rateLimitPeriod(7, "7일", periodCounts.get(7)?.primary, periodCounts.get(7)?.secondary),
+    rateLimitPeriod(30, "30일", periodCounts.get(30)?.primary, periodCounts.get(30)?.secondary),
+    rateLimitPeriod(90, "90일", periodCounts.get(90)?.primary, periodCounts.get(90)?.secondary),
   ];
-  const customTotal =
-    primaryCustom.data && secondaryCustom.data
-      ? primaryCustom.data.total + secondaryCustom.data.total
-      : undefined;
+  const customTotal = custom ? custom.primary + custom.secondary : undefined;
   const maxTotal = Math.max(1, customTotal ?? 0, ...periods.map((period) => period.total ?? 0));
 
   return (
@@ -120,9 +104,9 @@ export function AuditGithubApiRateLimitTrend({
         <div
           className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cyan-200 bg-white/80 px-4 py-3 text-xs dark:border-cyan-500/30 dark:bg-slate-900/70"
           data-end-date={endDate}
-          data-loading={primaryCustom.isFetching || secondaryCustom.isFetching}
-          data-primary={primaryCustom.data?.total ?? ""}
-          data-secondary={secondaryCustom.data?.total ?? ""}
+          data-loading={summary.isFetching}
+          data-primary={custom?.primary ?? ""}
+          data-secondary={custom?.secondary ?? ""}
           data-start-date={startDate}
           data-testid="audit-github-api-rate-limit-custom-range"
           data-total={customTotal ?? ""}
@@ -132,8 +116,8 @@ export function AuditGithubApiRateLimitTrend({
           </span>
           <span className="text-slate-600 dark:text-slate-300">
             전체 <strong className="text-slate-950 dark:text-white">{customTotal ?? "-"}건</strong>
-            {" · "}기본 <strong className="text-cyan-700 dark:text-cyan-300">{primaryCustom.data?.total ?? "-"}</strong>
-            {" · "}보조 <strong className="text-amber-700 dark:text-amber-300">{secondaryCustom.data?.total ?? "-"}</strong>
+            {" · "}기본 <strong className="text-cyan-700 dark:text-cyan-300">{custom?.primary ?? "-"}</strong>
+            {" · "}보조 <strong className="text-amber-700 dark:text-amber-300">{custom?.secondary ?? "-"}</strong>
           </span>
         </div>
       ) : (
@@ -143,13 +127,6 @@ export function AuditGithubApiRateLimitTrend({
       )}
     </section>
   );
-}
-
-function rateLimitQuery(
-  event: "github_api_primary_rate_limit" | "github_api_secondary_rate_limit",
-  periodDays: 1 | 7 | 30 | 90,
-) {
-  return { event, limit: 1, offset: 0, period_days: periodDays } as const;
 }
 
 function rateLimitPeriod(
@@ -165,18 +142,4 @@ function rateLimitPeriod(
     secondary,
     total: primary === undefined || secondary === undefined ? undefined : primary + secondary,
   };
-}
-
-function rateLimitDateQuery(
-  event: "github_api_primary_rate_limit" | "github_api_secondary_rate_limit",
-  startDate: string,
-  endDate: string,
-) {
-  return {
-    event,
-    limit: 1,
-    offset: 0,
-    start_date: startDate || undefined,
-    end_date: endDate || undefined,
-  } as const;
 }

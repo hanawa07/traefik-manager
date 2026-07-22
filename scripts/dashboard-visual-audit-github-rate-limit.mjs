@@ -25,22 +25,15 @@ export async function checkAuditGithubApiRateLimitTrend({ cdp, timeoutMs }) {
   );
 
   const summary = await evaluate(cdp, `(async () => {
-    const periods = [1, 7, 30, 90];
-    const counts = await Promise.all(periods.map(async (days) => {
-      const [primary, secondary, grouped] = await Promise.all([
-        fetch('/api/v1/audit?event=github_api_primary_rate_limit&limit=1&period_days=' + days),
-        fetch('/api/v1/audit?event=github_api_secondary_rate_limit&limit=1&period_days=' + days),
-        fetch('/api/v1/audit?event=github_api_rate_limit&limit=1&period_days=' + days),
-      ]);
-      return {
-        days,
-        ok: primary.ok && secondary.ok && grouped.ok,
-        primary: Number(primary.headers.get('x-total-count')),
-        secondary: Number(secondary.headers.get('x-total-count')),
-        total: Number(grouped.headers.get('x-total-count')),
-      };
+    const response = await fetch('/api/v1/audit/github-api-rate-limit-summary');
+    const body = await response.json();
+    const counts = body.periods.map(({ days, primary, secondary }) => ({
+      days,
+      primary,
+      secondary,
+      total: primary + secondary,
     }));
-    const ui = periods.map((days) => {
+    const ui = [1, 7, 30, 90].map((days) => {
       const card = document.querySelector(
         '[data-testid="audit-github-api-rate-limit-trend"] [data-period-days="' + days + '"]'
       );
@@ -51,9 +44,9 @@ export async function checkAuditGithubApiRateLimitTrend({ cdp, timeoutMs }) {
         total: Number(card?.getAttribute('data-total')),
       };
     });
-    return { counts, ui };
+    return { ok: response.ok, counts, ui };
   })()`);
-  assert.ok(summary.counts.every((item) => item.ok), "GitHub API 제한 추이 API 응답을 받지 못했습니다");
+  assert.equal(summary.ok, true, "GitHub API 제한 추이 API 응답을 받지 못했습니다");
   assert.deepEqual(summary.ui, summary.counts.map(({ days, primary, secondary, total }) => ({
     days,
     primary,
@@ -113,16 +106,15 @@ export async function checkAuditGithubApiRateLimitTrend({ cdp, timeoutMs }) {
     "GitHub API 제한 사용자 지정 기간 추이를 불러오지 못했습니다",
   );
   const customRange = await evaluate(cdp, `(async () => {
-    const query = 'start_date=2020-01-01&end_date=2099-12-31&limit=1';
-    const [primary, secondary] = await Promise.all([
-      fetch('/api/v1/audit?event=github_api_primary_rate_limit&' + query),
-      fetch('/api/v1/audit?event=github_api_secondary_rate_limit&' + query),
-    ]);
+    const response = await fetch(
+      '/api/v1/audit/github-api-rate-limit-summary?start_date=2020-01-01&end_date=2099-12-31'
+    );
+    const body = await response.json();
     const card = document.querySelector('[data-testid="audit-github-api-rate-limit-custom-range"]');
     return {
-      ok: primary.ok && secondary.ok,
-      apiPrimary: Number(primary.headers.get('x-total-count')),
-      apiSecondary: Number(secondary.headers.get('x-total-count')),
+      ok: response.ok && body.custom !== null,
+      apiPrimary: body.custom?.primary,
+      apiSecondary: body.custom?.secondary,
       uiPrimary: Number(card?.getAttribute('data-primary')),
       uiSecondary: Number(card?.getAttribute('data-secondary')),
       uiTotal: Number(card?.getAttribute('data-total')),

@@ -40,6 +40,24 @@ export interface AuditLogPage {
   total: number;
 }
 
+export interface AuditGithubApiRateLimitPeriod {
+  days: 1 | 7 | 30 | 90;
+  primary: number;
+  secondary: number;
+}
+
+export interface AuditGithubApiRateLimitCustomPeriod {
+  start_date: string | null;
+  end_date: string | null;
+  primary: number;
+  secondary: number;
+}
+
+export interface AuditGithubApiRateLimitSummary {
+  periods: AuditGithubApiRateLimitPeriod[];
+  custom: AuditGithubApiRateLimitCustomPeriod | null;
+}
+
 export interface AuditBulkOperationSummary {
   operation_id: string;
   actor: string;
@@ -142,6 +160,22 @@ export const auditApi = {
     const res = await apiClient.get<AuditLogItem[]>("/audit", { params });
     const total = Number(res.headers["x-total-count"]);
     return { items: res.data, total: Number.isFinite(total) ? total : res.data.length };
+  },
+
+  getGithubApiRateLimitSummary: async (
+    startDate?: string,
+    endDate?: string,
+  ): Promise<AuditGithubApiRateLimitSummary> => {
+    const res = await apiClient.get<AuditGithubApiRateLimitSummary>(
+      "/audit/github-api-rate-limit-summary",
+      {
+        params: {
+          start_date: startDate || undefined,
+          end_date: endDate || undefined,
+        },
+      },
+    );
+    return res.data;
   },
 
   getBulkOperations: async (

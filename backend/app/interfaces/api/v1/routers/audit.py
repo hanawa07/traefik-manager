@@ -28,11 +28,15 @@ from app.interfaces.api.v1.routers.audit_log_filters import (
     validate_audit_log_filters,
 )
 from app.interfaces.api.v1.routers.audit_log_helpers import to_audit_log_response
+from app.interfaces.api.v1.routers.audit_github_api_rate_limit_summary import (
+    load_github_api_rate_limit_summary,
+)
 from app.interfaces.api.v1.routers.audit_manager_health_summary import build_manager_health_summary
 from app.interfaces.api.v1.routers.audit_security_summary import build_security_summary
 from app.interfaces.api.v1.schemas.audit_schemas import (
     AuditCertificateSummaryResponse,
     AuditDeliveryRetryResponse,
+    AuditGithubApiRateLimitSummaryResponse,
     AuditLogResponse,
     AuditManagerHealthSummaryResponse,
     AuditSecuritySummaryResponse,
@@ -110,6 +114,29 @@ async def list_audit_logs(
     )
     result = await db.execute(query)
     return [to_audit_log_response(log) for log in result.scalars().all()]
+
+
+@router.get(
+    "/github-api-rate-limit-summary",
+    response_model=AuditGithubApiRateLimitSummaryResponse,
+    summary="GitHub API 제한 기간별 요약",
+)
+async def get_github_api_rate_limit_summary(
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    validate_audit_log_filters(
+        period_days=None,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    return await load_github_api_rate_limit_summary(
+        db,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
 
 @router.get(

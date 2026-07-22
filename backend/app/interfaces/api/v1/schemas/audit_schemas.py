@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -66,6 +66,24 @@ class AuditManagerHealthSummaryResponse(BaseModel):
     api_recovered_count: int
     watchdog_unhealthy_count: int
     watchdog_recovered_count: int
+
+
+class AuditGithubApiRateLimitPeriodResponse(BaseModel):
+    days: Literal[1, 7, 30, 90]
+    primary: int
+    secondary: int
+
+
+class AuditGithubApiRateLimitCustomPeriodResponse(BaseModel):
+    start_date: date | None = None
+    end_date: date | None = None
+    primary: int
+    secondary: int
+
+
+class AuditGithubApiRateLimitSummaryResponse(BaseModel):
+    periods: list[AuditGithubApiRateLimitPeriodResponse]
+    custom: AuditGithubApiRateLimitCustomPeriodResponse | None = None
 
 
 class AuditBulkOperationSummaryResponse(BaseModel):

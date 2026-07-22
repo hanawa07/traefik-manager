@@ -23,6 +23,14 @@ export const useAuditPage = (params: AuditLogQueryParams, enabled = true) => {
   });
 };
 
+export const useAuditGithubApiRateLimitSummary = (startDate: string, endDate: string) => {
+  return useQuery({
+    queryKey: ["audit-github-api-rate-limit-summary", startDate, endDate],
+    queryFn: () => auditApi.getGithubApiRateLimitSummary(startDate, endDate),
+    placeholderData: (previousData) => previousData,
+  });
+};
+
 export const useAuditBulkOperations = (params?: AuditBulkOperationQueryParams) => {
   return useQuery({
     queryKey: ["audit-bulk-operations", params],
