@@ -5,6 +5,7 @@ import {
   useRefreshSmokeMonitoringHistory,
   useSettingsTestHistory,
   useSmokeRotationStatus,
+  useTestGithubApiRateLimitAlert,
   useTestSmokeAdminStaleAlert,
   useUpdateSmokeMonitoringSettings,
 } from "@/features/settings/hooks/useSettings";
@@ -47,6 +48,7 @@ export function useSmokeMonitoringSettingsModel(
   const refreshHistory = useRefreshSmokeMonitoringHistory();
   const testHistory = useSettingsTestHistory();
   const testStaleAlert = useTestSmokeAdminStaleAlert();
+  const testGithubRateLimitAlert = useTestGithubApiRateLimitAlert();
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState(DEFAULT_FORM);
   const [errorMessage, setErrorMessage] = useState("");
@@ -296,6 +298,26 @@ export function useSmokeMonitoringSettingsModel(
     }
   };
 
+  const handleTestGithubRateLimitAlert = async () => {
+    if (!window.confirm("현재 Manager 상태 운영 알림 경로로 GitHub API 반복 제한 테스트를 전송할까요?")) {
+      return;
+    }
+    try {
+      const result = await testGithubRateLimitAlert.mutateAsync();
+      onToast({
+        tone: result.success ? "success" : "error",
+        message: result.message,
+        detail: result.detail,
+      });
+    } catch (error) {
+      onToast({
+        tone: "error",
+        message: "GitHub API 반복 제한 dry-run 실패",
+        detail: getSettingsModelErrorMessage(error, "운영 알림 경로를 확인하지 못했습니다"),
+      });
+    }
+  };
+
   return {
     canManage,
     isLoading: query.isLoading,
@@ -311,12 +333,14 @@ export function useSmokeMonitoringSettingsModel(
     isTrackingManualRun,
     lastManualRun,
     isTestingStaleAlert: testStaleAlert.isPending,
+    isTestingGithubRateLimitAlert: testGithubRateLimitAlert.isPending,
     onEdit: handleEdit,
     onSave: handleSave,
     onRefreshHistory: handleRefreshHistory,
     onManualRunOpen: handleManualRunOpen,
     onClearManualRun: handleClearManualRun,
     onTestStaleAlert: handleTestStaleAlert,
+    onTestGithubRateLimitAlert: handleTestGithubRateLimitAlert,
     onCancel: () => setIsEditing(false),
     onFormChange: setFormValue,
   };

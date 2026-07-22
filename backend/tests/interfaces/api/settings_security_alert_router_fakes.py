@@ -52,3 +52,18 @@ def patch_smoke_admin_stale_test_alert_sender(monkeypatch, result: dict[str, obj
         fake_send_smoke_admin_stale_test_alert,
     )
     return called
+
+
+def patch_github_api_rate_limit_test_alert_sender(monkeypatch, result: dict[str, object]):
+    called = {}
+
+    async def fake_send_github_api_rate_limit_test_alert(db):
+        called["db"] = db
+        return result
+
+    monkeypatch.setattr(
+        settings_router.security_alert_notifier,
+        "send_github_api_rate_limit_test_alert",
+        fake_send_github_api_rate_limit_test_alert,
+    )
+    return called

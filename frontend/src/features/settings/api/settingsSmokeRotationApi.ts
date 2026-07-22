@@ -130,6 +130,12 @@ export const smokeRotationSettingsApi = {
     );
     return response.data;
   },
+  testGithubApiRateLimitAlert: async (): Promise<SettingsActionTestResult> => {
+    const response = await apiClient.post<SettingsActionTestResult>(
+      "/settings/github-api-rate-limit-alert/test",
+    );
+    return response.data;
+  },
   refreshSmokeMonitoringHistory: async (): Promise<SmokeRotationStatus> => {
     const response = await apiClient.get<SmokeRotationStatus>(
       "/settings/smoke-rotation?refresh_monitoring_history=true",

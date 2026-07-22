@@ -64,6 +64,30 @@ async def test_smoke_admin_stale_alert_action(
     return result
 
 
+async def test_github_api_rate_limit_alert_action(
+    *,
+    request: Request,
+    db: AsyncSession,
+    actor: dict,
+    notifier,
+    audit_service,
+    client_ip_getter: Callable[[Request], str],
+) -> SettingsTestActionResponse:
+    result = SettingsTestActionResponse(
+        **(await notifier.send_github_api_rate_limit_test_alert(db))
+    )
+    await record_security_alert_test_audit(
+        audit_service=audit_service,
+        db=db,
+        actor=actor.get("username", "unknown"),
+        result=result,
+        client_ip=client_ip_getter(request),
+        event_key="github_api_rate_limit",
+        resource_name="GitHub API 반복 제한 알림 dry-run",
+    )
+    return result
+
+
 async def update_security_alert_settings_action(
     *,
     request: SecurityAlertSettingsUpdateRequest,

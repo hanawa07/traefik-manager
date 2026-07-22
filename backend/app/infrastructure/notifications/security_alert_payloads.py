@@ -63,6 +63,8 @@ def build_message(event: str, resource_name: str, client_ip: Any, category: str)
         return f"스모크 계정 비밀번호 회전 실패: {resource_name}"
     if event == "smoke_admin_stale_test":
         return f"[테스트] 관리자 전용 점검 지연: {resource_name}"
+    if event == "github_api_rate_limit_test":
+        return f"[테스트] GitHub API 반복 제한: {resource_name}"
     if event == "github_api_primary_rate_limit":
         return f"GitHub API 기본 요청 한도 반복: {resource_name}"
     if event == "github_api_secondary_rate_limit":
@@ -220,6 +222,7 @@ def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
         if event == "smoke_rotation_failed" and detail.get("step"):
             lines.append(f"실패 단계: {detail.get('step')}")
         if event in {
+            "github_api_rate_limit_test",
             "github_api_primary_rate_limit",
             "github_api_secondary_rate_limit",
         }:

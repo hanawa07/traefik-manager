@@ -4,6 +4,7 @@ SETTINGS_TEST_EVENTS = {
     "cloudflare_reconcile": "settings_test_cloudflare_reconcile",
     "security_alert": "settings_test_security_alert",
     "smoke_admin_stale": "settings_test_smoke_admin_stale",
+    "github_api_rate_limit": "settings_test_github_api_rate_limit",
 }
 
 SETTINGS_DELIVERY_EVENTS = {

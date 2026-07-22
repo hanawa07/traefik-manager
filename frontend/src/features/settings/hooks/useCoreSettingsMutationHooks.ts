@@ -94,3 +94,10 @@ export function useTestSmokeAdminStaleAlert() {
     settingsQueryKeys.testHistory,
   );
 }
+
+export function useTestGithubApiRateLimitAlert() {
+  return useSettingsMutationForQuery(
+    settingsApi.testGithubApiRateLimitAlert,
+    settingsQueryKeys.testHistory,
+  );
+}

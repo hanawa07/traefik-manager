@@ -15,6 +15,7 @@ export {
   usePreviewDeploymentBottleneckEventCleanup,
   useRefreshSmokeMonitoringHistory,
   useRunAuditRetentionCleanup,
+  useTestGithubApiRateLimitAlert,
   useTestSmokeAdminStaleAlert,
   useUpdateCertificateDiagnosticsSettings,
   useUpdateDeploymentBottleneckSettings,

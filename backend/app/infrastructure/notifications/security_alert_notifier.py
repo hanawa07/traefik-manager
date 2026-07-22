@@ -217,6 +217,47 @@ async def send_smoke_admin_stale_test_alert(db: AsyncSession) -> dict[str, Any]:
     }
 
 
+async def send_github_api_rate_limit_test_alert(db: AsyncSession) -> dict[str, Any]:
+    repo = SQLiteSystemSettingsRepository(db)
+    event = "github_api_rate_limit_test"
+    alert_context = await _get_alert_context(repo, event)
+    if alert_context is None:
+        return {
+            "success": False,
+            "provider": None,
+            "message": "GitHub API 반복 제한 dry-run을 전송하지 못했습니다",
+            "detail": "운영 변경 알림과 Manager 상태 알림 경로를 확인하세요",
+        }
+
+    category, provider = alert_context
+    audit_log = AuditLogModel(
+        actor="system",
+        action="test",
+        resource_type="settings",
+        resource_id="github-api-rate-limit-alert",
+        resource_name="GitHub API 보조 요청 제한",
+        detail={
+            "event": event,
+            "test": True,
+            "alert_window_hours": 24,
+            "alert_threshold": 3,
+            "window_occurrence_count": 3,
+        },
+    )
+    audit_log.created_at = datetime.now(timezone.utc)
+    success, detail = await _deliver_alert(repo, audit_log, event, provider, category)
+    return {
+        "success": success,
+        "provider": provider,
+        "message": (
+            "GitHub API 반복 제한 dry-run을 전송했습니다"
+            if success
+            else "GitHub API 반복 제한 dry-run 전송에 실패했습니다"
+        ),
+        "detail": detail,
+    }
+
+
 async def _send_email_alert(
     repo: SQLiteSystemSettingsRepository,
     audit_log: AuditLogModel,

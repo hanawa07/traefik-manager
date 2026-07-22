@@ -53,12 +53,14 @@ interface SmokeRotationStatusCardProps {
   isTrackingManualRun: boolean;
   lastManualRun: TrackedManualSmokeRun | null;
   isTestingStaleAlert: boolean;
+  isTestingGithubRateLimitAlert: boolean;
   onEdit: () => void;
   onSave: () => void;
   onRefreshHistory: () => void;
   onManualRunOpen: () => void;
   onClearManualRun: () => void;
   onTestStaleAlert: () => void;
+  onTestGithubRateLimitAlert: () => void;
   onCancel: () => void;
   onFormChange: (value: SmokeMonitoringSettingsInput) => void;
 }
@@ -78,12 +80,14 @@ export function SmokeRotationStatusCard({
   isTrackingManualRun,
   lastManualRun,
   isTestingStaleAlert,
+  isTestingGithubRateLimitAlert,
   onEdit,
   onSave,
   onRefreshHistory,
   onManualRunOpen,
   onClearManualRun,
   onTestStaleAlert,
+  onTestGithubRateLimitAlert,
   onCancel,
   onFormChange,
 }: SmokeRotationStatusCardProps) {
@@ -161,6 +165,23 @@ export function SmokeRotationStatusCard({
                 : "사용 안 함"
             }
           />
+          {canManage ? (
+            <SettingsSummaryRow
+              label="GitHub API 제한 알림 dry-run"
+              value={
+                <button
+                  type="button"
+                  className="btn-secondary inline-flex items-center gap-1.5 py-1.5 text-xs"
+                  data-testid="smoke-github-rate-limit-alert-test"
+                  onClick={onTestGithubRateLimitAlert}
+                  disabled={isTestingGithubRateLimitAlert}
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  {isTestingGithubRateLimitAlert ? "전송 중" : "운영 경로 테스트"}
+                </button>
+              }
+            />
+          ) : null}
           <SettingsSummaryRow
             label="최근 원격 점검 성공"
             value={

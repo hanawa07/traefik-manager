@@ -167,6 +167,30 @@ async def test_smoke_admin_stale_dry_run_forces_telegram(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_github_api_rate_limit_dry_run_uses_manager_health_route(monkeypatch):
+    posted = []
+    patch_settings(
+        monkeypatch,
+        {
+            "change_alerts_enabled": "true",
+            "security_alert_provider": "slack",
+            "security_alert_change_route_manager_health": "telegram",
+            "security_alert_telegram_bot_token": "telegram-secret",
+            "security_alert_telegram_chat_id": "10001",
+        },
+    )
+    patch_http_client(monkeypatch, posted)
+
+    result = await security_alert_notifier.send_github_api_rate_limit_test_alert(object())
+
+    assert result["success"] is True
+    assert result["provider"] == "telegram"
+    assert posted[0][0] == "https://api.telegram.org/bottelegram-secret/sendMessage"
+    assert "[테스트] GitHub API 반복 제한" in posted[0][1]["text"]
+    assert "발생 횟수: 3회 / 임계치 3회" in posted[0][1]["text"]
+
+
+@pytest.mark.asyncio
 async def test_notify_if_needed_routes_event_to_override_provider(monkeypatch):
     posted = []
     patch_settings(

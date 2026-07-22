@@ -29,6 +29,7 @@ export {
   useRefreshSmokeMonitoringHistory,
   useRollbackSettingsChange,
   useTestCloudflareConnection,
+  useTestGithubApiRateLimitAlert,
   useTestSecurityAlertSettings,
   useTestSmokeAdminStaleAlert,
   useUpdateCertificateDiagnosticsSettings,
