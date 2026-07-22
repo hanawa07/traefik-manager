@@ -198,6 +198,26 @@ async def test_get_settings_test_history_returns_latest_cloudflare_and_security_
             },
             created_at=now - timedelta(minutes=1),
         ),
+        make_settings_history_log(
+            log_id="10",
+            event="github_api_secondary_rate_limit",
+            action="alert",
+            detail={"alert_triggered": True},
+            created_at=now - timedelta(minutes=4),
+        ),
+        make_settings_history_log(
+            log_id="11",
+            event="change_alert_delivery_success",
+            actor="system",
+            resource_id="change-alert-delivery",
+            resource_name="운영 변경 알림 전송 결과",
+            detail={
+                "success": True,
+                "provider": "slack",
+                "source_event": "github_api_secondary_rate_limit",
+            },
+            created_at=now - timedelta(minutes=3),
+        ),
     ]
 
     response = await get_settings_history(logs)
@@ -227,6 +247,12 @@ async def test_get_settings_test_history_returns_latest_cloudflare_and_security_
     assert response.github_api_rate_limit_delivery.last_success_at == now - timedelta(minutes=1)
     assert response.github_api_rate_limit_delivery.last_success_provider == "telegram"
     assert response.github_api_rate_limit_last_triggered_at == now - timedelta(minutes=2)
+    assert response.github_api_primary_rate_limit_delivery.last_success_at == now - timedelta(minutes=1)
+    assert response.github_api_primary_rate_limit_delivery.last_success_provider == "telegram"
+    assert response.github_api_secondary_rate_limit_delivery.last_success_at == now - timedelta(minutes=3)
+    assert response.github_api_secondary_rate_limit_delivery.last_success_provider == "slack"
+    assert response.github_api_primary_rate_limit_last_triggered_at == now - timedelta(minutes=2)
+    assert response.github_api_secondary_rate_limit_last_triggered_at == now - timedelta(minutes=4)
 
 
 @pytest.mark.asyncio

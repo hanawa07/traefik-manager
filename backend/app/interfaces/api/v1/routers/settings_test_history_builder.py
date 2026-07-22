@@ -31,6 +31,8 @@ def build_settings_test_history_response(logs: list[AuditLogModel]) -> SettingsT
         SETTINGS_DELIVERY_EVENTS["change_alert_delivery"],
         source_events=GITHUB_API_RATE_LIMIT_EVENTS,
     )
+    primary_event = "github_api_primary_rate_limit"
+    secondary_event = "github_api_secondary_rate_limit"
     return SettingsTestHistoryResponse(
         cloudflare=cloudflare,
         cloudflare_drift=cloudflare_drift,
@@ -42,6 +44,24 @@ def build_settings_test_history_response(logs: list[AuditLogModel]) -> SettingsT
         change_alert_delivery=change_alert_delivery,
         github_api_rate_limit_delivery=github_api_rate_limit_delivery,
         github_api_rate_limit_last_triggered_at=find_latest_github_api_rate_limit_trigger(logs),
+        github_api_primary_rate_limit_delivery=find_latest_settings_events(
+            logs,
+            SETTINGS_DELIVERY_EVENTS["change_alert_delivery"],
+            source_events={primary_event},
+        ),
+        github_api_secondary_rate_limit_delivery=find_latest_settings_events(
+            logs,
+            SETTINGS_DELIVERY_EVENTS["change_alert_delivery"],
+            source_events={secondary_event},
+        ),
+        github_api_primary_rate_limit_last_triggered_at=find_latest_github_api_rate_limit_trigger(
+            logs,
+            primary_event,
+        ),
+        github_api_secondary_rate_limit_last_triggered_at=find_latest_github_api_rate_limit_trigger(
+            logs,
+            secondary_event,
+        ),
     )
 
 
@@ -136,11 +156,15 @@ def find_latest_settings_events(
     return latest
 
 
-def find_latest_github_api_rate_limit_trigger(logs: list[AuditLogModel]) -> datetime | None:
+def find_latest_github_api_rate_limit_trigger(
+    logs: list[AuditLogModel],
+    event_name: str | None = None,
+) -> datetime | None:
     for log in logs:
         detail = log.detail or {}
         if (
             detail.get("event") in GITHUB_API_RATE_LIMIT_EVENTS
+            and (event_name is None or detail.get("event") == event_name)
             and detail.get("alert_triggered") is True
         ):
             return normalize_utc(log.created_at)

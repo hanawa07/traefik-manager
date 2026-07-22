@@ -56,3 +56,7 @@ class SettingsTestHistoryResponse(BaseModel):
     change_alert_delivery: SettingsTestHistoryItemResponse
     github_api_rate_limit_delivery: SettingsTestHistoryItemResponse
     github_api_rate_limit_last_triggered_at: datetime | None = None
+    github_api_primary_rate_limit_delivery: SettingsTestHistoryItemResponse
+    github_api_secondary_rate_limit_delivery: SettingsTestHistoryItemResponse
+    github_api_primary_rate_limit_last_triggered_at: datetime | None = None
+    github_api_secondary_rate_limit_last_triggered_at: datetime | None = None
