@@ -70,7 +70,7 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
       monitoring_failure_metadata_limit: 20,
       monitoring_github_rate_limit_remaining: 10,
       monitoring_github_rate_limit_limit: 60,
-      monitoring_github_rate_limit_reset_at: '2099-07-21T07:00:00Z',
+      monitoring_github_rate_limit_reset_at: new Date(Date.now() + 5 * 60_000).toISOString(),
       monitoring_latest_failure: expiredRun,
       monitoring_recent_runs: [failedRun, expiredRun, successRun],
     };
