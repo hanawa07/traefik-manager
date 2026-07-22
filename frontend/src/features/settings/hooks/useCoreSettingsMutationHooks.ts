@@ -82,10 +82,10 @@ export function useUpdateSmokeMonitoringSettings() {
 }
 
 export function useRefreshSmokeMonitoringHistory() {
-  return useSettingsMutationForQuery(
-    settingsApi.refreshSmokeMonitoringHistory,
-    settingsQueryKeys.smokeRotation,
-  );
+  return useSettingsMutation({
+    mutationFn: settingsApi.refreshSmokeMonitoringHistory,
+    invalidateKeys: [settingsQueryKeys.smokeRotation, settingsQueryKeys.auditLogs],
+  });
 }
 
 export function useTestSmokeAdminStaleAlert() {

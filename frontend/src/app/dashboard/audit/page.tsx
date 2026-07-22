@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { AuditFeedbackBanner } from "./AuditFeedbackBanner";
 import { AuditBulkOperationsOverview } from "./AuditBulkOperationsOverview";
 import { AuditDelayedRetryTrend } from "./AuditDelayedRetryTrend";
+import { AuditGithubApiRateLimitTrend } from "./AuditGithubApiRateLimitTrend";
 import { AuditLogFilters } from "./AuditLogFilters";
 import { AuditLogPageHeader } from "./AuditLogPageHeader";
 import { AuditLogTable } from "./AuditLogTable";
@@ -52,6 +53,12 @@ function AuditLogPageContent() {
 
       <AuditDelayedRetryTrend {...trend} />
       <AuditLogFilters {...filters} />
+      {filters.selectedFilter === "github_api_rate_limit" ? (
+        <AuditGithubApiRateLimitTrend
+          onSelectPeriod={filters.onPeriodChange}
+          selectedPeriod={filters.selectedPeriod}
+        />
+      ) : null}
 
       <AuditFeedbackBanner feedback={rollbackFeedback} />
       <AuditFeedbackBanner feedback={deliveryFeedback} />

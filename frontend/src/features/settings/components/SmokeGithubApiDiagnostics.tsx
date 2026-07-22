@@ -1,6 +1,7 @@
 import { RefreshCw } from "lucide-react";
 import Link from "next/link";
 
+import { useAuditPage } from "@/features/audit/hooks/useAudit";
 import type { SmokeRotationStatus } from "@/features/settings/api/settingsApi";
 import { isGithubSecondaryRateLimitBlocked } from "@/features/settings/lib/smokeGithubRateLimit";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
@@ -30,12 +31,50 @@ export function SmokeGithubApiDiagnostics({
   const secondaryBlocked = isGithubSecondaryRateLimitBlocked(
     status.monitoring_github_secondary_limit_retry_at,
   );
+  const rateLimitAudit = useAuditPage({
+    event: "github_api_rate_limit",
+    limit: 1,
+    offset: 0,
+  });
+  const latestRateLimitAudit = rateLimitAudit.data?.items[0];
+  const occurrenceCount = latestRateLimitAudit?.detail?.occurrence_count;
+  const occurredAt = latestRateLimitAudit?.detail?.occurred_at;
+  const latestOccurredAt = typeof occurredAt === "string"
+    ? occurredAt
+    : latestRateLimitAudit?.created_at;
+  const latestKind = latestRateLimitAudit?.event === "github_api_primary_rate_limit"
+    ? "기본 요청 한도"
+    : latestRateLimitAudit?.event === "github_api_secondary_rate_limit"
+      ? "보조 요청 제한"
+      : null;
+  const auditStatus = rateLimitAudit.isError
+    ? "error"
+    : rateLimitAudit.data
+      ? "ready"
+      : "loading";
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-950">
       <div className="space-y-1 text-xs text-gray-500 dark:text-slate-400">
         <p>
           GitHub 이력 확인 {formatDateTime(status.monitoring_history_checked_at, timezone)} · 10분간 캐시
+        </p>
+        <p
+          className={latestRateLimitAudit ? "font-semibold text-amber-700 dark:text-amber-300" : undefined}
+          data-latest-kind={latestKind || ""}
+          data-occurred-at={latestOccurredAt || ""}
+          data-occurrence-count={typeof occurrenceCount === "number" ? occurrenceCount : ""}
+          data-status={auditStatus}
+          data-testid="smoke-github-rate-limit-audit-summary"
+          data-total={rateLimitAudit.data?.total ?? ""}
+        >
+          {auditStatus === "error"
+            ? "최근 제한 이력을 불러오지 못했습니다."
+            : auditStatus === "loading"
+              ? "최근 제한 이력 확인 중..."
+              : latestRateLimitAudit && latestKind && latestOccurredAt
+                ? `최근 제한 ${latestKind} · ${formatDateTime(latestOccurredAt, timezone)} · ${typeof occurrenceCount === "number" ? `종류별 누적 ${occurrenceCount}회 · ` : ""}전체 누적 ${rateLimitAudit.data?.total ?? 0}회`
+                : "최근 제한 기록 없음 · 전체 누적 0회"}
         </p>
         {status.monitoring_github_rate_limit_remaining !== null &&
         status.monitoring_github_rate_limit_limit !== null ? (

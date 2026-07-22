@@ -8,6 +8,7 @@ import { checkManagerDeploymentHistory } from "./dashboard-visual-manager-deploy
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
 import { checkSecurityAlertRetryDelaySetting } from "./dashboard-visual-security-alert-settings.mjs";
 import { checkAuditDelayedRetryFilter } from "./dashboard-visual-audit-delayed-retry.mjs";
+import { checkAuditGithubApiRateLimitTrend } from "./dashboard-visual-audit-github-rate-limit.mjs";
 import { checkAuditBulkOperationFixture, runAuditBulkOperationFixtureSelfTest } from "./dashboard-visual-audit-bulk-operations.mjs";
 import { checkAuditSecuritySettingChanges } from "./dashboard-visual-audit-security-setting-changes.mjs";
 import { checkAuditRetryChain, checkSettingsTestAuditLinks, checkSmokeRotationAuditDetail, checkSmokeRunTrendRange } from "./dashboard-visual-smoke-monitoring.mjs";
@@ -41,8 +42,9 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
         }
         if (route.path === "/dashboard/audit") {
           await checkAuditDelayedRetryFilter({ cdp, timeoutMs });
+          await checkAuditGithubApiRateLimitTrend({ cdp, timeoutMs });
           const securityChangeCount = await checkAuditSecuritySettingChanges({ cdp, timeoutMs });
-          labels.push(`${profile.label} 지연 재시도 필터·건수·CSV·기간 클릭${securityChangeCount ? `·보안 변경 카드 ${securityChangeCount}종` : ""}`);
+          labels.push(`${profile.label} 지연 재시도·GitHub API 제한 추이·필터·CSV${securityChangeCount ? `·보안 변경 카드 ${securityChangeCount}종` : ""}`);
           const retryChainChecked = await checkAuditRetryChain({ cdp, timeoutMs });
           if (retryChainChecked) labels.push(`${profile.label} 알림 재시도 전체 체인·단계 경과·지연 강조`);
           await checkSmokeRotationAuditDetail({ cdp, timeoutMs });

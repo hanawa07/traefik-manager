@@ -73,12 +73,15 @@ async function checkSmokeRateLimitAdminFixture({
         const cache = document.querySelector('[data-testid="smoke-github-cache-diagnostics"]');
         const estimate = document.querySelector('[data-testid="smoke-github-request-estimate"]');
         const auditLink = document.querySelector('[data-testid="smoke-github-audit-link"]');
+        const auditSummary = document.querySelector('[data-testid="smoke-github-rate-limit-audit-summary"]');
         return button instanceof HTMLButtonElement && button.disabled &&
           warning?.textContent?.includes('GitHub API 보조 제한으로 새로고침을 잠갔습니다') &&
           document.querySelector('[data-testid="smoke-github-rate-limit"]')?.textContent?.includes('보호 기준 8회') &&
           cache?.textContent?.includes('응답 캐시 7/200개 · 적중률 75% (3/4회)') &&
           estimate?.textContent?.includes('Workflow 1회 · Job 4회 · Artifact 1회') &&
           estimate?.textContent?.includes('지금 새로고침 약 6회') &&
+          auditSummary?.getAttribute('data-status') === 'ready' &&
+          auditSummary?.textContent?.includes('전체 누적') &&
           auditLink?.getAttribute('href') === '/dashboard/audit?filter=github_api_rate_limit';
       })()`,
       timeoutMs,
