@@ -55,8 +55,10 @@ function AuditLogPageContent() {
       <AuditLogFilters {...filters} />
       {filters.selectedFilter === "github_api_rate_limit" ? (
         <AuditGithubApiRateLimitTrend
+          endDate={filters.endDate}
           onSelectPeriod={filters.onPeriodChange}
           selectedPeriod={filters.selectedPeriod}
+          startDate={filters.startDate}
         />
       ) : null}
 
