@@ -135,7 +135,7 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
     ["disabled", "pending", "unavailable", "sampling", "breached", "healthy"].includes(snapshot.latencyStatus),
     "설정 이력 API p95 감지 상태가 올바르지 않습니다",
   );
-  assert.match(snapshot.latencyText, /최근 60분.*p95.*100ms.*표본/, "설정 이력 API p95 운영 지표가 없습니다");
+  assert.match(snapshot.latencyText, /최근 60분.*p95.*750ms.*표본/, "설정 이력 API p95 운영 지표가 없습니다");
   if (["breached", "unavailable"].includes(snapshot.managerApiAlert)) {
     assert.equal(
       snapshot.managerApiAuditHref,

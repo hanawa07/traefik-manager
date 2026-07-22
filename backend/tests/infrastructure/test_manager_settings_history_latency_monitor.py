@@ -45,7 +45,7 @@ def _summary(*, p95_ms: float) -> dict[str, object]:
     return {
         "available": True,
         "ready": True,
-        "breached": p95_ms > 100,
+        "breached": p95_ms > monitor.SETTINGS_HISTORY_LATENCY_THRESHOLD_MS,
         "sample_count": 10,
         "p95_ms": p95_ms,
     }
@@ -65,7 +65,7 @@ async def test_settings_history_latency_alerts_cools_down_and_recovers(monkeypat
         "manager_health_monitoring_enabled": "true",
         "manager_health_alert_cooldown_minutes": "60",
     }
-    StubLatencyReader.summary = _summary(p95_ms=180)
+    StubLatencyReader.summary = _summary(p95_ms=800)
     recorded: list[dict] = []
     _patch_dependencies(monkeypatch, recorded)
 
@@ -80,7 +80,7 @@ async def test_settings_history_latency_alerts_cools_down_and_recovers(monkeypat
         "ready": False,
         "breached": False,
         "sample_count": 1,
-        "p95_ms": 180,
+        "p95_ms": 800,
     }
     sampling = await monitor.check_manager_settings_history_latency_once(
         session_factory=make_session,
@@ -88,7 +88,7 @@ async def test_settings_history_latency_alerts_cools_down_and_recovers(monkeypat
         now=datetime(2026, 7, 23, 1, 5, tzinfo=timezone.utc),
         minimum_interval_seconds=0,
     )
-    StubLatencyReader.summary = _summary(p95_ms=180)
+    StubLatencyReader.summary = _summary(p95_ms=800)
     suppressed = await monitor.check_manager_settings_history_latency_once(
         session_factory=make_session,
         latency_reader=read_stub_latency,
@@ -121,8 +121,8 @@ async def test_settings_history_latency_alerts_cools_down_and_recovers(monkeypat
         "manager_settings_history_latency_high",
         "manager_settings_history_latency_recovered",
     ]
-    assert recorded[0]["detail"]["p95_ms"] == 180
-    assert recorded[0]["detail"]["threshold_ms"] == 100
+    assert recorded[0]["detail"]["p95_ms"] == 800
+    assert recorded[0]["detail"]["threshold_ms"] == 750
     state = json.loads(
         StubSettingsRepository.store[monitor.MANAGER_SETTINGS_HISTORY_LATENCY_STATE_KEY]
     )

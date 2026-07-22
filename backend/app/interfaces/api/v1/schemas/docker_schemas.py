@@ -181,7 +181,7 @@ class ManagerSettingsHistoryLatencyResponse(BaseModel):
     sample_count: int = Field(default=0, ge=0)
     minimum_sample_count: int = Field(default=5, ge=1)
     p95_ms: float | None = Field(default=None, ge=0)
-    threshold_ms: float = Field(default=100, gt=0)
+    threshold_ms: float = Field(default=750, gt=0)
 
 
 class ManagerRouteStatusResponse(BaseModel):

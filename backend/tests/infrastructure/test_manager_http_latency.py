@@ -29,7 +29,7 @@ def test_settings_history_latency_uses_recent_nearest_rank_p95() -> None:
                 path="/api/v1/settings/test-history",
                 duration_ms=duration,
             )
-            for index, duration in enumerate([20, 30, 40, 50, 150])
+            for index, duration in enumerate([20, 30, 40, 50, 800])
         ]
         + [
             _request_log(
@@ -51,8 +51,8 @@ def test_settings_history_latency_uses_recent_nearest_rank_p95() -> None:
     assert result["available"] is True
     assert result["ready"] is True
     assert result["sample_count"] == 5
-    assert result["p95_ms"] == 150
-    assert result["threshold_ms"] == 100
+    assert result["p95_ms"] == 800
+    assert result["threshold_ms"] == 750
     assert result["breached"] is True
 
 
