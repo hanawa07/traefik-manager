@@ -1,18 +1,48 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.infrastructure.persistence.models import AuditLogModel
 from app.interfaces.api.v1.routers import settings as settings_router
 from tests.interfaces.api.settings_history_router_fakes import (
-    StubAuditHistoryDb,
     make_settings_history_log,
 )
+
+
+async def get_settings_history(logs):
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(AuditLogModel.__table__.create)
+    try:
+        async with session_factory() as db:
+            db.add_all(
+                AuditLogModel(
+                    id=log.id,
+                    actor=log.actor,
+                    action=log.action,
+                    resource_type=log.resource_type,
+                    resource_id=log.resource_id,
+                    resource_name=log.resource_name,
+                    detail=log.detail,
+                    created_at=log.created_at,
+                )
+                for log in logs
+            )
+            await db.commit()
+            return await settings_router.get_settings_test_history(
+                db=db,
+                _={"role": "admin"},
+            )
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio
 async def test_get_settings_test_history_includes_delivery_summary():
     now = datetime.now(timezone.utc)
-    db = StubAuditHistoryDb(
+    response = await get_settings_history(
         [
             make_settings_history_log(
                 log_id="delivery-failure-latest",
@@ -57,11 +87,6 @@ async def test_get_settings_test_history_includes_delivery_summary():
                 created_at=now - timedelta(hours=2),
             ),
         ]
-    )
-
-    response = await settings_router.get_settings_test_history(
-        db=db,
-        _={"role": "admin"},
     )
 
     assert response.security_alert_delivery.last_event == "security_alert_delivery_failure"
@@ -153,9 +178,29 @@ async def test_get_settings_test_history_returns_latest_cloudflare_and_security_
             },
             created_at=now,
         ),
+        make_settings_history_log(
+            log_id="8",
+            event="github_api_primary_rate_limit",
+            action="alert",
+            detail={"alert_triggered": True},
+            created_at=now - timedelta(minutes=2),
+        ),
+        make_settings_history_log(
+            log_id="9",
+            event="change_alert_delivery_success",
+            actor="system",
+            resource_id="change-alert-delivery",
+            resource_name="운영 변경 알림 전송 결과",
+            detail={
+                "success": True,
+                "provider": "telegram",
+                "source_event": "github_api_primary_rate_limit",
+            },
+            created_at=now - timedelta(minutes=1),
+        ),
     ]
 
-    response = await settings_router.get_settings_test_history(db=StubAuditHistoryDb(logs), _={"role": "admin"})
+    response = await get_settings_history(logs)
 
     assert response.cloudflare.last_event == "settings_test_cloudflare"
     assert response.cloudflare.last_success is True
@@ -179,6 +224,9 @@ async def test_get_settings_test_history_returns_latest_cloudflare_and_security_
     assert response.change_alert_delivery.last_event == "change_alert_delivery_success"
     assert response.change_alert_delivery.last_success is True
     assert response.change_alert_delivery.last_provider == "pagerduty"
+    assert response.github_api_rate_limit_delivery.last_success_at == now - timedelta(minutes=1)
+    assert response.github_api_rate_limit_delivery.last_success_provider == "telegram"
+    assert response.github_api_rate_limit_last_triggered_at == now - timedelta(minutes=2)
 
 
 @pytest.mark.asyncio
@@ -217,7 +265,7 @@ async def test_get_settings_test_history_accepts_naive_created_at():
         ),
     ]
 
-    response = await settings_router.get_settings_test_history(db=StubAuditHistoryDb(logs), _={"role": "admin"})
+    response = await get_settings_history(logs)
 
     assert response.cloudflare_drift.last_event is None
     assert response.cloudflare_reconcile.last_event is None

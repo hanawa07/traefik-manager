@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from app.infrastructure.persistence.models import AuditLogModel
+from app.interfaces.api.v1.routers.audit_log_filters import GITHUB_API_RATE_LIMIT_EVENTS
 from app.interfaces.api.v1.routers.settings_events import SETTINGS_DELIVERY_EVENTS, SETTINGS_TEST_EVENTS
 from app.interfaces.api.v1.routers.settings_time_helpers import normalize_utc
 from app.interfaces.api.v1.schemas.settings_schemas import (
@@ -25,6 +26,11 @@ def build_settings_test_history_response(logs: list[AuditLogModel]) -> SettingsT
     )
     security_alert_delivery = find_latest_settings_events(logs, SETTINGS_DELIVERY_EVENTS["security_alert_delivery"])
     change_alert_delivery = find_latest_settings_events(logs, SETTINGS_DELIVERY_EVENTS["change_alert_delivery"])
+    github_api_rate_limit_delivery = find_latest_settings_events(
+        logs,
+        SETTINGS_DELIVERY_EVENTS["change_alert_delivery"],
+        source_events=GITHUB_API_RATE_LIMIT_EVENTS,
+    )
     return SettingsTestHistoryResponse(
         cloudflare=cloudflare,
         cloudflare_drift=cloudflare_drift,
@@ -34,6 +40,8 @@ def build_settings_test_history_response(logs: list[AuditLogModel]) -> SettingsT
         github_api_rate_limit=github_api_rate_limit,
         security_alert_delivery=security_alert_delivery,
         change_alert_delivery=change_alert_delivery,
+        github_api_rate_limit_delivery=github_api_rate_limit_delivery,
+        github_api_rate_limit_last_triggered_at=find_latest_github_api_rate_limit_trigger(logs),
     )
 
 
@@ -47,6 +55,8 @@ def find_latest_settings_test_event(
 def find_latest_settings_events(
     logs: list[AuditLogModel],
     event_names: set[str],
+    *,
+    source_events: set[str] | None = None,
 ) -> SettingsTestHistoryItemResponse:
     latest: SettingsTestHistoryItemResponse | None = None
     last_success_at: datetime | None = None
@@ -64,6 +74,8 @@ def find_latest_settings_events(
         detail = log.detail or {}
         event_name = detail.get("event")
         if not isinstance(event_name, str) or event_name not in event_names:
+            continue
+        if source_events is not None and detail.get("source_event") not in source_events:
             continue
         success = detail.get("success")
         created_at = normalize_utc(log.created_at)
@@ -122,3 +134,14 @@ def find_latest_settings_events(
     latest.recent_failure_count = recent_failure_count
     latest.recent_events = recent_events
     return latest
+
+
+def find_latest_github_api_rate_limit_trigger(logs: list[AuditLogModel]) -> datetime | None:
+    for log in logs:
+        detail = log.detail or {}
+        if (
+            detail.get("event") in GITHUB_API_RATE_LIMIT_EVENTS
+            and detail.get("alert_triggered") is True
+        ):
+            return normalize_utc(log.created_at)
+    return None
