@@ -169,6 +169,16 @@ export async function checkManagerHttpErrorPreviewForm({
   profile,
   timeoutMs = 15_000,
 }) {
+  if (canManageSettings) {
+    await waitForCondition(
+      cdp,
+      `Array.from(
+        document.querySelector('[data-testid="security-alert-settings-card"]')?.querySelectorAll('button') || []
+      ).some((button) => button.textContent?.includes('편집'))`,
+      timeoutMs,
+      "Manager API 오류 설정 편집 버튼이 표시되지 않았습니다",
+    );
+  }
   const opened = await evaluate(cdp, `(() => {
     const card = document.querySelector('[data-testid="security-alert-settings-card"]');
     const edit = Array.from(card?.querySelectorAll('button') || []).find(

@@ -68,6 +68,7 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
       monitoring_history_status: 'all',
       monitoring_failure_metadata_count: 1,
       monitoring_failure_metadata_limit: 20,
+      monitoring_github_refresh_reserve: 10,
       monitoring_github_rate_limit_remaining: 10,
       monitoring_github_rate_limit_limit: 60,
       monitoring_github_rate_limit_reset_at: new Date(Date.now() + 5 * 60_000).toISOString(),
