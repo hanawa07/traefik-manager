@@ -50,6 +50,7 @@ export const DASHBOARD_ROUTES = [
       "활성 슬롯",
       "Manager API 404·5xx 추이",
       "임계치 감지 상태",
+      "설정 이력 API p95",
       "최근 24시간",
       "경로 필터",
       "404 Not Found",

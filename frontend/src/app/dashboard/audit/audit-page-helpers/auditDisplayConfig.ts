@@ -89,6 +89,8 @@ export const securityEventConfig: Record<string, BadgeConfig> = {
   manager_http_errors_recovered: { label: "Manager API 오류 정상화", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   manager_http_log_storage_warning: { label: "Manager 요청 로그 보관 경고", color: "bg-amber-50 text-amber-700 border-amber-200" },
   manager_http_log_storage_recovered: { label: "Manager 요청 로그 보관 복구", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  manager_settings_history_latency_high: { label: "설정 이력 API p95 기준 초과", color: "bg-rose-50 text-rose-700 border-rose-200" },
+  manager_settings_history_latency_recovered: { label: "설정 이력 API p95 정상화", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   manager_deployment_bottleneck_storage_warning: { label: "배포 병목 이벤트 보관 경고", color: "bg-amber-50 text-amber-700 border-amber-200" },
   manager_deployment_bottleneck_storage_recovered: { label: "배포 병목 이벤트 보관 복구", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   deployment_bottleneck_events_cleanup: { label: "병목 이벤트 정리", color: "bg-amber-50 text-amber-700 border-amber-200" },

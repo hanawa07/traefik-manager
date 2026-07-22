@@ -36,6 +36,7 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
     const chart = document.querySelector('[data-testid="manager-http-error-chart-scroll"]');
     const logStorage = document.querySelector('[data-testid="manager-http-log-storage"]');
     const monitor = document.querySelector('[data-testid="manager-http-error-monitor-status"]');
+    const latencyMonitor = document.querySelector('[data-testid="manager-settings-history-latency-status"]');
     const route = document.querySelector('[data-testid="manager-route-status"]');
     return card ? {
       available: card.getAttribute('data-http-error-available'),
@@ -49,6 +50,8 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
       sampleCoverage: Number(card.getAttribute('data-http-sample-coverage')),
       sampleReady: Boolean(document.querySelector('[data-testid="manager-http-sample-ready"]')),
       monitorStatus: monitor?.getAttribute('data-http-error-monitor-status'),
+      latencyStatus: latencyMonitor?.getAttribute('data-settings-history-latency-status'),
+      latencyText: latencyMonitor?.textContent || '',
       route: route ? {
         activeSlot: route.getAttribute('data-route-active-slot'),
         healthy: route.getAttribute('data-route-healthy'),
@@ -128,6 +131,11 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
     ["disabled", "pending", "unavailable", "breached", "healthy"].includes(snapshot.monitorStatus),
     "Manager API 오류 임계치 감지 상태가 올바르지 않습니다",
   );
+  assert.ok(
+    ["disabled", "pending", "unavailable", "sampling", "breached", "healthy"].includes(snapshot.latencyStatus),
+    "설정 이력 API p95 감지 상태가 올바르지 않습니다",
+  );
+  assert.match(snapshot.latencyText, /최근 60분.*p95.*100ms.*표본/, "설정 이력 API p95 운영 지표가 없습니다");
   if (["breached", "unavailable"].includes(snapshot.managerApiAlert)) {
     assert.equal(
       snapshot.managerApiAuditHref,

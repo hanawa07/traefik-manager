@@ -55,7 +55,12 @@ export function getDeploymentBottleneckCleanupDetailRows(
 }
 
 export function isManagerHttpErrorEvent(value: unknown): value is string {
-  return value === "manager_http_errors_high" || value === "manager_http_errors_recovered";
+  return (
+    value === "manager_http_errors_high" ||
+    value === "manager_http_errors_recovered" ||
+    value === "manager_settings_history_latency_high" ||
+    value === "manager_settings_history_latency_recovered"
+  );
 }
 
 export function getManagerHttpErrorDetailRows(
@@ -69,6 +74,11 @@ export function getManagerHttpErrorDetailRows(
     { key: "not_found_threshold", label: "404 임계치", value: withUnit(detail.not_found_threshold, "건") },
     { key: "server_error_count", label: "5xx 발생", value: withUnit(detail.server_error_count, "건") },
     { key: "server_error_threshold", label: "5xx 임계치", value: withUnit(detail.server_error_threshold, "건") },
+    { key: "path", label: "대상 경로", value: detail.path },
+    { key: "p95_ms", label: "p95", value: withUnit(detail.p95_ms, "ms") },
+    { key: "threshold_ms", label: "p95 기준", value: withUnit(detail.threshold_ms, "ms") },
+    { key: "sample_count", label: "표본", value: withUnit(detail.sample_count, "건") },
+    { key: "minimum_sample_count", label: "최소 표본", value: withUnit(detail.minimum_sample_count, "건") },
     { key: "excluded_paths", label: "제외 경로", value: detail.excluded_paths },
     { key: "top_paths", label: "상위 발생 경로", value: formatTopPaths(detail.top_paths) },
     { key: "checked_at", label: "점검 시각", value: detail.checked_at },

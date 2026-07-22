@@ -31,15 +31,21 @@ export function ManagerHealthAlertBanner({
   const httpMonitorUnavailable = Boolean(
     httpMonitor?.enabled && httpMonitor.checked_at && !httpMonitor.available,
   );
+  const latencyMonitor = deployment?.settings_history_latency_monitor;
+  const latencyBreached = Boolean(
+    latencyMonitor?.enabled && latencyMonitor.alert_active,
+  );
   if (
     unhealthyComponents.length === 0 &&
     !watchdogUnhealthy &&
     !watchdogStale &&
     !httpErrorsBreached &&
-    !httpMonitorUnavailable
+    !httpMonitorUnavailable &&
+    !latencyBreached
   ) return null;
 
-  const critical = unhealthyComponents.length > 0 || watchdogUnhealthy || httpErrorsBreached;
+  const critical =
+    unhealthyComponents.length > 0 || watchdogUnhealthy || httpErrorsBreached || latencyBreached;
   const details = unhealthyComponents.map(getFailureDetail);
   if (watchdogUnhealthy) {
     details.push(
@@ -57,6 +63,11 @@ export function ManagerHealthAlertBanner({
   if (httpMonitorUnavailable) {
     details.push("Manager API 오류 점검 실패");
   }
+  if (latencyBreached && latencyMonitor) {
+    details.push(
+      `설정 이력 API p95 ${latencyMonitor.p95_ms ?? "-"}/${latencyMonitor.threshold_ms}ms`,
+    );
+  }
 
   return (
     <div
@@ -68,6 +79,7 @@ export function ManagerHealthAlertBanner({
       data-manager-api-alert={
         httpErrorsBreached ? "breached" : httpMonitorUnavailable ? "unavailable" : "none"
       }
+      data-manager-latency-alert={latencyBreached ? "breached" : "none"}
       data-testid="manager-health-alert-banner"
     >
       <div className="flex items-start gap-3">
@@ -85,8 +97,11 @@ export function ManagerHealthAlertBanner({
             {httpMonitor?.checked_at
               ? ` · API 점검: ${formatDateTime(httpMonitor.checked_at, timezone)}`
               : ""}
+            {latencyMonitor?.checked_at
+              ? ` · p95 점검: ${formatDateTime(latencyMonitor.checked_at, timezone)}`
+              : ""}
           </p>
-          {httpErrorsBreached || httpMonitorUnavailable ? (
+          {httpErrorsBreached || httpMonitorUnavailable || latencyBreached ? (
             <Link
               className="mt-2 inline-flex text-xs font-semibold underline underline-offset-2 hover:no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               data-testid="manager-api-audit-link"

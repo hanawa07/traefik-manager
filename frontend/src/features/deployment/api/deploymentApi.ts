@@ -84,6 +84,21 @@ export interface ManagerHttpErrorMonitorStatus {
   excluded_paths: string[];
 }
 
+export interface ManagerSettingsHistoryLatencyStatus {
+  enabled: boolean;
+  available: boolean;
+  ready: boolean;
+  checked_at: string | null;
+  last_alert_at: string | null;
+  alert_active: boolean;
+  path: string;
+  window_minutes: number;
+  sample_count: number;
+  minimum_sample_count: number;
+  p95_ms: number | null;
+  threshold_ms: number;
+}
+
 export interface ManagerRouteStatus {
   available: boolean;
   healthy: boolean;
@@ -205,6 +220,7 @@ export interface DeploymentInfo {
   external_watchdog_alert_runs: ExternalWatchdogAlertRun[];
   http_error_summary: ManagerHttpErrorSummary | null;
   http_error_monitor: ManagerHttpErrorMonitorStatus | null;
+  settings_history_latency_monitor: ManagerSettingsHistoryLatencyStatus | null;
   manager_route: ManagerRouteStatus | null;
   deployment_history: ManagerDeploymentHistoryEntry[];
   deployment_history_archive: ManagerDeploymentHistoryEntry[];

@@ -214,6 +214,7 @@ export function ManagerDeploymentCard({
       />
 
       <ManagerHttpErrorTrend
+        latencyMonitor={deployment?.settings_history_latency_monitor}
         monitor={deployment?.http_error_monitor}
         summary={deployment?.http_error_summary}
         timezone={timezone}

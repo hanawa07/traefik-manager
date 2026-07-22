@@ -7,6 +7,7 @@ import { Activity, CircleAlert, Search, X } from "lucide-react";
 import type {
   ManagerHttpErrorSummary,
   ManagerHttpErrorMonitorStatus,
+  ManagerSettingsHistoryLatencyStatus,
   ManagerHttpErrorWindowHours,
 } from "@/features/deployment/api/deploymentApi";
 import { useManagerHttpErrors } from "@/features/deployment/hooks/useDeploymentInfo";
@@ -15,12 +16,18 @@ import { formatDateTime, resolveDisplayTimeZone } from "@/shared/lib/dateTimeFor
 import { ManagerHttpLogStorageStatus } from "./ManagerHttpLogStorageStatus";
 
 interface ManagerHttpErrorTrendProps {
+  latencyMonitor?: ManagerSettingsHistoryLatencyStatus | null;
   monitor?: ManagerHttpErrorMonitorStatus | null;
   summary?: ManagerHttpErrorSummary | null;
   timezone?: string;
 }
 
-export function ManagerHttpErrorTrend({ monitor, summary, timezone }: ManagerHttpErrorTrendProps) {
+export function ManagerHttpErrorTrend({
+  latencyMonitor,
+  monitor,
+  summary,
+  timezone,
+}: ManagerHttpErrorTrendProps) {
   const [windowHours, setWindowHours] = useState<ManagerHttpErrorWindowHours>(24);
   const [pathFilter, setPathFilter] = useState("");
   const deferredPathFilter = useDeferredValue(pathFilter.trim());
@@ -62,6 +69,7 @@ export function ManagerHttpErrorTrend({ monitor, summary, timezone }: ManagerHtt
       </div>
 
       <HttpErrorMonitorStatus monitor={monitor} timezone={timezone} />
+      <SettingsHistoryLatencyStatus monitor={latencyMonitor} timezone={timezone} />
 
       {displayedSummary?.log_storage ? (
         <ManagerHttpLogStorageStatus storage={displayedSummary.log_storage} />
@@ -218,6 +226,62 @@ export function ManagerHttpErrorTrend({ monitor, summary, timezone }: ManagerHtt
   );
 }
 
+function SettingsHistoryLatencyStatus({
+  monitor,
+  timezone,
+}: {
+  monitor?: ManagerSettingsHistoryLatencyStatus | null;
+  timezone?: string;
+}) {
+  const status = !monitor
+    ? "loading"
+    : !monitor.enabled
+      ? "disabled"
+      : !monitor.checked_at
+        ? "pending"
+        : !monitor.available
+          ? "unavailable"
+          : monitor.alert_active
+            ? "breached"
+            : !monitor.ready
+              ? "sampling"
+              : "healthy";
+  const statusLabel = {
+    loading: "확인 중",
+    disabled: "비활성",
+    pending: "첫 점검 대기",
+    unavailable: "로그 확인 실패",
+    sampling: "표본 수집 중",
+    breached: "기준 초과",
+    healthy: "정상",
+  }[status];
+  const statusClass = status === "healthy"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100"
+    : status === "breached" || status === "unavailable"
+      ? "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100"
+      : "border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200";
+
+  return (
+    <div
+      className={`border-b px-4 py-3 text-xs ${statusClass}`}
+      data-settings-history-latency-status={status}
+      data-testid="manager-settings-history-latency-status"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <strong>설정 이력 API p95: {statusLabel}</strong>
+        <span>마지막 점검: {formatDateTime(monitor?.checked_at, timezone)}</span>
+      </div>
+      {monitor ? (
+        <p className="mt-1">
+          최근 {monitor.window_minutes}분 · p95 {formatLatency(monitor.p95_ms)}/
+          {formatLatency(monitor.threshold_ms)} · 표본 {monitor.sample_count}/
+          {monitor.minimum_sample_count}건
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function HttpErrorMonitorStatus({
   monitor,
   timezone,
@@ -292,4 +356,8 @@ function formatBucketTime(value: string, timezone?: string): string {
     minute: "2-digit",
     timeZone: resolveDisplayTimeZone(timezone),
   }).format(date);
+}
+
+function formatLatency(value: number | null | undefined) {
+  return value === null || value === undefined ? "-" : `${Math.round(value * 10) / 10}ms`;
 }

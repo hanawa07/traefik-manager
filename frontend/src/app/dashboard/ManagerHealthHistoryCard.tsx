@@ -60,6 +60,9 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
   const event = getDetailString(log, "event") ?? log.event;
   const isWatchdog = event === "manager_watchdog_stale" || event === "manager_watchdog_recovered";
   const isApiError = event === "manager_http_errors_high" || event === "manager_http_errors_recovered";
+  const isLatency =
+    event === "manager_settings_history_latency_high" ||
+    event === "manager_settings_history_latency_recovered";
   const isLogStorage =
     event === "manager_http_log_storage_warning" ||
     event === "manager_http_log_storage_recovered";
@@ -69,6 +72,7 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
   const isRecovery =
     event === "manager_docker_recovered" ||
     event === "manager_http_errors_recovered" ||
+    event === "manager_settings_history_latency_recovered" ||
     event === "manager_http_log_storage_recovered" ||
     event === "manager_deployment_bottleneck_storage_recovered" ||
     event === "manager_watchdog_recovered";
@@ -78,6 +82,8 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
     ? `로그 보관 ${isRecovery ? "복구" : "경고"}`
     : isApiError
     ? `오류 ${isRecovery ? "정상화" : "임계치 초과"}`
+    : isLatency
+      ? `p95 ${isRecovery ? "정상화" : "기준 초과"}`
     : isWatchdog
       ? `갱신 ${isRecovery ? "복구" : "지연"}`
       : `Docker ${isRecovery ? "복구" : "이상"}`;
@@ -89,6 +95,10 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
   const notFoundThreshold = getDetailNumber(log, "not_found_threshold");
   const serverErrorCount = getDetailNumber(log, "server_error_count");
   const serverErrorThreshold = getDetailNumber(log, "server_error_threshold");
+  const p95Ms = getDetailNumber(log, "p95_ms");
+  const latencyThresholdMs = getDetailNumber(log, "threshold_ms");
+  const sampleCount = getDetailNumber(log, "sample_count");
+  const minimumSampleCount = getDetailNumber(log, "minimum_sample_count");
   const storageSource = getDetailString(log, "source");
   const usagePercent = getDetailNumber(log, "usage_percent");
   const fileCount = getDetailNumber(log, "file_count");
@@ -140,12 +150,18 @@ function ManagerHealthHistoryRow({ log, timezone }: { log: AuditLogItem; timezon
             {maxFileCount ?? "-"}개
           </p>
         ) : null}
+        {!isRecovery && isLatency ? (
+          <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+            p95 {p95Ms ?? "-"}/{latencyThresholdMs ?? "-"}ms · 표본 {sampleCount ?? "-"}/
+            {minimumSampleCount ?? "-"}건 · 최근 {windowMinutes ?? "-"}분
+          </p>
+        ) : null}
         {!isRecovery && isDeploymentStorage ? (
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
             이벤트 {eventCount ?? "-"}/{maxEventCount ?? "-"}건
           </p>
         ) : null}
-        {!isRecovery && !isWatchdog && !isApiError && !isLogStorage && !isDeploymentStorage ? (
+        {!isRecovery && !isWatchdog && !isApiError && !isLatency && !isLogStorage && !isDeploymentStorage ? (
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
             연속 실패 {failingStreak ?? "-"}회 · 종료 코드 {exitCode ?? "-"}
           </p>
