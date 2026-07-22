@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean, DateTime, Index, Integer, JSON, func
+from sqlalchemy import String, Boolean, DateTime, Index, Integer, JSON, func, literal_column
 from sqlalchemy.orm import Mapped, mapped_column
 from app.infrastructure.persistence.base import Base
 import uuid
@@ -131,6 +131,13 @@ class AuditLogModel(Base):
             created_at,
         ),
     )
+
+
+# SQLite only matches expression indexes when the JSON path is a SQL literal.
+AUDIT_EVENT_EXPRESSION = func.json_extract(
+    AuditLogModel.detail,
+    literal_column("'$.\"event\"'"),
+)
 
 
 class SystemSettingModel(Base):

@@ -3,7 +3,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.persistence.models import AuditLogModel
+from app.infrastructure.persistence.models import AUDIT_EVENT_EXPRESSION, AuditLogModel
 from app.interfaces.api.v1.schemas.audit_schemas import (
     AuditGithubApiRateLimitCustomPeriodResponse,
     AuditGithubApiRateLimitPeriodResponse,
@@ -53,7 +53,7 @@ async def load_github_api_rate_limit_summary(
             ).label("custom_count")
         )
 
-    event_column = AuditLogModel.detail["event"].as_string()
+    event_column = AUDIT_EVENT_EXPRESSION
     coverage_condition = AuditLogModel.created_at >= cutoffs[90]
     if has_custom_period:
         coverage_condition = or_(coverage_condition, and_(*custom_conditions))

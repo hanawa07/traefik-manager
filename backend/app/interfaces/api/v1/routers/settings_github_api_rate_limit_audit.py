@@ -4,7 +4,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.persistence.models import AuditLogModel
+from app.infrastructure.persistence.models import AUDIT_EVENT_EXPRESSION, AuditLogModel
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
     SQLiteSystemSettingsRepository,
 )
@@ -29,7 +29,7 @@ async def record_github_api_rate_limit_audit(
     label = "기본 요청 한도" if kind == "primary" else "보조 요청 제한"
     count_result = await db.execute(
         select(func.count(AuditLogModel.id)).where(
-            AuditLogModel.detail["event"].as_string() == event
+            AUDIT_EVENT_EXPRESSION == event
         )
     )
     alert_settings = await read_github_api_rate_limit_alert_values(
@@ -51,14 +51,14 @@ async def record_github_api_rate_limit_audit(
         )
         window_result = await db.execute(
             select(func.count(AuditLogModel.id)).where(
-                AuditLogModel.detail["event"].as_string() == event,
+                AUDIT_EVENT_EXPRESSION == event,
                 AuditLogModel.created_at >= cutoff,
             )
         )
         window_count = window_result.scalar_one() + 1
         recent_alert_result = await db.execute(
             select(func.count(AuditLogModel.id)).where(
-                AuditLogModel.detail["event"].as_string() == event,
+                AUDIT_EVENT_EXPRESSION == event,
                 AuditLogModel.detail["alert_triggered"].as_boolean().is_(True),
                 AuditLogModel.created_at >= cutoff,
             )

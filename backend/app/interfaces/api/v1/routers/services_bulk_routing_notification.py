@@ -5,7 +5,7 @@ from sqlalchemy import asc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.notifications import security_alert_notifier
-from app.infrastructure.persistence.models import AuditLogModel
+from app.infrastructure.persistence.models import AUDIT_EVENT_EXPRESSION, AuditLogModel
 from app.interfaces.api.v1.schemas.service_schemas import (
     BulkRoutingNotificationResponse,
 )
@@ -17,7 +17,7 @@ async def complete_bulk_routing_notification_action(
     db: AsyncSession,
 ) -> BulkRoutingNotificationResponse:
     operation_id_value = str(operation_id)
-    event_column = AuditLogModel.detail["event"].as_string()
+    event_column = AUDIT_EVENT_EXPRESSION
     operation_column = AuditLogModel.detail["bulk_operation_id"].as_string()
     result = await db.execute(
         select(AuditLogModel)

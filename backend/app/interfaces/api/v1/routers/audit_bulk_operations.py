@@ -6,7 +6,7 @@ from sqlalchemy import asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.persistence.database import get_db
-from app.infrastructure.persistence.models import AuditLogModel
+from app.infrastructure.persistence.models import AUDIT_EVENT_EXPRESSION, AuditLogModel
 from app.interfaces.api.dependencies import get_current_user
 from app.interfaces.api.v1.schemas.audit_schemas import (
     AuditBulkOperationSummaryResponse,
@@ -32,7 +32,7 @@ async def list_bulk_operations(
     if period_days is not None and period_days not in {7, 30, 90}:
         raise HTTPException(status_code=422, detail="기간은 7, 30, 90일 중 하나여야 합니다")
     operation_column = AuditLogModel.detail["bulk_operation_id"].as_string()
-    event_column = AuditLogModel.detail["event"].as_string()
+    event_column = AUDIT_EVENT_EXPRESSION
     cutoff = (
         datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=period_days)
         if period_days

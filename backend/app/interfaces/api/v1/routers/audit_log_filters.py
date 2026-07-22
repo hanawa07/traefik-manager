@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.infrastructure.persistence.models import AuditLogModel
+from app.infrastructure.persistence.models import AUDIT_EVENT_EXPRESSION, AuditLogModel
 
 SECURITY_EVENTS = {"login_failure", "login_locked", "login_suspicious", "login_blocked_ip"}
 SMOKE_ROTATION_EVENTS = {"smoke_rotation_failed", "smoke_rotation_succeeded"}
@@ -71,7 +71,7 @@ def build_audit_log_conditions(
     bulk_operation_id: str | None = None,
 ) -> list[ColumnElement[bool]]:
     conditions: list[ColumnElement[bool]] = []
-    event_column = AuditLogModel.detail["event"].as_string()
+    event_column = AUDIT_EVENT_EXPRESSION
 
     if start_date:
         conditions.append(AuditLogModel.created_at >= datetime.combine(start_date, time.min))
