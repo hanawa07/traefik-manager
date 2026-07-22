@@ -129,6 +129,92 @@ export function SmokeMonitoringSettingsEditForm({
         실패율이 기준 이상이면 대시보드에 경고합니다.
       </p>
 
+      <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/30">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-gray-300"
+            checked={formValue.monitoring_github_rate_limit_alert_enabled}
+            onChange={(event) =>
+              onFormChange({
+                ...formValue,
+                monitoring_github_rate_limit_alert_enabled: event.target.checked,
+              })
+            }
+          />
+          <span>
+            <span className="block text-sm font-medium text-gray-800 dark:text-slate-200">
+              GitHub API 반복 제한 운영 알림
+            </span>
+            <span className="mt-1 block text-xs text-gray-500 dark:text-slate-400">
+              기준 횟수에 도달하면 경고를 기록하고, 운영 변경 알림이 켜져 있으면 해당 경로로 전송합니다.
+            </span>
+          </span>
+        </label>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label className="label" htmlFor="smoke-github-alert-window">
+              판정 기간 (시간)
+            </label>
+            <input
+              id="smoke-github-alert-window"
+              className="input"
+              type="number"
+              min={1}
+              max={168}
+              disabled={!formValue.monitoring_github_rate_limit_alert_enabled}
+              value={formValue.monitoring_github_rate_limit_alert_window_hours}
+              onChange={(event) =>
+                onFormChange({
+                  ...formValue,
+                  monitoring_github_rate_limit_alert_window_hours: Number(event.target.value),
+                })
+              }
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="smoke-github-primary-alert-threshold">
+              기본 한도 기준 (회)
+            </label>
+            <input
+              id="smoke-github-primary-alert-threshold"
+              className="input"
+              type="number"
+              min={1}
+              max={100}
+              disabled={!formValue.monitoring_github_rate_limit_alert_enabled}
+              value={formValue.monitoring_github_primary_limit_alert_threshold}
+              onChange={(event) =>
+                onFormChange({
+                  ...formValue,
+                  monitoring_github_primary_limit_alert_threshold: Number(event.target.value),
+                })
+              }
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="smoke-github-secondary-alert-threshold">
+              보조 제한 기준 (회)
+            </label>
+            <input
+              id="smoke-github-secondary-alert-threshold"
+              className="input"
+              type="number"
+              min={1}
+              max={100}
+              disabled={!formValue.monitoring_github_rate_limit_alert_enabled}
+              value={formValue.monitoring_github_secondary_limit_alert_threshold}
+              onChange={(event) =>
+                onFormChange({
+                  ...formValue,
+                  monitoring_github_secondary_limit_alert_threshold: Number(event.target.value),
+                })
+              }
+            />
+          </div>
+        </div>
+      </div>
+
       {errorMessage ? <p className="text-xs text-red-600 dark:text-red-300">{errorMessage}</p> : null}
 
       <SettingsActionRow>

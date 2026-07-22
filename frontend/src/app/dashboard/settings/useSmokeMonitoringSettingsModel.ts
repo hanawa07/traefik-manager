@@ -29,6 +29,10 @@ const DEFAULT_FORM: SmokeMonitoringSettingsInput = {
   monitoring_failure_rate_threshold_percent: 30,
   monitoring_failure_rate_min_runs: 3,
   monitoring_failure_rate_window_days: 7,
+  monitoring_github_rate_limit_alert_enabled: false,
+  monitoring_github_primary_limit_alert_threshold: 3,
+  monitoring_github_secondary_limit_alert_threshold: 3,
+  monitoring_github_rate_limit_alert_window_hours: 24,
 };
 const MANUAL_RUN_POLL_INTERVAL_MS = 30_000;
 const MANUAL_RUN_TRACKING_TIMEOUT_MS = 6 * 60_000;
@@ -83,6 +87,14 @@ export function useSmokeMonitoringSettingsModel(
       monitoring_failure_rate_min_runs: query.data?.monitoring_failure_rate_min_runs ?? 3,
       monitoring_failure_rate_window_days:
         query.data?.monitoring_failure_rate_window_days ?? 7,
+      monitoring_github_rate_limit_alert_enabled:
+        query.data?.monitoring_github_rate_limit_alert_enabled ?? false,
+      monitoring_github_primary_limit_alert_threshold:
+        query.data?.monitoring_github_primary_limit_alert_threshold ?? 3,
+      monitoring_github_secondary_limit_alert_threshold:
+        query.data?.monitoring_github_secondary_limit_alert_threshold ?? 3,
+      monitoring_github_rate_limit_alert_window_hours:
+        query.data?.monitoring_github_rate_limit_alert_window_hours ?? 24,
     });
     setErrorMessage("");
     setIsEditing(true);
@@ -95,9 +107,15 @@ export function useSmokeMonitoringSettingsModel(
       formValue.monitoring_failure_rate_threshold_percent > 100 ||
       formValue.monitoring_failure_rate_min_runs < 1 ||
       formValue.monitoring_failure_rate_min_runs > 30 ||
-      ![7, 30].includes(formValue.monitoring_failure_rate_window_days)
+      ![7, 30].includes(formValue.monitoring_failure_rate_window_days) ||
+      formValue.monitoring_github_primary_limit_alert_threshold < 1 ||
+      formValue.monitoring_github_primary_limit_alert_threshold > 100 ||
+      formValue.monitoring_github_secondary_limit_alert_threshold < 1 ||
+      formValue.monitoring_github_secondary_limit_alert_threshold > 100 ||
+      formValue.monitoring_github_rate_limit_alert_window_hours < 1 ||
+      formValue.monitoring_github_rate_limit_alert_window_hours > 168
     ) {
-      setErrorMessage("판정 기간은 7일 또는 30일, 실패율 기준은 1~100%, 최소 표본은 1~30회로 입력해주세요.");
+      setErrorMessage("실패율과 GitHub API 경고 기준의 입력 범위를 확인해주세요.");
       return;
     }
     try {

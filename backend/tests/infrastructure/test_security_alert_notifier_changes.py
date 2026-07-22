@@ -63,6 +63,42 @@ async def test_notify_if_needed_posts_smoke_rotation_failure(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_notify_if_needed_posts_github_rate_limit_threshold(monkeypatch):
+    posted = []
+    audit_log = make_audit_log(
+        "github_api_secondary_rate_limit",
+        resource_type="settings",
+        resource_id="github_api_secondary_rate_limit",
+        resource_name="GitHub API 보조 요청 제한",
+    )
+    audit_log.detail.update(
+        {
+            "alert_threshold": 3,
+            "alert_window_hours": 24,
+            "window_occurrence_count": 3,
+        }
+    )
+    patch_settings(
+        monkeypatch,
+        {
+            "change_alerts_enabled": "true",
+            "security_alert_provider": "telegram",
+            "security_alert_telegram_bot_token": "telegram-secret",
+            "security_alert_telegram_chat_id": "10001",
+            "security_alert_change_route_manager_health": "default",
+        },
+    )
+    patch_http_client(monkeypatch, posted)
+
+    result = await security_alert_notifier.notify_if_needed(object(), audit_log)
+
+    assert result is True
+    assert "GitHub API 보조 요청 제한 반복" in posted[0][1]["text"]
+    assert "집계 구간: 최근 24시간" in posted[0][1]["text"]
+    assert "발생 횟수: 3회 / 임계치 3회" in posted[0][1]["text"]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("resource_name", ["traefik-smoke-viewer", "traefik-smoke-admin"])
 async def test_notify_if_needed_skips_routine_smoke_password_rotation(monkeypatch, resource_name):
     posted = []

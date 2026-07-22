@@ -154,6 +154,14 @@ export function SmokeRotationStatusCard({
             value={`최근 ${status.monitoring_failure_rate_window_days}일 ${status.monitoring_failure_rate_min_runs}회 이상 · ${status.monitoring_failure_rate_threshold_percent}% 이상`}
           />
           <SettingsSummaryRow
+            label="GitHub API 반복 제한 알림"
+            value={
+              status.monitoring_github_rate_limit_alert_enabled
+                ? `${status.monitoring_github_rate_limit_alert_window_hours}시간 · 기본 ${status.monitoring_github_primary_limit_alert_threshold}회 · 보조 ${status.monitoring_github_secondary_limit_alert_threshold}회`
+                : "사용 안 함"
+            }
+          />
+          <SettingsSummaryRow
             label="최근 원격 점검 성공"
             value={
               status.monitoring_last_run_url ? (

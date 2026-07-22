@@ -63,6 +63,10 @@ def build_message(event: str, resource_name: str, client_ip: Any, category: str)
         return f"스모크 계정 비밀번호 회전 실패: {resource_name}"
     if event == "smoke_admin_stale_test":
         return f"[테스트] 관리자 전용 점검 지연: {resource_name}"
+    if event == "github_api_primary_rate_limit":
+        return f"GitHub API 기본 요청 한도 반복: {resource_name}"
+    if event == "github_api_secondary_rate_limit":
+        return f"GitHub API 보조 요청 제한 반복: {resource_name}"
     if event == "manager_docker_unhealthy":
         return f"Manager Docker 이상: {resource_name}"
     if event == "manager_docker_recovered":
@@ -215,6 +219,15 @@ def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
             lines.append(f"원본 변경 로그: {detail.get('source_audit_id')}")
         if event == "smoke_rotation_failed" and detail.get("step"):
             lines.append(f"실패 단계: {detail.get('step')}")
+        if event in {
+            "github_api_primary_rate_limit",
+            "github_api_secondary_rate_limit",
+        }:
+            lines.append(f"집계 구간: 최근 {detail.get('alert_window_hours')}시간")
+            lines.append(
+                f"발생 횟수: {detail.get('window_occurrence_count')}회 / "
+                f"임계치 {detail.get('alert_threshold')}회"
+            )
         if event in {"manager_docker_unhealthy", "manager_docker_recovered"}:
             lines.append(f"Docker 상태: {detail.get('health_status') or '-'}")
             if detail.get("failing_streak") is not None:

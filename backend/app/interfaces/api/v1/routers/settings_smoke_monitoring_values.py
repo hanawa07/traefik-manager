@@ -13,6 +13,18 @@ SMOKE_FAILURE_RATE_THRESHOLD_PERCENT_DEFAULT = 30
 SMOKE_FAILURE_RATE_MIN_RUNS_DEFAULT = 3
 SMOKE_FAILURE_RATE_WINDOW_DAYS_DEFAULT = 7
 SMOKE_FAILURE_RATE_WINDOW_DAYS = {7, 30}
+SMOKE_GITHUB_RATE_LIMIT_ALERT_ENABLED_KEY = "dashboard_smoke_github_rate_limit_alert_enabled"
+SMOKE_GITHUB_PRIMARY_LIMIT_ALERT_THRESHOLD_KEY = (
+    "dashboard_smoke_github_primary_limit_alert_threshold"
+)
+SMOKE_GITHUB_SECONDARY_LIMIT_ALERT_THRESHOLD_KEY = (
+    "dashboard_smoke_github_secondary_limit_alert_threshold"
+)
+SMOKE_GITHUB_RATE_LIMIT_ALERT_WINDOW_HOURS_KEY = (
+    "dashboard_smoke_github_rate_limit_alert_window_hours"
+)
+SMOKE_GITHUB_RATE_LIMIT_ALERT_THRESHOLD_DEFAULT = 3
+SMOKE_GITHUB_RATE_LIMIT_ALERT_WINDOW_HOURS_DEFAULT = 24
 SMOKE_MONITORING_FREQUENCIES = {"daily", "weekly"}
 SMOKE_MONITORING_SCHEDULE_TIME = "03:17"
 SMOKE_MONITORING_SCHEDULE_TIMEZONE = "Asia/Seoul"
@@ -53,6 +65,7 @@ async def read_smoke_monitoring_values(repo: Any) -> dict[str, Any]:
         "monitoring_failure_rate_threshold_percent": failure_rate_threshold,
         "monitoring_failure_rate_min_runs": failure_rate_min_runs,
         "monitoring_failure_rate_window_days": failure_rate_window_days,
+        **await read_github_api_rate_limit_alert_values(repo),
         "monitoring_schedule_time": SMOKE_MONITORING_SCHEDULE_TIME,
         "monitoring_schedule_timezone": SMOKE_MONITORING_SCHEDULE_TIMEZONE,
     }
@@ -66,6 +79,10 @@ async def update_smoke_monitoring_values(
     failure_rate_threshold_percent: int,
     failure_rate_min_runs: int,
     failure_rate_window_days: int,
+    github_rate_limit_alert_enabled: bool,
+    github_primary_limit_alert_threshold: int,
+    github_secondary_limit_alert_threshold: int,
+    github_rate_limit_alert_window_hours: int,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     before = await read_smoke_monitoring_values(repo)
     await repo.set(SMOKE_MONITORING_ENABLED_KEY, "true" if enabled else "false")
@@ -73,8 +90,64 @@ async def update_smoke_monitoring_values(
     await repo.set(SMOKE_FAILURE_RATE_THRESHOLD_PERCENT_KEY, str(failure_rate_threshold_percent))
     await repo.set(SMOKE_FAILURE_RATE_MIN_RUNS_KEY, str(failure_rate_min_runs))
     await repo.set(SMOKE_FAILURE_RATE_WINDOW_DAYS_KEY, str(failure_rate_window_days))
+    await repo.set(
+        SMOKE_GITHUB_RATE_LIMIT_ALERT_ENABLED_KEY,
+        "true" if github_rate_limit_alert_enabled else "false",
+    )
+    await repo.set(
+        SMOKE_GITHUB_PRIMARY_LIMIT_ALERT_THRESHOLD_KEY,
+        str(github_primary_limit_alert_threshold),
+    )
+    await repo.set(
+        SMOKE_GITHUB_SECONDARY_LIMIT_ALERT_THRESHOLD_KEY,
+        str(github_secondary_limit_alert_threshold),
+    )
+    await repo.set(
+        SMOKE_GITHUB_RATE_LIMIT_ALERT_WINDOW_HOURS_KEY,
+        str(github_rate_limit_alert_window_hours),
+    )
     after = await read_smoke_monitoring_values(repo)
     return before, after
+
+
+async def read_github_api_rate_limit_alert_values(repo: Any) -> dict[str, Any]:
+    primary_threshold = await get_int_setting(
+        repo,
+        SMOKE_GITHUB_PRIMARY_LIMIT_ALERT_THRESHOLD_KEY,
+        default=SMOKE_GITHUB_RATE_LIMIT_ALERT_THRESHOLD_DEFAULT,
+    )
+    secondary_threshold = await get_int_setting(
+        repo,
+        SMOKE_GITHUB_SECONDARY_LIMIT_ALERT_THRESHOLD_KEY,
+        default=SMOKE_GITHUB_RATE_LIMIT_ALERT_THRESHOLD_DEFAULT,
+    )
+    window_hours = await get_int_setting(
+        repo,
+        SMOKE_GITHUB_RATE_LIMIT_ALERT_WINDOW_HOURS_KEY,
+        default=SMOKE_GITHUB_RATE_LIMIT_ALERT_WINDOW_HOURS_DEFAULT,
+    )
+    return {
+        "monitoring_github_rate_limit_alert_enabled": await get_bool_setting(
+            repo,
+            SMOKE_GITHUB_RATE_LIMIT_ALERT_ENABLED_KEY,
+            default=False,
+        ),
+        "monitoring_github_primary_limit_alert_threshold": (
+            primary_threshold
+            if 1 <= primary_threshold <= 100
+            else SMOKE_GITHUB_RATE_LIMIT_ALERT_THRESHOLD_DEFAULT
+        ),
+        "monitoring_github_secondary_limit_alert_threshold": (
+            secondary_threshold
+            if 1 <= secondary_threshold <= 100
+            else SMOKE_GITHUB_RATE_LIMIT_ALERT_THRESHOLD_DEFAULT
+        ),
+        "monitoring_github_rate_limit_alert_window_hours": (
+            window_hours
+            if 1 <= window_hours <= 168
+            else SMOKE_GITHUB_RATE_LIMIT_ALERT_WINDOW_HOURS_DEFAULT
+        ),
+    }
 
 
 def should_run_scheduled_smoke(

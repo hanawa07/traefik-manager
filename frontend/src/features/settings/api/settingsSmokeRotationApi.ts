@@ -20,6 +20,10 @@ export interface SmokeMonitoringSettingsInput {
   monitoring_failure_rate_threshold_percent: number;
   monitoring_failure_rate_min_runs: number;
   monitoring_failure_rate_window_days: SmokeFailureRateWindowDays;
+  monitoring_github_rate_limit_alert_enabled: boolean;
+  monitoring_github_primary_limit_alert_threshold: number;
+  monitoring_github_secondary_limit_alert_threshold: number;
+  monitoring_github_rate_limit_alert_window_hours: number;
 }
 
 export interface SmokeMonitoringRecentRun {
@@ -42,6 +46,10 @@ export interface SmokeRotationStatus {
   monitoring_failure_rate_threshold_percent: number;
   monitoring_failure_rate_min_runs: number;
   monitoring_failure_rate_window_days: SmokeFailureRateWindowDays;
+  monitoring_github_rate_limit_alert_enabled: boolean;
+  monitoring_github_primary_limit_alert_threshold: number;
+  monitoring_github_secondary_limit_alert_threshold: number;
+  monitoring_github_rate_limit_alert_window_hours: number;
   monitoring_schedule_time: string;
   monitoring_schedule_timezone: string;
   monitoring_last_success_at: string | null;

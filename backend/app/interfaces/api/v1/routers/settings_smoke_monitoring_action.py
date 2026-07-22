@@ -36,6 +36,16 @@ async def update_smoke_monitoring_settings_action(
         failure_rate_threshold_percent=request.monitoring_failure_rate_threshold_percent,
         failure_rate_min_runs=request.monitoring_failure_rate_min_runs,
         failure_rate_window_days=request.monitoring_failure_rate_window_days,
+        github_rate_limit_alert_enabled=request.monitoring_github_rate_limit_alert_enabled,
+        github_primary_limit_alert_threshold=(
+            request.monitoring_github_primary_limit_alert_threshold
+        ),
+        github_secondary_limit_alert_threshold=(
+            request.monitoring_github_secondary_limit_alert_threshold
+        ),
+        github_rate_limit_alert_window_hours=(
+            request.monitoring_github_rate_limit_alert_window_hours
+        ),
     )
     await record_settings_update(
         audit_service=audit_service,

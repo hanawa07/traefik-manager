@@ -76,6 +76,11 @@ export function SmokeGithubApiDiagnostics({
                 ? `최근 제한 ${latestKind} · ${formatDateTime(latestOccurredAt, timezone)} · ${typeof occurrenceCount === "number" ? `종류별 누적 ${occurrenceCount}회 · ` : ""}전체 누적 ${rateLimitAudit.data?.total ?? 0}회`
                 : "최근 제한 기록 없음 · 전체 누적 0회"}
         </p>
+        <p data-testid="smoke-github-rate-limit-alert-rule">
+          반복 제한 운영 알림 {status.monitoring_github_rate_limit_alert_enabled
+            ? `${status.monitoring_github_rate_limit_alert_window_hours}시간 내 기본 ${status.monitoring_github_primary_limit_alert_threshold}회 · 보조 ${status.monitoring_github_secondary_limit_alert_threshold}회`
+            : "사용 안 함"}
+        </p>
         {status.monitoring_github_rate_limit_remaining !== null &&
         status.monitoring_github_rate_limit_limit !== null ? (
           <p
