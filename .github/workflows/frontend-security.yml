@@ -1,10 +1,19 @@
 name: 프론트 의존성 보안 검사
 
 on:
+  workflow_dispatch:
   pull_request:
+    paths:
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - ".github/workflows/frontend-security.yml"
   push:
     branches:
       - main
+    paths:
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - ".github/workflows/frontend-security.yml"
 
 permissions:
   contents: read

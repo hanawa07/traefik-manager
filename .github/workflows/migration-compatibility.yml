@@ -1,10 +1,19 @@
 name: Migration blue-green 호환성 검사
 
 on:
+  workflow_dispatch:
   pull_request:
+    paths:
+      - "backend/alembic/**"
+      - "scripts/check-blue-green-migrations.sh"
+      - ".github/workflows/migration-compatibility.yml"
   push:
     branches:
       - main
+    paths:
+      - "backend/alembic/**"
+      - "scripts/check-blue-green-migrations.sh"
+      - ".github/workflows/migration-compatibility.yml"
 
 permissions:
   contents: read
@@ -23,4 +32,4 @@ jobs:
         env:
           BASE_REVISION: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: scripts/check-blue-green-migrations.sh "$BASE_REVISION" "$HEAD_REVISION"
+        run: scripts/check-blue-green-migrations.sh "${BASE_REVISION:-${HEAD_REVISION}^}" "$HEAD_REVISION"
