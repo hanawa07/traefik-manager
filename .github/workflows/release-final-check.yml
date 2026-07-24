@@ -1,0 +1,84 @@
+name: 릴리스 최종 통합 검사
+run-name: 릴리스 최종 통합 검사 · ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-final-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  final-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Python 준비
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: 백엔드 의존성 설치
+        run: |
+          python -m pip install --disable-pip-version-check -r backend/requirements.txt
+          python -m pip install --disable-pip-version-check -r backend/requirements-dev.txt
+
+      - name: 백엔드 전체 테스트
+        working-directory: backend
+        run: PYTHONPATH=. python -m pytest -q tests
+
+      - name: Node.js 준비
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 프론트 의존성 설치
+        run: npm --prefix frontend ci
+
+      - name: 프론트 의존성 보안 검사
+        run: npm --prefix frontend audit --package-lock-only --audit-level=high
+
+      - name: 프론트 lint와 production build
+        run: |
+          npm --prefix frontend run lint
+          npm --prefix frontend run build
+
+      - name: 프론트 자가 점검
+        run: |
+          npm --prefix frontend run test:audit-retry-chain
+          npm --prefix frontend run test:bottleneck-preview
+          npm --prefix frontend run test:maintenance-history-query
+          npm --prefix frontend run test:traefik-update-history
+          npm --prefix frontend run test:smoke-rotation-audit
+          npm --prefix frontend run test:smoke-failure-rate
+          npm --prefix frontend run test:github-api-rate-limit
+          npm --prefix frontend run test:service-routing
+
+      - name: 릴리스 구간 migration 호환성 검사
+        shell: bash
+        run: |
+          set -euo pipefail
+          head_revision="$GITHUB_SHA"
+          if ! base_revision="$(git describe --tags --abbrev=0 "${head_revision}^" 2>/dev/null)"; then
+            base_revision="${head_revision}^"
+          fi
+          scripts/check-blue-green-migrations.sh "$base_revision" "$head_revision"
