@@ -54,8 +54,12 @@ jobs:
       - name: 프론트 의존성 설치
         run: npm --prefix frontend ci
 
-      - name: 프론트 의존성 보안 검사
-        run: npm --prefix frontend audit --package-lock-only --audit-level=high
+      - name: 프론트 운영 의존성 high 이상 보안 검사
+        run: npm --prefix frontend audit --package-lock-only --omit=dev --audit-level=high
+
+      # PONYTAIL-DEBT(dependencies): Next ESLint가 minimatch 3을 제거하면 dev high 차단을 복구한다.
+      - name: 프론트 전체 의존성 critical 보안 검사
+        run: npm --prefix frontend audit --package-lock-only --audit-level=critical
 
       - name: 프론트 lint와 production build
         run: |
