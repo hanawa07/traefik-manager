@@ -3,6 +3,7 @@ import logging
 import re
 import sys
 from datetime import datetime, timezone
+from ipaddress import ip_address
 from typing import TYPE_CHECKING, Any
 
 from app.core.manager_http_request_log import create_manager_http_request_log_handler
@@ -28,12 +29,29 @@ def is_logging_exempt_path(path: str) -> bool:
 
 
 def get_client_ip(request: Any) -> str:
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+    forwarded_ips = [
+        parsed
+        for value in (request.headers.get("x-forwarded-for") or "").split(",")
+        if (parsed := _parse_ip(value))
+    ]
+    cloudflare_ip = _parse_ip(request.headers.get("cf-connecting-ip"))
+    if cloudflare_ip and cloudflare_ip in forwarded_ips:
+        return cloudflare_ip
+    if forwarded_ips:
+        # Traefik strips untrusted input and appends the direct upstream on the right.
+        return forwarded_ips[-1]
     if request.client:
-        return request.client.host
+        return _parse_ip(request.client.host) or "-"
     return "-"
+
+
+def _parse_ip(value: str | None) -> str | None:
+    if not value:
+        return None
+    try:
+        return str(ip_address(value.strip()))
+    except ValueError:
+        return None
 
 
 def setup_logging() -> None:

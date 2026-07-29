@@ -2,10 +2,57 @@ import ast
 import json
 import logging
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from app.core.logging_config import JsonFormatter, TextFormatter, is_logging_exempt_path
+from app.core.logging_config import (
+    JsonFormatter,
+    TextFormatter,
+    get_client_ip,
+    is_logging_exempt_path,
+)
+
+
+@pytest.mark.parametrize(
+    ("headers", "client_host", "expected"),
+    [
+        (
+            {
+                "x-forwarded-for": "198.51.100.23, 172.68.211.104",
+                "cf-connecting-ip": "198.51.100.23",
+            },
+            "192.168.180.8",
+            "198.51.100.23",
+        ),
+        (
+            {
+                "x-forwarded-for": "203.0.113.77, 198.51.100.23, 172.68.211.104",
+                "cf-connecting-ip": "198.51.100.23",
+            },
+            "192.168.180.8",
+            "198.51.100.23",
+        ),
+        (
+            {
+                "x-forwarded-for": "198.51.100.23",
+                "cf-connecting-ip": "203.0.113.77",
+            },
+            "192.168.180.8",
+            "198.51.100.23",
+        ),
+        (
+            {"x-forwarded-for": "invalid"},
+            "192.168.180.8",
+            "192.168.180.8",
+        ),
+    ],
+)
+def test_get_client_ip_rejects_unverified_forwarded_values(headers, client_host, expected):
+    request = SimpleNamespace(headers=headers, client=SimpleNamespace(host=client_host))
+
+    assert get_client_ip(request) == expected
+
 
 def test_json_formatter_includes_extra_fields():
     formatter = JsonFormatter()
