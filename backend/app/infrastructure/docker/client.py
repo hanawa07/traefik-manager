@@ -1,4 +1,3 @@
-import re
 from datetime import datetime
 from urllib.parse import quote
 
@@ -6,6 +5,10 @@ import httpx
 
 from app.core.config import settings
 from app.infrastructure.docker.api_client import build_docker_api_client, docker_api_available
+from app.infrastructure.docker.container_candidate_parser import (
+    build_container_candidate,
+    extract_networks,
+)
 from app.infrastructure.docker.deployment_release import ManagerReleaseChecker
 from app.infrastructure.docker.manager_http_errors import MANAGER_HTTP_ERROR_WINDOW_HOURS
 from app.infrastructure.docker.manager_http_log_reader import (
@@ -50,26 +53,7 @@ class DockerClient:
         for item in containers_payload:
             if not isinstance(item, dict):
                 continue
-
-            labels = item.get("Labels") or {}
-            if not isinstance(labels, dict):
-                labels = {}
-
-            ports = self._extract_ports(item)
-            networks = self._extract_networks(item)
-            traefik_candidates = self._extract_traefik_candidates(item, labels)
-            containers.append(
-                {
-                    "id": item.get("Id"),
-                    "name": self._get_container_name(item),
-                    "image": item.get("Image"),
-                    "state": item.get("State"),
-                    "status": item.get("Status"),
-                    "ports": ports,
-                    "networks": networks,
-                    "traefik_candidates": traefik_candidates,
-                }
-            )
+            containers.append(build_container_candidate(item))
 
         return {
             "enabled": True,
@@ -171,7 +155,7 @@ class DockerClient:
             raise DockerClientError("Docker 조회 또는 변경 API 경로가 없어 네트워크 연결을 실행할 수 없습니다")
 
         container = await self._get_object_json(f"/{self.api_version}/containers/{quote(container_name, safe='')}/json")
-        current_networks = self._extract_networks(container)
+        current_networks = extract_networks(container)
         if network_name in current_networks:
             return {
                 "changed": False,
@@ -189,7 +173,7 @@ class DockerClient:
         return {
             "changed": True,
             "container_id": self._normalize_value(updated_container.get("Id")) or self._normalize_value(container.get("Id")),
-            "networks": self._extract_networks(updated_container),
+            "networks": extract_networks(updated_container),
         }
 
     async def _get_json(self, path: str, params: dict | None = None) -> list[dict]:
@@ -364,136 +348,3 @@ class DockerClient:
         if not text or text.lower() == "unknown":
             return None
         return text
-
-    def _extract_traefik_candidates(self, container: dict, labels: dict) -> list[dict]:
-        candidates: list[dict] = []
-        router_rule_map: dict[str, str] = {}
-
-        for key, value in labels.items():
-            if not isinstance(key, str) or not isinstance(value, str):
-                continue
-            match = re.match(r"^traefik\.http\.routers\.([^.]+)\.rule$", key)
-            if match:
-                router_rule_map[match.group(1)] = value
-
-        for router_name, rule in sorted(router_rule_map.items()):
-            domains = self._extract_domains(rule)
-            if not domains:
-                continue
-
-            entry_points = str(labels.get(f"traefik.http.routers.{router_name}.entrypoints", ""))
-            tls_enabled = "websecure" in entry_points.lower()
-
-            service_label_name = labels.get(f"traefik.http.routers.{router_name}.service", router_name)
-            port_label_key = f"traefik.http.services.{service_label_name}.loadbalancer.server.port"
-            port_label_fallback_key = f"traefik.http.services.{router_name}.loadbalancer.server.port"
-            port_value = labels.get(port_label_key) or labels.get(port_label_fallback_key)
-            upstream_port = self._parse_port(port_value) or self._detect_private_port(container)
-
-            upstream_host = self._get_container_name(container)
-
-            for domain in domains:
-                candidates.append(
-                    {
-                        "router_name": router_name,
-                        "domain": domain,
-                        "upstream_host": upstream_host,
-                        "upstream_port": upstream_port or 80,
-                        "tls_enabled": tls_enabled,
-                    }
-                )
-
-        return candidates
-
-    def _extract_ports(self, container: dict) -> list[dict]:
-        ports = container.get("Ports") or []
-        if not isinstance(ports, list):
-            return []
-
-        extracted: list[dict] = []
-        seen: set[tuple[int, int | None, str | None]] = set()
-
-        for item in ports:
-            if not isinstance(item, dict):
-                continue
-
-            private_port = item.get("PrivatePort")
-            if not isinstance(private_port, int):
-                continue
-
-            public_port = item.get("PublicPort")
-            if not isinstance(public_port, int):
-                public_port = None
-
-            port_type = item.get("Type")
-            if not isinstance(port_type, str):
-                port_type = None
-
-            key = (private_port, public_port, port_type)
-            if key in seen:
-                continue
-            seen.add(key)
-
-            extracted.append(
-                {
-                    "private_port": private_port,
-                    "public_port": public_port,
-                    "type": port_type,
-                }
-            )
-
-        return sorted(
-            extracted,
-            key=lambda item: (
-                item["private_port"],
-                item["public_port"] if item["public_port"] is not None else -1,
-                item["type"] or "",
-            ),
-        )
-
-    def _extract_networks(self, container: dict) -> list[str]:
-        network_settings = container.get("NetworkSettings") or {}
-        if not isinstance(network_settings, dict):
-            return []
-
-        networks = network_settings.get("Networks") or {}
-        if not isinstance(networks, dict):
-            return []
-
-        extracted = [name for name in networks.keys() if isinstance(name, str) and name.strip()]
-        return sorted(extracted)
-
-    def _extract_domains(self, rule: str) -> list[str]:
-        domains: set[str] = set()
-        for match in re.findall(r"Host\(([^)]+)\)", rule):
-            for token in match.split(","):
-                value = token.strip().strip("`").strip('"').strip("'")
-                if value:
-                    domains.add(value)
-        return sorted(domains)
-
-    def _parse_port(self, value) -> int | None:
-        try:
-            port = int(str(value))
-            return port if 1 <= port <= 65535 else None
-        except (TypeError, ValueError):
-            return None
-
-    def _detect_private_port(self, container: dict) -> int | None:
-        ports = container.get("Ports") or []
-        if not isinstance(ports, list):
-            return None
-        for item in ports:
-            if not isinstance(item, dict):
-                continue
-            private_port = item.get("PrivatePort")
-            if isinstance(private_port, int):
-                return private_port
-        return None
-
-    def _get_container_name(self, container: dict) -> str:
-        names = container.get("Names") or []
-        if isinstance(names, list) and names:
-            first = str(names[0]).strip()
-            return first[1:] if first.startswith("/") else first
-        return str(container.get("Id", ""))[:12]
