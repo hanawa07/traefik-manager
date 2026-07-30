@@ -15,6 +15,13 @@ if [[ -z "${base_revision}" ]]; then
 fi
 
 cd "${REPO_ROOT}"
+for revision in "${base_revision}" "${head_revision}"; do
+  if ! git rev-parse --verify --quiet "${revision}^{commit}" >/dev/null; then
+    printf 'Git 리비전을 찾을 수 없습니다: %s\n' "${revision}" >&2
+    exit 2
+  fi
+done
+
 mapfile -t deleted_files < <(
   git diff --name-only --diff-filter=D "${base_revision}" "${head_revision}" -- \
     'backend/alembic/versions/*.py'
