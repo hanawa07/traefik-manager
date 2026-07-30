@@ -4,7 +4,11 @@ from uuid import uuid4
 
 import httpx
 
-from app.infrastructure.notifications import security_alert_notifier
+from app.infrastructure.notifications import (
+    security_alert_delivery,
+    security_alert_notifier,
+    security_alert_test_sender,
+)
 
 
 class StubSettingsRepository:
@@ -60,6 +64,11 @@ def patch_settings(monkeypatch, values: dict[str, str]) -> None:
         "SQLiteSystemSettingsRepository",
         StubSettingsRepository,
     )
+    monkeypatch.setattr(
+        security_alert_test_sender,
+        "SQLiteSystemSettingsRepository",
+        StubSettingsRepository,
+    )
 
 
 def patch_http_client(
@@ -71,7 +80,7 @@ def patch_http_client(
 ) -> StubHttpClient:
     client = StubHttpClient(posted, error, status_code)
     monkeypatch.setattr(
-        security_alert_notifier.httpx,
+        security_alert_delivery.httpx,
         "AsyncClient",
         lambda **_kwargs: client,
     )

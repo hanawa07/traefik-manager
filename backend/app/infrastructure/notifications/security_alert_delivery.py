@@ -1,5 +1,13 @@
+import logging
 from typing import Any
 
+import httpx
+
+from app.core.config import settings
+from app.core.logging_config import redact_sensitive_log_value
+from app.infrastructure.notifications.security_alert_email import (
+    send_email_alert_with_detail,
+)
 from app.infrastructure.notifications.security_alert_payloads import (
     build_discord_payload,
     build_pagerduty_payload,
@@ -14,6 +22,7 @@ from app.infrastructure.persistence.repositories.sqlite_system_settings_reposito
 )
 
 PAGERDUTY_EVENTS_API_URL = "https://events.pagerduty.com/v2/enqueue"
+logger = logging.getLogger(__name__)
 
 
 async def build_alert_request(
@@ -64,3 +73,55 @@ async def post_alert_request(
     async with httpx_module.AsyncClient(timeout=timeout_seconds) as client:
         response = await client.post(url, json=payload)
         response.raise_for_status()
+
+
+async def deliver_alert(
+    repo: SQLiteSystemSettingsRepository,
+    audit_log: AuditLogModel,
+    event: str,
+    provider: str,
+    category: str,
+) -> tuple[bool, str]:
+    if provider == "email":
+        return await send_email_alert_with_detail(repo, audit_log, event, category)
+
+    request = await build_alert_request(repo, audit_log, event, provider, category)
+    if request is None:
+        return False, f"{provider} 채널 설정이 완전하지 않습니다"
+
+    url, payload = request
+    try:
+        await post_alert_request(
+            httpx_module=httpx,
+            timeout_seconds=settings.SECURITY_ALERT_WEBHOOK_TIMEOUT_SECONDS,
+            url=url,
+            payload=payload,
+        )
+        return True, f"{provider} 채널로 전송했습니다"
+    except httpx.HTTPError as exc:
+        detail = format_http_error_detail(exc)
+        logger.warning("보안 웹훅 알림 전송 실패: %s", detail, exc_info=True)
+        return False, detail
+
+
+def format_http_error_detail(exc: httpx.HTTPError) -> str:
+    message = str(exc).strip()
+    if not message:
+        if isinstance(exc, httpx.TimeoutException):
+            message = "요청 제한 시간 초과"
+        elif isinstance(exc, httpx.ConnectError):
+            message = "연결 실패"
+        else:
+            message = "전송 실패"
+
+    error_name = exc.__class__.__name__
+    detail = message if error_name in message else f"{error_name}: {message}"
+
+    try:
+        request = exc.request
+    except RuntimeError:
+        request = None
+
+    if request is not None:
+        detail = f"{detail} ({request.method} {request.url})"
+    return redact_sensitive_log_value(detail)

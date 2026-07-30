@@ -35,7 +35,11 @@ def patch_test_alert_sender(monkeypatch, result: dict[str, object]):
         called["db"] = db
         return result
 
-    monkeypatch.setattr(settings_router.security_alert_notifier, "send_test_alert", fake_send_test_alert)
+    monkeypatch.setattr(
+        settings_router.security_alert_test_sender,
+        "send_test_alert",
+        fake_send_test_alert,
+    )
     return called
 
 
@@ -47,7 +51,7 @@ def patch_smoke_admin_stale_test_alert_sender(monkeypatch, result: dict[str, obj
         return result
 
     monkeypatch.setattr(
-        settings_router.security_alert_notifier,
+        settings_router.security_alert_test_sender,
         "send_smoke_admin_stale_test_alert",
         fake_send_smoke_admin_stale_test_alert,
     )
@@ -62,7 +66,7 @@ def patch_github_api_rate_limit_test_alert_sender(monkeypatch, result: dict[str,
         return result
 
     monkeypatch.setattr(
-        settings_router.security_alert_notifier,
+        settings_router.security_alert_test_sender,
         "send_github_api_rate_limit_test_alert",
         fake_send_github_api_rate_limit_test_alert,
     )

@@ -9,7 +9,7 @@ from app.infrastructure.github_api_rate_limit import (
     github_api_manual_refresh_block_message,
     read_github_api_rate_limit_event,
 )
-from app.infrastructure.notifications import security_alert_notifier
+from app.infrastructure.notifications import security_alert_test_sender
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.infrastructure.persistence.repositories.sqlite_redirect_host_repository import SQLiteRedirectHostRepository
@@ -279,7 +279,7 @@ async def test_security_alert_settings(
         request=request,
         db=db,
         actor=_,
-        notifier=security_alert_notifier,
+        notifier=security_alert_test_sender,
         audit_service=audit_service,
         client_ip_getter=get_client_ip,
     )
@@ -299,7 +299,7 @@ async def test_smoke_admin_stale_alert(
         request=request,
         db=db,
         actor=actor,
-        notifier=security_alert_notifier,
+        notifier=security_alert_test_sender,
         audit_service=audit_service,
         client_ip_getter=get_client_ip,
     )
@@ -319,7 +319,7 @@ async def test_github_api_rate_limit_alert(
         request=request,
         db=db,
         actor=actor,
-        notifier=security_alert_notifier,
+        notifier=security_alert_test_sender,
         audit_service=audit_service,
         client_ip_getter=get_client_ip,
     )

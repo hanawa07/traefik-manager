@@ -1,6 +1,10 @@
 import pytest
 
-from app.infrastructure.notifications import security_alert_notifier
+from app.infrastructure.notifications import (
+    security_alert_delivery,
+    security_alert_notifier,
+    security_alert_test_sender,
+)
 from tests.infrastructure.security_alert_notifier_fakes import (
     make_audit_log,
     patch_http_client,
@@ -113,7 +117,11 @@ async def test_notify_if_needed_sends_email_alert(monkeypatch):
             "security_alert_email_recipients": "ops@example.com",
         },
     )
-    monkeypatch.setattr(security_alert_notifier, "_send_email_alert_with_detail", stub_send_email_alert)
+    monkeypatch.setattr(
+        security_alert_delivery,
+        "send_email_alert_with_detail",
+        stub_send_email_alert,
+    )
 
     result = await security_alert_notifier.notify_if_needed(object(), make_audit_log("login_suspicious"))
 
@@ -157,13 +165,36 @@ async def test_smoke_admin_stale_dry_run_forces_telegram(monkeypatch):
     )
     patch_http_client(monkeypatch, posted)
 
-    result = await security_alert_notifier.send_smoke_admin_stale_test_alert(object())
+    result = await security_alert_test_sender.send_smoke_admin_stale_test_alert(object())
 
     assert result["success"] is True
     assert result["provider"] == "telegram"
     assert posted[0][0] == "https://api.telegram.org/bottelegram-secret/sendMessage"
     assert posted[0][1]["chat_id"] == "10001"
     assert "[테스트] 관리자 전용 점검 지연" in posted[0][1]["text"]
+
+
+@pytest.mark.asyncio
+async def test_security_alert_dry_run_preserves_webhook_result(monkeypatch):
+    posted = []
+    patch_settings(
+        monkeypatch,
+        {
+            "security_alert_provider": "slack",
+            "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+        },
+    )
+    patch_http_client(monkeypatch, posted)
+
+    result = await security_alert_test_sender.send_test_alert(object())
+
+    assert result == {
+        "success": True,
+        "provider": "slack",
+        "message": "테스트 보안 알림을 전송했습니다",
+        "detail": "slack 채널로 테스트 payload를 전송했습니다",
+    }
+    assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"
 
 
 @pytest.mark.asyncio
@@ -181,7 +212,7 @@ async def test_github_api_rate_limit_dry_run_uses_manager_health_route(monkeypat
     )
     patch_http_client(monkeypatch, posted)
 
-    result = await security_alert_notifier.send_github_api_rate_limit_test_alert(object())
+    result = await security_alert_test_sender.send_github_api_rate_limit_test_alert(object())
 
     assert result["success"] is True
     assert result["provider"] == "telegram"
