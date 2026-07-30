@@ -5,14 +5,11 @@ import type {
   SettingsTestHistoryItem,
 } from "@/features/settings/api/settingsApi";
 import { SettingsSummaryRow } from "@/features/settings/components/SettingsCardPrimitives";
-import { githubCommitUrl } from "@/features/settings/lib/smokeGithubUrls";
 import { useGithubApiRefreshBlocked } from "@/features/settings/lib/smokeGithubRateLimit";
 import type { TrackedManualSmokeRun } from "@/features/settings/lib/smokeManualRunTracking";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
-import { SmokeArtifactExpiryLabel } from "./SmokeArtifactExpiryLabel";
-import { SmokeArtifactLink } from "./SmokeArtifactLink";
-import { SmokeFailureMetadataPreview } from "./SmokeFailureMetadataPreview";
 import { SmokeGithubApiDiagnostics } from "./SmokeGithubApiDiagnostics";
+import { SmokeLatestFailureSummary } from "./SmokeLatestFailureSummary";
 import { SmokeManualRunResult } from "./SmokeManualRunResult";
 import { SmokeRecentRunHistory } from "./SmokeRecentRunHistory";
 import { SmokeStaleAlertHistory } from "./SmokeStaleAlertHistory";
@@ -65,10 +62,6 @@ export function SmokeMonitoringStatusSummary({
   const scheduleTime = status.monitoring_schedule_time ?? "03:17";
   const scheduleTimezone = status.monitoring_schedule_timezone ?? "Asia/Seoul";
   const recentRuns = status.monitoring_recent_runs ?? [];
-  const latestFailure =
-    status.monitoring_latest_failure ??
-    recentRuns.find((run) => run.status === "failure");
-  const artifactReferenceTime = Date.parse(status.monitoring_history_checked_at || "");
   const suppressedRuns = recentRuns.filter((run) => run.notification_suppressed);
   const latestSuppressed = suppressedRuns[0];
   const isGithubRefreshBlocked = useGithubApiRefreshBlocked(
@@ -193,87 +186,7 @@ export function SmokeMonitoringStatusSummary({
           않았습니다. GitHub Actions와 admin secret을 확인하세요.
         </div>
       ) : null}
-      <SettingsSummaryRow
-        label="최근 원격 점검 실패"
-        value={
-          latestFailure ? (
-            <a
-              className="text-rose-700 underline-offset-2 hover:underline dark:text-rose-300"
-              href={latestFailure.run_url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {formatDateTime(latestFailure.completed_at, timezone)}
-            </a>
-          ) : status.monitoring_history_error ? (
-            "확인 불가"
-          ) : (
-            "기록 없음"
-          )
-        }
-      />
-      {latestFailure?.summary ? (
-        <SettingsSummaryRow label="최근 실패 요약" value={latestFailure.summary} />
-      ) : null}
-      {latestFailure?.commit_sha ? (
-        <SettingsSummaryRow
-          label="최근 실패 커밋"
-          value={
-            <a
-              className="text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
-              data-testid="smoke-latest-failure-commit-link"
-              href={githubCommitUrl(latestFailure.run_url, latestFailure.commit_sha)}
-              rel="noreferrer"
-              target="_blank"
-            >
-              <code>{latestFailure.commit_sha}</code>
-            </a>
-          }
-        />
-      ) : null}
-      {latestFailure?.failure_metadata ? (
-        <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4">
-          <span className="text-gray-500 dark:text-slate-400">최근 실패 정보</span>
-          <div className="min-w-0 sm:w-96">
-            <SmokeFailureMetadataPreview
-              metadata={latestFailure.failure_metadata}
-              testId="smoke-latest-failure-metadata-preview"
-              timezone={timezone}
-            />
-          </div>
-        </div>
-      ) : null}
-      {latestFailure?.artifact_url ? (
-        <SettingsSummaryRow
-          label="최근 실패 화면"
-          value={
-            <SmokeArtifactLink
-              artifactUrl={latestFailure.artifact_url}
-              expiresAt={latestFailure.artifact_expires_at}
-              label="artifact 받기"
-              expiredLabel="artifact 만료"
-              expiredTestId="smoke-latest-failure-artifact-expired"
-              referenceTime={artifactReferenceTime}
-            />
-          }
-        />
-      ) : null}
-      <SettingsSummaryRow
-        label="Artifact 만료"
-        value={
-          latestFailure?.artifact_expires_at ? (
-            <SmokeArtifactExpiryLabel
-              expiresAt={latestFailure.artifact_expires_at}
-              referenceTime={artifactReferenceTime}
-              timezone={timezone}
-            />
-          ) : canManage ? (
-            "활성 artifact 없음"
-          ) : (
-            "관리자만 확인 가능"
-          )
-        }
-      />
+      <SmokeLatestFailureSummary canManage={canManage} status={status} timezone={timezone} />
       <SettingsSummaryRow
         label="반복 실패 알림 억제"
         value={
