@@ -31,6 +31,11 @@ class StubAuditDb:
         return StubExecuteResult(self._logs)
 
 
+async def seed_logs(db, logs):
+    db.add_all(logs)
+    await db.commit()
+
+
 def make_log(
     *,
     actor: str = "admin",
