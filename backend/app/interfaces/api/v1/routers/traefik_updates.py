@@ -13,12 +13,12 @@ from app.infrastructure.docker.traefik_deployment import (
 from app.infrastructure.github_actions_run import GitHubActionsRunStatusReader
 from app.infrastructure.persistence.database import get_db
 from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
-from app.infrastructure.traefik_update_operations import (
+from app.infrastructure.traefik_update_operations import read_traefik_update_operations
+from app.infrastructure.traefik_update_requests import (
     TraefikUpdateAlreadyPendingError,
     TraefikUpdateQueueUnavailableError,
     queue_traefik_alert_retry,
     queue_traefik_patch_update,
-    read_traefik_update_operations,
 )
 from app.interfaces.api.dependencies import get_current_user, require_admin
 from app.interfaces.api.v1.schemas.traefik_schemas import (
