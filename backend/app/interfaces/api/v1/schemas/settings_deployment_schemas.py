@@ -2,18 +2,18 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.infrastructure.manager_deployment_bottleneck import (
+from app.infrastructure.manager_deployment_bottleneck_config import (
     DEFAULT_CONSECUTIVE_COUNT,
     DEFAULT_EVENT_RETENTION_DAYS,
     DEFAULT_THRESHOLD_MS,
     MAX_CONSECUTIVE_COUNT,
     MAX_EVENT_RETENTION_DAYS,
-    MAX_RETAINED_EVENTS,
     MAX_THRESHOLD_MS,
     MIN_CONSECUTIVE_COUNT,
     MIN_EVENT_RETENTION_DAYS,
     MIN_THRESHOLD_MS,
 )
+from app.infrastructure.manager_deployment_bottleneck_events import MAX_RETAINED_EVENTS
 
 
 class ManagerDeploymentBottleneckSettingsResponse(BaseModel):

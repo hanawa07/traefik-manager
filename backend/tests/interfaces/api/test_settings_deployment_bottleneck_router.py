@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.infrastructure import manager_deployment_bottleneck
+from app.infrastructure import manager_deployment_bottleneck_config
 from app.interfaces.api.v1.routers import settings_deployment_bottleneck_router as router
 from app.interfaces.api.v1.schemas.settings_deployment_schemas import (
     ManagerDeploymentBottleneckSettingsUpdateRequest,
@@ -13,7 +13,7 @@ from app.interfaces.api.v1.schemas.settings_deployment_schemas import (
 async def test_deployment_bottleneck_settings_persist_and_record_audit(monkeypatch, tmp_path):
     config_path = tmp_path / "bottleneck.conf"
     monkeypatch.setattr(
-        manager_deployment_bottleneck.settings,
+        manager_deployment_bottleneck_config.settings,
         "MANAGER_DEPLOYMENT_BOTTLENECK_CONFIG_PATH",
         str(config_path),
     )
