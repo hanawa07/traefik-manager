@@ -77,7 +77,7 @@ async def restore_audit_archive_file(
         ) from exc
     except AuditArchiveValidationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
 

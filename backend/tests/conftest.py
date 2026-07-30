@@ -4,10 +4,10 @@ from datetime import datetime
 from uuid import uuid4
 
 # Set dummy environment variables for Pydantic Settings
-os.environ["APP_SECRET_KEY"] = "test-secret-key"
+os.environ["APP_SECRET_KEY"] = "test-app-secret-key-at-least-32-bytes"
 os.environ["AUTHENTIK_URL"] = "http://authentik.test"
 os.environ["AUTHENTIK_TOKEN"] = "test-token"
-os.environ["JWT_SECRET_KEY"] = "test-jwt-secret-key"
+os.environ["JWT_SECRET_KEY"] = "test-jwt-secret-key-at-least-32-bytes"
 os.environ["ADMIN_PASSWORD"] = "test-admin-password"
 
 from app.domain.proxy.entities.service import Service

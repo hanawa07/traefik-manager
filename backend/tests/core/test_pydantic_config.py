@@ -3,10 +3,10 @@ import warnings
 
 
 def test_settings_ignores_unknown_environment_variables(monkeypatch):
-    monkeypatch.setenv("APP_SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("APP_SECRET_KEY", "test-app-secret-key-at-least-32-bytes")
     monkeypatch.setenv("AUTHENTIK_URL", "http://authentik.test")
     monkeypatch.setenv("AUTHENTIK_TOKEN", "test-token")
-    monkeypatch.setenv("JWT_SECRET_KEY", "test-jwt-secret-key")
+    monkeypatch.setenv("JWT_SECRET_KEY", "test-jwt-secret-key-at-least-32-bytes")
     monkeypatch.setenv("ADMIN_PASSWORD", "test-admin-password")
     monkeypatch.setenv("FRONTEND_DOMAIN", "traefik-manager.lizstudio.co.kr")
     monkeypatch.setenv("BACKEND_DOMAIN", "traefik-manager-api.lizstudio.co.kr")

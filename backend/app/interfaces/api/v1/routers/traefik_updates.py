@@ -247,7 +247,7 @@ def _validate_safe_patch_request(deployment: dict, target_version: str) -> None:
         )
     if not is_patch_update(current_version, target_version):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="자동 요청은 동일 메이저·마이너의 패치 업데이트만 허용합니다",
         )
     failed_checks = [

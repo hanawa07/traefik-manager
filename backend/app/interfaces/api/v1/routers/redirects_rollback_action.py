@@ -65,7 +65,7 @@ async def _get_redirect_update_audit_log(db: AsyncSession, audit_log_id: str):
     if audit_log is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="대상 리다이렉트 변경 로그를 찾을 수 없습니다")
     if audit_log.resource_type != "redirect" or audit_log.action != "update":
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="리다이렉트 변경 로그만 롤백할 수 있습니다")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="리다이렉트 변경 로그만 롤백할 수 있습니다")
     return audit_log
 
 
@@ -77,5 +77,5 @@ def _get_supported_redirect_rollback_payload(audit_log) -> dict:
         or detail.get("rollback_supported") is not True
         or not isinstance(rollback_payload, dict)
     ):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="이 리다이렉트 변경은 안전 롤백을 지원하지 않습니다")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="이 리다이렉트 변경은 안전 롤백을 지원하지 않습니다")
     return rollback_payload

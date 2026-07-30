@@ -126,7 +126,7 @@ async def get_manager_http_errors(
 ):
     if window_hours not in MANAGER_HTTP_ERROR_WINDOW_OPTIONS:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="조회 기간은 6, 12, 24시간만 선택할 수 있습니다",
         )
     try:
