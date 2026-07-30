@@ -1,47 +1,12 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
-from app.application.manager_http_error_monitoring import (
-    DEFAULT_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
-    MAX_MANAGER_HTTP_EXCLUDED_PATHS,
-    MAX_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
-    MIN_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
-    normalize_manager_http_excluded_paths,
+from app.interfaces.api.v1.schemas.manager_http_error_schemas import (
+    ManagerHttpErrorMonitorResponse,
+    ManagerHttpErrorSummaryResponse,
 )
-
-
-class DockerContainerPortResponse(BaseModel):
-    private_port: int
-    public_port: int | None = None
-    type: str | None = None
-
-
-class DockerTraefikCandidateResponse(BaseModel):
-    router_name: str
-    domain: str
-    upstream_host: str
-    upstream_port: int
-    tls_enabled: bool
-
-
-class DockerContainerResponse(BaseModel):
-    id: str | None = None
-    name: str
-    image: str | None = None
-    state: str | None = None
-    status: str | None = None
-    ports: list[DockerContainerPortResponse]
-    networks: list[str]
-    traefik_candidates: list[DockerTraefikCandidateResponse]
-
-
-class DockerContainerListResponse(BaseModel):
-    enabled: bool
-    socket_path: str
-    message: str
-    containers: list[DockerContainerResponse]
 
 
 class DockerDeploymentComponentResponse(BaseModel):
@@ -72,101 +37,6 @@ class ExternalWatchdogAlertRunResponse(BaseModel):
     conclusion: str | None = None
     checked_at: datetime | None = None
     error: str | None = None
-
-
-class ManagerHttpErrorBucketResponse(BaseModel):
-    started_at: datetime
-    not_found_count: int = Field(default=0, ge=0)
-    server_error_count: int = Field(default=0, ge=0)
-
-
-class ManagerHttpErrorPathResponse(BaseModel):
-    path: str
-    not_found_count: int = Field(default=0, ge=0)
-    server_error_count: int = Field(default=0, ge=0)
-    last_seen_at: datetime
-
-
-class ManagerHttpRequestLogStorageResponse(BaseModel):
-    source: Literal["persistent", "docker", "unavailable"] = "unavailable"
-    size_bytes: int = Field(default=0, ge=0)
-    capacity_bytes: int = Field(default=0, ge=0)
-    file_count: int = Field(default=0, ge=0)
-    max_file_count: int = Field(default=0, ge=0)
-    rotated_file_count: int = Field(default=0, ge=0)
-
-
-class ManagerHttpErrorSummaryResponse(BaseModel):
-    available: bool
-    message: str
-    window_hours: int = Field(default=24, ge=1)
-    path_filter: str | None = None
-    checked_at: datetime
-    observed_since: datetime | None = None
-    sample_coverage_percent: int = Field(default=0, ge=0, le=100)
-    not_found_count: int = Field(default=0, ge=0)
-    server_error_count: int = Field(default=0, ge=0)
-    buckets: list[ManagerHttpErrorBucketResponse] = Field(default_factory=list)
-    top_paths: list[ManagerHttpErrorPathResponse] = Field(default_factory=list)
-    log_storage: ManagerHttpRequestLogStorageResponse = Field(
-        default_factory=ManagerHttpRequestLogStorageResponse
-    )
-
-
-class ManagerHttpErrorPreviewRequest(BaseModel):
-    window_minutes: int = Field(
-        default=DEFAULT_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
-        ge=MIN_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
-        le=MAX_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
-    )
-    excluded_paths: list[str] = Field(
-        default_factory=list,
-        max_length=MAX_MANAGER_HTTP_EXCLUDED_PATHS,
-    )
-
-    @field_validator("excluded_paths")
-    @classmethod
-    def validate_excluded_paths(cls, value: list[str]) -> list[str]:
-        return list(normalize_manager_http_excluded_paths(value))
-
-
-class ManagerHttpExcludedPathPreviewResponse(BaseModel):
-    path: str
-    not_found_count: int = Field(default=0, ge=0)
-    server_error_count: int = Field(default=0, ge=0)
-    last_seen_at: datetime | None = None
-
-
-class ManagerHttpErrorPreviewResponse(BaseModel):
-    available: bool
-    message: str
-    window_hours: int = Field(default=24, ge=1, le=24)
-    window_minutes: int = Field(ge=5, le=60)
-    checked_at: datetime
-    observed_since: datetime | None = None
-    sample_coverage_percent: int = Field(default=0, ge=0, le=100)
-    peak_not_found_count: int = Field(default=0, ge=0)
-    peak_server_error_count: int = Field(default=0, ge=0)
-    recommended_not_found_threshold: int = Field(ge=1, le=10_000)
-    recommended_server_error_threshold: int = Field(ge=1, le=10_000)
-    excluded_paths: list[ManagerHttpExcludedPathPreviewResponse] = Field(
-        default_factory=list,
-        max_length=50,
-    )
-
-
-class ManagerHttpErrorMonitorResponse(BaseModel):
-    enabled: bool
-    available: bool
-    checked_at: datetime | None = None
-    last_alert_at: datetime | None = None
-    breached: bool
-    window_minutes: int = Field(ge=5, le=60)
-    not_found_count: int = Field(default=0, ge=0)
-    not_found_threshold: int = Field(ge=1, le=10_000)
-    server_error_count: int = Field(default=0, ge=0)
-    server_error_threshold: int = Field(ge=1, le=10_000)
-    excluded_paths: list[str] = Field(default_factory=list, max_length=50)
 
 
 class ManagerSettingsHistoryLatencyResponse(BaseModel):

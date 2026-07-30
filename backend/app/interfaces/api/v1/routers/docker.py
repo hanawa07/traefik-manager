@@ -21,9 +21,13 @@ from app.infrastructure.persistence.database import get_db
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
 from app.interfaces.api.dependencies import get_current_user
-from app.interfaces.api.v1.schemas.docker_schemas import (
+from app.interfaces.api.v1.schemas.docker_container_schemas import (
     DockerContainerListResponse,
+)
+from app.interfaces.api.v1.schemas.manager_deployment_schemas import (
     DockerDeploymentInfoResponse,
+)
+from app.interfaces.api.v1.schemas.manager_http_error_schemas import (
     ManagerHttpErrorPreviewRequest,
     ManagerHttpErrorPreviewResponse,
     ManagerHttpErrorSummaryResponse,
