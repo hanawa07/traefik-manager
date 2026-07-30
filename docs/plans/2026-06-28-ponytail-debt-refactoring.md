@@ -4,31 +4,26 @@
 - 기존 동작을 유지하면서 `PONYTAIL-DEBT`로 표시한 파일을 500줄 이하, 단일 책임 구조로 분리한다.
 - 각 단계는 독립 커밋으로 진행하고, 단계마다 관련 테스트와 프론트 lint/build를 통과시킨다.
 
-## 1. 설정 페이지 분리
+## 1. 설정 페이지 분리 - 완료
 - 대상: `frontend/src/app/dashboard/settings/page.tsx`
-- 현재 문제: 설정 화면 전체가 단일 클라이언트 컴포넌트에 집중되어 3,000줄을 넘는다.
-- 실행 순서:
-  - 읽기 전용 요약 컴포넌트와 공통 카드/상태 컴포넌트를 먼저 분리한다.
-  - Cloudflare, 보안 알림, 로그인 방어, Traefik 대시보드, 백업/복원 섹션을 순차 분리한다.
-  - 분리 후 `page.tsx`는 데이터 조립과 섹션 배치만 담당하게 한다.
+- 완료 내용:
+  - 설정 카드, 편집 폼, 페이지 모델을 기능별 컴포넌트와 훅으로 분리했다.
+  - `page.tsx`는 페이지 모델과 섹션 배치만 담당하며 500줄 이하를 유지한다.
 - 검증: `cd frontend && npm run lint && npm run build`, 설정 화면 수동 확인.
 
-## 2. 설정 훅 반복 제거
+## 2. 설정 훅 반복 제거 - 완료
 - 대상: `frontend/src/features/settings/hooks/useSettings.ts`
-- 현재 문제: `useQuery`, `useMutation`, `invalidateQueries` 패턴이 설정 종류마다 반복된다.
-- 실행 순서:
-  - 단일 query key invalidation helper를 먼저 만든다.
-  - 단순 update mutation부터 helper로 옮긴다.
-  - 여러 query를 무효화하는 import/rollback 계열은 마지막에 분리한다.
+- 완료 내용:
+  - query key와 invalidation helper를 공통화했다.
+  - 조회, 변경, rollback, 백업 복원 훅을 책임별 파일로 분리했다.
 - 검증: `cd frontend && npm run lint && npm run build`.
 
-## 3. 설정 API 라우터 반복 제거
+## 3. 설정 API 라우터 반복 제거 - 완료
 - 대상: `backend/app/interfaces/api/v1/routers/settings.py`
-- 현재 문제: get/update/audit/rollback 흐름이 설정 그룹마다 반복된다.
-- 실행 순서:
-  - 단순 설정 그룹의 build/update/summary 함수를 registry로 묶는다.
-  - Cloudflare, 보안 알림처럼 외부 호출과 검증이 많은 그룹은 보류한다.
-  - rollback 지원 범위는 기존 테스트를 먼저 보강한 뒤 확장한다.
+- 완료 내용:
+  - 표준 설정 라우트를 route spec과 실행 wiring으로 분리했다.
+  - Cloudflare와 외부 호출이 필요한 설정 액션은 별도 라우터에 유지했다.
+  - 감사 기록, 응답 빌더, rollback 로직을 각각 분리했다.
 - 검증: `cd backend && PYTHONPATH=. ./venv/bin/pytest tests/interfaces/api/test_settings_router.py`.
 
 ## 4. Authentik 클라이언트 요청 helper 도입 - 완료
