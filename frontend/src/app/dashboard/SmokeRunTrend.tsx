@@ -3,25 +3,14 @@
 import { useEffect, useState } from "react";
 
 import type { SmokeMonitoringRecentRun } from "@/features/settings/api/settingsApi";
-import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import {
   getCompletedSmokeRunsInWindow,
   getSmokeRunFailureRate,
 } from "./smokeRunFailureRate";
 import {
-  filterAndPrioritizeSmokeArtifactRuns,
-  getSmokeArtifactFilterCounts,
-  getSmokeArtifactExpiryState,
-  getSmokeArtifactRemainingLabel,
-  type SmokeArtifactFilter,
-  type SmokeArtifactExpiryState,
-} from "@/shared/lib/smokeArtifactExpiry";
-
-const STATUS_LABELS = {
-  failure: "실패",
-  skipped: "건너뜀",
-  success: "성공",
-} as const;
+  getSmokeRunTooltip,
+  SmokeFailureArtifactLinks,
+} from "./SmokeFailureArtifactLinks";
 
 const STATUS_STYLES = {
   failure: "bg-rose-500 hover:bg-rose-600",
@@ -29,22 +18,7 @@ const STATUS_STYLES = {
   success: "bg-emerald-500 hover:bg-emerald-600",
 } as const;
 
-const ARTIFACT_EXPIRY_LABELS: Record<SmokeArtifactExpiryState, string> = {
-  active: "만료",
-  expiring_soon: "만료 임박",
-  expired: "만료됨",
-};
-
-const ARTIFACT_EXPIRY_STYLES: Record<SmokeArtifactExpiryState, string> = {
-  active: "text-slate-500 dark:text-slate-400",
-  expiring_soon: "bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-200",
-  expired: "bg-rose-100 px-1.5 py-0.5 font-semibold text-rose-700 dark:bg-rose-950 dark:text-rose-200",
-};
-
 const ARTIFACT_CLOCK_INTERVAL_MS = 60_000;
-const ARTIFACT_COPY_SUCCESS_DURATION_MS = 2_000;
-const ARTIFACT_FILTER_STORAGE_KEY = "traefik-manager:smoke-artifact-filter";
-const ARTIFACT_FILTER_QUERY = "artifact_filter";
 
 interface SmokeRunTrendProps {
   error: string | null;
@@ -64,9 +38,6 @@ export function SmokeRunTrend({
   timezone,
 }: SmokeRunTrendProps) {
   const [rangeDays, setRangeDays] = useState<7 | 30>(7);
-  const [artifactFilter, setArtifactFilter] = useState<SmokeArtifactFilter>("all");
-  const [artifactCopyStatus, setArtifactCopyStatus] = useState<"idle" | "copied" | "error">("idle");
-  const [artifactShareUrl, setArtifactShareUrl] = useState("");
   const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
   useEffect(() => {
     const refreshClock = () => setPeriodReferenceTime(Date.now());
@@ -77,34 +48,6 @@ export function SmokeRunTrend({
       window.removeEventListener("focus", refreshClock);
     };
   }, []);
-  useEffect(() => {
-    const queryFilter = new URLSearchParams(window.location.search).get(ARTIFACT_FILTER_QUERY);
-    const storedFilter = window.localStorage.getItem(ARTIFACT_FILTER_STORAGE_KEY);
-    const initialFilter = isSmokeArtifactFilter(queryFilter)
-      ? queryFilter
-      : isSmokeArtifactFilter(storedFilter) ? storedFilter : "all";
-    setArtifactFilter(initialFilter);
-    replaceArtifactFilterQuery(initialFilter);
-    window.localStorage.setItem(ARTIFACT_FILTER_STORAGE_KEY, initialFilter);
-  }, []);
-  useEffect(() => {
-    if (artifactCopyStatus !== "copied") return;
-    const timeoutId = window.setTimeout(
-      () => setArtifactCopyStatus("idle"),
-      ARTIFACT_COPY_SUCCESS_DURATION_MS,
-    );
-    return () => window.clearTimeout(timeoutId);
-  }, [artifactCopyStatus]);
-  const copyArtifactFilterLink = async () => {
-    const shareUrl = window.location.href;
-    setArtifactShareUrl(shareUrl);
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setArtifactCopyStatus("copied");
-    } catch {
-      setArtifactCopyStatus("error");
-    }
-  };
   const cutoff = periodReferenceTime - rangeDays * 24 * 60 * 60 * 1000;
   const recent = runs
     .filter((run) => Date.parse(run.completed_at) >= cutoff)
@@ -122,28 +65,6 @@ export function SmokeRunTrend({
     periodReferenceTime,
     failureRateWindowDays,
   ).filter((run) => run.status === "failure");
-  const artifactFilterCounts = getSmokeArtifactFilterCounts(failedRuns, periodReferenceTime);
-  const filteredFailedRuns = filterAndPrioritizeSmokeArtifactRuns(
-    failedRuns,
-    artifactFilter,
-    periodReferenceTime,
-  );
-  const displayedFailedRuns = filteredFailedRuns.slice(0, 5);
-  const artifactCount = displayedFailedRuns.filter((run) =>
-    Boolean(
-      run.artifact_url &&
-      getSmokeArtifactExpiryState(run.artifact_expires_at, periodReferenceTime) !== "expired",
-    )
-  ).length;
-  const expiredArtifactCount = displayedFailedRuns.filter((run) =>
-    Boolean(
-      run.artifact_url &&
-      getSmokeArtifactExpiryState(run.artifact_expires_at, periodReferenceTime) === "expired",
-    )
-  ).length;
-  const artifactExpiryCount = displayedFailedRuns.filter((run) =>
-    run.artifact_url && getSmokeArtifactExpiryState(run.artifact_expires_at, periodReferenceTime)
-  ).length;
   return (
     <div
       className="mt-2 flex flex-wrap items-center gap-2 text-[11px]"
@@ -171,7 +92,7 @@ export function SmokeRunTrend({
             aria-label={`최근 ${rangeDays}일 ${recent.length}회 중 ${successCount}회 성공`}
           >
             {recent.map((run) => {
-              const tooltip = getRunTooltip(run, timezone);
+              const tooltip = getSmokeRunTooltip(run, timezone);
               return (
                 <a
                   key={run.run_url}
@@ -206,162 +127,12 @@ export function SmokeRunTrend({
             ? `${failureRateWindowDays}일 실패율 ${failureRate.percentage}% (${failureRate.failureCount}/${failureRate.totalCount}) · ${failureRateMinRuns}회부터 판정`
             : `${failureRate.isAlert ? "실패율 경고" : `${failureRateWindowDays}일 실패율`} ${failureRate.percentage}% (${failureRate.failureCount}/${failureRate.totalCount}) · 기준 ${failureRateThresholdPercent}%`}
       </span>
-      {failureRate.isAlert && failedRuns.length ? (
-        <span
-          className="inline-flex flex-wrap items-center gap-1 rounded-md border border-rose-200 bg-white/70 px-2 py-0.5 dark:border-rose-500/30 dark:bg-slate-950/50"
-          data-artifact-count={artifactCount}
-          data-artifact-expiry-count={artifactExpiryCount}
-          data-artifact-filter={artifactFilter}
-          data-expired-artifact-count={expiredArtifactCount}
-          data-filtered-run-count={filteredFailedRuns.length}
-          data-testid="smoke-failure-run-links"
-        >
-          <span className="font-semibold">실패 실행</span>
-          <select
-            aria-label="실패 실행 Artifact 필터"
-            className="rounded border border-current/20 bg-white/80 px-1 py-0.5 font-semibold dark:bg-slate-950/70"
-            value={artifactFilter}
-            onChange={(event) => {
-              const nextFilter = event.target.value as SmokeArtifactFilter;
-              setArtifactFilter(nextFilter);
-              setArtifactCopyStatus("idle");
-              setArtifactShareUrl("");
-              replaceArtifactFilterQuery(nextFilter);
-              window.localStorage.setItem(ARTIFACT_FILTER_STORAGE_KEY, nextFilter);
-            }}
-          >
-            <option data-count={artifactFilterCounts.all} value="all">
-              전체 ({artifactFilterCounts.all})
-            </option>
-            <option data-count={artifactFilterCounts.available} value="available">
-              다운로드 가능 ({artifactFilterCounts.available})
-            </option>
-            <option data-count={artifactFilterCounts.expiring_soon} value="expiring_soon">
-              만료 임박 ({artifactFilterCounts.expiring_soon})
-            </option>
-            <option data-count={artifactFilterCounts.expired} value="expired">
-              만료됨 ({artifactFilterCounts.expired})
-            </option>
-          </select>
-          <button
-            aria-label="Artifact 필터 링크 복사"
-            aria-live="polite"
-            className="rounded border border-current/20 bg-white/80 px-1.5 py-0.5 font-semibold hover:bg-white dark:bg-slate-950/70 dark:hover:bg-slate-900"
-            data-copy-status={artifactCopyStatus}
-            data-copy-success-duration-ms={ARTIFACT_COPY_SUCCESS_DURATION_MS}
-            data-testid="smoke-artifact-filter-copy"
-            onClick={copyArtifactFilterLink}
-            type="button"
-          >
-            {artifactCopyStatus === "copied"
-              ? "링크 복사됨"
-              : artifactCopyStatus === "error" ? "복사 실패" : "링크 복사"}
-          </button>
-          {artifactCopyStatus === "error" ? (
-            <label className="inline-flex max-w-full items-center gap-1 font-semibold text-amber-800 dark:text-amber-200">
-              직접 복사
-              <input
-                aria-label="Artifact 필터 공유 URL 직접 복사"
-                autoFocus
-                className="w-56 max-w-full rounded border border-amber-300 bg-white px-1.5 py-0.5 font-normal text-slate-700 outline-none focus:ring-2 focus:ring-amber-400 dark:border-amber-500/50 dark:bg-slate-950 dark:text-slate-200"
-                onClick={(event) => event.currentTarget.select()}
-                onFocus={(event) => event.currentTarget.select()}
-                readOnly
-                value={artifactShareUrl}
-              />
-            </label>
-          ) : null}
-          {displayedFailedRuns.map((run, index) => {
-            const runLabel = run.run_number ? `#${run.run_number}` : `${index + 1}번`;
-            const artifactExpiryState = getSmokeArtifactExpiryState(
-              run.artifact_expires_at,
-              periodReferenceTime,
-            );
-            const artifactRemainingLabel = getSmokeArtifactRemainingLabel(
-              run.artifact_expires_at,
-              periodReferenceTime,
-            );
-            return (
-              <span
-                key={run.run_url}
-                className="inline-flex items-center gap-1"
-                data-artifact-expires-at={run.artifact_expires_at || undefined}
-                data-artifact-state={artifactExpiryState || (run.artifact_url ? "available" : "none")}
-                data-testid="smoke-failure-run"
-              >
-                <a
-                  className="font-semibold text-rose-700 underline underline-offset-2 dark:text-rose-300"
-                  href={run.run_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={getRunTooltip(run, timezone)}
-                >
-                  {runLabel}
-                </a>
-                {run.artifact_url && artifactExpiryState === "expired" ? (
-                  <span
-                    aria-disabled="true"
-                    className="cursor-not-allowed font-semibold text-slate-500 line-through dark:text-slate-400"
-                    data-testid="smoke-failure-artifact-expired"
-                    title="보관 기간이 끝나 실패 화면을 다운로드할 수 없습니다"
-                  >
-                    화면 만료
-                  </span>
-                ) : run.artifact_url ? (
-                  <a
-                    aria-label={`${runLabel} 실패 화면 Artifact`}
-                    className="font-semibold text-cyan-700 underline underline-offset-2 dark:text-cyan-300"
-                    data-testid="smoke-failure-artifact-link"
-                    href={run.artifact_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    title="GitHub 로그인 후 실패 화면 ZIP 다운로드"
-                  >
-                    화면
-                  </a>
-                ) : null}
-                {run.artifact_url && run.artifact_expires_at && artifactExpiryState ? (
-                  <span
-                    className={`rounded ${ARTIFACT_EXPIRY_STYLES[artifactExpiryState]}`}
-                    data-expiry-state={artifactExpiryState}
-                    data-remaining-label={artifactRemainingLabel || undefined}
-                    data-testid="smoke-artifact-expiry"
-                    title={`Artifact 만료 시각: ${formatDateTime(run.artifact_expires_at, timezone)}`}
-                  >
-                    {ARTIFACT_EXPIRY_LABELS[artifactExpiryState]}
-                    {artifactRemainingLabel ? ` · ${artifactRemainingLabel}` : ""}
-                    {` · ${formatDateTime(run.artifact_expires_at, timezone)}`}
-                  </span>
-                ) : null}
-              </span>
-            );
-          })}
-          {displayedFailedRuns.length === 0 ? <span>조건에 맞는 실행 없음</span> : null}
-          {filteredFailedRuns.length > 5 ? <span>외 {filteredFailedRuns.length - 5}건</span> : null}
-        </span>
-      ) : null}
+      <SmokeFailureArtifactLinks
+        failedRuns={failedRuns}
+        periodReferenceTime={periodReferenceTime}
+        timezone={timezone}
+        visible={failureRate.isAlert && failedRuns.length > 0}
+      />
     </div>
   );
-}
-
-function getRunTooltip(run: SmokeMonitoringRecentRun, timezone?: string) {
-  return [
-    run.run_number ? `#${run.run_number}` : "실행",
-    STATUS_LABELS[run.status],
-    formatDateTime(run.completed_at, timezone),
-    run.summary,
-  ].filter(Boolean).join(" · ");
-}
-
-function isSmokeArtifactFilter(value: string | null): value is SmokeArtifactFilter {
-  return value === "all" || value === "available" || value === "expiring_soon" || value === "expired";
-}
-
-function replaceArtifactFilterQuery(filter: SmokeArtifactFilter) {
-  const url = new URL(window.location.href);
-  if (filter === "all") url.searchParams.delete(ARTIFACT_FILTER_QUERY);
-  else url.searchParams.set(ARTIFACT_FILTER_QUERY, filter);
-  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
-  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  if (nextUrl !== currentUrl) window.history.replaceState(window.history.state, "", nextUrl);
 }
