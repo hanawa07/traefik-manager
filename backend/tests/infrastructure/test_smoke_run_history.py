@@ -6,9 +6,11 @@ import pytest
 from app.infrastructure import github_api_rate_limit, smoke_run_history
 from app.infrastructure.smoke_run_history import (
     GitHubSmokeRunHistoryReader,
+    read_smoke_history_cache_diagnostics,
+)
+from app.infrastructure.smoke_run_history_processing import (
     build_smoke_run_item,
     paginate_smoke_runs,
-    read_smoke_history_cache_diagnostics,
     select_smoke_run_groups,
 )
 from app.infrastructure.smoke_run_details import build_smoke_artifacts
