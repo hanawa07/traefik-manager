@@ -3,7 +3,11 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import pytest
 
-from app.infrastructure import github_api_rate_limit, smoke_run_history
+from app.infrastructure import (
+    github_api_rate_limit,
+    smoke_run_history,
+    smoke_run_history_fetcher,
+)
 from app.infrastructure.smoke_run_history import (
     GitHubSmokeRunHistoryReader,
     read_smoke_history_cache_diagnostics,
@@ -240,7 +244,7 @@ async def test_history_reader_explains_github_rate_limit_reset(monkeypatch) -> N
         raise httpx.HTTPStatusError("rate limited", request=request, response=response)
 
     monkeypatch.setattr(
-        smoke_run_history,
+        smoke_run_history_fetcher,
         "read_smoke_workflow_runs",
         fail_with_rate_limit,
     )
@@ -311,7 +315,7 @@ async def test_history_reader_counts_github_requests_for_next_refresh_estimate(
         github_api_rate_limit.record_github_api_rate_limit({}, category="workflow")
         return [_run()]
 
-    monkeypatch.setattr(smoke_run_history, "read_smoke_workflow_runs", fake_runs)
+    monkeypatch.setattr(smoke_run_history_fetcher, "read_smoke_workflow_runs", fake_runs)
 
     history = await GitHubSmokeRunHistoryReader()._fetch_history(
         "https://api.github.com/repos/example/request-count-test",
