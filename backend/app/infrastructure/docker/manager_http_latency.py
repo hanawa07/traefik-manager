@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from math import ceil
 
-from app.infrastructure.docker.manager_http_errors import (
+from app.infrastructure.docker.manager_http_request_log_parser import (
     parse_manager_http_request_log,
 )
 

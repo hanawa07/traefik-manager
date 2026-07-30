@@ -1,4 +1,3 @@
-import json
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
@@ -8,6 +7,9 @@ from app.application.manager_http_error_monitoring import (
     MAX_MANAGER_HTTP_ERROR_THRESHOLD,
     MAX_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
     MIN_MANAGER_HTTP_ERROR_WINDOW_MINUTES,
+)
+from app.infrastructure.docker.manager_http_request_log_parser import (
+    parse_manager_http_request_log,
 )
 
 
@@ -311,50 +313,6 @@ def _normalize_path_filter(value: str | None) -> str | None:
     if not value or not value.strip():
         return None
     return value.strip().lower()
-
-
-def parse_manager_http_request_log(
-    line: str,
-) -> tuple[datetime, str, int, float | None] | None:
-    json_start = line.find("{")
-    if json_start < 0:
-        return None
-    try:
-        payload = json.loads(line[json_start:])
-    except (json.JSONDecodeError, TypeError):
-        return None
-    if not isinstance(payload, dict) or payload.get("message") != "요청 완료":
-        return None
-
-    path = payload.get("path")
-    status_code = payload.get("status_code")
-    duration_value = payload.get("duration_ms")
-    occurred_at = _parse_timestamp(payload.get("time"))
-    if (
-        occurred_at is None
-        or not isinstance(path, str)
-        or not path.startswith("/api/")
-        or isinstance(status_code, bool)
-        or not isinstance(status_code, int)
-    ):
-        return None
-    duration_ms = (
-        float(duration_value)
-        if isinstance(duration_value, (int, float))
-        and not isinstance(duration_value, bool)
-        and duration_value >= 0
-        else None
-    )
-    return occurred_at, path, status_code, duration_ms
-
-
-def _parse_timestamp(value: object) -> datetime | None:
-    if not isinstance(value, str):
-        return None
-    try:
-        return _as_utc(datetime.fromisoformat(value.replace("Z", "+00:00")))
-    except ValueError:
-        return None
 
 
 def _as_utc(value: datetime) -> datetime:
