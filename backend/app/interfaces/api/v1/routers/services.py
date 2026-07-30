@@ -35,9 +35,11 @@ from app.interfaces.api.v1.routers.services_bulk_routing_notification import (
     complete_bulk_routing_notification_action,
 )
 from app.interfaces.api.v1.routers.services_gateway_diagnostics import (
-    connect_service_gateway_network_action,
     diagnose_service_gateway_action,
     record_service_gateway_diagnosis_action,
+)
+from app.interfaces.api.v1.routers.services_gateway_network import (
+    connect_service_gateway_network_action,
 )
 from app.interfaces.api.v1.routers.services_rollback_action import rollback_service_change_action
 from app.interfaces.api.v1.schemas.service_schemas import (

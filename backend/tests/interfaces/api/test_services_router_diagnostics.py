@@ -5,11 +5,13 @@ import pytest
 from fastapi import HTTPException
 
 from app.interfaces.api.v1.routers.services_gateway_diagnostics import (
-    SERVICE_DOCKER_NETWORK_CONNECT_EVENT,
     SERVICE_GATEWAY_DIAGNOSIS_EVENT,
-    connect_service_gateway_network_action,
     diagnose_service_gateway_action,
     record_service_gateway_diagnosis_action,
+)
+from app.interfaces.api.v1.routers.services_gateway_network import (
+    SERVICE_DOCKER_NETWORK_CONNECT_EVENT,
+    connect_service_gateway_network_action,
 )
 
 
