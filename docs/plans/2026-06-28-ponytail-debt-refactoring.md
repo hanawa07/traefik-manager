@@ -52,3 +52,9 @@
   - `PONYTAIL-DEBT(repo-abc)` marker를 제거하고 `ServiceRepository`의 의도를 docstring으로 명시했다.
   - 현재 파일들은 모두 500줄 미만이며, 단일 책임을 벗어나지 않는다.
 - 검증: backend 전체 pytest.
+
+## 7. 프론트엔드 ESLint 10 전환 - 업스트림 대기
+- `PONYTAIL-DEBT(frontend-eslint-10)`: `eslint-config-next@16.2.12`의 내부 `eslint-plugin-react`, `eslint-plugin-import`, `eslint-plugin-jsx-a11y`가 ESLint 10 API를 지원하지 않는다.
+- 2026-07-30 기준 ESLint 10 전환 시 `react/display-name` 규칙 로딩이 실패하는 것을 확인하고 ESLint 9로 복구했다.
+- 취약한 `brace-expansion` 1.x를 5.x로 강제 교체하면 CommonJS 호출 형식이 달라 기존 `minimatch` 3.x와 호환되지 않으므로 override하지 않는다.
+- 재개 조건: Next.js 내장 플러그인이 ESLint 10을 공식 지원하고 `npm audit`에서 `GHSA-mh99-v99m-4gvg` 경로가 제거될 때 lint/build를 다시 검증한다.
