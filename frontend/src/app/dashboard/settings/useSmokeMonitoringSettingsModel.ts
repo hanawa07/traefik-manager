@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import type { SmokeMonitoringSettingsInput } from "@/features/settings/api/settingsApi";
 import {
@@ -9,13 +9,6 @@ import {
   useTestSmokeAdminStaleAlert,
   useUpdateSmokeMonitoringSettings,
 } from "@/features/settings/hooks/useSettings";
-import {
-  findNewSmokeRun,
-  getTrackedManualSmokeRun,
-  LAST_MANUAL_SMOKE_RUN_STORAGE_KEY,
-  parseTrackedManualSmokeRun,
-  type TrackedManualSmokeRun,
-} from "@/features/settings/lib/smokeManualRunTracking";
 import type { ToastNoticeValue } from "@/shared/components/ToastNotice";
 import {
   isGithubApiRefreshBlocked,
@@ -23,6 +16,7 @@ import {
 } from "@/features/settings/lib/smokeGithubRateLimit";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { getSettingsModelErrorMessage } from "./settingsModelErrors";
+import { useManualSmokeRunTracking } from "./useManualSmokeRunTracking";
 
 const DEFAULT_FORM: SmokeMonitoringSettingsInput = {
   monitoring_enabled: true,
@@ -35,8 +29,6 @@ const DEFAULT_FORM: SmokeMonitoringSettingsInput = {
   monitoring_github_secondary_limit_alert_threshold: 3,
   monitoring_github_rate_limit_alert_window_hours: 24,
 };
-const MANUAL_RUN_POLL_INTERVAL_MS = 30_000;
-const MANUAL_RUN_TRACKING_TIMEOUT_MS = 6 * 60_000;
 
 export function useSmokeMonitoringSettingsModel(
   canManage: boolean,
@@ -52,33 +44,19 @@ export function useSmokeMonitoringSettingsModel(
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState(DEFAULT_FORM);
   const [errorMessage, setErrorMessage] = useState("");
-  const [isTrackingManualRun, setIsTrackingManualRun] = useState(false);
-  const [lastManualRun, setLastManualRun] = useState<TrackedManualSmokeRun | null>(null);
-  const manualRunTimerRef = useRef<number | null>(null);
-  const manualRunGenerationRef = useRef(0);
   const isGithubSecondaryBlocked = isGithubSecondaryRateLimitBlocked(
     query.data?.monitoring_github_secondary_limit_retry_at,
   );
   const githubRefreshRetryAt = isGithubSecondaryBlocked
     ? query.data?.monitoring_github_secondary_limit_retry_at
     : query.data?.monitoring_github_rate_limit_reset_at;
-
-  useEffect(() => () => {
-    manualRunGenerationRef.current += 1;
-    if (manualRunTimerRef.current !== null) {
-      window.clearTimeout(manualRunTimerRef.current);
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      setLastManualRun(
-        parseTrackedManualSmokeRun(window.localStorage.getItem(LAST_MANUAL_SMOKE_RUN_STORAGE_KEY)),
-      );
-    } catch {
-      setLastManualRun(null);
-    }
-  }, []);
+  const manualRunTracking = useManualSmokeRunTracking({
+    canManage,
+    onToast,
+    refreshHistory: () => refreshHistory.mutateAsync(),
+    status: query.data,
+    timezone,
+  });
 
   const handleEdit = () => {
     setFormValue({
@@ -175,109 +153,6 @@ export function useSmokeMonitoringSettingsModel(
     }
   };
 
-  const handleManualRunOpen = () => {
-    if (!canManage) return;
-    if (
-      isGithubApiRefreshBlocked(
-        query.data?.monitoring_github_rate_limit_remaining,
-        query.data?.monitoring_github_rate_limit_reset_at,
-        query.data?.monitoring_github_secondary_limit_retry_at,
-        query.data?.monitoring_github_refresh_reserve,
-      )
-    ) {
-      onToast({
-        tone: "warning",
-        message: "자동 결과 확인을 시작하지 않았습니다",
-        detail: `GitHub API ${isGithubSecondaryBlocked ? "보조 제한 재시도" : "초기화"} 시각 ${formatDateTime(githubRefreshRetryAt, timezone)} 이후 사용할 수 있습니다.`,
-      });
-      return;
-    }
-    if (manualRunTimerRef.current !== null) {
-      window.clearTimeout(manualRunTimerRef.current);
-    }
-    const generation = manualRunGenerationRef.current + 1;
-    manualRunGenerationRef.current = generation;
-    const startedAt = Date.now();
-    const knownRunUrls = (query.data?.monitoring_recent_runs ?? []).map((run) => run.run_url);
-    setIsTrackingManualRun(true);
-
-    const finish = () => {
-      if (manualRunGenerationRef.current !== generation) return;
-      manualRunGenerationRef.current += 1;
-      if (manualRunTimerRef.current !== null) {
-        window.clearTimeout(manualRunTimerRef.current);
-      }
-      manualRunTimerRef.current = null;
-      setIsTrackingManualRun(false);
-    };
-    const poll = async () => {
-      try {
-        const refreshed = await refreshHistory.mutateAsync();
-        if (manualRunGenerationRef.current !== generation) return;
-        if (refreshed.monitoring_history_error) {
-          finish();
-          onToast({
-            tone: "warning",
-            message: "새 실행 결과 자동 확인 중지",
-            detail: refreshed.monitoring_history_error,
-          });
-          return;
-        }
-        const newRun = findNewSmokeRun(refreshed.monitoring_recent_runs, knownRunUrls);
-        if (newRun) {
-          const trackedRun = getTrackedManualSmokeRun(newRun);
-          if (trackedRun) {
-            setLastManualRun(trackedRun);
-            try {
-              window.localStorage.setItem(
-                LAST_MANUAL_SMOKE_RUN_STORAGE_KEY,
-                JSON.stringify(trackedRun),
-              );
-            } catch {
-              // The result still remains visible for the current page session.
-            }
-          }
-          finish();
-          onToast({
-            tone: newRun.status === "success" ? "success" : newRun.status === "failure" ? "error" : "warning",
-            message: `새 수동 점검 ${newRun.status === "success" ? "성공" : newRun.status === "failure" ? "실패" : "건너뜀"}`,
-            detail: newRun.run_number ? `GitHub Actions #${newRun.run_number}` : "GitHub Actions 실행 결과를 확인했습니다.",
-            link: { href: newRun.run_url, label: "GitHub 실행 보기" },
-          });
-          return;
-        }
-        if (Date.now() - startedAt >= MANUAL_RUN_TRACKING_TIMEOUT_MS) {
-          finish();
-          onToast({
-            tone: "warning",
-            message: "새 실행 결과를 아직 찾지 못했습니다",
-            detail: "GitHub 실행 후 설정 화면의 지금 새로고침을 눌러 확인하세요.",
-          });
-          return;
-        }
-        manualRunTimerRef.current = window.setTimeout(poll, MANUAL_RUN_POLL_INTERVAL_MS);
-      } catch (error) {
-        if (manualRunGenerationRef.current !== generation) return;
-        finish();
-        onToast({
-          tone: "error",
-          message: "새 실행 결과 자동 확인 실패",
-          detail: getSettingsModelErrorMessage(error, "GitHub 실행 이력을 확인하지 못했습니다"),
-        });
-      }
-    };
-    manualRunTimerRef.current = window.setTimeout(poll, MANUAL_RUN_POLL_INTERVAL_MS);
-  };
-
-  const handleClearManualRun = () => {
-    try {
-      window.localStorage.removeItem(LAST_MANUAL_SMOKE_RUN_STORAGE_KEY);
-    } catch {
-      // The result still remains hidden for the current page session.
-    }
-    setLastManualRun(null);
-  };
-
   const handleTestStaleAlert = async () => {
     if (!window.confirm("저장된 Telegram 채널로 관리자 점검 지연 테스트 알림을 전송할까요?")) {
       return;
@@ -339,15 +214,15 @@ export function useSmokeMonitoringSettingsModel(
     errorMessage,
     isSaving: update.isPending,
     isRefreshingHistory: refreshHistory.isPending,
-    isTrackingManualRun,
-    lastManualRun,
+    isTrackingManualRun: manualRunTracking.isTracking,
+    lastManualRun: manualRunTracking.lastRun,
     isTestingStaleAlert: testStaleAlert.isPending,
     isTestingGithubRateLimitAlert: testGithubRateLimitAlert.isPending,
     onEdit: handleEdit,
     onSave: handleSave,
     onRefreshHistory: handleRefreshHistory,
-    onManualRunOpen: handleManualRunOpen,
-    onClearManualRun: handleClearManualRun,
+    onManualRunOpen: manualRunTracking.onOpen,
+    onClearManualRun: manualRunTracking.onClear,
     onTestStaleAlert: handleTestStaleAlert,
     onTestGithubRateLimitAlert: handleTestGithubRateLimitAlert,
     onCancel: () => setIsEditing(false),
