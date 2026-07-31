@@ -1,6 +1,5 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
 import type {
@@ -30,30 +29,15 @@ import {
 } from "./managerDeploymentHistoryExport";
 import {
   DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD,
-  MANAGER_DEPLOYMENT_HISTORY_QUERY,
   matchesManagerDeploymentHistoryStatus,
-  parseManagerDeploymentArchiveSample,
-  parseManagerDeploymentHistoryDate,
-  parseManagerDeploymentBottleneckThreshold,
-  parseManagerDeploymentHistoryPeriod,
-  parseManagerDeploymentHistorySource,
-  parseManagerDeploymentHistorySpeed,
-  parseManagerDeploymentHistoryStage,
-  parseManagerDeploymentHistoryStatus,
-  replaceManagerDeploymentHistoryQueryParams,
   type ManagerDeploymentHistoryFilters,
-  type ManagerDeploymentArchiveSampleFilter,
-  type ManagerDeploymentHistoryPeriodFilter,
   type ManagerDeploymentHistoryRecordSource,
-  type ManagerDeploymentHistorySourceFilter,
-  type ManagerDeploymentHistorySpeedFilter,
-  type ManagerDeploymentHistoryStageFilter,
-  type ManagerDeploymentHistoryStatusFilter,
 } from "./managerDeploymentHistoryQuery";
 import {
   getManagerDeploymentDateBoundary,
   getManagerDeploymentPeriodComparison,
 } from "./managerDeploymentPeriodComparison";
+import { useManagerDeploymentHistoryFilters } from "./useManagerDeploymentHistoryFilters";
 
 interface ManagerDeploymentHistoryProps {
   archiveEntries?: ManagerDeploymentHistoryEntry[];
@@ -78,46 +62,9 @@ function ManagerDeploymentHistoryContent({
   source,
   timezone,
 }: ManagerDeploymentHistoryProps) {
-  const searchParams = useSearchParams();
   const [toastNotice, setToastNotice] = useState<ToastNoticeValue | null>(null);
-  const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
-  const [bottleneckThreshold, setBottleneckThreshold] = useState(() =>
-    parseManagerDeploymentBottleneckThreshold(
-      searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.bottleneckThreshold),
-    ));
-  const [dateFrom, setDateFrom] = useState(() =>
-    parseManagerDeploymentHistoryDate(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.dateFrom)),
-  );
-  const [archiveSample, setArchiveSample] = useState<ManagerDeploymentArchiveSampleFilter>(() =>
-    parseManagerDeploymentHistorySource(
-      searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.source),
-    ) === "current"
-      ? "all"
-      : parseManagerDeploymentArchiveSample(
-          searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.archiveSample),
-        ));
-  const [dateTo, setDateTo] = useState(() =>
-    parseManagerDeploymentHistoryDate(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.dateTo)),
-  );
-  const [period, setPeriod] = useState<ManagerDeploymentHistoryPeriodFilter>(() =>
-    parseManagerDeploymentHistoryPeriod(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.period)),
-  );
-  const [status, setStatus] = useState<ManagerDeploymentHistoryStatusFilter>(() =>
-    parseManagerDeploymentHistoryStatus(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.status)),
-  );
-  const [stage, setStage] = useState<ManagerDeploymentHistoryStageFilter>(() =>
-    parseManagerDeploymentHistoryStage(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.stage)),
-  );
-  const [historySource, setHistorySource] = useState<ManagerDeploymentHistorySourceFilter>(() =>
-    parseManagerDeploymentHistorySource(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.source)),
-  );
-  const [speed, setSpeed] = useState<ManagerDeploymentHistorySpeedFilter>(() =>
-    parseManagerDeploymentHistorySpeed(searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.speed)),
-  );
-  const [searchText, setSearchText] = useState(() =>
-    (searchParams.get(MANAGER_DEPLOYMENT_HISTORY_QUERY.search) || "").slice(0, 100),
-  );
-  const filters: ManagerDeploymentHistoryFilters = {
+  const { filters, periodReferenceTime, updateFilters } = useManagerDeploymentHistoryFilters();
+  const {
     archiveSample,
     bottleneckThreshold,
     dateFrom,
@@ -128,7 +75,7 @@ function ManagerDeploymentHistoryContent({
     speed,
     stage,
     status,
-  };
+  } = filters;
   const normalizedSearchText = searchText.trim().toLowerCase();
   const periodCutoff = period === "all"
     ? null
@@ -179,65 +126,6 @@ function ManagerDeploymentHistoryContent({
     ) !== null;
     return matchesStatus && matchesFailureStage && matchesSearch && matchesSpeed;
   });
-
-  const updateFilters = (updates: Partial<ManagerDeploymentHistoryFilters>) => {
-    const queryUpdates: [key: string, value: string, defaultValue: string][] = [];
-    if (updates.archiveSample !== undefined) {
-      setArchiveSample(updates.archiveSample);
-      queryUpdates.push([
-        MANAGER_DEPLOYMENT_HISTORY_QUERY.archiveSample,
-        updates.archiveSample,
-        "all",
-      ]);
-    }
-    if (updates.bottleneckThreshold !== undefined) {
-      setBottleneckThreshold(updates.bottleneckThreshold);
-      queryUpdates.push([
-        MANAGER_DEPLOYMENT_HISTORY_QUERY.bottleneckThreshold,
-        updates.bottleneckThreshold,
-        DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD,
-      ]);
-    }
-    if (updates.dateFrom !== undefined) {
-      setDateFrom(updates.dateFrom);
-      queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.dateFrom, updates.dateFrom, ""]);
-    }
-    if (updates.dateTo !== undefined) {
-      setDateTo(updates.dateTo);
-      queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.dateTo, updates.dateTo, ""]);
-    }
-    if (updates.period !== undefined) {
-      setPeriodReferenceTime(Date.now());
-      setPeriod(updates.period);
-      queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.period, updates.period, "all"]);
-    }
-    if (updates.search !== undefined) {
-      const nextSearch = updates.search.slice(0, 100);
-      setSearchText(nextSearch);
-      queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.search, nextSearch, ""]);
-    }
-    if (updates.source !== undefined) {
-      setHistorySource(updates.source);
-      queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.source, updates.source, "current"]);
-      if (updates.source === "current" && updates.archiveSample === undefined) {
-        setArchiveSample("all");
-        queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.archiveSample, "all", "all"]);
-      }
-    }
-    if (updates.speed !== undefined) {
-      setSpeed(updates.speed);
-      queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.speed, updates.speed, "all"]);
-    }
-    if (updates.stage !== undefined) {
-      setStage(updates.stage);
-      queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.stage, updates.stage, "all"]);
-    }
-    if (updates.status !== undefined) {
-      setStatus(updates.status);
-      queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.status, updates.status, "all"]);
-    }
-    replaceManagerDeploymentHistoryQueryParams(queryUpdates);
-  };
 
   const handleExport = (format: ManagerDeploymentHistoryExportFormat) => {
     try {
