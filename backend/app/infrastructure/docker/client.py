@@ -16,6 +16,14 @@ from app.infrastructure.docker.manager_http_log_reader import (
     read_manager_http_error_summary,
     read_manager_http_log_storage,
 )
+from app.infrastructure.docker.manager_component_inspector import (
+    build_fallback_component,
+    build_manager_component,
+    build_unavailable_component,
+    get_manager_component_image_ref,
+    normalize_value,
+    select_component_value,
+)
 
 
 class DockerClientError(Exception):
@@ -24,8 +32,6 @@ class DockerClientError(Exception):
 
 class DockerClient:
     """최소 권한 Docker API 기반 컨테이너 조회 클라이언트"""
-
-    OCI_LABEL_PREFIX = "org.opencontainers.image."
 
     def __init__(self):
         self.socket_path = settings.DOCKER_SOCKET_PATH
@@ -63,7 +69,7 @@ class DockerClient:
         }
 
     async def get_manager_deployment_info(self, *, refresh_latest: bool = False) -> dict:
-        fallback_component = self._build_fallback_component("backend")
+        fallback_component = build_fallback_component("backend")
         if not self.enabled:
             version = fallback_component["version"]
             source = fallback_component["source"]
@@ -87,8 +93,8 @@ class DockerClient:
         components = await self.inspect_manager_components()
         http_error_summary = await self.get_manager_http_error_summary()
         ok_count = sum(1 for item in components if item["status"] == "ok")
-        version = self._select_component_value(components, "version") or fallback_component["version"]
-        source = self._select_component_value(components, "source") or fallback_component["source"]
+        version = select_component_value(components, "version") or fallback_component["version"]
+        source = select_component_value(components, "source") or fallback_component["source"]
         release_info = await ManagerReleaseChecker().get_release_status(
             version,
             source,
@@ -98,8 +104,8 @@ class DockerClient:
             "enabled": True,
             "message": f"배포 이미지 라벨을 조회했습니다 ({ok_count}/{len(components)}개)",
             "version": version,
-            "revision": self._select_component_value(components, "revision") or fallback_component["revision"],
-            "build_date": self._select_component_value(components, "build_date") or fallback_component["build_date"],
+            "revision": select_component_value(components, "revision") or fallback_component["revision"],
+            "build_date": select_component_value(components, "build_date") or fallback_component["build_date"],
             "source": source,
             **release_info,
             "http_error_summary": http_error_summary,
@@ -159,7 +165,7 @@ class DockerClient:
         if network_name in current_networks:
             return {
                 "changed": False,
-                "container_id": self._normalize_value(container.get("Id")),
+                "container_id": normalize_value(container.get("Id")),
                 "networks": current_networks,
             }
 
@@ -172,7 +178,7 @@ class DockerClient:
         )
         return {
             "changed": True,
-            "container_id": self._normalize_value(updated_container.get("Id")) or self._normalize_value(container.get("Id")),
+            "container_id": normalize_value(updated_container.get("Id")) or normalize_value(container.get("Id")),
             "networks": extract_networks(updated_container),
         }
 
@@ -219,132 +225,19 @@ class DockerClient:
                 f"/{self.api_version}/containers/{quote(container_name, safe='')}/json"
             )
         except DockerClientError:
-            return {
-                "name": name,
-                "container_name": container_name,
-                "status": "unavailable",
-                "runtime_status": None,
-                "health_status": None,
-                "health_failing_streak": 0,
-                "health_last_checked_at": None,
-                "health_last_exit_code": None,
-                "container_id": None,
-                "image": None,
-                "image_id": None,
-                "image_created": None,
-                "version": None,
-                "revision": None,
-                "build_date": None,
-                "source": None,
-                "oci_labels": {},
-            }
+            return build_unavailable_component(name=name, container_name=container_name)
 
-        config = container.get("Config") if isinstance(container.get("Config"), dict) else {}
-        state = container.get("State") if isinstance(container.get("State"), dict) else {}
-        health = state.get("Health") if isinstance(state.get("Health"), dict) else {}
-        health_logs = health.get("Log") if isinstance(health.get("Log"), list) else []
-        last_health_log = next(
-            (item for item in reversed(health_logs) if isinstance(item, dict)),
-            {},
+        image_ref = get_manager_component_image_ref(container)
+        image = await self._inspect_image(image_ref) if image_ref else {}
+        return build_manager_component(
+            name=name,
+            container_name=container_name,
+            container=container,
+            image=image,
         )
-        image_ref = container.get("Image") or config.get("Image")
-        image = await self._inspect_image(str(image_ref)) if image_ref else {}
-        image_config = image.get("Config") if isinstance(image.get("Config"), dict) else {}
-        labels = self._extract_oci_labels(image_config.get("Labels"))
-        if not labels:
-            labels = self._extract_oci_labels(config.get("Labels"))
-        env_map = self._parse_env(config.get("Env"))
-
-        return {
-            "name": name,
-            "container_name": container_name,
-            "status": "ok",
-            "runtime_status": self._normalize_value(state.get("Status")),
-            "health_status": self._normalize_value(health.get("Status")),
-            "health_failing_streak": health.get("FailingStreak")
-            if isinstance(health.get("FailingStreak"), int)
-            else 0,
-            "health_last_checked_at": self._normalize_value(
-                last_health_log.get("End") or last_health_log.get("Start")
-            ),
-            "health_last_exit_code": last_health_log.get("ExitCode")
-            if isinstance(last_health_log.get("ExitCode"), int)
-            else None,
-            "container_id": self._normalize_value(container.get("Id")),
-            "image": self._normalize_value(config.get("Image")),
-            "image_id": self._normalize_value(image.get("Id")) or self._normalize_value(image_ref),
-            "image_created": self._normalize_value(image.get("Created")),
-            "version": self._normalize_value(
-                labels.get("org.opencontainers.image.version") or env_map.get("TRAEFIK_MANAGER_VERSION")
-            ),
-            "revision": self._normalize_value(
-                labels.get("org.opencontainers.image.revision") or env_map.get("TRAEFIK_MANAGER_GIT_SHA")
-            ),
-            "build_date": self._normalize_value(
-                labels.get("org.opencontainers.image.created") or env_map.get("TRAEFIK_MANAGER_BUILD_DATE")
-            ),
-            "source": self._normalize_value(
-                labels.get("org.opencontainers.image.source") or env_map.get("TRAEFIK_MANAGER_IMAGE_SOURCE")
-            ),
-            "oci_labels": labels,
-        }
 
     async def _inspect_image(self, image_ref: str) -> dict:
         try:
             return await self._get_object_json(f"/{self.api_version}/images/{quote(image_ref, safe='')}/json")
         except DockerClientError:
             return {}
-
-    def _build_fallback_component(self, name: str) -> dict:
-        return {
-            "name": name,
-            "container_name": settings.TRAEFIK_MANAGER_BACKEND_CONTAINER_NAME,
-            "status": "local_env",
-            "runtime_status": None,
-            "health_status": None,
-            "health_failing_streak": 0,
-            "health_last_checked_at": None,
-            "health_last_exit_code": None,
-            "container_id": None,
-            "image": None,
-            "image_id": None,
-            "image_created": None,
-            "version": self._normalize_value(settings.TRAEFIK_MANAGER_VERSION),
-            "revision": self._normalize_value(settings.TRAEFIK_MANAGER_GIT_SHA),
-            "build_date": self._normalize_value(settings.TRAEFIK_MANAGER_BUILD_DATE),
-            "source": self._normalize_value(settings.TRAEFIK_MANAGER_IMAGE_SOURCE),
-            "oci_labels": {},
-        }
-
-    def _extract_oci_labels(self, labels) -> dict[str, str]:
-        if not isinstance(labels, dict):
-            return {}
-        return {
-            str(key): str(value)
-            for key, value in labels.items()
-            if isinstance(key, str) and key.startswith(self.OCI_LABEL_PREFIX) and value is not None
-        }
-
-    def _parse_env(self, values) -> dict[str, str]:
-        if not isinstance(values, list):
-            return {}
-        parsed: dict[str, str] = {}
-        for item in values:
-            if not isinstance(item, str) or "=" not in item:
-                continue
-            key, value = item.split("=", 1)
-            parsed[key] = value
-        return parsed
-
-    def _select_component_value(self, components: list[dict], key: str) -> str | None:
-        for component in components:
-            value = self._normalize_value(component.get(key))
-            if value:
-                return value
-        return None
-
-    def _normalize_value(self, value) -> str | None:
-        text = str(value).strip() if value is not None else ""
-        if not text or text.lower() == "unknown":
-            return None
-        return text
