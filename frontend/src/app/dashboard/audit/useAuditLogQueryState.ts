@@ -13,86 +13,44 @@ import {
   type ManagerHealthWindowMinutes,
   type ManagerSourceKey,
   type ManagerStatusKey,
-  isAuditFilterKey,
-  isDeliveryProviderKey,
-  isDeliveryStatusKey,
-  isManagerSourceKey,
-  isManagerStatusKey,
-  parseAuditBulkNotificationStatus,
-  parseAuditBulkPeriod,
-  parseAuditDate,
-  parseAuditPeriodDays,
-  parseManagerHealthWindowMinutes,
 } from "./auditPageHelpers";
 import {
   AUDIT_PAGE_SIZE,
   buildAuditLogQuery,
-  parseAuditPageSize,
   type AuditPageSize,
 } from "./auditPageQuery";
+import {
+  clearAuditQuery,
+  decodeAuditLogQuery,
+  replaceAuditQueryParam,
+  replaceAuditQueryParams,
+} from "./auditLogQueryCodec";
 
 export function useAuditLogQueryState() {
   const searchParams = useSearchParams();
-  const requestedFilter = searchParams.get("filter");
-  const initialFilter = isAuditFilterKey(requestedFilter)
-    ? requestedFilter
-    : isLegacyManagerFilter(requestedFilter)
-      ? "manager_health"
-      : "all";
-  const initialStartDate = parseAuditDate(searchParams.get("start_date"));
-  const initialEndDate = parseAuditDate(searchParams.get("end_date"));
-  const [selectedFilter, setSelectedFilter] = useState<AuditFilterKey>(initialFilter);
-  const [searchText, setSearchText] = useState(() =>
-    (searchParams.get("q") || "").slice(0, 100),
-  );
-  const [currentPage, setCurrentPage] = useState(() => parseAuditPage(searchParams.get("page")));
-  const [pageSize, setPageSize] = useState<AuditPageSize>(() =>
-    parseAuditPageSize(searchParams.get("page_size")),
-  );
-  const [selectedPeriod, setSelectedPeriod] = useState<AuditPeriodDays>(() =>
-    initialStartDate || initialEndDate ? "all" : parseAuditPeriodDays(searchParams.get("period")),
-  );
-  const [startDate, setStartDate] = useState(initialStartDate);
-  const [endDate, setEndDate] = useState(initialEndDate);
-  const [selectedManagerSource, setSelectedManagerSource] = useState<ManagerSourceKey>(() => {
-    const value = searchParams.get("manager_source");
-    if (isManagerSourceKey(value)) return value;
-    return requestedFilter === "manager_docker"
-      ? "docker"
-      : requestedFilter === "manager_watchdog"
-        ? "watchdog"
-        : "all";
-  });
-  const [selectedManagerStatus, setSelectedManagerStatus] = useState<ManagerStatusKey>(() => {
-    const value = searchParams.get("manager_status");
-    if (isManagerStatusKey(value)) return value;
-    return requestedFilter === "manager_unhealthy"
-      ? "unhealthy"
-      : requestedFilter === "manager_recovered"
-        ? "recovered"
-        : "all";
-  });
-  const [selectedDeliveryStatus, setSelectedDeliveryStatus] = useState<DeliveryStatusKey>(() => {
-    const value = searchParams.get("delivery_status");
-    return isDeliveryStatusKey(value) ? value : "all";
-  });
+  const decodedQuery = decodeAuditLogQuery(searchParams);
+  const [selectedFilter, setSelectedFilter] = useState<AuditFilterKey>(decodedQuery.selectedFilter);
+  const [searchText, setSearchText] = useState(decodedQuery.searchText);
+  const [currentPage, setCurrentPage] = useState(decodedQuery.currentPage);
+  const [pageSize, setPageSize] = useState<AuditPageSize>(decodedQuery.pageSize);
+  const [selectedPeriod, setSelectedPeriod] = useState<AuditPeriodDays>(decodedQuery.selectedPeriod);
+  const [startDate, setStartDate] = useState(decodedQuery.startDate);
+  const [endDate, setEndDate] = useState(decodedQuery.endDate);
+  const [selectedManagerSource, setSelectedManagerSource] =
+    useState<ManagerSourceKey>(decodedQuery.selectedManagerSource);
+  const [selectedManagerStatus, setSelectedManagerStatus] =
+    useState<ManagerStatusKey>(decodedQuery.selectedManagerStatus);
+  const [selectedDeliveryStatus, setSelectedDeliveryStatus] =
+    useState<DeliveryStatusKey>(decodedQuery.selectedDeliveryStatus);
   const [selectedDeliveryProvider, setSelectedDeliveryProvider] =
-    useState<DeliveryProviderKey>(() => {
-      const value = searchParams.get("delivery_provider");
-      return isDeliveryProviderKey(value) ? value : "all";
-    });
-  const [selectedBulkPeriod, setSelectedBulkPeriod] = useState<AuditBulkPeriod>(() =>
-    parseAuditBulkPeriod(searchParams.get("bulk_period")),
-  );
+    useState<DeliveryProviderKey>(decodedQuery.selectedDeliveryProvider);
+  const [selectedBulkPeriod, setSelectedBulkPeriod] =
+    useState<AuditBulkPeriod>(decodedQuery.selectedBulkPeriod);
   const [selectedBulkNotificationStatus, setSelectedBulkNotificationStatus] =
-    useState<AuditBulkNotificationStatus>(() =>
-      parseAuditBulkNotificationStatus(searchParams.get("bulk_status")),
-    );
-  const [bulkPage, setBulkPage] = useState(() => parseAuditPage(searchParams.get("bulk_page")));
+    useState<AuditBulkNotificationStatus>(decodedQuery.selectedBulkNotificationStatus);
+  const [bulkPage, setBulkPage] = useState(decodedQuery.bulkPage);
   const [managerHealthWindowMinutes, setManagerHealthWindowMinutes] =
-    useState<ManagerHealthWindowMinutes>(() =>
-      parseManagerHealthWindowMinutes(searchParams.get("manager_window")),
-    );
+    useState<ManagerHealthWindowMinutes>(decodedQuery.managerHealthWindowMinutes);
   const [expandedLogId, setExpandedLogId] = useState<string | null | undefined>(undefined);
   const deferredSearchText = useDeferredValue(searchText.trim());
 
@@ -210,7 +168,7 @@ export function useAuditLogQueryState() {
     setSearchText("");
     setCurrentPage(1);
     setExpandedLogId(null);
-    window.history.replaceState(window.history.state, "", window.location.pathname);
+    clearAuditQuery();
   };
   const handleDelayedRetryPeriodChange = (period: 1 | 7 | 30) => {
     handleResetFilters();
@@ -271,7 +229,7 @@ export function useAuditLogQueryState() {
       onResetFilters: handleResetFilters,
       onSearchTextChange: handleSearchTextChange,
     },
-    requestedExpandedLogId: searchParams.get("expand"),
+    requestedExpandedLogId: decodedQuery.requestedExpandedLogId,
     table: {
       currentPage,
       expandedLogId,
@@ -285,33 +243,4 @@ export function useAuditLogQueryState() {
       onSelectPeriod: handleDelayedRetryPeriodChange,
     },
   };
-}
-
-function parseAuditPage(value: string | null) {
-  const page = Number(value);
-  return Number.isInteger(page) && page > 0 ? page : 1;
-}
-
-function isLegacyManagerFilter(value: string | null) {
-  return ["manager_docker", "manager_watchdog", "manager_unhealthy", "manager_recovered"].includes(
-    value || "",
-  );
-}
-
-function replaceAuditQueryParam(key: string, value: string, defaultValue: string) {
-  replaceAuditQueryParams([[key, value, defaultValue]]);
-}
-
-function replaceAuditQueryParams(values: [key: string, value: string, defaultValue: string][]) {
-  const params = new URLSearchParams(window.location.search);
-  values.forEach(([key, value, defaultValue]) => {
-    if (value === defaultValue) params.delete(key);
-    else params.set(key, value);
-  });
-  const query = params.toString();
-  window.history.replaceState(
-    window.history.state,
-    "",
-    `${window.location.pathname}${query ? `?${query}` : ""}`,
-  );
 }
