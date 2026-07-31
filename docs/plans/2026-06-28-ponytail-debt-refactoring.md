@@ -56,5 +56,8 @@
 ## 7. 프론트엔드 ESLint 10 전환 - 업스트림 대기
 - `PONYTAIL-DEBT(frontend-eslint-10)`: `eslint-config-next@16.2.12`의 내부 `eslint-plugin-react`, `eslint-plugin-import`, `eslint-plugin-jsx-a11y`가 ESLint 10 API를 지원하지 않는다.
 - 2026-07-30 기준 ESLint 10 전환 시 `react/display-name` 규칙 로딩이 실패하는 것을 확인하고 ESLint 9로 복구했다.
+- 2026-08-01 재점검에서도 최신 `eslint@10.8.0`, `eslint-config-next@16.2.12` 조합은 동일한 `contextOrFilename.getFilename is not a function` 오류로 중단됐다. 최신 React 7.37.5, Import 2.32.0, JSX a11y 6.10.2 플러그인의 peer 범위도 ESLint 9까지만 허용한다.
+- 재현 명령: `cd frontend && npm exec --yes --package=eslint@10.8.0 -- eslint .`.
 - 취약한 `brace-expansion` 1.x를 5.x로 강제 교체하면 CommonJS 호출 형식이 달라 기존 `minimatch` 3.x와 호환되지 않으므로 override하지 않는다.
+- 현재 `npm audit --omit=dev`는 0건이며, 전체 audit의 High 9건은 ESLint와 내장 플러그인의 개발 전용 경로에 한정된다.
 - 재개 조건: Next.js 내장 플러그인이 ESLint 10을 공식 지원하고 `npm audit`에서 `GHSA-mh99-v99m-4gvg` 경로가 제거될 때 lint/build를 다시 검증한다.
