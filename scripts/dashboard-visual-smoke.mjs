@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { checkAuditBulkOperationFixture, runAuditBulkOperationFixtureSelfTest } from "./dashboard-visual-audit-bulk-operations.mjs";
 import { checkAuditDelayedRetryFilter } from "./dashboard-visual-audit-delayed-retry.mjs";
 import { checkAuditGithubApiRateLimitTrend } from "./dashboard-visual-audit-github-rate-limit.mjs";
+import { checkAuditRetryChain, checkSmokeRotationAuditDetail } from "./dashboard-visual-audit-monitoring.mjs";
 import { checkAuditSecuritySettingChanges } from "./dashboard-visual-audit-security-setting-changes.mjs";
 import { checkDeploymentBottleneckSettingsPreview } from "./dashboard-visual-deployment-bottleneck-settings.mjs";
 import { checkOptionalDeploymentBottleneckCleanupCancel, runDeploymentBottleneckCleanupSelfTest } from "./dashboard-visual-deployment-bottleneck-cleanup.mjs";
@@ -19,7 +20,8 @@ import {
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
 import { checkSecurityAlertRetryDelaySetting } from "./dashboard-visual-security-alert-settings.mjs";
 import { checkManualSmokeRunResultPersistence } from "./dashboard-visual-smoke-manual-run.mjs";
-import { checkAuditRetryChain, checkSettingsTestAuditLinks, checkSmokeRotationAuditDetail, checkSmokeRunTrendRange } from "./dashboard-visual-smoke-monitoring.mjs";
+import { checkSettingsTestAuditLinks } from "./dashboard-visual-settings-test-monitoring.mjs";
+import { checkSmokeRunTrendRange } from "./dashboard-visual-smoke-run-monitoring.mjs";
 import { checkTraefikUpdateHistory } from "./dashboard-visual-traefik-update-history.mjs";
 import { checkWatchdogFilterPersistence } from "./dashboard-visual-watchdog.mjs";
 
