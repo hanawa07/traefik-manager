@@ -1,7 +1,6 @@
 import type { AuditManagerHealthSummary } from "@/features/audit/api/auditApi";
 
 import {
-  auditPeriodOptions,
   deliveryProviderOptions,
   deliveryStatusOptions,
   managerHealthWindowOptions,
@@ -13,8 +12,8 @@ import {
   type ManagerHealthWindowMinutes,
   type ManagerSourceKey,
   type ManagerStatusKey,
-  parseAuditPeriodDays,
 } from "./auditPageHelpers";
+import { AuditLogDateRangeFields } from "./AuditLogDateRangeFields";
 
 interface AuditLogAdvancedFiltersProps {
   endDate: string;
@@ -55,43 +54,13 @@ export function AuditLogAdvancedFilters({
 }: AuditLogAdvancedFiltersProps) {
   return (
     <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
-        <span className="text-slate-500 dark:text-slate-400">감사 기간</span>
-        <select
-          aria-label="감사 기간"
-          value={selectedPeriod}
-          onChange={(event) => onPeriodChange(parseAuditPeriodDays(event.target.value))}
-          className="w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-        >
-          {auditPeriodOptions.map((option) => (
-            <option key={option.days} value={option.days}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
-        <span className="text-slate-500 dark:text-slate-400">시작일 (UTC)</span>
-        <input
-          aria-label="감사 시작일"
-          className="w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:[color-scheme:dark]"
-          max={endDate || undefined}
-          onChange={(event) => onDateRangeChange(event.target.value, endDate)}
-          type="date"
-          value={startDate}
-        />
-      </label>
-      <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
-        <span className="text-slate-500 dark:text-slate-400">종료일 (UTC)</span>
-        <input
-          aria-label="감사 종료일"
-          className="w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:[color-scheme:dark]"
-          min={startDate || undefined}
-          onChange={(event) => onDateRangeChange(startDate, event.target.value)}
-          type="date"
-          value={endDate}
-        />
-      </label>
+      <AuditLogDateRangeFields
+        endDate={endDate}
+        onDateRangeChange={onDateRangeChange}
+        onPeriodChange={onPeriodChange}
+        selectedPeriod={selectedPeriod}
+        startDate={startDate}
+      />
       <label className="grid min-w-0 gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none">
         <span className="text-slate-500 dark:text-slate-400">Manager 소스</span>
         <select
