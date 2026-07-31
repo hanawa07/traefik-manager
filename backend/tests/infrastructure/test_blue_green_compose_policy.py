@@ -9,6 +9,9 @@ def test_candidate_backends_join_proxy_network_only_after_health_checks():
     compose = yaml.safe_load((PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     services = compose["services"]
     deploy_script = (PROJECT_ROOT / "scripts/blue-green-deploy.sh").read_text(encoding="utf-8")
+    recovery_script = (PROJECT_ROOT / "scripts/manager-blue-green-recovery.sh").read_text(
+        encoding="utf-8"
+    )
 
     assert compose["networks"]["traefik-manager-app"]["internal"] is True
     for slot in ("blue", "green"):
@@ -17,6 +20,7 @@ def test_candidate_backends_join_proxy_network_only_after_health_checks():
         assert "traefik-manager-app" in services[f"frontend-{slot}"]["networks"]
     assert "docker network connect" in deploy_script
     assert "--alias traefik-manager-backend" in deploy_script
-    assert 'history_status="rollback_failed"' in deploy_script
-    assert 'notify_rollback_failure "${history_active_slot}"' in deploy_script
-    assert 'manager-deployment-bottleneck-alert.sh" "${HISTORY_FILE}"' in deploy_script
+    assert 'source "${SCRIPT_DIR}/manager-blue-green-recovery.sh"' in deploy_script
+    assert 'history_status="rollback_failed"' in recovery_script
+    assert 'notify_rollback_failure "${history_active_slot}"' in recovery_script
+    assert 'manager-deployment-bottleneck-alert.sh" "${HISTORY_FILE}"' in recovery_script
