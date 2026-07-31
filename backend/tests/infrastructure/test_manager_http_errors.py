@@ -2,9 +2,11 @@ import json
 from datetime import datetime, timedelta, timezone
 
 from app.infrastructure.docker.manager_http_errors import (
-    build_manager_http_error_preview,
     build_manager_http_error_summary,
     count_manager_http_errors,
+)
+from app.infrastructure.docker.manager_http_error_preview import (
+    build_manager_http_error_preview,
 )
 
 

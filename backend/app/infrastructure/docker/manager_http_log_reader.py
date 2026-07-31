@@ -9,9 +9,11 @@ from app.core.manager_http_request_log import (
 from app.infrastructure.docker.logs import read_docker_container_logs_text
 from app.infrastructure.docker.manager_http_errors import (
     MANAGER_HTTP_ERROR_WINDOW_HOURS,
-    build_manager_http_error_preview,
     build_manager_http_error_summary,
     count_manager_http_errors,
+)
+from app.infrastructure.docker.manager_http_error_preview import (
+    build_manager_http_error_preview,
 )
 from app.infrastructure.docker.manager_http_latency import (
     SETTINGS_HISTORY_LATENCY_WINDOW_MINUTES,
