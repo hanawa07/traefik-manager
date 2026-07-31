@@ -34,20 +34,14 @@ from app.interfaces.api.v1.routers.services_health_actions import (
 from app.interfaces.api.v1.routers.services_bulk_routing_notification import (
     complete_bulk_routing_notification_action,
 )
-from app.interfaces.api.v1.routers.services_gateway_diagnostics import (
-    diagnose_service_gateway_action,
-    record_service_gateway_diagnosis_action,
-)
-from app.interfaces.api.v1.routers.services_gateway_network import (
-    connect_service_gateway_network_action,
+from app.interfaces.api.v1.routers.services_gateway_routes import (
+    register_service_gateway_routes,
 )
 from app.interfaces.api.v1.routers.services_rollback_action import rollback_service_change_action
 from app.interfaces.api.v1.schemas.service_schemas import (
     AuthentikGroupResponse,
     BulkRoutingNotificationResponse,
     ServiceCreate,
-    ServiceGatewayDiagnosisResponse,
-    ServiceGatewayNetworkConnectResponse,
     ServiceResponse,
     ServiceUpdate,
     UpstreamHealthResponse,
@@ -146,72 +140,19 @@ async def get_service_health(
     )
 
 
-@router.get(
-    "/{service_id}/diagnostics/gateway",
-    response_model=ServiceGatewayDiagnosisResponse,
-    summary="서비스 Bad Gateway 진단",
+_gateway_endpoints = register_service_gateway_routes(
+    router,
+    get_use_cases=get_use_cases,
+    get_traefik_client=get_traefik_client,
+    get_docker_client=get_docker_client,
+    current_user_dependency=get_current_user,
+    write_access_dependency=require_write_access,
+    upstream_checker_provider=lambda: upstream_checker,
+    audit_service_provider=lambda: audit_service,
 )
-async def diagnose_service_gateway(
-    service_id: UUID,
-    use_cases: ServiceUseCases = Depends(get_use_cases),
-    traefik_client: TraefikApiClient = Depends(get_traefik_client),
-    docker_client: DockerClient = Depends(get_docker_client),
-    _: dict = Depends(get_current_user),
-):
-    return await diagnose_service_gateway_action(
-        service_id=service_id,
-        use_cases=use_cases,
-        upstream_checker=upstream_checker,
-        traefik_client=traefik_client,
-        docker_client=docker_client,
-    )
-
-
-@router.post(
-    "/{service_id}/diagnostics/gateway",
-    response_model=ServiceGatewayDiagnosisResponse,
-    summary="서비스 Bad Gateway 진단 기록",
-)
-async def record_service_gateway_diagnosis(
-    service_id: UUID,
-    use_cases: ServiceUseCases = Depends(get_use_cases),
-    traefik_client: TraefikApiClient = Depends(get_traefik_client),
-    docker_client: DockerClient = Depends(get_docker_client),
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
-):
-    return await record_service_gateway_diagnosis_action(
-        service_id=service_id,
-        use_cases=use_cases,
-        upstream_checker=upstream_checker,
-        traefik_client=traefik_client,
-        docker_client=docker_client,
-        db=db,
-        current_user=current_user,
-        audit_service=audit_service,
-    )
-
-
-@router.post(
-    "/{service_id}/diagnostics/gateway/network/connect",
-    response_model=ServiceGatewayNetworkConnectResponse,
-    summary="서비스 업스트림 컨테이너를 Traefik 네트워크에 연결",
-)
-async def connect_service_gateway_network(
-    service_id: UUID,
-    use_cases: ServiceUseCases = Depends(get_use_cases),
-    docker_client: DockerClient = Depends(get_docker_client),
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_write_access),
-):
-    return await connect_service_gateway_network_action(
-        service_id=service_id,
-        use_cases=use_cases,
-        docker_client=docker_client,
-        db=db,
-        current_user=current_user,
-        audit_service=audit_service,
-    )
+diagnose_service_gateway = _gateway_endpoints.diagnose_service_gateway
+record_service_gateway_diagnosis = _gateway_endpoints.record_service_gateway_diagnosis
+connect_service_gateway_network = _gateway_endpoints.connect_service_gateway_network
 
 
 @router.get("/{service_id}", response_model=ServiceResponse, summary="서비스 조회")

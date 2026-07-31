@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 
+from app.interfaces.api.v1.routers import services as services_router
 from app.interfaces.api.v1.routers.services_gateway_diagnostics import (
     SERVICE_GATEWAY_DIAGNOSIS_EVENT,
     diagnose_service_gateway_action,
@@ -13,6 +14,20 @@ from app.interfaces.api.v1.routers.services_gateway_network import (
     SERVICE_DOCKER_NETWORK_CONNECT_EVENT,
     connect_service_gateway_network_action,
 )
+
+
+def test_service_gateway_routes_keep_http_contract():
+    registered = {
+        (route.path, method)
+        for route in services_router.router.routes
+        for method in route.methods or set()
+    }
+
+    assert {
+        ("/{service_id}/diagnostics/gateway", "GET"),
+        ("/{service_id}/diagnostics/gateway", "POST"),
+        ("/{service_id}/diagnostics/gateway/network/connect", "POST"),
+    } <= registered
 
 
 @pytest.mark.asyncio
