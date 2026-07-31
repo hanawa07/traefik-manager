@@ -12,7 +12,8 @@ import { checkCertificateDrawer, checkMobileSidebar, checkOptionalAdminModal } f
 import { runMaintenanceScheduleFixtureSelfTest } from "./dashboard-visual-maintenance-fixture.mjs";
 import { checkMaintenanceScheduleFixture } from "./dashboard-visual-maintenance-schedule.mjs";
 import { checkManagerDeploymentHistory } from "./dashboard-visual-manager-deployment.mjs";
-import { checkManagerHttpErrorPreviewForm, checkManagerHttpErrorTrend } from "./dashboard-visual-manager-http.mjs";
+import { checkManagerHttpErrorPreviewForm } from "./dashboard-visual-manager-http-preview.mjs";
+import { checkManagerHttpErrorTrend } from "./dashboard-visual-manager-http-trend.mjs";
 import {
   checkVisualRoute,
   evaluateInVisualPage,
