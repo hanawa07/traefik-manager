@@ -4,6 +4,7 @@ from pydantic import ValidationError
 from types import SimpleNamespace
 
 from app.interfaces.api.v1.routers import settings as settings_router
+from app.interfaces.api.v1.routers import settings_smoke_router as smoke_router
 from app.interfaces.api.v1.schemas.settings_schemas import (
     CertificateDiagnosticsSettingsUpdateRequest,
     TimeDisplaySettingsUpdateRequest,
@@ -46,9 +47,9 @@ async def test_get_smoke_rotation_status_skips_admin_details_for_summary(
         calls.append(kwargs)
         return object()
 
-    monkeypatch.setattr(settings_router, "_get_smoke_rotation_status_response", fake_status_response)
+    monkeypatch.setattr(smoke_router, "_get_smoke_rotation_status_response", fake_status_response)
 
-    await settings_router.get_smoke_rotation_status(
+    await smoke_router.get_smoke_rotation_status(
         db=object(),
         current_user={"role": role},
         refresh_monitoring_history=True,
@@ -73,7 +74,7 @@ async def test_get_smoke_rotation_status_skips_admin_details_for_summary(
 @pytest.mark.asyncio
 async def test_get_smoke_rotation_status_rejects_unsupported_history_days():
     with pytest.raises(HTTPException, match="history_days는 7 또는 30이어야 합니다"):
-        await settings_router.get_smoke_rotation_status(
+        await smoke_router.get_smoke_rotation_status(
             db=object(),
             current_user={"role": "admin"},
             history=True,
@@ -84,7 +85,7 @@ async def test_get_smoke_rotation_status_rejects_unsupported_history_days():
 @pytest.mark.asyncio
 async def test_get_smoke_rotation_status_rejects_invalid_history_page():
     with pytest.raises(HTTPException, match="history_page는 1 이상이어야 합니다"):
-        await settings_router.get_smoke_rotation_status(
+        await smoke_router.get_smoke_rotation_status(
             db=object(),
             current_user={"role": "admin"},
             history=True,
@@ -95,7 +96,7 @@ async def test_get_smoke_rotation_status_rejects_invalid_history_page():
 @pytest.mark.asyncio
 async def test_get_smoke_rotation_status_rejects_invalid_history_filter():
     with pytest.raises(HTTPException, match="history_status 값을 확인해주세요"):
-        await settings_router.get_smoke_rotation_status(
+        await smoke_router.get_smoke_rotation_status(
             db=object(),
             current_user={"role": "admin"},
             history=True,
@@ -109,13 +110,13 @@ async def test_get_smoke_rotation_status_blocks_forced_refresh_when_rate_limit_i
 ):
     message = "GitHub API 잔여량 보호를 위해 수동 새로고침을 잠갔습니다"
     monkeypatch.setattr(
-        settings_router,
+        smoke_router,
         "github_api_manual_refresh_block_message",
         lambda: message,
     )
 
     with pytest.raises(HTTPException) as exc:
-        await settings_router.get_smoke_rotation_status(
+        await smoke_router.get_smoke_rotation_status(
             db=object(),
             current_user={"role": "admin"},
             refresh_monitoring_history=True,
@@ -142,15 +143,15 @@ async def test_get_smoke_rotation_status_records_new_github_rate_limit_event(mon
     async def fake_record_rate_limit_audit(**kwargs):
         recorded.append(kwargs)
 
-    monkeypatch.setattr(settings_router, "_get_smoke_rotation_status_response", fake_status_response)
-    monkeypatch.setattr(settings_router, "read_github_api_rate_limit_event", lambda: next(events))
+    monkeypatch.setattr(smoke_router, "_get_smoke_rotation_status_response", fake_status_response)
+    monkeypatch.setattr(smoke_router, "read_github_api_rate_limit_event", lambda: next(events))
     monkeypatch.setattr(
-        settings_router,
+        smoke_router,
         "record_github_api_rate_limit_audit",
         fake_record_rate_limit_audit,
     )
 
-    result = await settings_router.get_smoke_rotation_status(
+    result = await smoke_router.get_smoke_rotation_status(
         db=object(),
         current_user={"role": "admin", "username": "lizstudio"},
     )
