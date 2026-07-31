@@ -3,8 +3,6 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { RoutingMode, Service } from "@/features/services/api/serviceApi";
-import { useBulkUpdateServiceRoutingMode } from "@/features/services/hooks/useServices";
 import ToastNotice, { type ToastNoticeValue } from "@/shared/components/ToastNotice";
 import DeleteServiceModal from "./DeleteServiceModal";
 import { ServiceSaveDiagnosisBanner } from "./ServiceSaveDiagnosisBanner";
@@ -19,29 +17,21 @@ import {
   type ServiceDiagnosisSnapshotMap,
   type ServiceSaveDiagnosisNotice,
 } from "./serviceSaveDiagnosis";
+import { useServicesBulkRouting } from "./useServicesBulkRouting";
 import { useServicesPageModel } from "./useServicesPageModel";
-
-interface BulkRoutingFailure {
-  operationId: string;
-  routingMode: RoutingMode;
-  serviceIds: string[];
-  serviceNames: string[];
-}
 
 export default function ServicesPage() {
   const model = useServicesPageModel();
   const [saveDiagnosisNotice, setSaveDiagnosisNotice] = useState<ServiceSaveDiagnosisNotice | null>(null);
   const [diagnosisSnapshots, setDiagnosisSnapshots] = useState<ServiceDiagnosisSnapshotMap>({});
   const [toastNotice, setToastNotice] = useState<ToastNoticeValue | null>(null);
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
-  const [bulkRoutingMode, setBulkRoutingMode] = useState<RoutingMode>("active");
-  const [bulkRoutingFailure, setBulkRoutingFailure] = useState<BulkRoutingFailure | null>(null);
-  const bulkRoutingUpdate = useBulkUpdateServiceRoutingMode();
+  const bulkRouting = useServicesBulkRouting({
+    onNotice: setToastNotice,
+    services: model.services,
+    visibleServices: model.filteredServices,
+  });
   const combinedDiagnosisSnapshots = { ...model.diagnosisSnapshots, ...diagnosisSnapshots };
   const combinedDiagnosisHistories = mergeDiagnosisHistories(model.diagnosisHistories, diagnosisSnapshots);
-  const visibleServiceIds = model.filteredServices.map((service) => service.id);
-  const allVisibleSelected =
-    visibleServiceIds.length > 0 && visibleServiceIds.every((id) => selectedServiceIds.includes(id));
 
   useEffect(() => {
     const notice = consumeServiceSaveDiagnosisNotice();
@@ -50,115 +40,9 @@ export default function ServicesPage() {
     setDiagnosisSnapshots(readServiceDiagnosisSnapshots());
   }, []);
 
-  useEffect(() => {
-    const existingIds = new Set(model.services.map((service) => service.id));
-    setSelectedServiceIds((current) => {
-      const next = current.filter((id) => existingIds.has(id));
-      return next.length === current.length ? current : next;
-    });
-  }, [model.services]);
-
   const handleDiagnosisNoticeChange = (notice: ServiceSaveDiagnosisNotice) => {
     setSaveDiagnosisNotice(notice);
     setDiagnosisSnapshots((current) => ({ ...current, [notice.serviceId]: notice }));
-  };
-
-  const handleServiceSelection = (service: Service, selected: boolean) => {
-    setBulkRoutingFailure(null);
-    setSelectedServiceIds((current) =>
-      selected
-        ? Array.from(new Set([...current, service.id]))
-        : current.filter((id) => id !== service.id),
-    );
-  };
-
-  const handleToggleVisibleSelection = () => {
-    setBulkRoutingFailure(null);
-    const visibleIds = new Set(visibleServiceIds);
-    setSelectedServiceIds((current) =>
-      allVisibleSelected
-        ? current.filter((id) => !visibleIds.has(id))
-        : Array.from(new Set([...current, ...visibleServiceIds])),
-    );
-  };
-
-  const executeBulkRoutingUpdate = async (
-    serviceIds: string[],
-    routingMode: RoutingMode,
-    operationId?: string,
-    confirmChange = true,
-  ) => {
-    const label = getRoutingModeLabel(routingMode);
-    const consequence = getRoutingModeConsequence(routingMode);
-    if (
-      confirmChange &&
-      !window.confirm(`${serviceIds.length}개 서비스를 '${label}' 상태로 변경합니까?\n\n${consequence}`)
-    ) return;
-
-    try {
-      const result = await bulkRoutingUpdate.mutateAsync({
-        services: model.services,
-        selectedServiceIds: serviceIds,
-        routingMode,
-        bulkOperationId: operationId,
-      });
-      if (result.failedServiceIds.length > 0) {
-        const serviceNames = result.failedServiceIds.map(
-          (id) => model.services.find((service) => service.id === id)?.name ?? id,
-        );
-        setSelectedServiceIds(result.failedServiceIds);
-        setBulkRoutingFailure({
-          operationId: result.operationId,
-          routingMode,
-          serviceIds: result.failedServiceIds,
-          serviceNames,
-        });
-        setToastNotice({
-          tone: "warning",
-          message: "운영 상태 일부 변경 실패",
-          detail: `${result.successCount}개 적용, ${serviceNames.length}개 실패: ${serviceNames.join(", ")}${result.notificationCompleted ? "" : " · 묶음 알림 요청 실패"}`,
-        });
-        return;
-      }
-      setSelectedServiceIds([]);
-      setBulkRoutingFailure(null);
-      setToastNotice({
-        tone: result.notificationCompleted ? "success" : "warning",
-        message: result.notificationCompleted
-          ? "운영 상태 일괄 변경 완료"
-          : "운영 상태 변경 완료, 묶음 알림 요청 실패",
-        detail: result.successCount > 0 ? `${result.successCount}개 서비스를 ${label} 상태로 변경했습니다.` : "이미 같은 상태여서 변경된 서비스가 없습니다.",
-      });
-    } catch (error) {
-      setToastNotice({
-        tone: "warning",
-        message: "운영 상태 일부 변경 실패",
-        detail: error instanceof Error ? error.message : "목록을 새로고침한 뒤 다시 시도해 주세요.",
-      });
-    }
-  };
-
-  const handleBulkRoutingApply = () =>
-    executeBulkRoutingUpdate(selectedServiceIds, bulkRoutingMode);
-
-  const handleBulkRoutingRetry = () => {
-    if (!bulkRoutingFailure) return;
-    return executeBulkRoutingUpdate(
-      bulkRoutingFailure.serviceIds,
-      bulkRoutingFailure.routingMode,
-      bulkRoutingFailure.operationId,
-      false,
-    );
-  };
-
-  const handleBulkRoutingModeChange = (mode: RoutingMode) => {
-    setBulkRoutingMode(mode);
-    setBulkRoutingFailure(null);
-  };
-
-  const handleClearSelection = () => {
-    setSelectedServiceIds([]);
-    setBulkRoutingFailure(null);
   };
 
   return (
@@ -211,17 +95,17 @@ export default function ServicesPage() {
 
       {model.canManage && !model.isLoading ? (
         <ServiceBulkRoutingActions
-          allVisibleSelected={allVisibleSelected}
-          failureNames={bulkRoutingFailure?.serviceNames ?? []}
-          isPending={bulkRoutingUpdate.isPending}
-          onApply={handleBulkRoutingApply}
-          onClear={handleClearSelection}
-          onRetry={handleBulkRoutingRetry}
-          onRoutingModeChange={handleBulkRoutingModeChange}
-          onToggleVisible={handleToggleVisibleSelection}
-          routingMode={bulkRoutingMode}
-          selectedCount={selectedServiceIds.length}
-          visibleCount={visibleServiceIds.length}
+          allVisibleSelected={bulkRouting.allVisibleSelected}
+          failureNames={bulkRouting.failureNames}
+          isPending={bulkRouting.isPending}
+          onApply={bulkRouting.apply}
+          onClear={bulkRouting.clear}
+          onRetry={bulkRouting.retry}
+          onRoutingModeChange={bulkRouting.setRoutingMode}
+          onToggleVisible={bulkRouting.toggleVisible}
+          routingMode={bulkRouting.routingMode}
+          selectedCount={bulkRouting.selectedCount}
+          visibleCount={bulkRouting.visibleCount}
         />
       ) : null}
 
@@ -238,10 +122,10 @@ export default function ServicesPage() {
         displayTimeZone={model.displayTimeZone}
         diagnosisHistories={combinedDiagnosisHistories}
         diagnosisSnapshots={combinedDiagnosisSnapshots}
-        selectedServiceIds={selectedServiceIds}
+        selectedServiceIds={bulkRouting.selectedServiceIds}
         onClearSearch={() => model.setSearch("")}
         onDelete={model.setDeleteTarget}
-        onSelectionChange={handleServiceSelection}
+        onSelectionChange={bulkRouting.selectService}
       />
 
       {/* 삭제 확인 모달 */}
@@ -253,18 +137,6 @@ export default function ServicesPage() {
       />
     </div>
   );
-}
-
-function getRoutingModeLabel(mode: RoutingMode) {
-  if (mode === "disabled") return "라우팅 비활성";
-  if (mode === "maintenance") return "점검 안내";
-  return "정상 운영";
-}
-
-function getRoutingModeConsequence(mode: RoutingMode) {
-  if (mode === "disabled") return "선택한 도메인의 Traefik 라우터가 제거되어 외부 요청은 404로 응답합니다.";
-  if (mode === "maintenance") return "선택한 도메인은 원래 앱 대신 공개 점검 안내 화면을 제공합니다.";
-  return "선택한 도메인이 원래 업스트림 앱으로 다시 연결됩니다.";
 }
 
 function buildServiceSaveToast(notice: ServiceSaveDiagnosisNotice): ToastNoticeValue {
