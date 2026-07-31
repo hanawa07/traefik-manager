@@ -141,6 +141,7 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
   await checkTraefikAuditAutoExpand(cdp, timeoutMs);
   return true;
 }
+
 async function assertAuditPagination(cdp, timeoutMs) {
   await waitForCondition(
     cdp,
