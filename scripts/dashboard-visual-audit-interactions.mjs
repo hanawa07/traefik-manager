@@ -141,7 +141,6 @@ export async function checkAuditFilterPersistence({ cdp, profile, timeoutMs }) {
   await checkTraefikAuditAutoExpand(cdp, timeoutMs);
   return true;
 }
-
 async function assertAuditPagination(cdp, timeoutMs) {
   await waitForCondition(
     cdp,
@@ -304,4 +303,3 @@ async function changeTextInput(cdp, label, value) {
   })()`);
   assert.equal(changed, true, `${label}: 입력 필드를 찾지 못했습니다`);
 }
-
