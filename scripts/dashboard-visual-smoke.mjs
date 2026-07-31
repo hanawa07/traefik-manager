@@ -8,7 +8,8 @@ import { checkAuditSecuritySettingChanges } from "./dashboard-visual-audit-secur
 import { checkDeploymentBottleneckSettingsPreview } from "./dashboard-visual-deployment-bottleneck-settings.mjs";
 import { checkOptionalDeploymentBottleneckCleanupCancel, runDeploymentBottleneckCleanupSelfTest } from "./dashboard-visual-deployment-bottleneck-cleanup.mjs";
 import { checkAuditFilterPersistence, checkCertificateDrawer, checkMobileSidebar, checkOptionalAdminModal } from "./dashboard-visual-interactions.mjs";
-import { checkMaintenanceScheduleFixture, runMaintenanceScheduleFixtureSelfTest } from "./dashboard-visual-maintenance-schedule.mjs";
+import { runMaintenanceScheduleFixtureSelfTest } from "./dashboard-visual-maintenance-fixture.mjs";
+import { checkMaintenanceScheduleFixture } from "./dashboard-visual-maintenance-schedule.mjs";
 import { checkManagerDeploymentHistory } from "./dashboard-visual-manager-deployment.mjs";
 import { checkManagerHttpErrorPreviewForm, checkManagerHttpErrorTrend } from "./dashboard-visual-manager-http.mjs";
 import {
