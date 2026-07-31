@@ -1,0 +1,147 @@
+from typing import Any
+
+
+def build_message(event: str, resource_name: str, client_ip: Any, category: str) -> str:
+    if category == "security" and event == "login_locked":
+        return f"계정 잠금 감지: {resource_name}"
+    if category == "security" and event == "login_suspicious":
+        return f"이상 징후 로그인 감지: {client_ip or resource_name}"
+    if category == "security":
+        return f"이상 징후 IP 차단: {client_ip or resource_name}"
+    if event.startswith("settings_update_"):
+        return f"설정 변경: {resource_name}"
+    event_labels = {
+        "service_create": "서비스 생성",
+        "service_update": "서비스 변경",
+        "service_delete": "서비스 삭제",
+        "redirect_create": "리다이렉트 생성",
+        "redirect_update": "리다이렉트 변경",
+        "redirect_delete": "리다이렉트 삭제",
+        "middleware_create": "미들웨어 생성",
+        "middleware_update": "미들웨어 변경",
+        "middleware_delete": "미들웨어 삭제",
+        "user_create": "사용자 생성",
+        "user_update": "사용자 변경",
+        "user_delete": "사용자 삭제",
+        "certificate_warning": "인증서 만료 임박",
+        "certificate_error": "인증서 만료",
+        "certificate_recovered": "인증서 복구",
+        "certificate_preflight_repeated_failure": "인증서 발급 반복 실패",
+        "smoke_rotation_failed": "스모크 계정 비밀번호 회전 실패",
+        "smoke_admin_stale_test": "[테스트] 관리자 전용 점검 지연",
+        "github_api_rate_limit_test": "[테스트] GitHub API 반복 제한",
+        "github_api_primary_rate_limit": "GitHub API 기본 요청 한도 반복",
+        "github_api_secondary_rate_limit": "GitHub API 보조 요청 제한 반복",
+        "manager_docker_unhealthy": "Manager Docker 이상",
+        "manager_docker_recovered": "Manager Docker 회복",
+        "manager_http_errors_high": "Manager API 오류 임계치 초과",
+        "manager_http_errors_recovered": "Manager API 오류 정상화",
+        "manager_http_log_storage_warning": "Manager 요청 로그 보관 경고",
+        "manager_http_log_storage_recovered": "Manager 요청 로그 보관 복구",
+        "manager_settings_history_latency_high": "Manager 설정 이력 API 지연",
+        "manager_settings_history_latency_recovered": "Manager 설정 이력 API 정상화",
+    }
+    return f"{event_labels.get(event, '롤백 실행')}: {resource_name}"
+
+
+def build_telegram_message(audit_log: Any, event: str, category: str) -> str:
+    return build_multiline_message(audit_log, event, category).replace("*", "")
+
+
+def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
+    detail = audit_log.detail or {}
+    lines = [
+        build_message(event, audit_log.resource_name, detail.get("client_ip"), category),
+        f"이벤트: {event}",
+        f"대상: {audit_log.resource_name or '-'}",
+        f"행위자: {audit_log.actor or '-'}",
+        f"IP: {detail.get('client_ip') or '-'}",
+        f"시각: {audit_log.created_at.isoformat()}",
+    ]
+    if category == "security" and event == "login_blocked_ip":
+        if detail.get("block_minutes") is not None:
+            lines.append(f"차단 시간: {detail.get('block_minutes')}분")
+        if detail.get("repeat_count") is not None:
+            lines.append(f"반복 차단 횟수: {detail.get('repeat_count')}")
+        if detail.get("blocked_until"):
+            lines.append(f"차단 해제 시각: {detail.get('blocked_until')}")
+    if category == "change":
+        _append_change_details(lines, detail, event)
+    return "\n".join(lines)
+
+
+def _append_change_details(lines: list[str], detail: dict[str, Any], event: str) -> None:
+    changed_keys = detail.get("changed_keys")
+    if isinstance(changed_keys, list) and changed_keys:
+        lines.append(f"변경 키: {', '.join(str(item) for item in changed_keys)}")
+    bulk_service_names = detail.get("bulk_service_names")
+    if isinstance(bulk_service_names, list) and bulk_service_names:
+        lines.append(f"서비스: {', '.join(str(item) for item in bulk_service_names)}")
+    if detail.get("bulk_operation_id"):
+        lines.append(f"일괄 작업 ID: {detail.get('bulk_operation_id')}")
+    if detail.get("days_remaining") is not None:
+        lines.append(f"남은 기간: {detail.get('days_remaining')}일")
+    if detail.get("expires_at"):
+        lines.append(f"만료 시각: {detail.get('expires_at')}")
+    if detail.get("source_audit_id"):
+        lines.append(f"원본 변경 로그: {detail.get('source_audit_id')}")
+    if event == "smoke_rotation_failed" and detail.get("step"):
+        lines.append(f"실패 단계: {detail.get('step')}")
+    if event in {
+        "github_api_rate_limit_test",
+        "github_api_primary_rate_limit",
+        "github_api_secondary_rate_limit",
+    }:
+        lines.append(f"집계 구간: 최근 {detail.get('alert_window_hours')}시간")
+        lines.append(
+            f"발생 횟수: {detail.get('window_occurrence_count')}회 / "
+            f"임계치 {detail.get('alert_threshold')}회"
+        )
+        if detail.get("alert_cooldown_hours") is not None:
+            lines.append(f"재알림 간격: {detail.get('alert_cooldown_hours')}시간")
+    if event in {"manager_docker_unhealthy", "manager_docker_recovered"}:
+        lines.append(f"Docker 상태: {detail.get('health_status') or '-'}")
+        if detail.get("failing_streak") is not None:
+            lines.append(f"연속 실패: {detail.get('failing_streak')}회")
+        if detail.get("last_exit_code") is not None:
+            lines.append(f"종료 코드: {detail.get('last_exit_code')}")
+        if detail.get("health_checked_at"):
+            lines.append(f"Health 검사 시각: {detail.get('health_checked_at')}")
+        if detail.get("cooldown_minutes") is not None:
+            lines.append(f"재발 알림 cooldown: {detail.get('cooldown_minutes')}분")
+    if event in {"manager_http_errors_high", "manager_http_errors_recovered"}:
+        lines.append(f"집계 구간: 최근 {detail.get('window_minutes')}분")
+        lines.append(
+            f"404: {detail.get('not_found_count')}건 / 임계치 {detail.get('not_found_threshold')}건"
+        )
+        lines.append(
+            f"5xx: {detail.get('server_error_count')}건 / 임계치 {detail.get('server_error_threshold')}건"
+        )
+        if detail.get("cooldown_minutes") is not None:
+            lines.append(f"재발 알림 cooldown: {detail.get('cooldown_minutes')}분")
+    if event in {"manager_http_log_storage_warning", "manager_http_log_storage_recovered"}:
+        lines.append(f"보관 상태: {detail.get('status') or '-'}")
+        lines.append(f"보관 소스: {detail.get('source') or '-'}")
+        lines.append(
+            f"사용량: {detail.get('size_bytes')} / {detail.get('capacity_bytes')} bytes "
+            f"({detail.get('usage_percent')}%)"
+        )
+        lines.append(
+            f"파일: {detail.get('file_count')}/{detail.get('max_file_count')}개 · "
+            f"회전 파일 {detail.get('rotated_file_count')}개"
+        )
+        if detail.get("cooldown_minutes") is not None:
+            lines.append(f"재발 알림 cooldown: {detail.get('cooldown_minutes')}분")
+    if event in {
+        "manager_settings_history_latency_high",
+        "manager_settings_history_latency_recovered",
+    }:
+        lines.append(f"대상 경로: {detail.get('path') or '-'}")
+        lines.append(f"집계 구간: 최근 {detail.get('window_minutes')}분")
+        lines.append(f"p95: {detail.get('p95_ms')}ms / 기준 {detail.get('threshold_ms')}ms")
+        lines.append(
+            f"표본: {detail.get('sample_count')}건 / 최소 "
+            f"{detail.get('minimum_sample_count')}건"
+        )
+        if detail.get("cooldown_minutes") is not None:
+            lines.append(f"재발 알림 cooldown: {detail.get('cooldown_minutes')}분")
