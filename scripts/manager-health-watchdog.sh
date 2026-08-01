@@ -14,55 +14,10 @@ readonly REQUEST_TIMEOUT_SECONDS="${TM_MANAGER_WATCHDOG_TIMEOUT_SECONDS:-15}"
 readonly WATCHDOG_REPOSITORY="${TM_MANAGER_WATCHDOG_REPOSITORY:-hanawa07/traefik-manager}"
 readonly CURL_BIN="${TM_MANAGER_WATCHDOG_CURL_BIN:-curl}"
 readonly GH_BIN="${TM_MANAGER_WATCHDOG_GH_BIN:-gh}"
-
-decide_action() {
-  local current_status="$1"
-  local previous_status="$2"
-  local alert_active="$3"
-  local last_alert_at="$4"
-  local now_epoch="$5"
-  local cooldown_seconds="$6"
-
-  if [[ "${current_status}" == "healthy" ]]; then
-    if [[ "${previous_status}" == "unhealthy" && "${alert_active}" == "1" ]]; then
-      printf 'recovery\n'
-    else
-      printf 'none\n'
-    fi
-    return
-  fi
-
-  if (( last_alert_at == 0 || now_epoch - last_alert_at >= cooldown_seconds )); then
-    if [[ "${previous_status}" == "unhealthy" && "${alert_active}" == "1" ]]; then
-      printf 'failure_repeat\n'
-    else
-      printf 'failure\n'
-    fi
-  else
-    printf 'none\n'
-  fi
-}
-
-assert_decision() {
-  local expected="$1"
-  shift
-  local actual
-  actual="$(decide_action "$@")"
-  if [[ "${actual}" != "${expected}" ]]; then
-    echo "watchdog self-test 실패: expected=${expected}, actual=${actual}" >&2
-    exit 1
-  fi
-}
-
-run_self_test() {
-  assert_decision none healthy unknown 0 0 1000 3600
-  assert_decision failure unhealthy unknown 0 0 1000 3600
-  assert_decision none unhealthy healthy 0 900 1000 3600
-  assert_decision failure_repeat unhealthy unhealthy 1 1000 5000 3600
-  assert_decision recovery healthy unhealthy 1 1000 1100 3600
-  assert_decision none healthy unhealthy 0 1000 1100 3600
-  echo "Manager 외부 health watchdog self-test 통과"
-}
+# shellcheck source=scripts/manager-health-watchdog-policy.sh
+source "${SCRIPT_DIR}/manager-health-watchdog-policy.sh"
+# shellcheck source=scripts/manager-health-watchdog-state.sh
+source "${SCRIPT_DIR}/manager-health-watchdog-state.sh"
 
 read_env_value() {
   local key="$1"
@@ -89,48 +44,6 @@ resolve_health_url() {
     base_url="https://${base_url}"
   fi
   printf '%s/api/health\n' "${base_url%/}"
-}
-
-read_state_value() {
-  local key="$1"
-  if [[ ! -f "${STATE_FILE}" ]]; then
-    return
-  fi
-  awk -F= -v target="${key}" '$1 == target {print substr($0, index($0, "=") + 1); exit}' "${STATE_FILE}"
-}
-
-write_state() {
-  local status="$1"
-  local alert_active="$2"
-  local last_alert_at="$3"
-  local consecutive_failures="$4"
-  local last_dispatch_event="$5"
-  local last_dispatch_success="$6"
-  local last_dispatch_at="$7"
-  local last_dispatch_run_url="$8"
-  local dispatch_history="$9"
-  local temporary_file
-  temporary_file="$(mktemp "${STATE_FILE}.tmp.XXXXXX")"
-  printf 'status=%s\nalert_active=%s\nlast_alert_at=%s\nconsecutive_failures=%s\nlast_dispatch_event=%s\nlast_dispatch_success=%s\nlast_dispatch_at=%s\nlast_dispatch_run_url=%s\ndispatch_history=%s\n' \
-    "${status}" "${alert_active}" "${last_alert_at}" "${consecutive_failures}" \
-    "${last_dispatch_event}" "${last_dispatch_success}" "${last_dispatch_at}" \
-    "${last_dispatch_run_url}" "${dispatch_history}" \
-    > "${temporary_file}"
-  chmod 644 "${temporary_file}"
-  mv "${temporary_file}" "${STATE_FILE}"
-}
-
-prepend_dispatch_history() {
-  local event="$1"
-  local dispatched_at="$2"
-  local run_url="$3"
-  local history="$4"
-  if [[ "${run_url}" != https://github.com/*/actions/runs/* ]]; then
-    printf '%s\n' "${history}"
-    return
-  fi
-  printf '%s\n' "${event}|${dispatched_at}|${run_url}${history:+,${history}}" \
-    | awk -F, '{ for (i = 1; i <= NF && i <= 5; i++) printf "%s%s", (i > 1 ? "," : ""), $i; print "" }'
 }
 
 check_health() {
