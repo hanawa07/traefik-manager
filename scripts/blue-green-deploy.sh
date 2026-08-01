@@ -117,7 +117,7 @@ wait_traefik_route "$(backend_for_slot "${candidate_slot}")" "${candidate_upstre
 manager_deployment_stage_start leader_handover
 sleep "${DRAIN_SECONDS}"
 docker stop --time 15 "$(backend_for_slot "${previous_slot}")" >/dev/null
-wait_background_leader "$(backend_for_slot "${candidate_slot}")" "${candidate_slot}"
+wait_background_leader_ready "$(backend_for_slot "${candidate_slot}")" "${candidate_slot}"
 manager_deployment_stage_start public_probe
 curl --silent --show-error --fail --max-time 5 "${health_url}" >/dev/null
 sleep 1

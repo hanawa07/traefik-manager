@@ -28,7 +28,8 @@ async def ensure_service_route_files() -> None:
             if rewritten > 0:
                 logger.info("서비스 라우트 파일 재생성 완료 (서비스 %d개)", rewritten)
     except Exception:
-        logger.warning("서비스 라우트 파일 startup 재생성 실패 (무시)", exc_info=True)
+        logger.warning("서비스 라우트 파일 startup 재생성 실패 (재시도 예정)", exc_info=True)
+        raise
 
 
 async def ensure_authentik_middleware_file() -> None:
@@ -45,7 +46,8 @@ async def ensure_authentik_middleware_file() -> None:
                 FileProviderWriter().write_authentik_middleware()
                 logger.info("Authentik 미들웨어 파일 생성 완료 (활성화된 서비스 %d개)", count)
     except Exception:
-        logger.warning("Authentik 미들웨어 파일 startup 생성 실패 (무시)", exc_info=True)
+        logger.warning("Authentik 미들웨어 파일 startup 생성 실패 (재시도 예정)", exc_info=True)
+        raise
 
 
 async def ensure_traefik_dashboard_public_route() -> None:
@@ -60,4 +62,5 @@ async def ensure_traefik_dashboard_public_route() -> None:
             if enabled:
                 logger.info("Traefik 디버그 대시보드 public 라우트 동기화 완료")
     except Exception:
-        logger.warning("Traefik 디버그 대시보드 startup 동기화 실패 (무시)", exc_info=True)
+        logger.warning("Traefik 디버그 대시보드 startup 동기화 실패 (재시도 예정)", exc_info=True)
+        raise

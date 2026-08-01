@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from app.app_background_checks import (
     alert_retry_loop,
@@ -20,11 +21,14 @@ from app.app_startup_sync import (
     ensure_traefik_dashboard_public_route,
 )
 
+logger = logging.getLogger(__name__)
+
 
 async def run_active_background_tasks() -> None:
     await ensure_service_route_files()
     await ensure_authentik_middleware_file()
     await ensure_traefik_dashboard_public_route()
+    logger.info("Traefik 동적 설정 startup 동기화 완료")
     await cleanup_auth_state_once()
     await cleanup_audit_logs_once()
     await check_certificate_alerts_once()

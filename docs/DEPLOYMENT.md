@@ -110,6 +110,7 @@ scripts/blue-green-deploy.sh vX.Y.Z
 - 후보 backend는 준비 중 `traefik-manager-app` 내부망에만 있고, health 통과 후 `proxy_net`에 `traefik-manager-backend` ForwardAuth alias로 연결됩니다.
 - backend의 startup 정리와 주기 작업은 `/traefik-config/.background-tasks.lock` lease를 가진 active 슬롯 하나만 실행합니다.
 - route가 바뀌면 기존 leader가 lease를 반납하고 새 active backend가 자동 승계합니다.
+- 배포는 새 leader가 서비스·Authentik·대시보드 동적 설정 startup 동기화를 완료한 뒤에만 공개 검증과 상태 확정을 진행합니다.
 - route 반영 후 기존 연결을 기본 2초간 drain한 뒤 이전 backend를 종료합니다. 필요하면 `TM_BLUE_GREEN_DRAIN_SECONDS`로 조정합니다.
 - 전환 구간에는 공개 `/api/health`를 0.2초 간격으로 측정하며 한 건이라도 200이 아니면 이전 슬롯으로 자동 rollback합니다.
 - active slot, revision, version은 `~/.local/state/traefik-manager/blue-green-deployment.state`에 원자 기록됩니다.

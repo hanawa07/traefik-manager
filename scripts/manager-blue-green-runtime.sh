@@ -152,17 +152,17 @@ wait_traefik_route() {
   return 1
 }
 
-wait_background_leader() {
+wait_background_leader_ready() {
   local backend_container="$1"
   local slot="$2"
   local deadline=$((SECONDS + 30))
   while (( SECONDS < deadline )); do
-    if docker logs "${backend_container}" 2>&1 | grep -Fq "background task leader 활성화: slot=${slot}"; then
+    if docker logs "${backend_container}" 2>&1 | grep -Fq "Traefik 동적 설정 startup 동기화 완료"; then
       return 0
     fi
     sleep 1
   done
-  echo "새 backend가 background leader를 승계하지 못했습니다: ${slot}" >&2
+  echo "새 backend가 leader 승계 후 동적 설정 동기화를 완료하지 못했습니다: ${slot}" >&2
   return 1
 }
 
