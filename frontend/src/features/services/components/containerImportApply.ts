@@ -27,3 +27,15 @@ export function applyTraefikContainerImport(
   setValue("upstream_port", candidate.upstream_port);
   setValue("tls_enabled", candidate.tls_enabled);
 }
+
+export function withRecommendedGatewayUpstream(
+  candidate: TraefikImportCandidate,
+): TraefikImportCandidate {
+  if (!candidate.recommendedGateway) return candidate;
+
+  return {
+    ...candidate,
+    upstream_host: candidate.recommendedGateway.containerName,
+    upstream_port: candidate.recommendedGateway.upstreamPort,
+  };
+}

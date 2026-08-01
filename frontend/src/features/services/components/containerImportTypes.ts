@@ -2,6 +2,11 @@ import type { DockerTraefikCandidate } from "@/features/docker/api/dockerApi";
 
 export type ContainerImportMode = "basic" | "traefik";
 
+export type RecommendedGatewayImport = {
+  containerName: string;
+  upstreamPort: number;
+};
+
 export type TraefikImportCandidate = DockerTraefikCandidate & {
   containerName: string;
   image: string | null;
@@ -9,5 +14,5 @@ export type TraefikImportCandidate = DockerTraefikCandidate & {
   composeProject: string | null;
   composeService: string | null;
   isRecommendedGateway: boolean;
-  recommendedGatewayName: string | null;
+  recommendedGateway: RecommendedGatewayImport | null;
 };

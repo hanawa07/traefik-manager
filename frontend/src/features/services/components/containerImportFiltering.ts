@@ -3,6 +3,18 @@ import type { TraefikImportCandidate } from "./containerImportTypes";
 
 const PROXY_NETWORK_NAME = "proxy_net";
 const GATEWAY_MARKERS = ["gateway", "nginx"];
+const NON_HTTP_SERVICE_NAMES = new Set([
+  "db",
+  "database",
+  "mariadb",
+  "memcached",
+  "mongo",
+  "mongodb",
+  "mysql",
+  "postgres",
+  "postgresql",
+  "redis",
+]);
 
 export function formatDockerPortLabel(port: DockerContainerPort): string {
   const publicSuffix = port.public_port != null ? ` -> ${port.public_port}` : "";
@@ -21,7 +33,12 @@ export function buildTraefikImportCandidates(containers: DockerContainer[]) {
         composeProject: container.compose_project,
         composeService: container.compose_service,
         isRecommendedGateway: isRecommendedComposeGateway(container, containers),
-        recommendedGatewayName: recommendedGateway?.name ?? null,
+        recommendedGateway: recommendedGateway
+          ? {
+              containerName: recommendedGateway.name,
+              upstreamPort: getSuggestedUpstreamPort(recommendedGateway),
+            }
+          : null,
         ...candidate,
       };
     }),
@@ -46,7 +63,11 @@ export function findRecommendedComposeGateway(
   container: DockerContainer,
   containers: DockerContainer[],
 ) {
-  if (!container.compose_project || container.networks.includes(PROXY_NETWORK_NAME)) {
+  if (
+    !container.compose_project ||
+    container.networks.includes(PROXY_NETWORK_NAME) ||
+    isLikelyNonHttpContainer(container)
+  ) {
     return undefined;
   }
 
@@ -58,6 +79,24 @@ export function findRecommendedComposeGateway(
         gatewayScore(candidate) > 0,
     )
     .sort((left, right) => gatewayScore(right) - gatewayScore(left))[0];
+}
+
+export function isLikelyNonHttpContainer(container: DockerContainer): boolean {
+  // ponytail: exact identities avoid redis-commander-style false positives; extend only from observed engines.
+  const serviceName = (container.compose_service || "").trim().toLowerCase();
+  if (NON_HTTP_SERVICE_NAMES.has(serviceName)) return true;
+
+  const imageName = (container.image || "")
+    .split("@", 1)[0]
+    .split("/")
+    .at(-1)
+    ?.split(":", 1)[0]
+    .toLowerCase();
+  return imageName ? NON_HTTP_SERVICE_NAMES.has(imageName) : false;
+}
+
+function getSuggestedUpstreamPort(container: DockerContainer): number {
+  return container.ports[0]?.private_port ?? 80;
 }
 
 export function isRecommendedComposeGateway(
@@ -111,7 +150,7 @@ export function filterTraefikImportCandidates(candidates: TraefikImportCandidate
       candidate.router_name,
       candidate.composeProject || "",
       candidate.composeService || "",
-      candidate.recommendedGatewayName || "",
+      candidate.recommendedGateway?.containerName || "",
       String(candidate.upstream_port),
       ...candidate.networks,
     ]

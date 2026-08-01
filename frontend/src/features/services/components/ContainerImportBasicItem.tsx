@@ -7,6 +7,7 @@ import { ContainerImportNetworkNotice } from "./ContainerImportNetworkNotice";
 interface ContainerImportBasicItemProps {
   container: DockerContainer;
   isRecommendedGateway: boolean;
+  isLikelyNonHttp?: boolean;
   recommendedGatewayName?: string;
   onImport: (container: DockerContainer) => void;
 }
@@ -14,6 +15,7 @@ interface ContainerImportBasicItemProps {
 export function ContainerImportBasicItem({
   container,
   isRecommendedGateway,
+  isLikelyNonHttp = false,
   recommendedGatewayName,
   onImport,
 }: ContainerImportBasicItemProps) {
@@ -52,7 +54,9 @@ export function ContainerImportBasicItem({
       />
 
       <p className="mt-3 text-xs text-sky-700 dark:text-sky-300">
-        {container.ports.length > 0
+        {isLikelyNonHttp
+          ? "비HTTP 서비스일 가능성이 높습니다. 실제로 HTTP를 제공하는 경우에만 포트를 확인해 가져오세요."
+          : container.ports.length > 0
           ? `선택 시 서비스 이름, 업스트림 호스트, 업스트림 포트 ${getSuggestedUpstreamPort(container)}를 채웁니다.`
           : "선택 시 서비스 이름과 업스트림 호스트를 채우고, 포트는 기본값 80으로 설정합니다."}
       </p>
