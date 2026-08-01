@@ -1,35 +1,17 @@
-import json
-import re
-from collections.abc import Iterable
-from datetime import datetime
 from pathlib import Path
 
 from app.core.config import settings
-from app.infrastructure.github_actions_run import build_actions_run_api_url
+from app.infrastructure.manager_deployment_history_archive import (
+    MAX_ARCHIVE_ENTRIES,
+    read_archive_entries_with_summary,
+)
+from app.infrastructure.manager_deployment_history_records import (
+    normalize_history_lines,
+    read_history_lines,
+)
 
 MAX_HISTORY_BYTES = 64 * 1024
-MAX_ARCHIVE_BYTES = 1024 * 1024
 MAX_HISTORY_ENTRIES = 20
-MAX_ARCHIVE_ENTRIES = 120
-MAX_DETAILED_ARCHIVE_ENTRIES = 20
-MAX_HISTORY_LINE_BYTES = 2048
-MAX_STAGE_DURATION_MS = 24 * 60 * 60 * 1000
-HISTORY_STATUSES = {"success", "failed_before_switch", "rolled_back", "rollback_failed"}
-ALERT_REQUEST_STATUSES = {"not_needed", "requested", "request_failed"}
-FAILURE_STAGES = {
-    "prepare",
-    "build",
-    "migration_preflight",
-    "candidate_health",
-    "route_switch",
-    "leader_handover",
-    "public_probe",
-    "state_write",
-}
-DEPLOYMENT_SLOTS = {"single", "blue", "green"}
-ACTIVE_SLOTS = DEPLOYMENT_SLOTS | {"unknown"}
-VERSION_PATTERN = re.compile(r"^v\d+\.\d+\.\d+$")
-REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
 
 def read_manager_deployment_history(
@@ -39,10 +21,10 @@ def read_manager_deployment_history(
 ) -> list[dict[str, object]]:
     history_path = Path(path or settings.MANAGER_DEPLOYMENT_HISTORY_PATH)
     try:
-        lines = _read_tail(history_path)
+        lines = read_history_lines(history_path, MAX_HISTORY_BYTES)
     except OSError:
         return []
-    return _normalize_lines(reversed(lines), limit)
+    return normalize_history_lines(reversed(lines), limit)
 
 
 def read_manager_deployment_history_archive(
@@ -50,7 +32,10 @@ def read_manager_deployment_history_archive(
     *,
     limit: int = MAX_ARCHIVE_ENTRIES,
 ) -> list[dict[str, object]]:
-    entries, _ = read_manager_deployment_history_archive_with_summary(path, limit=limit)
+    entries, _ = read_manager_deployment_history_archive_with_summary(
+        path,
+        limit=limit,
+    )
     return entries
 
 
@@ -59,186 +44,5 @@ def read_manager_deployment_history_archive_with_summary(
     *,
     limit: int = MAX_ARCHIVE_ENTRIES,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
-    if limit <= 0:
-        return [], _archive_summary([], 0, 0)
     history_path = Path(path or settings.MANAGER_DEPLOYMENT_HISTORY_PATH)
-    try:
-        current_lines = set(_read_tail(history_path, MAX_ARCHIVE_BYTES))
-    except OSError:
-        current_lines = set()
-    try:
-        detailed_lines = set(_read_tail(Path(f"{history_path}.1"), MAX_ARCHIVE_BYTES))
-    except OSError:
-        detailed_lines = set()
-    try:
-        daily_lines = set(_read_tail(Path(f"{history_path}.daily"), MAX_ARCHIVE_BYTES))
-    except OSError:
-        daily_lines = set()
-
-    current_entries = _normalize_lines(current_lines, len(current_lines))
-    detailed_entries = _normalize_lines(
-        detailed_lines - current_lines,
-        len(detailed_lines),
-    )
-    detailed_entries.sort(key=_completed_at_timestamp, reverse=True)
-    detailed_entries = detailed_entries[: min(MAX_DETAILED_ARCHIVE_ENTRIES, limit)]
-    covered_days = {
-        _completed_at_day(entry) for entry in [*current_entries, *detailed_entries]
-    }
-    daily_entries = _normalize_lines(daily_lines - current_lines, len(daily_lines))
-    daily_entries = [
-        entry for entry in daily_entries if _completed_at_day(entry) not in covered_days
-    ]
-    daily_entries.sort(key=_completed_at_timestamp, reverse=True)
-    daily_entries = daily_entries[: max(0, limit - len(detailed_entries))]
-    entries = [
-        *({**entry, "archive_sample": "detailed"} for entry in detailed_entries),
-        *({**entry, "archive_sample": "daily"} for entry in daily_entries),
-    ]
-    entries.sort(key=_completed_at_timestamp, reverse=True)
-    return entries, _archive_summary(entries, len(detailed_entries), len(daily_entries))
-
-
-def _archive_summary(
-    entries: list[dict[str, object]],
-    detailed_count: int,
-    daily_count: int,
-) -> dict[str, object]:
-    return {
-        "detailed_count": detailed_count,
-        "daily_count": daily_count,
-        "newest_at": entries[0]["completed_at"] if entries else None,
-        "oldest_at": entries[-1]["completed_at"] if entries else None,
-    }
-
-
-def _normalize_lines(
-    lines: Iterable[str],
-    limit: int,
-) -> list[dict[str, object]]:
-    if limit <= 0:
-        return []
-    entries: list[dict[str, object]] = []
-    for line in lines:
-        if not line or len(line.encode("utf-8")) > MAX_HISTORY_LINE_BYTES:
-            continue
-        try:
-            raw = json.loads(line)
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            continue
-        entry = _normalize_entry(raw)
-        if entry is not None:
-            entries.append(entry)
-        if len(entries) >= limit:
-            break
-    return entries
-
-
-def _read_tail(path: Path, max_bytes: int = MAX_HISTORY_BYTES) -> list[str]:
-    with path.open("rb") as history_file:
-        history_file.seek(0, 2)
-        start = max(0, history_file.tell() - max_bytes)
-        history_file.seek(start)
-        if start:
-            history_file.readline()
-        return history_file.read(max_bytes).decode("utf-8", errors="ignore").splitlines()
-
-
-def _normalize_entry(raw: object) -> dict[str, object] | None:
-    if not isinstance(raw, dict):
-        return None
-    string_keys = (
-        "status",
-        "from_slot",
-        "to_slot",
-        "active_slot",
-        "version",
-        "revision",
-        "started_at",
-        "completed_at",
-    )
-    if any(not isinstance(raw.get(key), str) for key in string_keys):
-        return None
-    if raw["status"] not in HISTORY_STATUSES:
-        return None
-    if raw["from_slot"] not in DEPLOYMENT_SLOTS or raw["to_slot"] not in DEPLOYMENT_SLOTS:
-        return None
-    if raw["active_slot"] not in ACTIVE_SLOTS:
-        return None
-    if not VERSION_PATTERN.fullmatch(raw["version"]):
-        return None
-    if not REVISION_PATTERN.fullmatch(raw["revision"]):
-        return None
-    if not _is_iso_datetime(raw["started_at"]) or not _is_iso_datetime(raw["completed_at"]):
-        return None
-
-    probe_total = raw.get("probe_total")
-    probe_failures = raw.get("probe_failures")
-    if type(probe_total) is not int or type(probe_failures) is not int:
-        return None
-    if probe_total < 0 or probe_failures < 0 or probe_failures > probe_total:
-        return None
-    failure_stage = raw.get("failure_stage") or None
-    failure_reason = raw.get("failure_reason") or None
-    if failure_stage is not None and (
-        not isinstance(failure_stage, str) or failure_stage not in FAILURE_STAGES
-    ):
-        return None
-    if failure_reason is not None and (
-        not isinstance(failure_reason, str) or len(failure_reason) > 300
-    ):
-        return None
-    alert_request_status = raw.get("alert_request_status", "not_needed")
-    if not isinstance(alert_request_status, str) or (
-        alert_request_status not in ALERT_REQUEST_STATUSES
-    ):
-        return None
-    raw_alert_run_url = raw.get("alert_run_url")
-    if raw_alert_run_url in (None, ""):
-        alert_run_url = None
-    elif isinstance(raw_alert_run_url, str) and build_actions_run_api_url(raw_alert_run_url):
-        alert_run_url = raw_alert_run_url
-    else:
-        return None
-    if raw["status"] != "rollback_failed" and alert_request_status != "not_needed":
-        return None
-    if alert_request_status != "requested" and alert_run_url is not None:
-        return None
-    stage_durations_ms = _normalize_stage_durations(raw.get("stage_durations_ms"))
-    return {
-        **{key: raw[key] for key in (*string_keys, "probe_total", "probe_failures")},
-        "failure_stage": failure_stage,
-        "failure_reason": failure_reason,
-        "alert_request_status": alert_request_status,
-        "alert_run_url": alert_run_url,
-        "stage_durations_ms": stage_durations_ms,
-    }
-
-
-def _normalize_stage_durations(raw: object) -> dict[str, int]:
-    if not isinstance(raw, dict):
-        return {}
-    return {
-        stage: duration
-        for stage, duration in raw.items()
-        if stage in FAILURE_STAGES
-        and type(duration) is int
-        and 0 <= duration <= MAX_STAGE_DURATION_MS
-    }
-
-
-def _is_iso_datetime(value: str) -> bool:
-    try:
-        datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return False
-    return True
-
-
-def _completed_at_timestamp(entry: dict[str, object]) -> float:
-    completed_at = datetime.fromisoformat(str(entry["completed_at"]).replace("Z", "+00:00"))
-    return completed_at.timestamp()
-
-
-def _completed_at_day(entry: dict[str, object]) -> str:
-    return str(entry["completed_at"])[:10]
+    return read_archive_entries_with_summary(history_path, limit=limit)
