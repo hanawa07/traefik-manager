@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useDeferredValue, useState } from "react";
 
 import {
@@ -22,19 +22,18 @@ import {
 import {
   buildAuditQueryUrl,
   decodeAuditLogQuery,
+  replaceAuditQueryUrl,
   type AuditQueryParamUpdate,
 } from "./auditLogQueryCodec";
 
 export function useAuditLogQueryState() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const query = decodeAuditLogQuery(searchParams);
   const [expandedLogId, setExpandedLogId] = useState<string | null | undefined>(undefined);
   const deferredSearchText = useDeferredValue(query.searchText.trim());
   const replaceQueryParams = (values: AuditQueryParamUpdate[], reset = false) => {
-    router.replace(
+    replaceAuditQueryUrl(
       buildAuditQueryUrl(window.location.pathname, window.location.search, values, reset),
-      { scroll: false },
     );
   };
 

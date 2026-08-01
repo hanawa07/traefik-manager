@@ -5,6 +5,7 @@ require("../frontend/node_modules/sucrase/register");
 const {
   buildAuditQueryUrl,
   decodeAuditLogQuery,
+  replaceAuditQueryUrl,
 } = require("../frontend/src/app/dashboard/audit/auditLogQueryCodec.ts");
 
 function setLocation(url) {
@@ -14,6 +15,12 @@ function setLocation(url) {
 }
 
 global.window = {
+  history: {
+    replaceState(state, _title, url) {
+      assert.equal(state, null);
+      setLocation(url);
+    },
+  },
   location: {
     pathname: "/dashboard/audit",
     search: "?filter=manager_unhealthy&page=3&q=error",
@@ -47,7 +54,7 @@ setLocation(buildAuditQueryUrl(
 ));
 assert.equal(window.location.search, "?filter=delayed_retry&period=30");
 
-setLocation(buildAuditQueryUrl(window.location.pathname, window.location.search, [], true));
+replaceAuditQueryUrl(buildAuditQueryUrl(window.location.pathname, window.location.search, [], true));
 assert.equal(window.location.pathname, "/dashboard/audit");
 assert.equal(window.location.search, "");
 

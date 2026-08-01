@@ -117,6 +117,10 @@ export function buildAuditQueryUrl(
   return `${pathname}${query ? `?${query}` : ""}`;
 }
 
+export function replaceAuditQueryUrl(url: string) {
+  window.history.replaceState(null, "", url);
+}
+
 function parseAuditPage(value: string | null) {
   const page = Number(value);
   return Number.isInteger(page) && page > 0 ? page : 1;

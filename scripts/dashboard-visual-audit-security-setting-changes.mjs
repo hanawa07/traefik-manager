@@ -93,26 +93,12 @@ export async function checkAuditSecuritySettingChanges({ cdp, timeoutMs }) {
   }
 
   await clickAriaLabel(cdp, "감사 필터 전체 초기화");
-  try {
-    await waitForCondition(
-      cdp,
-      `location.pathname === '/dashboard/audit' && !location.search`,
-      timeoutMs,
-      "보안 설정 감사 검증 후 필터가 초기화되지 않았습니다",
-    );
-  } catch (error) {
-    const state = await evaluate(cdp, `(() => {
-      const button = document.querySelector('[aria-label="감사 필터 전체 초기화"]');
-      const conditions = button?.parentElement?.nextElementSibling;
-      return {
-        path: location.pathname,
-        search: location.search,
-        resetDisabled: button instanceof HTMLButtonElement ? button.disabled : null,
-        conditions: conditions?.textContent?.trim().slice(0, 300) || null,
-      };
-    })()`);
-    throw new Error(`${error.message}: ${JSON.stringify(state)}`);
-  }
+  await waitForCondition(
+    cdp,
+    `location.pathname === '/dashboard/audit' && !location.search`,
+    timeoutMs,
+    "보안 설정 감사 검증 후 필터가 초기화되지 않았습니다",
+  );
   return targets.length;
 }
 
