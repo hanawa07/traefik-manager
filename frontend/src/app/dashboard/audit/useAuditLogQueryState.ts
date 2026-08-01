@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useDeferredValue, useState } from "react";
 
 import {
@@ -20,24 +20,27 @@ import {
   type AuditPageSize,
 } from "./auditPageQuery";
 import {
-  clearAuditQuery,
+  buildAuditQueryUrl,
   decodeAuditLogQuery,
-  replaceAuditQuery,
-  replaceAuditQueryParam,
-  replaceAuditQueryParams,
+  type AuditQueryParamUpdate,
 } from "./auditLogQueryCodec";
 
 export function useAuditLogQueryState() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const query = decodeAuditLogQuery(searchParams);
   const [expandedLogId, setExpandedLogId] = useState<string | null | undefined>(undefined);
   const deferredSearchText = useDeferredValue(query.searchText.trim());
+  const replaceQueryParams = (values: AuditQueryParamUpdate[], reset = false) => {
+    router.replace(
+      buildAuditQueryUrl(window.location.pathname, window.location.search, values, reset),
+      { scroll: false },
+    );
+  };
 
-  const replaceFilterQueryParams = (
-    values: [key: string, value: string, defaultValue: string][],
-  ) => {
+  const replaceFilterQueryParams = (values: AuditQueryParamUpdate[]) => {
     setExpandedLogId(null);
-    replaceAuditQueryParams([...values, ["page", "1", "1"]]);
+    replaceQueryParams([...values, ["page", "1", "1"]]);
   };
   const handleFilterChange = (filter: AuditFilterKey) => {
     replaceFilterQueryParams([
@@ -65,19 +68,19 @@ export function useAuditLogQueryState() {
     replaceFilterQueryParams([["delivery_provider", provider, "all"]]);
   };
   const handleBulkPeriodChange = (period: AuditBulkPeriod) => {
-    replaceAuditQueryParams([
+    replaceQueryParams([
       ["bulk_period", period, "all"],
       ["bulk_page", "1", "1"],
     ]);
   };
   const handleBulkNotificationStatusChange = (status: AuditBulkNotificationStatus) => {
-    replaceAuditQueryParams([
+    replaceQueryParams([
       ["bulk_status", status, "all"],
       ["bulk_page", "1", "1"],
     ]);
   };
   const handleBulkPageChange = (page: number) => {
-    replaceAuditQueryParam("bulk_page", String(page), "1");
+    replaceQueryParams([["bulk_page", String(page), "1"]]);
   };
   const handleManagerHealthWindowChange = (minutes: ManagerHealthWindowMinutes) => {
     replaceFilterQueryParams([["manager_window", String(minutes), "10080"]]);
@@ -105,18 +108,18 @@ export function useAuditLogQueryState() {
   };
   const handleResetFilters = () => {
     setExpandedLogId(null);
-    clearAuditQuery();
+    replaceQueryParams([], true);
   };
   const handleDelayedRetryPeriodChange = (period: 1 | 7 | 30) => {
     setExpandedLogId(null);
-    replaceAuditQuery([
+    replaceQueryParams([
       ["filter", "delayed_retry", "all"],
       ["period", String(period), "all"],
-    ]);
+    ], true);
   };
   const handlePageChange = (page: number) => {
     setExpandedLogId(null);
-    replaceAuditQueryParam("page", String(page), "1");
+    replaceQueryParams([["page", String(page), "1"]]);
   };
 
   return {

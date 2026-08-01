@@ -100,41 +100,21 @@ export function decodeAuditLogQuery(searchParams: AuditQueryReader): DecodedAudi
   };
 }
 
-export function replaceAuditQueryParam(key: string, value: string, defaultValue: string) {
-  replaceAuditQueryParams([[key, value, defaultValue]]);
-}
+export type AuditQueryParamUpdate = [key: string, value: string, defaultValue: string];
 
-export function replaceAuditQuery(
-  values: [key: string, value: string, defaultValue: string][],
+export function buildAuditQueryUrl(
+  pathname: string,
+  search: string,
+  values: AuditQueryParamUpdate[],
+  reset = false,
 ) {
-  writeAuditQuery(new URLSearchParams(), values);
-}
-
-export function replaceAuditQueryParams(
-  values: [key: string, value: string, defaultValue: string][],
-) {
-  const params = new URLSearchParams(window.location.search);
-  writeAuditQuery(params, values);
-}
-
-function writeAuditQuery(
-  params: URLSearchParams,
-  values: [key: string, value: string, defaultValue: string][],
-) {
+  const params = new URLSearchParams(reset ? "" : search);
   values.forEach(([key, value, defaultValue]) => {
     if (value === defaultValue) params.delete(key);
     else params.set(key, value);
   });
   const query = params.toString();
-  window.history.replaceState(
-    window.history.state,
-    "",
-    `${window.location.pathname}${query ? `?${query}` : ""}`,
-  );
-}
-
-export function clearAuditQuery() {
-  replaceAuditQuery([]);
+  return `${pathname}${query ? `?${query}` : ""}`;
 }
 
 function parseAuditPage(value: string | null) {

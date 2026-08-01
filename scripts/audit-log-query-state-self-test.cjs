@@ -3,10 +3,8 @@ const assert = require("node:assert/strict");
 require("../frontend/node_modules/sucrase/register");
 
 const {
-  clearAuditQuery,
+  buildAuditQueryUrl,
   decodeAuditLogQuery,
-  replaceAuditQuery,
-  replaceAuditQueryParams,
 } = require("../frontend/src/app/dashboard/audit/auditLogQueryCodec.ts");
 
 function setLocation(url) {
@@ -16,12 +14,6 @@ function setLocation(url) {
 }
 
 global.window = {
-  history: {
-    state: { test: true },
-    replaceState(_state, _title, url) {
-      setLocation(url);
-    },
-  },
   location: {
     pathname: "/dashboard/audit",
     search: "?filter=manager_unhealthy&page=3&q=error",
@@ -34,10 +26,11 @@ assert.equal(query.selectedManagerStatus, "unhealthy");
 assert.equal(query.currentPage, 3);
 assert.equal(query.searchText, "error");
 
-replaceAuditQueryParams([
-  ["q", "recovered", ""],
-  ["page", "1", "1"],
-]);
+setLocation(buildAuditQueryUrl(
+  window.location.pathname,
+  window.location.search,
+  [["q", "recovered", ""], ["page", "1", "1"]],
+));
 assert.equal(window.location.search, "?filter=manager_unhealthy&q=recovered");
 
 setLocation("/dashboard/audit?filter=delayed_retry&period=7&page_size=100");
@@ -46,13 +39,15 @@ assert.equal(query.selectedFilter, "delayed_retry");
 assert.equal(query.selectedPeriod, 7);
 assert.equal(query.pageSize, 100);
 
-replaceAuditQuery([
-  ["filter", "delayed_retry", "all"],
-  ["period", "30", "all"],
-]);
+setLocation(buildAuditQueryUrl(
+  window.location.pathname,
+  window.location.search,
+  [["filter", "delayed_retry", "all"], ["period", "30", "all"]],
+  true,
+));
 assert.equal(window.location.search, "?filter=delayed_retry&period=30");
 
-clearAuditQuery();
+setLocation(buildAuditQueryUrl(window.location.pathname, window.location.search, [], true));
 assert.equal(window.location.pathname, "/dashboard/audit");
 assert.equal(window.location.search, "");
 
