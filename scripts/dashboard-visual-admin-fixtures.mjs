@@ -5,9 +5,11 @@ import {
   captureVisualScreenshot,
 } from "./dashboard-visual-artifacts.mjs";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
+import { checkServiceGatewayImportAdminFixture } from "./dashboard-visual-service-gateway-import.mjs";
 import { checkTraefikAlertRetryAdminFixture } from "./dashboard-visual-traefik-alert-retry.mjs";
 
 export async function checkAdminVisualFixtures(options) {
+  await checkServiceGatewayImportAdminFixture(options);
   await checkSmokeRateLimitAdminFixture(options);
   return checkTraefikAlertRetryAdminFixture(options);
 }

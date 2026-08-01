@@ -95,7 +95,7 @@ async function main() {
       artifactDir: process.env.TM_SMOKE_ARTIFACT_DIR,
       baseUrl, cdp, cookies: adminCookies, timeoutMs,
     })) {
-      visualResult.labels.push("관리자 API 보호·Traefik 알림 재시도 요청");
+      visualResult.labels.push("관리자 English gateway 가져오기·API 보호·Traefik 알림 재시도 요청");
     }
     if (adminReadOnlyChecked) visualResult.labels.push("관리자 읽기 전용 403");
     await recordRemoteSmokeSuccess(
