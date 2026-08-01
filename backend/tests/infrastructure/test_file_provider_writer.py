@@ -27,6 +27,8 @@ def test_write_authentik_middleware_creates_file(writer, tmp_path):
     assert "forwardAuth" in content
     assert "authentik-server:9000" in content
     assert "authentik" in content
+    forward_auth = yaml.safe_load(content)["http"]["middlewares"]["authentik"]["forwardAuth"]
+    assert forward_auth["maxResponseBodySize"] == FileProviderWriter.AUTHENTIK_MAX_RESPONSE_BODY_SIZE
 
 
 def test_write_authentik_middleware_is_idempotent(writer, tmp_path):

@@ -16,12 +16,14 @@ class FileProviderWriter:
     AUTHENTIK_MIDDLEWARE_FILE = "authentik-middleware.yml"
     SHARED_MIDDLEWARE_TEMPLATES_FILE = "shared-middleware-templates.yml"
     TRAEFIK_DASHBOARD_PUBLIC_FILE = "traefik-dashboard-public.yml"
+    AUTHENTIK_MAX_RESPONSE_BODY_SIZE = 64 * 1024
     AUTHENTIK_FORWARD_AUTH_CONFIG = {
         "http": {
             "middlewares": {
                 "authentik": {
                     "forwardAuth": {
                         "address": "http://authentik-server:9000/outpost.goauthentik.io/auth/traefik",
+                        "maxResponseBodySize": AUTHENTIK_MAX_RESPONSE_BODY_SIZE,
                         "trustForwardHeader": True,
                         "authResponseHeaders": [
                             "X-authentik-username",
