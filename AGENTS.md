@@ -21,6 +21,7 @@ This repository is split into a FastAPI backend and a Next.js frontend.
 - `cd frontend && npm run lint`: run frontend lint checks.
 - `cd frontend && npm run build`: production build check.
 - `curl https://<FRONTEND_DOMAIN>/api/health`: frontend를 통해 backend까지 확인하는 운영 health check.
+- `scripts/run-actionlint.sh`: 고정 버전 actionlint로 로컬과 CI의 GitHub Actions workflow를 동일하게 검사.
 
 ## Coding Style & Naming Conventions
 - Python: PEP 8, 4-space indentation, type hints, `snake_case` module/function names.
