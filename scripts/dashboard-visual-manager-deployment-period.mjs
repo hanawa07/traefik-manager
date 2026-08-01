@@ -63,7 +63,7 @@ async function checkCustomDateRange({ cdp, timeoutMs }) {
   );
 }
 
-async function setDateInput({ cdp, kind, timeoutMs, value }) {
+export async function setDateInput({ cdp, kind, timeoutMs, value }) {
   const changed = await evaluate(cdp, `(() => {
     const input = document.querySelector(${JSON.stringify(`[data-history-date-${kind}]`)});
     if (!(input instanceof HTMLInputElement)) return false;
@@ -82,6 +82,6 @@ async function setDateInput({ cdp, kind, timeoutMs, value }) {
   );
 }
 
-function formatDateInput(daysAgo) {
+export function formatDateInput(daysAgo) {
   return new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1_000).toISOString().slice(0, 10);
 }
