@@ -71,7 +71,9 @@ export function useMiddlewaresPageModel() {
     },
     generatedTab: {
       generatedSearch: uiState.generatedSearch,
+      generatedStatusFilter: uiState.generatedStatusFilter,
       onGeneratedSearchChange: uiState.setGeneratedSearch,
+      onGeneratedStatusFilterChange: uiState.setGeneratedStatusFilter,
       runtimeBannerMessage: derived.runtimeBannerMessage,
       isServicesLoading: data.isServicesLoading,
       isRuntimeLoading: data.isRuntimeLoading,

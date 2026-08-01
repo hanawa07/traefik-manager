@@ -5,12 +5,17 @@ import { useEffect, useState } from "react";
 import type { MiddlewareTemplate } from "@/features/middlewares/api/middlewareApi";
 import type { Service } from "@/features/services/api/serviceApi";
 
+import {
+  isGeneratedStatusFilter,
+  type GeneratedStatusFilter,
+} from "./generatedMiddlewareFilters";
 import type { MiddlewareTab } from "./middlewarePageHelpers";
 import { isTemplateStatusFilter, type TemplateStatusFilter } from "./middlewareTemplateFilters";
 
 interface MiddlewarePageUrlState {
   activeTab: MiddlewareTab;
   generatedSearch: string;
+  generatedStatusFilter: GeneratedStatusFilter;
   templateSearch: string;
   templateStatusFilter: TemplateStatusFilter;
 }
@@ -20,6 +25,7 @@ function readMiddlewarePageUrlState(): MiddlewarePageUrlState {
     return {
       activeTab: "templates",
       generatedSearch: "",
+      generatedStatusFilter: "all",
       templateSearch: "",
       templateStatusFilter: "all",
     };
@@ -33,6 +39,8 @@ function readMiddlewarePageUrlState(): MiddlewarePageUrlState {
   return {
     activeTab,
     generatedSearch: activeTab === "generated" ? search : "",
+    generatedStatusFilter:
+      activeTab === "generated" && isGeneratedStatusFilter(status) ? status : "all",
     templateSearch: activeTab === "templates" ? search : "",
     templateStatusFilter:
       activeTab === "templates" && isTemplateStatusFilter(status) ? status : "all",
@@ -42,6 +50,7 @@ function readMiddlewarePageUrlState(): MiddlewarePageUrlState {
 function replaceMiddlewarePageUrl({
   activeTab,
   generatedSearch,
+  generatedStatusFilter,
   templateSearch,
   templateStatusFilter,
 }: MiddlewarePageUrlState) {
@@ -57,6 +66,11 @@ function replaceMiddlewarePageUrl({
       url.searchParams.set("search", trimmedSearch);
     } else {
       url.searchParams.delete("search");
+    }
+    if (generatedStatusFilter === "all") {
+      url.searchParams.delete("status");
+    } else {
+      url.searchParams.set("status", generatedStatusFilter);
     }
   } else {
     url.searchParams.delete("tab");
@@ -83,6 +97,7 @@ function replaceMiddlewarePageUrl({
 export function useMiddlewaresPageUiState() {
   const [activeTab, setActiveTab] = useState<MiddlewareTab>("templates");
   const [generatedSearch, setGeneratedSearch] = useState("");
+  const [generatedStatusFilter, setGeneratedStatusFilter] = useState<GeneratedStatusFilter>("all");
   const [templateSearch, setTemplateSearch] = useState("");
   const [templateStatusFilter, setTemplateStatusFilter] = useState<TemplateStatusFilter>("all");
   const [isUrlReady, setIsUrlReady] = useState(false);
@@ -98,6 +113,7 @@ export function useMiddlewaresPageUiState() {
       const urlState = readMiddlewarePageUrlState();
       setActiveTab(urlState.activeTab);
       setGeneratedSearch(urlState.generatedSearch);
+      setGeneratedStatusFilter(urlState.generatedStatusFilter);
       setTemplateSearch(urlState.templateSearch);
       setTemplateStatusFilter(urlState.templateStatusFilter);
     }
@@ -117,10 +133,18 @@ export function useMiddlewaresPageUiState() {
     replaceMiddlewarePageUrl({
       activeTab,
       generatedSearch,
+      generatedStatusFilter,
       templateSearch,
       templateStatusFilter,
     });
-  }, [activeTab, generatedSearch, isUrlReady, templateSearch, templateStatusFilter]);
+  }, [
+    activeTab,
+    generatedSearch,
+    generatedStatusFilter,
+    isUrlReady,
+    templateSearch,
+    templateStatusFilter,
+  ]);
 
   const toggleServiceSelection = (serviceId: string) => {
     setSelectedServiceIds((current) =>
@@ -141,6 +165,7 @@ export function useMiddlewaresPageUiState() {
     deleteTarget,
     editTarget,
     generatedSearch,
+    generatedStatusFilter,
     isCreateOpen,
     openCreate: () => setIsCreateOpen(true),
     selectedServiceIds,
@@ -150,6 +175,7 @@ export function useMiddlewaresPageUiState() {
     setDeleteTarget,
     setEditTarget,
     setGeneratedSearch,
+    setGeneratedStatusFilter,
     setSelectedServiceIds,
     setTemplateSearch,
     setTemplateStatusFilter,
