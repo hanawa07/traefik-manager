@@ -12,6 +12,15 @@ export function createSecurityAlertFormFromSettings(
   return {
     enabled: settings?.enabled ?? defaults.enabled,
     change_alerts_enabled: settings?.change_alerts_enabled ?? defaults.change_alerts_enabled,
+    traefik_encoded_path_block_monitoring_enabled:
+      settings?.traefik_encoded_path_block_monitoring_enabled ??
+      defaults.traefik_encoded_path_block_monitoring_enabled,
+    traefik_encoded_path_block_window_minutes:
+      settings?.traefik_encoded_path_block_window_minutes ??
+      defaults.traefik_encoded_path_block_window_minutes,
+    traefik_encoded_path_block_threshold:
+      settings?.traefik_encoded_path_block_threshold ??
+      defaults.traefik_encoded_path_block_threshold,
     manager_health_monitoring_enabled:
       settings?.manager_health_monitoring_enabled ?? defaults.manager_health_monitoring_enabled,
     manager_health_alert_cooldown_minutes:
@@ -59,6 +68,12 @@ export function buildSecurityAlertSettingsPayload(
   return {
     enabled: formValue.enabled,
     change_alerts_enabled: formValue.change_alerts_enabled,
+    traefik_encoded_path_block_monitoring_enabled:
+      formValue.traefik_encoded_path_block_monitoring_enabled,
+    traefik_encoded_path_block_window_minutes:
+      formValue.traefik_encoded_path_block_window_minutes,
+    traefik_encoded_path_block_threshold:
+      formValue.traefik_encoded_path_block_threshold,
     manager_health_monitoring_enabled: formValue.manager_health_monitoring_enabled,
     manager_health_alert_cooldown_minutes: formValue.manager_health_alert_cooldown_minutes,
     external_watchdog_stale_minutes: formValue.external_watchdog_stale_minutes,

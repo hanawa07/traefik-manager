@@ -14,6 +14,9 @@ const SECURITY_SETTINGS_BY_EVENT: Record<string, Record<string, SettingMeta>> = 
   settings_update_security_alert: {
     enabled: { label: "보안 이벤트 알림" },
     change_alerts_enabled: { label: "운영 변경 알림" },
+    traefik_encoded_path_block_monitoring_enabled: { label: "Traefik 인코딩 경로 급증 감지" },
+    traefik_encoded_path_block_window_minutes: { label: "인코딩 경로 집계 구간", unit: "분" },
+    traefik_encoded_path_block_threshold: { label: "인코딩 경로 경고 임계치", unit: "건" },
     manager_health_monitoring_enabled: { label: "Manager 상태 감시" },
     manager_health_alert_cooldown_minutes: { label: "Manager 재알림 대기", unit: "분" },
     external_watchdog_stale_minutes: { label: "Watchdog 지연 기준", unit: "분" },

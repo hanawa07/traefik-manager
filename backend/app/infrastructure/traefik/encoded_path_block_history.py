@@ -40,6 +40,39 @@ async def collect_encoded_path_block_history(
         return _unavailable_summary(current, collection_available=raw_text is not None)
 
 
+def read_recent_encoded_path_block_count(
+    *,
+    checked_at: datetime,
+    window_minutes: int,
+    path: str | Path | None = None,
+) -> int | None:
+    current = _as_utc(checked_at)
+    history_path = Path(path or settings.TRAEFIK_ENCODED_PATH_BLOCK_HISTORY_PATH)
+    if not history_path.exists():
+        return None
+
+    lock_path = Path(f"{history_path}.lock")
+    with lock_path.open("a", encoding="utf-8") as lock_file:
+        lock_path.chmod(0o600)
+        fcntl.flock(lock_file, fcntl.LOCK_SH)
+        state = _read_state(history_path)
+
+    cutoff = (current - timedelta(minutes=window_minutes)).replace(
+        second=0,
+        microsecond=0,
+    )
+    minutes = state.get("minutes")
+    if not isinstance(minutes, dict):
+        return 0
+    return sum(
+        int(value.get("blocked_request_count", 0))
+        for key, value in minutes.items()
+        if isinstance(value, dict)
+        and (started_at := parse_datetime(key)) is not None
+        and cutoff <= started_at <= current
+    )
+
+
 def update_encoded_path_block_history(
     raw_text: str | None,
     *,

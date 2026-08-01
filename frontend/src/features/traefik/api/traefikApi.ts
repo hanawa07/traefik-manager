@@ -38,6 +38,11 @@ export interface TraefikEncodedPathBlockSummary {
   observed_log_lines: number;
   blocked_request_count: number;
   last_blocked_at: string | null;
+  alert_monitoring_enabled: boolean;
+  alert_active: boolean;
+  alert_window_minutes: number;
+  alert_threshold: number;
+  recent_blocked_request_count: number;
   encoded_characters: TraefikEncodedPathCharacter[];
   buckets: TraefikEncodedPathBlockBucket[];
 }

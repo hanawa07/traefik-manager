@@ -86,6 +86,46 @@ async def test_notify_if_needed_posts_manager_http_error_threshold_to_telegram(m
 
 
 @pytest.mark.asyncio
+async def test_notify_if_needed_posts_encoded_path_surge_without_private_request_data(
+    monkeypatch,
+):
+    posted = []
+    audit_log = make_audit_log(
+        "traefik_encoded_path_blocks_high",
+        resource_type="traefik_security",
+        resource_id="encoded-path-blocks",
+        resource_name="Traefik 인코딩 경로 차단",
+    )
+    audit_log.detail.update(
+        {
+            "window_minutes": 15,
+            "blocked_request_count": 25,
+            "alert_threshold": 20,
+            "cooldown_minutes": 60,
+        }
+    )
+    patch_settings(
+        monkeypatch,
+        {
+            "security_alerts_enabled": "true",
+            "security_alert_provider": "telegram",
+            "security_alert_telegram_bot_token": "telegram-secret",
+            "security_alert_telegram_chat_id": "10001",
+            "security_alert_route_encoded_path_blocks": "default",
+        },
+    )
+    patch_http_client(monkeypatch, posted)
+
+    result = await security_alert_notifier.notify_if_needed(object(), audit_log)
+
+    assert result is True
+    assert "Traefik 인코딩 경로 차단 급증" in posted[0][1]["text"]
+    assert "차단 횟수: 25건 / 임계치 20건" in posted[0][1]["text"]
+    assert "192.0.2" not in posted[0][1]["text"]
+    assert "%2F" not in posted[0][1]["text"]
+
+
+@pytest.mark.asyncio
 async def test_notify_if_needed_posts_settings_history_latency_to_telegram(monkeypatch):
     posted = []
     audit_log = make_audit_log(

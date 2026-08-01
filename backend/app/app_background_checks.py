@@ -114,8 +114,8 @@ async def check_manager_health_once() -> None:
     from app.infrastructure.docker.manager_watchdog_monitor import (
         check_watchdog_staleness_once,
     )
-    from app.infrastructure.traefik.encoded_path_block_history import (
-        collect_encoded_path_block_history,
+    from app.infrastructure.traefik.encoded_path_block_monitor import (
+        check_encoded_path_blocks_once,
     )
 
     checks = (
@@ -132,8 +132,8 @@ async def check_manager_health_once() -> None:
             "Manager 배포 병목 이벤트 보관 상태 점검 실패 (다음 주기에 재시도)",
         ),
         (
-            collect_encoded_path_block_history,
-            "Traefik 인코딩 경로 차단 이력 수집 실패 (다음 주기에 재시도)",
+            check_encoded_path_blocks_once,
+            "Traefik 인코딩 경로 차단 감시 실패 (다음 주기에 재시도)",
         ),
     )
     for check, failure_message in checks:

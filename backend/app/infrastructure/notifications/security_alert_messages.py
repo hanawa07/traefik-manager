@@ -2,6 +2,10 @@ from typing import Any
 
 
 def build_message(event: str, resource_name: str, client_ip: Any, category: str) -> str:
+    if event == "traefik_encoded_path_blocks_high":
+        return f"Traefik 인코딩 경로 차단 급증: {resource_name}"
+    if event == "traefik_encoded_path_blocks_recovered":
+        return f"Traefik 인코딩 경로 차단 정상화: {resource_name}"
     if category == "security" and event == "login_locked":
         return f"계정 잠금 감지: {resource_name}"
     if category == "security" and event == "login_suspicious":
@@ -65,6 +69,17 @@ def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
             lines.append(f"반복 차단 횟수: {detail.get('repeat_count')}")
         if detail.get("blocked_until"):
             lines.append(f"차단 해제 시각: {detail.get('blocked_until')}")
+    if event in {
+        "traefik_encoded_path_blocks_high",
+        "traefik_encoded_path_blocks_recovered",
+    }:
+        lines.append(f"집계 구간: 최근 {detail.get('window_minutes')}분")
+        lines.append(
+            f"차단 횟수: {detail.get('blocked_request_count')}건 / "
+            f"임계치 {detail.get('alert_threshold')}건"
+        )
+        if detail.get("cooldown_minutes") is not None:
+            lines.append(f"재발 알림 cooldown: {detail.get('cooldown_minutes')}분")
     if category == "change":
         _append_change_details(lines, detail, event)
     return "\n".join(lines)

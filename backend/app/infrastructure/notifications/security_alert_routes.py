@@ -2,7 +2,12 @@ from app.infrastructure.persistence.repositories.sqlite_system_settings_reposito
     SQLiteSystemSettingsRepository,
 )
 
-SECURITY_ALERT_EVENTS = {"login_locked", "login_suspicious", "login_blocked_ip"}
+SECURITY_ALERT_EVENTS = {
+    "login_locked",
+    "login_suspicious",
+    "login_blocked_ip",
+    "encoded_path_blocks",
+}
 SECURITY_ALERT_PROVIDERS = {"generic", "slack", "discord", "telegram", "teams", "pagerduty", "email"}
 SECURITY_ALERT_ROUTE_TARGETS = {"default", "disabled", "telegram", "pagerduty", "email"}
 CHANGE_ALERT_GROUPS = {
@@ -47,6 +52,11 @@ async def get_alert_context(repo: SQLiteSystemSettingsRepository, event: str) ->
 
 
 def get_alert_category_and_group(event: str) -> tuple[str, str] | None:
+    if event in {
+        "traefik_encoded_path_blocks_high",
+        "traefik_encoded_path_blocks_recovered",
+    }:
+        return "security", "encoded_path_blocks"
     if event in SECURITY_ALERT_EVENTS:
         return "security", event
     if event.startswith("settings_update_"):

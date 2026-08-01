@@ -32,6 +32,7 @@ export const resourceTypeConfig: Record<string, ResourceTypeConfig> = {
   certificate: { icon: Shield, label: "인증서", color: "border border-amber-200 bg-amber-50 text-amber-700" },
   manager_component: { icon: Activity, label: "Manager", color: "border border-slate-200 bg-slate-50 text-slate-700" },
   traefik: { icon: Server, label: "Traefik", color: "border border-cyan-200 bg-cyan-50 text-cyan-700" },
+  traefik_security: { icon: Shield, label: "Traefik 보안", color: "border border-amber-200 bg-amber-50 text-amber-700" },
 };
 
 export const actionConfig: Record<string, BadgeConfig> = {
@@ -87,6 +88,8 @@ export const securityEventConfig: Record<string, BadgeConfig> = {
   manager_docker_recovered: { label: "Manager Docker 복구", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   manager_http_errors_high: { label: "Manager API 오류 임계치 초과", color: "bg-rose-50 text-rose-700 border-rose-200" },
   manager_http_errors_recovered: { label: "Manager API 오류 정상화", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  traefik_encoded_path_blocks_high: { label: "Traefik 인코딩 경로 급증", color: "bg-rose-50 text-rose-700 border-rose-200" },
+  traefik_encoded_path_blocks_recovered: { label: "Traefik 인코딩 경로 정상화", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   manager_http_log_storage_warning: { label: "Manager 요청 로그 보관 경고", color: "bg-amber-50 text-amber-700 border-amber-200" },
   manager_http_log_storage_recovered: { label: "Manager 요청 로그 보관 복구", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   manager_settings_history_latency_high: { label: "설정 이력 API p95 기준 초과", color: "bg-rose-50 text-rose-700 border-rose-200" },

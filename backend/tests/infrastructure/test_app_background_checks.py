@@ -9,7 +9,7 @@ from app.infrastructure.docker import (
     manager_settings_history_latency_monitor,
     manager_watchdog_monitor,
 )
-from app.infrastructure.traefik import encoded_path_block_history
+from app.infrastructure.traefik import encoded_path_block_monitor
 
 
 @pytest.mark.asyncio
@@ -47,8 +47,8 @@ async def test_manager_checks_continue_after_individual_failure(monkeypatch) -> 
             False,
         ),
         (
-            encoded_path_block_history,
-            "collect_encoded_path_block_history",
+            encoded_path_block_monitor,
+            "check_encoded_path_blocks_once",
             "encoded-paths",
             False,
         ),

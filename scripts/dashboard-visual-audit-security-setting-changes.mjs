@@ -6,6 +6,9 @@ const SUPPORTED_KEYS_BY_EVENT = {
   settings_update_security_alert: new Set([
     "enabled",
     "change_alerts_enabled",
+    "traefik_encoded_path_block_monitoring_enabled",
+    "traefik_encoded_path_block_window_minutes",
+    "traefik_encoded_path_block_threshold",
     "manager_health_monitoring_enabled",
     "manager_health_alert_cooldown_minutes",
     "external_watchdog_stale_minutes",

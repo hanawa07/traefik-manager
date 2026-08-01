@@ -37,7 +37,8 @@ export function ManagerHealthMonitoringFields({
             className="w-28 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
             disabled={
               !formValue.manager_health_monitoring_enabled &&
-              !formValue.manager_http_error_monitoring_enabled
+              !formValue.manager_http_error_monitoring_enabled &&
+              !formValue.traefik_encoded_path_block_monitoring_enabled
             }
             max={1440}
             min={5}
@@ -50,7 +51,7 @@ export function ManagerHealthMonitoringFields({
             value={formValue.manager_health_alert_cooldown_minutes}
           />
           <span className="text-xs font-normal text-gray-500 dark:text-slate-400">
-            분 (Docker·API 공통)
+            분 (Docker·API·Traefik 공통)
           </span>
         </span>
       </label>

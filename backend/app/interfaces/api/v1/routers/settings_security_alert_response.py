@@ -1,3 +1,6 @@
+from app.application.encoded_path_block_monitoring import (
+    read_encoded_path_block_monitoring_values,
+)
 from app.application.manager_health_monitoring import (
     read_external_watchdog_stale_minutes,
     read_manager_health_monitoring_values,
@@ -29,6 +32,7 @@ async def build_security_alert_response(
     manager_health_enabled, manager_health_cooldown_minutes = (
         await read_manager_health_monitoring_values(repo)
     )
+    encoded_path_blocks = await read_encoded_path_block_monitoring_values(repo)
     external_watchdog_stale_minutes = await read_external_watchdog_stale_minutes(repo)
     retry_delay_warning_minutes = await read_automatic_retry_delay_warning_minutes(repo)
     manager_http_errors = await read_manager_http_error_monitoring_values(repo)
@@ -52,6 +56,9 @@ async def build_security_alert_response(
             "change_alerts_enabled",
             default=False,
         ),
+        traefik_encoded_path_block_monitoring_enabled=encoded_path_blocks.enabled,
+        traefik_encoded_path_block_window_minutes=encoded_path_blocks.window_minutes,
+        traefik_encoded_path_block_threshold=encoded_path_blocks.threshold,
         manager_health_monitoring_enabled=manager_health_enabled,
         manager_health_alert_cooldown_minutes=manager_health_cooldown_minutes,
         external_watchdog_stale_minutes=external_watchdog_stale_minutes,

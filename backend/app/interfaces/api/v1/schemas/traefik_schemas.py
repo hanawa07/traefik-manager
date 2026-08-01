@@ -38,6 +38,11 @@ class TraefikEncodedPathBlockSummaryResponse(BaseModel):
     observed_log_lines: int
     blocked_request_count: int
     last_blocked_at: datetime | None = None
+    alert_monitoring_enabled: bool = True
+    alert_active: bool = False
+    alert_window_minutes: int = 15
+    alert_threshold: int = 20
+    recent_blocked_request_count: int = 0
     encoded_characters: list[TraefikEncodedPathCharacterResponse] = Field(
         default_factory=list
     )

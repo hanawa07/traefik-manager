@@ -7,6 +7,7 @@ import type {
   SecurityAlertSettingsInput,
   SecurityAlertSettingsStatus,
 } from "@/features/settings/api/settingsApi";
+import { EncodedPathBlockMonitoringFields } from "@/features/settings/components/EncodedPathBlockMonitoringFields";
 import { ManagerHealthMonitoringFields } from "@/features/settings/components/ManagerHealthMonitoringFields";
 import { ManagerHttpErrorMonitoringFields } from "@/features/settings/components/ManagerHttpErrorMonitoringFields";
 import { SecurityAlertEnablementFields } from "@/features/settings/components/SecurityAlertEnablementFields";
@@ -61,6 +62,7 @@ export function SecurityAlertSettingsEditForm({
   return (
     <div className="space-y-4">
       <SecurityAlertEnablementFields formValue={formValue} updateForm={updateForm} />
+      <EncodedPathBlockMonitoringFields formValue={formValue} updateForm={updateForm} />
       <ManagerHealthMonitoringFields formValue={formValue} updateForm={updateForm} />
       <ManagerHttpErrorMonitoringFields formValue={formValue} updateForm={updateForm} />
       <SecurityAlertRetryDelayField

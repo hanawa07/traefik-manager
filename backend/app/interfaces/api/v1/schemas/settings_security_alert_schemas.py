@@ -3,10 +3,19 @@ from typing import Literal
 
 from pydantic import AnyHttpUrl, BaseModel, Field, field_validator
 
+from app.application.encoded_path_block_monitoring import (
+    DEFAULT_ENCODED_PATH_BLOCK_MONITORING_ENABLED,
+    DEFAULT_ENCODED_PATH_BLOCK_THRESHOLD,
+    DEFAULT_ENCODED_PATH_BLOCK_WINDOW_MINUTES,
+    MAX_ENCODED_PATH_BLOCK_THRESHOLD,
+    MAX_ENCODED_PATH_BLOCK_WINDOW_MINUTES,
+    MIN_ENCODED_PATH_BLOCK_THRESHOLD,
+    MIN_ENCODED_PATH_BLOCK_WINDOW_MINUTES,
+)
 from app.application.manager_health_monitoring import (
+    DEFAULT_EXTERNAL_WATCHDOG_STALE_MINUTES,
     DEFAULT_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
     DEFAULT_MANAGER_HEALTH_MONITORING_ENABLED,
-    DEFAULT_EXTERNAL_WATCHDOG_STALE_MINUTES,
     MAX_EXTERNAL_WATCHDOG_STALE_MINUTES,
     MAX_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
     MIN_EXTERNAL_WATCHDOG_STALE_MINUTES,
@@ -60,6 +69,19 @@ def normalize_email_address(value: str) -> str:
 class SecurityAlertSettingsResponse(BaseModel):
     enabled: bool
     change_alerts_enabled: bool = False
+    traefik_encoded_path_block_monitoring_enabled: bool = (
+        DEFAULT_ENCODED_PATH_BLOCK_MONITORING_ENABLED
+    )
+    traefik_encoded_path_block_window_minutes: int = Field(
+        default=DEFAULT_ENCODED_PATH_BLOCK_WINDOW_MINUTES,
+        ge=MIN_ENCODED_PATH_BLOCK_WINDOW_MINUTES,
+        le=MAX_ENCODED_PATH_BLOCK_WINDOW_MINUTES,
+    )
+    traefik_encoded_path_block_threshold: int = Field(
+        default=DEFAULT_ENCODED_PATH_BLOCK_THRESHOLD,
+        ge=MIN_ENCODED_PATH_BLOCK_THRESHOLD,
+        le=MAX_ENCODED_PATH_BLOCK_THRESHOLD,
+    )
     manager_health_monitoring_enabled: bool = DEFAULT_MANAGER_HEALTH_MONITORING_ENABLED
     manager_health_alert_cooldown_minutes: int = Field(
         default=DEFAULT_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
@@ -119,6 +141,19 @@ class SecurityAlertSettingsResponse(BaseModel):
 class SecurityAlertSettingsUpdateRequest(BaseModel):
     enabled: bool = False
     change_alerts_enabled: bool = False
+    traefik_encoded_path_block_monitoring_enabled: bool = (
+        DEFAULT_ENCODED_PATH_BLOCK_MONITORING_ENABLED
+    )
+    traefik_encoded_path_block_window_minutes: int = Field(
+        default=DEFAULT_ENCODED_PATH_BLOCK_WINDOW_MINUTES,
+        ge=MIN_ENCODED_PATH_BLOCK_WINDOW_MINUTES,
+        le=MAX_ENCODED_PATH_BLOCK_WINDOW_MINUTES,
+    )
+    traefik_encoded_path_block_threshold: int = Field(
+        default=DEFAULT_ENCODED_PATH_BLOCK_THRESHOLD,
+        ge=MIN_ENCODED_PATH_BLOCK_THRESHOLD,
+        le=MAX_ENCODED_PATH_BLOCK_THRESHOLD,
+    )
     manager_health_monitoring_enabled: bool = DEFAULT_MANAGER_HEALTH_MONITORING_ENABLED
     manager_health_alert_cooldown_minutes: int = Field(
         default=DEFAULT_MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES,
@@ -205,7 +240,12 @@ class SecurityAlertSettingsUpdateRequest(BaseModel):
     def validate_event_routes(
         cls, value: dict[str, SecurityAlertRoute]
     ) -> dict[str, SecurityAlertRoute]:
-        allowed_events = {"login_locked", "login_suspicious", "login_blocked_ip"}
+        allowed_events = {
+            "login_locked",
+            "login_suspicious",
+            "login_blocked_ip",
+            "encoded_path_blocks",
+        }
         normalized: dict[str, SecurityAlertRoute] = {}
         for key, route in value.items():
             normalized_key = key.strip()

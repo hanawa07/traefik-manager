@@ -1,5 +1,10 @@
 from fastapi import HTTPException
 
+from app.application.encoded_path_block_monitoring import (
+    ENCODED_PATH_BLOCK_MONITORING_ENABLED_KEY,
+    ENCODED_PATH_BLOCK_THRESHOLD_KEY,
+    ENCODED_PATH_BLOCK_WINDOW_MINUTES_KEY,
+)
 from app.application.manager_health_monitoring import (
     EXTERNAL_WATCHDOG_STALE_MINUTES_KEY,
     MANAGER_HEALTH_ALERT_COOLDOWN_MINUTES_KEY,
@@ -83,6 +88,18 @@ async def update_security_alert_settings_values(
 
     await repo.set("security_alerts_enabled", "true" if request.enabled else "false")
     await repo.set("change_alerts_enabled", "true" if request.change_alerts_enabled else "false")
+    await repo.set(
+        ENCODED_PATH_BLOCK_MONITORING_ENABLED_KEY,
+        "true" if request.traefik_encoded_path_block_monitoring_enabled else "false",
+    )
+    await repo.set(
+        ENCODED_PATH_BLOCK_WINDOW_MINUTES_KEY,
+        str(request.traefik_encoded_path_block_window_minutes),
+    )
+    await repo.set(
+        ENCODED_PATH_BLOCK_THRESHOLD_KEY,
+        str(request.traefik_encoded_path_block_threshold),
+    )
     await repo.set(
         MANAGER_HEALTH_MONITORING_ENABLED_KEY,
         "true" if request.manager_health_monitoring_enabled else "false",

@@ -76,6 +76,15 @@ def security_alert_summary(response: SecurityAlertSettingsResponse) -> dict[str,
     return {
         "enabled": response.enabled,
         "change_alerts_enabled": response.change_alerts_enabled,
+        "traefik_encoded_path_block_monitoring_enabled": (
+            response.traefik_encoded_path_block_monitoring_enabled
+        ),
+        "traefik_encoded_path_block_window_minutes": (
+            response.traefik_encoded_path_block_window_minutes
+        ),
+        "traefik_encoded_path_block_threshold": (
+            response.traefik_encoded_path_block_threshold
+        ),
         "manager_health_monitoring_enabled": response.manager_health_monitoring_enabled,
         "manager_health_alert_cooldown_minutes": response.manager_health_alert_cooldown_minutes,
         "external_watchdog_stale_minutes": response.external_watchdog_stale_minutes,

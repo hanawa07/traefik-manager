@@ -1,7 +1,15 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.encoded_path_block_monitoring import (
+    read_encoded_path_block_monitor_status,
+)
 from app.infrastructure.docker.client import DockerClient
 from app.infrastructure.docker.traefik_deployment import TraefikDeploymentInspector
+from app.infrastructure.persistence.database import get_db
+from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
+    SQLiteSystemSettingsRepository,
+)
 from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
 from app.interfaces.api.dependencies import get_current_user
 from app.interfaces.api.v1.routers import traefik_updates
@@ -62,9 +70,14 @@ async def get_traefik_router_status(
 )
 async def get_traefik_encoded_path_blocks(
     traefik_client: TraefikApiClient = Depends(get_traefik_client),
+    db: AsyncSession = Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
-    return await traefik_client.get_encoded_path_blocks()
+    summary = await traefik_client.get_encoded_path_blocks()
+    monitor_status = await read_encoded_path_block_monitor_status(
+        SQLiteSystemSettingsRepository(db)
+    )
+    return {**summary, **monitor_status}
 
 
 @router.get("/middlewares", response_model=TraefikMiddlewareListResponse, summary="Traefik 미들웨어 상태")

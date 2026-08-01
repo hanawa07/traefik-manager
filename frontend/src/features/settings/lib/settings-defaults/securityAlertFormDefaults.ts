@@ -4,6 +4,9 @@ export function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
   return {
     enabled: false,
     change_alerts_enabled: false,
+    traefik_encoded_path_block_monitoring_enabled: true,
+    traefik_encoded_path_block_window_minutes: 15,
+    traefik_encoded_path_block_threshold: 20,
     manager_health_monitoring_enabled: true,
     manager_health_alert_cooldown_minutes: 60,
     external_watchdog_stale_minutes: 10,
@@ -29,6 +32,7 @@ export function createDefaultSecurityAlertForm(): SecurityAlertSettingsInput {
       login_locked: "default",
       login_suspicious: "default",
       login_blocked_ip: "default",
+      encoded_path_blocks: "default",
     },
     change_event_routes: {
       settings_change: "default",

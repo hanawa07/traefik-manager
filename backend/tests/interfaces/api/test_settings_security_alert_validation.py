@@ -112,6 +112,20 @@ def test_security_alert_settings_update_request_rejects_invalid_retry_delay_warn
         SecurityAlertSettingsUpdateRequest(automatic_retry_delay_warning_minutes=value)
 
 
+@pytest.mark.parametrize("value", [4, 1441])
+def test_security_alert_settings_update_request_rejects_invalid_encoded_path_window(value):
+    with pytest.raises(ValidationError):
+        SecurityAlertSettingsUpdateRequest(
+            traefik_encoded_path_block_window_minutes=value
+        )
+
+
+@pytest.mark.parametrize("value", [0, 10001])
+def test_security_alert_settings_update_request_rejects_invalid_encoded_path_threshold(value):
+    with pytest.raises(ValidationError):
+        SecurityAlertSettingsUpdateRequest(traefik_encoded_path_block_threshold=value)
+
+
 def test_security_alert_settings_update_request_normalizes_email_recipients():
     request = SecurityAlertSettingsUpdateRequest(
         enabled=True,

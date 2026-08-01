@@ -25,8 +25,12 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
                 "login_locked": "default",
                 "login_suspicious": "email",
                 "login_blocked_ip": "pagerduty",
+                "encoded_path_blocks": "telegram",
             },
             change_alerts_enabled=True,
+            traefik_encoded_path_block_monitoring_enabled=False,
+            traefik_encoded_path_block_window_minutes=30,
+            traefik_encoded_path_block_threshold=50,
             manager_health_monitoring_enabled=False,
             manager_health_alert_cooldown_minutes=15,
             external_watchdog_stale_minutes=20,
@@ -58,7 +62,15 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     assert StubSettingsRepository.store["security_alert_route_login_locked"] == "default"
     assert StubSettingsRepository.store["security_alert_route_login_suspicious"] == "email"
     assert StubSettingsRepository.store["security_alert_route_login_blocked_ip"] == "pagerduty"
+    assert StubSettingsRepository.store["security_alert_route_encoded_path_blocks"] == "telegram"
     assert StubSettingsRepository.store["change_alerts_enabled"] == "true"
+    assert StubSettingsRepository.store[
+        "traefik_encoded_path_block_monitoring_enabled"
+    ] == "false"
+    assert StubSettingsRepository.store[
+        "traefik_encoded_path_block_window_minutes"
+    ] == "30"
+    assert StubSettingsRepository.store["traefik_encoded_path_block_threshold"] == "50"
     assert StubSettingsRepository.store["manager_health_monitoring_enabled"] == "false"
     assert StubSettingsRepository.store["manager_health_alert_cooldown_minutes"] == "15"
     assert StubSettingsRepository.store["external_watchdog_stale_minutes"] == "20"
@@ -85,6 +97,9 @@ async def test_update_security_alert_settings_persists_values(monkeypatch):
     assert response.event_routes["login_suspicious"] == "email"
     assert response.event_routes["login_blocked_ip"] == "pagerduty"
     assert response.change_alerts_enabled is True
+    assert response.traefik_encoded_path_block_monitoring_enabled is False
+    assert response.traefik_encoded_path_block_window_minutes == 30
+    assert response.traefik_encoded_path_block_threshold == 50
     assert response.manager_health_monitoring_enabled is False
     assert response.manager_health_alert_cooldown_minutes == 15
     assert response.external_watchdog_stale_minutes == 20

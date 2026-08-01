@@ -2,7 +2,11 @@ import apiClient from "@/shared/lib/apiClient";
 
 import type { SettingsActionTestResult } from "./settingsSharedTypes";
 
-export type SecurityAlertRouteEvent = "login_locked" | "login_suspicious" | "login_blocked_ip";
+export type SecurityAlertRouteEvent =
+  | "login_locked"
+  | "login_suspicious"
+  | "login_blocked_ip"
+  | "encoded_path_blocks";
 export type SecurityAlertRouteTarget = "default" | "disabled" | "telegram" | "pagerduty" | "email";
 export type SecurityAlertEventRoutes = Record<SecurityAlertRouteEvent, SecurityAlertRouteTarget>;
 export type ChangeAlertRouteEvent =
@@ -20,6 +24,9 @@ export type ChangeAlertEventRoutes = Record<ChangeAlertRouteEvent, SecurityAlert
 export interface SecurityAlertSettingsStatus {
   enabled: boolean;
   change_alerts_enabled: boolean;
+  traefik_encoded_path_block_monitoring_enabled: boolean;
+  traefik_encoded_path_block_window_minutes: number;
+  traefik_encoded_path_block_threshold: number;
   manager_health_monitoring_enabled: boolean;
   manager_health_alert_cooldown_minutes: number;
   external_watchdog_stale_minutes: number;
@@ -50,6 +57,9 @@ export interface SecurityAlertSettingsStatus {
 export interface SecurityAlertSettingsInput {
   enabled: boolean;
   change_alerts_enabled: boolean;
+  traefik_encoded_path_block_monitoring_enabled: boolean;
+  traefik_encoded_path_block_window_minutes: number;
+  traefik_encoded_path_block_threshold: number;
   manager_health_monitoring_enabled: boolean;
   manager_health_alert_cooldown_minutes: number;
   external_watchdog_stale_minutes: number;

@@ -24,13 +24,22 @@ async def test_get_security_alert_settings_returns_defaults(monkeypatch):
     assert response.email_from is None
     assert response.email_recipients == []
     assert response.timeout_seconds == 5.0
-    assert response.alert_events == ["login_locked", "login_suspicious", "login_blocked_ip"]
+    assert response.alert_events == [
+        "login_locked",
+        "login_suspicious",
+        "login_blocked_ip",
+        "encoded_path_blocks",
+    ]
     assert response.event_routes == {
         "login_locked": "default",
         "login_suspicious": "default",
         "login_blocked_ip": "default",
+        "encoded_path_blocks": "default",
     }
     assert response.change_alerts_enabled is False
+    assert response.traefik_encoded_path_block_monitoring_enabled is True
+    assert response.traefik_encoded_path_block_window_minutes == 15
+    assert response.traefik_encoded_path_block_threshold == 20
     assert response.manager_health_monitoring_enabled is True
     assert response.manager_health_alert_cooldown_minutes == 60
     assert response.external_watchdog_stale_minutes == 10

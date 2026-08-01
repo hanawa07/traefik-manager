@@ -19,9 +19,12 @@ export function TraefikEncodedPathBlockCard({
 }: TraefikEncodedPathBlockCardProps) {
   const blockedCount = summary?.blocked_request_count ?? 0;
   const hasBlocks = blockedCount > 0;
+  const alertActive = summary?.alert_active === true;
+  const alertMonitoringEnabled = summary?.alert_monitoring_enabled !== false;
   const isUnavailable =
     !isLoading && (isError || summary?.available !== true);
-  const hasWarning = hasBlocks || isUnavailable || summary?.collection_available === false;
+  const hasWarning =
+    alertActive || hasBlocks || isUnavailable || summary?.collection_available === false;
   const activeCharacters =
     !isError && summary?.available
       ? summary.encoded_characters.filter((item) => item.request_count > 0)
@@ -69,6 +72,8 @@ export function TraefikEncodedPathBlockCard({
               ? "확인 실패"
               : !summary?.available
                 ? "로그 미연결"
+                : alertActive
+                  ? "급증 경고"
                 : !summary.collection_available
                   ? "저장 이력"
                 : `${blockedCount.toLocaleString("ko-KR")}건`}
@@ -102,6 +107,21 @@ export function TraefikEncodedPathBlockCard({
           </>
         )}
       </div>
+
+      {!isLoading && !isError && summary?.available ? (
+        <div
+          className={`mt-3 rounded-xl border px-4 py-3 text-xs ${
+            alertActive
+              ? "border-rose-200 bg-rose-50 font-semibold text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100"
+              : "border-gray-200 bg-white text-gray-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+          }`}
+          data-testid="encoded-path-block-alert-status"
+        >
+          {alertMonitoringEnabled
+            ? `급증 감지 · 최근 ${summary.alert_window_minutes ?? 15}분 ${(summary.recent_blocked_request_count ?? 0).toLocaleString("ko-KR")}건 / 임계치 ${(summary.alert_threshold ?? 20).toLocaleString("ko-KR")}건${alertActive ? " · 경고 활성" : ""}`
+            : "급증 알림 비활성화"}
+        </div>
+      ) : null}
 
       {!isError && summary?.available ? (
         <TraefikEncodedPathBlockTrend summary={summary} timezone={timezone} />

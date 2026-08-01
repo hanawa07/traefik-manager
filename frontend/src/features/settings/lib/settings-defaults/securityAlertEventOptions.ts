@@ -10,6 +10,7 @@ export const SECURITY_ALERT_EVENT_OPTIONS: Array<{
   { key: "login_locked", label: "계정 잠금" },
   { key: "login_suspicious", label: "이상 징후" },
   { key: "login_blocked_ip", label: "IP 차단" },
+  { key: "encoded_path_blocks", label: "Traefik 인코딩 경로 급증" },
 ];
 
 export const CHANGE_ALERT_EVENT_OPTIONS: Array<{

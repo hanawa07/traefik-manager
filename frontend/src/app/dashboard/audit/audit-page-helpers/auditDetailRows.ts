@@ -58,6 +58,8 @@ export function isManagerHttpErrorEvent(value: unknown): value is string {
   return (
     value === "manager_http_errors_high" ||
     value === "manager_http_errors_recovered" ||
+    value === "traefik_encoded_path_blocks_high" ||
+    value === "traefik_encoded_path_blocks_recovered" ||
     value === "manager_settings_history_latency_high" ||
     value === "manager_settings_history_latency_recovered"
   );
@@ -74,6 +76,8 @@ export function getManagerHttpErrorDetailRows(
     { key: "not_found_threshold", label: "404 임계치", value: withUnit(detail.not_found_threshold, "건") },
     { key: "server_error_count", label: "5xx 발생", value: withUnit(detail.server_error_count, "건") },
     { key: "server_error_threshold", label: "5xx 임계치", value: withUnit(detail.server_error_threshold, "건") },
+    { key: "blocked_request_count", label: "차단 횟수", value: withUnit(detail.blocked_request_count, "건") },
+    { key: "alert_threshold", label: "차단 임계치", value: withUnit(detail.alert_threshold, "건") },
     { key: "path", label: "대상 경로", value: detail.path },
     { key: "p95_ms", label: "p95", value: withUnit(detail.p95_ms, "ms") },
     { key: "threshold_ms", label: "p95 기준", value: withUnit(detail.threshold_ms, "ms") },

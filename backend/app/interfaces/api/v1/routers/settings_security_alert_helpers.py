@@ -3,7 +3,12 @@ from fastapi import HTTPException
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import SQLiteSystemSettingsRepository
 from app.interfaces.api.v1.schemas.settings_schemas import SecurityAlertSettingsUpdateRequest
 
-SECURITY_ALERT_EVENTS = ["login_locked", "login_suspicious", "login_blocked_ip"]
+SECURITY_ALERT_EVENTS = [
+    "login_locked",
+    "login_suspicious",
+    "login_blocked_ip",
+    "encoded_path_blocks",
+]
 CHANGE_ALERT_EVENTS = [
     "settings_change",
     "service_change",

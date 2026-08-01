@@ -7,7 +7,13 @@ from app.interfaces.api.v1.schemas.audit_schemas import (
     AuditSecuritySummaryResponse,
 )
 
-SECURITY_ALERT_EVENTS = {"login_locked", "login_suspicious", "login_blocked_ip"}
+SECURITY_ALERT_EVENTS = {
+    "login_locked",
+    "login_suspicious",
+    "login_blocked_ip",
+    "traefik_encoded_path_blocks_high",
+    "traefik_encoded_path_blocks_recovered",
+}
 
 
 def build_security_summary(

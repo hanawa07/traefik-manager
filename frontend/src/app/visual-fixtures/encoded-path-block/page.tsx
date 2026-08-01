@@ -20,6 +20,11 @@ const summary: TraefikEncodedPathBlockSummary = {
   observed_log_lines: 1842,
   blocked_request_count: 11,
   last_blocked_at: "2026-08-01T11:42:13Z",
+  alert_monitoring_enabled: true,
+  alert_active: false,
+  alert_window_minutes: 15,
+  alert_threshold: 20,
+  recent_blocked_request_count: 4,
   encoded_characters: [
     { encoded: "%2F", label: "슬래시 (/)", request_count: 7 },
     { encoded: "%5C", label: "백슬래시 (\\)", request_count: 3 },

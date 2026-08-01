@@ -68,6 +68,7 @@ try {
   assert.match(snapshot.text, /인코딩 경로 차단/);
   assert.match(snapshot.text, /최근 24시간 영속 집계/);
   assert.match(snapshot.text, /11건/);
+  assert.match(snapshot.text, /최근 15분 4건 \/ 임계치 20건/);
   assert.equal(snapshot.trendVisible, true);
   assert.equal(snapshot.barCount, 24);
   assert.ok(snapshot.activeBars >= 6, "차단 추이 fixture가 비어 있습니다");

@@ -5,6 +5,7 @@ import pytest
 
 from app.infrastructure.traefik import traefik_api_client as traefik_client_module
 from app.infrastructure.traefik.encoded_path_block_history import (
+    read_recent_encoded_path_block_count,
     update_encoded_path_block_history,
 )
 from app.infrastructure.traefik.encoded_path_blocks import (
@@ -134,3 +135,28 @@ def test_encoded_path_history_reports_unavailable_without_log_or_saved_state(tmp
     assert result["available"] is False
     assert result["collection_available"] is False
     assert len(result["buckets"]) == 24
+
+
+def test_encoded_path_history_counts_only_recent_minute_buckets(tmp_path):
+    history_path = tmp_path / "encoded-path-blocks.json"
+    checked_at = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+    update_encoded_path_block_history(
+        "\n".join(
+            [
+                '2026-08-01T11:44:59Z 192.0.2.1 - - "GET /old%2Fpath HTTP/2.0" 400 0',
+                '2026-08-01T11:45:01Z 192.0.2.1 - - "GET /new%2Fpath HTTP/2.0" 400 0',
+                '2026-08-01T11:59:59Z 192.0.2.1 - - "GET /latest%2Fpath HTTP/2.0" 400 0',
+            ]
+        ),
+        checked_at=checked_at,
+        path=history_path,
+        tail_lines=2000,
+    )
+
+    count = read_recent_encoded_path_block_count(
+        checked_at=checked_at,
+        window_minutes=15,
+        path=history_path,
+    )
+
+    assert count == 2

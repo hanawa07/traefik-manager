@@ -18,6 +18,14 @@ export function SecurityAlertRoutingSummary({
   return (
     <>
       <SettingsSummaryRow
+        label="Traefik 인코딩 경로 급증"
+        value={
+          settings?.traefik_encoded_path_block_monitoring_enabled === false
+            ? "비활성화"
+            : `${settings?.traefik_encoded_path_block_window_minutes ?? 15}분 · ${settings?.traefik_encoded_path_block_threshold ?? 20}건`
+        }
+      />
+      <SettingsSummaryRow
         label="Manager Docker 감지"
         value={settings?.manager_health_monitoring_enabled === false ? "비활성화" : "활성화"}
       />
