@@ -18,6 +18,12 @@ export async function reloadPage(cdp, timeoutMs) {
   await loaded;
 }
 
+export async function navigateAndWait(cdp, url, timeoutMs) {
+  const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
+  await cdp.send("Page.navigate", { url });
+  await loaded;
+}
+
 export async function installClipboardCapture(cdp) {
   const installed = await evaluate(cdp, `(() => {
     try {

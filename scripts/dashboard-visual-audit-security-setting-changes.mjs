@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 
-import { navigateAndWait } from "./dashboard-visual-page-runtime.mjs";
-import { clickAriaLabel, evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
+import { clickAriaLabel, evaluate, navigateAndWait, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 const SUPPORTED_KEYS_BY_EVENT = {
   settings_update_security_alert: new Set([

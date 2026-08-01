@@ -1,12 +1,9 @@
 import assert from "node:assert/strict";
 
 import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
-import {
-  evaluateInVisualPage,
-  navigateAndWait,
-  waitForRoute,
-} from "./dashboard-visual-page-runtime.mjs";
+import { waitForRoute } from "./dashboard-visual-page-runtime.mjs";
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
+import { evaluate, navigateAndWait } from "./dashboard-visual-runtime.mjs";
 import { assertDashboardShell } from "./dashboard-visual-shell.mjs";
 
 export async function checkVisualRoute({ artifactDir, baseUrl, cdp, profile, route, timeoutMs }) {
@@ -25,7 +22,7 @@ export async function checkVisualRoute({ artifactDir, baseUrl, cdp, profile, rou
 }
 
 async function checkRenderedRoute(cdp, route, artifactDir, profile) {
-  const snapshot = await evaluateInVisualPage(cdp, `(() => {
+  const snapshot = await evaluate(cdp, `(() => {
     const surface = document.querySelector('.card, [data-visual-surface], [data-testid="login-form-card"]');
     const surfaceStyle = surface ? getComputedStyle(surface) : null;
     const surfaceText = surface?.querySelector('h1, h2, h3, p, label, span, button, a') || surface;

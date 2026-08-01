@@ -1,3 +1,5 @@
+import { evaluate } from "./dashboard-visual-runtime.mjs";
+
 export async function withVisualProfile(cdp, profile, callback) {
   await cdp.send("Emulation.setDeviceMetricsOverride", profile.viewport);
   await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: profile.mobile });
@@ -20,7 +22,7 @@ export async function waitForRoute(cdp, route, timeoutMs) {
   let lastSnapshot = null;
 
   while (Date.now() < deadline) {
-    lastSnapshot = await evaluateInVisualPage(cdp, `({
+    lastSnapshot = await evaluate(cdp, `({
       hasSurface: Boolean(document.querySelector('.card, [data-visual-surface], [data-testid="login-form-card"]')),
       isLoading: Boolean(document.querySelector('.animate-pulse')),
       path: location.pathname,
@@ -54,24 +56,6 @@ export async function waitForRoute(cdp, route, timeoutMs) {
       ` · 누락=${missingMarkers?.join(", ") || "없음"}` +
       ` · 대기=${pendingMarkers?.join(", ") || "없음"}`,
   );
-}
-
-export async function navigateAndWait(cdp, url, timeoutMs) {
-  const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
-  await cdp.send("Page.navigate", { url });
-  await loaded;
-}
-
-export async function evaluateInVisualPage(cdp, expression) {
-  const response = await cdp.send("Runtime.evaluate", {
-    expression,
-    awaitPromise: true,
-    returnByValue: true,
-  });
-  if (response.exceptionDetails) {
-    throw new Error(response.exceptionDetails.text || "브라우저 시각 검사 실패");
-  }
-  return response.result.value;
 }
 
 function sleep(ms) {

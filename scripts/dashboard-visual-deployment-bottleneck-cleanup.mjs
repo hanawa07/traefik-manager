@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 
-import { navigateAndWait } from "./dashboard-visual-page-runtime.mjs";
-import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
+import { evaluate, navigateAndWait, waitForCondition } from "./dashboard-visual-runtime.mjs";
 import { loginSessionCookies } from "./smoke-session-auth.mjs";
 
 const CLEANUP_PATH = "/api/v1/settings/deployment-bottleneck-alert/cleanup";

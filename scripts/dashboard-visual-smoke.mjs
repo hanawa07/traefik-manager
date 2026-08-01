@@ -19,10 +19,10 @@ import {
   runDashboardVisualPageChecksSelfTest,
 } from "./dashboard-visual-page-checks.mjs";
 import {
-  evaluateInVisualPage,
   withVisualProfile,
 } from "./dashboard-visual-page-runtime.mjs";
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
+import { evaluate } from "./dashboard-visual-runtime.mjs";
 import { checkSecurityAlertRetryDelaySetting } from "./dashboard-visual-security-alert-settings.mjs";
 import { checkManualSmokeRunResultPersistence } from "./dashboard-visual-smoke-manual-run.mjs";
 import { checkSettingsTestAuditLinks } from "./dashboard-visual-settings-test-monitoring.mjs";
@@ -118,7 +118,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
   });
   if (maintenanceChecked && bulkOperationChecked) labels.push("관리자 점검 일정·일괄 작업 비파괴 fixture");
   await cdp.send("Network.clearBrowserCookies");
-  await evaluateInVisualPage(cdp, `localStorage.removeItem("auth")`);
+  await evaluate(cdp, `localStorage.removeItem("auth")`);
   const loginRoute = { label: "로그인", path: "/login", marker: "로그인" };
   for (const profile of VISUAL_PROFILES) {
     await withVisualProfile(cdp, profile, () =>
