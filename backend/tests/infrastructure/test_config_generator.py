@@ -94,6 +94,7 @@ def test_generate_token_auth(generator, make_service):
     assert "forwardAuth" in config["http"]["middlewares"][middleware_name]
     forward_auth = config["http"]["middlewares"][middleware_name]["forwardAuth"]
     assert "traefik-manager-backend:8000/api/v1/auth/verify" in forward_auth["address"]
+    assert forward_auth["maxResponseBodySize"] == 64 * 1024
     assert forward_auth["trustForwardHeader"] is True
     assert "X-Auth-User" in forward_auth["authResponseHeaders"]
 

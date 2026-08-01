@@ -1,5 +1,6 @@
 from app.domain.proxy.entities.middleware_template import MiddlewareTemplate
 from app.domain.proxy.entities.service import Service
+from app.infrastructure.traefik.forward_auth_limits import FORWARD_AUTH_MAX_RESPONSE_BODY_SIZE
 
 
 def append_service_middlewares(
@@ -54,6 +55,7 @@ def append_service_middlewares(
         middlewares[names["token_auth"]] = {
             "forwardAuth": {
                 "address": token_auth_forward_auth_url,
+                "maxResponseBodySize": FORWARD_AUTH_MAX_RESPONSE_BODY_SIZE,
                 "trustForwardHeader": True,
                 "authResponseHeaders": ["X-Auth-User", "X-Auth-Role"],
             }

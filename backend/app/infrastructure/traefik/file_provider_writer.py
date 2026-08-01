@@ -8,6 +8,7 @@ from app.domain.proxy.entities.middleware_template import MiddlewareTemplate
 from app.domain.proxy.entities.redirect_host import RedirectHost
 from app.domain.proxy.entities.service import Service
 from app.infrastructure.traefik.config_generator import TraefikConfigGenerator
+from app.infrastructure.traefik.forward_auth_limits import FORWARD_AUTH_MAX_RESPONSE_BODY_SIZE
 
 
 class FileProviderWriter:
@@ -16,14 +17,13 @@ class FileProviderWriter:
     AUTHENTIK_MIDDLEWARE_FILE = "authentik-middleware.yml"
     SHARED_MIDDLEWARE_TEMPLATES_FILE = "shared-middleware-templates.yml"
     TRAEFIK_DASHBOARD_PUBLIC_FILE = "traefik-dashboard-public.yml"
-    AUTHENTIK_MAX_RESPONSE_BODY_SIZE = 64 * 1024
     AUTHENTIK_FORWARD_AUTH_CONFIG = {
         "http": {
             "middlewares": {
                 "authentik": {
                     "forwardAuth": {
                         "address": "http://authentik-server:9000/outpost.goauthentik.io/auth/traefik",
-                        "maxResponseBodySize": AUTHENTIK_MAX_RESPONSE_BODY_SIZE,
+                        "maxResponseBodySize": FORWARD_AUTH_MAX_RESPONSE_BODY_SIZE,
                         "trustForwardHeader": True,
                         "authResponseHeaders": [
                             "X-authentik-username",
