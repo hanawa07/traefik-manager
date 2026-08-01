@@ -68,6 +68,7 @@ jobs:
 
       - name: 프론트 자가 점검
         run: |
+          npm --prefix frontend run test:audit-query-state
           npm --prefix frontend run test:audit-retry-chain
           npm --prefix frontend run test:bottleneck-preview
           npm --prefix frontend run test:maintenance-history-query

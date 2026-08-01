@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test:audit-retry-chain": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/audit-retry-chain-timing-self-test.mjs",
+    "test:audit-query-state": "node ../scripts/audit-log-query-state-self-test.cjs",
     "test:bottleneck-preview": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/deployment-bottleneck-preview-self-test.mjs",
     "test:maintenance-history-query": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/maintenance-history-service-query-self-test.mjs",
     "test:traefik-update-history": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/traefik-update-history-self-test.mjs",
