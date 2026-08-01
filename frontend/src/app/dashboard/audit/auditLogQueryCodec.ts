@@ -104,10 +104,23 @@ export function replaceAuditQueryParam(key: string, value: string, defaultValue:
   replaceAuditQueryParams([[key, value, defaultValue]]);
 }
 
+export function replaceAuditQuery(
+  values: [key: string, value: string, defaultValue: string][],
+) {
+  writeAuditQuery(new URLSearchParams(), values);
+}
+
 export function replaceAuditQueryParams(
   values: [key: string, value: string, defaultValue: string][],
 ) {
   const params = new URLSearchParams(window.location.search);
+  writeAuditQuery(params, values);
+}
+
+function writeAuditQuery(
+  params: URLSearchParams,
+  values: [key: string, value: string, defaultValue: string][],
+) {
   values.forEach(([key, value, defaultValue]) => {
     if (value === defaultValue) params.delete(key);
     else params.set(key, value);
@@ -121,7 +134,7 @@ export function replaceAuditQueryParams(
 }
 
 export function clearAuditQuery() {
-  window.history.replaceState(window.history.state, "", window.location.pathname);
+  replaceAuditQuery([]);
 }
 
 function parseAuditPage(value: string | null) {

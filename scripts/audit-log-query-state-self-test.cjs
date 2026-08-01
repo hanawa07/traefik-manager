@@ -5,6 +5,7 @@ require("../frontend/node_modules/sucrase/register");
 const {
   clearAuditQuery,
   decodeAuditLogQuery,
+  replaceAuditQuery,
   replaceAuditQueryParams,
 } = require("../frontend/src/app/dashboard/audit/auditLogQueryCodec.ts");
 
@@ -44,6 +45,12 @@ query = decodeAuditLogQuery(new URLSearchParams(window.location.search));
 assert.equal(query.selectedFilter, "delayed_retry");
 assert.equal(query.selectedPeriod, 7);
 assert.equal(query.pageSize, 100);
+
+replaceAuditQuery([
+  ["filter", "delayed_retry", "all"],
+  ["period", "30", "all"],
+]);
+assert.equal(window.location.search, "?filter=delayed_retry&period=30");
 
 clearAuditQuery();
 assert.equal(window.location.pathname, "/dashboard/audit");

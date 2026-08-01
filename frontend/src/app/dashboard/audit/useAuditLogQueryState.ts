@@ -22,6 +22,7 @@ import {
 import {
   clearAuditQuery,
   decodeAuditLogQuery,
+  replaceAuditQuery,
   replaceAuditQueryParam,
   replaceAuditQueryParams,
 } from "./auditLogQueryCodec";
@@ -107,8 +108,8 @@ export function useAuditLogQueryState() {
     clearAuditQuery();
   };
   const handleDelayedRetryPeriodChange = (period: 1 | 7 | 30) => {
-    handleResetFilters();
-    replaceAuditQueryParams([
+    setExpandedLogId(null);
+    replaceAuditQuery([
       ["filter", "delayed_retry", "all"],
       ["period", String(period), "all"],
     ]);
