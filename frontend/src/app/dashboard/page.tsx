@@ -15,6 +15,7 @@ import { useSmokeRotationSummary, useTimeDisplaySettings } from "@/features/sett
 import {
   useRefreshTraefikLatest,
   useTraefikDeployment,
+  useTraefikEncodedPathBlocks,
   useTraefikHealth,
   useTraefikRouterStatus,
 } from "@/features/traefik/hooks/useTraefik";
@@ -27,6 +28,7 @@ import { MaintenanceScheduleSummary } from "./MaintenanceScheduleSummary";
 import { SecurityAlertSummaryCard } from "./SecurityAlertSummaryCard";
 import { ServiceOverviewStats } from "./ServiceOverviewStats";
 import { SmokeAdminStatusSummary } from "./SmokeAdminStatusSummary";
+import { TraefikEncodedPathBlockCard } from "./TraefikEncodedPathBlockCard";
 import { TraefikStatusBanner } from "./TraefikStatusBanner";
 
 export default function DashboardPage() {
@@ -36,6 +38,11 @@ export default function DashboardPage() {
   const { data: services = [], isLoading } = useServices();
   const { data: healthData = {} } = useAllServicesHealth();
   const { data: traefikHealth } = useTraefikHealth();
+  const {
+    data: traefikEncodedPathBlocks,
+    isError: isTraefikEncodedPathBlocksError,
+    isLoading: isTraefikEncodedPathBlocksLoading,
+  } = useTraefikEncodedPathBlocks();
   const { data: traefikDeployment } = useTraefikDeployment();
   const refreshTraefikLatest = useRefreshTraefikLatest();
   const { data: routerStatus } = useTraefikRouterStatus();
@@ -100,6 +107,12 @@ export default function DashboardPage() {
         isRefreshingLatest={refreshTraefikLatest.isPending}
         onRefreshLatest={() => refreshTraefikLatest.mutate()}
         refreshLatestError={refreshTraefikLatest.isError ? "최신 Traefik 버전을 다시 확인하지 못했습니다" : null}
+        timezone={displayTimezone}
+      />
+      <TraefikEncodedPathBlockCard
+        isError={isTraefikEncodedPathBlocksError}
+        isLoading={isTraefikEncodedPathBlocksLoading}
+        summary={traefikEncodedPathBlocks}
         timezone={displayTimezone}
       />
       <ManagerDeploymentCard

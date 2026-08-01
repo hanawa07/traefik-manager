@@ -7,6 +7,7 @@ from app.interfaces.api.dependencies import get_current_user
 from app.interfaces.api.v1.routers import traefik_updates
 from app.interfaces.api.v1.schemas.traefik_schemas import (
     TraefikDeploymentStatusResponse,
+    TraefikEncodedPathBlockSummaryResponse,
     TraefikHealthResponse,
     TraefikMiddlewareListResponse,
     TraefikRouterStatusResponse,
@@ -52,6 +53,18 @@ async def get_traefik_router_status(
     _: dict = Depends(get_current_user),
 ):
     return await traefik_client.get_router_status()
+
+
+@router.get(
+    "/encoded-path-blocks",
+    response_model=TraefikEncodedPathBlockSummaryResponse,
+    summary="Traefik 인코딩 예약 문자 경로 차단 요약",
+)
+async def get_traefik_encoded_path_blocks(
+    traefik_client: TraefikApiClient = Depends(get_traefik_client),
+    _: dict = Depends(get_current_user),
+):
+    return await traefik_client.get_encoded_path_blocks()
 
 
 @router.get("/middlewares", response_model=TraefikMiddlewareListResponse, summary="Traefik 미들웨어 상태")

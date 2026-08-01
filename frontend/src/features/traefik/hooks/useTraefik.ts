@@ -5,6 +5,7 @@ import { traefikApi } from "../api/traefikApi";
 const TRAEFIK_HEALTH_QUERY_KEY = ["traefik-health"];
 const TRAEFIK_DEPLOYMENT_QUERY_KEY = ["traefik-deployment"];
 const TRAEFIK_UPDATE_OPERATIONS_QUERY_KEY = ["traefik-update-operations"];
+const TRAEFIK_ENCODED_PATH_BLOCKS_QUERY_KEY = ["traefik-encoded-path-blocks"];
 
 export function useTraefikHealth() {
   return useQuery({
@@ -71,6 +72,14 @@ export function useTraefikRouterStatus() {
     queryKey: ["traefik-router-status"],
     queryFn: traefikApi.routerStatus,
     refetchInterval: 10_000,
+  });
+}
+
+export function useTraefikEncodedPathBlocks() {
+  return useQuery({
+    queryKey: TRAEFIK_ENCODED_PATH_BLOCKS_QUERY_KEY,
+    queryFn: traefikApi.encodedPathBlocks,
+    refetchInterval: 60_000,
   });
 }
 

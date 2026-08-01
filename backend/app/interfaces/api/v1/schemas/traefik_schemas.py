@@ -15,6 +15,25 @@ class TraefikHealthResponse(BaseModel):
     latest_version_error: str | None = None
 
 
+class TraefikEncodedPathCharacterResponse(BaseModel):
+    encoded: str
+    label: str
+    request_count: int
+
+
+class TraefikEncodedPathBlockSummaryResponse(BaseModel):
+    available: bool
+    message: str
+    checked_at: datetime
+    tail_lines: int
+    observed_log_lines: int
+    blocked_request_count: int
+    last_blocked_at: datetime | None = None
+    encoded_characters: list[TraefikEncodedPathCharacterResponse] = Field(
+        default_factory=list
+    )
+
+
 class TraefikDeploymentCheckResponse(BaseModel):
     key: str
     label: str

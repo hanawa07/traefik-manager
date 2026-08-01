@@ -15,6 +15,23 @@ export interface TraefikHealthRequest {
   refreshLatest?: boolean;
 }
 
+export interface TraefikEncodedPathCharacter {
+  encoded: string;
+  label: string;
+  request_count: number;
+}
+
+export interface TraefikEncodedPathBlockSummary {
+  available: boolean;
+  message: string;
+  checked_at: string;
+  tail_lines: number;
+  observed_log_lines: number;
+  blocked_request_count: number;
+  last_blocked_at: string | null;
+  encoded_characters: TraefikEncodedPathCharacter[];
+}
+
 export interface TraefikDeploymentCheck {
   key: string;
   label: string;
@@ -141,6 +158,13 @@ export const traefikApi = {
 
   routerStatus: async (): Promise<TraefikRouterStatus> => {
     const res = await apiClient.get<TraefikRouterStatus>("/traefik/routers");
+    return res.data;
+  },
+
+  encodedPathBlocks: async (): Promise<TraefikEncodedPathBlockSummary> => {
+    const res = await apiClient.get<TraefikEncodedPathBlockSummary>(
+      "/traefik/encoded-path-blocks",
+    );
     return res.data;
   },
 
