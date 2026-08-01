@@ -1,6 +1,8 @@
 import type { DockerContainer, DockerContainerPort } from "@/features/docker/api/dockerApi";
 import type { TraefikImportCandidate } from "./containerImportTypes";
 
+const PROXY_NETWORK_NAME = "proxy_net";
+
 export function formatDockerPortLabel(port: DockerContainerPort): string {
   const publicSuffix = port.public_port != null ? ` -> ${port.public_port}` : "";
   const protocolSuffix = port.type ? `/${port.type}` : "";
@@ -15,6 +17,14 @@ export function buildTraefikImportCandidates(containers: DockerContainer[]) {
       networks: container.networks,
       ...candidate,
     })),
+  );
+}
+
+export function prioritizeProxyNetworkContainers(containers: DockerContainer[]) {
+  return [...containers].sort(
+    (left, right) =>
+      Number(right.networks.includes(PROXY_NETWORK_NAME)) -
+      Number(left.networks.includes(PROXY_NETWORK_NAME)),
   );
 }
 

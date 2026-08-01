@@ -13,6 +13,7 @@ import {
   buildTraefikImportCandidates,
   filterDockerContainers,
   filterTraefikImportCandidates,
+  prioritizeProxyNetworkContainers,
 } from "./containerImportFiltering";
 import type { ServiceFormData } from "./serviceFormSchema";
 
@@ -33,7 +34,10 @@ export function useServiceContainerImportModel({ setValue }: UseServiceContainer
     error: dockerContainersError,
   } = useDockerContainers(isContainerModalOpen);
 
-  const availableContainers = useMemo(() => dockerContainers?.containers || [], [dockerContainers]);
+  const availableContainers = useMemo(
+    () => prioritizeProxyNetworkContainers(dockerContainers?.containers || []),
+    [dockerContainers],
+  );
   const traefikImportCandidates = useMemo(
     () => buildTraefikImportCandidates(availableContainers),
     [availableContainers],

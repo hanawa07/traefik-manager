@@ -1,4 +1,5 @@
 import type { TraefikImportCandidate } from "./containerImportTypes";
+import { ContainerImportNetworkNotice } from "./ContainerImportNetworkNotice";
 
 interface ContainerImportTraefikListProps {
   traefikImportCandidates: TraefikImportCandidate[];
@@ -81,6 +82,8 @@ export default function ContainerImportTraefikList({
                   </span>
                 ))}
               </div>
+
+              <ContainerImportNetworkNotice networks={candidate.networks} />
 
               <p className="mt-3 text-xs text-indigo-700 dark:text-indigo-300">
                 선택 시 서비스 이름, 도메인, 업스트림 호스트/포트, TLS 설정을 함께 채웁니다.

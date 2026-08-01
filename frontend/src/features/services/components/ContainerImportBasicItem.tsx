@@ -2,6 +2,7 @@ import type { DockerContainer } from "@/features/docker/api/dockerApi";
 
 import { getSuggestedUpstreamPort } from "./containerImportApply";
 import { formatDockerPortLabel } from "./containerImportFiltering";
+import { ContainerImportNetworkNotice } from "./ContainerImportNetworkNotice";
 
 interface ContainerImportBasicItemProps {
   container: DockerContainer;
@@ -34,6 +35,7 @@ export function ContainerImportBasicItem({
 
       <ContainerPortBadges container={container} />
       <ContainerNetworkBadges container={container} />
+      <ContainerImportNetworkNotice networks={container.networks} />
 
       <p className="mt-3 text-xs text-sky-700 dark:text-sky-300">
         {container.ports.length > 0

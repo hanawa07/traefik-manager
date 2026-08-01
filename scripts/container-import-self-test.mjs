@@ -4,6 +4,7 @@ import {
   buildTraefikImportCandidates,
   filterDockerContainers,
   filterTraefikImportCandidates,
+  prioritizeProxyNetworkContainers,
 } from "../frontend/src/features/services/components/containerImportFiltering.ts";
 import {
   applyBasicContainerImport,
@@ -11,14 +12,14 @@ import {
 } from "../frontend/src/features/services/components/containerImportApply.ts";
 import { getDockerErrorMessage } from "../frontend/src/features/services/components/containerImportErrors.ts";
 
-const english = {
+const englishApp = {
   id: "english-1",
   name: "english-app-1",
   image: "example/english:latest",
   state: "running",
   status: "Up 2 hours",
   ports: [{ private_port: 3000, public_port: 3011, type: "tcp" }],
-  networks: ["english_default", "proxy_net"],
+  networks: ["english_default"],
   traefik_candidates: [
     {
       router_name: "english",
@@ -29,8 +30,25 @@ const english = {
     },
   ],
 };
+const englishGateway = {
+  ...englishApp,
+  id: "english-nginx-1",
+  name: "english-nginx-1",
+  image: "nginx:alpine",
+  ports: [{ private_port: 80, public_port: null, type: "tcp" }],
+  networks: ["english_default", "proxy_net"],
+  traefik_candidates: [
+    {
+      router_name: "english-gateway",
+      domain: "english-gateway.example.com",
+      upstream_host: "english-nginx-1",
+      upstream_port: 80,
+      tls_enabled: true,
+    },
+  ],
+};
 const manager = {
-  ...english,
+  ...englishApp,
   id: "manager-1",
   name: "traefik-manager",
   image: "traefik:v3.7.9",
@@ -38,18 +56,23 @@ const manager = {
   networks: ["proxy_net"],
   traefik_candidates: [],
 };
-const containers = [english, manager];
+const containers = [englishApp, englishGateway, manager];
 
-assert.deepEqual(filterDockerContainers(containers, "english"), [english]);
-assert.deepEqual(filterDockerContainers(containers, "3011"), [english]);
-assert.deepEqual(filterDockerContainers(containers, "english_default"), [english]);
+const prioritizedContainers = prioritizeProxyNetworkContainers(containers);
+assert.deepEqual(prioritizedContainers, [englishGateway, manager, englishApp]);
+assert.deepEqual(containers, [englishApp, englishGateway, manager]);
+assert.deepEqual(filterDockerContainers(containers, "3011"), [englishApp]);
+assert.deepEqual(filterDockerContainers(containers, "nginx"), [englishGateway]);
+assert.deepEqual(filterDockerContainers(containers, "english_default"), [englishApp, englishGateway]);
 
-const candidates = buildTraefikImportCandidates(containers);
-assert.equal(candidates.length, 1);
-assert.deepEqual(filterTraefikImportCandidates(candidates, "english.example.com"), candidates);
+const candidates = buildTraefikImportCandidates(prioritizedContainers);
+assert.equal(candidates.length, 2);
+assert.equal(candidates[0].containerName, "english-nginx-1");
+assert.equal(candidates[1].containerName, "english-app-1");
+assert.deepEqual(filterTraefikImportCandidates(candidates, "english.example.com"), [candidates[1]]);
 
 const basicValues = new Map();
-applyBasicContainerImport((key, value) => basicValues.set(key, value), english);
+applyBasicContainerImport((key, value) => basicValues.set(key, value), englishApp);
 assert.deepEqual(Object.fromEntries(basicValues), {
   name: "english-app-1",
   upstream_host: "english-app-1",
@@ -57,7 +80,7 @@ assert.deepEqual(Object.fromEntries(basicValues), {
 });
 
 const traefikValues = new Map();
-applyTraefikContainerImport((key, value) => traefikValues.set(key, value), candidates[0]);
+applyTraefikContainerImport((key, value) => traefikValues.set(key, value), candidates[1]);
 assert.deepEqual(Object.fromEntries(traefikValues), {
   name: "english-app-1",
   domain: "english.example.com",
