@@ -21,6 +21,8 @@ class DockerContainerResponse(BaseModel):
     image: str | None = None
     state: str | None = None
     status: str | None = None
+    compose_project: str | None = None
+    compose_service: str | None = None
     ports: list[DockerContainerPortResponse]
     networks: list[str]
     traefik_candidates: list[DockerTraefikCandidateResponse]

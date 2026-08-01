@@ -19,6 +19,8 @@ async def test_list_container_candidates_includes_general_and_traefik_metadata(m
                 "State": "running",
                 "Status": "Up 2 hours",
                 "Labels": {
+                    "com.docker.compose.project": "english",
+                    "com.docker.compose.service": "app",
                     "traefik.enable": "true",
                     "traefik.http.routers.english.rule": "Host(`english.example.com`,`www.english.example.com`)",
                     "traefik.http.routers.english.entrypoints": "websecure",
@@ -47,6 +49,8 @@ async def test_list_container_candidates_includes_general_and_traefik_metadata(m
 
     container = payload["containers"][0]
     assert container["name"] == "english"
+    assert container["compose_project"] == "english"
+    assert container["compose_service"] == "app"
     assert container["ports"] == [
         {"private_port": 3000, "public_port": 3000, "type": "tcp"},
         {"private_port": 9229, "public_port": None, "type": "tcp"},

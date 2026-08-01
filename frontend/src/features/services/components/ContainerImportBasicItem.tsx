@@ -6,11 +6,15 @@ import { ContainerImportNetworkNotice } from "./ContainerImportNetworkNotice";
 
 interface ContainerImportBasicItemProps {
   container: DockerContainer;
+  isRecommendedGateway: boolean;
+  recommendedGatewayName?: string;
   onImport: (container: DockerContainer) => void;
 }
 
 export function ContainerImportBasicItem({
   container,
+  isRecommendedGateway,
+  recommendedGatewayName,
   onImport,
 }: ContainerImportBasicItemProps) {
   return (
@@ -26,16 +30,26 @@ export function ContainerImportBasicItem({
             {container.image || "이미지 정보를 확인할 수 없습니다"}
           </p>
         </div>
-        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-gray-600 dark:bg-slate-800 dark:text-slate-300">
-          {container.state || "unknown"}
-        </span>
+        <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+          {isRecommendedGateway ? (
+            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+              같은 Compose 추천
+            </span>
+          ) : null}
+          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+            {container.state || "unknown"}
+          </span>
+        </div>
       </div>
 
       {container.status ? <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">{container.status}</p> : null}
 
       <ContainerPortBadges container={container} />
       <ContainerNetworkBadges container={container} />
-      <ContainerImportNetworkNotice networks={container.networks} />
+      <ContainerImportNetworkNotice
+        networks={container.networks}
+        recommendedGatewayName={recommendedGatewayName}
+      />
 
       <p className="mt-3 text-xs text-sky-700 dark:text-sky-300">
         {container.ports.length > 0

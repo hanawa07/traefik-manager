@@ -6,4 +6,8 @@ export type TraefikImportCandidate = DockerTraefikCandidate & {
   containerName: string;
   image: string | null;
   networks: string[];
+  composeProject: string | null;
+  composeService: string | null;
+  isRecommendedGateway: boolean;
+  recommendedGatewayName: string | null;
 };

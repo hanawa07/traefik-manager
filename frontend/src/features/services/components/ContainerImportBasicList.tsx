@@ -2,6 +2,10 @@ import type { DockerContainer } from "@/features/docker/api/dockerApi";
 
 import { ContainerImportBasicEmptyState } from "./ContainerImportBasicEmptyState";
 import { ContainerImportBasicItem } from "./ContainerImportBasicItem";
+import {
+  findRecommendedComposeGateway,
+  isRecommendedComposeGateway,
+} from "./containerImportFiltering";
 
 interface ContainerImportBasicListProps {
   availableContainers: DockerContainer[];
@@ -35,6 +39,10 @@ export default function ContainerImportBasicList({
             <ContainerImportBasicItem
               key={container.id || container.name}
               container={container}
+              isRecommendedGateway={isRecommendedComposeGateway(container, availableContainers)}
+              recommendedGatewayName={
+                findRecommendedComposeGateway(container, availableContainers)?.name
+              }
               onImport={onImport}
             />
           ))

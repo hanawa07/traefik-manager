@@ -12,10 +12,17 @@ def build_container_candidate(container: dict) -> dict:
         "image": container.get("Image"),
         "state": container.get("State"),
         "status": container.get("Status"),
+        "compose_project": _optional_label(labels, "com.docker.compose.project"),
+        "compose_service": _optional_label(labels, "com.docker.compose.service"),
         "ports": _extract_ports(container),
         "networks": extract_networks(container),
         "traefik_candidates": _extract_traefik_candidates(container, labels),
     }
+
+
+def _optional_label(labels: dict, key: str) -> str | None:
+    value = labels.get(key)
+    return value.strip() if isinstance(value, str) and value.strip() else None
 
 
 def extract_networks(container: dict) -> list[str]:

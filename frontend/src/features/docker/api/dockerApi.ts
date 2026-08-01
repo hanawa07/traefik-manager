@@ -20,6 +20,8 @@ export interface DockerContainer {
   image: string | null;
   state: string | null;
   status: string | null;
+  compose_project: string | null;
+  compose_service: string | null;
   ports: DockerContainerPort[];
   networks: string[];
   traefik_candidates: DockerTraefikCandidate[];

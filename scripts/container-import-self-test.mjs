@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 
 import {
   buildTraefikImportCandidates,
+  findRecommendedComposeGateway,
   filterDockerContainers,
   filterTraefikImportCandidates,
   prioritizeProxyNetworkContainers,
+  isRecommendedComposeGateway,
 } from "../frontend/src/features/services/components/containerImportFiltering.ts";
 import {
   applyBasicContainerImport,
@@ -18,6 +20,8 @@ const englishApp = {
   image: "example/english:latest",
   state: "running",
   status: "Up 2 hours",
+  compose_project: "english",
+  compose_service: "app",
   ports: [{ private_port: 3000, public_port: 3011, type: "tcp" }],
   networks: ["english_default"],
   traefik_candidates: [
@@ -35,6 +39,7 @@ const englishGateway = {
   id: "english-nginx-1",
   name: "english-nginx-1",
   image: "nginx:alpine",
+  compose_service: "nginx",
   ports: [{ private_port: 80, public_port: null, type: "tcp" }],
   networks: ["english_default", "proxy_net"],
   traefik_candidates: [
@@ -52,6 +57,8 @@ const manager = {
   id: "manager-1",
   name: "traefik-manager",
   image: "traefik:v3.7.9",
+  compose_project: "traefik-manager",
+  compose_service: "backend",
   ports: [{ private_port: 8000, public_port: null, type: "tcp" }],
   networks: ["proxy_net"],
   traefik_candidates: [],
@@ -61,6 +68,10 @@ const containers = [englishApp, englishGateway, manager];
 const prioritizedContainers = prioritizeProxyNetworkContainers(containers);
 assert.deepEqual(prioritizedContainers, [englishGateway, manager, englishApp]);
 assert.deepEqual(containers, [englishApp, englishGateway, manager]);
+assert.equal(findRecommendedComposeGateway(englishApp, containers), englishGateway);
+assert.equal(findRecommendedComposeGateway(manager, containers), undefined);
+assert.equal(isRecommendedComposeGateway(englishGateway, containers), true);
+assert.equal(isRecommendedComposeGateway(manager, containers), false);
 assert.deepEqual(filterDockerContainers(containers, "3011"), [englishApp]);
 assert.deepEqual(filterDockerContainers(containers, "nginx"), [englishGateway]);
 assert.deepEqual(filterDockerContainers(containers, "english_default"), [englishApp, englishGateway]);
@@ -69,6 +80,8 @@ const candidates = buildTraefikImportCandidates(prioritizedContainers);
 assert.equal(candidates.length, 2);
 assert.equal(candidates[0].containerName, "english-nginx-1");
 assert.equal(candidates[1].containerName, "english-app-1");
+assert.equal(candidates[0].isRecommendedGateway, true);
+assert.equal(candidates[1].recommendedGatewayName, "english-nginx-1");
 assert.deepEqual(filterTraefikImportCandidates(candidates, "english.example.com"), [candidates[1]]);
 
 const basicValues = new Map();

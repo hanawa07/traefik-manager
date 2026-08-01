@@ -57,6 +57,12 @@ export default function ContainerImportTraefikList({
                 </span>
               </div>
 
+              {candidate.isRecommendedGateway ? (
+                <span className="mt-3 inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+                  같은 Compose 추천 gateway
+                </span>
+              ) : null}
+
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200">
                   router {candidate.router_name}
@@ -83,7 +89,10 @@ export default function ContainerImportTraefikList({
                 ))}
               </div>
 
-              <ContainerImportNetworkNotice networks={candidate.networks} />
+              <ContainerImportNetworkNotice
+                networks={candidate.networks}
+                recommendedGatewayName={candidate.recommendedGatewayName}
+              />
 
               <p className="mt-3 text-xs text-indigo-700 dark:text-indigo-300">
                 선택 시 서비스 이름, 도메인, 업스트림 호스트/포트, TLS 설정을 함께 채웁니다.
