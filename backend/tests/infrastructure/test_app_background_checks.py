@@ -9,6 +9,7 @@ from app.infrastructure.docker import (
     manager_settings_history_latency_monitor,
     manager_watchdog_monitor,
 )
+from app.infrastructure.traefik import encoded_path_block_history
 
 
 @pytest.mark.asyncio
@@ -45,10 +46,24 @@ async def test_manager_checks_continue_after_individual_failure(monkeypatch) -> 
             "bottleneck",
             False,
         ),
+        (
+            encoded_path_block_history,
+            "collect_encoded_path_block_history",
+            "encoded-paths",
+            False,
+        ),
     )
     for module, attribute, name, fail in checks:
         monkeypatch.setattr(module, attribute, make_check(name, fail=fail))
 
     await app_background_checks.check_manager_health_once()
 
-    assert calls == ["health", "watchdog", "http", "storage", "latency", "bottleneck"]
+    assert calls == [
+        "health",
+        "watchdog",
+        "http",
+        "storage",
+        "latency",
+        "bottleneck",
+        "encoded-paths",
+    ]

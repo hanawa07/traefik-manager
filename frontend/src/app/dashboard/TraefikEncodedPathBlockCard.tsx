@@ -2,6 +2,7 @@ import { ShieldAlert, ShieldCheck } from "lucide-react";
 
 import type { TraefikEncodedPathBlockSummary } from "@/features/traefik/api/traefikApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { TraefikEncodedPathBlockTrend } from "./TraefikEncodedPathBlockTrend";
 
 interface TraefikEncodedPathBlockCardProps {
   isError: boolean;
@@ -20,7 +21,7 @@ export function TraefikEncodedPathBlockCard({
   const hasBlocks = blockedCount > 0;
   const isUnavailable =
     !isLoading && (isError || summary?.available !== true);
-  const hasWarning = hasBlocks || isUnavailable;
+  const hasWarning = hasBlocks || isUnavailable || summary?.collection_available === false;
   const activeCharacters =
     !isError && summary?.available
       ? summary.encoded_characters.filter((item) => item.request_count > 0)
@@ -55,7 +56,7 @@ export function TraefikEncodedPathBlockCard({
               인코딩 경로 차단
             </h2>
             <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-slate-400">
-              Traefik이 백엔드 전달 전에 HTTP 400으로 거부한 예약 문자 경로를 집계합니다.
+              Traefik이 백엔드 전달 전에 HTTP 400으로 거부한 예약 문자 경로를 24시간 보관합니다.
             </p>
           </div>
         </div>
@@ -68,6 +69,8 @@ export function TraefikEncodedPathBlockCard({
               ? "확인 실패"
               : !summary?.available
                 ? "로그 미연결"
+                : !summary.collection_available
+                  ? "저장 이력"
                 : `${blockedCount.toLocaleString("ko-KR")}건`}
         </span>
       </div>
@@ -86,14 +89,23 @@ export function TraefikEncodedPathBlockCard({
             <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
               {hasBlocks
                 ? `비정상 또는 의심 경로 ${blockedCount.toLocaleString("ko-KR")}건을 차단했습니다.`
-                : "최근 관측 로그에서 차단된 예약 문자 경로가 없습니다."}
+                : "최근 24시간 동안 차단된 예약 문자 경로가 없습니다."}
             </p>
             <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-              최근 로그 {summary.observed_log_lines.toLocaleString("ko-KR")}줄 관측 · 최대 {summary.tail_lines.toLocaleString("ko-KR")}줄
+              마지막 수집 로그 {summary.observed_log_lines.toLocaleString("ko-KR")}줄 · 회차당 최대 {summary.tail_lines.toLocaleString("ko-KR")}줄
             </p>
+            {!summary.collection_available ? (
+              <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-200">
+                현재 로그 연결이 끊겨 저장된 이력을 표시합니다.
+              </p>
+            ) : null}
           </>
         )}
       </div>
+
+      {!isError && summary?.available ? (
+        <TraefikEncodedPathBlockTrend summary={summary} timezone={timezone} />
+      ) : null}
 
       {activeCharacters.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-2">
@@ -111,6 +123,9 @@ export function TraefikEncodedPathBlockCard({
       {!isError && summary?.available ? (
         <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
           확인 {formatDateTime(summary.checked_at, timezone)}
+          {summary.observed_since
+            ? ` · 수집 시작 ${formatDateTime(summary.observed_since, timezone)}`
+            : ""}
           {summary.last_blocked_at
             ? ` · 마지막 차단 ${formatDateTime(summary.last_blocked_at, timezone)}`
             : ""}

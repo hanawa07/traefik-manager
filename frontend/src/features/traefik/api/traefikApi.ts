@@ -21,15 +21,25 @@ export interface TraefikEncodedPathCharacter {
   request_count: number;
 }
 
+export interface TraefikEncodedPathBlockBucket {
+  started_at: string;
+  blocked_request_count: number;
+}
+
 export interface TraefikEncodedPathBlockSummary {
   available: boolean;
+  collection_available: boolean;
   message: string;
   checked_at: string;
+  window_hours: number;
+  observed_since: string | null;
+  sample_coverage_percent: number;
   tail_lines: number;
   observed_log_lines: number;
   blocked_request_count: number;
   last_blocked_at: string | null;
   encoded_characters: TraefikEncodedPathCharacter[];
+  buckets: TraefikEncodedPathBlockBucket[];
 }
 
 export interface TraefikDeploymentCheck {

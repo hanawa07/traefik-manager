@@ -21,8 +21,8 @@ from app.infrastructure.traefik.docker_api import (
     read_docker_container_logs_text,
     read_local_acme_json_text,
 )
-from app.infrastructure.traefik.encoded_path_blocks import (
-    build_encoded_path_block_summary,
+from app.infrastructure.traefik.encoded_path_block_history import (
+    collect_encoded_path_block_history,
 )
 from app.infrastructure.traefik.runtime_status_builder import (
     build_manager_route_status,
@@ -124,11 +124,7 @@ class TraefikApiClient:
         return build_middlewares_status(payload)
 
     async def get_encoded_path_blocks(self) -> dict:
-        log_text = await read_docker_container_logs_text()
-        return build_encoded_path_block_summary(
-            log_text,
-            tail_lines=settings.TRAEFIK_LOG_TAIL_LINES,
-        )
+        return await collect_encoded_path_block_history()
 
     async def _load_acme_expiry_map(self) -> dict[str, datetime]:
         """acme.json에서 도메인별 만료일 파싱 (file 라우터 fallback용)"""

@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     TRAEFIK_DOCKER_NETWORK: str = "proxy_net"
     TRAEFIK_ACME_STORAGE_PATH: str = "/letsencrypt/acme.json"
     TRAEFIK_LOG_TAIL_LINES: int = 2000
+    TRAEFIK_ENCODED_PATH_BLOCK_HISTORY_PATH: str = (
+        "/app/data/traefik-encoded-path-blocks.json"
+    )
     TRAEFIK_UPDATE_REQUEST_DIR: str = "/host-requests/traefik-updates"
     TRAEFIK_UPDATE_HISTORY_PATH: str = "/host-state/traefik-manager/traefik-updates.jsonl"
     TRAEFIK_UPDATE_RUNNER_STATUS_PATH: str = (

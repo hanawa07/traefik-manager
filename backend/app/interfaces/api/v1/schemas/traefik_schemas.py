@@ -21,10 +21,19 @@ class TraefikEncodedPathCharacterResponse(BaseModel):
     request_count: int
 
 
+class TraefikEncodedPathBlockBucketResponse(BaseModel):
+    started_at: datetime
+    blocked_request_count: int
+
+
 class TraefikEncodedPathBlockSummaryResponse(BaseModel):
     available: bool
+    collection_available: bool
     message: str
     checked_at: datetime
+    window_hours: int
+    observed_since: datetime | None = None
+    sample_coverage_percent: int
     tail_lines: int
     observed_log_lines: int
     blocked_request_count: int
@@ -32,6 +41,7 @@ class TraefikEncodedPathBlockSummaryResponse(BaseModel):
     encoded_characters: list[TraefikEncodedPathCharacterResponse] = Field(
         default_factory=list
     )
+    buckets: list[TraefikEncodedPathBlockBucketResponse] = Field(default_factory=list)
 
 
 class TraefikDeploymentCheckResponse(BaseModel):
