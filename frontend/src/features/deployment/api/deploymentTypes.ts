@@ -1,0 +1,236 @@
+export interface DeploymentComponent {
+  name: string;
+  container_name: string;
+  status: string;
+  runtime_status: string | null;
+  health_status: string | null;
+  health_failing_streak: number;
+  health_last_checked_at: string | null;
+  health_last_exit_code: number | null;
+  container_id: string | null;
+  image: string | null;
+  image_id: string | null;
+  image_created: string | null;
+  version: string | null;
+  revision: string | null;
+  build_date: string | null;
+  source: string | null;
+  oci_labels: Record<string, string>;
+}
+
+export interface ExternalWatchdogAlertRun {
+  event: "failure" | "recovery";
+  requested_at: string;
+  run_url: string;
+  status: string | null;
+  conclusion: string | null;
+  checked_at: string | null;
+  error: string | null;
+}
+
+export interface ManagerHttpErrorBucket {
+  started_at: string;
+  not_found_count: number;
+  server_error_count: number;
+}
+
+export interface ManagerHttpErrorPath {
+  path: string;
+  not_found_count: number;
+  server_error_count: number;
+  last_seen_at: string;
+}
+
+export interface ManagerHttpRequestLogStorage {
+  source: "persistent" | "docker" | "unavailable";
+  size_bytes: number;
+  capacity_bytes: number;
+  file_count: number;
+  max_file_count: number;
+  rotated_file_count: number;
+}
+
+export interface ManagerHttpErrorSummary {
+  available: boolean;
+  message: string;
+  window_hours: number;
+  path_filter: string | null;
+  checked_at: string;
+  observed_since: string | null;
+  sample_coverage_percent: number;
+  not_found_count: number;
+  server_error_count: number;
+  buckets: ManagerHttpErrorBucket[];
+  top_paths: ManagerHttpErrorPath[];
+  log_storage: ManagerHttpRequestLogStorage;
+}
+
+export interface ManagerHttpErrorMonitorStatus {
+  enabled: boolean;
+  available: boolean;
+  checked_at: string | null;
+  last_alert_at: string | null;
+  breached: boolean;
+  window_minutes: number;
+  not_found_count: number;
+  not_found_threshold: number;
+  server_error_count: number;
+  server_error_threshold: number;
+  excluded_paths: string[];
+}
+
+export interface ManagerSettingsHistoryLatencyStatus {
+  enabled: boolean;
+  available: boolean;
+  ready: boolean;
+  checked_at: string | null;
+  last_alert_at: string | null;
+  alert_active: boolean;
+  path: string;
+  window_minutes: number;
+  sample_count: number;
+  minimum_sample_count: number;
+  p95_ms: number | null;
+  threshold_ms: number;
+}
+
+export interface ManagerRouteStatus {
+  available: boolean;
+  healthy: boolean;
+  message: string;
+  active_slot: string | null;
+  provider: string | null;
+  https_router_status: string | null;
+  http_router_status: string | null;
+  service_status: string | null;
+  upstream_url: string | null;
+  upstream_status: string | null;
+}
+
+export type ManagerDeploymentStage = "prepare" | "build" | "migration_preflight" |
+  "candidate_health" | "route_switch" | "leader_handover" | "public_probe" | "state_write";
+
+export interface ManagerDeploymentHistoryEntry {
+  status: "success" | "failed_before_switch" | "rolled_back" | "rollback_failed";
+  from_slot: "single" | "blue" | "green";
+  to_slot: "single" | "blue" | "green";
+  active_slot: "single" | "blue" | "green" | "unknown";
+  version: string;
+  revision: string;
+  started_at: string;
+  completed_at: string;
+  probe_total: number;
+  probe_failures: number;
+  failure_stage: ManagerDeploymentStage | null;
+  failure_reason: string | null;
+  alert_request_status: "not_needed" | "requested" | "request_failed";
+  alert_run_url: string | null;
+  alert_run_status: string | null;
+  alert_run_conclusion: string | null;
+  alert_run_checked_at: string | null;
+  alert_run_error: string | null;
+  stage_durations_ms: Partial<Record<ManagerDeploymentStage, number>>;
+  archive_sample: "detailed" | "daily" | null;
+}
+
+export interface ManagerDeploymentHistoryArchiveSummary {
+  detailed_count: number;
+  daily_count: number;
+  newest_at: string | null;
+  oldest_at: string | null;
+}
+
+export interface ManagerDeploymentBottleneckEvent {
+  event: "alerted" | "cleared";
+  occurred_at: string;
+  threshold_ms: number;
+  required_consecutive_count: number;
+  current_consecutive_count: number;
+  latest_version: string | null;
+  slowest_stage: ManagerDeploymentStage | null;
+  slowest_ms: number;
+  run_url: string | null;
+}
+
+export interface ManagerDeploymentBottleneckAlert {
+  status: "not_checked" | "no_history" | "normal" | "pending" | "alerted" | "request_failed";
+  configured_threshold_ms: number;
+  configured_consecutive_count: number;
+  configured_event_retention_days: number;
+  effective_threshold_ms: number;
+  effective_consecutive_count: number;
+  effective_event_retention_days: number;
+  threshold_source: "settings" | "environment";
+  consecutive_source: "settings" | "environment";
+  event_retention_source: "settings" | "environment";
+  current_consecutive_count: number;
+  checked_at: string | null;
+  latest_version: string | null;
+  slowest_stage: ManagerDeploymentStage | null;
+  slowest_ms: number;
+  alerted_at: string | null;
+  run_url: string | null;
+  run_status: string | null;
+  run_conclusion: string | null;
+  run_checked_at: string | null;
+  run_error: string | null;
+  storage_warning_active: boolean;
+  storage_warning_alerted_at: string | null;
+  storage_warning_run_url: string | null;
+  storage_warning_run_status: string | null;
+  storage_warning_run_conclusion: string | null;
+  storage_warning_run_checked_at: string | null;
+  storage_warning_run_error: string | null;
+  retained_event_count?: number;
+  oldest_event_at?: string | null;
+  newest_event_at?: string | null;
+  events: ManagerDeploymentBottleneckEvent[];
+}
+
+export interface DeploymentInfo {
+  enabled: boolean;
+  message: string;
+  version: string | null;
+  revision: string | null;
+  build_date: string | null;
+  source: string | null;
+  latest_version: string | null;
+  latest_release_url: string | null;
+  latest_version_checked_at: string | null;
+  latest_version_error: string | null;
+  update_available: boolean | null;
+  external_watchdog_status: "healthy" | "unhealthy" | "unknown";
+  external_watchdog_checked_at: string | null;
+  external_watchdog_consecutive_failures: number;
+  external_watchdog_stale: boolean;
+  external_watchdog_stale_after_minutes: number;
+  external_watchdog_last_alert_event: "failure" | "recovery" | null;
+  external_watchdog_last_alert_success: boolean | null;
+  external_watchdog_last_alert_at: string | null;
+  external_watchdog_last_alert_run_url: string | null;
+  external_watchdog_last_alert_run_status: string | null;
+  external_watchdog_last_alert_run_conclusion: string | null;
+  external_watchdog_last_alert_run_checked_at: string | null;
+  external_watchdog_last_alert_run_error: string | null;
+  external_watchdog_alert_runs: ExternalWatchdogAlertRun[];
+  http_error_summary: ManagerHttpErrorSummary | null;
+  http_error_monitor: ManagerHttpErrorMonitorStatus | null;
+  settings_history_latency_monitor: ManagerSettingsHistoryLatencyStatus | null;
+  manager_route: ManagerRouteStatus | null;
+  deployment_history: ManagerDeploymentHistoryEntry[];
+  deployment_history_archive: ManagerDeploymentHistoryEntry[];
+  deployment_history_archive_summary: ManagerDeploymentHistoryArchiveSummary;
+  deployment_bottleneck_alert: ManagerDeploymentBottleneckAlert;
+  components: DeploymentComponent[];
+}
+
+export interface DeploymentInfoRequest {
+  refreshLatest?: boolean;
+}
+
+export type ManagerHttpErrorWindowHours = 6 | 12 | 24;
+
+export interface ManagerHttpErrorRequest {
+  windowHours: ManagerHttpErrorWindowHours;
+  path?: string;
+}
