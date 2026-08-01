@@ -18,10 +18,6 @@ import {
   MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD_OPTIONS,
   MANAGER_DEPLOYMENT_FILTER_OPTIONS,
   MANAGER_DEPLOYMENT_PERIOD_OPTIONS,
-  getManagerDeploymentDurationMs,
-  getManagerDeploymentDurationStats,
-  getManagerDeploymentExcessDurationMs,
-  getManagerDeploymentSpeedThresholdMs,
 } from "./managerDeploymentHistoryDisplay";
 import {
   downloadManagerDeploymentHistory,
@@ -29,14 +25,9 @@ import {
 } from "./managerDeploymentHistoryExport";
 import {
   DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD,
-  matchesManagerDeploymentHistoryStatus,
   type ManagerDeploymentHistoryFilters,
-  type ManagerDeploymentHistoryRecordSource,
 } from "./managerDeploymentHistoryQuery";
-import {
-  getManagerDeploymentDateBoundary,
-  getManagerDeploymentPeriodComparison,
-} from "./managerDeploymentPeriodComparison";
+import { getManagerDeploymentHistoryView } from "./managerDeploymentHistoryView";
 import { useManagerDeploymentHistoryFilters } from "./useManagerDeploymentHistoryFilters";
 
 interface ManagerDeploymentHistoryProps {
@@ -65,66 +56,25 @@ function ManagerDeploymentHistoryContent({
   const [toastNotice, setToastNotice] = useState<ToastNoticeValue | null>(null);
   const { filters, periodReferenceTime, updateFilters } = useManagerDeploymentHistoryFilters();
   const {
-    archiveSample,
     bottleneckThreshold,
-    dateFrom,
-    dateTo,
-    period,
     search: searchText,
     source: historySource,
     speed,
-    stage,
-    status,
   } = filters;
-  const normalizedSearchText = searchText.trim().toLowerCase();
-  const periodCutoff = period === "all"
-    ? null
-    : periodReferenceTime - Number(period) * 24 * 60 * 60 * 1_000;
-  const dateFromCutoff = getManagerDeploymentDateBoundary(dateFrom);
-  const dateToCutoff = getManagerDeploymentDateBoundary(dateTo, true);
-  const sourceEntries = historySource === "archive"
-    ? archiveEntries
-    : historySource === "all"
-      ? [...entries, ...archiveEntries]
-      : entries;
-  const visibleEntries = archiveSample === "all"
-    ? sourceEntries
-    : sourceEntries.filter(
-        (entry) => entry.archive_sample === null || entry.archive_sample === archiveSample,
-      );
-  const resolveEntrySource = (
-    entry: ManagerDeploymentHistoryEntry,
-  ): ManagerDeploymentHistoryRecordSource => entries.includes(entry) ? "current" : "archive";
-  const summaryEntries = visibleEntries.filter((entry) => {
-    const completedAt = Date.parse(entry.completed_at);
-    const matchesPeriod = periodCutoff === null || completedAt >= periodCutoff;
-    const matchesDateRange = (dateFromCutoff === null || completedAt >= dateFromCutoff)
-      && (dateToCutoff === null || completedAt < dateToCutoff);
-    return matchesPeriod && matchesDateRange;
-  });
-  const summaryCurrentCount = summaryEntries.filter(
-    (entry) => resolveEntrySource(entry) === "current",
-  ).length;
-  const durationStats = getManagerDeploymentDurationStats(summaryEntries);
-  const periodComparison = getManagerDeploymentPeriodComparison(
+  const {
+    durationStats,
+    filteredEntries,
+    periodComparison,
+    resolveEntrySource,
+    speedThresholdMs,
+    summaryCurrentCount,
+    summaryEntries,
     visibleEntries,
+  } = getManagerDeploymentHistoryView({
+    archiveEntries,
+    entries,
     filters,
     periodReferenceTime,
-  );
-  const speedThresholdMs = getManagerDeploymentSpeedThresholdMs(durationStats, speed);
-  const filteredEntries = summaryEntries.filter((entry) => {
-    const matchesStatus = matchesManagerDeploymentHistoryStatus(entry, status);
-    const matchesFailureStage = stage === "all"
-      || (stage === "unknown"
-        ? entry.status !== "success" && !entry.failure_stage
-        : entry.failure_stage === stage);
-    const matchesSearch = !normalizedSearchText || [entry.version, entry.revision, entry.failure_reason]
-      .some((value) => value?.toLowerCase().includes(normalizedSearchText));
-    const matchesSpeed = speed === "all" || getManagerDeploymentExcessDurationMs(
-      getManagerDeploymentDurationMs(entry.started_at, entry.completed_at),
-      speedThresholdMs,
-    ) !== null;
-    return matchesStatus && matchesFailureStage && matchesSearch && matchesSpeed;
   });
 
   const handleExport = (format: ManagerDeploymentHistoryExportFormat) => {
