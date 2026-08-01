@@ -1,15 +1,15 @@
 import pytest
 
-from app.infrastructure.docker import manager_http_log_reader
+from app.infrastructure.docker import manager_deployment_inspector, manager_http_log_reader
 from app.infrastructure.docker.client import DockerClient, DockerClientError
 
 
 @pytest.mark.asyncio
 async def test_list_container_candidates_includes_general_and_traefik_metadata(monkeypatch):
     client = DockerClient()
-    client.socket_path = "/etc/hosts"
+    client._transport.socket_path = "/etc/hosts"
 
-    async def fake_get_json(_path: str, params=None):
+    async def fake_get_list(_path: str, params=None):
         assert params == {"all": 0}
         return [
             {
@@ -37,7 +37,7 @@ async def test_list_container_candidates_includes_general_and_traefik_metadata(m
             }
         ]
 
-    monkeypatch.setattr(client, "_get_json", fake_get_json)
+    monkeypatch.setattr(client._transport, "get_list", fake_get_list)
 
     payload = await client.list_container_candidates()
 
@@ -73,7 +73,7 @@ async def test_list_container_candidates_includes_general_and_traefik_metadata(m
 @pytest.mark.asyncio
 async def test_connect_container_to_network_posts_docker_network_connect(monkeypatch):
     client = DockerClient()
-    client.socket_path = "/etc/hosts"
+    client._transport.socket_path = "/etc/hosts"
     inspected = [
         {
             "Id": "container-1",
@@ -86,14 +86,14 @@ async def test_connect_container_to_network_posts_docker_network_connect(monkeyp
     ]
     posts = []
 
-    async def fake_get_object_json(_path: str, params=None):
+    async def fake_get_object(_path: str, params=None):
         return inspected.pop(0)
 
-    async def fake_post_json(path: str, payload: dict):
+    async def fake_post(path: str, payload: dict):
         posts.append((path, payload))
 
-    monkeypatch.setattr(client, "_get_object_json", fake_get_object_json)
-    monkeypatch.setattr(client, "_post_json", fake_post_json)
+    monkeypatch.setattr(client._transport, "get_object", fake_get_object)
+    monkeypatch.setattr(client._transport, "post", fake_post)
 
     result = await client.connect_container_to_network(container_name="english-app-1", network_name="proxy_net")
 
@@ -113,9 +113,9 @@ async def test_connect_container_to_network_posts_docker_network_connect(monkeyp
 @pytest.mark.asyncio
 async def test_connect_container_to_network_requires_read_and_mutation_paths():
     client = DockerClient()
-    client.socket_path = "/missing"
-    client.read_api_url = None
-    client.mutation_api_url = "http://dockerproxy:2376"
+    client._transport.socket_path = "/missing"
+    client._transport.read_api_url = None
+    client._transport.mutation_api_url = "http://dockerproxy:2376"
 
     with pytest.raises(DockerClientError, match="조회 또는 변경 API 경로"):
         await client.connect_container_to_network(
@@ -128,7 +128,7 @@ async def test_connect_container_to_network_requires_read_and_mutation_paths():
 async def test_inspect_manager_component_includes_runtime_health(monkeypatch):
     client = DockerClient()
 
-    async def fake_get_object_json(_path: str, params=None):
+    async def fake_get_object(_path: str, params=None):
         return {
             "Id": "container-1",
             "Image": "sha256:image-1",
@@ -150,13 +150,17 @@ async def test_inspect_manager_component_includes_runtime_health(monkeypatch):
             },
         }
 
-    async def fake_inspect_image(_image_ref: str):
+    async def fake_inspect_image(_transport, _image_ref: str):
         return {"Id": "sha256:image-1", "Config": {"Labels": {}}}
 
-    monkeypatch.setattr(client, "_get_object_json", fake_get_object_json)
-    monkeypatch.setattr(client, "_inspect_image", fake_inspect_image)
+    monkeypatch.setattr(client._transport, "get_object", fake_get_object)
+    monkeypatch.setattr(manager_deployment_inspector, "_inspect_image", fake_inspect_image)
 
-    component = await client._inspect_manager_component("backend", "traefik-manager-backend")
+    component = await manager_deployment_inspector._inspect_component(
+        client._transport,
+        name="backend",
+        container_name="traefik-manager-backend",
+    )
 
     assert component["runtime_status"] == "running"
     assert component["health_status"] == "unhealthy"
@@ -169,7 +173,7 @@ async def test_inspect_manager_component_includes_runtime_health(monkeypatch):
 @pytest.mark.asyncio
 async def test_manager_http_error_summary_reads_backend_container_logs(monkeypatch):
     client = DockerClient()
-    client.socket_path = "/etc/hosts"
+    client._transport.socket_path = "/etc/hosts"
     captured = {}
 
     async def fake_read_logs(**kwargs):
@@ -200,7 +204,7 @@ async def test_manager_http_error_summary_reads_backend_container_logs(monkeypat
 @pytest.mark.asyncio
 async def test_manager_http_error_summary_prefers_persistent_request_logs(monkeypatch):
     client = DockerClient()
-    client.socket_path = "/etc/hosts"
+    client._transport.socket_path = "/etc/hosts"
     monkeypatch.setattr(
         manager_http_log_reader,
         "read_manager_http_request_logs",
@@ -226,7 +230,7 @@ async def test_manager_http_error_summary_prefers_persistent_request_logs(monkey
 @pytest.mark.asyncio
 async def test_manager_http_log_storage_uses_lightweight_source_check(monkeypatch):
     client = DockerClient()
-    client.socket_path = "/etc/hosts"
+    client._transport.socket_path = "/etc/hosts"
     monkeypatch.setattr(
         manager_http_log_reader,
         "manager_http_request_logs_available",

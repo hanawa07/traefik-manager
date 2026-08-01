@@ -205,10 +205,9 @@ class _TraefikClient:
 
 class _DockerClient:
     enabled = True
-    api_version = "v1.41"
 
-    async def _get_object_json(self, path: str, params=None):
-        assert path == "/v1.41/containers/traefik/json"
+    async def get_container(self, container_name: str):
+        assert container_name == "traefik"
         return {
             "Config": {
                 "Image": "traefik:v3.7.8",

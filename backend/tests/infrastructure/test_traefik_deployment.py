@@ -86,11 +86,10 @@ async def test_traefik_deployment_status_reports_latest_version(monkeypatch):
 
 class _DockerClient:
     enabled = True
-    api_version = "v1.41"
 
     def __init__(self, container):
         self.container = container
 
-    async def _get_object_json(self, path: str, params=None):
-        assert path == "/v1.41/containers/traefik/json"
+    async def get_container(self, container_name: str):
+        assert container_name == "traefik"
         return self.container

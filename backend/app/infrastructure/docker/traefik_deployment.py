@@ -20,9 +20,7 @@ class TraefikDeploymentInspector:
                 "apply_blocked_reason": "Docker API 연결 경로가 없습니다.",
             }
 
-        container = await self.docker_client._get_object_json(
-            f"/{self.docker_client.api_version}/containers/{settings.TRAEFIK_DOCKER_CONTAINER_NAME}/json"
-        )
+        container = await self.docker_client.get_container(settings.TRAEFIK_DOCKER_CONTAINER_NAME)
         labels = _dict_value(container.get("Config"), "Labels")
         image = _string_value(_dict_value(container.get("Config"), "Image") or container.get("Image"))
         current_version = _extract_version(labels, image)
