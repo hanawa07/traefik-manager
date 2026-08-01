@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime
 
 import httpx
 
@@ -26,10 +26,10 @@ from app.infrastructure.traefik.runtime_status_builder import (
     build_middlewares_status,
     build_router_status,
 )
+from app.infrastructure.traefik.traefik_release_checker import TraefikReleaseChecker
 from app.infrastructure.traefik.runtime_parsers import (
     compare_versions,
     extract_current_version,
-    parse_version,
 )
 
 
@@ -40,18 +40,16 @@ class TraefikApiClientError(Exception):
 class TraefikApiClient:
     """Traefik REST API 클라이언트"""
 
-    _latest_version_cache: dict | None = None
-    _latest_version_lock = asyncio.Lock()
-
     def __init__(self):
         self.base_url = settings.TRAEFIK_API_URL.rstrip("/")
         self.timeout = settings.TRAEFIK_API_TIMEOUT_SECONDS
+        self.release_checker = TraefikReleaseChecker()
 
     async def get_health(self, *, refresh_latest: bool = False) -> dict:
         overview, version_payload, latest_info = await asyncio.gather(
             self._get_overview_or_none(),
             self._get_version_or_none(),
-            self._get_latest_version_info(force_refresh=refresh_latest),
+            self.release_checker.get_latest_version_info(force_refresh=refresh_latest),
         )
 
         if overview is None:
@@ -86,69 +84,6 @@ class TraefikApiClient:
         except TraefikApiClientError:
             return None
         return payload if isinstance(payload, dict) else None
-
-    async def _get_latest_version_info(self, *, force_refresh: bool = False) -> dict:
-        now = datetime.now(timezone.utc)
-        cache = self._latest_version_cache
-        if not force_refresh and cache and self._is_latest_version_cache_fresh(cache, now):
-            return cache.copy()
-
-        async with self._latest_version_lock:
-            cache = self._latest_version_cache
-            if not force_refresh and cache and self._is_latest_version_cache_fresh(cache, now):
-                return cache.copy()
-
-            info = await self._fetch_latest_version_info(now)
-            TraefikApiClient._latest_version_cache = info.copy()
-            return info
-
-    def _is_latest_version_cache_fresh(self, cache: dict, now: datetime) -> bool:
-        checked_at = cache.get("latest_version_checked_at")
-        if not isinstance(checked_at, datetime):
-            return False
-
-        max_age_seconds = max(settings.TRAEFIK_LATEST_VERSION_CACHE_SECONDS, 60)
-        return (now - checked_at).total_seconds() < max_age_seconds
-
-    async def _fetch_latest_version_info(self, checked_at: datetime) -> dict:
-        try:
-            async with httpx.AsyncClient(
-                timeout=settings.TRAEFIK_LATEST_VERSION_TIMEOUT_SECONDS,
-                headers={
-                    "Accept": "application/vnd.github+json",
-                    "User-Agent": "traefik-manager",
-                },
-            ) as client:
-                response = await client.get(settings.TRAEFIK_LATEST_VERSION_API_URL)
-                response.raise_for_status()
-                payload = response.json()
-        except (httpx.HTTPError, ValueError):
-            return {
-                "latest_version": None,
-                "latest_release_url": None,
-                "update_available": None,
-                "latest_version_checked_at": checked_at,
-                "latest_version_error": "최신 Traefik 버전을 확인하지 못했습니다",
-            }
-
-        latest_version = payload.get("tag_name") if isinstance(payload, dict) else None
-        if not isinstance(latest_version, str) or not parse_version(latest_version):
-            return {
-                "latest_version": None,
-                "latest_release_url": None,
-                "update_available": None,
-                "latest_version_checked_at": checked_at,
-                "latest_version_error": "최신 Traefik 버전 응답을 해석하지 못했습니다",
-            }
-
-        latest_release_url = payload.get("html_url") if isinstance(payload, dict) else None
-        return {
-            "latest_version": latest_version,
-            "latest_release_url": latest_release_url if isinstance(latest_release_url, str) else None,
-            "update_available": None,
-            "latest_version_checked_at": checked_at,
-            "latest_version_error": None,
-        }
 
     async def get_router_status(self) -> dict:
         try:
@@ -243,6 +178,9 @@ class TraefikApiClient:
             async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
                 response = await client.get(path)
                 response.raise_for_status()
-                return response.json()
-        except httpx.HTTPError as exc:
+                payload = response.json()
+                if not isinstance(payload, (dict, list)):
+                    raise ValueError("Traefik API 응답 형식이 올바르지 않습니다")
+                return payload
+        except (httpx.HTTPError, ValueError) as exc:
             raise TraefikApiClientError(f"Traefik API 호출 실패: {path}") from exc

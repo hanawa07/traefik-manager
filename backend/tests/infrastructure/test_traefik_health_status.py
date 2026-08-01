@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
+from app.infrastructure.traefik.traefik_release_checker import TraefikReleaseChecker
 
 
 @pytest.mark.asyncio
@@ -20,8 +21,8 @@ async def test_get_health_includes_latest_version_update_status(monkeypatch):
 
     monkeypatch.setattr(client, "_get", fake_get)
     monkeypatch.setattr(
-        client,
-        "_get_latest_version_info",
+        client.release_checker,
+        "get_latest_version_info",
         AsyncMock(
             return_value={
                 "latest_version": "v3.5.4",
@@ -56,8 +57,8 @@ async def test_get_health_uses_version_endpoint_when_overview_has_no_version(mon
 
     monkeypatch.setattr(client, "_get", fake_get)
     monkeypatch.setattr(
-        client,
-        "_get_latest_version_info",
+        client.release_checker,
+        "get_latest_version_info",
         AsyncMock(
             return_value={
                 "latest_version": "v3.7.5",
@@ -80,7 +81,7 @@ async def test_get_health_uses_version_endpoint_when_overview_has_no_version(mon
 @pytest.mark.asyncio
 async def test_get_health_force_refresh_bypasses_latest_version_cache(monkeypatch):
     client = TraefikApiClient()
-    TraefikApiClient._latest_version_cache = {
+    TraefikReleaseChecker._latest_version_cache = {
         "latest_version": "v3.1.0",
         "latest_release_url": "https://github.com/traefik/traefik/releases/tag/v3.1.0",
         "update_available": None,
@@ -107,7 +108,7 @@ async def test_get_health_force_refresh_bypasses_latest_version_cache(monkeypatc
         }
 
     monkeypatch.setattr(client, "_get", fake_get)
-    monkeypatch.setattr(client, "_fetch_latest_version_info", fake_fetch_latest_version_info)
+    monkeypatch.setattr(client.release_checker, "_fetch_latest_version_info", fake_fetch_latest_version_info)
 
     result = await client.get_health(refresh_latest=True)
 
