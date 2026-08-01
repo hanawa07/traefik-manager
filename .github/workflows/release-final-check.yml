@@ -74,6 +74,7 @@ jobs:
           npm --prefix frontend run test:audit-query-state
           npm --prefix frontend run test:audit-retry-chain
           npm --prefix frontend run test:container-import
+          npm --prefix frontend run test:encoded-path-card-visual
           npm --prefix frontend run test:bottleneck-preview
           npm --prefix frontend run test:maintenance-history-query
           npm --prefix frontend run test:traefik-update-history

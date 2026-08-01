@@ -183,7 +183,7 @@ function findChromeBinary() {
   return path;
 }
 
-async function getFreePort() {
+export async function getFreePort() {
   const server = createServer();
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
