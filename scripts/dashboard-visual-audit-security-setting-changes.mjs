@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 
+import { navigateAndWait } from "./dashboard-visual-page-runtime.mjs";
 import { clickAriaLabel, evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 const SUPPORTED_KEYS_BY_EVENT = {
@@ -97,12 +98,6 @@ export async function checkAuditSecuritySettingChanges({ cdp, timeoutMs }) {
     "보안 설정 감사 검증 후 필터가 초기화되지 않았습니다",
   );
   return targets.length;
-}
-
-async function navigateAndWait(cdp, url, timeoutMs) {
-  const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
-  await cdp.send("Page.navigate", { url });
-  await loaded;
 }
 
 export function runAuditSecuritySettingChangesSelfTest() {

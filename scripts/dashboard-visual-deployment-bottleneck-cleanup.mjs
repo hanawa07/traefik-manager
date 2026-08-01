@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 
+import { navigateAndWait } from "./dashboard-visual-page-runtime.mjs";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 import { loginSessionCookies } from "./smoke-session-auth.mjs";
 
@@ -127,10 +128,4 @@ export function runDeploymentBottleneckCleanupSelfTest() {
     () => resolveOptionalAdminCredentials({ TM_SMOKE_ADMIN_USERNAME: "smoke-admin" }),
     /함께 지정/,
   );
-}
-
-async function navigateAndWait(cdp, url, timeoutMs) {
-  const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
-  await cdp.send("Page.navigate", { url });
-  await loaded;
 }

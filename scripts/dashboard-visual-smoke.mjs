@@ -16,10 +16,12 @@ import { checkManagerHttpErrorPreviewForm } from "./dashboard-visual-manager-htt
 import { checkManagerHttpErrorTrend } from "./dashboard-visual-manager-http-trend.mjs";
 import {
   checkVisualRoute,
-  evaluateInVisualPage,
   runDashboardVisualPageChecksSelfTest,
-  withVisualProfile,
 } from "./dashboard-visual-page-checks.mjs";
+import {
+  evaluateInVisualPage,
+  withVisualProfile,
+} from "./dashboard-visual-page-runtime.mjs";
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
 import { checkSecurityAlertRetryDelaySetting } from "./dashboard-visual-security-alert-settings.mjs";
 import { checkManualSmokeRunResultPersistence } from "./dashboard-visual-smoke-manual-run.mjs";
