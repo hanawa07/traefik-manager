@@ -4,18 +4,11 @@ import type { ManagerDeploymentHistoryEntry } from "@/features/deployment/api/de
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 import {
-  formatManagerDeploymentDurationMs,
-  getManagerDeploymentDurationMs,
-  getManagerDeploymentExcessDurationMs,
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
-  MANAGER_DEPLOYMENT_STATUS_DISPLAY,
 } from "./managerDeploymentHistoryDisplay";
+import { buildManagerDeploymentHistoryItemModel } from "./managerDeploymentHistoryItemModel";
 import { ManagerDeploymentHistoryJsonDetails } from "./ManagerDeploymentHistoryJsonDetails";
 import { ManagerDeploymentStageDurations } from "./ManagerDeploymentStageDurations";
-import {
-  buildManagerDeploymentLinks,
-  getManagerDeploymentHistoryAnchor,
-} from "./managerDeploymentLinks";
 import type { ManagerDeploymentHistoryRecordSource } from "./managerDeploymentHistoryQuery";
 import { ManagerDeploymentAlertRun } from "./ManagerDeploymentAlertRun";
 
@@ -44,36 +37,28 @@ export function ManagerDeploymentHistoryItem({
   thresholdLabel,
   timezone,
 }: ManagerDeploymentHistoryItemProps) {
-  const status = MANAGER_DEPLOYMENT_STATUS_DISPLAY[entry.status];
-  const durationMs = getManagerDeploymentDurationMs(entry.started_at, entry.completed_at);
-  const duration = durationMs === null
-    ? "확인 불가"
-    : formatManagerDeploymentDurationMs(durationMs);
-  const excessDurationMs = getManagerDeploymentExcessDurationMs(durationMs, thresholdDurationMs);
-  const isSlowerThanThreshold = excessDurationMs !== null;
-  const links = buildManagerDeploymentLinks({
-    latestVersion: entry.version,
+  const model = buildManagerDeploymentHistoryItemModel({
+    entry,
     previousVersion,
-    revision: entry.revision,
     source,
+    thresholdDurationMs,
   });
-  const revision = entry.revision.slice(0, 12);
 
   return (
     <li
-      className={`scroll-mt-4 rounded-lg border px-3 py-2.5 target:ring-2 target:ring-blue-200 dark:target:ring-blue-500/30 ${isSlowerThanThreshold
+      className={`scroll-mt-4 rounded-lg border px-3 py-2.5 target:ring-2 target:ring-blue-200 dark:target:ring-blue-500/30 ${model.isSlowerThanThreshold
         ? "border-orange-300 bg-orange-50/70 dark:border-orange-500/50 dark:bg-orange-950/20"
         : "border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900"
       }`}
       data-deployment-failure-stage={entry.failure_stage ?? (entry.status === "success" ? undefined : "unknown")}
-      data-deployment-delay-ms={excessDurationMs ?? undefined}
-      data-deployment-slow={isSlowerThanThreshold ? "true" : "false"}
+      data-deployment-delay-ms={model.excessDurationMs ?? undefined}
+      data-deployment-slow={model.isSlowerThanThreshold ? "true" : "false"}
       data-deployment-status={entry.status}
-      id={getManagerDeploymentHistoryAnchor(entry.revision, entry.completed_at)}
+      id={model.anchor}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.className}`}>
-          {status.label}
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${model.status.className}`}>
+          {model.status.label}
         </span>
         {entrySource ? (
           <span
@@ -95,12 +80,12 @@ export function ManagerDeploymentHistoryItem({
             {entry.archive_sample === "detailed" ? "상세 표본" : "일별 표본"}
           </span>
         ) : null}
-        {isSlowerThanThreshold ? (
+        {model.isSlowerThanThreshold ? (
           <span
             className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-800 dark:bg-orange-500/20 dark:text-orange-100"
             data-deployment-slow-badge
           >
-            {thresholdLabel}보다 +{formatManagerDeploymentDurationMs(excessDurationMs)}
+            {thresholdLabel}보다 +{model.excessDuration}
           </span>
         ) : null}
         <span
@@ -112,10 +97,10 @@ export function ManagerDeploymentHistoryItem({
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-gray-600 dark:text-slate-300">
         <span>
-          {links.releaseUrl ? (
+          {model.links.releaseUrl ? (
             <a
               className="font-semibold underline decoration-gray-300 underline-offset-2 hover:text-blue-700 dark:decoration-slate-600 dark:hover:text-blue-300"
-              href={links.releaseUrl}
+              href={model.links.releaseUrl}
               rel="noreferrer"
               target="_blank"
             >
@@ -125,18 +110,18 @@ export function ManagerDeploymentHistoryItem({
             <HighlightedText query={searchText} text={entry.version} />
           )}
           {" · "}
-          {links.commitUrl ? (
+          {model.links.commitUrl ? (
             <a
               className="font-mono underline decoration-gray-300 underline-offset-2 hover:text-blue-700 dark:decoration-slate-600 dark:hover:text-blue-300"
-              href={links.commitUrl}
+              href={model.links.commitUrl}
               rel="noreferrer"
               target="_blank"
             >
-              <HighlightedText query={searchText} text={revision} />
+              <HighlightedText query={searchText} text={model.revision} />
             </a>
           ) : (
             <span className="font-mono">
-              <HighlightedText query={searchText} text={revision} />
+              <HighlightedText query={searchText} text={model.revision} />
             </span>
           )}
         </span>
@@ -146,11 +131,11 @@ export function ManagerDeploymentHistoryItem({
           onCopy={onCopy}
           value={entry.revision}
         />
-        {links.compareUrl ? (
+        {model.links.compareUrl ? (
           <a
             className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-200"
             data-deployment-compare
-            href={links.compareUrl}
+            href={model.links.compareUrl}
             rel="noreferrer"
             target="_blank"
           >
@@ -160,9 +145,9 @@ export function ManagerDeploymentHistoryItem({
         ) : null}
       </div>
       <p className="mt-1 text-[11px] text-gray-500 dark:text-slate-400">
-        <span data-deployment-duration={duration}>소요 {duration}</span>
+        <span data-deployment-duration={model.duration}>소요 {model.duration}</span>
         {" · "}
-        {formatProbe(entry)} · {formatDateTime(entry.completed_at, timezone)}
+        {model.probe} · {formatDateTime(entry.completed_at, timezone)}
       </p>
       <ManagerDeploymentStageDurations
         alertThresholdMs={bottleneckThresholdMs}
@@ -234,12 +219,4 @@ function HighlightedText({ query, text }: { query: string; text: string }) {
       {text.slice(matchEnd)}
     </>
   );
-}
-
-function formatProbe(entry: ManagerDeploymentHistoryEntry): string {
-  if (entry.probe_total === 0) return "공개 probe 전 종료";
-  if (entry.probe_failures > 0) {
-    return `probe ${entry.probe_total}건 중 ${entry.probe_failures}건 실패`;
-  }
-  return `probe ${entry.probe_total}건 모두 HTTP 200`;
 }
