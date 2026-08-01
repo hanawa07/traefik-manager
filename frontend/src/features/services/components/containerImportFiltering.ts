@@ -1,6 +1,11 @@
-import type { DockerContainer } from "@/features/docker/api/dockerApi";
+import type { DockerContainer, DockerContainerPort } from "@/features/docker/api/dockerApi";
 import type { TraefikImportCandidate } from "./containerImportTypes";
-import { formatDockerPortLabel } from "./serviceFormUtils";
+
+export function formatDockerPortLabel(port: DockerContainerPort): string {
+  const publicSuffix = port.public_port != null ? ` -> ${port.public_port}` : "";
+  const protocolSuffix = port.type ? `/${port.type}` : "";
+  return `${port.private_port}${publicSuffix}${protocolSuffix}`;
+}
 
 export function buildTraefikImportCandidates(containers: DockerContainer[]) {
   return containers.flatMap((container) =>

@@ -3,7 +3,10 @@ import type { UseFormSetValue } from "react-hook-form";
 import type { DockerContainer } from "@/features/docker/api/dockerApi";
 import type { TraefikImportCandidate } from "./containerImportTypes";
 import type { ServiceFormData } from "./serviceFormSchema";
-import { getSuggestedUpstreamPort } from "./serviceFormUtils";
+
+export function getSuggestedUpstreamPort(container: DockerContainer): number {
+  return container.ports[0]?.private_port ?? 80;
+}
 
 export function applyBasicContainerImport(
   setValue: UseFormSetValue<ServiceFormData>,

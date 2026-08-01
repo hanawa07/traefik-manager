@@ -1,6 +1,7 @@
 import type { DockerContainer } from "@/features/docker/api/dockerApi";
 
-import { formatDockerPortLabel, getSuggestedUpstreamPort } from "./serviceFormUtils";
+import { getSuggestedUpstreamPort } from "./containerImportApply";
+import { formatDockerPortLabel } from "./containerImportFiltering";
 
 interface ContainerImportBasicItemProps {
   container: DockerContainer;

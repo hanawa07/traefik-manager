@@ -40,7 +40,7 @@ export function ContainerImportResultsPanel({
     return <ContainerImportLoadingState />;
   }
 
-  if (isDockerError) {
+  if (isDockerError && !dockerContainers) {
     return <ContainerImportErrorNotice error={dockerContainersError} />;
   }
 
@@ -48,24 +48,27 @@ export function ContainerImportResultsPanel({
     return <ContainerImportUnavailableNotice message={dockerContainers?.message} />;
   }
 
-  if (mode === "basic") {
-    return (
-      <ContainerImportBasicList
-        availableContainers={availableContainers}
-        filteredContainers={filteredContainers}
-        normalizedSearchQuery={normalizedSearchQuery}
-        onImport={onBasicImport}
-      />
-    );
-  }
-
-  return (
+  const results = mode === "basic" ? (
+    <ContainerImportBasicList
+      availableContainers={availableContainers}
+      filteredContainers={filteredContainers}
+      normalizedSearchQuery={normalizedSearchQuery}
+      onImport={onBasicImport}
+    />
+  ) : (
     <ContainerImportTraefikList
       traefikImportCandidates={traefikImportCandidates}
       filteredTraefikImportCandidates={filteredTraefikImportCandidates}
       normalizedSearchQuery={normalizedSearchQuery}
       onImport={onTraefikImport}
     />
+  );
+
+  return (
+    <>
+      {isDockerError ? <ContainerImportRefreshWarning error={dockerContainersError} /> : null}
+      {results}
+    </>
   );
 }
 
@@ -82,6 +85,17 @@ function ContainerImportErrorNotice({ error }: { error: unknown }) {
   return (
     <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
       {getDockerErrorMessage(error)}
+    </div>
+  );
+}
+
+function ContainerImportRefreshWarning({ error }: { error: unknown }) {
+  return (
+    <div
+      className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+      data-testid="container-import-refresh-warning"
+    >
+      컨테이너 목록을 새로고치지 못해 이전 조회 결과를 유지합니다. {getDockerErrorMessage(error)}
     </div>
   );
 }

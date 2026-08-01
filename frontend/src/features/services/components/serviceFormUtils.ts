@@ -1,5 +1,3 @@
-import type { DockerContainer, DockerContainerPort } from "@/features/docker/api/dockerApi";
-
 export function parseHealthcheckExpectedStatuses(input: string | undefined): number[] {
   if (!input) return [];
   const normalized = input
@@ -34,14 +32,4 @@ export function generateSecureToken() {
   window.crypto.getRandomValues(array);
   const randomStr = Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
   return `service_${btoa(randomStr).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "").substring(0, 44)}`;
-}
-
-export function formatDockerPortLabel(port: DockerContainerPort): string {
-  const publicSuffix = port.public_port != null ? ` -> ${port.public_port}` : "";
-  const protocolSuffix = port.type ? `/${port.type}` : "";
-  return `${port.private_port}${publicSuffix}${protocolSuffix}`;
-}
-
-export function getSuggestedUpstreamPort(container: DockerContainer): number {
-  return container.ports[0]?.private_port ?? 80;
 }
