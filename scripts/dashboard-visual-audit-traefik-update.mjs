@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
-import { TRAEFIK_UPDATE_HISTORY_FIXTURE } from "./dashboard-visual-traefik-update-history.mjs";
+import { TRAEFIK_UPDATE_HISTORY_FIXTURE } from "./dashboard-visual-traefik-update-history-fixture.mjs";
 
 const AUDIT_ID = "00000000-0000-4000-8000-000000000011";
 const RETRY_REQUEST_ID = "33333333-3333-4333-8333-333333333333";
