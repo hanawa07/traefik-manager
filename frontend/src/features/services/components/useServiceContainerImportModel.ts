@@ -13,6 +13,7 @@ import {
   buildTraefikImportCandidates,
   filterDockerContainers,
   filterTraefikImportCandidates,
+  findRecommendedComposeGateway,
   prioritizeProxyNetworkContainers,
 } from "./containerImportFiltering";
 import type { ServiceFormData } from "./serviceFormSchema";
@@ -61,7 +62,11 @@ export function useServiceContainerImportModel({ setValue }: UseServiceContainer
   };
 
   const handleBasicContainerImport = (container: Parameters<typeof applyBasicContainerImport>[1]) => {
-    applyBasicContainerImport(setValue, container);
+    applyBasicContainerImport(
+      setValue,
+      container,
+      findRecommendedComposeGateway(container, availableContainers),
+    );
     setIsContainerModalOpen(false);
   };
 

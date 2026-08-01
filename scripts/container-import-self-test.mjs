@@ -121,6 +121,18 @@ assert.deepEqual(Object.fromEntries(basicValues), {
   upstream_port: 3000,
 });
 
+const recommendedBasicValues = new Map();
+applyBasicContainerImport(
+  (key, value) => recommendedBasicValues.set(key, value),
+  englishApp,
+  englishGateway,
+);
+assert.deepEqual(Object.fromEntries(recommendedBasicValues), {
+  name: "english-app-1",
+  upstream_host: "english-nginx-1",
+  upstream_port: 80,
+});
+
 const traefikValues = new Map();
 applyTraefikContainerImport((key, value) => traefikValues.set(key, value), candidates[1]);
 assert.deepEqual(Object.fromEntries(traefikValues), {

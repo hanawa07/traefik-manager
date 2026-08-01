@@ -42,17 +42,21 @@ export default function ContainerImportBasicList({
           <ContainerImportBasicEmptyState normalizedSearchQuery={normalizedSearchQuery} />
         ) : (
           <>
-            {httpContainers.map((container) => (
-              <ContainerImportBasicItem
-                key={container.id || container.name}
-                container={container}
-                isRecommendedGateway={isRecommendedComposeGateway(container, availableContainers)}
-                recommendedGatewayName={
-                  findRecommendedComposeGateway(container, availableContainers)?.name
-                }
-                onImport={onImport}
-              />
-            ))}
+            {httpContainers.map((container) => {
+              const recommendedGateway = findRecommendedComposeGateway(
+                container,
+                availableContainers,
+              );
+              return (
+                <ContainerImportBasicItem
+                  key={container.id || container.name}
+                  container={container}
+                  isRecommendedGateway={isRecommendedComposeGateway(container, availableContainers)}
+                  recommendedGateway={recommendedGateway}
+                  onImport={onImport}
+                />
+              );
+            })}
 
             {nonHttpContainers.length > 0 ? (
               <details

@@ -11,10 +11,11 @@ export function getSuggestedUpstreamPort(container: DockerContainer): number {
 export function applyBasicContainerImport(
   setValue: UseFormSetValue<ServiceFormData>,
   container: DockerContainer,
+  upstreamContainer: DockerContainer = container,
 ) {
   setValue("name", container.name);
-  setValue("upstream_host", container.name);
-  setValue("upstream_port", getSuggestedUpstreamPort(container));
+  setValue("upstream_host", upstreamContainer.name);
+  setValue("upstream_port", getSuggestedUpstreamPort(upstreamContainer));
 }
 
 export function applyTraefikContainerImport(
