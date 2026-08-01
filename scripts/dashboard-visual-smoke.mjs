@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
-import { checkAuditBulkOperationFixture, runAuditBulkOperationFixtureSelfTest } from "./dashboard-visual-audit-bulk-operations.mjs";
+import { runAuditBulkOperationFixtureSelfTest } from "./dashboard-visual-audit-bulk-operation-fixture.mjs";
+import { checkAuditBulkOperationFixture } from "./dashboard-visual-audit-bulk-operations.mjs";
 import { checkAuditDelayedRetryFilter } from "./dashboard-visual-audit-delayed-retry.mjs";
 import { checkAuditGithubApiRateLimitTrend } from "./dashboard-visual-audit-github-rate-limit.mjs";
 import { checkAuditFilterPersistence } from "./dashboard-visual-audit-interactions.mjs";
