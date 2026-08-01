@@ -88,16 +88,30 @@ async function checkDelayedRetryTrend(cdp, timeoutMs) {
     return Boolean(button);
   })()`);
   assert.equal(clicked, true, "7일 지연 재시도 추이 카드를 찾지 못했습니다");
-  await waitForCondition(
-    cdp,
-    `new URLSearchParams(location.search).get('filter') === 'delayed_retry' &&
-      new URLSearchParams(location.search).get('period') === '7' &&
-      document.querySelector('[data-period-days="7"]')?.getAttribute('aria-pressed') === 'true' &&
-      document.querySelector('[aria-label="감사 로그 페이지"]')?.getAttribute('data-audit-total') ===
-        ${JSON.stringify(String(summary.apiCounts[1].total))}`,
-    timeoutMs,
-    "7일 지연 재시도 추이 필터가 표와 URL에 반영되지 않았습니다",
-  );
+  try {
+    await waitForCondition(
+      cdp,
+      `new URLSearchParams(location.search).get('filter') === 'delayed_retry' &&
+        new URLSearchParams(location.search).get('period') === '7' &&
+        document.querySelector('[data-period-days="7"]')?.getAttribute('aria-pressed') === 'true' &&
+        document.querySelector('[aria-label="감사 로그 페이지"]')?.getAttribute('data-audit-total') ===
+          ${JSON.stringify(String(summary.apiCounts[1].total))}`,
+      timeoutMs,
+      "7일 지연 재시도 추이 필터가 표와 URL에 반영되지 않았습니다",
+    );
+  } catch (error) {
+    const state = await evaluate(cdp, `(() => ({
+      path: location.pathname,
+      search: location.search,
+      pressed: document.querySelector('[data-period-days="7"]')?.getAttribute('aria-pressed'),
+      tableTotal: document.querySelector('[aria-label="감사 로그 페이지"]')
+        ?.getAttribute('data-audit-total'),
+    }))()`);
+    throw new Error(`${error.message}: ${JSON.stringify({
+      ...state,
+      expectedTotal: String(summary.apiCounts[1].total),
+    })}`);
+  }
   const exportMatches = await evaluate(cdp, `(() => {
     const link = Array.from(document.querySelectorAll('a')).find(
       (item) => item.textContent?.includes('현재 조건 CSV')
