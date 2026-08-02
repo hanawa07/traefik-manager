@@ -25,6 +25,7 @@ const high = getSmokeRunFailureRate(
     { status: "success", completed_at: "2026-07-14T00:00:00Z" },
     { status: "success", completed_at: "2026-07-13T00:00:00Z" },
     { status: "skipped", completed_at: "2026-07-12T00:00:00Z" },
+    { status: "cancelled", completed_at: "2026-07-12T12:00:00Z" },
     { status: "failure", completed_at: "2026-07-01T00:00:00Z" },
   ],
   now,
@@ -76,6 +77,7 @@ assert.deepEqual(
     [
       { status: "failure", completed_at: "2026-07-17T00:00:00Z", run_url: "recent" },
       { status: "skipped", completed_at: "2026-07-16T00:00:00Z", run_url: "skipped" },
+      { status: "cancelled", completed_at: "2026-07-15T00:00:00Z", run_url: "cancelled" },
       { status: "failure", completed_at: "2026-07-01T00:00:00Z", run_url: "older" },
     ],
     now,
@@ -139,6 +141,10 @@ const trackedManualRun = getTrackedManualSmokeRun({
   status: "success",
 });
 assert.deepEqual(parseTrackedManualSmokeRun(JSON.stringify(trackedManualRun)), trackedManualRun);
+assert.deepEqual(
+  parseTrackedManualSmokeRun(JSON.stringify({ ...trackedManualRun, status: "cancelled" })),
+  { ...trackedManualRun, status: "cancelled" },
+);
 assert.equal(parseTrackedManualSmokeRun("not-json"), null);
 assert.equal(parseTrackedManualSmokeRun(JSON.stringify({ ...trackedManualRun, status: "running" })), null);
 assert.equal(

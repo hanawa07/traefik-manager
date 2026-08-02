@@ -98,6 +98,7 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
             <option value="all">전체</option>
             <option value="success">성공·건너뜀</option>
             <option value="failure">실패</option>
+            <option value="cancelled">취소됨 (앱 실패 제외)</option>
           </select>
         </label>
         <label className="grid gap-1 text-[11px] text-gray-500 dark:text-slate-400">

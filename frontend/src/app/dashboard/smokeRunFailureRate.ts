@@ -3,7 +3,7 @@ export const DEFAULT_SMOKE_FAILURE_RATE_THRESHOLD_PERCENT = 30;
 export const DEFAULT_SMOKE_FAILURE_RATE_MIN_RUNS = 3;
 
 export interface SmokeRunResult {
-  status: "success" | "failure" | "skipped";
+  status: "success" | "failure" | "skipped" | "cancelled";
   completed_at: string;
 }
 
@@ -15,7 +15,11 @@ export function getCompletedSmokeRunsInWindow<T extends SmokeRunResult>(
   const cutoff = referenceTime - windowDays * 24 * 60 * 60 * 1000;
   return runs.filter((run) => {
     const completedAt = Date.parse(run.completed_at);
-    return run.status !== "skipped" && Number.isFinite(completedAt) && completedAt >= cutoff;
+    return (
+      (run.status === "success" || run.status === "failure") &&
+      Number.isFinite(completedAt) &&
+      completedAt >= cutoff
+    );
   });
 }
 

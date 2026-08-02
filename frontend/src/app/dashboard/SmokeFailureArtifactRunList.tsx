@@ -10,6 +10,7 @@ const STATUS_LABELS = {
   failure: "실패",
   skipped: "건너뜀",
   success: "성공",
+  cancelled: "취소됨",
 } as const;
 
 const ARTIFACT_EXPIRY_LABELS: Record<SmokeArtifactExpiryState, string> = {

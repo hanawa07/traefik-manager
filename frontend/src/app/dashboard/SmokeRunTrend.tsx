@@ -16,6 +16,7 @@ const STATUS_STYLES = {
   failure: "bg-rose-500 hover:bg-rose-600",
   skipped: "bg-slate-400 hover:bg-slate-500",
   success: "bg-emerald-500 hover:bg-emerald-600",
+  cancelled: "bg-amber-500 hover:bg-amber-600",
 } as const;
 
 const ARTIFACT_CLOCK_INTERVAL_MS = 60_000;
@@ -53,6 +54,7 @@ export function SmokeRunTrend({
     .filter((run) => Date.parse(run.completed_at) >= cutoff)
     .reverse();
   const successCount = recent.filter((run) => run.status === "success").length;
+  const cancelledCount = recent.filter((run) => run.status === "cancelled").length;
   const failureRate = getSmokeRunFailureRate(
     runs,
     periodReferenceTime,
@@ -107,7 +109,10 @@ export function SmokeRunTrend({
               );
             })}
           </div>
-          <span>{successCount}/{recent.length} 성공</span>
+          <span>
+            {successCount}/{recent.length} 성공
+            {cancelledCount ? ` · 취소 ${cancelledCount}회` : ""}
+          </span>
         </>
       ) : (
         <span className="opacity-80">{error ? "확인 실패" : "이력 없음"}</span>

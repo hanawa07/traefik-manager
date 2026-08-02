@@ -28,7 +28,7 @@ export function parseTrackedManualSmokeRun(serialized: string | null): TrackedMa
     const value = JSON.parse(serialized) as Record<string, unknown>;
     if (
       !value ||
-      !["success", "failure", "skipped"].includes(String(value.status)) ||
+      !["success", "failure", "skipped", "cancelled"].includes(String(value.status)) ||
       typeof value.completed_at !== "string" ||
       !Number.isFinite(Date.parse(value.completed_at)) ||
       typeof value.run_url !== "string" ||

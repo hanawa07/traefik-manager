@@ -36,7 +36,7 @@ class GitHubSmokeRunHistoryReader:
         status_filter: str = "all",
     ) -> dict[str, Any]:
         normalized_search = normalize_history_search(search)
-        if status_filter not in {"all", "success", "failure"}:
+        if status_filter not in {"all", "success", "failure", "cancelled"}:
             return build_smoke_history_error(
                 "이력 상태 필터를 확인하지 못했습니다",
                 recent_days=recent_days,

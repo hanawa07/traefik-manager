@@ -81,7 +81,7 @@ async def get_smoke_rotation_status(
     normalized_search = (history_search or "").strip()
     if len(normalized_search) > 100:
         raise HTTPException(status_code=422, detail="history_search는 100자 이하여야 합니다")
-    if history_status not in {"all", "success", "failure"}:
+    if history_status not in {"all", "success", "failure", "cancelled"}:
         raise HTTPException(status_code=422, detail="history_status 값을 확인해주세요")
     is_admin = current_user["role"] == "admin"
     include_admin_details = is_admin and not summary

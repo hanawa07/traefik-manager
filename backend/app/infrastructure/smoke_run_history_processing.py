@@ -4,6 +4,7 @@ from typing import Any
 from app.infrastructure.smoke_workflow_runs import parse_run_timestamp
 
 RECENT_RUN_LIMIT = 5
+_CANCELLED_CONCLUSIONS = {"cancelled", "timed_out"}
 
 
 def build_smoke_run_item(
@@ -15,7 +16,26 @@ def build_smoke_run_item(
 ) -> dict[str, Any]:
     smoke_step = _find_step(steps, "운영 로그인·화면 검사")
     conclusion = _clean_text(run.get("conclusion"))
-    if smoke_step and smoke_step.get("conclusion") == "skipped":
+    if conclusion in _CANCELLED_CONCLUSIONS:
+        status = "cancelled"
+        cancelled_step = next(
+            (
+                step
+                for step in steps
+                if step.get("conclusion") in _CANCELLED_CONCLUSIONS
+            ),
+            None,
+        )
+        step_name = _clean_text(cancelled_step.get("name")) if cancelled_step else None
+        reason = "시간 초과" if conclusion == "timed_out" else "실행 취소"
+        summary = (
+            f"GitHub {reason}: {step_name[:120]} · 앱 실패율 제외"
+            if step_name
+            else f"GitHub {reason} · 앱 실패율 제외"
+        )
+    elif conclusion == "skipped" or (
+        smoke_step and smoke_step.get("conclusion") == "skipped"
+    ):
         status = "skipped"
         summary = "예약 설정에 따라 점검을 건너뜀"
     elif conclusion == "success":
@@ -98,10 +118,7 @@ def select_smoke_run_groups(
             if (updated_at := parse_run_timestamp(run["updated_at"])) is not None
             and updated_at >= cutoff
         ]
-    latest_failure = next(
-        (run for run in operational_runs if run.get("conclusion") != "success"),
-        None,
-    )
+    latest_failure = next((run for run in operational_runs if is_failed_smoke_run(run)), None)
     filtered_runs = filter_smoke_runs(
         operational_runs,
         search=search,
@@ -119,7 +136,7 @@ def filter_smoke_runs(
     search: str,
     status_filter: str,
 ) -> list[dict[str, Any]]:
-    if status_filter not in {"all", "success", "failure"}:
+    if status_filter not in {"all", "success", "failure", "cancelled"}:
         raise ValueError("unsupported status filter")
     needle = normalize_history_search(search).casefold()
     return [
@@ -127,8 +144,12 @@ def filter_smoke_runs(
         for run in runs
         if (
             status_filter == "all"
-            or (status_filter == "success" and run.get("conclusion") == "success")
-            or (status_filter == "failure" and run.get("conclusion") != "success")
+            or (
+                status_filter == "success"
+                and run.get("conclusion") in {"success", "skipped"}
+            )
+            or (status_filter == "failure" and is_failed_smoke_run(run))
+            or (status_filter == "cancelled" and is_cancelled_smoke_run(run))
         )
         and (
             not needle
@@ -158,6 +179,15 @@ def paginate_smoke_runs(
 
 def needs_job_details(run: dict[str, Any]) -> bool:
     return run.get("event") == "schedule" or run.get("conclusion") != "success"
+
+
+def is_cancelled_smoke_run(run: dict[str, Any]) -> bool:
+    return _clean_text(run.get("conclusion")) in _CANCELLED_CONCLUSIONS
+
+
+def is_failed_smoke_run(run: dict[str, Any]) -> bool:
+    conclusion = _clean_text(run.get("conclusion"))
+    return conclusion not in {"success", "skipped", *_CANCELLED_CONCLUSIONS}
 
 
 def normalize_history_search(value: str | None) -> str:

@@ -14,6 +14,7 @@ from app.infrastructure.smoke_run_details import (
 from app.infrastructure.smoke_run_history_processing import (
     RECENT_RUN_LIMIT,
     build_smoke_run_item,
+    is_failed_smoke_run,
     needs_job_details,
     paginate_smoke_runs,
     select_smoke_run_groups,
@@ -66,7 +67,7 @@ async def fetch_smoke_run_history(
                 artifact_run_ids = {
                     run["id"]
                     for run in detail_runs
-                    if run.get("conclusion") != "success"
+                    if is_failed_smoke_run(run)
                 }
                 jobs, artifacts = await asyncio.gather(
                     asyncio.gather(

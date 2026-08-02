@@ -5,7 +5,7 @@ export type SmokeRotationState = "never" | "running" | "success" | "failure";
 export type SmokeMonitoringFrequency = "daily" | "weekly";
 export type SmokeFailureRateWindowDays = 7 | 30;
 export type SmokeHistoryDays = 7 | 30;
-export type SmokeHistoryStatus = "all" | "success" | "failure";
+export type SmokeHistoryStatus = "all" | "success" | "failure" | "cancelled";
 
 export interface SmokeFailureMetadata {
   captured_at: string;
@@ -28,7 +28,7 @@ export interface SmokeMonitoringSettingsInput {
 
 export interface SmokeMonitoringRecentRun {
   run_id: number;
-  status: "success" | "failure" | "skipped";
+  status: "success" | "failure" | "skipped" | "cancelled";
   completed_at: string;
   run_url: string;
   run_number: number | null;

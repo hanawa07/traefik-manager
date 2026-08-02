@@ -10,12 +10,14 @@ const STATUS_LABELS = {
   success: "성공",
   failure: "실패",
   skipped: "건너뜀",
+  cancelled: "취소됨",
 } as const;
 
 const STATUS_STYLES = {
   success: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
   failure: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
   skipped: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+  cancelled: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
 } as const;
 
 interface SmokeRecentRunItemProps {

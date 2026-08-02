@@ -102,6 +102,34 @@ def test_build_smoke_run_item_distinguishes_skipped_schedule() -> None:
     assert result["summary"] == "예약 설정에 따라 점검을 건너뜀"
     assert result["notification_suppressed"] is False
 
+    github_skipped = build_smoke_run_item(
+        _run(conclusion="skipped"),
+        [],
+        public_url="https://github.com/hanawa07/traefik-manager",
+    )
+    assert github_skipped["status"] == "skipped"
+
+
+@pytest.mark.parametrize("conclusion", ["cancelled", "timed_out"])
+def test_build_smoke_run_item_excludes_cancelled_run_from_app_failures(
+    conclusion: str,
+) -> None:
+    result = build_smoke_run_item(
+        _run(conclusion=conclusion),
+        [{"name": "운영 로그인·화면 검사", "conclusion": conclusion}],
+        public_url="https://github.com/hanawa07/traefik-manager",
+        artifact={
+            "url": "https://github.com/example/artifact",
+            "expires_at": "2026-07-18T06:54:58Z",
+        },
+    )
+
+    assert result["status"] == "cancelled"
+    assert result["summary"].endswith("앱 실패율 제외")
+    assert result["notification_suppressed"] is False
+    assert result["artifact_url"] is None
+    assert result["artifact_expires_at"] is None
+
 
 def test_select_smoke_run_groups_keeps_latest_failure_outside_recent_five() -> None:
     runs = [
@@ -164,6 +192,31 @@ def test_select_smoke_run_groups_filters_search_and_status_before_paging() -> No
     )
 
     assert [run["id"] for run in filtered] == [12]
+    assert latest_failure["id"] == 12
+
+
+def test_select_smoke_run_groups_separates_cancelled_runs_from_failures() -> None:
+    runs = [
+        _run(id=13, run_number=903, conclusion="cancelled"),
+        _run(id=12, run_number=902, conclusion="failure"),
+        _run(id=11, run_number=901, conclusion="success"),
+    ]
+
+    cancelled, latest_failure = select_smoke_run_groups(
+        runs,
+        recent_days=30,
+        now=datetime(2026, 7, 18, tzinfo=timezone.utc),
+        status_filter="cancelled",
+    )
+    failures, _ = select_smoke_run_groups(
+        runs,
+        recent_days=30,
+        now=datetime(2026, 7, 18, tzinfo=timezone.utc),
+        status_filter="failure",
+    )
+
+    assert [run["id"] for run in cancelled] == [13]
+    assert [run["id"] for run in failures] == [12]
     assert latest_failure["id"] == 12
 
 

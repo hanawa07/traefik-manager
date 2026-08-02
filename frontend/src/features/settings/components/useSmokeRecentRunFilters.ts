@@ -105,7 +105,10 @@ function readHistoryFilters(): {
   const page = Number(params.get("smoke_page"));
   return {
     search: (params.get("smoke_search") || "").slice(0, 100),
-    status: status === "success" || status === "failure" ? status : "all",
+    status:
+      status === "success" || status === "failure" || status === "cancelled"
+        ? status
+        : "all",
     days: days === 7 ? 7 : 30,
     page: Number.isInteger(page) && page > 0 ? page : 1,
   };

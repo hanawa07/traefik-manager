@@ -16,7 +16,7 @@ class SmokeFailureMetadataResponse(BaseModel):
 
 class SmokeMonitoringRecentRunResponse(BaseModel):
     run_id: int = Field(gt=0)
-    status: Literal["success", "failure", "skipped"]
+    status: Literal["success", "failure", "skipped", "cancelled"]
     completed_at: str
     run_url: str
     run_number: int | None = None
@@ -65,7 +65,7 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_history_total: int = 0
     monitoring_history_total_pages: int = 0
     monitoring_history_search: str = ""
-    monitoring_history_status: Literal["all", "success", "failure"] = "all"
+    monitoring_history_status: Literal["all", "success", "failure", "cancelled"] = "all"
     monitoring_failure_metadata_count: int = 0
     monitoring_failure_metadata_limit: int = 20
     monitoring_github_rate_limit_remaining: int | None = None

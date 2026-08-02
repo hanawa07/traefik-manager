@@ -5,12 +5,14 @@ const STATUS_LABELS: Record<TrackedManualSmokeRun["status"], string> = {
   success: "성공",
   failure: "실패",
   skipped: "건너뜀",
+  cancelled: "취소됨",
 };
 
 const STATUS_STYLES: Record<TrackedManualSmokeRun["status"], string> = {
   success: "text-emerald-700 dark:text-emerald-300",
   failure: "text-rose-700 dark:text-rose-300",
   skipped: "text-slate-600 dark:text-slate-300",
+  cancelled: "text-amber-700 dark:text-amber-300",
 };
 
 export function SmokeManualRunResult({
