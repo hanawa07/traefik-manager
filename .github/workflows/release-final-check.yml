@@ -29,6 +29,17 @@ jobs:
       - name: GitHub Actions workflow 정적 검사
         run: scripts/run-actionlint.sh
 
+      - name: 운영 스크립트 정적·회귀 검사
+        run: |
+          git ls-files -z '*.sh' | xargs -0 shellcheck
+          scripts/test-manager-health-watchdog.sh
+          scripts/blue-green-deploy.sh --self-test
+          scripts/test-blue-green-rollback-failure.sh
+          scripts/manager-deployment-probe.sh --self-test
+          scripts/manager-deployment-bottleneck-alert.sh --self-test
+          scripts/request-host-operation-alert.sh --self-test
+          scripts/test-traefik-update-runner.sh
+
       - name: Python 준비
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
         with:

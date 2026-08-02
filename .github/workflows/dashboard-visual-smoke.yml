@@ -53,27 +53,6 @@ jobs:
         with:
           node-version: 22
 
-      - name: 전체 셸 스크립트 정적 검사
-        run: git ls-files -z '*.sh' | xargs -0 shellcheck
-
-      - name: 프론트 상태·필터 self-test
-        run: |
-          npm --prefix frontend run test:audit-retry-chain
-          npm --prefix frontend run test:maintenance-history-query
-          npm --prefix frontend run test:traefik-update-history
-
-      - name: Watchdog 무중단 장애·복구 시험
-        run: scripts/test-manager-health-watchdog.sh
-
-      - name: Blue-green 배포 회귀 시험
-        run: |
-          scripts/blue-green-deploy.sh --self-test
-          scripts/test-blue-green-rollback-failure.sh
-          scripts/manager-deployment-probe.sh --self-test
-          scripts/manager-deployment-bottleneck-alert.sh --self-test
-          scripts/request-host-operation-alert.sh --self-test
-          scripts/test-traefik-update-runner.sh
-
       - name: 예약 실행 설정 확인
         id: schedule
         shell: bash
@@ -88,12 +67,6 @@ jobs:
             exit 0
           fi
           node scripts/smoke-schedule-check.mjs >> "$GITHUB_OUTPUT"
-
-      - name: 한글 폰트 준비
-        if: steps.schedule.outputs.should_run == 'true'
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
 
       - name: 운영 로그인·화면 검사
         if: steps.schedule.outputs.should_run == 'true'
