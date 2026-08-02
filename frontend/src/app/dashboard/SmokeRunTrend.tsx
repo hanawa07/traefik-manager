@@ -54,7 +54,9 @@ export function SmokeRunTrend({
     .filter((run) => Date.parse(run.completed_at) >= cutoff)
     .reverse();
   const successCount = recent.filter((run) => run.status === "success").length;
+  const failureCount = recent.filter((run) => run.status === "failure").length;
   const cancelledCount = recent.filter((run) => run.status === "cancelled").length;
+  const skippedCount = recent.filter((run) => run.status === "skipped").length;
   const failureRate = getSmokeRunFailureRate(
     runs,
     periodReferenceTime,
@@ -88,35 +90,35 @@ export function SmokeRunTrend({
         ))}
       </div>
       {recent.length ? (
-        <>
-          <div
-            className="flex max-w-56 flex-wrap items-center gap-1"
-            aria-label={`최근 ${rangeDays}일 ${recent.length}회 중 ${successCount}회 성공`}
-          >
-            {recent.map((run) => {
-              const tooltip = getSmokeRunTooltip(run, timezone);
-              return (
-                <a
-                  key={run.run_url}
-                  className={`h-2.5 w-3 rounded-sm transition-colors ${STATUS_STYLES[run.status]}`}
-                  href={run.run_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={tooltip}
-                >
-                  <span className="sr-only">{tooltip}</span>
-                </a>
-              );
-            })}
-          </div>
-          <span>
-            {successCount}/{recent.length} 성공
-            {cancelledCount ? ` · 취소 ${cancelledCount}회` : ""}
-          </span>
-        </>
+        <div
+          className="flex max-w-56 flex-wrap items-center gap-1"
+          aria-label={`최근 ${rangeDays}일 표시 이력 ${recent.length}건 중 성공 ${successCount}, 실패 ${failureCount}, 취소 ${cancelledCount}, 건너뜀 ${skippedCount}`}
+        >
+          {recent.map((run) => {
+            const tooltip = getSmokeRunTooltip(run, timezone);
+            return (
+              <a
+                key={run.run_url}
+                className={`h-2.5 w-3 rounded-sm transition-colors ${STATUS_STYLES[run.status]}`}
+                href={run.run_url}
+                target="_blank"
+                rel="noreferrer"
+                title={tooltip}
+              >
+                <span className="sr-only">{tooltip}</span>
+              </a>
+            );
+          })}
+        </div>
       ) : (
         <span className="opacity-80">{error ? "확인 실패" : "이력 없음"}</span>
       )}
+      <span data-testid="smoke-run-status-counts">
+        표시 이력 {recent.length}건 · 성공 {successCount} · 실패 {failureCount} · 취소 {cancelledCount} · 건너뜀 {skippedCount}
+      </span>
+      <span className="opacity-80" data-testid="smoke-failure-rate-basis">
+        실패율 분모: 성공+실패 · 취소·건너뜀 제외
+      </span>
       <span
         className={
           failureRate.isAlert

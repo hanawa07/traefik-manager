@@ -5,6 +5,11 @@ from app.infrastructure.smoke_workflow_runs import parse_run_timestamp
 
 RECENT_RUN_LIMIT = 5
 _CANCELLED_CONCLUSIONS = {"cancelled", "timed_out"}
+_CANCELLATION_REASON_LABELS = {
+    "timeout": "시간 초과",
+    "superseded": "새 실행으로 대체 추정",
+    "manual_or_unknown": "수동 취소 또는 원인 미확인",
+}
 
 
 def build_smoke_run_item(
@@ -13,11 +18,13 @@ def build_smoke_run_item(
     *,
     public_url: str,
     artifact: dict[str, str | None] | None = None,
+    cancellation_reason: str | None = None,
 ) -> dict[str, Any]:
     smoke_step = _find_step(steps, "운영 로그인·화면 검사")
     conclusion = _clean_text(run.get("conclusion"))
     if conclusion in _CANCELLED_CONCLUSIONS:
         status = "cancelled"
+        cancellation_reason = cancellation_reason or classify_smoke_cancellation_reason(run, [])
         cancelled_step = next(
             (
                 step
@@ -27,11 +34,11 @@ def build_smoke_run_item(
             None,
         )
         step_name = _clean_text(cancelled_step.get("name")) if cancelled_step else None
-        reason = "시간 초과" if conclusion == "timed_out" else "실행 취소"
+        reason_label = _CANCELLATION_REASON_LABELS[cancellation_reason]
         summary = (
-            f"GitHub {reason}: {step_name[:120]} · 앱 실패율 제외"
+            f"GitHub {reason_label}: {step_name[:120]} · 앱 실패율 제외"
             if step_name
-            else f"GitHub {reason} · 앱 실패율 제외"
+            else f"GitHub {reason_label} · 앱 실패율 제외"
         )
     elif conclusion == "skipped" or (
         smoke_step and smoke_step.get("conclusion") == "skipped"
@@ -79,6 +86,7 @@ def build_smoke_run_item(
         ),
         "commit_sha": head_sha[:7] if head_sha else None,
         "summary": summary,
+        "cancellation_reason": cancellation_reason if status == "cancelled" else None,
         "notification_suppressed": suppressed,
         "artifact_url": (
             artifact.get("url") if status == "failure" and artifact else None
@@ -87,6 +95,31 @@ def build_smoke_run_item(
             artifact.get("expires_at") if status == "failure" and artifact else None
         ),
     }
+
+
+def classify_smoke_cancellation_reason(
+    run: dict[str, Any],
+    all_runs: list[dict[str, Any]],
+) -> str | None:
+    conclusion = _clean_text(run.get("conclusion"))
+    if conclusion == "timed_out":
+        return "timeout"
+    if conclusion != "cancelled":
+        return None
+
+    started_at = _run_started_at(run)
+    cancelled_at = _timestamp(run.get("updated_at"))
+    if started_at and cancelled_at:
+        run_id = run.get("id")
+        for candidate in all_runs:
+            candidate_started_at = _run_started_at(candidate)
+            if (
+                candidate.get("id") != run_id
+                and candidate_started_at
+                and started_at < candidate_started_at <= cancelled_at
+            ):
+                return "superseded"
+    return "manual_or_unknown"
 
 
 def select_smoke_run_groups(
@@ -204,3 +237,11 @@ def _find_step(
 def _clean_text(value: object) -> str | None:
     text = str(value).strip() if value is not None else ""
     return text or None
+
+
+def _run_started_at(run: dict[str, Any]) -> datetime | None:
+    return _timestamp(run.get("run_started_at")) or _timestamp(run.get("created_at"))
+
+
+def _timestamp(value: object) -> datetime | None:
+    return parse_run_timestamp(value) if isinstance(value, str) else None

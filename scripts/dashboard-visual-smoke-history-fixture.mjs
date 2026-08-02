@@ -23,6 +23,7 @@ export async function buildSmokeHistoryFixtures(cdp) {
       run_number: 987,
       commit_sha: 'abcdef0',
       summary: '실패 단계: 운영 로그인·화면 검사',
+      cancellation_reason: null,
       notification_suppressed: false,
       artifact_url: ${JSON.stringify(ARTIFACT_URL)},
       artifact_expires_at: '2026-07-23T06:00:00Z',
@@ -56,6 +57,15 @@ export async function buildSmokeHistoryFixtures(cdp) {
       artifact_expires_at: null,
       failure_metadata: null,
     };
+    const cancelledRun = {
+      ...successRun,
+      run_id: 983,
+      status: 'cancelled',
+      run_url: 'https://github.com/hanawa07/traefik-manager/actions/runs/983',
+      run_number: 983,
+      summary: 'GitHub 새 실행으로 대체 추정 · 앱 실패율 제외',
+      cancellation_reason: 'superseded',
+    };
     return {
       ...status,
       monitoring_history_checked_at: '2026-07-21T06:00:00Z',
@@ -73,7 +83,7 @@ export async function buildSmokeHistoryFixtures(cdp) {
       monitoring_github_rate_limit_limit: 60,
       monitoring_github_rate_limit_reset_at: new Date(Date.now() + 5 * 60_000).toISOString(),
       monitoring_latest_failure: expiredRun,
-      monitoring_recent_runs: [failedRun, expiredRun, successRun],
+      monitoring_recent_runs: [failedRun, expiredRun, successRun, cancelledRun],
     };
   })()`);
   assert.ok(fixture, "운영 점검 최근 이력 fixture의 기본 응답을 읽지 못했습니다");

@@ -47,6 +47,7 @@ export const DASHBOARD_ROUTES = [
       "7일",
       "30일",
       "실패율",
+      "실패율 분모: 성공+실패",
       "활성 슬롯",
       "Manager API 404·5xx 추이",
       "최근 24시간 영속 집계",
@@ -116,7 +117,7 @@ export const DASHBOARD_ROUTES = [
     path: "/dashboard/settings",
     marker: "운영 로그인·화면 점검",
     requiredMarkers: [
-      "취소된 실행은 앱 실패율에서 제외합니다.",
+      "건너뜀·취소는 앱 실패율 분모에서 제외합니다.",
       "Artifact 만료",
       "관리자 전용 점검 최근 성공",
       "관리자 점검 지연 판정",

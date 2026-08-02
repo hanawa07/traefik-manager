@@ -20,6 +20,12 @@ const STATUS_STYLES = {
   cancelled: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
 } as const;
 
+const CANCELLATION_REASON_LABELS = {
+  timeout: "시간 초과",
+  superseded: "새 실행으로 대체 추정",
+  manual_or_unknown: "수동 또는 원인 미확인",
+} as const;
+
 interface SmokeRecentRunItemProps {
   referenceTime: number;
   run: SmokeMonitoringRecentRun;
@@ -34,6 +40,7 @@ export function SmokeRecentRunItem({
   return (
     <li
       className="rounded-md border border-gray-200 bg-white p-3 text-xs dark:border-slate-700 dark:bg-slate-900"
+      data-cancellation-reason={run.cancellation_reason || undefined}
       data-run-status={run.status}
       data-testid="smoke-recent-run-item"
     >
@@ -70,6 +77,14 @@ export function SmokeRecentRunItem({
         <span className="text-gray-500 dark:text-slate-400">
           {formatDateTime(run.completed_at, timezone)}
         </span>
+        {run.status === "cancelled" ? (
+          <span
+            className="font-medium text-amber-700 dark:text-amber-300"
+            data-testid="smoke-cancellation-reason"
+          >
+            취소 원인: {CANCELLATION_REASON_LABELS[run.cancellation_reason || "manual_or_unknown"]}
+          </span>
+        ) : null}
         {run.commit_sha ? (
           <a
             aria-label={`커밋 ${run.commit_sha} 보기`}

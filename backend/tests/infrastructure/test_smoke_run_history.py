@@ -14,6 +14,7 @@ from app.infrastructure.smoke_run_history import (
 )
 from app.infrastructure.smoke_run_history_processing import (
     build_smoke_run_item,
+    classify_smoke_cancellation_reason,
     paginate_smoke_runs,
     select_smoke_run_groups,
 )
@@ -110,9 +111,13 @@ def test_build_smoke_run_item_distinguishes_skipped_schedule() -> None:
     assert github_skipped["status"] == "skipped"
 
 
-@pytest.mark.parametrize("conclusion", ["cancelled", "timed_out"])
+@pytest.mark.parametrize(
+    ("conclusion", "expected_reason"),
+    [("cancelled", "manual_or_unknown"), ("timed_out", "timeout")],
+)
 def test_build_smoke_run_item_excludes_cancelled_run_from_app_failures(
     conclusion: str,
+    expected_reason: str,
 ) -> None:
     result = build_smoke_run_item(
         _run(conclusion=conclusion),
@@ -125,10 +130,32 @@ def test_build_smoke_run_item_excludes_cancelled_run_from_app_failures(
     )
 
     assert result["status"] == "cancelled"
+    assert result["cancellation_reason"] == expected_reason
     assert result["summary"].endswith("앱 실패율 제외")
     assert result["notification_suppressed"] is False
     assert result["artifact_url"] is None
     assert result["artifact_expires_at"] is None
+
+
+def test_classify_smoke_cancellation_reason_detects_superseding_run() -> None:
+    cancelled = _run(
+        id=20,
+        conclusion="cancelled",
+        created_at="2026-07-11T07:00:00Z",
+        run_started_at="2026-07-11T07:00:05Z",
+        updated_at="2026-07-11T07:03:00Z",
+    )
+    newer = _run(
+        id=21,
+        created_at="2026-07-11T07:02:00Z",
+        run_started_at="2026-07-11T07:02:05Z",
+        updated_at="2026-07-11T07:04:00Z",
+    )
+
+    assert classify_smoke_cancellation_reason(cancelled, [cancelled, newer]) == "superseded"
+    assert classify_smoke_cancellation_reason(cancelled, [cancelled]) == "manual_or_unknown"
+    assert classify_smoke_cancellation_reason(_run(conclusion="timed_out"), []) == "timeout"
+    assert classify_smoke_cancellation_reason(_run(), []) is None
 
 
 def test_select_smoke_run_groups_keeps_latest_failure_outside_recent_five() -> None:

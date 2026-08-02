@@ -137,7 +137,7 @@ export async function checkSmokeHistoryFilters({
       const reset = history?.querySelector('[data-testid="smoke-recent-run-reset-filters"]');
       const count = history?.querySelector('[data-testid="smoke-recent-run-filter-count"]');
       return status?.value === 'all' && search?.value === '' &&
-        reset?.disabled === true && count?.textContent?.includes('3/8건') &&
+        reset?.disabled === true && count?.textContent?.includes('4/8건') &&
         !location.search.includes('smoke_status') && !location.search.includes('smoke_search');
     })()`,
     timeoutMs,

@@ -22,6 +22,7 @@ class SmokeMonitoringRecentRunResponse(BaseModel):
     run_number: int | None = None
     commit_sha: str | None = None
     summary: str | None = None
+    cancellation_reason: Literal["timeout", "superseded", "manual_or_unknown"] | None = None
     notification_suppressed: bool = False
     artifact_url: str | None = None
     artifact_expires_at: str | None = None

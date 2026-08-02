@@ -14,6 +14,7 @@ from app.infrastructure.smoke_run_details import (
 from app.infrastructure.smoke_run_history_processing import (
     RECENT_RUN_LIMIT,
     build_smoke_run_item,
+    classify_smoke_cancellation_reason,
     is_failed_smoke_run,
     needs_job_details,
     paginate_smoke_runs,
@@ -126,6 +127,7 @@ async def fetch_smoke_run_history(
             job_steps[run["id"]],
             public_url=public_url,
             artifact=artifacts.get(run["id"]),
+            cancellation_reason=classify_smoke_cancellation_reason(run, raw_runs),
         )
         for run in detail_runs
     }

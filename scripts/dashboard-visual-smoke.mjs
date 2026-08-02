@@ -148,7 +148,7 @@ export function runDashboardVisualSmokeSelfTest() {
   assert.ok(dashboardRoute.requiredMarkers.includes("연속 실패"));
   assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");
   assert.ok(
-    settingsRoute.requiredMarkers.includes("취소된 실행은 앱 실패율에서 제외합니다."),
+    settingsRoute.requiredMarkers.includes("건너뜀·취소는 앱 실패율 분모에서 제외합니다."),
   );
   assert.ok(settingsRoute.requiredMarkers.includes("감사 로그 보존"));
   assert.ok(settingsRoute.requiredMarkers.includes("Manager API 오류 감지"));

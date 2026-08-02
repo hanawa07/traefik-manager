@@ -51,6 +51,7 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
         const rateLimitWarning = document.querySelector('[data-testid="smoke-github-rate-limit-warning"]');
         const refreshButton = document.querySelector('[data-testid="smoke-history-refresh"]');
         const retention = history?.querySelector('[data-testid="smoke-failure-metadata-retention"]');
+        const cancellationReason = history?.querySelector('[data-testid="smoke-cancellation-reason"]');
         const run = history?.querySelector('a[href="${RUN_URL}"]');
         const commit = history?.querySelector('[data-testid="smoke-recent-run-commit-link"]');
         return history?.open && artifact?.href === ${JSON.stringify(ARTIFACT_URL)} &&
@@ -61,17 +62,18 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
           expiredArtifact.textContent?.includes('화면 만료') &&
           latestExpiredArtifact?.getAttribute('aria-disabled') === 'true' &&
           !history?.querySelector('a[href="${EXPIRED_ARTIFACT_URL}"]') &&
-          filterCount?.textContent?.includes('3/8건') &&
+          filterCount?.textContent?.includes('4/8건') &&
           metadata?.textContent?.includes('/dashboard/settings') &&
           checkName?.textContent?.includes('설정 화면 검사 실패') &&
           latestMetadata?.textContent?.includes('만료된 실패 화면 검사') &&
           latestCommit?.href === ${JSON.stringify(COMMIT_URL)} &&
+          cancellationReason?.textContent?.includes('새 실행으로 대체') &&
           rateLimit?.textContent?.includes('GitHub API 10/60회 남음') &&
           rateLimit?.textContent?.includes('초기화') &&
           rateLimitWarning?.textContent?.includes('수동 새로고침과 자동 결과 확인을 잠갔습니다') &&
           (!refreshButton || (refreshButton instanceof HTMLButtonElement && refreshButton.disabled)) &&
           retention?.textContent?.includes('실패 정보 1/20건 보관') &&
-          exclusionNote?.textContent?.includes('취소된 실행은 앱 실패율에서 제외');
+          exclusionNote?.textContent?.includes('건너뜀·취소는 앱 실패율 분모에서 제외');
       })()`,
       timeoutMs,
       "최근 운영 점검 이력 또는 GitHub API 잔여량 보호 상태가 표시되지 않았습니다",

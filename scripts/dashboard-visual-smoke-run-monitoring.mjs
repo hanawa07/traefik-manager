@@ -52,6 +52,12 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     refreshedClock.expected,
     "Artifact 기준 시각이 화면 복귀 시 갱신되지 않았습니다",
   );
+  const statusSummary = await evaluate(cdp, `(() => ({
+    basis: document.querySelector('[data-testid="smoke-failure-rate-basis"]')?.textContent,
+    counts: document.querySelector('[data-testid="smoke-run-status-counts"]')?.textContent,
+  }))()`);
+  assert.match(statusSummary.counts || "", /성공 \d+ · 실패 \d+ · 취소 \d+ · 건너뜀 \d+/);
+  assert.match(statusSummary.basis || "", /성공\+실패.*취소·건너뜀 제외/);
   const failureLinks = await evaluate(cdp, `(() => {
     const alert = document.querySelector('[data-testid="smoke-failure-rate"][role="alert"]');
     const container = document.querySelector('[data-testid="smoke-failure-run-links"]');

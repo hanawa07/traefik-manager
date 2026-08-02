@@ -6,6 +6,7 @@ export type SmokeMonitoringFrequency = "daily" | "weekly";
 export type SmokeFailureRateWindowDays = 7 | 30;
 export type SmokeHistoryDays = 7 | 30;
 export type SmokeHistoryStatus = "all" | "success" | "failure" | "cancelled";
+export type SmokeCancellationReason = "timeout" | "superseded" | "manual_or_unknown";
 
 export interface SmokeFailureMetadata {
   captured_at: string;
@@ -34,6 +35,7 @@ export interface SmokeMonitoringRecentRun {
   run_number: number | null;
   commit_sha: string | null;
   summary: string | null;
+  cancellation_reason: SmokeCancellationReason | null;
   notification_suppressed: boolean;
   artifact_url: string | null;
   artifact_expires_at: string | null;
