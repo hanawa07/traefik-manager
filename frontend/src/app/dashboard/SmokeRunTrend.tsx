@@ -160,7 +160,7 @@ export function SmokeRunTrend({
       <span className="opacity-80" data-testid="smoke-actions-usage">
         {statistic
           ? `Actions 실행시간 ${statistic.duration_run_count}/${statistic.total_count}건 총 ${formatDuration(statistic.total_duration_seconds)} · 평균 ${formatDuration(statistic.average_duration_seconds)} · 예상 사용량 ${statistic.estimated_runner_minutes} runner분`
-          : "Actions 실행시간 집계 없음"}
+          : "Actions 실행시간·예상 사용량 집계 없음"}
       </span>
       <span className="opacity-70" data-testid="smoke-actions-usage-note">
         GitHub workflow 결론·벽시계 기준 추정 · 내부 단계 건너뜀은 성공에 포함될 수 있음 ·
