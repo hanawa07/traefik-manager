@@ -126,10 +126,14 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
   assert.match(statusSummary.basis || "", /workflow 성공\+실패.*취소·전체 건너뜀 제외/);
   assert.match(statusSummary.usage || "", /Actions 실행시간.*예상 사용량/);
   assert.equal(statusSummary.revisionFound, true, "배포와 운영 스모크 커밋 비교가 없습니다");
-  assert.ok(["match", "mismatch"].includes(statusSummary.revisionStatus));
-  assert.match(statusSummary.revisionText || "", /운영 스모크 커밋 (일치|불일치).*배포.*최근 성공/s);
-  assert.equal(statusSummary.revisionsValid, true, "배포 또는 스모크 커밋 형식이 올바르지 않습니다");
-  assert.equal(statusSummary.revisionLinkValid, true, "최근 성공 스모크 실행 링크가 올바르지 않습니다");
+  assert.ok(["pending", "match", "mismatch"].includes(statusSummary.revisionStatus));
+  if (statusSummary.revisionStatus === "pending") {
+    assert.match(statusSummary.revisionText || "", /운영 스모크 커밋 확인 대기/);
+  } else {
+    assert.match(statusSummary.revisionText || "", /운영 스모크 커밋 (일치|불일치).*배포.*최근 성공/s);
+    assert.equal(statusSummary.revisionsValid, true, "배포 또는 스모크 커밋 형식이 올바르지 않습니다");
+    assert.equal(statusSummary.revisionLinkValid, true, "최근 성공 스모크 실행 링크가 올바르지 않습니다");
+  }
   const durationRunCount = Number(
     statusSummary.usage?.match(/Actions 실행시간 (\d+)\//)?.[1] || 0,
   );

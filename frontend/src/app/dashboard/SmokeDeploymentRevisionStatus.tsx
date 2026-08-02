@@ -12,7 +12,17 @@ export function SmokeDeploymentRevisionStatus({
   runs,
 }: SmokeDeploymentRevisionStatusProps) {
   const status = getSmokeDeploymentRevisionStatus(deployedRevision, runs);
-  if (!status) return null;
+  if (!status) {
+    return (
+      <p
+        className="mt-1 w-fit rounded bg-white/70 px-2 py-1 font-semibold text-cyan-900 dark:bg-slate-950/60 dark:text-cyan-100"
+        data-smoke-revision-status="pending"
+        data-testid="smoke-deployment-revision-status"
+      >
+        운영 스모크 커밋 확인 대기 · 비교 정보 수집 중
+      </p>
+    );
+  }
 
   return (
     <p
