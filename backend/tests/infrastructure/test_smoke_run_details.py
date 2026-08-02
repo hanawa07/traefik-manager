@@ -4,6 +4,7 @@ import pytest
 
 from app.infrastructure import smoke_run_details
 from app.infrastructure.smoke_run_details import (
+    build_smoke_artifacts,
     read_smoke_artifacts,
     read_smoke_job_steps,
 )
@@ -43,6 +44,41 @@ class _Client:
                 ]
             }
         )
+
+
+def test_build_smoke_artifacts_accepts_only_active_matching_artifact() -> None:
+    artifacts = build_smoke_artifacts(
+        [
+            {
+                "id": 1,
+                "name": "other",
+                "expired": False,
+                "workflow_run": {"id": 123},
+            },
+            {
+                "id": 2,
+                "name": "dashboard-visual-smoke-123",
+                "expired": True,
+                "workflow_run": {"id": 123},
+            },
+            {
+                "id": 3,
+                "name": "dashboard-visual-smoke-123",
+                "expired": False,
+                "expires_at": "2026-07-18T06:54:58Z",
+                "workflow_run": {"id": 123},
+            },
+        ],
+        run_ids={123},
+        public_url="https://github.com/hanawa07/traefik-manager",
+    )
+
+    assert artifacts == {
+        123: {
+            "url": "https://github.com/hanawa07/traefik-manager/actions/runs/123/artifacts/3",
+            "expires_at": "2026-07-18T06:54:58Z",
+        }
+    }
 
 
 @pytest.mark.asyncio
