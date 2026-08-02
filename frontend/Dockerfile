@@ -29,7 +29,7 @@ COPY --chown=appuser:appgroup --from=builder /app/public ./public
 
 ARG NEXT_PUBLIC_API_URL=/api/v1
 ARG FRONTEND_DOMAIN=
-ARG TRAEFIK_MANAGER_VERSION=v1.36.7
+ARG TRAEFIK_MANAGER_VERSION=dev
 ARG TRAEFIK_MANAGER_GIT_SHA=unknown
 ARG TRAEFIK_MANAGER_BUILD_DATE=unknown
 ARG TRAEFIK_MANAGER_IMAGE_SOURCE=https://github.com/hanawa07/traefik-manager

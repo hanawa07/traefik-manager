@@ -20,7 +20,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
 
 COPY --chown=appuser:appgroup . .
 
-ARG TRAEFIK_MANAGER_VERSION=v1.36.7
+ARG TRAEFIK_MANAGER_VERSION=dev
 ARG TRAEFIK_MANAGER_GIT_SHA=unknown
 ARG TRAEFIK_MANAGER_BUILD_DATE=unknown
 ARG TRAEFIK_MANAGER_IMAGE_SOURCE=https://github.com/hanawa07/traefik-manager
