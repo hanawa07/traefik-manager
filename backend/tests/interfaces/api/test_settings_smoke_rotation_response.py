@@ -5,132 +5,15 @@ import pytest
 from app.interfaces.api.v1.routers.settings_smoke_rotation_response import (
     get_smoke_rotation_status_response,
 )
-
-
-class StubRepository:
-    values: dict[str, str] = {}
-
-    def __init__(self, _db):
-        pass
-
-    async def get(self, key: str) -> str | None:
-        return self.values.get(key)
-
-    async def get_all_dict(self) -> dict[str, str]:
-        return dict(self.values)
-
-    async def set(self, key: str, value: str | None) -> None:
-        if value is None:
-            self.values.pop(key, None)
-        else:
-            self.values[key] = value
-
-    async def delete(self, key: str) -> None:
-        self.values.pop(key, None)
-
-
-class StubHistoryReader:
-    force_refresh = False
-    recent_days = None
-    page = 1
-    search = ""
-    status_filter = "all"
-    cancellation_reason_filter = "all"
-
-    async def get_history(
-        self,
-        _source_url: str,
-        *,
-        force_refresh: bool = False,
-        recent_days: int | None = None,
-        page: int = 1,
-        search: str = "",
-        status_filter: str = "all",
-        cancellation_reason_filter: str = "all",
-    ) -> dict:
-        self.force_refresh = force_refresh
-        self.recent_days = recent_days
-        self.page = page
-        self.search = search
-        self.status_filter = status_filter
-        self.cancellation_reason_filter = cancellation_reason_filter
-        return {
-            "runs": [
-                {
-                    "run_id": 456,
-                    "status": "failure",
-                    "completed_at": "2026-07-11T06:54:58Z",
-                    "run_url": "https://github.com/hanawa07/traefik-manager/actions/runs/456",
-                    "run_number": 78,
-                    "commit_sha": "b3a4642",
-                    "summary": "실패 단계: 운영 로그인·화면 검사",
-                    "notification_suppressed": True,
-                    "artifact_url": "https://github.com/example/artifact",
-                    "artifact_expires_at": "2026-07-18T06:54:58Z",
-                }
-            ],
-            "latest_failure": {
-                "run_id": 456,
-                "status": "failure",
-                "completed_at": "2026-07-11T06:54:58Z",
-                "run_url": "https://github.com/hanawa07/traefik-manager/actions/runs/456",
-                "run_number": 78,
-                "commit_sha": "b3a4642",
-                "summary": "실패 단계: 운영 로그인·화면 검사",
-                "notification_suppressed": True,
-                "artifact_url": "https://github.com/example/artifact",
-                "artifact_expires_at": "2026-07-18T06:54:58Z",
-            },
-            "statistics": [
-                {
-                    "window_days": 7,
-                    "total_count": 7,
-                    "success_count": 5,
-                    "failure_count": 1,
-                    "cancelled_count": 1,
-                    "skipped_count": 0,
-                    "duration_run_count": 7,
-                    "total_duration_seconds": 700,
-                    "average_duration_seconds": 100,
-                    "estimated_runner_minutes": 14,
-                    "slowest_runs": [],
-                },
-                {
-                    "window_days": 30,
-                    "total_count": 30,
-                    "success_count": 25,
-                    "failure_count": 3,
-                    "cancelled_count": 1,
-                    "skipped_count": 1,
-                    "duration_run_count": 30,
-                    "total_duration_seconds": 3000,
-                    "average_duration_seconds": 100,
-                    "estimated_runner_minutes": 60,
-                    "slowest_runs": [],
-                }
-            ],
-            "checked_at": "2026-07-13T01:00:00+00:00",
-            "recent_days": recent_days,
-            "page": page,
-            "per_page": 5,
-            "total": 8,
-            "total_pages": 2,
-            "search": search,
-            "status_filter": status_filter,
-            "cancellation_reason_filter": cancellation_reason_filter,
-            "github_api_request_usage": {
-                "total": 6,
-                "workflow": 1,
-                "job": 4,
-                "artifact": 1,
-            },
-            "error": None,
-        }
+from tests.interfaces.api.settings_router_fakes import StubSettingsRepository
+from tests.interfaces.api.settings_smoke_rotation_response_fakes import (
+    StubSmokeHistoryReader,
+)
 
 
 @pytest.mark.asyncio
 async def test_get_smoke_rotation_status_returns_saved_result() -> None:
-    StubRepository.values = {
+    StubSettingsRepository.store = {
         "dashboard_smoke_monitoring_enabled": "false",
         "dashboard_smoke_monitoring_frequency": "weekly",
         "dashboard_smoke_failure_rate_threshold_percent": "45",
@@ -148,7 +31,7 @@ async def test_get_smoke_rotation_status_returns_saved_result() -> None:
 
     result = await get_smoke_rotation_status_response(
         object(),
-        settings_repository_factory=StubRepository,
+        settings_repository_factory=StubSettingsRepository,
         now=datetime(2026, 7, 10, tzinfo=timezone.utc),
     )
 
@@ -176,7 +59,7 @@ async def test_get_smoke_rotation_status_returns_saved_result() -> None:
 
 @pytest.mark.asyncio
 async def test_get_smoke_rotation_status_defaults_to_never() -> None:
-    StubRepository.values = {
+    StubSettingsRepository.store = {
         "dashboard_smoke_monitoring_frequency": "hourly",
         "dashboard_smoke_failure_rate_threshold_percent": "101",
         "dashboard_smoke_failure_rate_min_runs": "invalid",
@@ -186,7 +69,7 @@ async def test_get_smoke_rotation_status_defaults_to_never() -> None:
 
     result = await get_smoke_rotation_status_response(
         object(),
-        settings_repository_factory=StubRepository,
+        settings_repository_factory=StubSettingsRepository,
     )
 
     assert result.status == "never"
@@ -221,14 +104,14 @@ async def test_get_smoke_rotation_status_warns_for_stale_admin_run(
     last_success_at: str,
     expected_days: int,
 ) -> None:
-    StubRepository.values = {
+    StubSettingsRepository.store = {
         "dashboard_smoke_monitoring_frequency": frequency,
         "dashboard_smoke_admin_last_success_at": last_success_at,
     }
 
     result = await get_smoke_rotation_status_response(
         object(),
-        settings_repository_factory=StubRepository,
+        settings_repository_factory=StubSettingsRepository,
         now=datetime(2026, 7, 10, tzinfo=timezone.utc),
     )
 
@@ -238,13 +121,13 @@ async def test_get_smoke_rotation_status_warns_for_stale_admin_run(
 
 @pytest.mark.asyncio
 async def test_get_smoke_rotation_status_treats_invalid_admin_timestamp_as_stale() -> None:
-    StubRepository.values = {
+    StubSettingsRepository.store = {
         "dashboard_smoke_admin_last_success_at": "invalid",
     }
 
     result = await get_smoke_rotation_status_response(
         object(),
-        settings_repository_factory=StubRepository,
+        settings_repository_factory=StubSettingsRepository,
     )
 
     assert result.monitoring_admin_is_stale is True
@@ -252,14 +135,14 @@ async def test_get_smoke_rotation_status_treats_invalid_admin_timestamp_as_stale
 
 @pytest.mark.asyncio
 async def test_get_smoke_rotation_status_keeps_recent_success_fresh() -> None:
-    StubRepository.values = {
+    StubSettingsRepository.store = {
         "smoke_viewer_rotation_status": "success",
         "smoke_viewer_rotation_last_success_at": "2026-07-01T04:17:00+00:00",
     }
 
     result = await get_smoke_rotation_status_response(
         object(),
-        settings_repository_factory=StubRepository,
+        settings_repository_factory=StubSettingsRepository,
         now=datetime(2026, 7, 10, tzinfo=timezone.utc),
     )
 
@@ -275,11 +158,11 @@ async def test_get_smoke_rotation_status_hides_logs_by_default(tmp_path, monkeyp
         "app.interfaces.api.v1.routers.settings_smoke_rotation_response.settings.SMOKE_ROTATION_LOG_PATH",
         str(log_path),
     )
-    StubRepository.values = {}
+    StubSettingsRepository.store = {}
 
     result = await get_smoke_rotation_status_response(
         object(),
-        settings_repository_factory=StubRepository,
+        settings_repository_factory=StubSettingsRepository,
     )
 
     assert result.recent_log_lines == []
@@ -294,11 +177,11 @@ async def test_get_smoke_rotation_status_includes_logs_for_admin(tmp_path, monke
         "app.interfaces.api.v1.routers.settings_smoke_rotation_response.settings.SMOKE_ROTATION_LOG_PATH",
         str(log_path),
     )
-    StubRepository.values = {}
+    StubSettingsRepository.store = {}
 
     result = await get_smoke_rotation_status_response(
         object(),
-        settings_repository_factory=StubRepository,
+        settings_repository_factory=StubSettingsRepository,
         include_recent_logs=True,
     )
 
@@ -308,7 +191,7 @@ async def test_get_smoke_rotation_status_includes_logs_for_admin(tmp_path, monke
 
 @pytest.mark.asyncio
 async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monkeypatch) -> None:
-    StubRepository.values = {
+    StubSettingsRepository.store = {
         "dashboard_smoke_failure_metadata": (
             '[{"run_id": 456, "captured_at": "2026-07-11T06:54:58Z", '
             '"check_name": "설정 화면 검사 실패", "screen_path": "/dashboard/settings", '
@@ -320,7 +203,7 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
             '"admin_checked":false}'
         ),
     }
-    history_reader = StubHistoryReader()
+    history_reader = StubSmokeHistoryReader()
     monkeypatch.setattr(
         "app.interfaces.api.v1.routers.settings_smoke_rotation_response.read_github_api_rate_limit",
         lambda: {
@@ -338,7 +221,7 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
 
     result = await get_smoke_rotation_status_response(
         object(),
-        settings_repository_factory=StubRepository,
+        settings_repository_factory=StubSettingsRepository,
         include_monitoring_history=True,
         monitoring_history_days=30,
         monitoring_history_page=2,
