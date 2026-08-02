@@ -76,11 +76,12 @@ export async function checkServiceGatewayImportAdminFixture({
 
     await waitForCondition(
       cdp,
-      `document.querySelector('[role="dialog"]')?.innerText.includes(
-        '업스트림은 추천 gateway english-nginx-1:80으로 채웁니다',
-      ) === true`,
+      `Boolean(document.querySelector(
+        '[role="dialog"] [data-testid="container-import-gateway-preview"]' +
+        '[data-source-container="english-app-1"][data-upstream="english-nginx-1:80"]',
+      ))`,
       timeoutMs,
-      "English 컨테이너의 추천 gateway 안내가 표시되지 않았습니다",
+      "English 컨테이너의 추천 gateway 연결 미리보기가 표시되지 않았습니다",
     );
     const imported = await evaluate(cdp, `(() => {
       const dialog = document.querySelector('[role="dialog"]');

@@ -1,4 +1,5 @@
 import type { DockerContainer } from "@/features/docker/api/dockerApi";
+import { ArrowRight } from "lucide-react";
 
 import { getSuggestedUpstreamPort } from "./containerImportApply";
 import { formatDockerPortLabel } from "./containerImportFiltering";
@@ -48,21 +49,65 @@ export function ContainerImportBasicItem({
 
       <ContainerPortBadges container={container} />
       <ContainerNetworkBadges container={container} />
-      <ContainerImportNetworkNotice
-        networks={container.networks}
-        recommendedGatewayName={recommendedGateway?.name}
-      />
+      {recommendedGateway ? null : <ContainerImportNetworkNotice networks={container.networks} />}
 
-      <p className="mt-3 text-xs text-sky-700 dark:text-sky-300">
-        {isLikelyNonHttp
-          ? "비HTTP 서비스일 가능성이 높습니다. 실제로 HTTP를 제공하는 경우에만 포트를 확인해 가져오세요."
-          : recommendedGateway
-          ? `선택 시 서비스 이름은 ${container.name}, 업스트림은 추천 gateway ${recommendedGateway.name}:${getSuggestedUpstreamPort(recommendedGateway)}으로 채웁니다.`
-          : container.ports.length > 0
-          ? `선택 시 서비스 이름, 업스트림 호스트, 업스트림 포트 ${getSuggestedUpstreamPort(container)}를 채웁니다.`
-          : "선택 시 서비스 이름과 업스트림 호스트를 채우고, 포트는 기본값 80으로 설정합니다."}
-      </p>
+      {recommendedGateway ? (
+        <RecommendedGatewayPreview container={container} gateway={recommendedGateway} />
+      ) : (
+        <p className="mt-3 text-xs text-sky-700 dark:text-sky-300">
+          {isLikelyNonHttp
+            ? "비HTTP 서비스일 가능성이 높습니다. 실제로 HTTP를 제공하는 경우에만 포트를 확인해 가져오세요."
+            : container.ports.length > 0
+              ? `선택 시 서비스 이름, 업스트림 호스트, 업스트림 포트 ${getSuggestedUpstreamPort(container)}를 채웁니다.`
+              : "선택 시 서비스 이름과 업스트림 호스트를 채우고, 포트는 기본값 80으로 설정합니다."}
+        </p>
+      )}
     </button>
+  );
+}
+
+function RecommendedGatewayPreview({
+  container,
+  gateway,
+}: {
+  container: DockerContainer;
+  gateway: DockerContainer;
+}) {
+  const upstream = `${gateway.name}:${getSuggestedUpstreamPort(gateway)}`;
+
+  return (
+    <div
+      className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10"
+      data-source-container={container.name}
+      data-testid="container-import-gateway-preview"
+      data-upstream={upstream}
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
+        선택하면 이렇게 등록됩니다
+      </p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
+        <GatewayEndpoint label="서비스 이름" value={container.name} />
+        <ArrowRight
+          aria-hidden="true"
+          className="mx-auto h-4 w-4 rotate-90 text-emerald-500 sm:rotate-0 dark:text-emerald-300"
+        />
+        <GatewayEndpoint label="Traefik 연결 대상" value={upstream} />
+      </div>
+      <p className="mt-2 text-xs leading-5 text-emerald-800 dark:text-emerald-200">
+        proxy_net에 없는 앱이라 같은 Compose 게이트웨이를 자동 사용합니다.
+      </p>
+    </div>
+  );
+}
+
+function GatewayEndpoint({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="min-w-0 rounded-lg border border-emerald-200/80 bg-white/80 px-3 py-2 dark:border-emerald-500/20 dark:bg-slate-950/60">
+      <span className="block text-[10px] font-medium text-emerald-600 dark:text-emerald-300">{label}</span>
+      <span className="mt-0.5 block truncate text-xs font-semibold text-slate-900 dark:text-slate-100" title={value}>
+        {value}
+      </span>
+    </span>
   );
 }
 
