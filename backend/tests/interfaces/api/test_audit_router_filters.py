@@ -8,6 +8,32 @@ from app.interfaces.api.v1.routers import audit as audit_router
 from tests.interfaces.api.audit_router_fakes import make_log, seed_logs
 
 
+async def _list_audit_logs(audit_db, *, response: Response | None = None, **overrides):
+    query = {
+        "limit": 10,
+        "offset": 0,
+        "resource_type": None,
+        "action": None,
+        "event": None,
+        "manager_status": None,
+        "manager_source": None,
+        "period_days": None,
+        "start_date": None,
+        "end_date": None,
+        "search": None,
+        "security_only": False,
+        "provider": None,
+        "delivery_success": None,
+    }
+    query.update(overrides)
+    return await audit_router.list_audit_logs(
+        response=response if response is not None else Response(),
+        db=audit_db,
+        _={"username": "admin"},
+        **query,
+    )
+
+
 @pytest.mark.asyncio
 async def test_list_audit_logs_accepts_api_manager_source_from_http_query(audit_db):
     now = datetime.now(timezone.utc)
@@ -54,24 +80,12 @@ async def test_list_audit_logs_filters_by_event_and_applies_pagination(audit_db)
     )
 
     response = Response()
-    result = await audit_router.list_audit_logs(
+    result = await _list_audit_logs(
+        audit_db,
         response=response,
         limit=1,
         offset=1,
-        resource_type=None,
-        action=None,
         event="login_locked",
-        manager_status=None,
-        manager_source=None,
-        period_days=None,
-        start_date=None,
-        end_date=None,
-        search=None,
-        security_only=False,
-        provider=None,
-        delivery_success=None,
-        db=audit_db,
-        _={"username": "admin"},
     )
 
     assert len(result) == 1
@@ -93,24 +107,10 @@ async def test_list_audit_logs_groups_github_api_rate_limit_events(audit_db):
     )
 
     response = Response()
-    result = await audit_router.list_audit_logs(
+    result = await _list_audit_logs(
+        audit_db,
         response=response,
-        limit=10,
-        offset=0,
-        resource_type=None,
-        action=None,
         event="github_api_rate_limit",
-        manager_status=None,
-        manager_source=None,
-        period_days=None,
-        start_date=None,
-        end_date=None,
-        search=None,
-        security_only=False,
-        provider=None,
-        delivery_success=None,
-        db=audit_db,
-        _={"username": "admin"},
     )
 
     assert response.headers["x-total-count"] == "2"
@@ -150,24 +150,10 @@ async def test_list_audit_logs_filters_by_resource_type_and_action(audit_db):
         ],
     )
 
-    result = await audit_router.list_audit_logs(
-        response=Response(),
-        limit=10,
-        offset=0,
+    result = await _list_audit_logs(
+        audit_db,
         resource_type="settings",
         action="update",
-        event=None,
-        manager_status=None,
-        manager_source=None,
-        period_days=None,
-        start_date=None,
-        end_date=None,
-        search=None,
-        security_only=False,
-        provider=None,
-        delivery_success=None,
-        db=audit_db,
-        _={"username": "admin"},
     )
 
     assert len(result) == 1
@@ -209,24 +195,11 @@ async def test_list_audit_logs_filters_by_delivery_status_and_provider(audit_db)
         ],
     )
 
-    result = await audit_router.list_audit_logs(
-        response=Response(),
-        limit=10,
-        offset=0,
-        resource_type=None,
+    result = await _list_audit_logs(
+        audit_db,
         action="alert",
-        event=None,
-        manager_status=None,
-        manager_source=None,
-        period_days=None,
-        start_date=None,
-        end_date=None,
-        search=None,
-        security_only=False,
         provider="pagerduty",
         delivery_success=False,
-        db=audit_db,
-        _={"username": "admin"},
     )
 
     assert len(result) == 1
@@ -271,24 +244,9 @@ async def test_list_audit_logs_filters_manager_status(audit_db, manager_status, 
         + [make_log(event="service_updated", resource_type="service", created_at=now)],
     )
 
-    result = await audit_router.list_audit_logs(
-        response=Response(),
-        limit=10,
-        offset=0,
-        resource_type=None,
-        action=None,
-        event=None,
+    result = await _list_audit_logs(
+        audit_db,
         manager_status=manager_status,
-        manager_source=None,
-        period_days=None,
-        start_date=None,
-        end_date=None,
-        search=None,
-        security_only=False,
-        provider=None,
-        delivery_success=None,
-        db=audit_db,
-        _={"username": "admin"},
     )
 
     assert {item.event for item in result} == expected_events
@@ -335,24 +293,9 @@ async def test_list_audit_logs_filters_manager_source(audit_db, manager_source, 
         ],
     )
 
-    result = await audit_router.list_audit_logs(
-        response=Response(),
-        limit=10,
-        offset=0,
-        resource_type=None,
-        action=None,
-        event=None,
-        manager_status=None,
+    result = await _list_audit_logs(
+        audit_db,
         manager_source=manager_source,
-        period_days=None,
-        start_date=None,
-        end_date=None,
-        search=None,
-        security_only=False,
-        provider=None,
-        delivery_success=None,
-        db=audit_db,
-        _={"username": "admin"},
     )
 
     assert {item.event for item in result} == expected_events
@@ -376,24 +319,9 @@ async def test_list_audit_logs_searches_id_actor_and_target(audit_db):
     )
 
     for search in [target.id, "LIZSTUDIO", "english", "3011"]:
-        result = await audit_router.list_audit_logs(
-            response=Response(),
-            limit=10,
-            offset=0,
-            resource_type=None,
-            action=None,
-            event=None,
-            manager_status=None,
-            manager_source=None,
-            period_days=None,
-            start_date=None,
-            end_date=None,
+        result = await _list_audit_logs(
+            audit_db,
             search=search,
-            security_only=False,
-            provider=None,
-            delivery_success=None,
-            db=audit_db,
-            _={"username": "admin"},
         )
 
         assert len(result) == 1
