@@ -40,7 +40,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
         await checkVisualRoute({ artifactDir, baseUrl, cdp, profile, route, timeoutMs });
         if (route.path === "/dashboard") {
           await checkSmokeRunTrendRange({ cdp, timeoutMs });
-          labels.push(`${profile.label} 운영 점검 7일·30일 추이·로컬 이력 링크·CSV`);
+          labels.push(`${profile.label} 운영 점검 7일·30일 실행시간·로컬 필터 URL·CSV·배포 커밋`);
           await checkManagerHttpErrorTrend({ cdp, timeoutMs });
           labels.push(`${profile.label} Manager file-provider 라우터`);
           const deploymentHistory = await checkManagerDeploymentHistory({ cdp, timeoutMs });
@@ -146,6 +146,8 @@ export function runDashboardVisualSmokeSelfTest() {
   assert.ok(auditRoute.requiredMarkers.includes("병목 이벤트 정리"));
   assert.ok(dashboardRoute.requiredMarkers.includes("Manager API 404·5xx 추이"));
   assert.ok(dashboardRoute.requiredMarkers.includes("Manager file-provider 라우터"));
+  assert.ok(dashboardRoute.requiredMarkers.includes("운영 스모크 커밋"));
+  assert.ok(dashboardRoute.requiredMarkers.includes("실행시간 평균"));
   assert.ok(dashboardRoute.requiredMarkers.includes("경로 필터"));
   assert.ok(dashboardRoute.requiredMarkers.includes("연속 실패"));
   assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { evaluate } from "./dashboard-visual-runtime.mjs";
+import { evaluate, reloadPage, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 export function assertSmokeStatisticsHistory(summary) {
   assert.equal(summary.historyFound, true, "스모크 로컬 장기 추이를 찾지 못했습니다");
@@ -68,8 +68,8 @@ export async function captureSmokeCsv(cdp, testId) {
   return result;
 }
 
-export async function checkSmokeLocalRunFilters(cdp) {
-  const result = await evaluate(cdp, `(async () => {
+export async function checkSmokeLocalRunFilters(cdp, timeoutMs) {
+  const selected = await evaluate(cdp, `(async () => {
     const history = document.querySelector('[data-testid="smoke-statistics-history"]');
     const status = history?.querySelector('select[aria-label="로컬 스모크 실행 결과 필터"]');
     const admin = history?.querySelector('select[aria-label="로컬 스모크 관리자 포함 필터"]');
@@ -77,42 +77,94 @@ export async function checkSmokeLocalRunFilters(cdp) {
     const settle = () => new Promise((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(resolve))
     );
-    const selectNonEmpty = async (select, attribute) => {
-      const option = Array.from(select.options).find(
-        (item) => item.value !== 'all' && Number(item.getAttribute('data-count')) > 0
-      );
-      if (!option) return false;
-      select.value = option.value;
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-      await settle();
-      const expected = Number(option.getAttribute('data-count'));
-      const actual = Number(history.getAttribute('data-filtered-local-run-count'));
-      const links = history.querySelectorAll('[data-testid="smoke-local-run-link"]').length;
-      const exportCount = Number(
-        history.querySelector('[data-testid="smoke-local-runs-csv"]')?.getAttribute('data-export-count')
-      );
-      const valid = history.getAttribute(attribute) === option.value &&
-        actual === expected && links === expected && exportCount === expected;
-      select.value = 'all';
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-      await settle();
-      return valid;
-    };
-    const statusValid = await selectNonEmpty(status, 'data-local-run-status-filter');
-    const adminValid = await selectNonEmpty(admin, 'data-local-run-admin-filter');
+    const statusOption = Array.from(status.options).find(
+      (item) => item.value !== 'all' && Number(item.getAttribute('data-count')) > 0
+    );
+    if (!statusOption) return null;
+    status.value = statusOption.value;
+    status.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    const firstRow = history.querySelector('[data-testid="smoke-local-run-link"]')?.closest('li');
+    const adminValue = firstRow?.textContent?.includes('관리자 포함') ? 'admin' : 'viewer';
+    admin.value = adminValue;
+    admin.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    let copiedUrl = null;
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async (value) => { copiedUrl = value; } },
+    });
+    history.querySelector('[data-testid="smoke-local-filter-copy"]')?.click();
+    await settle();
+    const filteredCount = Number(history.getAttribute('data-filtered-local-run-count'));
+    const copied = copiedUrl ? new URL(copiedUrl) : null;
+    const params = new URLSearchParams(location.search);
     return {
-      adminValid,
-      restored: history.getAttribute('data-local-run-status-filter') === 'all' &&
-        history.getAttribute('data-local-run-admin-filter') === 'all' &&
-        Number(history.getAttribute('data-filtered-local-run-count')) ===
-          Number(history.getAttribute('data-local-run-visible-count')),
-      statusValid,
+      admin: adminValue,
+      copiedAdmin: copied?.searchParams.get('smoke_local_admin'),
+      copiedStatus: copied?.searchParams.get('smoke_local_status'),
+      copyStatus: history.getAttribute('data-local-run-copy-status'),
+      exportCount: Number(
+        history.querySelector('[data-testid="smoke-local-runs-csv"]')?.getAttribute('data-export-count')
+      ),
+      filteredCount,
+      linkCount: history.querySelectorAll('[data-testid="smoke-local-run-link"]').length,
+      status: statusOption.value,
+      urlAdmin: params.get('smoke_local_admin'),
+      urlStatus: params.get('smoke_local_status'),
     };
   })()`);
-  assert.ok(result, "스모크 로컬 실행 필터를 찾지 못했습니다");
-  assert.equal(result.statusValid, true, "스모크 로컬 실행 결과 필터가 올바르지 않습니다");
-  assert.equal(result.adminValid, true, "스모크 관리자 포함 필터가 올바르지 않습니다");
-  assert.equal(result.restored, true, "스모크 로컬 실행 필터가 전체로 복원되지 않았습니다");
+  assert.ok(selected, "스모크 로컬 실행 필터를 찾지 못했습니다");
+  assert.ok(selected.filteredCount > 0, "스모크 로컬 실행 필터 결과가 없습니다");
+  assert.equal(selected.linkCount, selected.filteredCount, "스모크 필터 링크 건수가 다릅니다");
+  assert.equal(selected.exportCount, selected.filteredCount, "스모크 필터 CSV 건수가 다릅니다");
+  assert.equal(selected.urlStatus, selected.status, "스모크 결과 필터가 URL에 없습니다");
+  assert.equal(selected.urlAdmin, selected.admin, "스모크 관리자 필터가 URL에 없습니다");
+  assert.equal(selected.copiedStatus, selected.status, "복사된 스모크 결과 필터가 다릅니다");
+  assert.equal(selected.copiedAdmin, selected.admin, "복사된 스모크 관리자 필터가 다릅니다");
+  assert.equal(selected.copyStatus, "copied", "스모크 필터 링크 복사 완료 표시가 없습니다");
+
+  await reloadPage(cdp, timeoutMs);
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const history = document.querySelector('[data-testid="smoke-statistics-history"]');
+      return history?.getAttribute('data-local-run-status-filter') === ${JSON.stringify(selected.status)} &&
+        history?.getAttribute('data-local-run-admin-filter') === ${JSON.stringify(selected.admin)} &&
+        Number(history?.getAttribute('data-filtered-local-run-count')) === ${selected.filteredCount};
+    })()`,
+    timeoutMs,
+    "스모크 로컬 실행 필터가 새로고침 후 복원되지 않았습니다",
+  );
+  const restored = await evaluate(cdp, `(async () => {
+    const history = document.querySelector('[data-testid="smoke-statistics-history"]');
+    const status = history?.querySelector('select[aria-label="로컬 스모크 실행 결과 필터"]');
+    const admin = history?.querySelector('select[aria-label="로컬 스모크 관리자 포함 필터"]');
+    if (!history || !status || !admin) return null;
+    const before = {
+      admin: admin.value,
+      copyStatus: history.getAttribute('data-local-run-copy-status'),
+      status: status.value,
+    };
+    status.value = 'all';
+    status.dispatchEvent(new Event('change', { bubbles: true }));
+    admin.value = 'all';
+    admin.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const params = new URLSearchParams(location.search);
+    return {
+      ...before,
+      filteredCount: Number(history.getAttribute('data-filtered-local-run-count')),
+      urlCleared: !params.has('smoke_local_status') && !params.has('smoke_local_admin'),
+      visibleCount: Number(history.getAttribute('data-local-run-visible-count')),
+    };
+  })()`);
+  assert.ok(restored, "복원된 스모크 로컬 실행 필터를 찾지 못했습니다");
+  assert.equal(restored.status, selected.status, "스모크 결과 필터 선택값이 복원되지 않았습니다");
+  assert.equal(restored.admin, selected.admin, "스모크 관리자 필터 선택값이 복원되지 않았습니다");
+  assert.equal(restored.copyStatus, "idle", "새로고침 후 복사 상태가 초기화되지 않았습니다");
+  assert.equal(restored.urlCleared, true, "스모크 로컬 실행 기본 필터가 URL에서 제거되지 않았습니다");
+  assert.equal(restored.filteredCount, restored.visibleCount, "스모크 로컬 실행 필터가 전체로 복원되지 않았습니다");
 }
 
 export function runSmokeStatisticsHistoryAssertionsSelfTest() {
