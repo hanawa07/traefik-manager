@@ -42,6 +42,7 @@ interface SmokeRunTrendProps {
   failureRateWindowDays: 7 | 30;
   runs: SmokeMonitoringRecentRun[];
   localRuns: SmokeLocalRun[];
+  localRunLimit: number;
   localRunRetentionDays: number;
   localRunTotal: number;
   statistics: SmokeRunStatistics[];
@@ -56,6 +57,7 @@ export function SmokeRunTrend({
   failureRateThresholdPercent,
   failureRateWindowDays,
   localRuns,
+  localRunLimit,
   localRunRetentionDays,
   localRunTotal,
   runs,
@@ -221,6 +223,7 @@ export function SmokeRunTrend({
       ) : null}
       <SmokeRunStatisticsHistory
         localRuns={localRuns}
+        localRunLimit={localRunLimit}
         localRunRetentionDays={localRunRetentionDays}
         localRunTotal={localRunTotal}
         snapshots={statisticsSnapshots}

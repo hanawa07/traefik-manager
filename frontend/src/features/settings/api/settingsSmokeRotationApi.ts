@@ -115,6 +115,7 @@ export interface SmokeRotationStatus {
   monitoring_statistics_snapshots: SmokeStatisticsSnapshot[];
   monitoring_local_runs: SmokeLocalRun[];
   monitoring_local_run_total: number;
+  monitoring_local_run_limit: number;
   monitoring_local_run_retention_days: number;
   monitoring_history_checked_at: string | null;
   monitoring_history_error: string | null;

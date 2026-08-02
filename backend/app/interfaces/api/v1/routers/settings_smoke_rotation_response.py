@@ -21,6 +21,7 @@ from app.infrastructure.persistence.repositories.sqlite_system_settings_reposito
     SQLiteSystemSettingsRepository,
 )
 from app.infrastructure.smoke_local_run_records import (
+    SMOKE_LOCAL_RUN_DISPLAY_LIMIT,
     SMOKE_LOCAL_RUN_RETENTION_DAYS,
     read_smoke_local_runs,
 )
@@ -160,6 +161,7 @@ async def get_smoke_rotation_status_response(
         monitoring_statistics_snapshots=statistics_snapshots,
         monitoring_local_runs=local_runs,
         monitoring_local_run_total=local_run_total,
+        monitoring_local_run_limit=SMOKE_LOCAL_RUN_DISPLAY_LIMIT,
         monitoring_local_run_retention_days=SMOKE_LOCAL_RUN_RETENTION_DAYS,
         monitoring_history_checked_at=run_history["checked_at"],
         monitoring_history_error=run_history["error"],

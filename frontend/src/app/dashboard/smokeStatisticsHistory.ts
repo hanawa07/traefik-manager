@@ -28,6 +28,10 @@ const LOCAL_RUN_CSV_COLUMNS = [
   "run_url",
 ] as const;
 
+export type SmokeLocalRunStatusFilter = "all" | SmokeLocalRun["status"];
+export type SmokeLocalRunAdminFilter = "all" | "admin" | "viewer";
+type MeasuredSmokeLocalRun = SmokeLocalRun & { duration_seconds: number };
+
 export function getSmokeStatisticsSnapshotComparison(
   snapshots: SmokeStatisticsSnapshot[],
 ) {
@@ -77,6 +81,38 @@ export function getSmokeRunUrl(workflowUrl: string, runId: number): string {
   return `${repositoryUrl.replace(/\/+$/, "")}/actions/runs/${runId}`;
 }
 
+export function filterSmokeLocalRuns(
+  localRuns: SmokeLocalRun[],
+  statusFilter: SmokeLocalRunStatusFilter,
+  adminFilter: SmokeLocalRunAdminFilter,
+): SmokeLocalRun[] {
+  return localRuns.filter(
+    (run) =>
+      (statusFilter === "all" || run.status === statusFilter) &&
+      (adminFilter === "all" || run.admin_checked === (adminFilter === "admin")),
+  );
+}
+
+export function getSmokeLocalRunDurationSummary(localRuns: SmokeLocalRun[]) {
+  const latestRun = localRuns[0];
+  const previousMeasuredRun = localRuns
+    .slice(1)
+    .find(isMeasuredSmokeLocalRun);
+  const latestDurationSeconds = latestRun?.duration_seconds ?? null;
+  return {
+    durationDeltaSeconds:
+      latestDurationSeconds !== null && previousMeasuredRun
+        ? latestDurationSeconds - previousMeasuredRun.duration_seconds
+        : null,
+    latestDurationSeconds,
+    latestRunId: latestRun?.run_id ?? null,
+    slowestRuns: localRuns
+      .filter(isMeasuredSmokeLocalRun)
+      .sort((left, right) => right.duration_seconds - left.duration_seconds)
+      .slice(0, 3),
+  };
+}
+
 export function buildSmokeLocalRunsCsv(
   localRuns: SmokeLocalRun[],
   workflowUrl: string,
@@ -108,6 +144,10 @@ function getFailureRate(snapshot: SmokeStatisticsSnapshot): number {
   return completedRuns
     ? Math.round((snapshot.failure_count / completedRuns) * 100)
     : 0;
+}
+
+function isMeasuredSmokeLocalRun(run: SmokeLocalRun): run is MeasuredSmokeLocalRun {
+  return run.duration_seconds !== null;
 }
 
 function downloadCsv(content: string, filename: string): void {

@@ -19,6 +19,8 @@ import {
 import {
   buildSmokeLocalRunsCsv,
   buildSmokeStatisticsSnapshotsCsv,
+  filterSmokeLocalRuns,
+  getSmokeLocalRunDurationSummary,
   getSmokeRunUrl,
   getSmokeStatisticsSnapshotComparison,
 } from "../frontend/src/app/dashboard/smokeStatisticsHistory.ts";
@@ -236,5 +238,25 @@ const localRunsCsv = buildSmokeLocalRunsCsv(
 assert.equal(localRunsCsv.startsWith("\uFEFF\"run_id\""), true);
 assert.match(localRunsCsv, /"123","success".*"120","true".*\/actions\/runs\/123/);
 assert.match(localRunsCsv, /"124","failure","","2026-08-02T02:00:00Z","","false"/);
+const localRunFilters = [
+  { run_id: 1, status: "success", duration_seconds: 100, admin_checked: true },
+  { run_id: 2, status: "failure", duration_seconds: 120, admin_checked: false },
+  { run_id: 3, status: "success", duration_seconds: 90, admin_checked: true },
+  { run_id: 4, status: "failure", duration_seconds: null, admin_checked: false },
+];
+assert.deepEqual(
+  filterSmokeLocalRuns(localRunFilters, "success", "admin").map((run) => run.run_id),
+  [1, 3],
+);
+assert.deepEqual(
+  filterSmokeLocalRuns(localRunFilters, "failure", "viewer").map((run) => run.run_id),
+  [2, 4],
+);
+assert.deepEqual(getSmokeLocalRunDurationSummary(localRunFilters), {
+  durationDeltaSeconds: -20,
+  latestDurationSeconds: 100,
+  latestRunId: 1,
+  slowestRuns: [localRunFilters[1], localRunFilters[0], localRunFilters[2]],
+});
 
 console.log("운영 점검 실패율 self-test 통과");

@@ -118,6 +118,7 @@ class SmokeRotationStatusResponse(BaseModel):
     )
     monitoring_local_runs: list[SmokeLocalRunResponse] = Field(default_factory=list)
     monitoring_local_run_total: int = 0
+    monitoring_local_run_limit: int = 20
     monitoring_local_run_retention_days: int = 365
     monitoring_history_checked_at: str | None = None
     monitoring_history_error: str | None = None
