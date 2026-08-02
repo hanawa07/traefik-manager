@@ -7,6 +7,7 @@ import { SmokeDeploymentRevisionStatus } from "./SmokeDeploymentRevisionStatus";
 import { SmokeRunTrend } from "./SmokeRunTrend";
 
 interface SmokeAdminStatusSummaryProps {
+  canViewHistory: boolean;
   deployedRevision?: string | null;
   isError: boolean;
   isLoading: boolean;
@@ -15,6 +16,7 @@ interface SmokeAdminStatusSummaryProps {
 }
 
 export function SmokeAdminStatusSummary({
+  canViewHistory,
   deployedRevision,
   isError,
   isLoading,
@@ -35,27 +37,47 @@ export function SmokeAdminStatusSummary({
           <p className="text-sm font-semibold">관리자 운영 점검</p>
           <p className="mt-1 text-xs">{summary.detail}</p>
           {status ? (
-            <>
-              <SmokeDeploymentRevisionStatus
-                deployedRevision={deployedRevision}
-                runs={status.monitoring_recent_runs}
-              />
-              <SmokeRunTrend
-                error={status.monitoring_history_error}
-                failureRateMinRuns={status.monitoring_failure_rate_min_runs}
-                failureRateThresholdPercent={status.monitoring_failure_rate_threshold_percent}
-                failureRateWindowDays={status.monitoring_failure_rate_window_days}
-                localRuns={status.monitoring_local_runs ?? []}
-                localRunLimit={status.monitoring_local_run_limit ?? 20}
-                localRunRetentionDays={status.monitoring_local_run_retention_days ?? 365}
-                localRunTotal={status.monitoring_local_run_total ?? 0}
-                runs={status.monitoring_recent_runs}
-                statistics={status.monitoring_run_statistics ?? []}
-                statisticsSnapshots={status.monitoring_statistics_snapshots ?? []}
-                timezone={timezone}
-                workflowUrl={status.monitoring_workflow_url}
-              />
-            </>
+            canViewHistory ? (
+              <>
+                <SmokeDeploymentRevisionStatus
+                  deployedRevision={deployedRevision}
+                  runs={status.monitoring_recent_runs}
+                />
+                <SmokeRunTrend
+                  error={status.monitoring_history_error}
+                  failureRateMinRuns={status.monitoring_failure_rate_min_runs}
+                  failureRateThresholdPercent={status.monitoring_failure_rate_threshold_percent}
+                  failureRateWindowDays={status.monitoring_failure_rate_window_days}
+                  localRuns={status.monitoring_local_runs ?? []}
+                  localRunLimit={status.monitoring_local_run_limit ?? 20}
+                  localRunRetentionDays={status.monitoring_local_run_retention_days ?? 365}
+                  localRunTotal={status.monitoring_local_run_total ?? 0}
+                  runs={status.monitoring_recent_runs}
+                  statistics={status.monitoring_run_statistics ?? []}
+                  statisticsSnapshots={status.monitoring_statistics_snapshots ?? []}
+                  timezone={timezone}
+                  workflowUrl={status.monitoring_workflow_url}
+                />
+              </>
+            ) : (
+              <>
+                <p
+                  className="mt-1 w-fit rounded bg-white/70 px-2 py-1 font-semibold text-cyan-900 dark:bg-slate-950/60 dark:text-cyan-100"
+                  data-smoke-revision-status="restricted"
+                  data-testid="smoke-deployment-revision-status"
+                >
+                  운영 스모크 커밋 · 관리자 계정에서 확인
+                </p>
+                <div
+                  className="mt-2 flex flex-wrap items-center gap-2 text-[11px]"
+                  data-smoke-history-access="restricted"
+                  data-testid="smoke-run-trend"
+                >
+                  <span className="font-semibold">운영 점검 추이</span>
+                  <span>GitHub 실행 통계와 로컬 콜백 이력은 관리자 계정에서 확인합니다.</span>
+                </div>
+              </>
+            )
           ) : null}
         </div>
       </div>

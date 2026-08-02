@@ -147,7 +147,11 @@ export function runDashboardVisualSmokeSelfTest() {
   assert.ok(dashboardRoute.requiredMarkers.includes("Manager API 404·5xx 추이"));
   assert.ok(dashboardRoute.requiredMarkers.includes("Manager file-provider 라우터"));
   assert.ok(dashboardRoute.requiredMarkers.includes("운영 스모크 커밋"));
-  assert.ok(dashboardRoute.requiredMarkers.includes("실행시간 평균"));
+  assert.ok(
+    dashboardRoute.requiredMarkers.includes(
+      "GitHub 실행 통계와 로컬 콜백 이력은 관리자 계정에서 확인합니다.",
+    ),
+  );
   assert.ok(dashboardRoute.requiredMarkers.includes("경로 필터"));
   assert.ok(dashboardRoute.requiredMarkers.includes("연속 실패"));
   assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");

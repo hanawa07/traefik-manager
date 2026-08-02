@@ -15,10 +15,22 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     const thirty = buttons.find((button) => button.textContent?.trim() === '30일');
     thirty?.click();
     return {
+      access: trend?.getAttribute('data-smoke-history-access'),
+      revisionStatus: document.querySelector('[data-testid="smoke-deployment-revision-status"]')
+        ?.getAttribute('data-smoke-revision-status'),
+      revisionText: document.querySelector('[data-testid="smoke-deployment-revision-status"]')
+        ?.textContent,
       sevenPressed: seven?.getAttribute('aria-pressed'),
+      text: trend?.textContent,
       thirtyFound: Boolean(thirty),
     };
   })()`);
+  if (initial.access === "restricted") {
+    assert.match(initial.text || "", /GitHub 실행 통계와 로컬 콜백 이력은 관리자 계정에서 확인/);
+    assert.equal(initial.revisionStatus, "restricted");
+    assert.match(initial.revisionText || "", /운영 스모크 커밋.*관리자 계정에서 확인/s);
+    return;
+  }
   assert.equal(initial.sevenPressed, "true", "운영 점검 추이의 기본 7일 범위가 선택되지 않았습니다");
   assert.equal(initial.thirtyFound, true, "운영 점검 추이의 30일 범위를 찾지 못했습니다");
   await waitForCondition(
