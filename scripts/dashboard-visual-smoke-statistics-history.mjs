@@ -68,7 +68,7 @@ export async function captureSmokeCsv(cdp, testId) {
   return result;
 }
 
-export async function checkSmokeLocalRunFilters(cdp, timeoutMs) {
+export async function checkSmokeLocalRunFilters(cdp, timeoutMs, preferredStatus = null) {
   const selected = await evaluate(cdp, `(async () => {
     const history = document.querySelector('[data-testid="smoke-statistics-history"]');
     const status = history?.querySelector('select[aria-label="로컬 스모크 실행 결과 필터"]');
@@ -77,7 +77,11 @@ export async function checkSmokeLocalRunFilters(cdp, timeoutMs) {
     const settle = () => new Promise((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(resolve))
     );
-    const statusOption = Array.from(status.options).find(
+    const preferred = ${JSON.stringify(preferredStatus)};
+    const options = Array.from(status.options);
+    const statusOption = options.find(
+      (item) => item.value === preferred && Number(item.getAttribute('data-count')) > 0
+    ) || options.find(
       (item) => item.value !== 'all' && Number(item.getAttribute('data-count')) > 0
     );
     if (!statusOption) return null;
@@ -165,6 +169,7 @@ export async function checkSmokeLocalRunFilters(cdp, timeoutMs) {
   assert.equal(restored.copyStatus, "idle", "새로고침 후 복사 상태가 초기화되지 않았습니다");
   assert.equal(restored.urlCleared, true, "스모크 로컬 실행 기본 필터가 URL에서 제거되지 않았습니다");
   assert.equal(restored.filteredCount, restored.visibleCount, "스모크 로컬 실행 필터가 전체로 복원되지 않았습니다");
+  return selected;
 }
 
 export function runSmokeStatisticsHistoryAssertionsSelfTest() {

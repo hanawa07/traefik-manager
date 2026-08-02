@@ -6,12 +6,81 @@ import {
 } from "./dashboard-visual-artifacts.mjs";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 import { checkServiceGatewayImportAdminFixture } from "./dashboard-visual-service-gateway-import.mjs";
+import { checkSmokeLocalRunFilters } from "./dashboard-visual-smoke-statistics-history.mjs";
 import { checkTraefikAlertRetryAdminFixture } from "./dashboard-visual-traefik-alert-retry.mjs";
 
 export async function checkAdminVisualFixtures(options) {
+  await checkSmokeHistoryAdminReadOnly(options);
   await checkServiceGatewayImportAdminFixture(options);
   await checkSmokeRateLimitAdminFixture(options);
   return checkTraefikAlertRetryAdminFixture(options);
+}
+
+async function checkSmokeHistoryAdminReadOnly({
+  artifactDir,
+  baseUrl,
+  cdp,
+  cookies,
+  timeoutMs,
+}) {
+  await cdp.send("Network.clearBrowserCookies");
+  await evaluate(cdp, `localStorage.removeItem("auth")`);
+  for (const cookie of cookies) {
+    await cdp.send("Network.setCookie", { url: baseUrl, ...cookie });
+  }
+
+  try {
+    const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
+    await cdp.send("Page.navigate", { url: `${baseUrl}/dashboard` });
+    await loaded;
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const trend = document.querySelector('[data-testid="smoke-run-trend"]');
+        const counts = document.querySelector('[data-testid="smoke-run-status-counts"]');
+        const thirty = Array.from(trend?.querySelectorAll('button') || []).find(
+          (button) => button.textContent?.trim() === '30일'
+        );
+        const history = document.querySelector('[data-testid="smoke-statistics-history"]');
+        const failure = history?.querySelector(
+          'select[aria-label="로컬 스모크 실행 결과 필터"] option[value="failure"]'
+        );
+        return trend?.getAttribute('data-smoke-history-access') !== 'restricted' &&
+          thirty instanceof HTMLButtonElement && counts instanceof HTMLElement &&
+          Number(history?.getAttribute('data-local-run-visible-count')) > 0 &&
+          failure instanceof HTMLOptionElement;
+      })()`,
+      timeoutMs,
+      "관리자 GitHub 실행 통계와 로컬 콜백 이력을 확인하지 못했습니다",
+    );
+    await evaluate(cdp, `Array.from(
+      document.querySelectorAll('[data-testid="smoke-run-trend"] button')
+    ).find((button) => button.textContent?.trim() === '30일')?.click()`);
+    await waitForCondition(
+      cdp,
+      `/30일 전체 [1-9][0-9]*건/.test(
+        document.querySelector('[data-testid="smoke-run-status-counts"]')?.textContent || ''
+      )`,
+      timeoutMs,
+      "관리자 GitHub 30일 실행 통계가 표시되지 않았습니다",
+    );
+    const failureCount = await evaluate(cdp, `Number(document.querySelector(
+      '[data-testid="smoke-statistics-history"] select[aria-label="로컬 스모크 실행 결과 필터"] option[value="failure"]'
+    )?.getAttribute('data-count') || 0)`);
+    const selected = await checkSmokeLocalRunFilters(cdp, timeoutMs, "failure");
+    if (failureCount > 0) {
+      assert.equal(selected.status, "failure", "관리자 실패 콜백 필터가 선택되지 않았습니다");
+    }
+  } catch (error) {
+    await Promise.allSettled([
+      captureVisualScreenshot({ artifactDir, cdp, name: "admin-smoke-history-failure" }),
+      captureVisualDom({ artifactDir, cdp, name: "admin-smoke-history-failure" }),
+    ]);
+    throw error;
+  } finally {
+    await cdp.send("Network.clearBrowserCookies");
+    await evaluate(cdp, `localStorage.removeItem("auth")`);
+  }
 }
 
 async function checkSmokeRateLimitAdminFixture({
