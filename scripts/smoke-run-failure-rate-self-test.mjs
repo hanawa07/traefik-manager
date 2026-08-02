@@ -17,7 +17,9 @@ import {
   parseTrackedManualSmokeRun,
 } from "../frontend/src/features/settings/lib/smokeManualRunTracking.ts";
 import {
+  buildSmokeLocalRunsCsv,
   buildSmokeStatisticsSnapshotsCsv,
+  getSmokeRunUrl,
   getSmokeStatisticsSnapshotComparison,
 } from "../frontend/src/app/dashboard/smokeStatisticsHistory.ts";
 
@@ -204,5 +206,35 @@ const statisticsCsv = buildSmokeStatisticsSnapshotsCsv(statisticsSnapshots);
 assert.equal(statisticsCsv.startsWith("\uFEFF\"captured_on\""), true);
 assert.equal(statisticsCsv.trimEnd().split("\r\n").length, 3);
 assert.match(statisticsCsv, /"2026-08-02","30","12","8","2"/);
+
+const workflowUrl = "https://github.com/hanawa07/traefik-manager/actions/workflows/dashboard-visual-smoke.yml";
+assert.equal(
+  getSmokeRunUrl(workflowUrl, 123),
+  "https://github.com/hanawa07/traefik-manager/actions/runs/123",
+);
+const localRunsCsv = buildSmokeLocalRunsCsv(
+  [
+    {
+      run_id: 123,
+      status: "success",
+      started_at: "2026-08-02T01:00:00Z",
+      completed_at: "2026-08-02T01:02:00Z",
+      duration_seconds: 120,
+      admin_checked: true,
+    },
+    {
+      run_id: 124,
+      status: "failure",
+      started_at: null,
+      completed_at: "2026-08-02T02:00:00Z",
+      duration_seconds: null,
+      admin_checked: false,
+    },
+  ],
+  workflowUrl,
+);
+assert.equal(localRunsCsv.startsWith("\uFEFF\"run_id\""), true);
+assert.match(localRunsCsv, /"123","success".*"120","true".*\/actions\/runs\/123/);
+assert.match(localRunsCsv, /"124","failure","","2026-08-02T02:00:00Z","","false"/);
 
 console.log("운영 점검 실패율 self-test 통과");

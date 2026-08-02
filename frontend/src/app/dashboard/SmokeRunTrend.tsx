@@ -47,6 +47,7 @@ interface SmokeRunTrendProps {
   statistics: SmokeRunStatistics[];
   statisticsSnapshots: SmokeStatisticsSnapshot[];
   timezone?: string;
+  workflowUrl: string;
 }
 
 export function SmokeRunTrend({
@@ -61,6 +62,7 @@ export function SmokeRunTrend({
   statistics,
   statisticsSnapshots,
   timezone,
+  workflowUrl,
 }: SmokeRunTrendProps) {
   const [rangeDays, setRangeDays] = useState<7 | 30>(7);
   const [periodReferenceTime, setPeriodReferenceTime] = useState(() => Date.now());
@@ -223,6 +225,7 @@ export function SmokeRunTrend({
         localRunTotal={localRunTotal}
         snapshots={statisticsSnapshots}
         timezone={timezone}
+        workflowUrl={workflowUrl}
       />
       <SmokeFailureArtifactLinks
         failedRuns={failedRuns}

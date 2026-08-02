@@ -7,7 +7,9 @@ import type {
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { formatDurationSeconds } from "@/shared/lib/formatDurationSeconds";
 import {
+  downloadSmokeLocalRuns,
   downloadSmokeStatisticsSnapshots,
+  getSmokeRunUrl,
   getSmokeStatisticsSnapshotComparison,
 } from "./smokeStatisticsHistory";
 
@@ -17,6 +19,7 @@ interface SmokeRunStatisticsHistoryProps {
   localRunTotal: number;
   snapshots: SmokeStatisticsSnapshot[];
   timezone?: string;
+  workflowUrl: string;
 }
 
 export function SmokeRunStatisticsHistory({
@@ -25,8 +28,8 @@ export function SmokeRunStatisticsHistory({
   localRunTotal,
   snapshots,
   timezone,
+  workflowUrl,
 }: SmokeRunStatisticsHistoryProps) {
-  if (!snapshots.length && !localRuns.length) return null;
   const comparison = getSmokeStatisticsSnapshotComparison(snapshots);
 
   return (
@@ -66,7 +69,9 @@ export function SmokeRunStatisticsHistory({
           {formatSignedNumber(comparison.estimatedRunnerMinutes)} runner분
         </p>
       ) : snapshots.length ? (
-        <p className="mt-2 opacity-70">직전 기록이 쌓이면 변화량을 표시합니다.</p>
+        <p className="mt-2 opacity-70" data-testid="smoke-statistics-comparison-pending">
+          직전 기록이 쌓이면 변화량을 표시합니다.
+        </p>
       ) : null}
       {snapshots.length ? (
         <ol className="mt-2 max-h-52 space-y-1 overflow-y-auto pr-1 tabular-nums">
@@ -92,9 +97,21 @@ export function SmokeRunStatisticsHistory({
         </ol>
       ) : null}
       <div className="mt-3 border-t border-current/15 pt-2">
-        <p className="font-semibold">
-          콜백 실행 이력 {localRunTotal}건 · 최대 {localRunRetentionDays}일 보관
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-semibold">
+            콜백 실행 이력 {localRunTotal}건 · 최대 {localRunRetentionDays}일 보관
+          </p>
+          {localRuns.length ? (
+            <button
+              className="rounded-md border border-current/20 bg-white/70 px-2 py-1 font-semibold hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900"
+              data-testid="smoke-local-runs-csv"
+              onClick={() => downloadSmokeLocalRuns(localRuns, workflowUrl)}
+              type="button"
+            >
+              실행 CSV 내보내기
+            </button>
+          ) : null}
+        </div>
         {localRuns.length ? (
           <ol className="mt-2 max-h-52 space-y-1 overflow-y-auto pr-1 tabular-nums">
             {localRuns.map((run) => (
@@ -102,7 +119,15 @@ export function SmokeRunStatisticsHistory({
                 key={run.run_id}
                 className="grid gap-1 rounded bg-white/60 px-2 py-1.5 dark:bg-slate-900/60 sm:grid-cols-[5rem_4rem_1fr_auto_auto] sm:items-center"
               >
-                <span>#{run.run_id}</span>
+                <a
+                  className="font-semibold underline decoration-current/40 underline-offset-2"
+                  data-testid="smoke-local-run-link"
+                  href={getSmokeRunUrl(workflowUrl, run.run_id)}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  #{run.run_id}
+                </a>
                 <span className={run.status === "success" ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}>
                   {run.status === "success" ? "성공" : "실패"}
                 </span>

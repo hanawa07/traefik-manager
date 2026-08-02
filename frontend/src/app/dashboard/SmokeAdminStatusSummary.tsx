@@ -44,6 +44,7 @@ export function SmokeAdminStatusSummary({
               statistics={status.monitoring_run_statistics ?? []}
               statisticsSnapshots={status.monitoring_statistics_snapshots ?? []}
               timezone={timezone}
+              workflowUrl={status.monitoring_workflow_url}
             />
           ) : null}
         </div>

@@ -1,4 +1,7 @@
-import type { SmokeStatisticsSnapshot } from "@/features/settings/api/settingsApi";
+import type {
+  SmokeLocalRun,
+  SmokeStatisticsSnapshot,
+} from "@/features/settings/api/settingsApi";
 
 const CSV_COLUMNS = [
   "captured_on",
@@ -13,6 +16,16 @@ const CSV_COLUMNS = [
   "average_duration_seconds",
   "estimated_runner_minutes",
   "failure_rate_percent",
+] as const;
+
+const LOCAL_RUN_CSV_COLUMNS = [
+  "run_id",
+  "status",
+  "started_at",
+  "completed_at",
+  "duration_seconds",
+  "admin_checked",
+  "run_url",
 ] as const;
 
 export function getSmokeStatisticsSnapshotComparison(
@@ -53,15 +66,41 @@ export function buildSmokeStatisticsSnapshotsCsv(
 export function downloadSmokeStatisticsSnapshots(
   snapshots: SmokeStatisticsSnapshot[],
 ): void {
-  const blob = new Blob([buildSmokeStatisticsSnapshotsCsv(snapshots)], {
-    type: "text/csv;charset=utf-8",
-  });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `traefik-manager-smoke-statistics-${new Date().toISOString().slice(0, 10)}.csv`;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  downloadCsv(
+    buildSmokeStatisticsSnapshotsCsv(snapshots),
+    `traefik-manager-smoke-statistics-${today()}.csv`,
+  );
+}
+
+export function getSmokeRunUrl(workflowUrl: string, runId: number): string {
+  const [repositoryUrl] = workflowUrl.split("/actions/workflows/");
+  return `${repositoryUrl.replace(/\/+$/, "")}/actions/runs/${runId}`;
+}
+
+export function buildSmokeLocalRunsCsv(
+  localRuns: SmokeLocalRun[],
+  workflowUrl: string,
+): string {
+  const rows = localRuns.map((run) => [
+    run.run_id,
+    run.status,
+    run.started_at,
+    run.completed_at,
+    run.duration_seconds,
+    run.admin_checked,
+    getSmokeRunUrl(workflowUrl, run.run_id),
+  ]);
+  return `\uFEFF${[LOCAL_RUN_CSV_COLUMNS, ...rows].map((row) => row.map(toCsvCell).join(",")).join("\r\n")}\r\n`;
+}
+
+export function downloadSmokeLocalRuns(
+  localRuns: SmokeLocalRun[],
+  workflowUrl: string,
+): void {
+  downloadCsv(
+    buildSmokeLocalRunsCsv(localRuns, workflowUrl),
+    `traefik-manager-smoke-local-runs-${today()}.csv`,
+  );
 }
 
 function getFailureRate(snapshot: SmokeStatisticsSnapshot): number {
@@ -71,8 +110,21 @@ function getFailureRate(snapshot: SmokeStatisticsSnapshot): number {
     : 0;
 }
 
-function toCsvCell(value: string | number): string {
-  let text = String(value);
+function downloadCsv(content: string, filename: string): void {
+  const url = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function toCsvCell(value: string | number | boolean | null): string {
+  let text = value === null ? "" : String(value);
   if (/^[=+\-@]/.test(text)) text = `'${text}`;
   return `"${text.replaceAll('"', '""')}"`;
 }
