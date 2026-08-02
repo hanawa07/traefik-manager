@@ -7,13 +7,6 @@ on:
       - "backend/alembic/**"
       - "scripts/check-blue-green-migrations.sh"
       - ".github/workflows/migration-compatibility.yml"
-  push:
-    branches:
-      - main
-    paths:
-      - "backend/alembic/**"
-      - "scripts/check-blue-green-migrations.sh"
-      - ".github/workflows/migration-compatibility.yml"
 
 permissions:
   contents: read

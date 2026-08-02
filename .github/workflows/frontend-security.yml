@@ -8,14 +8,6 @@ on:
       - "frontend/package-lock.json"
       - "backend/requirements.txt"
       - ".github/workflows/frontend-security.yml"
-  push:
-    branches:
-      - main
-    paths:
-      - "frontend/package.json"
-      - "frontend/package-lock.json"
-      - "backend/requirements.txt"
-      - ".github/workflows/frontend-security.yml"
 
 permissions:
   contents: read
