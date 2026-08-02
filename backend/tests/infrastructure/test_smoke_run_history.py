@@ -247,6 +247,31 @@ def test_select_smoke_run_groups_separates_cancelled_runs_from_failures() -> Non
     assert latest_failure["id"] == 12
 
 
+def test_select_smoke_run_groups_filters_cancellation_reason() -> None:
+    superseded = _run(
+        id=13,
+        conclusion="cancelled",
+        run_started_at="2026-07-17T00:00:00Z",
+        updated_at="2026-07-17T00:03:00Z",
+    )
+    newer = _run(
+        id=14,
+        run_started_at="2026-07-17T00:02:00Z",
+        updated_at="2026-07-17T00:04:00Z",
+    )
+    timed_out = _run(id=12, conclusion="timed_out")
+
+    filtered, _ = select_smoke_run_groups(
+        [newer, superseded, timed_out],
+        recent_days=30,
+        now=datetime(2026, 7, 18, tzinfo=timezone.utc),
+        status_filter="cancelled",
+        cancellation_reason_filter="superseded",
+    )
+
+    assert [run["id"] for run in filtered] == [13]
+
+
 def test_paginate_smoke_runs_returns_requested_five_item_page() -> None:
     runs = [_run(id=run_id) for run_id in range(12, 0, -1)]
 
@@ -260,13 +285,20 @@ def test_paginate_smoke_runs_returns_requested_five_item_page() -> None:
 def test_history_response_cache_removes_expired_and_oldest_items(monkeypatch) -> None:
     now = datetime.now(timezone.utc)
     cache = {
-        (f"https://api.github.com/repos/example/{index}", None, 1, "", "all"): (
+        (f"https://api.github.com/repos/example/{index}", None, 1, "", "all", "all"): (
             now - timedelta(seconds=index),
             {},
         )
         for index in range(205)
     }
-    expired_key = ("https://api.github.com/repos/example/expired", None, 1, "", "all")
+    expired_key = (
+        "https://api.github.com/repos/example/expired",
+        None,
+        1,
+        "",
+        "all",
+        "all",
+    )
     cache[expired_key] = (now - timedelta(seconds=601), {})
     monkeypatch.setattr(GitHubSmokeRunHistoryReader, "_cache", cache)
     monkeypatch.setattr(GitHubSmokeRunHistoryReader, "_cache_hits", 3)
@@ -293,6 +325,7 @@ async def test_history_reader_rejects_non_github_source_without_request() -> Non
     assert history == {
         "runs": [],
         "latest_failure": None,
+        "statistics": [],
         "checked_at": None,
         "recent_days": None,
         "page": 1,
@@ -301,6 +334,7 @@ async def test_history_reader_rejects_non_github_source_without_request() -> Non
         "total_pages": 0,
         "search": "",
         "status_filter": "all",
+        "cancellation_reason_filter": "all",
         "github_api_request_usage": None,
         "error": "GitHub 저장소 주소를 확인하지 못했습니다",
     }
@@ -355,11 +389,13 @@ async def test_history_reader_force_refresh_bypasses_cache(monkeypatch) -> None:
             page: int = 1,
             search: str = "",
             status_filter: str = "all",
+            cancellation_reason_filter: str = "all",
         ) -> dict:
             self.calls += 1
             return {
                 "runs": [],
                 "latest_failure": None,
+                "statistics": [],
                 "recent_days": recent_days,
                 "page": page,
                 "per_page": 5,
@@ -367,6 +403,7 @@ async def test_history_reader_force_refresh_bypasses_cache(monkeypatch) -> None:
                 "total_pages": 0,
                 "search": search,
                 "status_filter": status_filter,
+                "cancellation_reason_filter": cancellation_reason_filter,
                 "error": None,
             }
 
@@ -413,7 +450,7 @@ async def test_history_reader_counts_github_requests_for_next_refresh_estimate(
 @pytest.mark.asyncio
 async def test_history_reader_caches_each_day_range_separately() -> None:
     class CountingReader(GitHubSmokeRunHistoryReader):
-        calls: list[tuple[int | None, int, str, str]] = []
+        calls: list[tuple[int | None, int, str, str, str]] = []
 
         async def _fetch_history(
             self,
@@ -425,11 +462,15 @@ async def test_history_reader_caches_each_day_range_separately() -> None:
             page: int = 1,
             search: str = "",
             status_filter: str = "all",
+            cancellation_reason_filter: str = "all",
         ) -> dict:
-            self.calls.append((recent_days, page, search, status_filter))
+            self.calls.append(
+                (recent_days, page, search, status_filter, cancellation_reason_filter)
+            )
             return {
                 "runs": [],
                 "latest_failure": None,
+                "statistics": [],
                 "recent_days": recent_days,
                 "page": page,
                 "per_page": 5,
@@ -437,6 +478,7 @@ async def test_history_reader_caches_each_day_range_separately() -> None:
                 "total_pages": 0,
                 "search": search,
                 "status_filter": status_filter,
+                "cancellation_reason_filter": cancellation_reason_filter,
                 "error": None,
             }
 
@@ -450,8 +492,8 @@ async def test_history_reader_caches_each_day_range_separately() -> None:
     await reader.get_history(source_url, recent_days=7, search="123")
 
     assert reader.calls == [
-        (7, 1, "", "all"),
-        (30, 1, "", "all"),
-        (7, 2, "", "all"),
-        (7, 1, "123", "all"),
+        (7, 1, "", "all", "all"),
+        (30, 1, "", "all", "all"),
+        (7, 2, "", "all", "all"),
+        (7, 1, "123", "all", "all"),
     ]

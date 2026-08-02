@@ -51,6 +51,7 @@ async def get_smoke_rotation_status_response(
     monitoring_history_page: int = 1,
     monitoring_history_search: str = "",
     monitoring_history_status: str = "all",
+    monitoring_history_cancellation_reason: str = "all",
     force_refresh_monitoring_history: bool = False,
     history_reader: Any = smoke_run_history_reader,
 ) -> SmokeRotationStatusResponse:
@@ -77,6 +78,7 @@ async def get_smoke_rotation_status_response(
     run_history = {
         "runs": [],
         "latest_failure": None,
+        "statistics": [],
         "checked_at": None,
         "recent_days": history_days,
         "page": monitoring_history_page,
@@ -85,6 +87,7 @@ async def get_smoke_rotation_status_response(
         "total_pages": 0,
         "search": monitoring_history_search,
         "status_filter": monitoring_history_status,
+        "cancellation_reason_filter": monitoring_history_cancellation_reason,
         "github_api_request_usage": None,
         "error": None,
     }
@@ -97,6 +100,7 @@ async def get_smoke_rotation_status_response(
             page=monitoring_history_page,
             search=monitoring_history_search,
             status_filter=monitoring_history_status,
+            cancellation_reason_filter=monitoring_history_cancellation_reason,
         )
         failure_metadata = await read_smoke_failure_metadata(repo)
         attach_smoke_failure_metadata(
@@ -135,6 +139,7 @@ async def get_smoke_rotation_status_response(
         monitoring_admin_stale_after_days=admin_stale_after_days,
         monitoring_recent_runs=run_history["runs"],
         monitoring_latest_failure=run_history["latest_failure"],
+        monitoring_run_statistics=run_history["statistics"],
         monitoring_history_checked_at=run_history["checked_at"],
         monitoring_history_error=run_history["error"],
         monitoring_history_days=run_history["recent_days"],
@@ -144,6 +149,7 @@ async def get_smoke_rotation_status_response(
         monitoring_history_total_pages=run_history["total_pages"],
         monitoring_history_search=run_history["search"],
         monitoring_history_status=run_history["status_filter"],
+        monitoring_history_cancellation_reason=run_history["cancellation_reason_filter"],
         monitoring_failure_metadata_count=len(failure_metadata),
         monitoring_failure_metadata_limit=SMOKE_FAILURE_METADATA_LIMIT,
         monitoring_github_rate_limit_remaining=github_rate_limit["remaining"],

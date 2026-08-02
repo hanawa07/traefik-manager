@@ -5,6 +5,13 @@ from pydantic import BaseModel, Field
 
 SmokeMonitoringFrequency = Literal["daily", "weekly"]
 SmokeFailureRateWindowDays = Literal[7, 30]
+SmokeCancellationReason = Literal["timeout", "superseded", "manual_or_unknown"]
+SmokeCancellationReasonFilter = Literal[
+    "all",
+    "timeout",
+    "superseded",
+    "manual_or_unknown",
+]
 
 
 class SmokeFailureMetadataResponse(BaseModel):
@@ -22,11 +29,24 @@ class SmokeMonitoringRecentRunResponse(BaseModel):
     run_number: int | None = None
     commit_sha: str | None = None
     summary: str | None = None
-    cancellation_reason: Literal["timeout", "superseded", "manual_or_unknown"] | None = None
+    cancellation_reason: SmokeCancellationReason | None = None
     notification_suppressed: bool = False
     artifact_url: str | None = None
     artifact_expires_at: str | None = None
     failure_metadata: SmokeFailureMetadataResponse | None = None
+
+
+class SmokeRunStatisticsResponse(BaseModel):
+    window_days: SmokeFailureRateWindowDays
+    total_count: int = Field(ge=0)
+    success_count: int = Field(ge=0)
+    failure_count: int = Field(ge=0)
+    cancelled_count: int = Field(ge=0)
+    skipped_count: int = Field(ge=0)
+    duration_run_count: int = Field(ge=0)
+    total_duration_seconds: int = Field(ge=0)
+    average_duration_seconds: int = Field(ge=0)
+    estimated_runner_minutes: int = Field(ge=0)
 
 
 class SmokeRotationStatusResponse(BaseModel):
@@ -58,6 +78,7 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_workflow_url: str
     monitoring_recent_runs: list[SmokeMonitoringRecentRunResponse] = Field(default_factory=list)
     monitoring_latest_failure: SmokeMonitoringRecentRunResponse | None = None
+    monitoring_run_statistics: list[SmokeRunStatisticsResponse] = Field(default_factory=list)
     monitoring_history_checked_at: str | None = None
     monitoring_history_error: str | None = None
     monitoring_history_days: Literal[7, 30] = 30
@@ -67,6 +88,7 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_history_total_pages: int = 0
     monitoring_history_search: str = ""
     monitoring_history_status: Literal["all", "success", "failure", "cancelled"] = "all"
+    monitoring_history_cancellation_reason: SmokeCancellationReasonFilter = "all"
     monitoring_failure_metadata_count: int = 0
     monitoring_failure_metadata_limit: int = 20
     monitoring_github_rate_limit_remaining: int | None = None

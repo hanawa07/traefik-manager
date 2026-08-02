@@ -23,6 +23,7 @@ class StubHistoryReader:
     page = 1
     search = ""
     status_filter = "all"
+    cancellation_reason_filter = "all"
 
     async def get_history(
         self,
@@ -33,12 +34,14 @@ class StubHistoryReader:
         page: int = 1,
         search: str = "",
         status_filter: str = "all",
+        cancellation_reason_filter: str = "all",
     ) -> dict:
         self.force_refresh = force_refresh
         self.recent_days = recent_days
         self.page = page
         self.search = search
         self.status_filter = status_filter
+        self.cancellation_reason_filter = cancellation_reason_filter
         return {
             "runs": [
                 {
@@ -66,6 +69,20 @@ class StubHistoryReader:
                 "artifact_url": "https://github.com/example/artifact",
                 "artifact_expires_at": "2026-07-18T06:54:58Z",
             },
+            "statistics": [
+                {
+                    "window_days": 7,
+                    "total_count": 7,
+                    "success_count": 5,
+                    "failure_count": 1,
+                    "cancelled_count": 1,
+                    "skipped_count": 0,
+                    "duration_run_count": 7,
+                    "total_duration_seconds": 700,
+                    "average_duration_seconds": 100,
+                    "estimated_runner_minutes": 14,
+                }
+            ],
             "checked_at": "2026-07-13T01:00:00+00:00",
             "recent_days": recent_days,
             "page": page,
@@ -74,6 +91,7 @@ class StubHistoryReader:
             "total_pages": 2,
             "search": search,
             "status_filter": status_filter,
+            "cancellation_reason_filter": cancellation_reason_filter,
             "github_api_request_usage": {
                 "total": 6,
                 "workflow": 1,
@@ -303,6 +321,7 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
     assert result.monitoring_recent_runs[0].failure_metadata.check_name == "설정 화면 검사 실패"
     assert result.monitoring_recent_runs[0].failure_metadata.screen_path == "/dashboard/settings"
     assert result.monitoring_latest_failure.run_number == 78
+    assert result.monitoring_run_statistics[0].estimated_runner_minutes == 14
     assert result.monitoring_history_checked_at == "2026-07-13T01:00:00+00:00"
     assert result.monitoring_history_error is None
     assert result.monitoring_history_days == 30
@@ -311,6 +330,7 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
     assert result.monitoring_history_total_pages == 2
     assert result.monitoring_history_search == "456"
     assert result.monitoring_history_status == "failure"
+    assert result.monitoring_history_cancellation_reason == "all"
     assert result.monitoring_failure_metadata_count == 1
     assert result.monitoring_failure_metadata_limit == 20
     assert result.monitoring_github_rate_limit_remaining == 42
@@ -331,3 +351,4 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
     assert history_reader.page == 2
     assert history_reader.search == "456"
     assert history_reader.status_filter == "failure"
+    assert history_reader.cancellation_reason_filter == "all"

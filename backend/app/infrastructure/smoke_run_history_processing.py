@@ -10,6 +10,7 @@ _CANCELLATION_REASON_LABELS = {
     "superseded": "새 실행으로 대체 추정",
     "manual_or_unknown": "수동 취소 또는 원인 미확인",
 }
+_CANCELLATION_REASON_FILTERS = {"all", *_CANCELLATION_REASON_LABELS}
 
 
 def build_smoke_run_item(
@@ -129,7 +130,32 @@ def select_smoke_run_groups(
     now: datetime | None = None,
     search: str = "",
     status_filter: str = "all",
+    cancellation_reason_filter: str = "all",
 ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    operational_runs = select_operational_smoke_runs(
+        raw_runs,
+        recent_days=recent_days,
+        now=now,
+    )
+    latest_failure = next((run for run in operational_runs if is_failed_smoke_run(run)), None)
+    filtered_runs = filter_smoke_runs(
+        operational_runs,
+        search=search,
+        status_filter=status_filter,
+        cancellation_reason_filter=cancellation_reason_filter,
+    )
+    return (
+        filtered_runs if recent_days is not None else filtered_runs[:RECENT_RUN_LIMIT],
+        latest_failure,
+    )
+
+
+def select_operational_smoke_runs(
+    raw_runs: object,
+    *,
+    recent_days: int | None = None,
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
     if not isinstance(raw_runs, list):
         raise ValueError("workflow_runs must be a list")
     operational_runs = [
@@ -151,16 +177,7 @@ def select_smoke_run_groups(
             if (updated_at := parse_run_timestamp(run["updated_at"])) is not None
             and updated_at >= cutoff
         ]
-    latest_failure = next((run for run in operational_runs if is_failed_smoke_run(run)), None)
-    filtered_runs = filter_smoke_runs(
-        operational_runs,
-        search=search,
-        status_filter=status_filter,
-    )
-    return (
-        filtered_runs if recent_days is not None else filtered_runs[:RECENT_RUN_LIMIT],
-        latest_failure,
-    )
+    return operational_runs
 
 
 def filter_smoke_runs(
@@ -168,9 +185,12 @@ def filter_smoke_runs(
     *,
     search: str,
     status_filter: str,
+    cancellation_reason_filter: str = "all",
 ) -> list[dict[str, Any]]:
     if status_filter not in {"all", "success", "failure", "cancelled"}:
         raise ValueError("unsupported status filter")
+    if cancellation_reason_filter not in _CANCELLATION_REASON_FILTERS:
+        raise ValueError("unsupported cancellation reason filter")
     needle = normalize_history_search(search).casefold()
     return [
         run
@@ -183,6 +203,11 @@ def filter_smoke_runs(
             )
             or (status_filter == "failure" and is_failed_smoke_run(run))
             or (status_filter == "cancelled" and is_cancelled_smoke_run(run))
+        )
+        and (
+            cancellation_reason_filter == "all"
+            or classify_smoke_cancellation_reason(run, runs)
+            == cancellation_reason_filter
         )
         and (
             not needle
@@ -211,6 +236,8 @@ def paginate_smoke_runs(
 
 
 def needs_job_details(run: dict[str, Any]) -> bool:
+    if is_cancelled_smoke_run(run):
+        return False
     return run.get("event") == "schedule" or run.get("conclusion") != "success"
 
 

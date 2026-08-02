@@ -20,7 +20,10 @@ _REPOSITORY_PART_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 class GitHubSmokeRunHistoryReader:
     """Read recent smoke results from the repository's public Actions metadata."""
 
-    _cache: dict[tuple[str, int | None, int, str, str], tuple[datetime, dict[str, Any]]] = {}
+    _cache: dict[
+        tuple[str, int | None, int, str, str, str],
+        tuple[datetime, dict[str, Any]],
+    ] = {}
     _lock = asyncio.Lock()
     _cache_hits = 0
     _cache_misses = 0
@@ -34,6 +37,7 @@ class GitHubSmokeRunHistoryReader:
         page: int = 1,
         search: str | None = None,
         status_filter: str = "all",
+        cancellation_reason_filter: str = "all",
     ) -> dict[str, Any]:
         normalized_search = normalize_history_search(search)
         if status_filter not in {"all", "success", "failure", "cancelled"}:
@@ -46,6 +50,17 @@ class GitHubSmokeRunHistoryReader:
                 "이력 페이지를 확인하지 못했습니다",
                 recent_days=recent_days,
             )
+        if cancellation_reason_filter not in {
+            "all",
+            "timeout",
+            "superseded",
+            "manual_or_unknown",
+        }:
+            return build_smoke_history_error(
+                "취소 원인 필터를 확인하지 못했습니다",
+                recent_days=recent_days,
+                cancellation_reason_filter=cancellation_reason_filter,
+            )
         repository_urls = _resolve_repository_urls(source_url)
         if repository_urls is None:
             return build_smoke_history_error(
@@ -57,7 +72,14 @@ class GitHubSmokeRunHistoryReader:
             )
 
         api_url, public_url = repository_urls
-        cache_key = (api_url, recent_days, page, normalized_search, status_filter)
+        cache_key = (
+            api_url,
+            recent_days,
+            page,
+            normalized_search,
+            status_filter,
+            cancellation_reason_filter,
+        )
         now = datetime.now(timezone.utc)
         cached = self._cache.get(cache_key)
         _prune_history_cache(now)
@@ -82,13 +104,16 @@ class GitHubSmokeRunHistoryReader:
                 page=page,
                 search=normalized_search,
                 status_filter=status_filter,
+                cancellation_reason_filter=cancellation_reason_filter,
             )
             history["checked_at"] = datetime.now(timezone.utc).isoformat()
-            if history["error"] and cached and cached[1]["runs"]:
-                history["runs"] = cached[1]["runs"]
-                history["latest_failure"] = cached[1]["latest_failure"]
-                history["total"] = cached[1]["total"]
-                history["total_pages"] = cached[1]["total_pages"]
+            if history["error"] and cached:
+                if cached[1]["runs"]:
+                    history["runs"] = cached[1]["runs"]
+                    history["latest_failure"] = cached[1]["latest_failure"]
+                    history["total"] = cached[1]["total"]
+                    history["total_pages"] = cached[1]["total_pages"]
+                history["statistics"] = cached[1].get("statistics", [])
             GitHubSmokeRunHistoryReader._cache[cache_key] = (now, _copy_history(history))
             _prune_history_cache(now)
             return history
@@ -103,6 +128,7 @@ class GitHubSmokeRunHistoryReader:
         page: int = 1,
         search: str = "",
         status_filter: str = "all",
+        cancellation_reason_filter: str = "all",
     ) -> dict[str, Any]:
         return await fetch_smoke_run_history(
             api_url,
@@ -112,6 +138,7 @@ class GitHubSmokeRunHistoryReader:
             page=page,
             search=search,
             status_filter=status_filter,
+            cancellation_reason_filter=cancellation_reason_filter,
         )
 
 
@@ -176,6 +203,7 @@ def _copy_history(history: dict[str, Any]) -> dict[str, Any]:
         "latest_failure": history["latest_failure"].copy()
         if history["latest_failure"]
         else None,
+        "statistics": [item.copy() for item in history.get("statistics", [])],
         "checked_at": history["checked_at"],
         "recent_days": history["recent_days"],
         "page": history["page"],
@@ -184,6 +212,7 @@ def _copy_history(history: dict[str, Any]) -> dict[str, Any]:
         "total_pages": history["total_pages"],
         "search": history["search"],
         "status_filter": history["status_filter"],
+        "cancellation_reason_filter": history.get("cancellation_reason_filter", "all"),
         "github_api_request_usage": history.get("github_api_request_usage"),
         "error": history["error"],
     }

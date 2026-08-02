@@ -73,6 +73,7 @@ async def get_smoke_rotation_status(
     history_page: int = 1,
     history_search: str | None = None,
     history_status: str = "all",
+    history_cancellation_reason: str = "all",
 ):
     if history_days not in {None, 7, 30}:
         raise HTTPException(status_code=422, detail="history_days는 7 또는 30이어야 합니다")
@@ -83,6 +84,18 @@ async def get_smoke_rotation_status(
         raise HTTPException(status_code=422, detail="history_search는 100자 이하여야 합니다")
     if history_status not in {"all", "success", "failure", "cancelled"}:
         raise HTTPException(status_code=422, detail="history_status 값을 확인해주세요")
+    if history_cancellation_reason not in {
+        "all",
+        "timeout",
+        "superseded",
+        "manual_or_unknown",
+    }:
+        raise HTTPException(status_code=422, detail="history_cancellation_reason 값을 확인해주세요")
+    if history_cancellation_reason != "all" and history_status != "cancelled":
+        raise HTTPException(
+            status_code=422,
+            detail="취소 원인 필터는 취소 상태에서만 사용할 수 있습니다",
+        )
     is_admin = current_user["role"] == "admin"
     include_admin_details = is_admin and not summary
     include_monitoring_history = include_admin_details or (is_admin and history)
@@ -99,6 +112,7 @@ async def get_smoke_rotation_status(
         monitoring_history_page=history_page,
         monitoring_history_search=normalized_search,
         monitoring_history_status=history_status,
+        monitoring_history_cancellation_reason=history_cancellation_reason,
         force_refresh_monitoring_history=include_admin_details and refresh_monitoring_history,
     )
     event_after = read_github_api_rate_limit_event()

@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -20,6 +21,7 @@ from app.infrastructure.smoke_run_history_processing import (
     paginate_smoke_runs,
     select_smoke_run_groups,
 )
+from app.infrastructure.smoke_run_statistics import build_smoke_run_statistics
 from app.infrastructure.smoke_workflow_runs import read_smoke_workflow_runs
 
 WORKFLOW_FILE = "dashboard-visual-smoke.yml"
@@ -34,6 +36,7 @@ async def fetch_smoke_run_history(
     page: int = 1,
     search: str = "",
     status_filter: str = "all",
+    cancellation_reason_filter: str = "all",
 ) -> dict[str, Any]:
     api_requests: dict[str, int] = {}
     try:
@@ -50,14 +53,17 @@ async def fetch_smoke_run_history(
                     client,
                     api_url,
                     WORKFLOW_FILE,
-                    recent_days=recent_days,
+                    recent_days=30 if recent_days in {7, 30} else recent_days,
                     force_refresh=force_refresh,
                 )
+                statistics_reference_time = datetime.now(timezone.utc)
                 all_runs, latest_failure_run = select_smoke_run_groups(
                     raw_runs,
                     recent_days=recent_days,
+                    now=statistics_reference_time,
                     search=search,
                     status_filter=status_filter,
+                    cancellation_reason_filter=cancellation_reason_filter,
                 )
                 runs, total, total_pages = paginate_smoke_runs(all_runs, page=page)
                 detail_runs = list(runs)
@@ -106,6 +112,7 @@ async def fetch_smoke_run_history(
             page=page,
             search=search,
             status_filter=status_filter,
+            cancellation_reason_filter=cancellation_reason_filter,
             github_api_request_usage=api_requests,
         )
     except (httpx.HTTPError, ValueError, TypeError):
@@ -115,6 +122,7 @@ async def fetch_smoke_run_history(
             page=page,
             search=search,
             status_filter=status_filter,
+            cancellation_reason_filter=cancellation_reason_filter,
             github_api_request_usage=api_requests,
         )
 
@@ -136,6 +144,10 @@ async def fetch_smoke_run_history(
         "latest_failure": items.get(latest_failure_run["id"])
         if latest_failure_run
         else None,
+        "statistics": build_smoke_run_statistics(
+            raw_runs,
+            now=statistics_reference_time,
+        ),
         "recent_days": recent_days,
         "page": page,
         "per_page": RECENT_RUN_LIMIT,
@@ -143,6 +155,7 @@ async def fetch_smoke_run_history(
         "total_pages": total_pages,
         "search": search,
         "status_filter": status_filter,
+        "cancellation_reason_filter": cancellation_reason_filter,
         "github_api_request_usage": api_requests.copy(),
         "error": None,
     }
@@ -155,11 +168,13 @@ def build_smoke_history_error(
     page: int = 1,
     search: str = "",
     status_filter: str = "all",
+    cancellation_reason_filter: str = "all",
     github_api_request_usage: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     return {
         "runs": [],
         "latest_failure": None,
+        "statistics": [],
         "checked_at": None,
         "recent_days": recent_days,
         "page": page,
@@ -168,6 +183,7 @@ def build_smoke_history_error(
         "total_pages": 0,
         "search": search,
         "status_filter": status_filter,
+        "cancellation_reason_filter": cancellation_reason_filter,
         "github_api_request_usage": github_api_request_usage,
         "error": message,
     }

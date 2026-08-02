@@ -66,6 +66,7 @@ async def test_get_smoke_rotation_status_skips_admin_details_for_summary(
             "monitoring_history_page": 1,
             "monitoring_history_search": "",
             "monitoring_history_status": "all",
+            "monitoring_history_cancellation_reason": "all",
             "force_refresh_monitoring_history": role == "admin" and not summary,
         }
     ]
@@ -101,6 +102,30 @@ async def test_get_smoke_rotation_status_rejects_invalid_history_filter():
             current_user={"role": "admin"},
             history=True,
             history_status="skipped",
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_smoke_rotation_status_rejects_invalid_cancellation_filter():
+    with pytest.raises(HTTPException, match="history_cancellation_reason 값을 확인해주세요"):
+        await smoke_router.get_smoke_rotation_status(
+            db=object(),
+            current_user={"role": "admin"},
+            history=True,
+            history_status="cancelled",
+            history_cancellation_reason="unknown",
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_smoke_rotation_status_requires_cancelled_status_for_reason_filter():
+    with pytest.raises(HTTPException, match="취소 상태에서만"):
+        await smoke_router.get_smoke_rotation_status(
+            db=object(),
+            current_user={"role": "admin"},
+            history=True,
+            history_status="all",
+            history_cancellation_reason="timeout",
         )
 
 
