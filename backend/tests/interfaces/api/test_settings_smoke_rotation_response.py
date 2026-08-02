@@ -203,6 +203,8 @@ async def test_get_smoke_rotation_status_defaults_to_never() -> None:
     assert result.monitoring_admin_is_stale is False
     assert result.monitoring_admin_stale_after_days == 2
     assert result.monitoring_statistics_snapshots == []
+    assert result.monitoring_local_runs == []
+    assert result.monitoring_local_run_total == 0
 
 
 @pytest.mark.asyncio
@@ -311,6 +313,11 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
             '"check_name": "설정 화면 검사 실패", "screen_path": "/dashboard/settings", '
             '"page_title": "설정"}]'
         ),
+        "dashboard_smoke_local_run_456": (
+            '{"run_id":456,"status":"failure","started_at":"2026-07-13T00:58:00+00:00",'
+            '"completed_at":"2026-07-13T01:00:00+00:00","duration_seconds":120,'
+            '"admin_checked":false}'
+        ),
     }
     history_reader = StubHistoryReader()
     monkeypatch.setattr(
@@ -352,6 +359,10 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
     assert result.monitoring_run_statistics[0].estimated_runner_minutes == 14
     assert result.monitoring_statistics_snapshots[0].captured_on == "2026-07-13"
     assert result.monitoring_statistics_snapshots[0].estimated_runner_minutes == 60
+    assert result.monitoring_local_runs[0].run_id == 456
+    assert result.monitoring_local_runs[0].duration_seconds == 120
+    assert result.monitoring_local_run_total == 1
+    assert result.monitoring_local_run_retention_days == 365
     assert result.monitoring_history_checked_at == "2026-07-13T01:00:00+00:00"
     assert result.monitoring_history_error is None
     assert result.monitoring_history_days == 30

@@ -25,6 +25,7 @@ export async function recordRemoteSmokeSuccess(
   const csrf = cookies.find((cookie) => cookie.name.toLowerCase().includes("csrf"));
   assert.ok(csrf, "원격 스모크 성공 기록에 필요한 CSRF 쿠키가 없습니다");
   const cookie = formatCookieHeader(cookies);
+  const completedAt = new Date().toISOString();
   const response = await fetchImpl(`${baseUrl}/api/v1/settings/smoke-run-success`, {
     method: "POST",
     headers: {
@@ -32,7 +33,12 @@ export async function recordRemoteSmokeSuccess(
       cookie,
       "x-csrf-token": csrf.value,
     },
-    body: JSON.stringify({ admin_checked: adminChecked, run_id: Number(runId) }),
+    body: JSON.stringify({
+      admin_checked: adminChecked,
+      run_id: Number(runId),
+      started_at: env.TM_SMOKE_STARTED_AT || null,
+      completed_at: completedAt,
+    }),
   });
   if (!response.ok) {
     const text = await response.text();
@@ -71,7 +77,12 @@ export async function recordRemoteSmokeFailure(
       cookie: formatCookieHeader(cookies),
       "x-csrf-token": csrf.value,
     },
-    body: JSON.stringify({ run_id: Number(runId), ...metadata }),
+    body: JSON.stringify({
+      run_id: Number(runId),
+      ...metadata,
+      started_at: env.TM_SMOKE_STARTED_AT || null,
+      completed_at: metadata.captured_at || new Date().toISOString(),
+    }),
   });
   if (!response.ok) {
     const text = await response.text();
@@ -113,7 +124,11 @@ export async function runRemoteSmokeStatusSelfTest() {
     "https://manager.example.com",
     cookies,
     true,
-    { GITHUB_RUN_ID: "123", TM_SMOKE_ADMIN_EXPECT_READ_ONLY: "1" },
+    {
+      GITHUB_RUN_ID: "123",
+      TM_SMOKE_ADMIN_EXPECT_READ_ONLY: "1",
+      TM_SMOKE_STARTED_AT: "2026-07-18T00:00:00Z",
+    },
     async (url, options = {}) => {
       requests.push({ options, url });
       if (options.method === "POST") return new Response("{}", { status: 200 });
@@ -129,7 +144,10 @@ export async function runRemoteSmokeStatusSelfTest() {
   );
   assert.equal(requests.length, 2);
   assert.equal(requests[0].options.headers["x-csrf-token"], "csrf");
-  assert.equal(JSON.parse(requests[0].options.body).admin_checked, true);
+  const successBody = JSON.parse(requests[0].options.body);
+  assert.equal(successBody.admin_checked, true);
+  assert.equal(successBody.started_at, "2026-07-18T00:00:00Z");
+  assert.match(successBody.completed_at, /^\d{4}-\d{2}-\d{2}T/);
   const failureRequests = [];
   await recordRemoteSmokeFailure(
     "https://manager.example.com",
@@ -140,15 +158,18 @@ export async function runRemoteSmokeStatusSelfTest() {
       screen_path: "/dashboard/settings",
       page_title: "설정",
     },
-    { GITHUB_RUN_ID: "456" },
+    { GITHUB_RUN_ID: "456", TM_SMOKE_STARTED_AT: "2026-07-21T01:00:03Z" },
     async (url, options) => {
       failureRequests.push({ options, url });
       return new Response("{}", { status: 200 });
     },
   );
   assert.match(failureRequests[0].url, /smoke-run-failure$/);
-  assert.equal(JSON.parse(failureRequests[0].options.body).run_id, 456);
-  assert.equal(JSON.parse(failureRequests[0].options.body).screen_path, "/dashboard/settings");
+  const failureBody = JSON.parse(failureRequests[0].options.body);
+  assert.equal(failureBody.run_id, 456);
+  assert.equal(failureBody.screen_path, "/dashboard/settings");
+  assert.equal(failureBody.started_at, "2026-07-21T01:00:03Z");
+  assert.equal(failureBody.completed_at, "2026-07-21T01:02:03Z");
   assert.match(
     getAdminSmokeAlertMessage({
       monitoring_admin_is_stale: true,

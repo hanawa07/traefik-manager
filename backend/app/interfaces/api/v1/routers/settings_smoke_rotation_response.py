@@ -20,6 +20,10 @@ from app.infrastructure.github_api_rate_limit import read_github_api_rate_limit
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
     SQLiteSystemSettingsRepository,
 )
+from app.infrastructure.smoke_local_run_records import (
+    SMOKE_LOCAL_RUN_RETENTION_DAYS,
+    read_smoke_local_runs,
+)
 from app.infrastructure.smoke_run_history import (
     GitHubSmokeRunHistoryReader,
     read_smoke_history_cache_diagnostics,
@@ -96,6 +100,8 @@ async def get_smoke_rotation_status_response(
     }
     failure_metadata = {}
     statistics_snapshots = []
+    local_runs = []
+    local_run_total = 0
     if include_monitoring_history:
         run_history = await history_reader.get_history(
             settings.TRAEFIK_MANAGER_IMAGE_SOURCE,
@@ -117,6 +123,7 @@ async def get_smoke_rotation_status_response(
             checked_at=run_history["checked_at"],
             now=now,
         )
+        local_runs, local_run_total = await read_smoke_local_runs(repo, now=now)
     github_rate_limit = (
         read_github_api_rate_limit()
         if include_monitoring_history
@@ -151,6 +158,9 @@ async def get_smoke_rotation_status_response(
         monitoring_latest_failure=run_history["latest_failure"],
         monitoring_run_statistics=run_history["statistics"],
         monitoring_statistics_snapshots=statistics_snapshots,
+        monitoring_local_runs=local_runs,
+        monitoring_local_run_total=local_run_total,
+        monitoring_local_run_retention_days=SMOKE_LOCAL_RUN_RETENTION_DAYS,
         monitoring_history_checked_at=run_history["checked_at"],
         monitoring_history_error=run_history["error"],
         monitoring_history_days=run_history["recent_days"],

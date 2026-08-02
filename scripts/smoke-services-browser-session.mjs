@@ -46,6 +46,8 @@ if (process.argv.includes("--self-test")) {
   process.exit(0);
 }
 
+process.env.TM_SMOKE_STARTED_AT ||= new Date().toISOString();
+
 main().catch(async (error) => {
   const message = String(error?.message || "알 수 없는 오류");
   await writeSmokeAlertDetail(message).catch(() => undefined);

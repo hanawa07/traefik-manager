@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 SmokeMonitoringFrequency = Literal["daily", "weekly"]
 SmokeFailureRateWindowDays = Literal[7, 30]
@@ -74,6 +74,15 @@ class SmokeStatisticsSnapshotResponse(BaseModel):
     estimated_runner_minutes: int = Field(ge=0)
 
 
+class SmokeLocalRunResponse(BaseModel):
+    run_id: int = Field(gt=0)
+    status: Literal["success", "failure"]
+    started_at: str | None = None
+    completed_at: str
+    duration_seconds: int | None = Field(default=None, ge=0)
+    admin_checked: bool = False
+
+
 class SmokeRotationStatusResponse(BaseModel):
     status: Literal["never", "running", "success", "failure"]
     last_attempt_at: str | None = None
@@ -107,6 +116,9 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_statistics_snapshots: list[SmokeStatisticsSnapshotResponse] = Field(
         default_factory=list
     )
+    monitoring_local_runs: list[SmokeLocalRunResponse] = Field(default_factory=list)
+    monitoring_local_run_total: int = 0
+    monitoring_local_run_retention_days: int = 365
     monitoring_history_checked_at: str | None = None
     monitoring_history_error: str | None = None
     monitoring_history_days: Literal[7, 30] = 30
@@ -153,6 +165,8 @@ class SmokeMonitoringScheduleDecisionResponse(BaseModel):
 class SmokeMonitoringRunSuccessRequest(BaseModel):
     run_id: int = Field(gt=0)
     admin_checked: bool = False
+    started_at: AwareDatetime | None = None
+    completed_at: AwareDatetime | None = None
 
 
 class SmokeMonitoringRunSuccessResponse(BaseModel):
@@ -162,6 +176,8 @@ class SmokeMonitoringRunSuccessResponse(BaseModel):
 
 class SmokeMonitoringRunFailureRequest(SmokeFailureMetadataResponse):
     run_id: int = Field(gt=0)
+    started_at: AwareDatetime | None = None
+    completed_at: AwareDatetime | None = None
 
 
 class SmokeMonitoringRunFailureResponse(SmokeMonitoringRunFailureRequest):

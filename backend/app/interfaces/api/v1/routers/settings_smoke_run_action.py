@@ -1,9 +1,11 @@
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.infrastructure.smoke_local_run_records import record_smoke_local_run
 from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
     record_smoke_failure_metadata,
 )
@@ -24,12 +26,24 @@ async def record_smoke_run_success_action(
     db: AsyncSession,
     settings_repository_factory: Any,
     admin_checked: bool = False,
+    started_at: datetime | None = None,
+    completed_at: datetime | None = None,
 ) -> SmokeMonitoringRunSuccessResponse:
     _require_smoke_viewer(actor)
     repo = settings_repository_factory(db)
+    recorded_at = completed_at or datetime.now(timezone.utc)
     result = await record_smoke_run_success(
         repo,
         run_id=run_id,
+        admin_checked=admin_checked,
+        now=recorded_at,
+    )
+    await record_smoke_local_run(
+        repo,
+        run_id=run_id,
+        status="success",
+        started_at=started_at,
+        completed_at=recorded_at,
         admin_checked=admin_checked,
     )
     return SmokeMonitoringRunSuccessResponse(**result)
@@ -47,9 +61,23 @@ async def record_smoke_run_failure_action(
     result = await record_smoke_failure_metadata(
         repo,
         run_id=request.run_id,
-        metadata=request.model_dump(mode="json", exclude={"run_id"}),
+        metadata=request.model_dump(
+            mode="json", exclude={"run_id", "started_at", "completed_at"}
+        ),
     )
-    return SmokeMonitoringRunFailureResponse(**result)
+    completed_at = request.completed_at or request.captured_at
+    await record_smoke_local_run(
+        repo,
+        run_id=request.run_id,
+        status="failure",
+        started_at=request.started_at,
+        completed_at=completed_at,
+    )
+    return SmokeMonitoringRunFailureResponse(
+        **result,
+        started_at=request.started_at,
+        completed_at=completed_at,
+    )
 
 
 def _require_smoke_viewer(actor: dict) -> None:

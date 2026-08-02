@@ -1,3 +1,6 @@
+import json
+from datetime import datetime, timezone
+
 import pytest
 from fastapi import HTTPException
 
@@ -20,6 +23,12 @@ class StubRepository:
     async def get(self, key: str) -> str | None:
         return self.values.get(key)
 
+    async def get_all_dict(self) -> dict[str, str]:
+        return dict(self.values)
+
+    async def delete(self, key: str) -> None:
+        self.values.pop(key, None)
+
 
 @pytest.mark.asyncio
 async def test_record_smoke_run_success_accepts_dedicated_viewer() -> None:
@@ -31,6 +40,8 @@ async def test_record_smoke_run_success_accepts_dedicated_viewer() -> None:
         db=object(),
         settings_repository_factory=lambda _db: repo,
         admin_checked=True,
+        started_at=datetime(2026, 8, 2, 1, 0, tzinfo=timezone.utc),
+        completed_at=datetime(2026, 8, 2, 1, 2, tzinfo=timezone.utc),
     )
 
     assert response.run_url.endswith("/actions/runs/123")
@@ -38,6 +49,9 @@ async def test_record_smoke_run_success_accepts_dedicated_viewer() -> None:
     assert repo.values["dashboard_smoke_last_run_url"] == response.run_url
     assert repo.values["dashboard_smoke_admin_last_success_at"] == response.recorded_at
     assert repo.values["dashboard_smoke_admin_last_run_url"] == response.run_url
+    local_run = json.loads(repo.values["dashboard_smoke_local_run_123"])
+    assert local_run["duration_seconds"] == 120
+    assert local_run["admin_checked"] is True
 
 
 @pytest.mark.asyncio
@@ -64,6 +78,8 @@ async def test_record_smoke_run_failure_accepts_metadata_from_dedicated_viewer()
             check_name="설정 화면 검사 실패",
             screen_path="/dashboard/settings",
             page_title="설정",
+            started_at="2026-07-21T01:00:03Z",
+            completed_at="2026-07-21T01:02:03Z",
         ),
         actor={"username": "traefik-smoke-viewer", "role": "viewer"},
         db=object(),
@@ -73,3 +89,6 @@ async def test_record_smoke_run_failure_accepts_metadata_from_dedicated_viewer()
     assert response.run_id == 456
     assert response.screen_path == "/dashboard/settings"
     assert '"run_id": 456' in repo.values["dashboard_smoke_failure_metadata"]
+    local_run = json.loads(repo.values["dashboard_smoke_local_run_456"])
+    assert local_run["status"] == "failure"
+    assert local_run["duration_seconds"] == 120

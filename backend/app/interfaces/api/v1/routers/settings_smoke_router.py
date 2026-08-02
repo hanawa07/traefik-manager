@@ -143,6 +143,8 @@ async def record_smoke_run_success(
     return await _record_smoke_run_success_action(
         run_id=request.run_id,
         admin_checked=request.admin_checked,
+        started_at=request.started_at,
+        completed_at=request.completed_at,
         actor=actor,
         db=db,
         settings_repository_factory=SQLiteSystemSettingsRepository,
