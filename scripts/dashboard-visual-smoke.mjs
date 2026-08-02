@@ -27,10 +27,8 @@ import { evaluate } from "./dashboard-visual-runtime.mjs";
 import { checkSecurityAlertRetryDelaySetting } from "./dashboard-visual-security-alert-settings.mjs";
 import { checkManualSmokeRunResultPersistence } from "./dashboard-visual-smoke-manual-run.mjs";
 import { checkSettingsTestAuditLinks } from "./dashboard-visual-settings-test-monitoring.mjs";
-import {
-  checkSmokeRunTrendRange,
-  runSmokeStatisticsHistoryAssertionsSelfTest,
-} from "./dashboard-visual-smoke-run-monitoring.mjs";
+import { runSmokeStatisticsHistoryAssertionsSelfTest } from "./dashboard-visual-smoke-statistics-history.mjs";
+import { checkSmokeRunTrendRange } from "./dashboard-visual-smoke-run-monitoring.mjs";
 import { checkTraefikUpdateHistory } from "./dashboard-visual-traefik-update-history.mjs";
 import { checkWatchdogFilterPersistence } from "./dashboard-visual-watchdog.mjs";
 
