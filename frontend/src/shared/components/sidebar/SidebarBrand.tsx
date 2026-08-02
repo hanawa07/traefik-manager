@@ -21,6 +21,7 @@ export function SidebarBrand() {
             alt=""
             width={160}
             height={160}
+            priority
             className={
               "h-40 w-40 object-contain drop-shadow-[0_20px_30px_rgba(59,130,246,0.15)] " +
               "dark:drop-shadow-[0_20px_40px_rgba(0,0,0,0.4)]"
@@ -33,9 +34,9 @@ export function SidebarBrand() {
         <Image
           src="/logo.png"
           alt="Traefik Manager"
-          width={160}
+          width={200}
           height={40}
-          className="mx-auto h-10 w-auto object-contain dark:brightness-110"
+          className="mx-auto object-contain dark:brightness-110"
         />
       </div>
     </div>
