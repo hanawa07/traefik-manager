@@ -152,18 +152,3 @@ export function parseManagerDeploymentBottleneckThreshold(
     ? value as ManagerDeploymentBottleneckThreshold
     : DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD;
 }
-
-export function replaceManagerDeploymentHistoryQueryParams(
-  values: [key: string, value: string, defaultValue: string][],
-) {
-  const url = new URL(window.location.href);
-  values.forEach(([key, value, defaultValue]) => {
-    if (value === defaultValue) url.searchParams.delete(key);
-    else url.searchParams.set(key, value);
-  });
-  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
-  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  if (nextUrl !== currentUrl) {
-    window.history.replaceState(window.history.state, "", nextUrl);
-  }
-}

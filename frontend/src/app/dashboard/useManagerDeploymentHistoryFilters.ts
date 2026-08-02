@@ -3,6 +3,8 @@
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { replaceBrowserQueryParams } from "@/shared/lib/replaceBrowserQueryParams";
+
 import {
   DEFAULT_MANAGER_DEPLOYMENT_BOTTLENECK_THRESHOLD,
   MANAGER_DEPLOYMENT_HISTORY_QUERY,
@@ -14,7 +16,6 @@ import {
   parseManagerDeploymentHistorySpeed,
   parseManagerDeploymentHistoryStage,
   parseManagerDeploymentHistoryStatus,
-  replaceManagerDeploymentHistoryQueryParams,
   type ManagerDeploymentArchiveSampleFilter,
   type ManagerDeploymentHistoryFilters,
   type ManagerDeploymentHistoryPeriodFilter,
@@ -134,7 +135,7 @@ export function useManagerDeploymentHistoryFilters() {
       setStatus(updates.status);
       queryUpdates.push([MANAGER_DEPLOYMENT_HISTORY_QUERY.status, updates.status, "all"]);
     }
-    replaceManagerDeploymentHistoryQueryParams(queryUpdates);
+    replaceBrowserQueryParams(queryUpdates);
   };
 
   return { filters, periodReferenceTime, updateFilters };

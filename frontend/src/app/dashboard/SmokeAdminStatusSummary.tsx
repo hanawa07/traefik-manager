@@ -3,9 +3,11 @@ import { MonitorCheck } from "lucide-react";
 
 import type { SmokeRotationStatus } from "@/features/settings/api/settingsApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { SmokeDeploymentRevisionStatus } from "./SmokeDeploymentRevisionStatus";
 import { SmokeRunTrend } from "./SmokeRunTrend";
 
 interface SmokeAdminStatusSummaryProps {
+  deployedRevision?: string | null;
   isError: boolean;
   isLoading: boolean;
   status?: SmokeRotationStatus;
@@ -13,6 +15,7 @@ interface SmokeAdminStatusSummaryProps {
 }
 
 export function SmokeAdminStatusSummary({
+  deployedRevision,
   isError,
   isLoading,
   status,
@@ -32,21 +35,27 @@ export function SmokeAdminStatusSummary({
           <p className="text-sm font-semibold">관리자 운영 점검</p>
           <p className="mt-1 text-xs">{summary.detail}</p>
           {status ? (
-            <SmokeRunTrend
-              error={status.monitoring_history_error}
-              failureRateMinRuns={status.monitoring_failure_rate_min_runs}
-              failureRateThresholdPercent={status.monitoring_failure_rate_threshold_percent}
-              failureRateWindowDays={status.monitoring_failure_rate_window_days}
-              localRuns={status.monitoring_local_runs ?? []}
-              localRunLimit={status.monitoring_local_run_limit ?? 20}
-              localRunRetentionDays={status.monitoring_local_run_retention_days ?? 365}
-              localRunTotal={status.monitoring_local_run_total ?? 0}
-              runs={status.monitoring_recent_runs}
-              statistics={status.monitoring_run_statistics ?? []}
-              statisticsSnapshots={status.monitoring_statistics_snapshots ?? []}
-              timezone={timezone}
-              workflowUrl={status.monitoring_workflow_url}
-            />
+            <>
+              <SmokeDeploymentRevisionStatus
+                deployedRevision={deployedRevision}
+                runs={status.monitoring_recent_runs}
+              />
+              <SmokeRunTrend
+                error={status.monitoring_history_error}
+                failureRateMinRuns={status.monitoring_failure_rate_min_runs}
+                failureRateThresholdPercent={status.monitoring_failure_rate_threshold_percent}
+                failureRateWindowDays={status.monitoring_failure_rate_window_days}
+                localRuns={status.monitoring_local_runs ?? []}
+                localRunLimit={status.monitoring_local_run_limit ?? 20}
+                localRunRetentionDays={status.monitoring_local_run_retention_days ?? 365}
+                localRunTotal={status.monitoring_local_run_total ?? 0}
+                runs={status.monitoring_recent_runs}
+                statistics={status.monitoring_run_statistics ?? []}
+                statisticsSnapshots={status.monitoring_statistics_snapshots ?? []}
+                timezone={timezone}
+                workflowUrl={status.monitoring_workflow_url}
+              />
+            </>
           ) : null}
         </div>
       </div>

@@ -18,6 +18,7 @@ import {
   getSmokeRunTooltip,
   SmokeFailureArtifactLinks,
 } from "./SmokeFailureArtifactLinks";
+import { SmokeDurationTrend } from "./SmokeDurationTrend";
 import { SmokeRunStatisticsHistory } from "./SmokeRunStatisticsHistory";
 
 const STATUS_STYLES = {
@@ -189,6 +190,11 @@ export function SmokeRunTrend({
         GitHub workflow 결론·벽시계 기준 추정 · 내부 단계 건너뜀은 성공에 포함될 수 있음 ·
         GitHub 과금값 아님
       </span>
+      <SmokeDurationTrend
+        localRuns={localRuns}
+        statistics={statistics}
+        workflowUrl={workflowUrl}
+      />
       {statistic ? (
         <details
           className="basis-full rounded-md border border-current/15 bg-white/40 px-2.5 py-2 dark:bg-slate-950/30"

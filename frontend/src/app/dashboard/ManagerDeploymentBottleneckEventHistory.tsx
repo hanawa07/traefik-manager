@@ -5,6 +5,7 @@ import { Suspense, useState } from "react";
 
 import type { ManagerDeploymentBottleneckEvent } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { replaceBrowserQueryParams } from "@/shared/lib/replaceBrowserQueryParams";
 
 import {
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
@@ -16,7 +17,6 @@ import {
   type ManagerDeploymentBottleneckEventFilter,
   type ManagerDeploymentBottleneckEventPeriod,
 } from "./managerDeploymentBottleneckEventExport";
-import { replaceManagerDeploymentHistoryQueryParams } from "./managerDeploymentHistoryQuery";
 
 const EVENT_FILTER_QUERY = "deployment_bottleneck_event_type";
 const PERIOD_QUERY = "deployment_bottleneck_event_period";
@@ -128,7 +128,7 @@ function ManagerDeploymentBottleneckEventHistoryContent({
               setPeriodReferenceTime(Date.now());
               setPeriod(nextPeriod);
               setActionNotice("");
-              replaceManagerDeploymentHistoryQueryParams([
+              replaceBrowserQueryParams([
                 [PERIOD_QUERY, nextPeriod, "all"],
               ]);
             }}
@@ -154,7 +154,7 @@ function ManagerDeploymentBottleneckEventHistoryContent({
                 onClick={() => {
                   setEventFilter(option.value);
                   setActionNotice("");
-                  replaceManagerDeploymentHistoryQueryParams([
+                  replaceBrowserQueryParams([
                     [EVENT_FILTER_QUERY, option.value, "all"],
                   ]);
                 }}

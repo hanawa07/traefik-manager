@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
 import type {
   SmokeLocalRun,
   SmokeStatisticsSnapshot,
 } from "@/features/settings/api/settingsApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
-import { formatDurationSeconds } from "@/shared/lib/formatDurationSeconds";
+import {
+  formatDurationSeconds,
+  formatSignedDurationSeconds,
+} from "@/shared/lib/formatDurationSeconds";
+import { replaceBrowserQueryParams } from "@/shared/lib/replaceBrowserQueryParams";
 import {
   downloadSmokeLocalRuns,
   downloadSmokeStatisticsSnapshots,
@@ -15,6 +20,9 @@ import {
   getSmokeLocalRunDurationSummary,
   getSmokeRunUrl,
   getSmokeStatisticsSnapshotComparison,
+  parseSmokeLocalRunAdminFilter,
+  parseSmokeLocalRunStatusFilter,
+  SMOKE_LOCAL_RUN_QUERY,
   type SmokeLocalRunAdminFilter,
   type SmokeLocalRunStatusFilter,
 } from "./smokeStatisticsHistory";
@@ -29,7 +37,15 @@ interface SmokeRunStatisticsHistoryProps {
   workflowUrl: string;
 }
 
-export function SmokeRunStatisticsHistory({
+export function SmokeRunStatisticsHistory(props: SmokeRunStatisticsHistoryProps) {
+  return (
+    <Suspense fallback={null}>
+      <SmokeRunStatisticsHistoryContent {...props} />
+    </Suspense>
+  );
+}
+
+function SmokeRunStatisticsHistoryContent({
   localRuns,
   localRunLimit,
   localRunRetentionDays,
@@ -38,20 +54,45 @@ export function SmokeRunStatisticsHistory({
   timezone,
   workflowUrl,
 }: SmokeRunStatisticsHistoryProps) {
-  const [statusFilter, setStatusFilter] = useState<SmokeLocalRunStatusFilter>("all");
-  const [adminFilter, setAdminFilter] = useState<SmokeLocalRunAdminFilter>("all");
+  const searchParams = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState<SmokeLocalRunStatusFilter>(() =>
+    parseSmokeLocalRunStatusFilter(searchParams.get(SMOKE_LOCAL_RUN_QUERY.status)),
+  );
+  const [adminFilter, setAdminFilter] = useState<SmokeLocalRunAdminFilter>(() =>
+    parseSmokeLocalRunAdminFilter(searchParams.get(SMOKE_LOCAL_RUN_QUERY.admin)),
+  );
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
   const comparison = getSmokeStatisticsSnapshotComparison(snapshots);
   const filteredLocalRuns = filterSmokeLocalRuns(localRuns, statusFilter, adminFilter);
   const durationSummary = getSmokeLocalRunDurationSummary(localRuns);
   const successCount = localRuns.filter((run) => run.status === "success").length;
   const failureCount = localRuns.filter((run) => run.status === "failure").length;
   const adminCount = localRuns.filter((run) => run.admin_checked).length;
+  const updateStatusFilter = (value: SmokeLocalRunStatusFilter) => {
+    setStatusFilter(value);
+    setCopyStatus("idle");
+    replaceBrowserQueryParams([[SMOKE_LOCAL_RUN_QUERY.status, value, "all"]]);
+  };
+  const updateAdminFilter = (value: SmokeLocalRunAdminFilter) => {
+    setAdminFilter(value);
+    setCopyStatus("idle");
+    replaceBrowserQueryParams([[SMOKE_LOCAL_RUN_QUERY.admin, value, "all"]]);
+  };
+  const copyFilterLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("error");
+    }
+  };
 
   return (
     <details
       className="basis-full rounded-md border border-current/15 bg-white/40 px-2.5 py-2 dark:bg-slate-950/30"
       data-filtered-local-run-count={filteredLocalRuns.length}
       data-local-run-admin-filter={adminFilter}
+      data-local-run-copy-status={copyStatus}
       data-local-run-count={localRunTotal}
       data-local-run-display-limit={localRunLimit}
       data-local-run-status-filter={statusFilter}
@@ -85,7 +126,7 @@ export function SmokeRunStatisticsHistory({
         >
           직전 {comparison.previousCapturedOn} 대비 · 실패율{" "}
           {formatSignedNumber(comparison.failureRatePercentagePoints)}%p · 평균{" "}
-          {formatSignedDuration(comparison.averageDurationSeconds)} · 예상 사용량{" "}
+          {formatSignedDurationSeconds(comparison.averageDurationSeconds)} · 예상 사용량{" "}
           {formatSignedNumber(comparison.estimatedRunnerMinutes)} runner분
         </p>
       ) : snapshots.length ? (
@@ -153,7 +194,7 @@ export function SmokeRunStatisticsHistory({
             {" · "}
             {durationSummary.durationDeltaSeconds === null
               ? "직전 비교 대기"
-              : `직전 대비 ${formatSignedDuration(durationSummary.durationDeltaSeconds)}`}
+              : `직전 대비 ${formatSignedDurationSeconds(durationSummary.durationDeltaSeconds)}`}
           </p>
         ) : null}
         {durationSummary.slowestRuns.length ? (
@@ -190,7 +231,7 @@ export function SmokeRunStatisticsHistory({
                   aria-label="로컬 스모크 실행 결과 필터"
                   className="rounded border border-current/20 bg-white/80 px-1.5 py-1 dark:bg-slate-950/80"
                   onChange={(event) =>
-                    setStatusFilter(event.target.value as SmokeLocalRunStatusFilter)
+                    updateStatusFilter(event.target.value as SmokeLocalRunStatusFilter)
                   }
                   value={statusFilter}
                 >
@@ -205,7 +246,7 @@ export function SmokeRunStatisticsHistory({
                   aria-label="로컬 스모크 관리자 포함 필터"
                   className="rounded border border-current/20 bg-white/80 px-1.5 py-1 dark:bg-slate-950/80"
                   onChange={(event) =>
-                    setAdminFilter(event.target.value as SmokeLocalRunAdminFilter)
+                    updateAdminFilter(event.target.value as SmokeLocalRunAdminFilter)
                   }
                   value={adminFilter}
                 >
@@ -214,6 +255,20 @@ export function SmokeRunStatisticsHistory({
                   <option data-count={localRuns.length - adminCount} value="viewer">viewer ({localRuns.length - adminCount})</option>
                 </select>
               </label>
+              <button
+                aria-label="현재 로컬 스모크 필터 링크 복사"
+                aria-live="polite"
+                className="rounded border border-current/20 bg-white/70 px-2 py-1 font-semibold dark:bg-slate-950/70"
+                data-testid="smoke-local-filter-copy"
+                onClick={() => void copyFilterLink()}
+                type="button"
+              >
+                {copyStatus === "copied"
+                  ? "링크 복사됨"
+                  : copyStatus === "error"
+                    ? "링크 복사 실패"
+                    : "현재 필터 링크 복사"}
+              </button>
             </div>
             {filteredLocalRuns.length ? (
               <ol className="mt-2 max-h-52 space-y-1 overflow-y-auto pr-1 tabular-nums">
@@ -258,9 +313,4 @@ export function SmokeRunStatisticsHistory({
 
 function formatSignedNumber(value: number): string {
   return value > 0 ? `+${value}` : String(value);
-}
-
-function formatSignedDuration(value: number): string {
-  if (value === 0) return formatDurationSeconds(0);
-  return `${value > 0 ? "+" : "-"}${formatDurationSeconds(Math.abs(value))}`;
 }

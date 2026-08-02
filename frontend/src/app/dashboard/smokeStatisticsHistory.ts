@@ -1,5 +1,6 @@
 import type {
   SmokeLocalRun,
+  SmokeRunStatistics,
   SmokeStatisticsSnapshot,
 } from "@/features/settings/api/settingsApi";
 
@@ -31,6 +32,11 @@ const LOCAL_RUN_CSV_COLUMNS = [
 export type SmokeLocalRunStatusFilter = "all" | SmokeLocalRun["status"];
 export type SmokeLocalRunAdminFilter = "all" | "admin" | "viewer";
 type MeasuredSmokeLocalRun = SmokeLocalRun & { duration_seconds: number };
+
+export const SMOKE_LOCAL_RUN_QUERY = {
+  admin: "smoke_local_admin",
+  status: "smoke_local_status",
+} as const;
 
 export function getSmokeStatisticsSnapshotComparison(
   snapshots: SmokeStatisticsSnapshot[],
@@ -93,6 +99,18 @@ export function filterSmokeLocalRuns(
   );
 }
 
+export function parseSmokeLocalRunStatusFilter(
+  value: string | null,
+): SmokeLocalRunStatusFilter {
+  return value === "success" || value === "failure" ? value : "all";
+}
+
+export function parseSmokeLocalRunAdminFilter(
+  value: string | null,
+): SmokeLocalRunAdminFilter {
+  return value === "admin" || value === "viewer" ? value : "all";
+}
+
 export function getSmokeLocalRunDurationSummary(localRuns: SmokeLocalRun[]) {
   const latestRun = localRuns[0];
   const previousMeasuredRun = localRuns
@@ -110,6 +128,41 @@ export function getSmokeLocalRunDurationSummary(localRuns: SmokeLocalRun[]) {
       .filter(isMeasuredSmokeLocalRun)
       .sort((left, right) => right.duration_seconds - left.duration_seconds)
       .slice(0, 3),
+  };
+}
+
+export function getSmokeDurationTrend(
+  statistics: SmokeRunStatistics[],
+  localRuns: SmokeLocalRun[],
+) {
+  const sevenDay = statistics.find((item) => item.window_days === 7);
+  const thirtyDay = statistics.find((item) => item.window_days === 30);
+  const sevenDayAverage = getMeasuredAverage(sevenDay);
+  const thirtyDayAverage = getMeasuredAverage(thirtyDay);
+  const latestRun = localRuns.find(isMeasuredSmokeLocalRun);
+  const latestDelta = latestRun && sevenDayAverage !== null
+    ? latestRun.duration_seconds - sevenDayAverage
+    : null;
+  // ponytail: keep this fixed until real false alerts justify another setting.
+  const delayThreshold = sevenDayAverage === null
+    ? null
+    : Math.max(30, Math.round(sevenDayAverage * 0.5));
+  return {
+    averageDeltaSeconds:
+      sevenDayAverage !== null && thirtyDayAverage !== null
+        ? sevenDayAverage - thirtyDayAverage
+        : null,
+    isDelayed:
+      latestDelta !== null &&
+      delayThreshold !== null &&
+      (sevenDay?.duration_run_count ?? 0) >= 3 &&
+      latestDelta >= delayThreshold,
+    latestDeltaSeconds: latestDelta,
+    latestRun: latestRun ?? null,
+    sevenDayAverageSeconds: sevenDayAverage,
+    sevenDayRunCount: sevenDay?.duration_run_count ?? 0,
+    thirtyDayAverageSeconds: thirtyDayAverage,
+    thirtyDayRunCount: thirtyDay?.duration_run_count ?? 0,
   };
 }
 
@@ -148,6 +201,12 @@ function getFailureRate(snapshot: SmokeStatisticsSnapshot): number {
 
 function isMeasuredSmokeLocalRun(run: SmokeLocalRun): run is MeasuredSmokeLocalRun {
   return run.duration_seconds !== null;
+}
+
+function getMeasuredAverage(statistic: SmokeRunStatistics | undefined): number | null {
+  return statistic && statistic.duration_run_count > 0
+    ? statistic.average_duration_seconds
+    : null;
 }
 
 function downloadCsv(content: string, filename: string): void {

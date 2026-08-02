@@ -7,3 +7,8 @@ export function formatDurationSeconds(totalSeconds: number): string {
   if (minutes) return `${minutes}분 ${remainingSeconds}초`;
   return `${remainingSeconds}초`;
 }
+
+export function formatSignedDurationSeconds(value: number): string {
+  if (value === 0) return formatDurationSeconds(0);
+  return `${value > 0 ? "+" : "-"}${formatDurationSeconds(Math.abs(value))}`;
+}

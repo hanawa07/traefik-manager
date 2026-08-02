@@ -20,10 +20,14 @@ import {
   buildSmokeLocalRunsCsv,
   buildSmokeStatisticsSnapshotsCsv,
   filterSmokeLocalRuns,
+  getSmokeDurationTrend,
   getSmokeLocalRunDurationSummary,
   getSmokeRunUrl,
   getSmokeStatisticsSnapshotComparison,
+  parseSmokeLocalRunAdminFilter,
+  parseSmokeLocalRunStatusFilter,
 } from "../frontend/src/app/dashboard/smokeStatisticsHistory.ts";
+import { getSmokeDeploymentRevisionStatus } from "../frontend/src/app/dashboard/smokeDeploymentRevision.ts";
 
 const now = Date.parse("2026-07-18T00:00:00Z");
 const high = getSmokeRunFailureRate(
@@ -258,5 +262,46 @@ assert.deepEqual(getSmokeLocalRunDurationSummary(localRunFilters), {
   latestRunId: 1,
   slowestRuns: [localRunFilters[1], localRunFilters[0], localRunFilters[2]],
 });
+assert.equal(parseSmokeLocalRunStatusFilter("failure"), "failure");
+assert.equal(parseSmokeLocalRunStatusFilter("invalid"), "all");
+assert.equal(parseSmokeLocalRunAdminFilter("admin"), "admin");
+assert.equal(parseSmokeLocalRunAdminFilter("invalid"), "all");
+assert.deepEqual(
+  getSmokeDurationTrend(
+    [
+      { window_days: 7, duration_run_count: 3, average_duration_seconds: 100 },
+      { window_days: 30, duration_run_count: 10, average_duration_seconds: 90 },
+    ],
+    [{ run_id: 5, duration_seconds: 160 }],
+  ),
+  {
+    averageDeltaSeconds: 10,
+    isDelayed: true,
+    latestDeltaSeconds: 60,
+    latestRun: { run_id: 5, duration_seconds: 160 },
+    sevenDayAverageSeconds: 100,
+    sevenDayRunCount: 3,
+    thirtyDayAverageSeconds: 90,
+    thirtyDayRunCount: 10,
+  },
+);
+const matchingRevision = getSmokeDeploymentRevisionStatus(
+  "abcdef0123456789",
+  [{
+    run_id: 5,
+    run_number: 10,
+    status: "success",
+    commit_sha: "abcdef0",
+    run_url: "https://github.com/example/repo/actions/runs/5",
+  }],
+);
+assert.ok(matchingRevision);
+assert.equal(matchingRevision.matches, true);
+assert.equal(
+  getSmokeDeploymentRevisionStatus("1234567", [{ ...matchingRevision.run, commit_sha: "abcdef0" }])
+    ?.matches,
+  false,
+);
+assert.equal(getSmokeDeploymentRevisionStatus("unknown", [matchingRevision.run]), null);
 
 console.log("운영 점검 실패율 self-test 통과");

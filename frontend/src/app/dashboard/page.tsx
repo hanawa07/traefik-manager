@@ -95,6 +95,7 @@ export default function DashboardPage() {
         timezone={displayTimezone}
       />
       <SmokeAdminStatusSummary
+        deployedRevision={deploymentInfo?.revision}
         isError={isSmokeRotationSummaryError}
         isLoading={isSmokeRotationSummaryLoading}
         status={smokeRotationSummary}
