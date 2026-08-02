@@ -27,7 +27,10 @@ import { evaluate } from "./dashboard-visual-runtime.mjs";
 import { checkSecurityAlertRetryDelaySetting } from "./dashboard-visual-security-alert-settings.mjs";
 import { checkManualSmokeRunResultPersistence } from "./dashboard-visual-smoke-manual-run.mjs";
 import { checkSettingsTestAuditLinks } from "./dashboard-visual-settings-test-monitoring.mjs";
-import { checkSmokeRunTrendRange } from "./dashboard-visual-smoke-run-monitoring.mjs";
+import {
+  checkSmokeRunTrendRange,
+  runSmokeStatisticsHistoryAssertionsSelfTest,
+} from "./dashboard-visual-smoke-run-monitoring.mjs";
 import { checkTraefikUpdateHistory } from "./dashboard-visual-traefik-update-history.mjs";
 import { checkWatchdogFilterPersistence } from "./dashboard-visual-watchdog.mjs";
 
@@ -39,7 +42,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
         await checkVisualRoute({ artifactDir, baseUrl, cdp, profile, route, timeoutMs });
         if (route.path === "/dashboard") {
           await checkSmokeRunTrendRange({ cdp, timeoutMs });
-          labels.push(`${profile.label} 운영 점검 7일·30일 추이`);
+          labels.push(`${profile.label} 운영 점검 7일·30일 추이·로컬 이력 링크·CSV`);
           await checkManagerHttpErrorTrend({ cdp, timeoutMs });
           labels.push(`${profile.label} Manager file-provider 라우터`);
           const deploymentHistory = await checkManagerDeploymentHistory({ cdp, timeoutMs });
@@ -131,6 +134,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
 }
 
 export function runDashboardVisualSmokeSelfTest() {
+  runSmokeStatisticsHistoryAssertionsSelfTest();
   runDeploymentBottleneckCleanupSelfTest();
   runMaintenanceScheduleFixtureSelfTest();
   runAuditBulkOperationFixtureSelfTest();

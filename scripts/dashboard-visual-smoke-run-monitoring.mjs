@@ -52,19 +52,38 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     refreshedClock.expected,
     "Artifact 기준 시각이 화면 복귀 시 갱신되지 않았습니다",
   );
-  const statusSummary = await evaluate(cdp, `(() => ({
-    basis: document.querySelector('[data-testid="smoke-failure-rate-basis"]')?.textContent,
-    counts: document.querySelector('[data-testid="smoke-run-status-counts"]')?.textContent,
-    details: document.querySelector('[data-testid="smoke-actions-usage-details"]')?.textContent,
-    slowestCount: document.querySelectorAll('[data-testid="smoke-slowest-runs"] a').length,
-    slowestValid: Array.from(document.querySelectorAll('[data-testid="smoke-slowest-runs"] a'))
-      .every((link) => link.href.startsWith('https://github.com/') && link.href.includes('/actions/runs/')),
-    snapshotCount: Number(document.querySelector('[data-testid="smoke-statistics-history"]')
-      ?.getAttribute('data-snapshot-count') || 0),
-    snapshotText: document.querySelector('[data-testid="smoke-statistics-history"]')?.textContent,
-    usage: document.querySelector('[data-testid="smoke-actions-usage"]')?.textContent,
-    usageNote: document.querySelector('[data-testid="smoke-actions-usage-note"]')?.textContent,
-  }))()`);
+  const statusSummary = await evaluate(cdp, `(() => {
+    const history = document.querySelector('[data-testid="smoke-statistics-history"]');
+    if (history && !history.open) history.querySelector('summary')?.click();
+    const localRunLinks = Array.from(
+      history?.querySelectorAll('[data-testid="smoke-local-run-link"]') || []
+    );
+    return {
+      basis: document.querySelector('[data-testid="smoke-failure-rate-basis"]')?.textContent,
+      comparisonPending: Boolean(
+        history?.querySelector('[data-testid="smoke-statistics-comparison-pending"]')
+      ),
+      comparisonText: history?.querySelector('[data-testid="smoke-statistics-comparison"]')?.textContent,
+      counts: document.querySelector('[data-testid="smoke-run-status-counts"]')?.textContent,
+      details: document.querySelector('[data-testid="smoke-actions-usage-details"]')?.textContent,
+      historyFound: Boolean(history),
+      historyOpen: history?.open,
+      localCsvFound: Boolean(history?.querySelector('[data-testid="smoke-local-runs-csv"]')),
+      localRunCount: Number(history?.getAttribute('data-local-run-count') || 0),
+      localRunLinkCount: localRunLinks.length,
+      localRunLinksValid: localRunLinks.every((link) =>
+        link.href.startsWith('https://github.com/') && link.href.includes('/actions/runs/')
+      ),
+      slowestCount: document.querySelectorAll('[data-testid="smoke-slowest-runs"] a').length,
+      slowestValid: Array.from(document.querySelectorAll('[data-testid="smoke-slowest-runs"] a'))
+        .every((link) => link.href.startsWith('https://github.com/') && link.href.includes('/actions/runs/')),
+      snapshotCsvFound: Boolean(history?.querySelector('[data-testid="smoke-statistics-csv"]')),
+      snapshotCount: Number(history?.getAttribute('data-snapshot-count') || 0),
+      snapshotText: history?.textContent,
+      usage: document.querySelector('[data-testid="smoke-actions-usage"]')?.textContent,
+      usageNote: document.querySelector('[data-testid="smoke-actions-usage-note"]')?.textContent,
+    };
+  })()`);
   assert.match(statusSummary.counts || "", /30일 전체 \d+건/);
   assert.match(statusSummary.counts || "", /성공 \d+ · 실패 \d+ · 취소 \d+ · 건너뜀 \d+/);
   assert.match(statusSummary.basis || "", /workflow 성공\+실패.*취소·전체 건너뜀 제외/);
@@ -82,8 +101,19 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     }
   }
   assert.match(statusSummary.usageNote || "", /GitHub 과금값 아님/);
-  if (statusSummary.snapshotCount) {
-    assert.match(statusSummary.snapshotText || "", /원격 통계를 확인한 날의 30일 롤링 집계/);
+  assertSmokeStatisticsHistory(statusSummary);
+  if (statusSummary.snapshotCount > 0) {
+    const csv = await captureSmokeCsv(cdp, "smoke-statistics-csv");
+    assert.deepEqual(csv.bytes, [239, 187, 191], "스모크 통계 CSV UTF-8 BOM이 없습니다");
+    assert.match(csv.filename, /^traefik-manager-smoke-statistics-\d{4}-\d{2}-\d{2}\.csv$/);
+    assert.match(csv.text, /^\uFEFF"captured_on","window_days"/);
+  }
+  if (statusSummary.localRunCount > 0) {
+    const csv = await captureSmokeCsv(cdp, "smoke-local-runs-csv");
+    assert.deepEqual(csv.bytes, [239, 187, 191], "스모크 로컬 이력 CSV UTF-8 BOM이 없습니다");
+    assert.match(csv.filename, /^traefik-manager-smoke-local-runs-\d{4}-\d{2}-\d{2}\.csv$/);
+    assert.match(csv.text, /^\uFEFF"run_id","status","started_at"/);
+    assert.match(csv.text, /"run_url".*\/actions\/runs\//s);
   }
   const failureLinks = await evaluate(cdp, `(() => {
     const alert = document.querySelector('[data-testid="smoke-failure-rate"][role="alert"]');
@@ -283,4 +313,86 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     assert.equal(persistedFilter.stored, "all", "Artifact URL 필터가 로컬 저장값에 동기화되지 않았습니다");
     assert.equal(persistedFilter.urlCleared, true, "Artifact 전체 필터가 URL에서 제거되지 않았습니다");
   }
+}
+
+function assertSmokeStatisticsHistory(summary) {
+  assert.equal(summary.historyFound, true, "스모크 로컬 장기 추이를 찾지 못했습니다");
+  assert.equal(summary.historyOpen, true, "스모크 로컬 장기 추이가 펼쳐지지 않았습니다");
+  assert.match(summary.snapshotText || "", /GitHub API를 추가 호출하지 않고/);
+  assert.match(summary.snapshotText || "", /대시보드를 열지 않아도 직접 기록/);
+  assert.ok(Number.isInteger(summary.snapshotCount) && summary.snapshotCount >= 0);
+  assert.ok(Number.isInteger(summary.localRunCount) && summary.localRunCount >= 0);
+  assert.equal(summary.snapshotCsvFound, summary.snapshotCount > 0);
+  if (summary.snapshotCount >= 2) {
+    assert.match(summary.comparisonText || "", /직전 .* 대비.*실패율.*평균.*runner분/);
+    assert.equal(summary.comparisonPending, false);
+  } else if (summary.snapshotCount === 1) {
+    assert.equal(summary.comparisonPending, true, "스모크 통계 변화량 대기 문구가 없습니다");
+  }
+  assert.equal(summary.localCsvFound, summary.localRunCount > 0);
+  if (summary.localRunCount > 0) {
+    assert.ok(summary.localRunLinkCount > 0, "스모크 로컬 실행 링크가 없습니다");
+    assert.equal(summary.localRunLinksValid, true, "스모크 로컬 실행 링크가 올바르지 않습니다");
+  }
+}
+
+async function captureSmokeCsv(cdp, testId) {
+  const result = await evaluate(cdp, `(async () => {
+    const button = document.querySelector(${JSON.stringify(`[data-testid="${testId}"]`)});
+    if (!button) return null;
+    const originalCreateObjectUrl = URL.createObjectURL;
+    const originalRevokeObjectUrl = URL.revokeObjectURL;
+    const originalClick = HTMLAnchorElement.prototype.click;
+    let blob = null;
+    let filename = '';
+    try {
+      URL.createObjectURL = (value) => { blob = value; return 'blob:smoke-history'; };
+      URL.revokeObjectURL = () => {};
+      HTMLAnchorElement.prototype.click = function () { filename = this.download; };
+      button.click();
+      if (!blob) return null;
+      return {
+        bytes: Array.from(new Uint8Array(await blob.arrayBuffer()).slice(0, 3)),
+        filename,
+        text: await blob.text(),
+        type: blob.type,
+      };
+    } finally {
+      URL.createObjectURL = originalCreateObjectUrl;
+      URL.revokeObjectURL = originalRevokeObjectUrl;
+      HTMLAnchorElement.prototype.click = originalClick;
+    }
+  })()`);
+  assert.ok(result, `스모크 ${testId} 내보내기를 캡처하지 못했습니다`);
+  assert.equal(result.type, "text/csv;charset=utf-8");
+  return result;
+}
+
+export function runSmokeStatisticsHistoryAssertionsSelfTest() {
+  assertSmokeStatisticsHistory({
+    comparisonPending: false,
+    comparisonText: "직전 2026-08-01 대비 · 실패율 +2%p · 평균 -3초 · +1 runner분",
+    historyFound: true,
+    historyOpen: true,
+    localCsvFound: true,
+    localRunCount: 1,
+    localRunLinkCount: 1,
+    localRunLinksValid: true,
+    snapshotCount: 2,
+    snapshotCsvFound: true,
+    snapshotText: "GitHub API를 추가 호출하지 않고 대시보드를 열지 않아도 직접 기록",
+  });
+  assertSmokeStatisticsHistory({
+    comparisonPending: true,
+    comparisonText: null,
+    historyFound: true,
+    historyOpen: true,
+    localCsvFound: false,
+    localRunCount: 0,
+    localRunLinkCount: 0,
+    localRunLinksValid: true,
+    snapshotCount: 1,
+    snapshotCsvFound: true,
+    snapshotText: "GitHub API를 추가 호출하지 않고 대시보드를 열지 않아도 직접 기록",
+  });
 }
