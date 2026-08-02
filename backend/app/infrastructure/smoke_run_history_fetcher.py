@@ -146,6 +146,7 @@ async def fetch_smoke_run_history(
         else None,
         "statistics": build_smoke_run_statistics(
             raw_runs,
+            public_url=public_url,
             now=statistics_reference_time,
         ),
         "recent_days": recent_days,

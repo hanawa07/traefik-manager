@@ -36,8 +36,33 @@ class SmokeMonitoringRecentRunResponse(BaseModel):
     failure_metadata: SmokeFailureMetadataResponse | None = None
 
 
+class SmokeSlowRunResponse(BaseModel):
+    run_id: int = Field(gt=0)
+    run_number: int | None = None
+    status: Literal["success", "failure", "skipped", "cancelled"]
+    completed_at: str
+    duration_seconds: int = Field(ge=0)
+    commit_sha: str | None = None
+    run_url: str
+
+
 class SmokeRunStatisticsResponse(BaseModel):
     window_days: SmokeFailureRateWindowDays
+    total_count: int = Field(ge=0)
+    success_count: int = Field(ge=0)
+    failure_count: int = Field(ge=0)
+    cancelled_count: int = Field(ge=0)
+    skipped_count: int = Field(ge=0)
+    duration_run_count: int = Field(ge=0)
+    total_duration_seconds: int = Field(ge=0)
+    average_duration_seconds: int = Field(ge=0)
+    estimated_runner_minutes: int = Field(ge=0)
+    slowest_runs: list[SmokeSlowRunResponse] = Field(default_factory=list)
+
+
+class SmokeStatisticsSnapshotResponse(BaseModel):
+    captured_on: str
+    window_days: Literal[30]
     total_count: int = Field(ge=0)
     success_count: int = Field(ge=0)
     failure_count: int = Field(ge=0)
@@ -79,6 +104,9 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_recent_runs: list[SmokeMonitoringRecentRunResponse] = Field(default_factory=list)
     monitoring_latest_failure: SmokeMonitoringRecentRunResponse | None = None
     monitoring_run_statistics: list[SmokeRunStatisticsResponse] = Field(default_factory=list)
+    monitoring_statistics_snapshots: list[SmokeStatisticsSnapshotResponse] = Field(
+        default_factory=list
+    )
     monitoring_history_checked_at: str | None = None
     monitoring_history_error: str | None = None
     monitoring_history_days: Literal[7, 30] = 30

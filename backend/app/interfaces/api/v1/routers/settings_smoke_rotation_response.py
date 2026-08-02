@@ -24,6 +24,9 @@ from app.infrastructure.smoke_run_history import (
     GitHubSmokeRunHistoryReader,
     read_smoke_history_cache_diagnostics,
 )
+from app.infrastructure.smoke_statistics_snapshots import (
+    sync_smoke_statistics_snapshots,
+)
 from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
     SMOKE_FAILURE_METADATA_LIMIT,
     attach_smoke_failure_metadata,
@@ -92,6 +95,7 @@ async def get_smoke_rotation_status_response(
         "error": None,
     }
     failure_metadata = {}
+    statistics_snapshots = []
     if include_monitoring_history:
         run_history = await history_reader.get_history(
             settings.TRAEFIK_MANAGER_IMAGE_SOURCE,
@@ -106,6 +110,12 @@ async def get_smoke_rotation_status_response(
         attach_smoke_failure_metadata(
             run_history,
             failure_metadata,
+        )
+        statistics_snapshots = await sync_smoke_statistics_snapshots(
+            repo,
+            run_history["statistics"] if run_history["error"] is None else [],
+            checked_at=run_history["checked_at"],
+            now=now,
         )
     github_rate_limit = (
         read_github_api_rate_limit()
@@ -140,6 +150,7 @@ async def get_smoke_rotation_status_response(
         monitoring_recent_runs=run_history["runs"],
         monitoring_latest_failure=run_history["latest_failure"],
         monitoring_run_statistics=run_history["statistics"],
+        monitoring_statistics_snapshots=statistics_snapshots,
         monitoring_history_checked_at=run_history["checked_at"],
         monitoring_history_error=run_history["error"],
         monitoring_history_days=run_history["recent_days"],

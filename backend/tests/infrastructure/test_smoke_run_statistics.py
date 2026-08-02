@@ -48,10 +48,14 @@ def test_build_smoke_run_statistics_counts_status_and_duration_without_test_runs
 
     statistics = build_smoke_run_statistics(
         runs,
+        public_url="https://github.com/example/repository",
         now=datetime(2026, 7, 18, tzinfo=timezone.utc),
     )
 
-    assert statistics == [
+    assert [
+        {key: value for key, value in item.items() if key != "slowest_runs"}
+        for item in statistics
+    ] == [
         {
             "window_days": 7,
             "total_count": 4,
@@ -77,3 +81,16 @@ def test_build_smoke_run_statistics_counts_status_and_duration_without_test_runs
             "estimated_runner_minutes": 7,
         },
     ]
+    assert [
+        [run["run_id"] for run in item["slowest_runs"]]
+        for item in statistics
+    ] == [[14, 15, 13, 12], [14, 15, 11, 13, 12]]
+    assert statistics[0]["slowest_runs"][0] == {
+        "run_id": 14,
+        "run_number": None,
+        "status": "failure",
+        "completed_at": "2026-07-16T00:02:00Z",
+        "duration_seconds": 120,
+        "commit_sha": None,
+        "run_url": "https://github.com/example/repository/actions/runs/14",
+    }

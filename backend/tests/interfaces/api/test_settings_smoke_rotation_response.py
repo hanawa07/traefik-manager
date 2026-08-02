@@ -16,6 +16,18 @@ class StubRepository:
     async def get(self, key: str) -> str | None:
         return self.values.get(key)
 
+    async def get_all_dict(self) -> dict[str, str]:
+        return dict(self.values)
+
+    async def set(self, key: str, value: str | None) -> None:
+        if value is None:
+            self.values.pop(key, None)
+        else:
+            self.values[key] = value
+
+    async def delete(self, key: str) -> None:
+        self.values.pop(key, None)
+
 
 class StubHistoryReader:
     force_refresh = False
@@ -81,6 +93,20 @@ class StubHistoryReader:
                     "total_duration_seconds": 700,
                     "average_duration_seconds": 100,
                     "estimated_runner_minutes": 14,
+                    "slowest_runs": [],
+                },
+                {
+                    "window_days": 30,
+                    "total_count": 30,
+                    "success_count": 25,
+                    "failure_count": 3,
+                    "cancelled_count": 1,
+                    "skipped_count": 1,
+                    "duration_run_count": 30,
+                    "total_duration_seconds": 3000,
+                    "average_duration_seconds": 100,
+                    "estimated_runner_minutes": 60,
+                    "slowest_runs": [],
                 }
             ],
             "checked_at": "2026-07-13T01:00:00+00:00",
@@ -176,6 +202,7 @@ async def test_get_smoke_rotation_status_defaults_to_never() -> None:
     assert result.monitoring_admin_last_run_url is None
     assert result.monitoring_admin_is_stale is False
     assert result.monitoring_admin_stale_after_days == 2
+    assert result.monitoring_statistics_snapshots == []
 
 
 @pytest.mark.asyncio
@@ -311,6 +338,7 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
         monitoring_history_status="failure",
         force_refresh_monitoring_history=True,
         history_reader=history_reader,
+        now=datetime(2026, 7, 13, tzinfo=timezone.utc),
     )
 
     assert result.monitoring_recent_runs[0].status == "failure"
@@ -322,6 +350,8 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
     assert result.monitoring_recent_runs[0].failure_metadata.screen_path == "/dashboard/settings"
     assert result.monitoring_latest_failure.run_number == 78
     assert result.monitoring_run_statistics[0].estimated_runner_minutes == 14
+    assert result.monitoring_statistics_snapshots[0].captured_on == "2026-07-13"
+    assert result.monitoring_statistics_snapshots[0].estimated_runner_minutes == 60
     assert result.monitoring_history_checked_at == "2026-07-13T01:00:00+00:00"
     assert result.monitoring_history_error is None
     assert result.monitoring_history_days == 30
