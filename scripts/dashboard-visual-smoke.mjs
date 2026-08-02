@@ -23,7 +23,7 @@ import {
   withVisualProfile,
 } from "./dashboard-visual-page-runtime.mjs";
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
-import { evaluate } from "./dashboard-visual-runtime.mjs";
+import { evaluate, runDashboardVisualRuntimeSelfTest } from "./dashboard-visual-runtime.mjs";
 import { checkSecurityAlertRetryDelaySetting } from "./dashboard-visual-security-alert-settings.mjs";
 import { checkManualSmokeRunResultPersistence } from "./dashboard-visual-smoke-manual-run.mjs";
 import { checkSettingsTestAuditLinks } from "./dashboard-visual-settings-test-monitoring.mjs";
@@ -131,7 +131,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
   return { adminChecked: cleanupCancelChecked, labels };
 }
 
-export function runDashboardVisualSmokeSelfTest() {
+export async function runDashboardVisualSmokeSelfTest() {
+  await runDashboardVisualRuntimeSelfTest();
   runSmokeStatisticsHistoryAssertionsSelfTest();
   runDeploymentBottleneckCleanupSelfTest();
   runMaintenanceScheduleFixtureSelfTest();

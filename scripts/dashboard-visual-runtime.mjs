@@ -24,6 +24,27 @@ export async function navigateAndWait(cdp, url, timeoutMs) {
   await loaded;
 }
 
+export async function navigateWithLinkFallback(cdp, url, timeoutMs) {
+  const clicked = await evaluate(cdp, `(() => {
+    const target = new URL(${JSON.stringify(url)});
+    if (target.origin !== location.origin ||
+        (target.pathname === location.pathname && target.search === location.search)) {
+      return false;
+    }
+    const link = Array.from(document.querySelectorAll('a[href]')).find((candidate) => {
+      const href = new URL(candidate.href, location.href);
+      return href.origin === target.origin && href.pathname === target.pathname &&
+        href.search === target.search;
+    });
+    if (!(link instanceof HTMLAnchorElement)) return false;
+    link.click();
+    return true;
+  })()`);
+  if (clicked) return "client";
+  await navigateAndWait(cdp, url, timeoutMs);
+  return "document";
+}
+
 export async function installClipboardCapture(cdp) {
   const installed = await evaluate(cdp, `(() => {
     try {
@@ -61,4 +82,21 @@ export async function evaluate(cdp, expression) {
     throw new Error(response.exceptionDetails.text || "브라우저 상호작용 검사 실패");
   }
   return response.result.value;
+}
+
+export async function runDashboardVisualRuntimeSelfTest() {
+  for (const [clicked, expected] of [[true, "client"], [false, "document"]]) {
+    const calls = [];
+    const cdp = {
+      send: async (method) => {
+        calls.push(method);
+        return method === "Runtime.evaluate" ? { result: { value: clicked } } : {};
+      },
+      waitFor: async () => undefined,
+    };
+    assert.equal(await navigateWithLinkFallback(cdp, "https://example.com/dashboard", 100), expected);
+    assert.deepEqual(calls, clicked
+      ? ["Runtime.evaluate"]
+      : ["Runtime.evaluate", "Page.navigate"]);
+  }
 }

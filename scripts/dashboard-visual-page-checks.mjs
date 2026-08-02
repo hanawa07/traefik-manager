@@ -7,11 +7,11 @@ import {
 } from "./dashboard-visual-page-assertions.mjs";
 import { waitForRoute } from "./dashboard-visual-page-runtime.mjs";
 import { VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
-import { evaluate, navigateAndWait } from "./dashboard-visual-runtime.mjs";
+import { evaluate, navigateWithLinkFallback } from "./dashboard-visual-runtime.mjs";
 
 export async function checkVisualRoute({ artifactDir, baseUrl, cdp, profile, route, timeoutMs }) {
   try {
-    await navigateAndWait(cdp, `${baseUrl}${route.path}`, timeoutMs);
+    await navigateWithLinkFallback(cdp, `${baseUrl}${route.path}`, timeoutMs);
     await waitForRoute(cdp, route, timeoutMs);
     await checkRenderedRoute(cdp, route, artifactDir, profile);
   } catch (error) {

@@ -3,10 +3,12 @@ import { evaluate } from "./dashboard-visual-runtime.mjs";
 export async function withVisualProfile(cdp, profile, callback) {
   await cdp.send("Emulation.setDeviceMetricsOverride", profile.viewport);
   await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: profile.mobile });
+  const themeSource = profile.dark
+    ? `localStorage.setItem("theme", "dark"); document.documentElement.classList.add("dark");`
+    : `localStorage.setItem("theme", "light"); document.documentElement.classList.remove("dark");`;
+  await evaluate(cdp, themeSource);
   const script = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
-    source: profile.dark
-      ? `localStorage.setItem("theme", "dark"); document.documentElement.classList.add("dark");`
-      : `localStorage.setItem("theme", "light"); document.documentElement.classList.remove("dark");`,
+    source: themeSource,
   });
   try {
     await callback();
