@@ -28,6 +28,7 @@ export function buildSmokeCiSummary({
     `| ${markdownCell(username)} | ${markdownCell(role)} | ${managementExpectation} | 통과 |`,
     `| 운영 API | ${markdownCell(role)} | ${apiCheckCount}개 API 응답 | 통과 |`,
     `| 운영 화면 | ${markdownCell(role)} | ${visualCheckCount}개 화면·상호작용 | 통과 |`,
+    `| 관리자 운영 이력 | admin | GitHub 30일 통계·로컬 실패 필터 | ${adminResult} |`,
     `| 관리자 보조 점검 | admin | 읽기 전용 환경의 쓰기 요청 403 | ${adminResult} |`,
   ].join("\n");
 }
@@ -47,5 +48,6 @@ export function runSmokeCiSummarySelfTest() {
   });
   assert.match(summary, /smoke\\\|viewer \| viewer \| 서비스·설정·사용자 관리 기능 숨김 \| 통과/);
   assert.match(summary, /운영 API \| viewer \| 11개 API 응답 \| 통과/);
+  assert.match(summary, /관리자 운영 이력 \| admin \| GitHub 30일 통계·로컬 실패 필터 \| 통과/);
   assert.match(summary, /관리자 보조 점검 \| admin \| 읽기 전용 환경의 쓰기 요청 403 \| 통과/);
 }
