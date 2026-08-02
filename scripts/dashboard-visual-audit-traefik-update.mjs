@@ -23,18 +23,17 @@ const FIXTURE = {
 };
 
 export async function checkTraefikAuditAutoExpand(cdp, timeoutMs) {
-  await evaluate(cdp, `history.replaceState(
-    null,
-    '',
-    ${JSON.stringify(`/dashboard/audit?q=${RETRY_REQUEST_ID}&expand=first`)}
-  )`);
+  const targetUrl = new URL(
+    `/dashboard/audit?q=${RETRY_REQUEST_ID}&expand=first`,
+    await evaluate(cdp, "location.origin"),
+  ).href;
   await cdp.send("Fetch.enable", {
-    patterns: [{ requestStage: "Request", urlPattern: "*/api/v1/audit\\?*" }],
+    patterns: [{ requestStage: "Request", urlPattern: `*/api/v1/audit\\?*search=${RETRY_REQUEST_ID}*` }],
   });
   try {
     const requestPaused = cdp.waitFor("Fetch.requestPaused", timeoutMs);
     const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
-    await cdp.send("Page.reload", { ignoreCache: true });
+    await cdp.send("Page.navigate", { url: targetUrl });
     const request = await requestPaused;
     assert.equal(new URL(request.request.url).searchParams.get("search"), RETRY_REQUEST_ID);
     await cdp.send("Fetch.fulfillRequest", {

@@ -90,18 +90,26 @@ const DEPLOYMENT_BOTTLENECK_STORAGE_AUDIT_FIXTURE = {
 };
 
 export async function checkManagerHttpAuditAutoExpand(cdp, timeoutMs) {
-  await evaluate(cdp, `history.replaceState(
-    null,
-    '',
-    '/dashboard/audit?filter=manager_health&manager_source=api&period=1&expand=latest'
-  )`);
+  const targetUrl = new URL(
+    "/dashboard/audit?filter=manager_health&manager_source=api&period=1&expand=latest",
+    await evaluate(cdp, "location.origin"),
+  ).href;
   await cdp.send("Fetch.enable", {
-    patterns: [{ requestStage: "Request", urlPattern: "*/api/v1/audit\\?*" }],
+    patterns: [
+      {
+        requestStage: "Request",
+        urlPattern: "*/api/v1/audit\\?*resource_type=manager_component*manager_source=api*",
+      },
+      {
+        requestStage: "Request",
+        urlPattern: "*/api/v1/audit\\?*event=deployment_bottleneck_events_cleanup*",
+      },
+    ],
   });
   try {
     const requestPaused = cdp.waitFor("Fetch.requestPaused", timeoutMs);
     const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
-    await cdp.send("Page.reload", { ignoreCache: true });
+    await cdp.send("Page.navigate", { url: targetUrl });
     const request = await requestPaused;
     await cdp.send("Fetch.fulfillRequest", {
       requestId: request.requestId,
