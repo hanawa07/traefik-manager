@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import type {
   SmokeMonitoringRecentRun,
+  SmokeLocalRun,
   SmokeRunStatistics,
   SmokeStatisticsSnapshot,
 } from "@/features/settings/api/settingsApi";
@@ -40,6 +41,9 @@ interface SmokeRunTrendProps {
   failureRateThresholdPercent: number;
   failureRateWindowDays: 7 | 30;
   runs: SmokeMonitoringRecentRun[];
+  localRuns: SmokeLocalRun[];
+  localRunRetentionDays: number;
+  localRunTotal: number;
   statistics: SmokeRunStatistics[];
   statisticsSnapshots: SmokeStatisticsSnapshot[];
   timezone?: string;
@@ -50,6 +54,9 @@ export function SmokeRunTrend({
   failureRateMinRuns,
   failureRateThresholdPercent,
   failureRateWindowDays,
+  localRuns,
+  localRunRetentionDays,
+  localRunTotal,
   runs,
   statistics,
   statisticsSnapshots,
@@ -210,7 +217,13 @@ export function SmokeRunTrend({
           ) : null}
         </details>
       ) : null}
-      <SmokeRunStatisticsHistory snapshots={statisticsSnapshots} />
+      <SmokeRunStatisticsHistory
+        localRuns={localRuns}
+        localRunRetentionDays={localRunRetentionDays}
+        localRunTotal={localRunTotal}
+        snapshots={statisticsSnapshots}
+        timezone={timezone}
+      />
       <SmokeFailureArtifactLinks
         failedRuns={failedRuns}
         periodReferenceTime={periodReferenceTime}

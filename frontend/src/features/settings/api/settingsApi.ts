@@ -73,6 +73,7 @@ export type {
   SmokeFailureMetadata,
   SmokeHistoryDays,
   SmokeHistoryStatus,
+  SmokeLocalRun,
   SmokeCancellationReasonFilter,
   SmokeMonitoringFrequency,
   SmokeMonitoringRecentRun,

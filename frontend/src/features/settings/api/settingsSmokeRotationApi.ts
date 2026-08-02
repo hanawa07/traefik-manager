@@ -81,6 +81,15 @@ export interface SmokeStatisticsSnapshot {
   estimated_runner_minutes: number;
 }
 
+export interface SmokeLocalRun {
+  run_id: number;
+  status: "success" | "failure";
+  started_at: string | null;
+  completed_at: string;
+  duration_seconds: number | null;
+  admin_checked: boolean;
+}
+
 export interface SmokeRotationStatus {
   monitoring_enabled: boolean;
   monitoring_frequency: SmokeMonitoringFrequency;
@@ -104,6 +113,9 @@ export interface SmokeRotationStatus {
   monitoring_latest_failure: SmokeMonitoringRecentRun | null;
   monitoring_run_statistics: SmokeRunStatistics[];
   monitoring_statistics_snapshots: SmokeStatisticsSnapshot[];
+  monitoring_local_runs: SmokeLocalRun[];
+  monitoring_local_run_total: number;
+  monitoring_local_run_retention_days: number;
   monitoring_history_checked_at: string | null;
   monitoring_history_error: string | null;
   monitoring_history_days: SmokeHistoryDays;

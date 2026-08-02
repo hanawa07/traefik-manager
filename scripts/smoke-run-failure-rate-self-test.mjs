@@ -16,6 +16,10 @@ import {
   getTrackedManualSmokeRun,
   parseTrackedManualSmokeRun,
 } from "../frontend/src/features/settings/lib/smokeManualRunTracking.ts";
+import {
+  buildSmokeStatisticsSnapshotsCsv,
+  getSmokeStatisticsSnapshotComparison,
+} from "../frontend/src/app/dashboard/smokeStatisticsHistory.ts";
 
 const now = Date.parse("2026-07-18T00:00:00Z");
 const high = getSmokeRunFailureRate(
@@ -160,5 +164,45 @@ assert.equal(
   ),
   null,
 );
+
+const statisticsSnapshots = [
+  {
+    captured_on: "2026-08-02",
+    window_days: 30,
+    total_count: 12,
+    success_count: 8,
+    failure_count: 2,
+    cancelled_count: 1,
+    skipped_count: 1,
+    duration_run_count: 12,
+    total_duration_seconds: 1200,
+    average_duration_seconds: 100,
+    estimated_runner_minutes: 20,
+  },
+  {
+    captured_on: "2026-08-01",
+    window_days: 30,
+    total_count: 10,
+    success_count: 9,
+    failure_count: 1,
+    cancelled_count: 0,
+    skipped_count: 0,
+    duration_run_count: 10,
+    total_duration_seconds: 800,
+    average_duration_seconds: 80,
+    estimated_runner_minutes: 22,
+  },
+];
+assert.deepEqual(getSmokeStatisticsSnapshotComparison(statisticsSnapshots), {
+  averageDurationSeconds: 20,
+  estimatedRunnerMinutes: -2,
+  failureRatePercentagePoints: 10,
+  previousCapturedOn: "2026-08-01",
+});
+assert.equal(getSmokeStatisticsSnapshotComparison(statisticsSnapshots.slice(0, 1)), null);
+const statisticsCsv = buildSmokeStatisticsSnapshotsCsv(statisticsSnapshots);
+assert.equal(statisticsCsv.startsWith("\uFEFF\"captured_on\""), true);
+assert.equal(statisticsCsv.trimEnd().split("\r\n").length, 3);
+assert.match(statisticsCsv, /"2026-08-02","30","12","8","2"/);
 
 console.log("운영 점검 실패율 self-test 통과");

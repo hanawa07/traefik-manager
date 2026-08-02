@@ -37,6 +37,9 @@ export function SmokeAdminStatusSummary({
               failureRateMinRuns={status.monitoring_failure_rate_min_runs}
               failureRateThresholdPercent={status.monitoring_failure_rate_threshold_percent}
               failureRateWindowDays={status.monitoring_failure_rate_window_days}
+              localRuns={status.monitoring_local_runs ?? []}
+              localRunRetentionDays={status.monitoring_local_run_retention_days ?? 365}
+              localRunTotal={status.monitoring_local_run_total ?? 0}
               runs={status.monitoring_recent_runs}
               statistics={status.monitoring_run_statistics ?? []}
               statisticsSnapshots={status.monitoring_statistics_snapshots ?? []}
