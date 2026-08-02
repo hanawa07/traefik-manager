@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
+import { evaluate, reloadPage, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
   const initial = await evaluate(cdp, `(() => {
@@ -184,7 +184,13 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
       });
       copyButton?.click();
       await settle();
-      const fallback = document.querySelector('input[aria-label="Artifact 필터 공유 URL 직접 복사"]');
+      let fallback = document.querySelector('input[aria-label="Artifact 필터 공유 URL 직접 복사"]');
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        if (document.activeElement === fallback && fallback?.selectionStart === 0 &&
+            fallback.selectionEnd === fallback.value.length) break;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        fallback = document.querySelector('input[aria-label="Artifact 필터 공유 URL 직접 복사"]');
+      }
       const container = document.querySelector('[data-testid="smoke-failure-run-links"]');
       const items = Array.from(container?.querySelectorAll('[data-testid="smoke-failure-run"]') || []);
       const filteredCount = Number(container?.getAttribute('data-filtered-run-count'));
@@ -217,7 +223,7 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     assert.equal(filterResult?.fallbackFilter, "available", "Artifact 필터 직접 복사 URL이 다릅니다");
     assert.equal(filterResult?.fallbackSelected, true, "Artifact 필터 직접 복사 URL이 전체 선택되지 않았습니다");
     assert.equal(filterResult?.urlFilter, "available", "Artifact 필터가 URL에 반영되지 않았습니다");
-    await cdp.send("Page.reload", { ignoreCache: true });
+    await reloadPage(cdp, timeoutMs);
     await waitForCondition(
       cdp,
       `document.querySelector('[data-testid="smoke-failure-run-links"]')?.getAttribute('data-artifact-filter') === 'available'`,

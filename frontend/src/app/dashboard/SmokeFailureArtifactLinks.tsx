@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { SmokeMonitoringRecentRun } from "@/features/settings/api/settingsApi";
 import {
@@ -34,6 +34,7 @@ export function SmokeFailureArtifactLinks({
   const [artifactFilter, setArtifactFilter] = useState<SmokeArtifactFilter>("all");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
   const [shareUrl, setShareUrl] = useState("");
+  const shareInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const queryFilter = new URLSearchParams(window.location.search).get(ARTIFACT_FILTER_QUERY);
@@ -53,6 +54,12 @@ export function SmokeFailureArtifactLinks({
       ARTIFACT_COPY_SUCCESS_DURATION_MS,
     );
     return () => window.clearTimeout(timeoutId);
+  }, [copyStatus]);
+
+  useEffect(() => {
+    if (copyStatus !== "error") return;
+    shareInputRef.current?.focus();
+    shareInputRef.current?.select();
   }, [copyStatus]);
 
   const filteredRuns = filterAndPrioritizeSmokeArtifactRuns(
@@ -152,6 +159,7 @@ export function SmokeFailureArtifactLinks({
             onClick={(event) => event.currentTarget.select()}
             onFocus={(event) => event.currentTarget.select()}
             readOnly
+            ref={shareInputRef}
             value={shareUrl}
           />
         </label>
