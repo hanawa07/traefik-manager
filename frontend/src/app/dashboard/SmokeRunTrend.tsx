@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from "react";
 
-import type { SmokeMonitoringRecentRun } from "@/features/settings/api/settingsApi";
+import type {
+  SmokeMonitoringRecentRun,
+  SmokeRunStatistics,
+} from "@/features/settings/api/settingsApi";
 import {
   getCompletedSmokeRunsInWindow,
+  getSmokeFailureRateFromCounts,
   getSmokeRunFailureRate,
 } from "./smokeRunFailureRate";
 import {
@@ -27,6 +31,7 @@ interface SmokeRunTrendProps {
   failureRateThresholdPercent: number;
   failureRateWindowDays: 7 | 30;
   runs: SmokeMonitoringRecentRun[];
+  statistics: SmokeRunStatistics[];
   timezone?: string;
 }
 
@@ -36,6 +41,7 @@ export function SmokeRunTrend({
   failureRateThresholdPercent,
   failureRateWindowDays,
   runs,
+  statistics,
   timezone,
 }: SmokeRunTrendProps) {
   const [rangeDays, setRangeDays] = useState<7 | 30>(7);
@@ -53,17 +59,33 @@ export function SmokeRunTrend({
   const recent = runs
     .filter((run) => Date.parse(run.completed_at) >= cutoff)
     .reverse();
-  const successCount = recent.filter((run) => run.status === "success").length;
-  const failureCount = recent.filter((run) => run.status === "failure").length;
-  const cancelledCount = recent.filter((run) => run.status === "cancelled").length;
-  const skippedCount = recent.filter((run) => run.status === "skipped").length;
-  const failureRate = getSmokeRunFailureRate(
-    runs,
-    periodReferenceTime,
-    failureRateThresholdPercent,
-    failureRateMinRuns,
-    failureRateWindowDays,
+  const statistic = statistics.find((item) => item.window_days === rangeDays);
+  const failureRateStatistic = statistics.find(
+    (item) => item.window_days === failureRateWindowDays,
   );
+  const successCount =
+    statistic?.success_count ?? recent.filter((run) => run.status === "success").length;
+  const failureCount =
+    statistic?.failure_count ?? recent.filter((run) => run.status === "failure").length;
+  const cancelledCount =
+    statistic?.cancelled_count ?? recent.filter((run) => run.status === "cancelled").length;
+  const skippedCount =
+    statistic?.skipped_count ?? recent.filter((run) => run.status === "skipped").length;
+  const totalCount = statistic?.total_count ?? recent.length;
+  const failureRate = failureRateStatistic
+    ? getSmokeFailureRateFromCounts(
+        failureRateStatistic.success_count,
+        failureRateStatistic.failure_count,
+        failureRateThresholdPercent,
+        failureRateMinRuns,
+      )
+    : getSmokeRunFailureRate(
+        runs,
+        periodReferenceTime,
+        failureRateThresholdPercent,
+        failureRateMinRuns,
+        failureRateWindowDays,
+      );
   const failedRuns = getCompletedSmokeRunsInWindow(
     runs,
     periodReferenceTime,
@@ -92,7 +114,7 @@ export function SmokeRunTrend({
       {recent.length ? (
         <div
           className="flex max-w-56 flex-wrap items-center gap-1"
-          aria-label={`최근 ${rangeDays}일 표시 이력 ${recent.length}건 중 성공 ${successCount}, 실패 ${failureCount}, 취소 ${cancelledCount}, 건너뜀 ${skippedCount}`}
+          aria-label={`최근 ${rangeDays}일 실행 링크 ${recent.length}건`}
         >
           {recent.map((run) => {
             const tooltip = getSmokeRunTooltip(run, timezone);
@@ -114,10 +136,11 @@ export function SmokeRunTrend({
         <span className="opacity-80">{error ? "확인 실패" : "이력 없음"}</span>
       )}
       <span data-testid="smoke-run-status-counts">
-        표시 이력 {recent.length}건 · 성공 {successCount} · 실패 {failureCount} · 취소 {cancelledCount} · 건너뜀 {skippedCount}
+        {rangeDays}일 전체 {totalCount}건 · 성공 {successCount} · 실패 {failureCount} · 취소 {cancelledCount} · 건너뜀 {skippedCount}
       </span>
+      <span className="opacity-80">표시 링크 {recent.length}건</span>
       <span className="opacity-80" data-testid="smoke-failure-rate-basis">
-        실패율 분모: 성공+실패 · 취소·건너뜀 제외
+        실패율 분모: workflow 성공+실패 · 취소·전체 건너뜀 제외
       </span>
       <span
         className={
@@ -134,6 +157,15 @@ export function SmokeRunTrend({
             ? `${failureRateWindowDays}일 실패율 ${failureRate.percentage}% (${failureRate.failureCount}/${failureRate.totalCount}) · ${failureRateMinRuns}회부터 판정`
             : `${failureRate.isAlert ? "실패율 경고" : `${failureRateWindowDays}일 실패율`} ${failureRate.percentage}% (${failureRate.failureCount}/${failureRate.totalCount}) · 기준 ${failureRateThresholdPercent}%`}
       </span>
+      <span className="opacity-80" data-testid="smoke-actions-usage">
+        {statistic
+          ? `Actions 실행시간 ${statistic.duration_run_count}/${statistic.total_count}건 총 ${formatDuration(statistic.total_duration_seconds)} · 평균 ${formatDuration(statistic.average_duration_seconds)} · 예상 사용량 ${statistic.estimated_runner_minutes} runner분`
+          : "Actions 실행시간 집계 없음"}
+      </span>
+      <span className="opacity-70" data-testid="smoke-actions-usage-note">
+        GitHub workflow 결론·벽시계 기준 추정 · 내부 단계 건너뜀은 성공에 포함될 수 있음 ·
+        GitHub 과금값 아님
+      </span>
       <SmokeFailureArtifactLinks
         failedRuns={failedRuns}
         periodReferenceTime={periodReferenceTime}
@@ -142,4 +174,14 @@ export function SmokeRunTrend({
       />
     </div>
   );
+}
+
+function formatDuration(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.round(totalSeconds));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  if (hours) return `${hours}시간 ${minutes}분`;
+  if (minutes) return `${minutes}분 ${remainingSeconds}초`;
+  return `${remainingSeconds}초`;
 }

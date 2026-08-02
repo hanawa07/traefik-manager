@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import {
+  type SmokeCancellationReasonFilter,
   type SmokeHistoryDays,
   type SmokeHistoryStatus,
   type SmokeRotationStatus,
@@ -12,6 +13,8 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [runStatus, setRunStatus] = useState<SmokeHistoryStatus>("all");
+  const [cancellationReason, setCancellationReason] =
+    useState<SmokeCancellationReasonFilter>("all");
   const [days, setDays] = useState<SmokeHistoryDays>(initialStatus.monitoring_history_days ?? 30);
   const [page, setPage] = useState(initialStatus.monitoring_history_page ?? 1);
   const [filtersRestored, setFiltersRestored] = useState(false);
@@ -21,6 +24,7 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
     setSearch(filters.search);
     setAppliedSearch(filters.search);
     setRunStatus(filters.status);
+    setCancellationReason(filters.cancellationReason);
     setDays(filters.days);
     setPage(filters.page);
     setFiltersRestored(true);
@@ -38,11 +42,25 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
     setSearch(nextSearch);
     setAppliedSearch(nextSearch);
     setRunStatus(value);
+    setCancellationReason("all");
     setPage(1);
     replaceHistoryUrl({
       smoke_page: null,
       smoke_search: nextSearch || null,
       smoke_status: value === "all" ? null : value,
+      smoke_cancel_reason: null,
+    });
+  };
+  const changeCancellationReason = (value: SmokeCancellationReasonFilter) => {
+    const nextSearch = search.trim();
+    setSearch(nextSearch);
+    setAppliedSearch(nextSearch);
+    setCancellationReason(value);
+    setPage(1);
+    replaceHistoryUrl({
+      smoke_cancel_reason: value === "all" ? null : value,
+      smoke_page: null,
+      smoke_search: nextSearch || null,
     });
   };
   const changeDays = (value: SmokeHistoryDays) => {
@@ -65,6 +83,7 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
     setSearch("");
     setAppliedSearch("");
     setRunStatus("all");
+    setCancellationReason("all");
     setDays(30);
     setPage(1);
     replaceHistoryUrl({
@@ -72,6 +91,7 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
       smoke_page: null,
       smoke_search: null,
       smoke_status: null,
+      smoke_cancel_reason: null,
     });
   };
 
@@ -80,13 +100,20 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
     setSearch,
     appliedSearch,
     runStatus,
+    cancellationReason,
     days,
     page,
     filtersRestored,
     filtersAreDefault:
-      search === "" && appliedSearch === "" && runStatus === "all" && days === 30 && page === 1,
+      search === "" &&
+      appliedSearch === "" &&
+      runStatus === "all" &&
+      cancellationReason === "all" &&
+      days === 30 &&
+      page === 1,
     applySearch,
     changeStatus,
+    changeCancellationReason,
     changeDays,
     changePage,
     resetFilters,
@@ -96,18 +123,28 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
 function readHistoryFilters(): {
   search: string;
   status: SmokeHistoryStatus;
+  cancellationReason: SmokeCancellationReasonFilter;
   days: SmokeHistoryDays;
   page: number;
 } {
   const params = new URLSearchParams(window.location.search);
   const status = params.get("smoke_status");
+  const cancellationReason = params.get("smoke_cancel_reason");
   const days = Number(params.get("smoke_days"));
   const page = Number(params.get("smoke_page"));
+  const normalizedStatus =
+    status === "success" || status === "failure" || status === "cancelled"
+      ? status
+      : "all";
   return {
     search: (params.get("smoke_search") || "").slice(0, 100),
-    status:
-      status === "success" || status === "failure" || status === "cancelled"
-        ? status
+    status: normalizedStatus,
+    cancellationReason:
+      normalizedStatus === "cancelled" &&
+      (cancellationReason === "timeout" ||
+        cancellationReason === "superseded" ||
+        cancellationReason === "manual_or_unknown")
+        ? cancellationReason
         : "all",
     days: days === 7 ? 7 : 30,
     page: Number.isInteger(page) && page > 0 ? page : 1,

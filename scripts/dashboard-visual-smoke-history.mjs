@@ -73,7 +73,7 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
           rateLimitWarning?.textContent?.includes('수동 새로고침과 자동 결과 확인을 잠갔습니다') &&
           (!refreshButton || (refreshButton instanceof HTMLButtonElement && refreshButton.disabled)) &&
           retention?.textContent?.includes('실패 정보 1/20건 보관') &&
-          exclusionNote?.textContent?.includes('건너뜀·취소는 앱 실패율 분모에서 제외');
+          exclusionNote?.textContent?.includes('전체 통계는 GitHub workflow 결론 기준');
       })()`,
       timeoutMs,
       "최근 운영 점검 이력 또는 GitHub API 잔여량 보호 상태가 표시되지 않았습니다",

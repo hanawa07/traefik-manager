@@ -73,11 +73,13 @@ export type {
   SmokeFailureMetadata,
   SmokeHistoryDays,
   SmokeHistoryStatus,
+  SmokeCancellationReasonFilter,
   SmokeMonitoringFrequency,
   SmokeMonitoringRecentRun,
   SmokeMonitoringSettingsInput,
   SmokeRotationState,
   SmokeRotationStatus,
+  SmokeRunStatistics,
 } from "./settingsSmokeRotationApi";
 
 export const settingsApi = {

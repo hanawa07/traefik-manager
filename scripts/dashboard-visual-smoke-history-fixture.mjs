@@ -76,6 +76,33 @@ export async function buildSmokeHistoryFixtures(cdp) {
       monitoring_history_total_pages: 2,
       monitoring_history_search: '',
       monitoring_history_status: 'all',
+      monitoring_history_cancellation_reason: 'all',
+      monitoring_run_statistics: [
+        {
+          window_days: 7,
+          total_count: 4,
+          success_count: 1,
+          failure_count: 2,
+          cancelled_count: 1,
+          skipped_count: 0,
+          duration_run_count: 4,
+          total_duration_seconds: 420,
+          average_duration_seconds: 105,
+          estimated_runner_minutes: 8,
+        },
+        {
+          window_days: 30,
+          total_count: 8,
+          success_count: 5,
+          failure_count: 2,
+          cancelled_count: 1,
+          skipped_count: 0,
+          duration_run_count: 8,
+          total_duration_seconds: 900,
+          average_duration_seconds: 113,
+          estimated_runner_minutes: 17,
+        },
+      ],
       monitoring_failure_metadata_count: 1,
       monitoring_failure_metadata_limit: 20,
       monitoring_github_refresh_reserve: 10,
@@ -101,6 +128,17 @@ export async function buildSmokeHistoryFixtures(cdp) {
     monitoring_history_total_pages: 1,
     monitoring_recent_runs: fixture.monitoring_recent_runs.slice(0, 2),
   };
+  const cancelledFixture = {
+    ...fixture,
+    monitoring_history_status: "cancelled",
+    monitoring_history_total: 1,
+    monitoring_history_total_pages: 1,
+    monitoring_recent_runs: [fixture.monitoring_recent_runs[3]],
+  };
+  const supersededFixture = {
+    ...cancelledFixture,
+    monitoring_history_cancellation_reason: "superseded",
+  };
   const searchFixture = {
     ...failureFixture,
     monitoring_history_search: "986",
@@ -125,12 +163,14 @@ export async function buildSmokeHistoryFixtures(cdp) {
   };
 
   return {
+    cancelledFixture,
     failureFixture,
     fixture,
     pageTwoFixture,
     searchFixture,
     sevenDayFixture,
     successFixture,
+    supersededFixture,
   };
 }
 

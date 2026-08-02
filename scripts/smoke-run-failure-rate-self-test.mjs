@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import {
   getCompletedSmokeRunsInWindow,
+  getSmokeFailureRateFromCounts,
   getSmokeRunFailureRate,
 } from "../frontend/src/app/dashboard/smokeRunFailureRate.ts";
 import {
@@ -35,6 +36,12 @@ assert.deepEqual(high, {
   isAlert: true,
   percentage: 40,
   totalCount: 5,
+});
+assert.deepEqual(getSmokeFailureRateFromCounts(18, 2, 20, 10), {
+  failureCount: 2,
+  isAlert: false,
+  percentage: 10,
+  totalCount: 20,
 });
 
 const insufficient = getSmokeRunFailureRate(

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import {
   settingsApi,
+  type SmokeCancellationReasonFilter,
   type SmokeHistoryDays,
   type SmokeHistoryStatus,
   type SmokeRotationStatus,
@@ -23,12 +24,14 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
     setSearch,
     appliedSearch,
     runStatus,
+    cancellationReason,
     days,
     page,
     filtersRestored,
     filtersAreDefault,
     applySearch,
     changeStatus,
+    changeCancellationReason,
     changeDays,
     changePage,
     resetFilters,
@@ -38,10 +41,24 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
     days === initialStatus.monitoring_history_days &&
     page === initialStatus.monitoring_history_page &&
     appliedSearch === (initialStatus.monitoring_history_search ?? "") &&
-    runStatus === (initialStatus.monitoring_history_status ?? "all");
+    runStatus === (initialStatus.monitoring_history_status ?? "all") &&
+    cancellationReason === (initialStatus.monitoring_history_cancellation_reason ?? "all");
   const historyQuery = useQuery({
-    queryKey: settingsQueryKeys.smokeRotationHistory(days, page, appliedSearch, runStatus),
-    queryFn: () => settingsApi.getSmokeRunHistory(days, page, appliedSearch, runStatus),
+    queryKey: settingsQueryKeys.smokeRotationHistory(
+      days,
+      page,
+      appliedSearch,
+      runStatus,
+      cancellationReason,
+    ),
+    queryFn: () =>
+      settingsApi.getSmokeRunHistory(
+        days,
+        page,
+        appliedSearch,
+        runStatus,
+        cancellationReason,
+      ),
     enabled: filtersRestored && !usesInitialHistory,
     staleTime: 600_000,
   });
@@ -58,7 +75,7 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
       <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
         최근 GitHub 원격 실행 검색 결과 총 {total}건
       </summary>
-      <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_7rem_auto] sm:items-end">
+      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_8rem_10rem_7rem_auto] xl:items-end">
         <form
           className="grid gap-1 text-[11px] text-gray-500 dark:text-slate-400"
           onSubmit={(event) => {
@@ -99,6 +116,26 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
             <option value="success">성공·건너뜀</option>
             <option value="failure">실패</option>
             <option value="cancelled">취소됨 (앱 실패 제외)</option>
+          </select>
+        </label>
+        <label
+          className={`grid gap-1 text-[11px] text-gray-500 dark:text-slate-400 ${runStatus === "cancelled" ? "" : "opacity-60"}`}
+        >
+          취소 원인
+          <select
+            aria-label="최근 원격 실행 취소 원인"
+            className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-cyan-400 disabled:cursor-not-allowed dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+            data-testid="smoke-recent-run-cancellation-filter"
+            disabled={runStatus !== "cancelled"}
+            onChange={(event) =>
+              changeCancellationReason(event.target.value as SmokeCancellationReasonFilter)
+            }
+            value={cancellationReason}
+          >
+            <option value="all">전체 취소</option>
+            <option value="timeout">시간 초과</option>
+            <option value="superseded">새 실행으로 대체</option>
+            <option value="manual_or_unknown">수동 취소·미확인</option>
           </select>
         </label>
         <label className="grid gap-1 text-[11px] text-gray-500 dark:text-slate-400">

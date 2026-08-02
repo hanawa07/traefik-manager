@@ -7,6 +7,7 @@ export type SmokeFailureRateWindowDays = 7 | 30;
 export type SmokeHistoryDays = 7 | 30;
 export type SmokeHistoryStatus = "all" | "success" | "failure" | "cancelled";
 export type SmokeCancellationReason = "timeout" | "superseded" | "manual_or_unknown";
+export type SmokeCancellationReasonFilter = "all" | SmokeCancellationReason;
 
 export interface SmokeFailureMetadata {
   captured_at: string;
@@ -42,6 +43,19 @@ export interface SmokeMonitoringRecentRun {
   failure_metadata: SmokeFailureMetadata | null;
 }
 
+export interface SmokeRunStatistics {
+  window_days: SmokeHistoryDays;
+  total_count: number;
+  success_count: number;
+  failure_count: number;
+  cancelled_count: number;
+  skipped_count: number;
+  duration_run_count: number;
+  total_duration_seconds: number;
+  average_duration_seconds: number;
+  estimated_runner_minutes: number;
+}
+
 export interface SmokeRotationStatus {
   monitoring_enabled: boolean;
   monitoring_frequency: SmokeMonitoringFrequency;
@@ -63,6 +77,7 @@ export interface SmokeRotationStatus {
   monitoring_workflow_url: string;
   monitoring_recent_runs: SmokeMonitoringRecentRun[];
   monitoring_latest_failure: SmokeMonitoringRecentRun | null;
+  monitoring_run_statistics: SmokeRunStatistics[];
   monitoring_history_checked_at: string | null;
   monitoring_history_error: string | null;
   monitoring_history_days: SmokeHistoryDays;
@@ -72,6 +87,7 @@ export interface SmokeRotationStatus {
   monitoring_history_total_pages: number;
   monitoring_history_search: string;
   monitoring_history_status: SmokeHistoryStatus;
+  monitoring_history_cancellation_reason: SmokeCancellationReasonFilter;
   monitoring_failure_metadata_count: number;
   monitoring_failure_metadata_limit: number;
   monitoring_github_rate_limit_remaining: number | null;
@@ -113,6 +129,7 @@ export const smokeRotationSettingsApi = {
     page: number,
     search: string,
     status: SmokeHistoryStatus,
+    cancellationReason: SmokeCancellationReasonFilter,
   ): Promise<SmokeRotationStatus> => {
     const response = await apiClient.get<SmokeRotationStatus>("/settings/smoke-rotation", {
       params: {
@@ -121,6 +138,8 @@ export const smokeRotationSettingsApi = {
         history_page: page,
         history_search: search || undefined,
         history_status: status,
+        history_cancellation_reason:
+          cancellationReason === "all" ? undefined : cancellationReason,
         summary: true,
       },
     });

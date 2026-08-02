@@ -55,9 +55,14 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
   const statusSummary = await evaluate(cdp, `(() => ({
     basis: document.querySelector('[data-testid="smoke-failure-rate-basis"]')?.textContent,
     counts: document.querySelector('[data-testid="smoke-run-status-counts"]')?.textContent,
+    usage: document.querySelector('[data-testid="smoke-actions-usage"]')?.textContent,
+    usageNote: document.querySelector('[data-testid="smoke-actions-usage-note"]')?.textContent,
   }))()`);
+  assert.match(statusSummary.counts || "", /30일 전체 \d+건/);
   assert.match(statusSummary.counts || "", /성공 \d+ · 실패 \d+ · 취소 \d+ · 건너뜀 \d+/);
-  assert.match(statusSummary.basis || "", /성공\+실패.*취소·건너뜀 제외/);
+  assert.match(statusSummary.basis || "", /workflow 성공\+실패.*취소·전체 건너뜀 제외/);
+  assert.match(statusSummary.usage || "", /Actions 실행시간.*예상 사용량.*runner분/);
+  assert.match(statusSummary.usageNote || "", /GitHub 과금값 아님/);
   const failureLinks = await evaluate(cdp, `(() => {
     const alert = document.querySelector('[data-testid="smoke-failure-rate"][role="alert"]');
     const container = document.querySelector('[data-testid="smoke-failure-run-links"]');

@@ -12,12 +12,14 @@ export async function checkSmokeHistoryFilters({
   timeoutMs,
 }) {
   const {
+    cancelledFixture,
     failureFixture,
     fixture,
     pageTwoFixture,
     searchFixture,
     sevenDayFixture,
     successFixture,
+    supersededFixture,
   } = fixtures;
   const successRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
   const statusChanged = await evaluate(cdp, `(() => {
@@ -44,6 +46,52 @@ export async function checkSmokeHistoryFilters({
     timeoutMs,
     "최근 운영 점검 성공 상태 필터가 적용되지 않았습니다",
   );
+  const cancelledRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+  const cancelledChanged = await evaluate(cdp, `(() => {
+    const select = document.querySelector('[data-testid="smoke-recent-run-status-filter"]');
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+    if (!(select instanceof HTMLSelectElement) || !setter) return false;
+    setter.call(select, 'cancelled');
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(cancelledChanged, true, "최근 운영 점검 취소 상태 필터를 변경하지 못했습니다");
+  const cancelledPaused = await cancelledRequest;
+  assert.match(cancelledPaused.request.url, /history_status=cancelled/);
+  await fulfillJsonRequest(cdp, cancelledPaused, cancelledFixture);
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const reason = document.querySelector('[data-testid="smoke-recent-run-cancellation-filter"]');
+      return reason?.disabled === false && reason?.value === 'all';
+    })()`,
+    timeoutMs,
+    "취소 원인 필터가 활성화되지 않았습니다",
+  );
+
+  const reasonRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+  const reasonChanged = await evaluate(cdp, `(() => {
+    const select = document.querySelector('[data-testid="smoke-recent-run-cancellation-filter"]');
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+    if (!(select instanceof HTMLSelectElement) || !setter) return false;
+    setter.call(select, 'superseded');
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(reasonChanged, true, "최근 운영 점검 취소 원인을 변경하지 못했습니다");
+  const reasonPaused = await reasonRequest;
+  assert.match(reasonPaused.request.url, /history_cancellation_reason=superseded/);
+  await fulfillJsonRequest(cdp, reasonPaused, supersededFixture);
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const reason = document.querySelector('[data-testid="smoke-recent-run-cancellation-filter"]');
+      return reason?.value === 'superseded' && location.search.includes('smoke_cancel_reason=superseded');
+    })()`,
+    timeoutMs,
+    "취소 원인 필터가 URL과 결과에 반영되지 않았습니다",
+  );
+
   const failureRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
   const failureChanged = await evaluate(cdp, `(() => {
     const select = document.querySelector('[data-testid="smoke-recent-run-status-filter"]');
@@ -57,6 +105,16 @@ export async function checkSmokeHistoryFilters({
   const failurePaused = await failureRequest;
   assert.match(failurePaused.request.url, /history_status=failure/);
   await fulfillJsonRequest(cdp, failurePaused, failureFixture);
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const reason = document.querySelector('[data-testid="smoke-recent-run-cancellation-filter"]');
+      return reason?.disabled === true && reason?.value === 'all' &&
+        !location.search.includes('smoke_cancel_reason');
+    })()`,
+    timeoutMs,
+    "상태 변경 시 취소 원인 필터가 초기화되지 않았습니다",
+  );
 
   const searchChanged = await evaluate(cdp, `(() => {
     const input = document.querySelector('[data-testid="smoke-recent-run-search"]');

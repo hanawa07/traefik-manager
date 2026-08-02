@@ -45,7 +45,8 @@ export function SmokeMonitoringOverview({
         전용 viewer로 일반 화면을, 전용 admin으로 관리자 안전 흐름을 확인합니다. 비밀번호
         공격이나 침입 징후는 별도 로그인 보안 방어 설정에서 처리합니다.
         <span className="mt-1 block" data-testid="smoke-test-run-exclusion-note">
-          [테스트] 실행은 최근 실행에서, 건너뜀·취소는 앱 실패율 분모에서 제외합니다.
+          [테스트] 실행은 제외합니다. 전체 통계는 GitHub workflow 결론 기준이며, 내부 단계만
+          건너뛴 성공 workflow는 성공에 포함될 수 있습니다.
         </span>
       </div>
       <SettingsSummaryRow

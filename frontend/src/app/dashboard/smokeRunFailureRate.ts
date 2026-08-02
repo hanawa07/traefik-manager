@@ -32,14 +32,26 @@ export function getSmokeRunFailureRate(
 ) {
   const completed = getCompletedSmokeRunsInWindow(runs, referenceTime, windowDays);
   const failureCount = completed.filter((run) => run.status === "failure").length;
-  const percentage = completed.length
-    ? Math.round((failureCount / completed.length) * 100)
-    : 0;
+  return getSmokeFailureRateFromCounts(
+    completed.length - failureCount,
+    failureCount,
+    thresholdPercent,
+    minRuns,
+  );
+}
+
+export function getSmokeFailureRateFromCounts(
+  successCount: number,
+  failureCount: number,
+  thresholdPercent = DEFAULT_SMOKE_FAILURE_RATE_THRESHOLD_PERCENT,
+  minRuns = DEFAULT_SMOKE_FAILURE_RATE_MIN_RUNS,
+) {
+  const totalCount = successCount + failureCount;
+  const percentage = totalCount ? Math.round((failureCount / totalCount) * 100) : 0;
   return {
     failureCount,
-    isAlert:
-      completed.length >= minRuns && percentage >= thresholdPercent,
+    isAlert: totalCount >= minRuns && percentage >= thresholdPercent,
     percentage,
-    totalCount: completed.length,
+    totalCount,
   };
 }
