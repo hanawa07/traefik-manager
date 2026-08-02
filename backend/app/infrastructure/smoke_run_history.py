@@ -11,6 +11,9 @@ from app.infrastructure.smoke_run_history_fetcher import (
 from app.infrastructure.smoke_run_history_processing import (
     normalize_history_search,
 )
+from app.infrastructure.smoke_workflow_runs import (
+    invalidate_smoke_workflow_run_cache,
+)
 
 _CACHE_SECONDS = 600
 _MAX_CACHE_ITEMS = 200
@@ -195,6 +198,12 @@ def read_smoke_history_cache_diagnostics(
         "hits": GitHubSmokeRunHistoryReader._cache_hits,
         "misses": GitHubSmokeRunHistoryReader._cache_misses,
     }
+
+
+async def invalidate_smoke_history_cache() -> None:
+    async with GitHubSmokeRunHistoryReader._lock:
+        GitHubSmokeRunHistoryReader._cache.clear()
+        invalidate_smoke_workflow_run_cache()
 
 
 def _copy_history(history: dict[str, Any]) -> dict[str, Any]:

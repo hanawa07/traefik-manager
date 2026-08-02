@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 import pytest
 from fastapi import HTTPException
 
+from app.infrastructure import smoke_workflow_runs
+from app.infrastructure.smoke_run_history import GitHubSmokeRunHistoryReader
 from app.interfaces.api.v1.routers.settings_smoke_run_action import (
     record_smoke_run_failure_action,
     record_smoke_run_success_action,
@@ -31,8 +33,12 @@ class StubRepository:
 
 
 @pytest.mark.asyncio
-async def test_record_smoke_run_success_accepts_dedicated_viewer() -> None:
+async def test_record_smoke_run_success_accepts_dedicated_viewer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     repo = StubRepository()
+    monkeypatch.setattr(GitHubSmokeRunHistoryReader, "_cache", {"history": object()})
+    monkeypatch.setattr(smoke_workflow_runs, "_RUN_CACHE", {"runs": object()})
 
     response = await record_smoke_run_success_action(
         run_id=123,
@@ -52,6 +58,8 @@ async def test_record_smoke_run_success_accepts_dedicated_viewer() -> None:
     local_run = json.loads(repo.values["dashboard_smoke_local_run_123"])
     assert local_run["duration_seconds"] == 120
     assert local_run["admin_checked"] is True
+    assert GitHubSmokeRunHistoryReader._cache == {}
+    assert smoke_workflow_runs._RUN_CACHE == {}
 
 
 @pytest.mark.asyncio
@@ -68,8 +76,12 @@ async def test_record_smoke_run_success_rejects_other_user() -> None:
 
 
 @pytest.mark.asyncio
-async def test_record_smoke_run_failure_accepts_metadata_from_dedicated_viewer() -> None:
+async def test_record_smoke_run_failure_accepts_metadata_from_dedicated_viewer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     repo = StubRepository()
+    monkeypatch.setattr(GitHubSmokeRunHistoryReader, "_cache", {"history": object()})
+    monkeypatch.setattr(smoke_workflow_runs, "_RUN_CACHE", {"runs": object()})
 
     response = await record_smoke_run_failure_action(
         request=SmokeMonitoringRunFailureRequest(
@@ -92,3 +104,5 @@ async def test_record_smoke_run_failure_accepts_metadata_from_dedicated_viewer()
     local_run = json.loads(repo.values["dashboard_smoke_local_run_456"])
     assert local_run["status"] == "failure"
     assert local_run["duration_seconds"] == 120
+    assert GitHubSmokeRunHistoryReader._cache == {}
+    assert smoke_workflow_runs._RUN_CACHE == {}

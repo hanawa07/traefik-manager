@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.infrastructure.smoke_local_run_records import record_smoke_local_run
+from app.infrastructure.smoke_run_history import invalidate_smoke_history_cache
 from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
     record_smoke_failure_metadata,
 )
@@ -46,6 +47,7 @@ async def record_smoke_run_success_action(
         completed_at=recorded_at,
         admin_checked=admin_checked,
     )
+    await invalidate_smoke_history_cache()
     return SmokeMonitoringRunSuccessResponse(**result)
 
 
@@ -73,6 +75,7 @@ async def record_smoke_run_failure_action(
         started_at=request.started_at,
         completed_at=completed_at,
     )
+    await invalidate_smoke_history_cache()
     return SmokeMonitoringRunFailureResponse(
         **result,
         started_at=request.started_at,

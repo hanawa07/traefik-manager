@@ -13,6 +13,10 @@ _RUN_CACHE: dict[
 ] = {}
 
 
+def invalidate_smoke_workflow_run_cache() -> None:
+    _RUN_CACHE.clear()
+
+
 async def read_smoke_workflow_runs(
     client: httpx.AsyncClient,
     api_url: str,
