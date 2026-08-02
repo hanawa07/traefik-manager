@@ -43,8 +43,33 @@ export interface SmokeMonitoringRecentRun {
   failure_metadata: SmokeFailureMetadata | null;
 }
 
+export interface SmokeSlowRun {
+  run_id: number;
+  run_number: number | null;
+  status: "success" | "failure" | "skipped" | "cancelled";
+  completed_at: string;
+  duration_seconds: number;
+  commit_sha: string | null;
+  run_url: string;
+}
+
 export interface SmokeRunStatistics {
   window_days: SmokeHistoryDays;
+  total_count: number;
+  success_count: number;
+  failure_count: number;
+  cancelled_count: number;
+  skipped_count: number;
+  duration_run_count: number;
+  total_duration_seconds: number;
+  average_duration_seconds: number;
+  estimated_runner_minutes: number;
+  slowest_runs: SmokeSlowRun[];
+}
+
+export interface SmokeStatisticsSnapshot {
+  captured_on: string;
+  window_days: 30;
   total_count: number;
   success_count: number;
   failure_count: number;
@@ -78,6 +103,7 @@ export interface SmokeRotationStatus {
   monitoring_recent_runs: SmokeMonitoringRecentRun[];
   monitoring_latest_failure: SmokeMonitoringRecentRun | null;
   monitoring_run_statistics: SmokeRunStatistics[];
+  monitoring_statistics_snapshots: SmokeStatisticsSnapshot[];
   monitoring_history_checked_at: string | null;
   monitoring_history_error: string | null;
   monitoring_history_days: SmokeHistoryDays;

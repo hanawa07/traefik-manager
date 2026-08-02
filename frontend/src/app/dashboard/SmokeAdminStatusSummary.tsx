@@ -39,6 +39,7 @@ export function SmokeAdminStatusSummary({
               failureRateWindowDays={status.monitoring_failure_rate_window_days}
               runs={status.monitoring_recent_runs}
               statistics={status.monitoring_run_statistics ?? []}
+              statisticsSnapshots={status.monitoring_statistics_snapshots ?? []}
               timezone={timezone}
             />
           ) : null}

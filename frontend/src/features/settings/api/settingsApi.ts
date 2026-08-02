@@ -80,6 +80,7 @@ export type {
   SmokeRotationState,
   SmokeRotationStatus,
   SmokeRunStatistics,
+  SmokeStatisticsSnapshot,
 } from "./settingsSmokeRotationApi";
 
 export const settingsApi = {

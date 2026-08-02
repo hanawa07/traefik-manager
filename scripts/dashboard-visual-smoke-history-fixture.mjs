@@ -66,6 +66,24 @@ export async function buildSmokeHistoryFixtures(cdp) {
       summary: 'GitHub 새 실행으로 대체 추정 · 앱 실패율 제외',
       cancellation_reason: 'superseded',
     };
+    const slowFailure = {
+      run_id: 987,
+      run_number: 987,
+      status: 'failure',
+      completed_at: failedRun.completed_at,
+      duration_seconds: 180,
+      commit_sha: 'abcdef0',
+      run_url: failedRun.run_url,
+    };
+    const slowSuccess = {
+      ...slowFailure,
+      run_id: 985,
+      run_number: 985,
+      status: 'success',
+      completed_at: successRun.completed_at,
+      duration_seconds: 120,
+      run_url: successRun.run_url,
+    };
     return {
       ...status,
       monitoring_history_checked_at: '2026-07-21T06:00:00Z',
@@ -89,6 +107,7 @@ export async function buildSmokeHistoryFixtures(cdp) {
           total_duration_seconds: 420,
           average_duration_seconds: 105,
           estimated_runner_minutes: 8,
+          slowest_runs: [slowFailure],
         },
         {
           window_days: 30,
@@ -101,6 +120,35 @@ export async function buildSmokeHistoryFixtures(cdp) {
           total_duration_seconds: 900,
           average_duration_seconds: 113,
           estimated_runner_minutes: 17,
+          slowest_runs: [slowFailure, slowSuccess],
+        },
+      ],
+      monitoring_statistics_snapshots: [
+        {
+          captured_on: '2026-07-21',
+          window_days: 30,
+          total_count: 8,
+          success_count: 5,
+          failure_count: 2,
+          cancelled_count: 1,
+          skipped_count: 0,
+          duration_run_count: 8,
+          total_duration_seconds: 900,
+          average_duration_seconds: 113,
+          estimated_runner_minutes: 17,
+        },
+        {
+          captured_on: '2026-06-21',
+          window_days: 30,
+          total_count: 7,
+          success_count: 6,
+          failure_count: 1,
+          cancelled_count: 0,
+          skipped_count: 0,
+          duration_run_count: 7,
+          total_duration_seconds: 700,
+          average_duration_seconds: 100,
+          estimated_runner_minutes: 14,
         },
       ],
       monitoring_failure_metadata_count: 1,

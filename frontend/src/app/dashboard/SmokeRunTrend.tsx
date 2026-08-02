@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import type {
   SmokeMonitoringRecentRun,
   SmokeRunStatistics,
+  SmokeStatisticsSnapshot,
 } from "@/features/settings/api/settingsApi";
+import { formatDurationSeconds } from "@/shared/lib/formatDurationSeconds";
 import {
   getCompletedSmokeRunsInWindow,
   getSmokeFailureRateFromCounts,
@@ -15,6 +17,7 @@ import {
   getSmokeRunTooltip,
   SmokeFailureArtifactLinks,
 } from "./SmokeFailureArtifactLinks";
+import { SmokeRunStatisticsHistory } from "./SmokeRunStatisticsHistory";
 
 const STATUS_STYLES = {
   failure: "bg-rose-500 hover:bg-rose-600",
@@ -24,6 +27,12 @@ const STATUS_STYLES = {
 } as const;
 
 const ARTIFACT_CLOCK_INTERVAL_MS = 60_000;
+const STATUS_LABELS = {
+  failure: "실패",
+  skipped: "건너뜀",
+  success: "성공",
+  cancelled: "취소",
+} as const;
 
 interface SmokeRunTrendProps {
   error: string | null;
@@ -32,6 +41,7 @@ interface SmokeRunTrendProps {
   failureRateWindowDays: 7 | 30;
   runs: SmokeMonitoringRecentRun[];
   statistics: SmokeRunStatistics[];
+  statisticsSnapshots: SmokeStatisticsSnapshot[];
   timezone?: string;
 }
 
@@ -42,6 +52,7 @@ export function SmokeRunTrend({
   failureRateWindowDays,
   runs,
   statistics,
+  statisticsSnapshots,
   timezone,
 }: SmokeRunTrendProps) {
   const [rangeDays, setRangeDays] = useState<7 | 30>(7);
@@ -60,6 +71,7 @@ export function SmokeRunTrend({
     .filter((run) => Date.parse(run.completed_at) >= cutoff)
     .reverse();
   const statistic = statistics.find((item) => item.window_days === rangeDays);
+  const slowestRuns = statistic?.slowest_runs ?? [];
   const failureRateStatistic = statistics.find(
     (item) => item.window_days === failureRateWindowDays,
   );
@@ -159,13 +171,46 @@ export function SmokeRunTrend({
       </span>
       <span className="opacity-80" data-testid="smoke-actions-usage">
         {statistic
-          ? `Actions 실행시간 ${statistic.duration_run_count}/${statistic.total_count}건 총 ${formatDuration(statistic.total_duration_seconds)} · 평균 ${formatDuration(statistic.average_duration_seconds)} · 예상 사용량 ${statistic.estimated_runner_minutes} runner분`
+          ? `Actions 실행시간 ${statistic.duration_run_count}/${statistic.total_count}건 총 ${formatDurationSeconds(statistic.total_duration_seconds)} · 평균 ${formatDurationSeconds(statistic.average_duration_seconds)} · 예상 사용량 ${statistic.estimated_runner_minutes} runner분`
           : "Actions 실행시간·예상 사용량 집계 없음"}
       </span>
       <span className="opacity-70" data-testid="smoke-actions-usage-note">
         GitHub workflow 결론·벽시계 기준 추정 · 내부 단계 건너뜀은 성공에 포함될 수 있음 ·
         GitHub 과금값 아님
       </span>
+      {statistic ? (
+        <details
+          className="basis-full rounded-md border border-current/15 bg-white/40 px-2.5 py-2 dark:bg-slate-950/30"
+          data-testid="smoke-actions-usage-details"
+        >
+          <summary className="cursor-pointer font-semibold">
+            느린 실행 상위 {slowestRuns.length}건 · 집계 기준 도움말
+          </summary>
+          <p className="mt-2 opacity-80">
+            workflow 결론은 실행 전체 결과입니다. 내부 단계가 skipped여도 다른 단계가 성공하면 workflow는
+            성공으로 기록될 수 있습니다. 정확한 단계별 건너뜀 집계에는 실행마다 jobs API 조회가 필요하므로,
+            현재 통계는 추가 호출 없이 workflow 결론만 사용합니다.
+          </p>
+          {slowestRuns.length ? (
+            <ol className="mt-2 flex flex-wrap gap-1.5" data-testid="smoke-slowest-runs">
+              {slowestRuns.map((run) => (
+                <li key={run.run_id}>
+                  <a
+                    className="inline-flex items-center gap-1 rounded-full border border-current/20 px-2 py-1 font-semibold hover:bg-white/70 dark:hover:bg-slate-900/70"
+                    href={run.run_url}
+                    rel="noreferrer"
+                    target="_blank"
+                    title={`${run.completed_at} · ${STATUS_LABELS[run.status]}`}
+                  >
+                    #{run.run_number ?? run.run_id} · {formatDurationSeconds(run.duration_seconds)}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </details>
+      ) : null}
+      <SmokeRunStatisticsHistory snapshots={statisticsSnapshots} />
       <SmokeFailureArtifactLinks
         failedRuns={failedRuns}
         periodReferenceTime={periodReferenceTime}
@@ -174,14 +219,4 @@ export function SmokeRunTrend({
       />
     </div>
   );
-}
-
-function formatDuration(totalSeconds: number): string {
-  const seconds = Math.max(0, Math.round(totalSeconds));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainingSeconds = seconds % 60;
-  if (hours) return `${hours}시간 ${minutes}분`;
-  if (minutes) return `${minutes}분 ${remainingSeconds}초`;
-  return `${remainingSeconds}초`;
 }

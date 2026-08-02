@@ -55,6 +55,13 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
   const statusSummary = await evaluate(cdp, `(() => ({
     basis: document.querySelector('[data-testid="smoke-failure-rate-basis"]')?.textContent,
     counts: document.querySelector('[data-testid="smoke-run-status-counts"]')?.textContent,
+    details: document.querySelector('[data-testid="smoke-actions-usage-details"]')?.textContent,
+    slowestCount: document.querySelectorAll('[data-testid="smoke-slowest-runs"] a').length,
+    slowestValid: Array.from(document.querySelectorAll('[data-testid="smoke-slowest-runs"] a'))
+      .every((link) => link.href.startsWith('https://github.com/') && link.href.includes('/actions/runs/')),
+    snapshotCount: Number(document.querySelector('[data-testid="smoke-statistics-history"]')
+      ?.getAttribute('data-snapshot-count') || 0),
+    snapshotText: document.querySelector('[data-testid="smoke-statistics-history"]')?.textContent,
     usage: document.querySelector('[data-testid="smoke-actions-usage"]')?.textContent,
     usageNote: document.querySelector('[data-testid="smoke-actions-usage-note"]')?.textContent,
   }))()`);
@@ -64,8 +71,20 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
   assert.match(statusSummary.usage || "", /Actions 실행시간.*예상 사용량/);
   if (!statusSummary.usage?.includes("집계 없음")) {
     assert.match(statusSummary.usage, /예상 사용량.*runner분/);
+    assert.match(statusSummary.details || "", /jobs API/);
+    assert.match(statusSummary.details || "", /workflow 결론/);
+    const durationRunCount = Number(
+      statusSummary.usage.match(/Actions 실행시간 (\d+)\//)?.[1] || 0,
+    );
+    if (durationRunCount) {
+      assert.ok(statusSummary.slowestCount > 0, "느린 Actions 실행 상세 링크가 없습니다");
+      assert.equal(statusSummary.slowestValid, true, "느린 실행 링크가 GitHub Actions 주소가 아닙니다");
+    }
   }
   assert.match(statusSummary.usageNote || "", /GitHub 과금값 아님/);
+  if (statusSummary.snapshotCount) {
+    assert.match(statusSummary.snapshotText || "", /원격 통계를 확인한 날의 30일 롤링 집계/);
+  }
   const failureLinks = await evaluate(cdp, `(() => {
     const alert = document.querySelector('[data-testid="smoke-failure-rate"][role="alert"]');
     const container = document.querySelector('[data-testid="smoke-failure-run-links"]');
