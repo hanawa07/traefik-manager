@@ -7,30 +7,19 @@ from tests.infrastructure.security_alert_notifier_fakes import (
     patch_settings,
 )
 
-
-@pytest.mark.asyncio
-async def test_notify_if_needed_posts_operational_change_when_enabled(monkeypatch):
-    posted = []
-    patch_settings(
-        monkeypatch,
-        {
-            "security_alerts_enabled": "true",
-            "change_alerts_enabled": "true",
-            "security_alert_provider": "slack",
-            "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
-            "security_alert_change_route_service_change": "default",
-        },
-    )
-    patch_http_client(monkeypatch, posted)
-
-    result = await security_alert_notifier.notify_if_needed(
-        object(),
-        make_audit_log("service_update", resource_type="service", resource_id="svc-1", resource_name="svc"),
-    )
-
-    assert result is True
-    assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"
-    assert "service_update" in str(posted[0][1])
+SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/AAA/BBB/CCC"
+SLACK_CHANGE_SETTINGS = {
+    "security_alerts_enabled": "true",
+    "change_alerts_enabled": "true",
+    "security_alert_provider": "slack",
+    "security_alert_webhook_url": SLACK_WEBHOOK_URL,
+}
+TELEGRAM_CHANGE_SETTINGS = {
+    "change_alerts_enabled": "true",
+    "security_alert_provider": "telegram",
+    "security_alert_telegram_bot_token": "telegram-secret",
+    "security_alert_telegram_chat_id": "10001",
+}
 
 
 @pytest.mark.asyncio
@@ -46,10 +35,7 @@ async def test_notify_if_needed_posts_smoke_rotation_failure(monkeypatch):
     patch_settings(
         monkeypatch,
         {
-            "change_alerts_enabled": "true",
-            "security_alert_provider": "telegram",
-            "security_alert_telegram_bot_token": "telegram-secret",
-            "security_alert_telegram_chat_id": "10001",
+            **TELEGRAM_CHANGE_SETTINGS,
             "security_alert_change_route_settings_change": "default",
         },
     )
@@ -81,10 +67,7 @@ async def test_notify_if_needed_posts_github_rate_limit_threshold(monkeypatch):
     patch_settings(
         monkeypatch,
         {
-            "change_alerts_enabled": "true",
-            "security_alert_provider": "telegram",
-            "security_alert_telegram_bot_token": "telegram-secret",
-            "security_alert_telegram_chat_id": "10001",
+            **TELEGRAM_CHANGE_SETTINGS,
             "security_alert_change_route_manager_health": "default",
         },
     )
@@ -100,7 +83,10 @@ async def test_notify_if_needed_posts_github_rate_limit_threshold(monkeypatch):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("resource_name", ["traefik-smoke-viewer", "traefik-smoke-admin"])
-async def test_notify_if_needed_skips_routine_smoke_password_rotation(monkeypatch, resource_name):
+async def test_notify_if_needed_skips_routine_smoke_password_rotation(
+    monkeypatch,
+    resource_name,
+):
     posted = []
     audit_log = make_audit_log(
         "user_update",
@@ -109,15 +95,7 @@ async def test_notify_if_needed_skips_routine_smoke_password_rotation(monkeypatc
         resource_name=resource_name,
     )
     audit_log.detail["changed_keys"] = ["password_changed"]
-    patch_settings(
-        monkeypatch,
-        {
-            "change_alerts_enabled": "true",
-            "security_alert_provider": "telegram",
-            "security_alert_telegram_bot_token": "telegram-secret",
-            "security_alert_telegram_chat_id": "10001",
-        },
-    )
+    patch_settings(monkeypatch, TELEGRAM_CHANGE_SETTINGS)
     patch_http_client(monkeypatch, posted)
 
     result = await security_alert_notifier.notify_if_needed(object(), audit_log)
@@ -139,10 +117,7 @@ async def test_notify_if_needed_keeps_smoke_viewer_role_change_alert(monkeypatch
     patch_settings(
         monkeypatch,
         {
-            "change_alerts_enabled": "true",
-            "security_alert_provider": "telegram",
-            "security_alert_telegram_bot_token": "telegram-secret",
-            "security_alert_telegram_chat_id": "10001",
+            **TELEGRAM_CHANGE_SETTINGS,
             "security_alert_change_route_user_change": "default",
         },
     )
@@ -158,42 +133,47 @@ async def test_notify_if_needed_keeps_smoke_viewer_role_change_alert(monkeypatch
 @pytest.mark.parametrize(
     ("event", "resource_type", "route_key"),
     [
+        ("service_update", "service", "security_alert_change_route_service_change"),
         ("service_create", "service", "security_alert_change_route_service_change"),
         ("service_delete", "service", "security_alert_change_route_service_change"),
         ("redirect_create", "redirect", "security_alert_change_route_redirect_change"),
         ("redirect_delete", "redirect", "security_alert_change_route_redirect_change"),
-        ("middleware_create", "middleware", "security_alert_change_route_middleware_change"),
-        ("middleware_delete", "middleware", "security_alert_change_route_middleware_change"),
+        (
+            "middleware_create",
+            "middleware",
+            "security_alert_change_route_middleware_change",
+        ),
+        (
+            "middleware_delete",
+            "middleware",
+            "security_alert_change_route_middleware_change",
+        ),
         ("user_create", "user", "security_alert_change_route_user_change"),
         ("user_delete", "user", "security_alert_change_route_user_change"),
     ],
 )
-async def test_notify_if_needed_posts_operational_create_delete_when_enabled(
+async def test_notify_if_needed_posts_operational_change_when_enabled(
     monkeypatch,
     event,
     resource_type,
     route_key,
 ):
     posted = []
-    patch_settings(
-        monkeypatch,
-        {
-            "security_alerts_enabled": "true",
-            "change_alerts_enabled": "true",
-            "security_alert_provider": "slack",
-            "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
-            route_key: "default",
-        },
-    )
+    patch_settings(monkeypatch, {**SLACK_CHANGE_SETTINGS, route_key: "default"})
     patch_http_client(monkeypatch, posted)
 
     result = await security_alert_notifier.notify_if_needed(
         object(),
-        make_audit_log(event, resource_type=resource_type, resource_id=f"{resource_type}-1", resource_name=resource_type),
+        make_audit_log(
+            event,
+            resource_type=resource_type,
+            resource_id=f"{resource_type}-1",
+            resource_name=resource_type,
+        ),
     )
 
     assert result is True
-    assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"
+    assert posted[0][0] == SLACK_WEBHOOK_URL
     assert event in str(posted[0][1])
 
 
@@ -203,10 +183,7 @@ async def test_notify_if_needed_skips_disabled_operational_change_route(monkeypa
     patch_settings(
         monkeypatch,
         {
-            "security_alerts_enabled": "true",
-            "change_alerts_enabled": "true",
-            "security_alert_provider": "slack",
-            "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+            **SLACK_CHANGE_SETTINGS,
             "security_alert_change_route_rollback": "disabled",
         },
     )
@@ -214,7 +191,12 @@ async def test_notify_if_needed_skips_disabled_operational_change_route(monkeypa
 
     result = await security_alert_notifier.notify_if_needed(
         object(),
-        make_audit_log("service_rollback", resource_type="service", resource_id="svc-1", resource_name="svc"),
+        make_audit_log(
+            "service_rollback",
+            resource_type="service",
+            resource_id="svc-1",
+            resource_name="svc",
+        ),
     )
 
     assert result is False
@@ -222,94 +204,48 @@ async def test_notify_if_needed_skips_disabled_operational_change_route(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_notify_if_needed_posts_certificate_change_when_enabled(monkeypatch):
+@pytest.mark.parametrize(
+    ("event", "route_key", "detail"),
+    [
+        (
+            "certificate_warning",
+            "security_alert_change_route_certificate_status_change",
+            {"days_remaining": 12},
+        ),
+        (
+            "certificate_recovered",
+            "security_alert_change_route_certificate_status_change",
+            {"previous_status": "error"},
+        ),
+        (
+            "certificate_preflight_repeated_failure",
+            "security_alert_change_route_certificate_preflight_failure",
+            {"consecutive_count": 3, "failure_keys": ["dns_public"]},
+        ),
+    ],
+)
+async def test_notify_if_needed_posts_certificate_change_when_enabled(
+    monkeypatch,
+    event,
+    route_key,
+    detail,
+):
     posted = []
     audit_log = make_audit_log(
-        "certificate_warning",
+        event,
         resource_type="certificate",
         resource_id="example.com",
         resource_name="example.com",
     )
-    audit_log.detail["days_remaining"] = 12
-
-    patch_settings(
-        monkeypatch,
-        {
-            "security_alerts_enabled": "true",
-            "change_alerts_enabled": "true",
-            "security_alert_provider": "slack",
-            "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
-            "security_alert_change_route_certificate_status_change": "default",
-        },
-    )
+    audit_log.detail.update(detail)
+    patch_settings(monkeypatch, {**SLACK_CHANGE_SETTINGS, route_key: "default"})
     patch_http_client(monkeypatch, posted)
 
     result = await security_alert_notifier.notify_if_needed(object(), audit_log)
 
     assert result is True
-    assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"
-    assert "certificate_warning" in str(posted[0][1])
-
-
-@pytest.mark.asyncio
-async def test_notify_if_needed_posts_certificate_recovered_when_enabled(monkeypatch):
-    posted = []
-    audit_log = make_audit_log(
-        "certificate_recovered",
-        resource_type="certificate",
-        resource_id="example.com",
-        resource_name="example.com",
-    )
-    audit_log.detail["previous_status"] = "error"
-
-    patch_settings(
-        monkeypatch,
-        {
-            "security_alerts_enabled": "true",
-            "change_alerts_enabled": "true",
-            "security_alert_provider": "slack",
-            "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
-            "security_alert_change_route_certificate_status_change": "default",
-        },
-    )
-    patch_http_client(monkeypatch, posted)
-
-    result = await security_alert_notifier.notify_if_needed(object(), audit_log)
-
-    assert result is True
-    assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"
-    assert "certificate_recovered" in str(posted[0][1])
-
-
-@pytest.mark.asyncio
-async def test_notify_if_needed_posts_certificate_preflight_repeated_failure_when_enabled(monkeypatch):
-    posted = []
-    audit_log = make_audit_log(
-        "certificate_preflight_repeated_failure",
-        resource_type="certificate",
-        resource_id="example.com",
-        resource_name="example.com",
-    )
-    audit_log.detail["consecutive_count"] = 3
-    audit_log.detail["failure_keys"] = ["dns_public"]
-
-    patch_settings(
-        monkeypatch,
-        {
-            "security_alerts_enabled": "true",
-            "change_alerts_enabled": "true",
-            "security_alert_provider": "slack",
-            "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
-            "security_alert_change_route_certificate_preflight_failure": "default",
-        },
-    )
-    patch_http_client(monkeypatch, posted)
-
-    result = await security_alert_notifier.notify_if_needed(object(), audit_log)
-
-    assert result is True
-    assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"
-    assert "certificate_preflight_repeated_failure" in str(posted[0][1])
+    assert posted[0][0] == SLACK_WEBHOOK_URL
+    assert event in str(posted[0][1])
 
 
 @pytest.mark.asyncio
@@ -321,14 +257,10 @@ async def test_notify_if_needed_uses_legacy_certificate_route_for_split_groups(m
         resource_id="example.com",
         resource_name="example.com",
     )
-
     patch_settings(
         monkeypatch,
         {
-            "security_alerts_enabled": "true",
-            "change_alerts_enabled": "true",
-            "security_alert_provider": "slack",
-            "security_alert_webhook_url": "https://hooks.slack.com/services/AAA/BBB/CCC",
+            **SLACK_CHANGE_SETTINGS,
             "security_alert_change_route_certificate_change": "default",
         },
     )
@@ -337,4 +269,4 @@ async def test_notify_if_needed_uses_legacy_certificate_route_for_split_groups(m
     result = await security_alert_notifier.notify_if_needed(object(), audit_log)
 
     assert result is True
-    assert posted[0][0] == "https://hooks.slack.com/services/AAA/BBB/CCC"
+    assert posted[0][0] == SLACK_WEBHOOK_URL
