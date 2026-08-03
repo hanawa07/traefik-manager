@@ -39,6 +39,26 @@ class ExternalWatchdogAlertRunResponse(BaseModel):
     error: str | None = None
 
 
+class TraefikSelfBanEventResponse(BaseModel):
+    event: Literal["auto_recovered", "blocked", "recovered"]
+    occurred_at: datetime
+    jails: list[str] = Field(default_factory=list)
+    unbanned_count: int = Field(default=0, ge=0, le=100)
+
+
+class TraefikSelfBanWatchdogResponse(BaseModel):
+    status: Literal["healthy", "recovered", "blocked", "unknown"] = "unknown"
+    checked_at: datetime | None = None
+    stale: bool = False
+    stale_after_minutes: int = Field(default=5, ge=1, le=60)
+    active_jail_count: int = Field(default=0, ge=0, le=1_000)
+    remaining_jails: list[str] = Field(default_factory=list)
+    last_incident_at: datetime | None = None
+    last_recovery_at: datetime | None = None
+    last_notification_status: Literal["sent", "failed", "disabled"] | None = None
+    events: list[TraefikSelfBanEventResponse] = Field(default_factory=list)
+
+
 class ManagerSettingsHistoryLatencyResponse(BaseModel):
     enabled: bool
     available: bool
@@ -189,6 +209,9 @@ class DockerDeploymentInfoResponse(BaseModel):
     external_watchdog_last_alert_run_checked_at: datetime | None = None
     external_watchdog_last_alert_run_error: str | None = None
     external_watchdog_alert_runs: list[ExternalWatchdogAlertRunResponse] = Field(default_factory=list)
+    traefik_self_ban_watchdog: TraefikSelfBanWatchdogResponse = Field(
+        default_factory=TraefikSelfBanWatchdogResponse
+    )
     http_error_summary: ManagerHttpErrorSummaryResponse | None = None
     http_error_monitor: ManagerHttpErrorMonitorResponse | None = None
     settings_history_latency_monitor: ManagerSettingsHistoryLatencyResponse | None = None

@@ -18,6 +18,7 @@ import { ManagerDeploymentBottleneckStatusCard } from "./ManagerDeploymentBottle
 import { ManagerRouteStatusCard } from "./ManagerRouteStatusCard";
 import { ManagerDeploymentStatusPanel } from "./ManagerDeploymentStatusPanel";
 import { ManagerWatchdogAlertHistory } from "./ManagerWatchdogAlertHistory";
+import { TraefikSelfBanWatchdogCard } from "./TraefikSelfBanWatchdogCard";
 
 interface ManagerDeploymentCardProps {
   deployment?: DeploymentInfo;
@@ -126,6 +127,11 @@ export function ManagerDeploymentCard({
         refreshLatestError={refreshLatestError}
         releaseMessage={versionDisplay.releaseMessage}
         statusUpdatedAt={statusUpdatedAt}
+        timezone={timezone}
+      />
+
+      <TraefikSelfBanWatchdogCard
+        state={deployment?.traefik_self_ban_watchdog}
         timezone={timezone}
       />
 

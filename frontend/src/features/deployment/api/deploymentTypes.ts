@@ -213,6 +213,7 @@ export interface DeploymentInfo {
   external_watchdog_last_alert_run_checked_at: string | null;
   external_watchdog_last_alert_run_error: string | null;
   external_watchdog_alert_runs: ExternalWatchdogAlertRun[];
+  traefik_self_ban_watchdog: TraefikSelfBanWatchdog;
   http_error_summary: ManagerHttpErrorSummary | null;
   http_error_monitor: ManagerHttpErrorMonitorStatus | null;
   settings_history_latency_monitor: ManagerSettingsHistoryLatencyStatus | null;
@@ -222,6 +223,26 @@ export interface DeploymentInfo {
   deployment_history_archive_summary: ManagerDeploymentHistoryArchiveSummary;
   deployment_bottleneck_alert: ManagerDeploymentBottleneckAlert;
   components: DeploymentComponent[];
+}
+
+export interface TraefikSelfBanEvent {
+  event: "auto_recovered" | "blocked" | "recovered";
+  occurred_at: string;
+  jails: string[];
+  unbanned_count: number;
+}
+
+export interface TraefikSelfBanWatchdog {
+  status: "healthy" | "recovered" | "blocked" | "unknown";
+  checked_at: string | null;
+  stale: boolean;
+  stale_after_minutes: number;
+  active_jail_count: number;
+  remaining_jails: string[];
+  last_incident_at: string | null;
+  last_recovery_at: string | null;
+  last_notification_status: "sent" | "failed" | "disabled" | null;
+  events: TraefikSelfBanEvent[];
 }
 
 export interface DeploymentInfoRequest {

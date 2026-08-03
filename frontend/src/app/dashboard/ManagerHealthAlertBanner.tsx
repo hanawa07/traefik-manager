@@ -24,6 +24,9 @@ export function ManagerHealthAlertBanner({
   const watchdogUnhealthy = deployment?.external_watchdog_status === "unhealthy";
   const watchdogStale = deployment?.external_watchdog_stale === true;
   const watchdogStaleMinutes = deployment?.external_watchdog_stale_after_minutes ?? 10;
+  const selfBan = deployment?.traefik_self_ban_watchdog;
+  const selfBanBlocked = selfBan?.status === "blocked";
+  const selfBanStale = selfBan?.stale === true;
   const httpMonitor = deployment?.http_error_monitor;
   const httpErrorsBreached = Boolean(
     httpMonitor?.enabled && httpMonitor.available && httpMonitor.breached,
@@ -39,13 +42,15 @@ export function ManagerHealthAlertBanner({
     unhealthyComponents.length === 0 &&
     !watchdogUnhealthy &&
     !watchdogStale &&
+    !selfBanBlocked &&
+    !selfBanStale &&
     !httpErrorsBreached &&
     !httpMonitorUnavailable &&
     !latencyBreached
   ) return null;
 
   const critical =
-    unhealthyComponents.length > 0 || watchdogUnhealthy || httpErrorsBreached || latencyBreached;
+    unhealthyComponents.length > 0 || watchdogUnhealthy || selfBanBlocked || httpErrorsBreached || latencyBreached;
   const details = unhealthyComponents.map(getFailureDetail);
   if (watchdogUnhealthy) {
     details.push(
@@ -54,6 +59,12 @@ export function ManagerHealthAlertBanner({
   }
   if (watchdogStale) {
     details.push(`외부 watchdog 실행이 ${watchdogStaleMinutes}분 이상 지연됨`);
+  }
+  if (selfBanBlocked) {
+    details.push(`Traefik 자기 차단이 ${selfBan?.remaining_jails.length ?? 0}개 Jail에 남음`);
+  }
+  if (selfBanStale) {
+    details.push(`Traefik 자기 차단 점검이 ${selfBan?.stale_after_minutes ?? 5}분 이상 지연됨`);
   }
   if (httpErrorsBreached && httpMonitor) {
     details.push(

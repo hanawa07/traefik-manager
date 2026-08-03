@@ -235,6 +235,23 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
             ],
         },
     )
+    monkeypatch.setattr(
+        docker,
+        "read_traefik_self_ban_watchdog_state",
+        lambda: {
+            "status": "recovered",
+            "checked_at": requested_at,
+            "stale": False,
+            "events": [
+                {
+                    "event": "auto_recovered",
+                    "occurred_at": requested_at,
+                    "jails": ["traefik-web-probe"],
+                    "unbanned_count": 1,
+                }
+            ],
+        },
+    )
     monkeypatch.setattr(docker, "GitHubActionsRunStatusReader", FakeRunStatusReader)
     monkeypatch.setattr(
         docker,
@@ -301,6 +318,10 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
         "healthy": True,
         "provider": "file",
     }
+    assert result["traefik_self_ban_watchdog"]["status"] == "recovered"
+    assert result["traefik_self_ban_watchdog"]["events"][0]["event"] == (
+        "auto_recovered"
+    )
     assert result["deployment_history"][0]["alert_run_status"] == "completed"
     assert result["deployment_history"][0]["alert_run_conclusion"] == "success"
     assert result["deployment_history"][0]["alert_run_checked_at"] == requested_at
