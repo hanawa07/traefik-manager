@@ -99,7 +99,7 @@ class Service:
 
     @classmethod
     def create(
-        self,
+        cls,
         name: str,
         domain: str,
         upstream_host: str,
@@ -145,13 +145,13 @@ class Service:
             skip_tls_verify=skip_tls_verify,
         )
 
-        normalized_average, normalized_burst = self._normalize_rate_limit(
+        normalized_average, normalized_burst = normalize_rate_limit(
             rate_limit_average=rate_limit_average,
             rate_limit_burst=rate_limit_burst,
         )
 
         now = datetime.now(timezone.utc)
-        service = self(
+        service = cls(
             id=ServiceId(uuid4()),
             name=name,
             domain=DomainName(domain),
@@ -166,21 +166,25 @@ class Service:
             created_at=now,
             updated_at=now,
             https_redirect_enabled=https_redirect_enabled,
-            allowed_ips=self._normalize_allowed_ips(allowed_ips),
-            blocked_paths=self._normalize_blocked_paths(blocked_paths),
+            allowed_ips=normalize_allowed_ips(allowed_ips),
+            blocked_paths=normalize_blocked_paths(blocked_paths),
             rate_limit_average=normalized_average,
             rate_limit_burst=normalized_burst,
-            custom_headers=self._normalize_custom_headers(custom_headers),
-            basic_auth_users=self._normalize_basic_auth_users(basic_auth_users),
-            middleware_template_ids=self._normalize_middleware_template_ids(middleware_template_ids),
+            custom_headers=normalize_custom_headers(custom_headers),
+            basic_auth_users=normalize_basic_auth_users(basic_auth_users),
+            middleware_template_ids=normalize_middleware_template_ids(
+                middleware_template_ids
+            ),
             authentik_group_id=auth_state.authentik_group_id,
             upstream_scheme=transport_state.upstream_scheme,
             skip_tls_verify=transport_state.skip_tls_verify,
-            frame_policy=self._normalize_frame_policy(frame_policy),
+            frame_policy=normalize_frame_policy(frame_policy),
             healthcheck_enabled=healthcheck_enabled,
-            healthcheck_path=self._normalize_healthcheck_path(healthcheck_path),
-            healthcheck_timeout_ms=self._normalize_healthcheck_timeout_ms(healthcheck_timeout_ms),
-            healthcheck_expected_statuses=self._normalize_healthcheck_expected_statuses(
+            healthcheck_path=normalize_healthcheck_path(healthcheck_path),
+            healthcheck_timeout_ms=normalize_healthcheck_timeout_ms(
+                healthcheck_timeout_ms
+            ),
+            healthcheck_expected_statuses=normalize_healthcheck_expected_statuses(
                 healthcheck_expected_statuses
             ),
         )
@@ -261,7 +265,7 @@ class Service:
                 self.basic_auth_users = []
             if auth_state.clear_authentik_group:
                 self.authentik_group_id = None
-        
+
         if https_redirect_enabled is not None:
             ensure_https_redirect_allowed(
                 tls_enabled=self.tls_enabled,
@@ -269,14 +273,14 @@ class Service:
             )
             self.https_redirect_enabled = https_redirect_enabled
         if allowed_ips is not None:
-            self.allowed_ips = self._normalize_allowed_ips(allowed_ips)
+            self.allowed_ips = normalize_allowed_ips(allowed_ips)
         if blocked_paths is not None:
-            self.blocked_paths = self._normalize_blocked_paths(blocked_paths)
+            self.blocked_paths = normalize_blocked_paths(blocked_paths)
         if clear_rate_limit:
             self.rate_limit_average = None
             self.rate_limit_burst = None
         elif rate_limit_average is not None or rate_limit_burst is not None:
-            normalized_average, normalized_burst = self._normalize_rate_limit(
+            normalized_average, normalized_burst = normalize_rate_limit(
                 rate_limit_average=(
                     rate_limit_average if rate_limit_average is not None else self.rate_limit_average
                 ),
@@ -287,27 +291,31 @@ class Service:
             self.rate_limit_average = normalized_average
             self.rate_limit_burst = normalized_burst
         if custom_headers is not None:
-            self.custom_headers = self._normalize_custom_headers(custom_headers)
+            self.custom_headers = normalize_custom_headers(custom_headers)
         if frame_policy is not None:
-            self.frame_policy = self._normalize_frame_policy(frame_policy)
+            self.frame_policy = normalize_frame_policy(frame_policy)
         if healthcheck_enabled is not None:
             self.healthcheck_enabled = healthcheck_enabled
         if healthcheck_path is not None:
-            self.healthcheck_path = self._normalize_healthcheck_path(healthcheck_path)
+            self.healthcheck_path = normalize_healthcheck_path(healthcheck_path)
         if healthcheck_timeout_ms is not None:
-            self.healthcheck_timeout_ms = self._normalize_healthcheck_timeout_ms(healthcheck_timeout_ms)
+            self.healthcheck_timeout_ms = normalize_healthcheck_timeout_ms(
+                healthcheck_timeout_ms
+            )
         if healthcheck_expected_statuses is not None:
-            self.healthcheck_expected_statuses = self._normalize_healthcheck_expected_statuses(
+            self.healthcheck_expected_statuses = normalize_healthcheck_expected_statuses(
                 healthcheck_expected_statuses
             )
-        
+
         if basic_auth_users is not None:
-            normalized_basic_auth_users = self._normalize_basic_auth_users(basic_auth_users)
+            normalized_basic_auth_users = normalize_basic_auth_users(basic_auth_users)
             ensure_basic_auth_allowed(self.auth_enabled, normalized_basic_auth_users)
             self.basic_auth_users = normalized_basic_auth_users
-            
+
         if middleware_template_ids is not None:
-            self.middleware_template_ids = self._normalize_middleware_template_ids(middleware_template_ids)
+            self.middleware_template_ids = normalize_middleware_template_ids(
+                middleware_template_ids
+            )
         if authentik_group_id is not None:
             self.authentik_group_id = authentik_group_id if self.auth_mode == "authentik" else None
 
@@ -345,14 +353,3 @@ class Service:
     @property
     def basic_auth_usernames(self) -> list[str]:
         return [user.split(":")[0] for user in self.basic_auth_users]
-
-    _normalize_frame_policy = staticmethod(normalize_frame_policy)
-    _normalize_healthcheck_path = staticmethod(normalize_healthcheck_path)
-    _normalize_healthcheck_timeout_ms = staticmethod(normalize_healthcheck_timeout_ms)
-    _normalize_healthcheck_expected_statuses = staticmethod(normalize_healthcheck_expected_statuses)
-    _normalize_allowed_ips = staticmethod(normalize_allowed_ips)
-    _normalize_rate_limit = staticmethod(normalize_rate_limit)
-    _normalize_custom_headers = staticmethod(normalize_custom_headers)
-    _normalize_basic_auth_users = staticmethod(normalize_basic_auth_users)
-    _normalize_middleware_template_ids = staticmethod(normalize_middleware_template_ids)
-    _normalize_blocked_paths = staticmethod(normalize_blocked_paths)
