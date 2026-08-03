@@ -2,6 +2,7 @@
 set -euo pipefail
 
 readonly CURL_BIN="${TM_DEPLOY_PROBE_CURL_BIN:-curl}"
+readonly CURL_RESOLVE="${TM_DEPLOY_PROBE_CURL_RESOLVE:-}"
 readonly DEFAULT_INTERVAL_SECONDS="${TM_DEPLOY_PROBE_INTERVAL_SECONDS:-0.2}"
 readonly DEFAULT_TIMEOUT_SECONDS="${TM_DEPLOY_PROBE_TIMEOUT_SECONDS:-3}"
 
@@ -12,11 +13,16 @@ run_probe() {
   local interval_seconds="${4:-${DEFAULT_INTERVAL_SECONDS}}"
   local timeout_seconds="${5:-${DEFAULT_TIMEOUT_SECONDS}}"
   local result status duration
+  local -a resolve_args=()
+  if [[ -n "${CURL_RESOLVE}" ]]; then
+    resolve_args=(--resolve "${CURL_RESOLVE}")
+  fi
 
   : > "${output_file}"
   while [[ ! -e "${stop_file}" ]]; do
     result="$(
       "${CURL_BIN}" --silent --show-error --output /dev/null \
+        "${resolve_args[@]}" \
         --max-time "${timeout_seconds}" \
         --write-out '%{http_code} %{time_total}' \
         "${url}" 2>/dev/null

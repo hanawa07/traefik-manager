@@ -113,6 +113,7 @@ scripts/blue-green-deploy.sh vX.Y.Z
 - 배포는 새 leader가 서비스·Authentik·대시보드 동적 설정 startup 동기화를 완료한 뒤에만 공개 검증과 상태 확정을 진행합니다.
 - route 반영 후 기존 연결을 기본 2초간 drain한 뒤 이전 backend를 종료합니다. 필요하면 `TM_BLUE_GREEN_DRAIN_SECONDS`로 조정합니다.
 - 전환 구간에는 공개 `/api/health`를 0.2초 간격으로 측정하며 한 건이라도 200이 아니면 이전 슬롯으로 자동 rollback합니다.
+- 호스트에서 자기 공인 IP로 돌아오는 self-hairpin이 실패하면 Traefik 컨테이너 IP를 자동 탐색하고, 같은 공개 호스트명·TLS SNI를 유지한 내부 경로로 health probe를 계속합니다.
 - active slot, revision, version은 `~/.local/state/traefik-manager/blue-green-deployment.state`에 원자 기록됩니다.
 - 배포 성공·전환 전 중단·자동 rollback·rollback 실패와 공개 probe 결과는 같은 디렉터리의 `blue-green-deployments.jsonl`에 추가됩니다. 대시보드에서 최근 20건을 상태별로 필터링하고 실패 단계별 건수를 확인하며 해당 커밋과 릴리즈를 바로 열 수 있습니다.
 - 성공 배포의 가장 느린 단계가 기본 60초를 초과한 상태로 3회 연속 이어지면 `host-operation-alert.yml`을 한 번 요청합니다. 같은 연속 구간에서는 중복 알림을 보내지 않고 정상 또는 실패 기록이 나오면 사건 상태를 해제합니다. 기준·횟수·이벤트 보관 기간은 관리자 설정 화면에서 조정하며, 호스트 환경 변수 `TM_DEPLOY_BOTTLENECK_ALERT_THRESHOLD_MS`, `TM_DEPLOY_BOTTLENECK_ALERT_CONSECUTIVE`, `TM_DEPLOY_BOTTLENECK_EVENT_RETENTION_DAYS`가 있으면 해당 값이 우선합니다. 이벤트는 `traefik-config/.runtime`에 기본 90일과 최대 100건 중 먼저 도달한 기준까지 보관하고 다음 배포 검사 또는 설정 화면의 `지금 정리`로 정리합니다. 배포 검사 시 보관량이 80건에 도달하면 Telegram 경고를 한 번 보내고 80건 미만으로 내려가면 복구를 한 번 알립니다. 설정 화면은 보관 건수·범위와 호스트 적용값·출처를 표시하고, 대시보드는 마지막 검사 상태와 최근 알림 발생·해제 이력을 보여줍니다.

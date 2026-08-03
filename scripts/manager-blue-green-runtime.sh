@@ -30,6 +30,63 @@ resolve_health_url() {
   printf '%s/api/health\n' "${base_url%/}"
 }
 
+build_health_curl_resolve() {
+  local url="$1"
+  local address="$2"
+  local authority host port
+  authority="${url#*://}"
+  authority="${authority%%/*}"
+  host="${authority%%:*}"
+  if [[ "${authority}" == *:* ]]; then
+    port="${authority##*:}"
+  elif [[ "${url}" == https://* ]]; then
+    port=443
+  else
+    port=80
+  fi
+  printf '%s:%s:%s\n' "${host}" "${port}" "${address}"
+}
+
+probe_health_url() {
+  local url="$1"
+  local timeout_seconds="${2:-5}"
+  local -a resolve_args=()
+  if [[ -n "${health_curl_resolve:-}" ]]; then
+    resolve_args=(--resolve "${health_curl_resolve}")
+  fi
+  curl --silent --show-error --fail --max-time "${timeout_seconds}" \
+    "${resolve_args[@]}" "${url}"
+}
+
+configure_health_probe() {
+  local url="$1"
+  local address
+  if [[ -n "${health_curl_resolve:-}" ]]; then
+    probe_health_url "${url}" >/dev/null
+    return
+  fi
+  if probe_health_url "${url}" >/dev/null 2>&1; then
+    return
+  fi
+
+  while IFS= read -r address; do
+    [[ -n "${address}" ]] || continue
+    health_curl_resolve="$(build_health_curl_resolve "${url}" "${address}")"
+    if probe_health_url "${url}" 2 >/dev/null 2>&1; then
+      echo "공인 self-probe를 Traefik 내부 경로로 대체합니다: ${address}"
+      return
+    fi
+  done < <(
+    docker inspect --format \
+      '{{range .NetworkSettings.Networks}}{{println .IPAddress}}{{end}}' \
+      traefik 2>/dev/null | awk 'NF && !seen[$0]++'
+  )
+
+  health_curl_resolve=""
+  echo "Manager 공개 health와 Traefik 내부 fallback에 모두 연결하지 못했습니다" >&2
+  return 1
+}
+
 infer_active_slot() {
   local route_file="$1"
   if [[ ! -f "${route_file}" ]]; then

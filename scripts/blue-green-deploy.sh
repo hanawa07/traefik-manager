@@ -30,6 +30,7 @@ source "${SCRIPT_DIR}/manager-blue-green-recovery.sh"
 probe_pid=""
 probe_file=""
 probe_stop_file=""
+health_curl_resolve="${TM_BLUE_GREEN_CURL_RESOLVE:-}"
 state_backup_file=""
 state_existed=0
 switched=0
@@ -83,7 +84,7 @@ flock -n 9 || { echo "다른 Manager 배포가 실행 중입니다" >&2; exit 1;
 trap 'rollback $?' EXIT
 
 health_url="$(resolve_health_url)"
-curl --silent --show-error --fail --max-time 5 "${health_url}" >/dev/null
+configure_health_probe "${health_url}"
 previous_slot="$(infer_active_slot "${ROUTE_FILE}")"
 if [[ "${previous_slot}" == "unknown" ]]; then
   echo "현재 Manager active route를 판별하지 못했습니다" >&2
@@ -119,7 +120,7 @@ sleep "${DRAIN_SECONDS}"
 docker stop --time 15 "$(backend_for_slot "${previous_slot}")" >/dev/null
 wait_background_leader_ready "$(backend_for_slot "${candidate_slot}")" "${candidate_slot}"
 manager_deployment_stage_start public_probe
-curl --silent --show-error --fail --max-time 5 "${health_url}" >/dev/null
+probe_health_url "${health_url}" >/dev/null
 sleep 1
 stop_probe
 "${PROBE_SCRIPT}" assert "${probe_file}" 5

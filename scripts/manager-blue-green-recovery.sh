@@ -93,8 +93,9 @@ restore_state() {
 start_probe() {
   probe_file="$(mktemp "${STATE_DIR}/deployment-probe.XXXXXX")"
   probe_stop_file="${probe_file}.stop"
-  "${PROBE_SCRIPT}" run "${health_url}" "${probe_file}" "${probe_stop_file}" \
-    "${PROBE_INTERVAL_SECONDS}" &
+  TM_DEPLOY_PROBE_CURL_RESOLVE="${health_curl_resolve:-}" \
+    "${PROBE_SCRIPT}" run "${health_url}" "${probe_file}" "${probe_stop_file}" \
+      "${PROBE_INTERVAL_SECONDS}" &
   probe_pid=$!
   sleep 0.5
 }
