@@ -134,8 +134,10 @@ scripts/blue-green-deploy.sh vX.Y.Z
 
 Compose 파일명이 기본 `docker-compose.yml`이 아니면 Traefik 디렉터리 기준 상대 경로를 설치할 때 함께 지정합니다. 단일 파일은 기존 `TM_TRAEFIK_UPDATE_COMPOSE_FILE`도 계속 지원합니다. 여러 overlay를 사용하는 경우 실제 적용 순서대로 쉼표로 연결합니다. 예: `TM_TRAEFIK_UPDATE_COMPOSE_FILES=compose.yml,compose.prod.yml scripts/install-traefik-update-runner.sh`.
 
+기본 배치와 다르면 설치 시 `TM_TRAEFIK_UPDATE_ACME_FILE`, `TM_TRAEFIK_UPDATE_SERVICE`, `TM_TRAEFIK_UPDATE_CONTAINER`, `TM_TRAEFIK_UPDATE_NETWORK`를 함께 지정합니다. 설치기는 이 값을 user systemd unit에 고정하고 ACME 상대 경로·일반 파일·비어 있지 않음과 이름 형식을 먼저 검증합니다. 예: `TM_TRAEFIK_UPDATE_ACME_FILE=certificates/acme-prod.json TM_TRAEFIK_UPDATE_SERVICE=edge-proxy TM_TRAEFIK_UPDATE_CONTAINER=edge-traefik TM_TRAEFIK_UPDATE_NETWORK=edge_net scripts/install-traefik-update-runner.sh`.
+
 - backend에는 Docker 쓰기 권한 대신 ACL로 backend UID만 허용한 `traefik-update-requests` 디렉터리 하나를 쓰기 가능으로 마운트합니다.
-- 자동 요청은 동일 메이저·마이너의 상향 패치 버전만 허용하고, 호스트 실행기가 공식 Traefik 이미지·Compose 서비스·`proxy_net`·ACME 파일을 다시 검증합니다.
+- 자동 요청은 동일 메이저·마이너의 상향 패치 버전만 허용하고, 호스트 실행기가 공식 Traefik 이미지·Compose 서비스·설정된 Docker 네트워크·ACME 파일을 다시 검증합니다.
 - 실행기는 Compose와 `acme.json`을 백업한 뒤 Traefik 서비스만 재생성합니다. 컨테이너 버전·네트워크·Manager 공개 health 검증이 실패하면 이전 Compose로 자동 롤백합니다.
 - 요청, 백업 위치, 검증, 롤백 결과는 `~/.local/state/traefik-manager/traefik-updates.jsonl`에 최대 200줄로 보관되며 대시보드에서 확인할 수 있습니다.
 

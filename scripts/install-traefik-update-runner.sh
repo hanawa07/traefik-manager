@@ -9,6 +9,10 @@ readonly STATE_DIR="${TM_MANAGER_DEPLOY_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.lo
 readonly REQUEST_DIR="${TM_TRAEFIK_UPDATE_REQUEST_DIR:-${STATE_DIR}/traefik-update-requests}"
 readonly TRAEFIK_DIR="${TM_TRAEFIK_UPDATE_COMPOSE_DIR:-${HOME}/docker/traefik}"
 readonly TRAEFIK_COMPOSE_FILES="${TM_TRAEFIK_UPDATE_COMPOSE_FILES:-${TM_TRAEFIK_UPDATE_COMPOSE_FILE:-docker-compose.yml}}"
+readonly TRAEFIK_ACME_FILE="${TM_TRAEFIK_UPDATE_ACME_FILE:-letsencrypt/acme.json}"
+readonly TRAEFIK_SERVICE="${TM_TRAEFIK_UPDATE_SERVICE:-traefik}"
+readonly TRAEFIK_CONTAINER="${TM_TRAEFIK_UPDATE_CONTAINER:-traefik}"
+readonly TRAEFIK_NETWORK="${TM_TRAEFIK_UPDATE_NETWORK:-proxy_net}"
 readonly UNIT_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
 readonly SERVICE_NAME="traefik-manager-traefik-update.service"
 readonly PATH_NAME="traefik-manager-traefik-update.path"
@@ -37,6 +41,13 @@ validate_relative_path() {
     || { echo "${label} 경로가 올바르지 않습니다: ${value}" >&2; exit 2; }
   [[ "/${value}/" != *"/../"* ]] \
     || { echo "${label} 경로는 Traefik 디렉터리 내부여야 합니다" >&2; exit 2; }
+}
+
+validate_name() {
+  local label="$1"
+  local value="$2"
+  [[ "${value}" =~ ^[A-Za-z0-9_.-]{1,100}$ ]] \
+    || { echo "${label} 이름이 올바르지 않습니다: ${value}" >&2; exit 2; }
 }
 
 validate_compose_files() {
@@ -85,6 +96,10 @@ write_service_unit() {
     printf 'Environment=TM_TRAEFIK_UPDATE_REQUEST_DIR=%s\n' "${REQUEST_DIR}"
     printf 'Environment=TM_TRAEFIK_UPDATE_COMPOSE_DIR=%s\n' "${TRAEFIK_DIR}"
     printf 'Environment=TM_TRAEFIK_UPDATE_COMPOSE_FILES=%s\n' "${TRAEFIK_COMPOSE_FILES}"
+    printf 'Environment=TM_TRAEFIK_UPDATE_ACME_FILE=%s\n' "${TRAEFIK_ACME_FILE}"
+    printf 'Environment=TM_TRAEFIK_UPDATE_SERVICE=%s\n' "${TRAEFIK_SERVICE}"
+    printf 'Environment=TM_TRAEFIK_UPDATE_CONTAINER=%s\n' "${TRAEFIK_CONTAINER}"
+    printf 'Environment=TM_TRAEFIK_UPDATE_NETWORK=%s\n' "${TRAEFIK_NETWORK}"
     if [[ -n "${health_url}" ]]; then
       printf 'Environment=TM_TRAEFIK_MANAGER_HEALTH_URL=%s\n' "${health_url}"
     fi
@@ -129,6 +144,10 @@ validate_path "상태" "${STATE_DIR}"
 validate_path "요청" "${REQUEST_DIR}"
 validate_path "Traefik" "${TRAEFIK_DIR}"
 validate_compose_files "${TRAEFIK_COMPOSE_FILES}"
+validate_relative_path "ACME 파일" "${TRAEFIK_ACME_FILE}"
+validate_name "Compose 서비스" "${TRAEFIK_SERVICE}"
+validate_name "컨테이너" "${TRAEFIK_CONTAINER}"
+validate_name "Docker 네트워크" "${TRAEFIK_NETWORK}"
 [[ "${BACKEND_UID}" =~ ^[1-9][0-9]*$ ]] \
   || { echo "backend UID가 올바르지 않습니다: ${BACKEND_UID}" >&2; exit 2; }
 command -v docker >/dev/null || { echo "docker 명령을 찾을 수 없습니다" >&2; exit 1; }
@@ -139,6 +158,8 @@ for compose_file in "${compose_files[@]}"; do
   [[ -f "${TRAEFIK_DIR}/${compose_file}" ]] \
     || { echo "Traefik Compose 파일을 찾을 수 없습니다: ${compose_file}" >&2; exit 1; }
 done
+[[ -f "${TRAEFIK_DIR}/${TRAEFIK_ACME_FILE}" && -s "${TRAEFIK_DIR}/${TRAEFIK_ACME_FILE}" ]] \
+  || { echo "Traefik ACME 파일이 없거나 비어 있습니다: ${TRAEFIK_ACME_FILE}" >&2; exit 1; }
 
 install -d -m 0755 "${STATE_DIR}" "${UNIT_DIR}"
 prepare_request_dir

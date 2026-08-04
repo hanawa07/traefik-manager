@@ -12,27 +12,33 @@ compose_dir="${temporary_dir}/traefik"
 compose_base_filename="compose.yml"
 compose_overlay_filename="compose.prod.yml"
 compose_filenames="${compose_base_filename},${compose_overlay_filename}"
+acme_filename="certificates/acme-prod.json"
+compose_service="edge-proxy"
+traefik_container="edge-traefik"
+traefik_network="edge_net"
 fake_docker="${temporary_dir}/docker"
 fake_curl="${temporary_dir}/curl"
 fake_alert="${temporary_dir}/host-alert"
 alert_capture="${temporary_dir}/host-alert-arguments"
 docker_log="${temporary_dir}/docker.log"
-mkdir -p "${request_dir}" "${compose_dir}/letsencrypt"
+mkdir -p "${request_dir}" "${compose_dir}/certificates"
 printf '%s\n' 'traefik:v3.7.8' > "${temporary_dir}/image"
-printf '%s\n' 'acme-state' > "${compose_dir}/letsencrypt/acme.json"
-printf '%s\n' 'services:' '  traefik:' '    command: --api.insecure=true' \
+printf '%s\n' 'acme-state' > "${compose_dir}/${acme_filename}"
+printf '%s\n' 'services:' "  ${compose_service}:" '    command: --api.insecure=true' \
   > "${compose_dir}/${compose_base_filename}"
-printf '%s\n' 'services:' '  traefik:' '    image: traefik:v3.7.8' \
+printf '%s\n' 'services:' "  ${compose_service}:" '    image: traefik:v3.7.8' \
   > "${compose_dir}/${compose_overlay_filename}"
 
 cat > "${fake_docker}" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "${1:-}" == "inspect" ]]; then
+  printf 'inspect|%s|%s\n' "${3:-}" "${4:-}" >> "${TM_TEST_DOCKER_LOG}"
+  [[ "${4:-}" == "${TM_TEST_CONTAINER}" ]] || exit 45
   case "${3:-}" in
     '{{.Config.Image}}') cat "${TM_TEST_IMAGE_FILE}" ;;
     '{{.State.Running}}') printf '%s\n' 'true' ;;
-    '{{json .NetworkSettings.Networks}}') printf '%s\n' '{"proxy_net":{}}' ;;
+    '{{json .NetworkSettings.Networks}}') printf '{"%s":{}}\n' "${TM_TEST_NETWORK}" ;;
     *) awk -F: '{print $NF}' "${TM_TEST_IMAGE_FILE}" ;;
   esac
   exit 0
@@ -49,7 +55,7 @@ if [[ "${1:-}" == "compose" ]]; then
   printf '%s|%s|%s\n' "${action}" "${compose_files[*]}" "$*" >> "${TM_TEST_DOCKER_LOG}"
   case "${action}" in
     config)
-      printf '%s\n' 'traefik'
+      printf '%s\n' "${TM_TEST_SERVICE}"
       ;;
     pull)
       if [[ "${TM_TEST_MUTATE_BASE_ON_PULL:-false}" == "true" ]]; then
@@ -120,6 +126,10 @@ run_runner() {
     TM_MANAGER_DEPLOY_STATE_DIR="${state_dir}" \
     TM_TRAEFIK_UPDATE_REQUEST_DIR="${request_dir}" \
     TM_TRAEFIK_UPDATE_COMPOSE_DIR="${compose_dir}" \
+    TM_TRAEFIK_UPDATE_ACME_FILE="${acme_filename}" \
+    TM_TRAEFIK_UPDATE_SERVICE="${compose_service}" \
+    TM_TRAEFIK_UPDATE_CONTAINER="${traefik_container}" \
+    TM_TRAEFIK_UPDATE_NETWORK="${traefik_network}" \
     TM_TRAEFIK_MANAGER_HEALTH_URL="https://manager.example.com/api/health" \
     TM_TRAEFIK_UPDATE_DOCKER_BIN="${fake_docker}" \
     TM_TRAEFIK_UPDATE_CURL_BIN="${fake_curl}" \
@@ -131,6 +141,9 @@ run_runner() {
     TM_TEST_MUTATE_BASE_ON_PULL="${TM_TEST_MUTATE_BASE_ON_PULL:-false}" \
     TM_TEST_IMAGE_FILE="${temporary_dir}/image" \
     TM_TEST_DOCKER_LOG="${docker_log}" \
+    TM_TEST_SERVICE="${compose_service}" \
+    TM_TEST_CONTAINER="${traefik_container}" \
+    TM_TEST_NETWORK="${traefik_network}" \
     "${compose_environment[@]}" \
     "${SCRIPT_DIR}/traefik-update-runner.py"
 }
@@ -149,8 +162,10 @@ find "${compose_dir}/backups" -type f -name acme.json -print -quit | grep -q .
 find "${compose_dir}/backups" -type f -path "*/compose/${compose_base_filename}" -print -quit | grep -q .
 find "${compose_dir}/backups" -type f -path "*/compose/${compose_overlay_filename}" -print -quit | grep -q .
 grep -Fq "config|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_overlay_filename}|--services" "${docker_log}"
-grep -Fq "pull|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_overlay_filename}|traefik" "${docker_log}"
-grep -Fq "up|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_overlay_filename}|-d traefik" "${docker_log}"
+grep -Fq "pull|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_overlay_filename}|${compose_service}" "${docker_log}"
+grep -Fq "up|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_overlay_filename}|-d ${compose_service}" "${docker_log}"
+grep -Fq "inspect|{{.Config.Image}}|${traefik_container}" "${docker_log}"
+grep -Fq "inspect|{{json .NetworkSettings.Networks}}|${traefik_container}" "${docker_log}"
 [[ "$(wc -l < "${state_dir}/traefik-updates.jsonl")" -eq 200 ]]
 
 write_request '22222222-2222-4222-8222-222222222222' 'v3.8.0'
@@ -158,13 +173,13 @@ run_runner
 grep -Fq '"status":"rejected"' "${state_dir}/traefik-updates.jsonl"
 grep -Fq 'image: traefik:v3.7.9' "${compose_dir}/${compose_overlay_filename}"
 
-printf '%s\n' 'services:' '  traefik:' '    image: traefik:v3.7.9' \
+printf '%s\n' 'services:' "  ${compose_service}:" '    image: traefik:v3.7.9' \
   > "${compose_dir}/${compose_base_filename}"
 write_request '22222222-2222-4222-8222-222222222223' 'v3.7.10'
 run_runner
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"status":"rejected"'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '정확히 한 곳에서 찾지 못했습니다'
-printf '%s\n' 'services:' '  traefik:' '    command: --api.insecure=true' \
+printf '%s\n' 'services:' "  ${compose_service}:" '    command: --api.insecure=true' \
   > "${compose_dir}/${compose_base_filename}"
 
 write_request '33333333-3333-4333-8333-333333333333' 'v3.7.10'
