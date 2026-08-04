@@ -139,7 +139,11 @@ def _build_commands(*, compose: dict, current_image: str | None, target_image: s
             {
                 "label": "상태 확인",
                 "description": "Traefik API와 최근 로그를 확인합니다.",
-                "command": f"cd {working_dir} && curl -fsS http://127.0.0.1:8080/api/version && docker compose logs --tail=100 {service}",
+                "command": (
+                    f"cd {working_dir} && docker compose exec -T {service} "
+                    f"wget -qO- http://127.0.0.1:8080/api/version && "
+                    f"docker compose logs --tail=100 {service}"
+                ),
             },
         ]
     )

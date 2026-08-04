@@ -39,6 +39,12 @@ async def test_traefik_deployment_status_builds_compose_update_commands(monkeypa
         "acme_storage": "ok",
     }
     assert any("traefik:v3.7.6" in item["command"] for item in result["commands"])
+    status_command = next(item["command"] for item in result["commands"] if item["label"] == "상태 확인")
+    assert (
+        "docker compose exec -T traefik wget -qO- "
+        "http://127.0.0.1:8080/api/version"
+    ) in status_command
+    assert "curl -fsS http://127.0.0.1:8080/api/version" not in status_command
 
 
 @pytest.mark.asyncio
