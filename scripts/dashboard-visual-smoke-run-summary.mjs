@@ -109,13 +109,13 @@ export async function checkSmokeRunSummary({ cdp, timeoutMs }) {
     const csv = await captureSmokeCsv(cdp, "smoke-statistics-csv");
     assert.deepEqual(csv.bytes, [239, 187, 191], "스모크 통계 CSV UTF-8 BOM이 없습니다");
     assert.match(csv.filename, /^traefik-manager-smoke-statistics-\d{4}-\d{2}-\d{2}\.csv$/);
-    assert.match(csv.text, /^\uFEFF"captured_on","window_days"/);
+    assert.match(csv.text, /^"captured_on","window_days"/);
   }
   if (statusSummary.localRunCount > 0) {
     const csv = await captureSmokeCsv(cdp, "smoke-local-runs-csv");
     assert.deepEqual(csv.bytes, [239, 187, 191], "스모크 로컬 이력 CSV UTF-8 BOM이 없습니다");
     assert.match(csv.filename, /^traefik-manager-smoke-local-runs-\d{4}-\d{2}-\d{2}\.csv$/);
-    assert.match(csv.text, /^\uFEFF"run_id","status","started_at"/);
+    assert.match(csv.text, /^"run_id","status","started_at"/);
     assert.match(csv.text, /"run_url".*\/actions\/runs\//s);
     await checkSmokeLocalRunFilters(cdp, timeoutMs);
   }

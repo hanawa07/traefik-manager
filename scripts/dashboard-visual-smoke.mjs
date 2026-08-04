@@ -32,12 +32,16 @@ import { checkSmokeRunTrendRange } from "./dashboard-visual-smoke-run-monitoring
 import { checkTraefikUpdateHistory } from "./dashboard-visual-traefik-update-history.mjs";
 import { checkWatchdogFilterPersistence } from "./dashboard-visual-watchdog.mjs";
 
+const SMOKE_HISTORY_RESTRICTED_MARKER =
+  "GitHub 실행 통계와 로컬 콜백 이력은 관리자 계정에서 확인합니다.";
+
 export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabilities, cdp, timeoutMs }) {
   const labels = [];
   for (const profile of VISUAL_PROFILES) {
     await withVisualProfile(cdp, profile, async () => {
       for (const route of DASHBOARD_ROUTES) {
-        await checkVisualRoute({ artifactDir, baseUrl, cdp, profile, route, timeoutMs });
+        const sessionRoute = buildSessionRoute(route, capabilities.canManage);
+        await checkVisualRoute({ artifactDir, baseUrl, cdp, profile, route: sessionRoute, timeoutMs });
         if (route.path === "/dashboard") {
           await checkSmokeRunTrendRange({ cdp, timeoutMs });
           labels.push(`${profile.label} 운영 점검 7일·30일 실행시간·로컬 필터 URL·CSV·배포 커밋`);
@@ -150,7 +154,12 @@ export async function runDashboardVisualSmokeSelfTest() {
   assert.ok(dashboardRoute.requiredMarkers.includes("운영 스모크 커밋"));
   assert.ok(
     dashboardRoute.requiredMarkers.includes(
-      "GitHub 실행 통계와 로컬 콜백 이력은 관리자 계정에서 확인합니다.",
+      SMOKE_HISTORY_RESTRICTED_MARKER,
+    ),
+  );
+  assert.ok(
+    !buildSessionRoute(dashboardRoute, true).requiredMarkers.includes(
+      SMOKE_HISTORY_RESTRICTED_MARKER,
     ),
   );
   assert.ok(dashboardRoute.requiredMarkers.includes("경로 필터"));
@@ -167,4 +176,14 @@ export async function runDashboardVisualSmokeSelfTest() {
   assert.ok(settingsRoute.requiredMarkers.includes("호스트 현재 적용"));
   assert.ok(settingsRoute.requiredMarkers.includes("적용 출처"));
   runDashboardVisualPageChecksSelfTest();
+}
+
+function buildSessionRoute(route, canManage) {
+  if (!canManage || route.path !== "/dashboard") return route;
+  return {
+    ...route,
+    requiredMarkers: route.requiredMarkers?.filter(
+      (marker) => marker !== SMOKE_HISTORY_RESTRICTED_MARKER,
+    ),
+  };
 }
