@@ -37,3 +37,4 @@ traefik-config/.background-tasks.lock
 traefik-config/.runtime/
 # 정적 설정 파일은 추적
 !traefik-config/dynamic/security-headers.yml
+!traefik-config/dynamic/global-sensitive-paths.yml

@@ -1,0 +1,27 @@
+# Reject high-confidence secret and diagnostic paths before authentication or upstream routing.
+http:
+  routers:
+    global-sensitive-paths-http:
+      entryPoints:
+        - web
+      rule: 'PathRegexp(`(?i)^/([^/]+/)*(\.env([./]|$)|\.git(/|$)|\.htaccess(/|$)|vendor/phpunit(/|$)|(phpinfo|info)\.php(/|$)|wp-config(\.php)?([.~]|/|$)|wp-config-(sample|docker)\.php([./~]|$)|etc/passwd(/|$)|proc/self/environ(/|$)|id_(rsa|dsa|ecdsa|ed25519)(/|$)|docker-compose\.ya?ml(/|$))`)'
+      priority: 10000
+      service: noop@internal
+      middlewares:
+        - global-sensitive-path-deny
+
+    global-sensitive-paths-https:
+      entryPoints:
+        - websecure
+      rule: 'PathRegexp(`(?i)^/([^/]+/)*(\.env([./]|$)|\.git(/|$)|\.htaccess(/|$)|vendor/phpunit(/|$)|(phpinfo|info)\.php(/|$)|wp-config(\.php)?([.~]|/|$)|wp-config-(sample|docker)\.php([./~]|$)|etc/passwd(/|$)|proc/self/environ(/|$)|id_(rsa|dsa|ecdsa|ed25519)(/|$)|docker-compose\.ya?ml(/|$))`)'
+      priority: 10000
+      service: noop@internal
+      middlewares:
+        - global-sensitive-path-deny
+      tls: {}
+
+  middlewares:
+    global-sensitive-path-deny:
+      ipAllowList:
+        sourceRange:
+          - 255.255.255.255/32
