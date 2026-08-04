@@ -10,15 +10,19 @@ from traefik_update_models import (
     is_forward_patch,
     version_from_image,
 )
-from traefik_update_runtime import _docker_inspect, _run
+from traefik_update_runtime import _compose_command, _docker_inspect, _run
 from traefik_update_storage import atomic_write
 
 
 def _preflight(config: RunnerConfig, target_version: str) -> Preflight:
-    if not config.compose_file.is_file() or not config.acme_file.is_file():
+    if (
+        not config.compose_files
+        or any(not compose_file.is_file() for compose_file in config.compose_files)
+        or not config.acme_file.is_file()
+    ):
         raise UpdateRejectedError("Compose 또는 ACME 파일을 찾을 수 없습니다")
     if (
-        config.compose_dir not in config.compose_file.parents
+        any(config.compose_dir not in compose_file.parents for compose_file in config.compose_files)
         or config.compose_dir not in config.acme_file.parents
     ):
         raise UpdateRejectedError(
@@ -52,10 +56,7 @@ def _preflight(config: RunnerConfig, target_version: str) -> Preflight:
         )
     services = _run(
         [
-            config.docker_bin,
-            "compose",
-            "-f",
-            str(config.compose_file),
+            *_compose_command(config),
             "config",
             "--services",
         ]
@@ -63,12 +64,13 @@ def _preflight(config: RunnerConfig, target_version: str) -> Preflight:
     if config.service not in services:
         raise UpdateRejectedError("Traefik Compose 서비스를 확인할 수 없습니다")
     target_image = f"{repository}:{target_version}"
-    compose_text = config.compose_file.read_text(encoding="utf-8")
-    if compose_text.count(f"image: {current_image}") != 1:
-        raise UpdateRejectedError(
-            "Compose의 현재 Traefik 이미지 태그를 정확히 찾지 못했습니다"
-        )
-    return Preflight(current_image, current_version, target_image)
+    image_compose_file = _find_image_compose_file(config.compose_files, current_image)
+    return Preflight(
+        current_image,
+        current_version,
+        target_image,
+        image_compose_file,
+    )
 
 
 def _create_backup(config: RunnerConfig, request_id: str) -> Path:
@@ -80,12 +82,42 @@ def _create_backup(config: RunnerConfig, request_id: str) -> Path:
     )
     backup_dir.mkdir(mode=0o700, parents=True, exist_ok=False)
     try:
-        shutil.copy2(config.compose_file, backup_dir / config.compose_file.name)
+        for compose_file in config.compose_files:
+            destination = _compose_backup_path(config, backup_dir, compose_file)
+            destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            shutil.copy2(compose_file, destination)
         shutil.copy2(config.acme_file, backup_dir / "acme.json")
     except Exception:
         shutil.rmtree(backup_dir, ignore_errors=True)
         raise
     return backup_dir
+
+
+def _compose_backup_path(
+    config: RunnerConfig,
+    backup_dir: Path,
+    compose_file: Path,
+) -> Path:
+    return backup_dir / "compose" / compose_file.relative_to(config.compose_dir)
+
+
+def _find_image_compose_file(
+    compose_files: tuple[Path, ...],
+    current_image: str,
+) -> Path:
+    needle = f"image: {current_image}"
+    matches: list[Path] = []
+    occurrence_count = 0
+    for compose_file in compose_files:
+        count = compose_file.read_text(encoding="utf-8").count(needle)
+        occurrence_count += count
+        if count:
+            matches.append(compose_file)
+    if occurrence_count != 1:
+        raise UpdateRejectedError(
+            "Compose의 현재 Traefik 이미지 태그를 정확히 한 곳에서 찾지 못했습니다"
+        )
+    return matches[0]
 
 
 def _replace_compose_image(

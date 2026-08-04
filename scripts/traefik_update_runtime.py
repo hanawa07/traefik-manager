@@ -15,16 +15,20 @@ from traefik_update_models import (
 def _run_compose(config: RunnerConfig, action: str, *arguments: str) -> None:
     _run(
         [
-            config.docker_bin,
-            "compose",
-            "-f",
-            str(config.compose_file),
+            *_compose_command(config),
             action,
             *arguments,
             config.service,
         ],
         timeout=600,
     )
+
+
+def _compose_command(config: RunnerConfig) -> list[str]:
+    command = [config.docker_bin, "compose"]
+    for compose_file in config.compose_files:
+        command.extend(["-f", str(compose_file)])
+    return command
 
 
 def _validate_runtime(

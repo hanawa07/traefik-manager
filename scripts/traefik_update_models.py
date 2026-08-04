@@ -27,7 +27,7 @@ class RunnerConfig:
     state_dir: Path
     request_dir: Path
     compose_dir: Path
-    compose_file: Path
+    compose_files: tuple[Path, ...]
     acme_file: Path
     service: str
     container: str
@@ -52,16 +52,18 @@ class RunnerConfig:
                 str(home / "docker/traefik"),
             )
         ).resolve()
-        compose_filename = os.environ.get(
-            "TM_TRAEFIK_UPDATE_COMPOSE_FILE",
-            "docker-compose.yml",
-        )
+        compose_filenames = _compose_filenames_from_environment()
         acme_filename = os.environ.get(
             "TM_TRAEFIK_UPDATE_ACME_FILE",
             "letsencrypt/acme.json",
         )
-        _validate_relative_path(compose_filename, "Compose 파일")
         _validate_relative_path(acme_filename, "ACME 파일")
+        compose_files = tuple(
+            (compose_dir / compose_filename).resolve()
+            for compose_filename in compose_filenames
+        )
+        if len(set(compose_files)) != len(compose_files):
+            raise ValueError("Compose 파일 경로가 중복되었습니다")
         return cls(
             state_dir=state_dir,
             request_dir=Path(
@@ -71,7 +73,7 @@ class RunnerConfig:
                 )
             ).resolve(),
             compose_dir=compose_dir,
-            compose_file=(compose_dir / compose_filename).resolve(),
+            compose_files=compose_files,
             acme_file=(compose_dir / acme_filename).resolve(),
             service=_validated_name(
                 os.environ.get("TM_TRAEFIK_UPDATE_SERVICE", "traefik"),
@@ -121,6 +123,7 @@ class Preflight:
     current_image: str
     current_version: str
     target_image: str
+    image_compose_file: Path
 
 
 def version_from_image(image: str) -> str:
@@ -162,6 +165,26 @@ def _validated_name(value: str, label: str) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}", value):
         raise ValueError(f"{label} 이름이 올바르지 않습니다")
     return value
+
+
+def _compose_filenames_from_environment() -> tuple[str, ...]:
+    configured_files = os.environ.get("TM_TRAEFIK_UPDATE_COMPOSE_FILES")
+    if configured_files is None:
+        filenames = (
+            os.environ.get(
+                "TM_TRAEFIK_UPDATE_COMPOSE_FILE",
+                "docker-compose.yml",
+            ),
+        )
+    else:
+        filenames = tuple(item.strip() for item in configured_files.split(","))
+    if not filenames or any(not filename for filename in filenames):
+        raise ValueError("Compose 파일 목록이 비어 있습니다")
+    if len(set(filenames)) != len(filenames):
+        raise ValueError("Compose 파일 목록에 중복 항목이 있습니다")
+    for filename in filenames:
+        _validate_relative_path(filename, "Compose 파일")
+    return filenames
 
 
 def _validate_relative_path(value: str, label: str) -> None:

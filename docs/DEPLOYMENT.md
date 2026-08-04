@@ -132,7 +132,7 @@ scripts/blue-green-deploy.sh vX.Y.Z
 
 호스트에 `setfacl`을 제공하는 `acl` 패키지를 설치하고 한 번 `scripts/install-traefik-update-runner.sh`를 실행하면 user systemd path/timer가 Manager의 업데이트 요청을 처리합니다.
 
-Compose 파일명이 기본 `docker-compose.yml`이 아니면 Traefik 디렉터리 기준 상대 경로를 설치할 때 함께 지정합니다. 예: `TM_TRAEFIK_UPDATE_COMPOSE_FILE=deploy/compose.prod.yml scripts/install-traefik-update-runner.sh`.
+Compose 파일명이 기본 `docker-compose.yml`이 아니면 Traefik 디렉터리 기준 상대 경로를 설치할 때 함께 지정합니다. 단일 파일은 기존 `TM_TRAEFIK_UPDATE_COMPOSE_FILE`도 계속 지원합니다. 여러 overlay를 사용하는 경우 실제 적용 순서대로 쉼표로 연결합니다. 예: `TM_TRAEFIK_UPDATE_COMPOSE_FILES=compose.yml,compose.prod.yml scripts/install-traefik-update-runner.sh`.
 
 - backend에는 Docker 쓰기 권한 대신 ACL로 backend UID만 허용한 `traefik-update-requests` 디렉터리 하나를 쓰기 가능으로 마운트합니다.
 - 자동 요청은 동일 메이저·마이너의 상향 패치 버전만 허용하고, 호스트 실행기가 공식 Traefik 이미지·Compose 서비스·`proxy_net`·ACME 파일을 다시 검증합니다.

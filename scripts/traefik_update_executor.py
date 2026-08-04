@@ -10,6 +10,7 @@ from traefik_update_models import (
     utc_now,
 )
 from traefik_update_preflight import (
+    _compose_backup_path,
     _create_backup,
     _preflight,
     _replace_compose_image,
@@ -68,7 +69,7 @@ def process_request(config: RunnerConfig, request: UpdateRequest) -> str:
         return "rejected"
     try:
         _replace_compose_image(
-            config.compose_file,
+            preflight.image_compose_file,
             preflight.current_image,
             preflight.target_image,
         )
@@ -151,12 +152,7 @@ def _rollback(
     try:
         if backup_dir is None:
             raise RuntimeError("복원할 Compose 백업이 없습니다")
-        backup_compose = backup_dir / config.compose_file.name
-        atomic_write(
-            config.compose_file,
-            backup_compose.read_text(encoding="utf-8"),
-            backup_compose.stat().st_mode & 0o777,
-        )
+        _restore_compose_files(config, backup_dir)
         _run_compose(config, "up", "-d")
         rollback_validations = [
             {**check, "key": f"rollback_{check['key']}"}
@@ -193,3 +189,18 @@ def _rollback(
         },
     )
     return rollback_status
+
+
+def _restore_compose_files(config: RunnerConfig, backup_dir: Path) -> None:
+    restore_entries: list[tuple[Path, str, int]] = []
+    for compose_file in config.compose_files:
+        backup_compose = _compose_backup_path(config, backup_dir, compose_file)
+        restore_entries.append(
+            (
+                compose_file,
+                backup_compose.read_text(encoding="utf-8"),
+                backup_compose.stat().st_mode & 0o777,
+            )
+        )
+    for compose_file, content, mode in restore_entries:
+        atomic_write(compose_file, content, mode)

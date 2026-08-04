@@ -9,15 +9,21 @@ trap 'rm -rf "${temporary_dir}"' EXIT
 state_dir="${temporary_dir}/state"
 request_dir="${state_dir}/traefik-update-requests"
 compose_dir="${temporary_dir}/traefik"
-compose_filename="compose.prod.yml"
+compose_base_filename="compose.yml"
+compose_overlay_filename="compose.prod.yml"
+compose_filenames="${compose_base_filename},${compose_overlay_filename}"
 fake_docker="${temporary_dir}/docker"
 fake_curl="${temporary_dir}/curl"
 fake_alert="${temporary_dir}/host-alert"
 alert_capture="${temporary_dir}/host-alert-arguments"
+docker_log="${temporary_dir}/docker.log"
 mkdir -p "${request_dir}" "${compose_dir}/letsencrypt"
 printf '%s\n' 'traefik:v3.7.8' > "${temporary_dir}/image"
 printf '%s\n' 'acme-state' > "${compose_dir}/letsencrypt/acme.json"
-printf '%s\n' 'services:' '  traefik:' '    image: traefik:v3.7.8' > "${compose_dir}/${compose_filename}"
+printf '%s\n' 'services:' '  traefik:' '    command: --api.insecure=true' \
+  > "${compose_dir}/${compose_base_filename}"
+printf '%s\n' 'services:' '  traefik:' '    image: traefik:v3.7.8' \
+  > "${compose_dir}/${compose_overlay_filename}"
 
 cat > "${fake_docker}" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -31,17 +37,43 @@ if [[ "${1:-}" == "inspect" ]]; then
   esac
   exit 0
 fi
-if [[ "${1:-}" == "compose" && "${4:-}" == "config" ]]; then
-  printf '%s\n' 'traefik'
-  exit 0
-fi
-if [[ "${1:-}" == "compose" && "${4:-}" == "pull" ]]; then
-  [[ "${TM_TEST_FAIL_PULL:-false}" != "true" ]] || exit 42
-  exit 0
-fi
-if [[ "${1:-}" == "compose" && "${4:-}" == "up" ]]; then
-  [[ "${TM_TEST_FAIL_UP:-false}" != "true" ]] || exit 43
-  awk '/^[[:space:]]*image: traefik:v/ {print $2; exit}' "${3}" > "${TM_TEST_IMAGE_FILE}"
+if [[ "${1:-}" == "compose" ]]; then
+  shift
+  compose_files=()
+  while [[ "${1:-}" == "-f" ]]; do
+    compose_files+=("${2}")
+    shift 2
+  done
+  action="${1:-}"
+  shift
+  printf '%s|%s|%s\n' "${action}" "${compose_files[*]}" "$*" >> "${TM_TEST_DOCKER_LOG}"
+  case "${action}" in
+    config)
+      printf '%s\n' 'traefik'
+      ;;
+    pull)
+      if [[ "${TM_TEST_MUTATE_BASE_ON_PULL:-false}" == "true" ]]; then
+        printf '%s\n' '# mutated-by-pull' >> "${compose_files[0]}"
+      fi
+      [[ "${TM_TEST_FAIL_PULL:-false}" != "true" ]] || exit 42
+      ;;
+    up)
+      [[ "${TM_TEST_FAIL_UP:-false}" != "true" ]] || exit 43
+      for compose_file in "${compose_files[@]}"; do
+        image="$(awk '/^[[:space:]]*image: traefik:v/ {print $2; exit}' "${compose_file}")"
+        if [[ -n "${image}" ]]; then
+          printf '%s\n' "${image}" > "${TM_TEST_IMAGE_FILE}"
+          exit 0
+        fi
+      done
+      echo "compose image not found" >&2
+      exit 1
+      ;;
+    *)
+      echo "unexpected compose action: ${action}" >&2
+      exit 1
+      ;;
+  esac
   exit 0
 fi
 echo "unexpected docker arguments: $*" >&2
@@ -77,19 +109,29 @@ write_alert_retry_request() {
 }
 
 run_runner() {
-  TM_MANAGER_DEPLOY_STATE_DIR="${state_dir}" \
-  TM_TRAEFIK_UPDATE_REQUEST_DIR="${request_dir}" \
-  TM_TRAEFIK_UPDATE_COMPOSE_DIR="${compose_dir}" \
-  TM_TRAEFIK_UPDATE_COMPOSE_FILE="${compose_filename}" \
-  TM_TRAEFIK_MANAGER_HEALTH_URL="https://manager.example.com/api/health" \
-  TM_TRAEFIK_UPDATE_DOCKER_BIN="${fake_docker}" \
-  TM_TRAEFIK_UPDATE_CURL_BIN="${fake_curl}" \
-  TM_HOST_OPERATION_ALERT_SCRIPT="${fake_alert}" \
-  TM_TEST_ALERT_CAPTURE="${alert_capture}" \
-  TM_TEST_FAIL_PULL="${TM_TEST_FAIL_PULL:-false}" \
-  TM_TEST_FAIL_UP="${TM_TEST_FAIL_UP:-false}" \
-  TM_TEST_FAIL_ALERT="${TM_TEST_FAIL_ALERT:-false}" \
-  TM_TEST_IMAGE_FILE="${temporary_dir}/image" \
+  local mode="${1:-multiple}"
+  local -a compose_environment
+  if [[ "${mode}" == "legacy" ]]; then
+    compose_environment=("TM_TRAEFIK_UPDATE_COMPOSE_FILE=${compose_overlay_filename}")
+  else
+    compose_environment=("TM_TRAEFIK_UPDATE_COMPOSE_FILES=${compose_filenames}")
+  fi
+  env -u TM_TRAEFIK_UPDATE_COMPOSE_FILES -u TM_TRAEFIK_UPDATE_COMPOSE_FILE \
+    TM_MANAGER_DEPLOY_STATE_DIR="${state_dir}" \
+    TM_TRAEFIK_UPDATE_REQUEST_DIR="${request_dir}" \
+    TM_TRAEFIK_UPDATE_COMPOSE_DIR="${compose_dir}" \
+    TM_TRAEFIK_MANAGER_HEALTH_URL="https://manager.example.com/api/health" \
+    TM_TRAEFIK_UPDATE_DOCKER_BIN="${fake_docker}" \
+    TM_TRAEFIK_UPDATE_CURL_BIN="${fake_curl}" \
+    TM_HOST_OPERATION_ALERT_SCRIPT="${fake_alert}" \
+    TM_TEST_ALERT_CAPTURE="${alert_capture}" \
+    TM_TEST_FAIL_PULL="${TM_TEST_FAIL_PULL:-false}" \
+    TM_TEST_FAIL_UP="${TM_TEST_FAIL_UP:-false}" \
+    TM_TEST_FAIL_ALERT="${TM_TEST_FAIL_ALERT:-false}" \
+    TM_TEST_MUTATE_BASE_ON_PULL="${TM_TEST_MUTATE_BASE_ON_PULL:-false}" \
+    TM_TEST_IMAGE_FILE="${temporary_dir}/image" \
+    TM_TEST_DOCKER_LOG="${docker_log}" \
+    "${compose_environment[@]}" \
     "${SCRIPT_DIR}/traefik-update-runner.py"
 }
 
@@ -98,20 +140,35 @@ for history_index in $(seq 1 205); do
 done
 write_request '11111111-1111-4111-8111-111111111111' 'v3.7.9'
 run_runner
-grep -Fq 'image: traefik:v3.7.9' "${compose_dir}/${compose_filename}"
+grep -Fq 'command: --api.insecure=true' "${compose_dir}/${compose_base_filename}"
+grep -Fq 'image: traefik:v3.7.9' "${compose_dir}/${compose_overlay_filename}"
 grep -Fq '"status":"success"' "${state_dir}/traefik-updates.jsonl"
 grep -Fq '"status":"ready"' "${state_dir}/traefik-update-runner.json"
 [[ ! -e "${request_dir}/traefik-update-request.json" ]]
 find "${compose_dir}/backups" -type f -name acme.json -print -quit | grep -q .
+find "${compose_dir}/backups" -type f -path "*/compose/${compose_base_filename}" -print -quit | grep -q .
+find "${compose_dir}/backups" -type f -path "*/compose/${compose_overlay_filename}" -print -quit | grep -q .
+grep -Fq "config|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_overlay_filename}|--services" "${docker_log}"
+grep -Fq "pull|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_overlay_filename}|traefik" "${docker_log}"
+grep -Fq "up|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_overlay_filename}|-d traefik" "${docker_log}"
 [[ "$(wc -l < "${state_dir}/traefik-updates.jsonl")" -eq 200 ]]
 
 write_request '22222222-2222-4222-8222-222222222222' 'v3.8.0'
 run_runner
 grep -Fq '"status":"rejected"' "${state_dir}/traefik-updates.jsonl"
-grep -Fq 'image: traefik:v3.7.9' "${compose_dir}/${compose_filename}"
+grep -Fq 'image: traefik:v3.7.9' "${compose_dir}/${compose_overlay_filename}"
+
+printf '%s\n' 'services:' '  traefik:' '    image: traefik:v3.7.9' \
+  > "${compose_dir}/${compose_base_filename}"
+write_request '22222222-2222-4222-8222-222222222223' 'v3.7.10'
+run_runner
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"status":"rejected"'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '정확히 한 곳에서 찾지 못했습니다'
+printf '%s\n' 'services:' '  traefik:' '    command: --api.insecure=true' \
+  > "${compose_dir}/${compose_base_filename}"
 
 write_request '33333333-3333-4333-8333-333333333333' 'v3.7.10'
-if TM_TEST_FAIL_PULL=true TM_TEST_FAIL_UP=true run_runner; then
+if TM_TEST_FAIL_PULL=true TM_TEST_FAIL_UP=true TM_TEST_MUTATE_BASE_ON_PULL=true run_runner; then
   echo "자동 롤백 실패가 성공으로 종료되었습니다" >&2
   exit 1
 fi
@@ -122,7 +179,12 @@ tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_run_url":null'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_request_id":null'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_actor":null'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_requested_at":null'
-grep -Fq 'image: traefik:v3.7.9' "${compose_dir}/${compose_filename}"
+grep -Fq 'command: --api.insecure=true' "${compose_dir}/${compose_base_filename}"
+if grep -Fq 'mutated-by-pull' "${compose_dir}/${compose_base_filename}"; then
+  echo "롤백 후 base Compose 파일에 테스트 변조가 남았습니다" >&2
+  exit 1
+fi
+grep -Fq 'image: traefik:v3.7.9' "${compose_dir}/${compose_overlay_filename}"
 grep -Fxq 'Traefik 패치 업데이트 자동 롤백' "${alert_capture}"
 grep -Fxq 'v3.7.10 업데이트와 자동 롤백 실패 · 요청 33333333-3333-4333-8333-333333333333' "${alert_capture}"
 grep -Fxq 'failure' "${alert_capture}"
@@ -161,4 +223,9 @@ tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_actor":"
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_requested_at":"2026-07-20T00:00:00Z"'
 grep -Fxq 'v3.7.10 업데이트와 자동 롤백 실패 · 요청 44444444-4444-4444-8444-444444444444' "${alert_capture}"
 grep -Fq '롤백 실패 알림 재시도 완료' "${state_dir}/traefik-update-runner.json"
+
+write_request '66666666-6666-4666-8666-666666666666' 'v3.7.9'
+run_runner legacy
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"status":"success"'
+grep -Fq '대상 버전이 이미 적용되어' "${state_dir}/traefik-updates.jsonl"
 echo "Traefik 안전 업데이트 실행기 self-test 통과"

@@ -8,7 +8,7 @@ readonly REPO_ROOT
 readonly STATE_DIR="${TM_MANAGER_DEPLOY_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/traefik-manager}"
 readonly REQUEST_DIR="${TM_TRAEFIK_UPDATE_REQUEST_DIR:-${STATE_DIR}/traefik-update-requests}"
 readonly TRAEFIK_DIR="${TM_TRAEFIK_UPDATE_COMPOSE_DIR:-${HOME}/docker/traefik}"
-readonly TRAEFIK_COMPOSE_FILE="${TM_TRAEFIK_UPDATE_COMPOSE_FILE:-docker-compose.yml}"
+readonly TRAEFIK_COMPOSE_FILES="${TM_TRAEFIK_UPDATE_COMPOSE_FILES:-${TM_TRAEFIK_UPDATE_COMPOSE_FILE:-docker-compose.yml}}"
 readonly UNIT_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
 readonly SERVICE_NAME="traefik-manager-traefik-update.service"
 readonly PATH_NAME="traefik-manager-traefik-update.path"
@@ -37,6 +37,22 @@ validate_relative_path() {
     || { echo "${label} 경로가 올바르지 않습니다: ${value}" >&2; exit 2; }
   [[ "/${value}/" != *"/../"* ]] \
     || { echo "${label} 경로는 Traefik 디렉터리 내부여야 합니다" >&2; exit 2; }
+}
+
+validate_compose_files() {
+  local value="$1"
+  local compose_file
+  local -a compose_files
+  local -A seen=()
+  IFS=',' read -r -a compose_files <<< "${value}"
+  [[ "${#compose_files[@]}" -gt 0 ]] \
+    || { echo "Compose 파일 목록이 비어 있습니다" >&2; exit 2; }
+  for compose_file in "${compose_files[@]}"; do
+    validate_relative_path "Compose 파일" "${compose_file}"
+    [[ -z "${seen[${compose_file}]+x}" ]] \
+      || { echo "Compose 파일 목록에 중복 항목이 있습니다" >&2; exit 2; }
+    seen["${compose_file}"]=1
+  done
 }
 
 resolve_health_url() {
@@ -68,7 +84,7 @@ write_service_unit() {
     printf 'Environment=TM_MANAGER_DEPLOY_STATE_DIR=%s\n' "${STATE_DIR}"
     printf 'Environment=TM_TRAEFIK_UPDATE_REQUEST_DIR=%s\n' "${REQUEST_DIR}"
     printf 'Environment=TM_TRAEFIK_UPDATE_COMPOSE_DIR=%s\n' "${TRAEFIK_DIR}"
-    printf 'Environment=TM_TRAEFIK_UPDATE_COMPOSE_FILE=%s\n' "${TRAEFIK_COMPOSE_FILE}"
+    printf 'Environment=TM_TRAEFIK_UPDATE_COMPOSE_FILES=%s\n' "${TRAEFIK_COMPOSE_FILES}"
     if [[ -n "${health_url}" ]]; then
       printf 'Environment=TM_TRAEFIK_MANAGER_HEALTH_URL=%s\n' "${health_url}"
     fi
@@ -112,14 +128,17 @@ validate_path "저장소" "${REPO_ROOT}"
 validate_path "상태" "${STATE_DIR}"
 validate_path "요청" "${REQUEST_DIR}"
 validate_path "Traefik" "${TRAEFIK_DIR}"
-validate_relative_path "Compose 파일" "${TRAEFIK_COMPOSE_FILE}"
+validate_compose_files "${TRAEFIK_COMPOSE_FILES}"
 [[ "${BACKEND_UID}" =~ ^[1-9][0-9]*$ ]] \
   || { echo "backend UID가 올바르지 않습니다: ${BACKEND_UID}" >&2; exit 2; }
 command -v docker >/dev/null || { echo "docker 명령을 찾을 수 없습니다" >&2; exit 1; }
 command -v setfacl >/dev/null || { echo "setfacl 명령이 필요합니다. 호스트에 acl 패키지를 설치하세요" >&2; exit 1; }
 command -v systemctl >/dev/null || { echo "systemctl 명령을 찾을 수 없습니다" >&2; exit 1; }
-[[ -f "${TRAEFIK_DIR}/${TRAEFIK_COMPOSE_FILE}" ]] \
-  || { echo "Traefik Compose 파일을 찾을 수 없습니다: ${TRAEFIK_COMPOSE_FILE}" >&2; exit 1; }
+IFS=',' read -r -a compose_files <<< "${TRAEFIK_COMPOSE_FILES}"
+for compose_file in "${compose_files[@]}"; do
+  [[ -f "${TRAEFIK_DIR}/${compose_file}" ]] \
+    || { echo "Traefik Compose 파일을 찾을 수 없습니다: ${compose_file}" >&2; exit 1; }
+done
 
 install -d -m 0755 "${STATE_DIR}" "${UNIT_DIR}"
 prepare_request_dir
