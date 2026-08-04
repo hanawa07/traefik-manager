@@ -207,6 +207,7 @@ export interface DeploymentInfo {
   external_watchdog_last_alert_event: "failure" | "recovery" | null;
   external_watchdog_last_alert_success: boolean | null;
   external_watchdog_last_alert_at: string | null;
+  external_watchdog_last_alert_channel: "anubis" | "github" | null;
   external_watchdog_last_alert_run_url: string | null;
   external_watchdog_last_alert_run_status: string | null;
   external_watchdog_last_alert_run_conclusion: string | null;

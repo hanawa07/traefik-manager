@@ -31,6 +31,7 @@ def test_read_manager_watchdog_state_uses_status_and_file_mtime(tmp_path) -> Non
         "external_watchdog_last_alert_event": "recovery",
         "external_watchdog_last_alert_success": True,
         "external_watchdog_last_alert_at": datetime.fromtimestamp(1783913580, timezone.utc),
+        "external_watchdog_last_alert_channel": "github",
         "external_watchdog_last_alert_run_url": "https://github.com/hanawa07/traefik-manager/actions/runs/123",
         "external_watchdog_alert_runs": [
             {
@@ -59,6 +60,7 @@ def test_read_manager_watchdog_state_handles_missing_file(tmp_path) -> None:
         "external_watchdog_last_alert_event": None,
         "external_watchdog_last_alert_success": None,
         "external_watchdog_last_alert_at": None,
+        "external_watchdog_last_alert_channel": None,
         "external_watchdog_last_alert_run_url": None,
         "external_watchdog_alert_runs": [],
     }
@@ -79,6 +81,31 @@ def test_read_manager_watchdog_state_promotes_legacy_last_run(tmp_path) -> None:
         {
             "event": "failure",
             "requested_at": datetime.fromtimestamp(1783913580, timezone.utc),
+            "run_url": "https://github.com/owner/repository/actions/runs/123",
+        }
+    ]
+    assert state["external_watchdog_last_alert_channel"] == "github"
+
+
+def test_read_manager_watchdog_state_keeps_direct_channel_and_legacy_history(tmp_path) -> None:
+    state_path = tmp_path / "manager-health-watchdog.state"
+    state_path.write_text(
+        "status=healthy\nlast_dispatch_event=recovery\nlast_dispatch_success=1\n"
+        "last_dispatch_at=1783913580\nlast_dispatch_channel=anubis\n"
+        "last_dispatch_run_url=https://github.com/owner/repository/actions/runs/999\n"
+        "dispatch_history=failure|1783910000|"
+        "https://github.com/owner/repository/actions/runs/123\n",
+        encoding="utf-8",
+    )
+
+    state = read_manager_watchdog_state(str(state_path))
+
+    assert state["external_watchdog_last_alert_channel"] == "anubis"
+    assert state["external_watchdog_last_alert_run_url"] is None
+    assert state["external_watchdog_alert_runs"] == [
+        {
+            "event": "failure",
+            "requested_at": datetime.fromtimestamp(1783910000, timezone.utc),
             "run_url": "https://github.com/owner/repository/actions/runs/123",
         }
     ]

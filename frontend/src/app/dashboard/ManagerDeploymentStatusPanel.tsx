@@ -31,6 +31,11 @@ export function ManagerDeploymentStatusPanel({
   const watchdogCheckedAt = formatDateTime(deployment?.external_watchdog_checked_at, timezone);
   const watchdogStaleMinutes = deployment?.external_watchdog_stale_after_minutes ?? 10;
   const watchdogLastAlertAt = formatDateTime(deployment?.external_watchdog_last_alert_at, timezone);
+  const watchdogAlertChannel = deployment?.external_watchdog_last_alert_channel === "anubis"
+    ? "Anubis 직접 전송"
+    : deployment?.external_watchdog_last_alert_channel === "github"
+      ? "GitHub Actions"
+      : "미확인";
   const watchdogRunCheckedAt = formatDateTime(
     deployment?.external_watchdog_last_alert_run_checked_at,
     timezone,
@@ -61,10 +66,10 @@ export function ManagerDeploymentStatusPanel({
             : ""
         }`}
       >
-        최근 watchdog 알림 요청: {getExternalWatchdogAlertLabel(
+        최근 watchdog 알림: {getExternalWatchdogAlertLabel(
           deployment?.external_watchdog_last_alert_event,
           deployment?.external_watchdog_last_alert_success,
-        )} · 요청 시각: {watchdogLastAlertAt}
+        )} · 전송 경로: {watchdogAlertChannel} · 시각: {watchdogLastAlertAt}
         {deployment?.external_watchdog_last_alert_run_url ? (
           <>
             {" · "}
@@ -79,22 +84,24 @@ export function ManagerDeploymentStatusPanel({
           </>
         ) : null}
       </p>
-      <p
-        className={`mt-1 ${
-          isExternalWatchdogRunFailure(deployment?.external_watchdog_last_alert_run_conclusion)
-            ? "font-semibold text-red-700 dark:text-red-200"
-            : ""
-        }`}
-      >
-        알림 워크플로 결과: {getExternalWatchdogRunLabel(
-          deployment?.external_watchdog_last_alert_run_status,
-          deployment?.external_watchdog_last_alert_run_conclusion,
-          deployment?.external_watchdog_last_alert_run_error,
-        )} · 확인 시각: {watchdogRunCheckedAt}
-        {deployment?.external_watchdog_last_alert_run_error
-          ? ` · ${deployment.external_watchdog_last_alert_run_error}`
-          : ""}
-      </p>
+      {deployment?.external_watchdog_last_alert_channel === "github" ? (
+        <p
+          className={`mt-1 ${
+            isExternalWatchdogRunFailure(deployment?.external_watchdog_last_alert_run_conclusion)
+              ? "font-semibold text-red-700 dark:text-red-200"
+              : ""
+          }`}
+        >
+          알림 워크플로 결과: {getExternalWatchdogRunLabel(
+            deployment?.external_watchdog_last_alert_run_status,
+            deployment?.external_watchdog_last_alert_run_conclusion,
+            deployment?.external_watchdog_last_alert_run_error,
+          )} · 확인 시각: {watchdogRunCheckedAt}
+          {deployment?.external_watchdog_last_alert_run_error
+            ? ` · ${deployment.external_watchdog_last_alert_run_error}`
+            : ""}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -20,6 +20,12 @@ def _parse_run_url(value: str | None) -> str | None:
     return None
 
 
+def _parse_alert_channel(value: str | None, run_url: str | None) -> str | None:
+    if value in {"anubis", "github"}:
+        return value
+    return "github" if run_url else None
+
+
 def _parse_alert_runs(value: str | None) -> list[dict[str, object]]:
     runs = []
     for record in (value or "").split(",")[:5]:
@@ -57,6 +63,7 @@ def read_manager_watchdog_state(
             "external_watchdog_last_alert_event": None,
             "external_watchdog_last_alert_success": None,
             "external_watchdog_last_alert_at": None,
+            "external_watchdog_last_alert_channel": None,
             "external_watchdog_last_alert_run_url": None,
             "external_watchdog_alert_runs": [],
         }
@@ -74,9 +81,15 @@ def read_manager_watchdog_state(
     last_alert_success = {"1": True, "0": False}.get(values.get("last_dispatch_success"))
     last_alert_at = _parse_epoch(values.get("last_dispatch_at"))
     last_alert_run_url = _parse_run_url(values.get("last_dispatch_run_url"))
+    last_alert_channel = _parse_alert_channel(
+        values.get("last_dispatch_channel"), last_alert_run_url
+    )
     if last_alert_event is None:
         last_alert_success = None
         last_alert_at = None
+        last_alert_channel = None
+        last_alert_run_url = None
+    elif last_alert_channel != "github":
         last_alert_run_url = None
     alert_runs = _parse_alert_runs(values.get("dispatch_history"))
     if not alert_runs and last_alert_event and last_alert_at and last_alert_run_url:
@@ -99,6 +112,7 @@ def read_manager_watchdog_state(
         "external_watchdog_last_alert_event": last_alert_event,
         "external_watchdog_last_alert_success": last_alert_success,
         "external_watchdog_last_alert_at": last_alert_at,
+        "external_watchdog_last_alert_channel": last_alert_channel,
         "external_watchdog_last_alert_run_url": last_alert_run_url,
         "external_watchdog_alert_runs": alert_runs,
     }
