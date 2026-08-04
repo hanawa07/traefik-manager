@@ -39,6 +39,7 @@ jobs:
           scripts/manager-deployment-bottleneck-alert.sh --self-test
           scripts/request-host-operation-alert.sh --self-test
           scripts/test-traefik-update-runner.sh
+          scripts/test-install-traefik-update-runner.sh
 
       - name: Python 준비
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
@@ -93,6 +94,7 @@ jobs:
           npm --prefix frontend run test:encoded-path-card-visual
           npm --prefix frontend run test:bottleneck-preview
           npm --prefix frontend run test:maintenance-history-query
+          npm --prefix frontend run test:traefik-update-plan
           npm --prefix frontend run test:traefik-update-history
           npm --prefix frontend run test:smoke-rotation-audit
           npm --prefix frontend run test:smoke-failure-rate
