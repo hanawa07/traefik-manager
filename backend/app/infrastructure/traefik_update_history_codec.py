@@ -2,7 +2,7 @@ import re
 from datetime import datetime, timezone
 from uuid import UUID
 
-from app.infrastructure.github_actions_run import build_actions_run_api_url
+from app.infrastructure.host_operation_alert_delivery import normalize_alert_delivery
 from app.infrastructure.traefik_update_requests import VERSION_PATTERN
 
 HISTORY_STATUSES = {"running", "success", "rejected", "rolled_back", "rollback_failed"}
@@ -84,20 +84,23 @@ def normalize_traefik_update_alert_result(
 ) -> dict[str, str | None] | None:
     default_status = "pending" if update_status == "rollback_failed" else "not_needed"
     alert_status = raw.get("alert_request_status", default_status)
-    alert_run_url = raw.get("alert_run_url")
+    alert_delivery = normalize_alert_delivery(
+        raw.get("alert_channel"), raw.get("alert_run_url")
+    )
     alert_retry_request_id = raw.get("alert_retry_request_id")
     alert_retry_actor = raw.get("alert_retry_actor")
     alert_retry_requested_at = raw.get("alert_retry_requested_at")
-    if alert_run_url == "":
-        alert_run_url = None
+    if alert_delivery is None:
+        return None
+    alert_channel, alert_run_url = alert_delivery
     if alert_status not in ALERT_REQUEST_STATUSES:
         return None
     if update_status != "rollback_failed" and alert_status != "not_needed":
         return None
     if alert_status == "requested":
-        if not isinstance(alert_run_url, str) or not build_actions_run_api_url(alert_run_url):
+        if alert_channel is None:
             return None
-    elif alert_run_url is not None:
+    elif alert_channel is not None or alert_run_url is not None:
         return None
     if (alert_retry_actor is None) != (alert_retry_requested_at is None):
         return None
@@ -120,6 +123,7 @@ def normalize_traefik_update_alert_result(
         return None
     return {
         "alert_request_status": str(alert_status),
+        "alert_channel": alert_channel,
         "alert_run_url": alert_run_url,
         "alert_retry_request_id": alert_retry_request_id,
         "alert_retry_actor": alert_retry_actor,

@@ -38,6 +38,7 @@ const CURRENT_FIXTURE_ENTRIES = [
     failure_stage: null,
     failure_reason: null,
     alert_request_status: "not_needed",
+    alert_channel: null,
     alert_run_url: null,
     alert_run_status: null,
     alert_run_conclusion: null,
@@ -72,6 +73,7 @@ const ARCHIVE_FIXTURE_ENTRIES = [
     failure_stage: "public_probe",
     failure_reason: "=archive fixture probe failure",
     alert_request_status: "not_needed",
+    alert_channel: null,
     alert_run_url: null,
     alert_run_status: null,
     alert_run_conclusion: null,
@@ -103,6 +105,7 @@ const ARCHIVE_FIXTURE_ENTRIES = [
     failure_stage: "build",
     failure_reason: "+archive fixture build failure",
     alert_request_status: "not_needed",
+    alert_channel: null,
     alert_run_url: null,
     alert_run_status: null,
     alert_run_conclusion: null,
@@ -153,7 +156,8 @@ export async function checkManagerDeploymentArchiveFixture({ cdp, timeoutMs }) {
       Boolean(document.querySelector('[data-manager-deployment-bottleneck-storage-warning]')) &&
       document.querySelector('[data-testid="manager-deployment-bottleneck-storage-audit-link"]')?.getAttribute('href') ===
         '/dashboard/audit?filter=manager_health&manager_source=api&period=90&q=deployment-bottleneck-storage&expand=latest' &&
-      document.querySelector('[data-manager-deployment-bottleneck-storage-run]')?.textContent?.includes('보관 경고 워크플로 성공') &&
+      document.querySelector('[data-manager-deployment-bottleneck-storage-run]')?.textContent?.includes('보관 경고 전송 경로: Anubis Telegram') &&
+      document.querySelector('[data-manager-deployment-bottleneck-status="alerted"]')?.textContent?.includes('알림 전송 경로: Anubis Telegram') &&
       Boolean(document.querySelector('[data-manager-deployment-bottleneck-override]')) &&
       Boolean(document.querySelector('[data-manager-deployment-bottleneck-event="alerted"]'))`,
     timeoutMs,

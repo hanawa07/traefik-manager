@@ -10,7 +10,11 @@ import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 import { MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS, formatManagerDeploymentDurationMs } from "./managerDeploymentHistoryDisplay";
 import { getManagerApiAuditUrl } from "./managerAuditLinks";
-import { getExternalWatchdogRunLabel, isExternalWatchdogRunFailure } from "./managerWatchdogStatus";
+import {
+  getExternalWatchdogRunLabel,
+  getHostOperationAlertChannelLabel,
+  isExternalWatchdogRunFailure,
+} from "./managerWatchdogStatus";
 import { ManagerDeploymentBottleneckEventHistory } from "./ManagerDeploymentBottleneckEventHistory";
 
 interface ManagerDeploymentBottleneckStatusCardProps {
@@ -119,6 +123,10 @@ export function ManagerDeploymentBottleneckStatusCard({
             : ""}
           {alert.storage_warning_run_error ? ` · ${alert.storage_warning_run_error}` : ""}
         </p>
+      ) : alert.storage_warning_alert_channel ? (
+        <p className="mt-1" data-manager-deployment-bottleneck-storage-run>
+          보관 경고 전송 경로: {getHostOperationAlertChannelLabel(alert.storage_warning_alert_channel)}
+        </p>
       ) : null}
       {settingsDiffer ? (
         <p className="mt-1 font-semibold" data-manager-deployment-bottleneck-override>
@@ -139,6 +147,10 @@ export function ManagerDeploymentBottleneckStatusCard({
           </a>
           {alert.run_checked_at ? ` · 확인 ${formatDateTime(alert.run_checked_at, timezone)}` : ""}
           {alert.run_error ? ` · ${alert.run_error}` : ""}
+        </p>
+      ) : alert.alert_channel ? (
+        <p className="mt-1">
+          알림 전송 경로: {getHostOperationAlertChannelLabel(alert.alert_channel)}
         </p>
       ) : null}
       <ManagerDeploymentBottleneckEventHistory

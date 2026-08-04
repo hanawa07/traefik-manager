@@ -53,7 +53,8 @@ record_deployment_history() {
     "${HISTORY_FILE}" "${status}" "${previous_slot}" "${candidate_slot}" "${active_slot}" \
     "${version}" "${revision}" "${deployment_started_at}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "${probe_total}" "${probe_failures}" "${failure_stage}" "${failure_reason}" \
-    "${alert_request_status}" "${alert_run_url}" "${stage_durations_json}"; then
+    "${alert_request_status}" "${alert_channel}" "${alert_run_url}" \
+    "${stage_durations_json}"; then
     echo "배포 이력을 기록하지 못했습니다: ${HISTORY_FILE}" >&2
   elif ! "${SCRIPT_DIR}/manager-deployment-bottleneck-alert.sh" "${HISTORY_FILE}"; then
     echo "연속 병목 운영 알림을 확인하지 못했습니다" >&2
@@ -127,10 +128,12 @@ rollback() {
       history_status="rollback_failed"
       history_active_slot="$(infer_active_slot "${ROUTE_FILE}")"
       echo "자동 rollback이 완료되지 않아 후보 슬롯을 유지합니다" >&2
-      if alert_run_url="$(notify_rollback_failure "${history_active_slot}")"; then
+      if alert_channel="$(notify_rollback_failure "${history_active_slot}")"; then
         alert_request_status="requested"
+        alert_run_url=""
       else
         alert_request_status="request_failed"
+        alert_channel=""
         alert_run_url=""
         echo "rollback 실패 운영 알림을 요청하지 못했습니다" >&2
       fi

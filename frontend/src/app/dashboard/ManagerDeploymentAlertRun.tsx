@@ -3,6 +3,7 @@ import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 import {
   getExternalWatchdogRunLabel,
+  getHostOperationAlertChannelLabel,
   isExternalWatchdogRunFailure,
 } from "./managerWatchdogStatus";
 
@@ -53,9 +54,9 @@ export function ManagerDeploymentAlertRun({
             알림 실행 {resultLabel}
           </a>
         </>
-      ) : requestFailed ? null : (
-        " · 실행 링크 미확인"
-      )}
+      ) : requestFailed ? null : entry.alert_channel ? (
+        ` · 전송 경로: ${getHostOperationAlertChannelLabel(entry.alert_channel)}`
+      ) : " · 전송 경로 미확인"}
       {entry.alert_run_checked_at
         ? ` · 확인 ${formatDateTime(entry.alert_run_checked_at, timezone)}`
         : ""}

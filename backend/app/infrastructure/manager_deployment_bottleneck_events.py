@@ -2,7 +2,7 @@ import fcntl
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from app.infrastructure.github_actions_run import build_actions_run_api_url
+from app.infrastructure.host_operation_alert_delivery import normalize_alert_delivery
 from app.infrastructure.manager_deployment_bottleneck_config import (
     MAX_EVENT_RETENTION_DAYS,
     MIN_EVENT_RETENTION_DAYS,
@@ -103,12 +103,14 @@ def _calculate_event_cleanup(
 
 def _read_event_storage_warning(events_path: Path) -> dict[str, object]:
     values = read_bottleneck_pairs(Path(f"{events_path}.storage-warning.state"))
-    run_url = values.get("run_url") or None
-    if run_url and not build_actions_run_api_url(run_url):
-        run_url = None
+    alert_delivery = normalize_alert_delivery(
+        values.get("alert_channel"), values.get("run_url")
+    )
+    alert_channel, run_url = alert_delivery or (None, None)
     return {
         "storage_warning_active": bool(values),
         "storage_warning_alerted_at": iso_datetime(values.get("alerted_at")),
+        "storage_warning_alert_channel": alert_channel,
         "storage_warning_run_url": run_url,
     }
 

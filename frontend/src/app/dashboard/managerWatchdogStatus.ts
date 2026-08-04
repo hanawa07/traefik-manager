@@ -14,7 +14,7 @@ export function getExternalWatchdogAlertLabel(
 ) {
   if (!event || success == null) return "기록 없음";
   const eventLabel = event === "failure" ? "장애" : "복구";
-  return `${eventLabel} 알림 워크플로 요청 ${success ? "성공" : "실패"}`;
+  return `${eventLabel} 운영 알림 전송 ${success ? "성공" : "실패"}`;
 }
 
 export function getExternalWatchdogRunLabel(
@@ -47,4 +47,10 @@ export function isExternalWatchdogRunFailure(conclusion?: string | null) {
   return ["action_required", "cancelled", "failure", "stale", "startup_failure", "timed_out"].includes(
     conclusion || "",
   );
+}
+
+export function getHostOperationAlertChannelLabel(channel?: "anubis" | "github" | null) {
+  if (channel === "anubis") return "Anubis Telegram";
+  if (channel === "github") return "GitHub Actions";
+  return "확인 불가";
 }

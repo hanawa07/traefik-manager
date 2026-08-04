@@ -21,7 +21,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   const payload = JSON.parse(json.text);
   assert.match(payload.metadata.exported_at, /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(payload.metadata.result_count, 1);
-  assert.equal(payload.metadata.schema_version, 5);
+  assert.equal(payload.metadata.schema_version, 6);
   assert.equal(typeof payload.metadata.timezone, "string");
   assert.ok(payload.metadata.timezone);
   assert.deepEqual(payload.metadata.filters, {
@@ -97,7 +97,7 @@ export async function checkManagerDeploymentHistoryExports({ cdp, timeoutMs }) {
   assert.match(csv.filename, /deployments-archive-all-time-all-\d{4}-\d{2}-\d{2}\.csv$/);
   assert.deepEqual(csv.bytes, [239, 187, 191], "Manager CSV UTF-8 BOM이 없습니다");
   assert.match(csv.text, /^metadata,value\r\n/);
-  assert.match(csv.text, /\r\nschema_version,"5"\r\n/);
+  assert.match(csv.text, /\r\nschema_version,"6"\r\n/);
   assert.match(csv.text, /\r\ntimezone,"[^"]+"\r\n/);
   assert.match(csv.text, /\r\nresult_count,"2"\r\n/);
   assert.match(csv.text, /\r\nfilter_source,"archive"\r\n/);

@@ -25,7 +25,7 @@ interface ManagerDeploymentHistoryExportMetadata {
     status: ManagerDeploymentHistoryFilters["status"];
   };
   result_count: number;
-  schema_version: 5;
+  schema_version: 6;
   timezone: string;
 }
 
@@ -44,6 +44,7 @@ const CSV_COLUMNS: readonly (keyof ManagerDeploymentHistoryEntry)[] = [
   "failure_reason",
   "stage_durations_ms",
   "alert_request_status",
+  "alert_channel",
   "alert_run_url",
   "alert_run_status",
   "alert_run_conclusion",
@@ -109,7 +110,7 @@ function buildMetadata(
       status: filters.status,
     },
     result_count: resultCount,
-    schema_version: 5,
+    schema_version: 6,
     timezone: timezone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   };
 }

@@ -11,6 +11,7 @@ import {
   MANAGER_DEPLOYMENT_FAILURE_STAGE_LABELS,
   formatManagerDeploymentDurationMs,
 } from "./managerDeploymentHistoryDisplay";
+import { getHostOperationAlertChannelLabel } from "./managerWatchdogStatus";
 import {
   downloadManagerDeploymentBottleneckEvents,
   type ManagerDeploymentBottleneckEventExportFormat,
@@ -213,7 +214,7 @@ function ManagerDeploymentBottleneckEventHistoryContent({
                   : ""}
                 {event.run_url ? (
                   <>{" · "}<a className="font-semibold underline underline-offset-2" href={event.run_url} rel="noreferrer" target="_blank">워크플로</a></>
-                ) : null}
+                ) : event.alert_channel ? ` · ${getHostOperationAlertChannelLabel(event.alert_channel)}` : null}
               </p>
             </li>
           ))}

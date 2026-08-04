@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.core.config import settings
-from app.infrastructure.github_actions_run import build_actions_run_api_url
+from app.infrastructure.host_operation_alert_delivery import normalize_alert_delivery
 from app.infrastructure.manager_deployment_bottleneck_config import (
     MAX_CONSECUTIVE_COUNT,
     MAX_EVENT_RETENTION_DAYS,
@@ -44,9 +44,10 @@ def read_manager_deployment_bottleneck_state(
     status = values.get("status", "not_checked")
     if status not in ALERT_STATUSES:
         status = "not_checked"
-    run_url = values.get("run_url") or None
-    if run_url and not build_actions_run_api_url(run_url):
-        run_url = None
+    alert_delivery = normalize_alert_delivery(
+        values.get("alert_channel"), values.get("run_url")
+    )
+    alert_channel, run_url = alert_delivery or (None, None)
     slowest_stage = values.get("slowest_stage") or None
     if slowest_stage not in DEPLOYMENT_STAGES:
         slowest_stage = None
@@ -104,6 +105,7 @@ def read_manager_deployment_bottleneck_state(
             maximum=24 * 60 * 60 * 1000,
         ),
         "alerted_at": _iso_datetime(values.get("alerted_at")),
+        "alert_channel": alert_channel,
         "run_url": run_url,
         **read_manager_deployment_bottleneck_event_state(events_path),
     }

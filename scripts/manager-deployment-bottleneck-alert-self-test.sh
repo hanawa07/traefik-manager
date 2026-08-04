@@ -28,7 +28,7 @@ run_self_test() {
   cat > "${fake_alert}" <<'SCRIPT'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "${TM_DEPLOY_BOTTLENECK_ALERT_CAPTURE}"
-printf 'https://github.com/hanawa07/traefik-manager/actions/runs/101\n'
+printf 'anubis\n'
 SCRIPT
   chmod 700 "${fake_alert}"
 
@@ -46,7 +46,9 @@ SCRIPT
   [[ "$(wc -l < "${capture_file}")" == "1" && -f "${state_file}" ]]
   [[ "$(wc -l < "${events_file}")" == "1" ]]
   grep -Fq '"event":"alerted"' "${events_file}"
+  grep -Fq '"alert_channel":"anubis"' "${events_file}"
   grep -Fq 'status=alerted' "${status_file}"
+  grep -Fq 'alert_channel=anubis' "${status_file}"
   run_fixture_check "${history_file}" "${state_file}" "${status_file}" "${fake_alert}" "${capture_file}" "${events_file}"
   [[ "$(wc -l < "${capture_file}")" == "1" ]]
   [[ "$(wc -l < "${events_file}")" == "1" ]]
@@ -113,6 +115,7 @@ SCRIPT
     "${fake_alert}" "${storage_capture}" "${storage_events}"
   [[ "$(wc -l < "${storage_capture}")" == "1" ]]
   [[ -f "${storage_events}.storage-warning.state" ]]
+  grep -Fq 'alert_channel=anubis' "${storage_events}.storage-warning.state"
   grep -Fq '보관량 80/100건' "${storage_capture}"
   grep -Fq 'warning' "${storage_capture}"
   run_fixture_check \

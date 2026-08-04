@@ -106,6 +106,7 @@ export interface TraefikUpdateHistoryEntry {
   backup_created: boolean;
   rollback_performed: boolean;
   alert_request_status: "not_needed" | "pending" | "requested" | "request_failed";
+  alert_channel: "anubis" | "github" | null;
   alert_run_url: string | null;
   alert_retry_request_id: string | null;
   alert_retry_actor: string | null;

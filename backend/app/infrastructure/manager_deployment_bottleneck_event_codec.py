@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 
-from app.infrastructure.github_actions_run import build_actions_run_api_url
+from app.infrastructure.host_operation_alert_delivery import normalize_alert_delivery
 from app.infrastructure.manager_deployment_bottleneck_config import (
     DEFAULT_CONSECUTIVE_COUNT,
     DEFAULT_THRESHOLD_MS,
@@ -51,9 +51,10 @@ def normalize_event(value: object) -> dict[str, object] | None:
     occurred_at = iso_datetime(string_value(value.get("occurred_at")))
     if occurred_at is None:
         return None
-    run_url = string_value(value.get("run_url")) or None
-    if run_url and not build_actions_run_api_url(run_url):
-        run_url = None
+    alert_delivery = normalize_alert_delivery(
+        value.get("alert_channel"), value.get("run_url")
+    )
+    alert_channel, run_url = alert_delivery or (None, None)
     slowest_stage = string_value(value.get("slowest_stage")) or None
     if slowest_stage not in DEPLOYMENT_STAGES:
         slowest_stage = None
@@ -89,6 +90,7 @@ def normalize_event(value: object) -> dict[str, object] | None:
             minimum=0,
             maximum=24 * 60 * 60 * 1000,
         ),
+        "alert_channel": alert_channel,
         "run_url": run_url,
     }
 

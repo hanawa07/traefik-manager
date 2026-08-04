@@ -5,6 +5,7 @@ import {
   getExternalWatchdogAlertLabel,
   getExternalWatchdogLabel,
   getExternalWatchdogRunLabel,
+  getHostOperationAlertChannelLabel,
   isExternalWatchdogRunFailure,
 } from "./managerWatchdogStatus";
 
@@ -31,11 +32,9 @@ export function ManagerDeploymentStatusPanel({
   const watchdogCheckedAt = formatDateTime(deployment?.external_watchdog_checked_at, timezone);
   const watchdogStaleMinutes = deployment?.external_watchdog_stale_after_minutes ?? 10;
   const watchdogLastAlertAt = formatDateTime(deployment?.external_watchdog_last_alert_at, timezone);
-  const watchdogAlertChannel = deployment?.external_watchdog_last_alert_channel === "anubis"
-    ? "Anubis 직접 전송"
-    : deployment?.external_watchdog_last_alert_channel === "github"
-      ? "GitHub Actions"
-      : "미확인";
+  const watchdogAlertChannel = getHostOperationAlertChannelLabel(
+    deployment?.external_watchdog_last_alert_channel,
+  );
   const watchdogRunCheckedAt = formatDateTime(
     deployment?.external_watchdog_last_alert_run_checked_at,
     timezone,
@@ -92,7 +91,7 @@ export function ManagerDeploymentStatusPanel({
               : ""
           }`}
         >
-          알림 워크플로 결과: {getExternalWatchdogRunLabel(
+          GitHub 알림 실행 결과: {getExternalWatchdogRunLabel(
             deployment?.external_watchdog_last_alert_run_status,
             deployment?.external_watchdog_last_alert_run_conclusion,
             deployment?.external_watchdog_last_alert_run_error,

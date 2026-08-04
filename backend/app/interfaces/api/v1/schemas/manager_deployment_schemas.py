@@ -113,6 +113,7 @@ class ManagerDeploymentHistoryEntryResponse(BaseModel):
     failure_stage: ManagerDeploymentStage | None = None
     failure_reason: str | None = None
     alert_request_status: Literal["not_needed", "requested", "request_failed"] = "not_needed"
+    alert_channel: Literal["anubis", "github"] | None = None
     alert_run_url: str | None = None
     alert_run_status: str | None = None
     alert_run_conclusion: str | None = None
@@ -138,6 +139,7 @@ class ManagerDeploymentBottleneckEventResponse(BaseModel):
     latest_version: str | None = None
     slowest_stage: ManagerDeploymentStage | None = None
     slowest_ms: int = Field(default=0, ge=0)
+    alert_channel: Literal["anubis", "github"] | None = None
     run_url: str | None = None
 
 
@@ -165,6 +167,7 @@ class ManagerDeploymentBottleneckAlertResponse(BaseModel):
     slowest_stage: ManagerDeploymentStage | None = None
     slowest_ms: int = Field(default=0, ge=0)
     alerted_at: datetime | None = None
+    alert_channel: Literal["anubis", "github"] | None = None
     run_url: str | None = None
     run_status: str | None = None
     run_conclusion: str | None = None
@@ -172,6 +175,7 @@ class ManagerDeploymentBottleneckAlertResponse(BaseModel):
     run_error: str | None = None
     storage_warning_active: bool = False
     storage_warning_alerted_at: datetime | None = None
+    storage_warning_alert_channel: Literal["anubis", "github"] | None = None
     storage_warning_run_url: str | None = None
     storage_warning_run_status: str | None = None
     storage_warning_run_conclusion: str | None = None

@@ -13,7 +13,7 @@ mkdir -p "${TM_MANAGER_DEPLOY_STATE_DIR}"
 cat > "${TM_HOST_OPERATION_ALERT_SCRIPT}" <<'SCRIPT'
 #!/usr/bin/env bash
 printf '%s\n' "$@" > "${TM_TEST_ALERT_ARGS}"
-printf 'https://github.com/hanawa07/traefik-manager/actions/runs/123\n'
+printf 'anubis\n'
 SCRIPT
 chmod 700 "${TM_HOST_OPERATION_ALERT_SCRIPT}"
 
@@ -59,8 +59,9 @@ grep -Fq '"active_slot":"green"' "${HISTORY_FILE}"
 grep -Fq '"failure_stage":"public_probe"' "${HISTORY_FILE}"
 grep -Fq 'HTTP 비정상 5/5건 · 자동 rollback 미완료' "${HISTORY_FILE}"
 grep -Fq '"alert_request_status":"requested"' "${HISTORY_FILE}"
-grep -Fq '"alert_run_url":"https://github.com/hanawa07/traefik-manager/actions/runs/123"' \
+grep -Fq '"alert_channel":"anubis"' \
   "${HISTORY_FILE}"
+grep -Fq '"alert_run_url":""' "${HISTORY_FILE}"
 grep -Fxq 'Manager blue-green rollback' "${TM_TEST_ALERT_ARGS}"
 grep -Fxq 'failure' "${TM_TEST_ALERT_ARGS}"
 echo "Manager rollback_failed 격리 통합 시험 통과"

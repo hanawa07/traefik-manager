@@ -113,15 +113,17 @@ write_check_status() {
   local latest_version="$5"
   local slowest_stage="$6"
   local slowest_ms="$7"
-  local run_url="$8"
-  local alerted_at="$9"
+  local alert_channel="$8"
+  local run_url="$9"
+  local alerted_at="${10}"
   local temporary_file
   temporary_file="$(mktemp "${status_file}.tmp.XXXXXX")"
-  printf 'status=%s\nchecked_at=%s\neffective_threshold_ms=%s\neffective_consecutive_count=%s\neffective_event_retention_days=%s\nthreshold_source=%s\nconsecutive_source=%s\nevent_retention_source=%s\ncurrent_consecutive_count=%s\nincident_key=%s\nlatest_version=%s\nslowest_stage=%s\nslowest_ms=%s\nrun_url=%s\nalerted_at=%s\n' \
+  printf 'status=%s\nchecked_at=%s\neffective_threshold_ms=%s\neffective_consecutive_count=%s\neffective_event_retention_days=%s\nthreshold_source=%s\nconsecutive_source=%s\nevent_retention_source=%s\ncurrent_consecutive_count=%s\nincident_key=%s\nlatest_version=%s\nslowest_stage=%s\nslowest_ms=%s\nalert_channel=%s\nrun_url=%s\nalerted_at=%s\n' \
     "${status}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${THRESHOLD_MS}" "${CONSECUTIVE_COUNT}" \
     "${EVENT_RETENTION_DAYS}" "${THRESHOLD_SOURCE}" "${CONSECUTIVE_SOURCE}" \
     "${EVENT_RETENTION_SOURCE}" "${count}" "${incident_key}" "${latest_version}" \
-    "${slowest_stage}" "${slowest_ms}" "${run_url}" "${alerted_at}" > "${temporary_file}"
+    "${slowest_stage}" "${slowest_ms}" "${alert_channel}" "${run_url}" \
+    "${alerted_at}" > "${temporary_file}"
   chmod 644 "${temporary_file}"
   mv "${temporary_file}" "${status_file}"
 }
@@ -133,7 +135,7 @@ check_history() (
   local events_file="${TM_DEPLOY_BOTTLENECK_ALERT_EVENTS_FILE:-${CONFIG_FILE}.events.jsonl}"
   local legacy_events_file="${history_file}.bottleneck-alert.events.jsonl"
   local analysis count incident_key latest_version slowest_stage slowest_ms
-  local alerted_incident alerted_at run_url status
+  local alerted_incident alerted_at alert_channel run_url status
   mkdir -p "$(dirname "${events_file}")"
   exec 9>"${events_file}.lock"
   flock -x 9
@@ -143,13 +145,15 @@ check_history() (
   fi
   if [[ ! -f "${history_file}" ]]; then
     if [[ -f "${state_file}" ]]; then
+      alert_channel="$(read_state_value "${state_file}" alert_channel)"
       run_url="$(read_state_value "${state_file}" run_url)"
-      if ! append_alert_event "${events_file}" cleared 0 "" "" 0 "${run_url}"; then
+      if ! append_alert_event "${events_file}" cleared 0 "" "" 0 \
+        "${alert_channel}" "${run_url}"; then
         echo "Manager 병목 해제 이력을 기록하지 못했습니다" >&2
       fi
       rm -f "${state_file}"
     fi
-    write_check_status "${status_file}" no_history 0 "" "" "" 0 "" ""
+    write_check_status "${status_file}" no_history 0 "" "" "" 0 "" "" ""
     check_event_storage_alert "${events_file}"
     return 0
   fi
@@ -157,9 +161,11 @@ check_history() (
   IFS='|' read -r count incident_key latest_version slowest_stage slowest_ms <<< "${analysis}"
   if (( count < CONSECUTIVE_COUNT )); then
     if [[ -f "${state_file}" ]]; then
+      alert_channel="$(read_state_value "${state_file}" alert_channel)"
       run_url="$(read_state_value "${state_file}" run_url)"
       if ! append_alert_event "${events_file}" cleared "${count}" \
-        "${latest_version}" "${slowest_stage}" "${slowest_ms}" "${run_url}"; then
+        "${latest_version}" "${slowest_stage}" "${slowest_ms}" \
+        "${alert_channel}" "${run_url}"; then
         echo "Manager 병목 해제 이력을 기록하지 못했습니다" >&2
       fi
     fi
@@ -167,7 +173,7 @@ check_history() (
     status="normal"
     (( count == 0 )) || status="pending"
     write_check_status "${status_file}" "${status}" "${count}" "${incident_key}" \
-      "${latest_version}" "${slowest_stage}" "${slowest_ms}" "" ""
+      "${latest_version}" "${slowest_stage}" "${slowest_ms}" "" "" ""
     check_event_storage_alert "${events_file}"
     return 0
   fi
@@ -177,34 +183,39 @@ check_history() (
     alerted_incident="$(read_state_value "${state_file}" incident_key)"
   fi
   if [[ -n "${alerted_incident}" && "${alerted_incident}" == "${incident_key}" ]]; then
+    alert_channel="$(read_state_value "${state_file}" alert_channel)"
     run_url="$(read_state_value "${state_file}" run_url)"
     alerted_at="$(read_state_value "${state_file}" alerted_at)"
     write_check_status "${status_file}" alerted "${count}" "${incident_key}" \
-      "${latest_version}" "${slowest_stage}" "${slowest_ms}" "${run_url}" "${alerted_at}"
+      "${latest_version}" "${slowest_stage}" "${slowest_ms}" \
+      "${alert_channel}" "${run_url}" "${alerted_at}"
     check_event_storage_alert "${events_file}"
     return 0
   fi
-  if ! run_url="$(
+  if ! alert_channel="$(
     "${ALERT_SCRIPT}" \
       "Manager deployment bottleneck" \
       "연속 병목 ${count}회: threshold_ms=${THRESHOLD_MS}, latest=${latest_version}, slowest_stage=${slowest_stage}, slowest_ms=${slowest_ms}" \
       failure
   )"; then
     write_check_status "${status_file}" request_failed "${count}" "${incident_key}" \
-      "${latest_version}" "${slowest_stage}" "${slowest_ms}" "" ""
+      "${latest_version}" "${slowest_stage}" "${slowest_ms}" "" "" ""
     check_event_storage_alert "${events_file}"
     return 1
   fi
-  write_alert_state "${state_file}" "${incident_key}" "${run_url}"
+  run_url=""
+  write_alert_state "${state_file}" "${incident_key}" "${alert_channel}" "${run_url}"
   alerted_at="$(read_state_value "${state_file}" alerted_at)"
   write_check_status "${status_file}" alerted "${count}" "${incident_key}" \
-    "${latest_version}" "${slowest_stage}" "${slowest_ms}" "${run_url}" "${alerted_at}"
+    "${latest_version}" "${slowest_stage}" "${slowest_ms}" \
+    "${alert_channel}" "${run_url}" "${alerted_at}"
   if ! append_alert_event "${events_file}" alerted "${count}" \
-    "${latest_version}" "${slowest_stage}" "${slowest_ms}" "${run_url}"; then
+    "${latest_version}" "${slowest_stage}" "${slowest_ms}" \
+    "${alert_channel}" "${run_url}"; then
     echo "Manager 병목 발생 이력을 기록하지 못했습니다" >&2
   fi
   check_event_storage_alert "${events_file}"
-  echo "Manager 연속 병목 운영 알림 요청: ${run_url}"
+  echo "Manager 연속 병목 운영 알림 요청: ${alert_channel}"
 )
 
 if [[ "${1:-}" == "--self-test" ]]; then

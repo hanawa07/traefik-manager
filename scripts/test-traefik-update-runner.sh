@@ -54,7 +54,7 @@ cat > "${fake_alert}" <<'SCRIPT'
 #!/usr/bin/env bash
 [[ "${TM_TEST_FAIL_ALERT:-false}" != "true" ]] || exit 44
 printf '%s\n' "$@" > "${TM_TEST_ALERT_CAPTURE}"
-printf '%s\n' 'https://github.com/hanawa07/traefik-manager/actions/runs/123'
+printf '%s\n' 'anubis'
 SCRIPT
 chmod 700 "${fake_docker}" "${fake_curl}" "${fake_alert}"
 
@@ -115,7 +115,8 @@ if TM_TEST_FAIL_PULL=true TM_TEST_FAIL_UP=true run_runner; then
 fi
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"status":"rollback_failed"'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_request_status":"requested"'
-tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_run_url":"https://github.com/hanawa07/traefik-manager/actions/runs/123"'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_channel":"anubis"'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_run_url":null'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_request_id":null'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_actor":null'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_requested_at":null'
@@ -132,6 +133,7 @@ if TM_TEST_FAIL_PULL=true TM_TEST_FAIL_UP=true TM_TEST_FAIL_ALERT=true run_runne
   exit 1
 fi
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_request_status":"request_failed"'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_channel":null'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_run_url":null'
 
 write_alert_retry_request \
@@ -150,7 +152,8 @@ write_alert_retry_request \
   'v3.7.10'
 run_runner
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_request_status":"requested"'
-tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_run_url":"https://github.com/hanawa07/traefik-manager/actions/runs/123"'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_channel":"anubis"'
+tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_run_url":null'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_request_id":"55555555-5555-4555-8555-555555555555"'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_actor":"self-test"'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_retry_requested_at":"2026-07-20T00:00:00Z"'

@@ -42,7 +42,7 @@ def test_bottleneck_config_round_trip_and_invalid_value_fallback(tmp_path: Path)
     }
 
 
-def test_bottleneck_state_reads_effective_check_and_rejects_foreign_run_url(tmp_path: Path):
+def test_bottleneck_state_reads_effective_check_and_anubis_channel(tmp_path: Path):
     config_path = tmp_path / "bottleneck.conf"
     status_path = tmp_path / "bottleneck.status"
     write_manager_deployment_bottleneck_config(45_000, 4, 120, config_path)
@@ -61,7 +61,8 @@ def test_bottleneck_state_reads_effective_check_and_rejects_foreign_run_url(tmp_
                 "latest_version=v1.38.97",
                 "slowest_stage=build",
                 "slowest_ms=75000",
-                "run_url=https://example.com/actions/runs/123",
+                "alert_channel=anubis",
+                "run_url=",
                 "alerted_at=2026-07-17T00:00:01Z",
             )
         ),
@@ -80,6 +81,7 @@ def test_bottleneck_state_reads_effective_check_and_rejects_foreign_run_url(tmp_
     assert result["event_retention_source"] == "environment"
     assert result["current_consecutive_count"] == 3
     assert result["slowest_stage"] == "build"
+    assert result["alert_channel"] == "anubis"
     assert result["run_url"] is None
 
     status_path.write_text(
@@ -127,6 +129,8 @@ def test_bottleneck_events_return_recent_valid_transitions(tmp_path: Path):
 
     assert [event["event"] for event in events] == ["cleared", "alerted"]
     assert events[0]["run_url"] is None
+    assert events[0]["alert_channel"] is None
+    assert events[1]["alert_channel"] == "github"
     assert events[1]["latest_version"] == "v1.38.98"
     assert events[1]["current_consecutive_count"] == 3
     assert events[1]["slowest_ms"] == 75_000
@@ -159,6 +163,7 @@ def test_bottleneck_state_reads_event_storage_warning_run(tmp_path: Path):
 
     assert state["storage_warning_active"] is True
     assert state["storage_warning_alerted_at"] == "2026-07-18T00:00:00Z"
+    assert state["storage_warning_alert_channel"] == "github"
     assert state["storage_warning_run_url"].endswith("/actions/runs/101")
 
 

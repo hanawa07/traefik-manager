@@ -11,6 +11,7 @@ readonly VIEWER_USERNAME="${TM_SMOKE_USERNAME:-traefik-smoke-viewer}"
 readonly SMOKE_ADMIN_USERNAME="${TM_SMOKE_ADMIN_USERNAME:-traefik-smoke-admin}"
 readonly ROTATION_STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/traefik-manager"
 readonly ROTATION_LOCK_FILE="${ROTATION_STATE_DIR}/smoke-password-rotation.lock"
+readonly HOST_ALERT_SCRIPT="${TM_HOST_OPERATION_ALERT_SCRIPT:-${SCRIPT_DIR}/request-host-operation-alert.sh}"
 backend_service=""
 viewer_password=""
 admin_password=""
@@ -72,10 +73,7 @@ report_rotation_status() {
 }
 
 request_external_failure_alert() {
-  gh workflow run host-operation-alert.yml \
-    --ref main \
-    -f source="스모크 계정 비밀번호 회전" \
-    -f detail="$1"
+  "${HOST_ALERT_SCRIPT}" "스모크 계정 비밀번호 회전" "$1" failure >/dev/null
 }
 
 update_account() {

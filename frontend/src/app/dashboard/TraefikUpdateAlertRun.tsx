@@ -7,6 +7,7 @@ import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 import {
   getExternalWatchdogRunLabel,
+  getHostOperationAlertChannelLabel,
   isExternalWatchdogRunFailure,
 } from "./managerWatchdogStatus";
 
@@ -77,6 +78,9 @@ export function TraefikUpdateAlertRun({
           >
             <ExternalLink className="h-3 w-3" /> 알림 실행 {resultLabel}
           </a>
+        ) : null}
+        {status === "requested" && !entry.alert_run_url && entry.alert_channel ? (
+          <span>전송 경로: {getHostOperationAlertChannelLabel(entry.alert_channel)}</span>
         ) : null}
         {entry.alert_run_checked_at ? (
           <span>확인 {formatDateTime(entry.alert_run_checked_at, timezone)}</span>

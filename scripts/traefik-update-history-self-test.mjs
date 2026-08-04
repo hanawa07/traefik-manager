@@ -23,6 +23,7 @@ const entry = (requestId, status, completedAt, actor = "self-test", overrides = 
   backup_created: status !== "rejected",
   rollback_performed: status.includes("rollback"),
   alert_request_status: "not_needed",
+  alert_channel: null,
   alert_run_url: null,
   alert_retry_request_id: null,
   alert_retry_actor: null,
@@ -38,6 +39,7 @@ const entries = [
   entry("recent", "success", "2026-07-20T11:00:00Z"),
   entry("rollback", "rollback_failed", "2026-07-10T12:00:00Z", "=fixture", {
     alert_request_status: "requested",
+    alert_channel: "github",
     alert_run_url: "https://github.com/hanawa07/traefik-manager/actions/runs/123",
     alert_retry_request_id: "33333333-3333-4333-8333-333333333333",
     alert_retry_actor: "security-admin",
@@ -96,11 +98,11 @@ const csv = buildTraefikUpdateHistoryExport(
 );
 assert.equal(csv.filename, "traefik-updates-rollback_failed-all-time-2026-07-20.csv");
 assert.equal(csv.content.startsWith("\uFEFFmetadata,value\r\n"), true);
-assert.match(csv.content, /schema_version,"4"/);
+assert.match(csv.content, /schema_version,"5"/);
 assert.match(csv.content, /result_count,"1"/);
 assert.match(csv.content, /filter_actor,""/);
 assert.match(csv.content, /filter_retry,"all"/);
-assert.match(csv.content, /alert_request_status,alert_run_url,alert_retry_request_id,alert_retry_actor/);
+assert.match(csv.content, /alert_request_status,alert_channel,alert_run_url,alert_retry_request_id,alert_retry_actor/);
 assert.match(csv.content, /github\.com\/hanawa07\/traefik-manager\/actions\/runs\/123/);
 assert.match(csv.content, /security-admin/);
 assert.match(csv.content, /"'=fixture"/);
@@ -113,7 +115,8 @@ const json = JSON.parse(buildTraefikUpdateHistoryExport(
   "2026-07-20T12:00:00Z",
 ).content);
 assert.equal(json.metadata.result_count, 3);
-assert.equal(json.metadata.schema_version, 4);
+assert.equal(json.metadata.schema_version, 5);
+assert.equal(json.entries[1].alert_channel, "github");
 assert.equal(json.metadata.timezone, "Asia/Seoul");
 assert.deepEqual(json.metadata.filters, {
   actor: null,

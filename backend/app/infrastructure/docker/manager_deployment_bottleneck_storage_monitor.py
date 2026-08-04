@@ -29,6 +29,7 @@ async def check_manager_deployment_bottleneck_storage_once(
     current_state = {
         "active": active,
         "event_count": event_count,
+        "alert_channel": state.get("storage_warning_alert_channel"),
         "alert_run_url": state.get("storage_warning_run_url"),
         "alerted_at": state.get("storage_warning_alerted_at"),
     }
@@ -58,6 +59,7 @@ async def check_manager_deployment_bottleneck_storage_once(
                     "previous_event_count": previous.get("event_count"),
                     "warning_event_count": WARNING_EVENT_COUNT,
                     "max_event_count": MAX_EVENT_COUNT,
+                    "alert_channel": alert_state.get("alert_channel"),
                     "alert_run_url": alert_state.get("alert_run_url"),
                     "alerted_at": alert_state.get("alerted_at"),
                     "checked_at": current.isoformat(),

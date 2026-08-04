@@ -73,16 +73,38 @@ def test_history_returns_newest_valid_entries_and_skips_malformed_lines(tmp_path
     assert [entry["status"] for entry in result] == ["rollback_failed", "success"]
     assert result[0]["failure_stage"] == "public_probe"
     assert result[0]["alert_request_status"] == "requested"
+    assert result[0]["alert_channel"] == "github"
     assert result[0]["alert_run_url"].endswith("/actions/runs/123")
     assert result[0]["stage_durations_ms"] == {"prepare": 1000, "public_probe": 5000}
     assert result[1]["failure_stage"] is None
     assert result[1]["alert_request_status"] == "not_needed"
+    assert result[1]["alert_channel"] is None
     assert result[1]["alert_run_url"] is None
     assert result[1]["stage_durations_ms"] == {"prepare": 1000}
 
 
 def test_history_returns_empty_list_when_file_is_missing(tmp_path: Path):
     assert read_manager_deployment_history(tmp_path / "missing.jsonl") == []
+
+
+def test_history_accepts_anubis_direct_alert_without_run_url(tmp_path: Path):
+    history_path = tmp_path / "deployments.jsonl"
+    history_path.write_text(
+        json.dumps(
+            {
+                **_entry(status="rollback_failed"),
+                "alert_channel": "anubis",
+                "alert_run_url": "",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = read_manager_deployment_history(history_path)
+
+    assert result[0]["alert_request_status"] == "requested"
+    assert result[0]["alert_channel"] == "anubis"
+    assert result[0]["alert_run_url"] is None
 
 
 def test_archive_returns_only_entries_not_retained_in_current_file(tmp_path: Path):

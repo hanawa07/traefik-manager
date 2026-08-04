@@ -124,6 +124,7 @@ export interface ManagerDeploymentHistoryEntry {
   failure_stage: ManagerDeploymentStage | null;
   failure_reason: string | null;
   alert_request_status: "not_needed" | "requested" | "request_failed";
+  alert_channel: "anubis" | "github" | null;
   alert_run_url: string | null;
   alert_run_status: string | null;
   alert_run_conclusion: string | null;
@@ -149,6 +150,7 @@ export interface ManagerDeploymentBottleneckEvent {
   latest_version: string | null;
   slowest_stage: ManagerDeploymentStage | null;
   slowest_ms: number;
+  alert_channel: "anubis" | "github" | null;
   run_url: string | null;
 }
 
@@ -169,6 +171,7 @@ export interface ManagerDeploymentBottleneckAlert {
   slowest_stage: ManagerDeploymentStage | null;
   slowest_ms: number;
   alerted_at: string | null;
+  alert_channel: "anubis" | "github" | null;
   run_url: string | null;
   run_status: string | null;
   run_conclusion: string | null;
@@ -176,6 +179,7 @@ export interface ManagerDeploymentBottleneckAlert {
   run_error: string | null;
   storage_warning_active: boolean;
   storage_warning_alerted_at: string | null;
+  storage_warning_alert_channel: "anubis" | "github" | null;
   storage_warning_run_url: string | null;
   storage_warning_run_status: string | null;
   storage_warning_run_conclusion: string | null;

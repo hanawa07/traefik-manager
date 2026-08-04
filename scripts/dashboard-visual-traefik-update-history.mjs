@@ -111,7 +111,7 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
     new RegExp(`traefik-updates-rollback_failed-${FIXTURE_DATE}-to-${FIXTURE_DATE}-\\d{4}-\\d{2}-\\d{2}\\.json$`),
   );
   const payload = JSON.parse(json.text);
-  assert.equal(payload.metadata.schema_version, 4);
+  assert.equal(payload.metadata.schema_version, 5);
   assert.equal(payload.metadata.result_count, 1);
   assert.deepEqual(payload.metadata.filters, {
     date_from: FIXTURE_DATE,
@@ -122,6 +122,7 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
     status: "rollback_failed",
   });
   assert.equal(payload.entries[0].alert_run_url, ALERT_RUN_URL);
+  assert.equal(payload.entries[0].alert_channel, "github");
   assert.equal(payload.entries[0].alert_retry_request_id, "33333333-3333-4333-8333-333333333333");
   assert.equal(payload.entries[0].alert_retry_actor, "security-admin");
   assert.equal(payload.entries[0].alert_run_conclusion, "success");
@@ -129,11 +130,11 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
   const csv = await captureDownload(cdp, "csv");
   assert.deepEqual(csv.bytes, [239, 187, 191], "Traefik CSV UTF-8 BOM이 없습니다");
   assert.match(csv.text, /^metadata,value\r\n/);
-  assert.match(csv.text, /\r\nschema_version,"4"\r\n/);
+  assert.match(csv.text, /\r\nschema_version,"5"\r\n/);
   assert.match(csv.text, /\r\nresult_count,"1"\r\n/);
   assert.match(csv.text, /\r\nfilter_actor,"security-admin"\r\n/);
   assert.match(csv.text, /\r\nfilter_retry,"retried"\r\n/);
-  assert.match(csv.text, /alert_request_status,alert_run_url,alert_retry_request_id,alert_retry_actor/);
+  assert.match(csv.text, /alert_request_status,alert_channel,alert_run_url,alert_retry_request_id,alert_retry_actor/);
   assert.match(csv.text, /github\.com\/hanawa07\/traefik-manager\/actions\/runs\/123/);
   assert.match(csv.text, /security-admin/);
   assert.match(csv.text, /"'=smoke-admin"/);

@@ -40,6 +40,7 @@ history_recorded=0
 deployment_started_at=""
 deployment_stage="prepare"
 alert_request_status="not_needed"
+alert_channel=""
 alert_run_url=""
 previous_slot=""
 candidate_slot=""

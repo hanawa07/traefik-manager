@@ -32,6 +32,7 @@ const FIXTURE = {
     backup_created: true,
     rollback_performed: true,
     alert_request_status: "request_failed",
+    alert_channel: null,
     alert_run_url: null,
     alert_retry_request_id: "22222222-2222-4222-8222-222222222222",
     alert_retry_actor: "security-admin",

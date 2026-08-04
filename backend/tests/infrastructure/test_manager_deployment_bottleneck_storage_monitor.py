@@ -42,9 +42,8 @@ async def test_bottleneck_storage_monitor_records_warning_once_and_recovery(monk
     def read_state():
         return {
             "storage_warning_active": active,
-            "storage_warning_run_url": (
-                "https://github.com/hanawa07/traefik-manager/actions/runs/101"
-            ) if active else None,
+            "storage_warning_alert_channel": "anubis" if active else None,
+            "storage_warning_run_url": None,
             "storage_warning_alerted_at": "2026-07-18T00:00:00Z" if active else None,
             "retained_event_count": event_count,
         }
@@ -81,6 +80,8 @@ async def test_bottleneck_storage_monitor_records_warning_once_and_recovery(monk
         "manager_deployment_bottleneck_storage_recovered",
     ]
     assert recorded[0]["detail"]["event_count"] == 84
+    assert recorded[0]["detail"]["alert_channel"] == "anubis"
+    assert recorded[0]["detail"]["alert_run_url"] is None
     assert recorded[1]["detail"]["event_count"] == 79
     assert recorded[1]["detail"]["previous_event_count"] == 84
     assert monitor.AUDIT_STATE_KEY not in StubSettingsRepository.store

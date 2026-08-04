@@ -89,17 +89,19 @@ append_history() {
   local failure_stage="${12}"
   local failure_reason="${13}"
   local alert_request_status="${14}"
-  local alert_run_url="${15}"
-  local stage_durations_json="${16}"
+  local alert_channel="${15}"
+  local alert_run_url="${16}"
+  local stage_durations_json="${17}"
   if [[ "${stage_durations_json}" != "{}" && ! "${stage_durations_json}" =~ ${STAGE_DURATIONS_PATTERN} ]]; then
     echo "배포 단계 시간 JSON이 올바르지 않습니다" >&2
     return 1
   fi
-  printf '{"status":"%s","from_slot":"%s","to_slot":"%s","active_slot":"%s","version":"%s","revision":"%s","started_at":"%s","completed_at":"%s","probe_total":%s,"probe_failures":%s,"failure_stage":"%s","failure_reason":"%s","alert_request_status":"%s","alert_run_url":"%s","stage_durations_ms":%s}\n' \
+  printf '{"status":"%s","from_slot":"%s","to_slot":"%s","active_slot":"%s","version":"%s","revision":"%s","started_at":"%s","completed_at":"%s","probe_total":%s,"probe_failures":%s,"failure_stage":"%s","failure_reason":"%s","alert_request_status":"%s","alert_channel":"%s","alert_run_url":"%s","stage_durations_ms":%s}\n' \
     "${status}" "${from_slot}" "${to_slot}" "${active_slot}" \
     "${deployed_version}" "${deployed_revision}" "${started_at}" "${completed_at}" \
     "${probe_total}" "${probe_failures}" "${failure_stage}" "${failure_reason}" \
-    "${alert_request_status}" "${alert_run_url}" "${stage_durations_json}" \
+    "${alert_request_status}" "${alert_channel}" "${alert_run_url}" \
+    "${stage_durations_json}" \
     >> "${output_file}"
   chmod 644 "${output_file}"
   rotate_history "${output_file}"
@@ -114,18 +116,17 @@ run_self_test() {
   for index in 9 10; do
     append_history \
       "${history_file}.1" success blue green green v1.2.2 "${revision}" \
-      "2026-07-${index}T00:00:00Z" "2026-07-${index}T00:01:00Z" 10 0 "" "" not_needed "" '{}'
+      "2026-07-${index}T00:00:00Z" "2026-07-${index}T00:01:00Z" 10 0 "" "" not_needed "" "" '{}'
   done
   for index in 1 2 3 4; do
     append_history \
       "${history_file}" success blue green green v1.2.3 "${revision}" \
-      "2026-07-1${index}T00:00:00Z" "2026-07-1${index}T00:01:00Z" 10 0 "" "" not_needed "" '{}'
+      "2026-07-1${index}T00:00:00Z" "2026-07-1${index}T00:01:00Z" 10 0 "" "" not_needed "" "" '{}'
   done
   append_history \
     "${history_file}" rollback_failed green blue unknown v1.2.4 "${revision}" \
     2026-07-16T00:05:00Z 2026-07-16T00:06:00Z 5 2 route_switch \
-    "HTTP 비정상 2/5건 · 자동 rollback 미완료" requested \
-    "https://github.com/hanawa07/traefik-manager/actions/runs/101" \
+    "HTTP 비정상 2/5건 · 자동 rollback 미완료" requested anubis "" \
     '{"prepare":250,"build":750}'
   [[ "$(wc -l < "${history_file}")" == "3" ]]
   [[ "$(wc -l < "${history_file}.1")" == "4" ]]
@@ -138,14 +139,15 @@ run_self_test() {
   grep -Fq '"completed_at":"2026-07-13T00:01:00Z"' "${history_file}.daily"
   grep -Fq '"completed_at":"2026-07-14T00:01:00Z"' "${history_file}.daily"
   grep -Fq '"alert_request_status":"requested"' "${history_file}"
-  grep -Fq '"alert_run_url":"https://github.com/hanawa07/traefik-manager/actions/runs/101"' "${history_file}"
+  grep -Fq '"alert_channel":"anubis"' "${history_file}"
+  grep -Fq '"alert_run_url":""' "${history_file}"
   grep -Fq '"stage_durations_ms":{"prepare":250,"build":750}' "${history_file}"
   echo "Manager 배포 이력 회전 self-test 통과"
 }
 
 case "${1:-}" in
   append)
-    [[ $# -eq 17 ]] || { echo "배포 이력 append 인자 수가 올바르지 않습니다" >&2; exit 2; }
+    [[ $# -eq 18 ]] || { echo "배포 이력 append 인자 수가 올바르지 않습니다" >&2; exit 2; }
     validate_limits
     append_history "${@:2}"
     ;;

@@ -122,6 +122,7 @@ class TraefikUpdateHistoryEntryResponse(BaseModel):
     alert_request_status: Literal[
         "not_needed", "pending", "requested", "request_failed"
     ] = "not_needed"
+    alert_channel: Literal["anubis", "github"] | None = None
     alert_run_url: str | None = None
     alert_retry_request_id: str | None = None
     alert_retry_actor: str | None = None

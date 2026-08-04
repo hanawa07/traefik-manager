@@ -27,6 +27,7 @@ export function buildManagerDeploymentBottleneckAlertFixture() {
     slowest_stage: "build",
     slowest_ms: 75_000,
     alerted_at: occurredAt(0),
+    alert_channel: "anubis",
     run_url: null,
     run_status: null,
     run_conclusion: null,
@@ -34,10 +35,11 @@ export function buildManagerDeploymentBottleneckAlertFixture() {
     run_error: null,
     storage_warning_active: true,
     storage_warning_alerted_at: occurredAt(0),
-    storage_warning_run_url: "https://github.com/hanawa07/traefik-manager/actions/runs/101",
-    storage_warning_run_status: "completed",
-    storage_warning_run_conclusion: "success",
-    storage_warning_run_checked_at: occurredAt(0),
+    storage_warning_alert_channel: "anubis",
+    storage_warning_run_url: null,
+    storage_warning_run_status: null,
+    storage_warning_run_conclusion: null,
+    storage_warning_run_checked_at: null,
     storage_warning_run_error: null,
     retained_event_count: 84,
     oldest_event_at: occurredAt(29),
@@ -76,7 +78,7 @@ export async function checkManagerDeploymentBottleneckEvents({ cdp, reload, time
   const json = await captureEventDownload(cdp, "json");
   assert.match(json.filename, /bottleneck-events-cleared-7d-\d{4}-\d{2}-\d{2}\.json$/);
   const payload = JSON.parse(json.text);
-  assert.equal(payload.metadata.schema_version, 1);
+  assert.equal(payload.metadata.schema_version, 2);
   assert.equal(payload.metadata.result_count, 1);
   assert.deepEqual(payload.metadata.filters, { event: "cleared", period: "7" });
   assert.equal(payload.events[0].event, "cleared");
@@ -103,6 +105,8 @@ export async function checkManagerDeploymentBottleneckEvents({ cdp, reload, time
   assert.match(csv.text, /\r\nfilter_event,"all"\r\n/);
   assert.match(csv.text, /\r\nfilter_period,"all"\r\n/);
   assert.match(csv.text, /\r\n\r\nevent,occurred_at,threshold_ms,/);
+  assert.match(csv.text, /slowest_ms,alert_channel,run_url/);
+  assert.match(csv.text, /"anubis"/);
   assert.match(csv.text, /"'\+v1\.38\.61"/);
   await waitForExportNotice(cdp, "CSV", csv.filename, timeoutMs);
 }
@@ -134,6 +138,7 @@ function buildEvent(event, occurredAt, latestVersion, slowestStage, slowestMs, c
     latest_version: latestVersion,
     slowest_stage: slowestStage,
     slowest_ms: slowestMs,
+    alert_channel: "anubis",
     run_url: null,
   };
 }

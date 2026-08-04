@@ -88,6 +88,7 @@ def history_entry(
         "backup_created": False,
         "rollback_performed": False,
         "alert_request_status": "not_needed",
+        "alert_channel": None,
         "alert_run_url": None,
         "alert_retry_request_id": None,
         "alert_retry_actor": None,
@@ -117,6 +118,7 @@ def append_alert_result(
     request_id: str,
     target_version: str,
     status: str,
+    channel: str | None,
     run_url: str | None,
     retry_request_id: str | None = None,
     retry_actor: str | None = None,
@@ -125,10 +127,16 @@ def append_alert_result(
     if status not in {"requested", "request_failed"}:
         raise ValueError("지원하지 않는 호스트 알림 상태입니다")
     if status == "requested":
-        if not isinstance(run_url, str) or not ALERT_RUN_URL_PATTERN.fullmatch(run_url):
+        if channel not in {"anubis", "github"}:
+            raise ValueError("호스트 알림 채널이 올바르지 않습니다")
+        if channel == "github" and (
+            not isinstance(run_url, str) or not ALERT_RUN_URL_PATTERN.fullmatch(run_url)
+        ):
             raise ValueError("호스트 알림 실행 URL이 올바르지 않습니다")
-    elif run_url is not None:
-        raise ValueError("실패한 호스트 알림에는 실행 URL을 저장할 수 없습니다")
+        if channel == "anubis" and run_url is not None:
+            raise ValueError("Anubis 직접 알림에는 실행 URL을 저장할 수 없습니다")
+    elif channel is not None or run_url is not None:
+        raise ValueError("실패한 호스트 알림에는 채널이나 실행 URL을 저장할 수 없습니다")
     if (retry_actor is None) != (retry_requested_at is None):
         raise ValueError("알림 재시도 요청자와 요청 시각은 함께 저장해야 합니다")
     if retry_actor is not None and (
@@ -155,6 +163,7 @@ def append_alert_result(
         {
             **entry,
             "alert_request_status": status,
+            "alert_channel": channel,
             "alert_run_url": run_url,
             "alert_retry_request_id": retry_request_id,
             "alert_retry_actor": retry_actor,

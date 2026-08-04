@@ -94,6 +94,7 @@ def test_read_traefik_update_operations_returns_latest_request_state(tmp_path):
     assert result["history"][0]["status"] == "success"
     assert result["history"][0]["backup_created"] is True
     assert result["history"][0]["alert_request_status"] == "not_needed"
+    assert result["history"][0]["alert_channel"] is None
     assert result["history"][0]["alert_run_url"] is None
     assert result["history"][0]["alert_retry_request_id"] is None
     assert result["history"][0]["alert_retry_actor"] is None
@@ -150,12 +151,47 @@ def test_read_traefik_update_operations_keeps_latest_rollback_alert_result(tmp_p
 
     assert len(result["history"]) == 1
     assert result["history"][0]["alert_request_status"] == "requested"
+    assert result["history"][0]["alert_channel"] == "github"
     assert result["history"][0]["alert_run_url"].endswith("/actions/runs/123")
     assert result["history"][0]["alert_retry_request_id"] == (
         "22222222-2222-4222-8222-222222222222"
     )
     assert result["history"][0]["alert_retry_actor"] == "security-admin"
     assert result["history"][0]["alert_retry_requested_at"] == "2026-07-20T01:01:00Z"
+
+
+def test_read_traefik_update_operations_accepts_anubis_direct_alert(tmp_path):
+    request_dir = tmp_path / "requests"
+    request_dir.mkdir()
+    entry = {
+        "request_id": "11111111-1111-4111-8111-111111111111",
+        "actor": "lizstudio",
+        "status": "rollback_failed",
+        "from_version": "v3.7.8",
+        "target_version": "v3.7.9",
+        "requested_at": "2026-07-20T01:00:00Z",
+        "started_at": "2026-07-20T01:00:01Z",
+        "completed_at": "2026-07-20T01:00:05Z",
+        "message": "rollback failed",
+        "backup_dir": "/tmp/backups/request",
+        "backup_created": True,
+        "rollback_performed": True,
+        "alert_request_status": "requested",
+        "alert_channel": "anubis",
+        "alert_run_url": None,
+        "validations": [],
+    }
+    history_path = tmp_path / "history.jsonl"
+    history_path.write_text(json.dumps(entry), encoding="utf-8")
+
+    result = read_traefik_update_operations(
+        history_path=history_path,
+        request_dir=request_dir,
+        runner_status_path=tmp_path / "missing.json",
+    )
+
+    assert result["history"][0]["alert_channel"] == "anubis"
+    assert result["history"][0]["alert_run_url"] is None
 
 
 def test_read_traefik_update_operations_rejects_stale_runner(tmp_path):

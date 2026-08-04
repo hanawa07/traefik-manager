@@ -45,7 +45,7 @@ function ManagerWatchdogAlertHistoryContent({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-            최근 watchdog 알림 실행
+            최근 GitHub watchdog 알림 실행
           </h3>
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
             외부 가용성 watchdog이 요청한 최근 GitHub Actions 실행 5건입니다.

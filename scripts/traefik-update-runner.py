@@ -118,11 +118,12 @@ def _request_and_record_rollback_alert(
     retry_requested_at: str | None = None,
 ) -> tuple[bool, str]:
     alert_status = "request_failed"
+    alert_channel = None
     alert_url = None
     try:
-        alert_url = _request_rollback_failure_alert(request_id, target_version)
+        alert_channel = _request_rollback_failure_alert(request_id, target_version)
         alert_status = "requested"
-        detail = f"호스트 운영 알림 요청 완료: {alert_url}"
+        detail = f"호스트 운영 알림 요청 완료: {alert_channel}"
     except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
         detail = f"호스트 운영 알림 요청도 실패했습니다: {message(exc)}"
     try:
@@ -131,6 +132,7 @@ def _request_and_record_rollback_alert(
             request_id,
             target_version,
             alert_status,
+            alert_channel,
             alert_url,
             retry_request_id=retry_request_id,
             retry_actor=retry_actor,
@@ -160,10 +162,10 @@ def _request_rollback_failure_alert(request_id: str, target_version: str) -> str
     )
     if completed.returncode != 0:
         raise RuntimeError(completed.stderr.strip() or f"exit {completed.returncode}")
-    run_url = completed.stdout.strip()
-    if not run_url:
-        raise RuntimeError("호스트 운영 알림 실행 URL을 확인하지 못했습니다")
-    return run_url
+    channel = completed.stdout.strip()
+    if channel != "anubis":
+        raise RuntimeError("호스트 운영 알림 채널을 확인하지 못했습니다")
+    return channel
 
 
 if __name__ == "__main__":

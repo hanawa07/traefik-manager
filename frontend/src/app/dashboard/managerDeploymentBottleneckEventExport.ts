@@ -13,7 +13,7 @@ interface ManagerDeploymentBottleneckEventExportMetadata {
   exported_at: string;
   filters: ManagerDeploymentBottleneckEventExportFilters;
   result_count: number;
-  schema_version: 1;
+  schema_version: 2;
   timezone: string;
 }
 
@@ -26,6 +26,7 @@ const CSV_COLUMNS: readonly (keyof ManagerDeploymentBottleneckEvent)[] = [
   "latest_version",
   "slowest_stage",
   "slowest_ms",
+  "alert_channel",
   "run_url",
 ];
 
@@ -39,7 +40,7 @@ export function downloadManagerDeploymentBottleneckEvents(
     exported_at: new Date().toISOString(),
     filters,
     result_count: events.length,
-    schema_version: 1,
+    schema_version: 2,
     timezone: timezone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   };
   const content = format === "csv"
