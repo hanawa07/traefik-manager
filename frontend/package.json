@@ -10,6 +10,7 @@
     "test:audit-query-state": "node ../scripts/audit-log-query-state-self-test.cjs",
     "test:bottleneck-preview": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/deployment-bottleneck-preview-self-test.mjs",
     "test:maintenance-history-query": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/maintenance-history-service-query-self-test.mjs",
+    "test:traefik-update-plan": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/traefik-update-plan-self-test.mjs",
     "test:traefik-update-history": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/traefik-update-history-self-test.mjs",
     "test:smoke-rotation-audit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/smoke-rotation-audit-detail-self-test.mjs",
     "test:smoke-failure-rate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/smoke-run-failure-rate-self-test.mjs",

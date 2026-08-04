@@ -1,4 +1,5 @@
 from pathlib import Path
+from shlex import quote
 from shutil import which
 
 from app.core.config import settings
@@ -56,7 +57,7 @@ def _extract_compose_metadata(labels: dict) -> dict:
         "project": _string_value(labels.get("com.docker.compose.project")),
         "service": _string_value(labels.get("com.docker.compose.service")) or "traefik",
         "working_dir": _string_value(labels.get("com.docker.compose.project.working_dir")),
-        "config_files": [item for item in (config_files or "").split(",") if item.strip()],
+        "config_files": [item.strip() for item in (config_files or "").split(",") if item.strip()],
     }
 
 
@@ -108,25 +109,37 @@ def _build_version_delta_check(current_version: str | None, target_version: str 
 def _build_commands(*, compose: dict, current_image: str | None, target_image: str | None) -> list[dict]:
     working_dir = compose["working_dir"] or "<traefik-compose-dir>"
     service = compose["service"] or "traefik"
-    config_file = compose["config_files"][0] if compose["config_files"] else "docker-compose.yml"
-    timestamp = "$(date +%Y%m%d-%H%M%S)"
+    config_files = compose["config_files"] or ["docker-compose.yml"]
+    command_prefix = f"cd {quote(working_dir)}"
+    compose_command = _build_compose_command(config_files)
+    service_argument = quote(service)
+    backup_steps = [
+        'timestamp="$(date +%Y%m%d-%H%M%S)"',
+        "mkdir -p backups",
+        *[
+            f"cp -- {quote(config_file)} {_backup_destination(config_file, index, len(config_files))}"
+            for index, config_file in enumerate(config_files, start=1)
+        ],
+        'cp -- letsencrypt/acme.json backups/acme.json.bak."${timestamp}"',
+    ]
     commands = [
         {
             "label": "백업 생성",
-            "description": "compose 파일과 acme.json을 같은 Traefik 디렉터리의 backups 아래에 보관합니다.",
-            "command": (
-                f"cd {working_dir} && mkdir -p backups && "
-                f"cp {Path(config_file).name} backups/docker-compose.yml.bak.{timestamp} && "
-                f"cp letsencrypt/acme.json backups/acme.json.bak.{timestamp}"
-            ),
+            "description": "Compose 파일과 acme.json을 같은 Traefik 디렉터리의 backups 아래에 보관합니다.",
+            "command": " && ".join([command_prefix, *backup_steps]),
         }
     ]
     if current_image and target_image and current_image != target_image:
+        config_arguments = " ".join(quote(config_file) for config_file in config_files)
+        current_image_line = quote(f"image: {current_image}")
         commands.append(
             {
                 "label": "이미지 태그 변경",
                 "description": "현재 Traefik 이미지 태그를 목표 버전으로 교체합니다.",
-                "command": f"cd {working_dir} && sed -i 's#image: {current_image}#image: {target_image}#' {Path(config_file).name}",
+                "command": (
+                    f"{command_prefix} && grep -Fq -- {current_image_line} {config_arguments} && "
+                    f"sed -i 's#image: {current_image}#image: {target_image}#' -- {config_arguments}"
+                ),
             }
         )
     commands.extend(
@@ -134,20 +147,34 @@ def _build_commands(*, compose: dict, current_image: str | None, target_image: s
             {
                 "label": "업데이트 적용",
                 "description": "새 이미지를 받은 뒤 Traefik 서비스만 재생성합니다.",
-                "command": f"cd {working_dir} && docker compose pull {service} && docker compose up -d {service}",
+                "command": (
+                    f"{command_prefix} && {compose_command} pull {service_argument} && "
+                    f"{compose_command} up -d {service_argument}"
+                ),
             },
             {
                 "label": "상태 확인",
                 "description": "Traefik API와 최근 로그를 확인합니다.",
                 "command": (
-                    f"cd {working_dir} && docker compose exec -T {service} "
+                    f"{command_prefix} && {compose_command} exec -T {service_argument} "
                     f"wget -qO- http://127.0.0.1:8080/api/version && "
-                    f"docker compose logs --tail=100 {service}"
+                    f"{compose_command} logs --tail=100 {service_argument}"
                 ),
             },
         ]
     )
     return commands
+
+
+def _build_compose_command(config_files: list[str]) -> str:
+    config_arguments = " ".join(f"-f {quote(config_file)}" for config_file in config_files)
+    return f"docker compose {config_arguments}"
+
+
+def _backup_destination(config_file: str, index: int, total: int) -> str:
+    filename = Path(config_file).name
+    backup_name = filename if total == 1 else f"{index}-{filename}"
+    return f'{quote(f"backups/{backup_name}.bak.")}"${{timestamp}}"'
 
 
 def _resolve_apply_capability(compose: dict) -> tuple[bool, str | None]:

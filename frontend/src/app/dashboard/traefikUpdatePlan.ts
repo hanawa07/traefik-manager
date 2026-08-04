@@ -75,8 +75,9 @@ export function buildTraefikUpdatePlan(
     composeWorkingDir: deployment?.compose_working_dir || null,
     currentImage: deployment?.current_image || null,
     targetImage: deployment?.target_image || null,
-    rollbackNote:
-      "문제가 생기면 compose 파일의 Traefik image 태그를 업데이트 전 값으로 되돌린 뒤 `docker compose up -d traefik`를 실행합니다.",
+    rollbackNote: dynamicCommands?.length
+      ? "문제가 생기면 Compose 파일의 Traefik image 태그를 업데이트 전 값으로 되돌린 뒤 위의 `업데이트 적용` 명령을 다시 실행합니다."
+      : "문제가 생기면 Compose 파일의 Traefik image 태그를 업데이트 전 값으로 되돌린 뒤 `docker compose up -d traefik`를 실행합니다.",
   };
 }
 

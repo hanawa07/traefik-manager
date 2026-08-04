@@ -41,7 +41,8 @@ async def test_traefik_deployment_status_builds_compose_update_commands(monkeypa
     assert any("traefik:v3.7.6" in item["command"] for item in result["commands"])
     status_command = next(item["command"] for item in result["commands"] if item["label"] == "상태 확인")
     assert (
-        "docker compose exec -T traefik wget -qO- "
+        "docker compose -f /home/lizstudio/docker/traefik/docker-compose.yml "
+        "exec -T traefik wget -qO- "
         "http://127.0.0.1:8080/api/version"
     ) in status_command
     assert "curl -fsS http://127.0.0.1:8080/api/version" not in status_command
@@ -88,6 +89,51 @@ async def test_traefik_deployment_status_reports_latest_version(monkeypatch):
     assert checks["version_delta"]["status"] == "ok"
     assert "최신 버전" in checks["version_delta"]["message"]
     assert not any("sed -i" in item["command"] for item in result["commands"])
+
+
+@pytest.mark.asyncio
+async def test_traefik_deployment_commands_support_multiple_custom_compose_files(monkeypatch):
+    monkeypatch.setattr("app.infrastructure.docker.traefik_deployment.which", lambda name: None)
+    docker_client = _DockerClient(
+        {
+            "Config": {
+                "Image": "traefik:v3.7.5",
+                "Labels": {
+                    "com.docker.compose.project": "edge",
+                    "com.docker.compose.service": "edge-proxy",
+                    "com.docker.compose.project.working_dir": "/srv/traefik stack",
+                    "com.docker.compose.project.config_files": (
+                        "/srv/traefik stack/compose.prod.yml, "
+                        "/srv/traefik stack/compose.override.yml"
+                    ),
+                    "org.opencontainers.image.version": "v3.7.5",
+                },
+            },
+            "NetworkSettings": {"Networks": {"proxy_net": {}}},
+            "Mounts": [{"Destination": "/letsencrypt"}],
+        }
+    )
+
+    result = await TraefikDeploymentInspector(docker_client).get_status(latest_version="v3.7.6")
+
+    assert result["compose_config_files"] == [
+        "/srv/traefik stack/compose.prod.yml",
+        "/srv/traefik stack/compose.override.yml",
+    ]
+    commands = {item["label"]: item["command"] for item in result["commands"]}
+    compose_command = (
+        "docker compose -f '/srv/traefik stack/compose.prod.yml' "
+        "-f '/srv/traefik stack/compose.override.yml'"
+    )
+    assert commands["업데이트 적용"] == (
+        f"cd '/srv/traefik stack' && {compose_command} pull edge-proxy && "
+        f"{compose_command} up -d edge-proxy"
+    )
+    assert f"{compose_command} exec -T edge-proxy" in commands["상태 확인"]
+    assert "cp -- '/srv/traefik stack/compose.prod.yml'" in commands["백업 생성"]
+    assert "cp -- '/srv/traefik stack/compose.override.yml'" in commands["백업 생성"]
+    assert "grep -Fq -- 'image: traefik:v3.7.5'" in commands["이미지 태그 변경"]
+    assert commands["이미지 태그 변경"].count("'/srv/traefik stack/compose.") == 4
 
 
 class _DockerClient:
