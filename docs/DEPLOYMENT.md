@@ -177,10 +177,10 @@ scripts/blue-green-deploy.sh vX.Y.Z
 - GitHub 이력 조회가 실패해도 설정 API 전체를 실패시키지 않으며, 앱에 저장된 최근 성공 시각과 실행 링크는 계속 표시합니다.
 - 같은 커밋의 원격 스모크 실패가 6시간 안에 반복되면 GitHub 실패 기록과 아티팩트는 유지하되 중복 Telegram 알림만 억제합니다.
 - backend 상태 기록 자체가 실패하면 호스트 스크립트가 `host-operation-alert.yml`을 호출해 GitHub Actions의 Telegram secret으로 우회 통지합니다.
-- backend 자체 중단은 호스트의 `scripts/manager-health-watchdog.sh`가 공개 `/api/health`를 5분마다 확인해 감지합니다. 장애·60분 지속 장애·복구 때 연속 실패 횟수를 포함해 `host-operation-alert.yml`을 호출하므로 Telegram 비밀값을 호스트에 저장하지 않습니다. 성공적으로 요청한 최근 실행 URL 5개는 호스트 상태 파일에 보존하며, 지연 판정 기준은 설정 화면에서 5~1440분으로 조정할 수 있습니다.
+- backend 자체 중단은 호스트의 `scripts/manager-health-watchdog.sh`가 공개 `/api/health`를 5분마다 확인해 감지합니다. 장애·60분 지속 장애·복구 때 제한된 HTTP 결과와 연속 실패 횟수만 Anubis 컨테이너의 전용 CLI에 전달해 Telegram으로 직접 알립니다. Telegram 비밀값은 Anubis 안에만 유지하며, 전환 전 GitHub Actions 실행 URL 이력은 호스트 상태 파일에서 읽기 전용으로 보존합니다. 지연 판정 기준은 설정 화면에서 5~1440분으로 조정할 수 있습니다.
 - watchdog 설치 예시는 `*/5 * * * * cd /path/to/traefik-manager && /usr/bin/bash scripts/manager-health-watchdog.sh >> ~/.local/state/traefik-manager/manager-health-watchdog.log 2>&1`입니다. 적용 전 `scripts/manager-health-watchdog.sh --self-test`와 정상 상태 1회 실행으로 기준 상태를 생성합니다.
 - 공개 주소나 cooldown을 바꿔야 하면 cron 앞에 `TM_MANAGER_WATCHDOG_URL=https://manager.example.com` 또는 `TM_MANAGER_WATCHDOG_COOLDOWN_SECONDS=3600`을 지정합니다.
-- `scripts/test-manager-health-watchdog.sh`는 가짜 health 응답과 가짜 GitHub CLI로 정상→장애→복구 및 알림 요청 실패 기록을 검증하므로 운영 컨테이너와 실제 알림을 중단하거나 호출하지 않습니다.
+- `scripts/test-manager-health-watchdog.sh`는 가짜 health 응답과 가짜 Docker CLI로 정상→장애→복구 및 직접 알림 실패 기록을 검증하므로 운영 컨테이너와 실제 알림을 중단하거나 호출하지 않습니다.
 - Traefik 자기 차단의 즉시 감지·직접 Telegram 알림·정확한 ticket 자동 해제는 Manager 프로세스가 아니라 Anubis의 `anubis-traefik-self-ban-watchdog.timer`가 담당합니다. 결과 파일 `~/.local/state/traefik-manager/traefik-self-ban-watchdog.json`만 backend에 읽기 전용으로 공유하며, API는 내부 IP를 버리고 상태·Jail 이름·시각·해제 건수만 반환합니다.
 - 최근 24시간의 실패 알림은 5분 간격으로 최대 3회 자동 재시도하며, 각 재시도 결과도 감사 로그에 남깁니다.
 - 관리자 설정 카드의 `최근 cron 로그`에서 호스트 로그 마지막 12줄을 확인할 수 있으며, 상태 디렉터리는 backend에 읽기 전용으로 마운트됩니다.

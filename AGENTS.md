@@ -60,6 +60,7 @@ Automated tests are not fully wired yet; treat lint/build and manual API checks 
 ## Security & Configuration Tips
 - Copy `.env.example` to `.env` and replace all placeholder secrets before running.
 - Never commit `.env`, tokens, or generated credentials.
+- Manager 외부 health watchdog은 Anubis 전용 CLI에 제한된 상태값만 전달하고, URL·응답 본문·Telegram credential을 호스트 상태에 기록하지 않는다. 전환 전 GitHub Actions 실행 이력은 읽기 전용 호환 데이터로만 유지한다.
 - Validate changes touching `traefik-config/dynamic` and Authentik integration with non-production credentials first.
 
 ## Database Migrations
