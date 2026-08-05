@@ -4,15 +4,19 @@ import { useEffect, useState } from "react";
 
 import {
   type SmokeCancellationReasonFilter,
+  type SmokeFailureType,
   type SmokeHistoryDays,
   type SmokeHistoryStatus,
   type SmokeRotationStatus,
 } from "@/features/settings/api/settingsApi";
 
+export type SmokeFailureTypeFilter = "all" | SmokeFailureType;
+
 export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [runStatus, setRunStatus] = useState<SmokeHistoryStatus>("all");
+  const [failureType, setFailureType] = useState<SmokeFailureTypeFilter>("all");
   const [cancellationReason, setCancellationReason] =
     useState<SmokeCancellationReasonFilter>("all");
   const [days, setDays] = useState<SmokeHistoryDays>(initialStatus.monitoring_history_days ?? 30);
@@ -24,6 +28,7 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
     setSearch(filters.search);
     setAppliedSearch(filters.search);
     setRunStatus(filters.status);
+    setFailureType(filters.failureType);
     setCancellationReason(filters.cancellationReason);
     setDays(filters.days);
     setPage(filters.page);
@@ -42,6 +47,7 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
     setSearch(nextSearch);
     setAppliedSearch(nextSearch);
     setRunStatus(value);
+    if (value !== "failure") setFailureType("all");
     setCancellationReason("all");
     setPage(1);
     replaceHistoryUrl({
@@ -49,6 +55,26 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
       smoke_search: nextSearch || null,
       smoke_status: value === "all" ? null : value,
       smoke_cancel_reason: null,
+      smoke_failure_type: value === "failure" && failureType !== "all" ? failureType : null,
+    });
+  };
+  const changeFailureType = (value: SmokeFailureTypeFilter) => {
+    const nextSearch = search.trim();
+    const nextStatus = value === "all" ? runStatus : "failure";
+    setSearch(nextSearch);
+    setAppliedSearch(nextSearch);
+    setRunStatus(nextStatus);
+    setFailureType(value);
+    if (nextStatus !== "cancelled") setCancellationReason("all");
+    setPage(1);
+    replaceHistoryUrl({
+      smoke_cancel_reason: nextStatus === "cancelled" && cancellationReason !== "all"
+        ? cancellationReason
+        : null,
+      smoke_failure_type: value === "all" ? null : value,
+      smoke_page: null,
+      smoke_search: nextSearch || null,
+      smoke_status: nextStatus === "all" ? null : nextStatus,
     });
   };
   const changeCancellationReason = (value: SmokeCancellationReasonFilter) => {
@@ -83,6 +109,7 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
     setSearch("");
     setAppliedSearch("");
     setRunStatus("all");
+    setFailureType("all");
     setCancellationReason("all");
     setDays(30);
     setPage(1);
@@ -92,6 +119,7 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
       smoke_search: null,
       smoke_status: null,
       smoke_cancel_reason: null,
+      smoke_failure_type: null,
     });
   };
 
@@ -100,6 +128,7 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
     setSearch,
     appliedSearch,
     runStatus,
+    failureType,
     cancellationReason,
     days,
     page,
@@ -108,11 +137,13 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
       search === "" &&
       appliedSearch === "" &&
       runStatus === "all" &&
+      failureType === "all" &&
       cancellationReason === "all" &&
       days === 30 &&
       page === 1,
     applySearch,
     changeStatus,
+    changeFailureType,
     changeCancellationReason,
     changeDays,
     changePage,
@@ -123,6 +154,7 @@ export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
 function readHistoryFilters(): {
   search: string;
   status: SmokeHistoryStatus;
+  failureType: SmokeFailureTypeFilter;
   cancellationReason: SmokeCancellationReasonFilter;
   days: SmokeHistoryDays;
   page: number;
@@ -130,6 +162,7 @@ function readHistoryFilters(): {
   const params = new URLSearchParams(window.location.search);
   const status = params.get("smoke_status");
   const cancellationReason = params.get("smoke_cancel_reason");
+  const failureType = params.get("smoke_failure_type");
   const days = Number(params.get("smoke_days"));
   const page = Number(params.get("smoke_page"));
   const normalizedStatus =
@@ -139,6 +172,13 @@ function readHistoryFilters(): {
   return {
     search: (params.get("smoke_search") || "").slice(0, 100),
     status: normalizedStatus,
+    failureType:
+      normalizedStatus === "failure" &&
+      (failureType === "login" ||
+        failureType === "external_api" ||
+        failureType === "visual_regression")
+        ? failureType
+        : "all",
     cancellationReason:
       normalizedStatus === "cancelled" &&
       (cancellationReason === "timeout" ||

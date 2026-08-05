@@ -5,13 +5,17 @@ import { useQuery } from "@tanstack/react-query";
 import {
   settingsApi,
   type SmokeCancellationReasonFilter,
+  type SmokeFailureType,
   type SmokeHistoryDays,
   type SmokeHistoryStatus,
   type SmokeRotationStatus,
 } from "@/features/settings/api/settingsApi";
 import { settingsQueryKeys } from "@/features/settings/hooks/settingsQueryKeys";
 import { SmokeRecentRunItem } from "./SmokeRecentRunItem";
-import { useSmokeRecentRunFilters } from "./useSmokeRecentRunFilters";
+import {
+  type SmokeFailureTypeFilter,
+  useSmokeRecentRunFilters,
+} from "./useSmokeRecentRunFilters";
 
 interface SmokeRecentRunHistoryProps {
   status: SmokeRotationStatus;
@@ -24,6 +28,7 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
     setSearch,
     appliedSearch,
     runStatus,
+    failureType,
     cancellationReason,
     days,
     page,
@@ -31,6 +36,7 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
     filtersAreDefault,
     applySearch,
     changeStatus,
+    changeFailureType,
     changeCancellationReason,
     changeDays,
     changePage,
@@ -64,6 +70,22 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
   });
   const history = usesInitialHistory ? initialStatus : historyQuery.data;
   const runs = history?.monitoring_recent_runs ?? [];
+  const failureRuns = runs.filter((run) => run.status === "failure");
+  const failureTypeCounts: Record<SmokeFailureType, number> = {
+    external_api: 0,
+    login: 0,
+    visual_regression: 0,
+  };
+  for (const run of failureRuns) {
+    if (run.failure_metadata) failureTypeCounts[run.failure_metadata.failure_type] += 1;
+  }
+  const classifiedFailureCount = Object.values(failureTypeCounts).reduce(
+    (totalCount, count) => totalCount + count,
+    0,
+  );
+  const visibleRuns = failureType === "all"
+    ? runs
+    : failureRuns.filter((run) => run.failure_metadata?.failure_type === failureType);
   const total = history?.monitoring_history_total ?? runs.length;
   const totalPages = history?.monitoring_history_total_pages ?? (total ? 1 : 0);
   const referenceTime = Date.parse(history?.monitoring_history_checked_at || "");
@@ -75,7 +97,7 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
       <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
         최근 GitHub 원격 실행 검색 결과 총 {total}건
       </summary>
-      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_8rem_10rem_7rem_auto] xl:items-end">
+      <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[minmax(14rem,1fr)_8rem_10rem_10rem_7rem_auto] 2xl:items-end">
         <form
           className="grid gap-1 text-[11px] text-gray-500 dark:text-slate-400"
           onSubmit={(event) => {
@@ -116,6 +138,25 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
             <option value="success">성공·건너뜀</option>
             <option value="failure">실패</option>
             <option value="cancelled">취소됨 (앱 실패 제외)</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-[11px] text-gray-500 dark:text-slate-400">
+          실패 유형
+          <select
+            aria-label="최근 원격 실행 실패 유형"
+            className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+            data-testid="smoke-recent-run-failure-type-filter"
+            onChange={(event) =>
+              changeFailureType(event.target.value as SmokeFailureTypeFilter)
+            }
+            value={failureType}
+          >
+            <option value="all">전체 유형 ({failureRuns.length})</option>
+            <option value="login">로그인 ({failureTypeCounts.login})</option>
+            <option value="external_api">외부 API ({failureTypeCounts.external_api})</option>
+            <option value="visual_regression">
+              화면 회귀 ({failureTypeCounts.visual_regression})
+            </option>
           </select>
         </label>
         <label
@@ -166,12 +207,24 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
             className="whitespace-nowrap text-[11px] text-gray-500 dark:text-slate-400"
             data-testid="smoke-recent-run-filter-count"
           >
-            {runs.length}/{total}건
+            {failureType === "all"
+              ? `${runs.length}/${total}건`
+              : `${visibleRuns.length}/${runs.length}건 · 현재 페이지`}
           </span>
         </div>
       </div>
       <p
         className="mt-2 text-[11px] text-gray-500 dark:text-slate-400"
+        data-testid="smoke-failure-type-counts"
+      >
+        현재 페이지 실패 유형 · 로그인 {failureTypeCounts.login} · 외부 API {failureTypeCounts.external_api}
+        {` · 화면 회귀 ${failureTypeCounts.visual_regression}`}
+        {classifiedFailureCount < failureRuns.length
+          ? ` · 미분류 ${failureRuns.length - classifiedFailureCount}`
+          : ""}
+      </p>
+      <p
+        className="mt-1 text-[11px] text-gray-500 dark:text-slate-400"
         data-testid="smoke-failure-metadata-retention"
       >
         실패 정보 {history?.monitoring_failure_metadata_count ?? 0}/
@@ -189,9 +242,9 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
               {history.monitoring_history_error}. 캐시된 이력이 있으면 계속 표시합니다.
             </p>
           ) : null}
-          {runs.length ? (
+          {visibleRuns.length ? (
             <ol className="mt-3 space-y-2">
-              {runs.map((run) => (
+              {visibleRuns.map((run) => (
                 <SmokeRecentRunItem
                   key={run.run_id || run.run_url}
                   referenceTime={referenceTime}

@@ -45,6 +45,7 @@ export async function buildSmokeHistoryFixtures(cdp) {
       failure_metadata: {
         ...failedRun.failure_metadata,
         check_name: '만료된 실패 화면 검사',
+        failure_type: 'login',
       },
     };
     const successRun = {

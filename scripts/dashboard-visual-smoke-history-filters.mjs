@@ -116,6 +116,32 @@ export async function checkSmokeHistoryFilters({
     "상태 변경 시 취소 원인 필터가 초기화되지 않았습니다",
   );
 
+  const failureTypeChanged = await evaluate(cdp, `(() => {
+    const select = document.querySelector('[data-testid="smoke-recent-run-failure-type-filter"]');
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+    if (!(select instanceof HTMLSelectElement) || !setter) return false;
+    setter.call(select, 'login');
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(failureTypeChanged, true, "최근 운영 점검 실패 유형을 변경하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const history = document.querySelector('[data-testid="smoke-recent-run-history"]');
+      const items = history?.querySelectorAll('[data-testid="smoke-recent-run-item"]');
+      const count = history?.querySelector('[data-testid="smoke-recent-run-filter-count"]');
+      const typeCounts = history?.querySelector('[data-testid="smoke-failure-type-counts"]');
+      return items?.length === 1 && items[0].textContent?.includes('#986') &&
+        count?.textContent?.includes('1/2건') && count?.textContent?.includes('현재 페이지') &&
+        typeCounts?.textContent?.includes('로그인 1') &&
+        typeCounts?.textContent?.includes('화면 회귀 1') &&
+        location.search.includes('smoke_failure_type=login');
+    })()`,
+    timeoutMs,
+    "최근 운영 점검 실패 유형 필터와 현재 페이지 건수가 적용되지 않았습니다",
+  );
+
   const searchChanged = await evaluate(cdp, `(() => {
     const input = document.querySelector('[data-testid="smoke-recent-run-search"]');
     const inputSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
@@ -171,8 +197,9 @@ export async function checkSmokeHistoryFilters({
       if (history instanceof HTMLDetailsElement) history.open = true;
       const status = history?.querySelector('[data-testid="smoke-recent-run-status-filter"]');
       const search = history?.querySelector('[data-testid="smoke-recent-run-search"]');
+      const failureType = history?.querySelector('[data-testid="smoke-recent-run-failure-type-filter"]');
       const items = history?.querySelectorAll('[data-testid="smoke-recent-run-item"]');
-      return status?.value === 'failure' && search?.value === '986' &&
+      return status?.value === 'failure' && failureType?.value === 'login' && search?.value === '986' &&
         items?.length === 1 && items[0].textContent?.includes('#986');
     })()`,
     timeoutMs,
@@ -191,12 +218,14 @@ export async function checkSmokeHistoryFilters({
     `(() => {
       const history = document.querySelector('[data-testid="smoke-recent-run-history"]');
       const status = history?.querySelector('[data-testid="smoke-recent-run-status-filter"]');
+      const failureType = history?.querySelector('[data-testid="smoke-recent-run-failure-type-filter"]');
       const search = history?.querySelector('[data-testid="smoke-recent-run-search"]');
       const reset = history?.querySelector('[data-testid="smoke-recent-run-reset-filters"]');
       const count = history?.querySelector('[data-testid="smoke-recent-run-filter-count"]');
-      return status?.value === 'all' && search?.value === '' &&
+      return status?.value === 'all' && failureType?.value === 'all' && search?.value === '' &&
         reset?.disabled === true && count?.textContent?.includes('4/8건') &&
-        !location.search.includes('smoke_status') && !location.search.includes('smoke_search');
+        !location.search.includes('smoke_status') && !location.search.includes('smoke_search') &&
+        !location.search.includes('smoke_failure_type');
     })()`,
     timeoutMs,
     "최근 운영 점검 필터가 기본값으로 돌아오지 않았습니다",
