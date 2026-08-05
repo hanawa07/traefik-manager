@@ -135,8 +135,13 @@ jobs:
             title="[테스트] Traefik Manager 관리자 점검 지연 알림"
           fi
           detail=""
+          failure_type=""
           if [[ -s "$TM_SMOKE_ALERT_DETAIL_FILE" ]]; then
+            failure_type="$(sed -n '1s/^유형: //p' "$TM_SMOKE_ALERT_DETAIL_FILE" | cut -c1-30)"
             detail="$(head -c 500 "$TM_SMOKE_ALERT_DETAIL_FILE" | tr '\r\n' ' ')"
+          fi
+          if [[ -n "$failure_type" ]]; then
+            title="${title} [${failure_type}]"
           fi
           message="${title}
           저장소: ${GITHUB_REPOSITORY}
