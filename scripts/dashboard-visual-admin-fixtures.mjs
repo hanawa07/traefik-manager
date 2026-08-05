@@ -6,14 +6,110 @@ import {
 } from "./dashboard-visual-artifacts.mjs";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 import { checkServiceGatewayImportAdminFixture } from "./dashboard-visual-service-gateway-import.mjs";
+import { fulfillJsonRequest } from "./dashboard-visual-smoke-history-fixture.mjs";
 import { checkSmokeLocalRunFilters } from "./dashboard-visual-smoke-statistics-history.mjs";
 import { checkTraefikAlertRetryAdminFixture } from "./dashboard-visual-traefik-alert-retry.mjs";
 
 export async function checkAdminVisualFixtures(options) {
   await checkSmokeHistoryAdminReadOnly(options);
+  await checkSmokeHistoryRetryAdminFixture(options);
   await checkServiceGatewayImportAdminFixture(options);
   await checkSmokeRateLimitAdminFixture(options);
   return checkTraefikAlertRetryAdminFixture(options);
+}
+
+async function checkSmokeHistoryRetryAdminFixture({
+  artifactDir,
+  baseUrl,
+  cdp,
+  cookies,
+  timeoutMs,
+}) {
+  await cdp.send("Network.clearBrowserCookies");
+  await evaluate(cdp, `localStorage.removeItem("auth")`);
+  for (const cookie of cookies) {
+    await cdp.send("Network.setCookie", { url: baseUrl, ...cookie });
+  }
+
+  try {
+    const fixture = await evaluate(cdp, `(async () => {
+      const response = await fetch('/api/v1/settings/smoke-rotation');
+      return response.ok ? response.json() : null;
+    })()`);
+    assert.ok(fixture, "GitHub 통계 재확인 fixture를 읽지 못했습니다");
+    const readyFixture = {
+      ...fixture,
+      monitoring_history_data_checked_at: "2026-07-20T06:00:00Z",
+      monitoring_history_error: null,
+    };
+    const errorFixture = {
+      ...readyFixture,
+      monitoring_history_error: "GitHub API 임시 오류",
+    };
+
+    await cdp.send("Fetch.enable", {
+      patterns: [{
+        requestStage: "Request",
+        urlPattern: "*/api/v1/settings/smoke-rotation*",
+      }],
+    });
+    const initialRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+    const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
+    await cdp.send("Page.navigate", { url: `${baseUrl}/dashboard` });
+    const initialPaused = await initialRequest;
+    assert.match(initialPaused.request.url, /summary=true/);
+    await fulfillJsonRequest(cdp, initialPaused, errorFixture);
+    await loaded;
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const retry = document.querySelector('[data-testid="smoke-history-retry"]');
+        const detail = document.querySelector('[data-testid="smoke-history-error-detail"]');
+        return retry instanceof HTMLButtonElement && !retry.disabled &&
+          retry.textContent?.includes('즉시 재확인') &&
+          detail?.textContent?.includes('GitHub API 임시 오류');
+      })()`,
+      timeoutMs,
+      "GitHub 통계 오류의 즉시 재확인 버튼이 표시되지 않았습니다",
+    );
+
+    const refreshRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+    const retryClicked = await evaluate(cdp, `(() => {
+      const retry = document.querySelector('[data-testid="smoke-history-retry"]');
+      if (!(retry instanceof HTMLButtonElement) || retry.disabled) return false;
+      retry.click();
+      return true;
+    })()`);
+    assert.equal(retryClicked, true, "GitHub 통계 즉시 재확인 버튼을 누르지 못했습니다");
+    const refreshPaused = await refreshRequest;
+    assert.match(refreshPaused.request.url, /refresh_monitoring_history=true/);
+    const summaryRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+    await fulfillJsonRequest(cdp, refreshPaused, readyFixture);
+    const summaryPaused = await summaryRequest;
+    assert.match(summaryPaused.request.url, /summary=true/);
+    await fulfillJsonRequest(cdp, summaryPaused, readyFixture);
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const trend = document.querySelector('[data-testid="smoke-run-trend"]');
+        return trend?.getAttribute('data-smoke-history-state') === 'ready' &&
+          !trend.querySelector('[data-testid="smoke-history-error-detail"]') &&
+          !trend.querySelector('[data-testid="smoke-history-retry"]');
+      })()`,
+      timeoutMs,
+      "GitHub 통계 재확인 후 오류 표시가 해제되지 않았습니다",
+    );
+  } catch (error) {
+    await Promise.allSettled([
+      captureVisualScreenshot({ artifactDir, cdp, name: "admin-smoke-history-retry-failure" }),
+      captureVisualDom({ artifactDir, cdp, name: "admin-smoke-history-retry-failure" }),
+    ]);
+    throw error;
+  } finally {
+    await cdp.send("Fetch.disable").catch(() => undefined);
+    await cdp.send("Network.clearBrowserCookies");
+    await evaluate(cdp, `localStorage.removeItem("auth")`);
+  }
 }
 
 export function runAdminVisualFixturesSelfTest() {

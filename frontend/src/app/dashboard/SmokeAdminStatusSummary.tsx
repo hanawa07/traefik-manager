@@ -11,6 +11,9 @@ interface SmokeAdminStatusSummaryProps {
   deployedRevision?: string | null;
   isError: boolean;
   isLoading: boolean;
+  isRefreshingHistory: boolean;
+  onRefreshHistory: () => void;
+  refreshHistoryError: string | null;
   status?: SmokeRotationStatus;
   timezone?: string;
 }
@@ -20,6 +23,9 @@ export function SmokeAdminStatusSummary({
   deployedRevision,
   isError,
   isLoading,
+  isRefreshingHistory,
+  onRefreshHistory,
+  refreshHistoryError,
   status,
   timezone,
 }: SmokeAdminStatusSummaryProps) {
@@ -53,6 +59,9 @@ export function SmokeAdminStatusSummary({
                   localRunLimit={status.monitoring_local_run_limit ?? 20}
                   localRunRetentionDays={status.monitoring_local_run_retention_days ?? 365}
                   localRunTotal={status.monitoring_local_run_total ?? 0}
+                  isRefreshingHistory={isRefreshingHistory}
+                  onRefreshHistory={onRefreshHistory}
+                  refreshHistoryError={refreshHistoryError}
                   runs={status.monitoring_recent_runs}
                   statistics={status.monitoring_run_statistics ?? []}
                   statisticsSnapshots={status.monitoring_statistics_snapshots ?? []}

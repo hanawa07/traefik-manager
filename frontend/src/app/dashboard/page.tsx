@@ -11,7 +11,11 @@ import { useAuthStore } from "@/features/auth/store/useAuthStore";
 import { useCertificates } from "@/features/certificates/hooks/useCertificates";
 import { useDeploymentInfo, useRefreshDeploymentLatest } from "@/features/deployment/hooks/useDeploymentInfo";
 import { useAllServicesHealth, useServices } from "@/features/services/hooks/useServices";
-import { useSmokeRotationSummary, useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
+import {
+  useRefreshSmokeMonitoringHistory,
+  useSmokeRotationSummary,
+  useTimeDisplaySettings,
+} from "@/features/settings/hooks/useSettings";
 import {
   useRefreshTraefikLatest,
   useTraefikDeployment,
@@ -59,6 +63,7 @@ export default function DashboardPage() {
     isError: isSmokeRotationSummaryError,
     isLoading: isSmokeRotationSummaryLoading,
   } = useSmokeRotationSummary();
+  const refreshSmokeHistory = useRefreshSmokeMonitoringHistory();
   const { data: certificates = [] } = useCertificates();
   const {
     data: deploymentInfo,
@@ -99,6 +104,9 @@ export default function DashboardPage() {
         deployedRevision={deploymentInfo?.revision}
         isError={isSmokeRotationSummaryError}
         isLoading={isSmokeRotationSummaryLoading}
+        isRefreshingHistory={refreshSmokeHistory.isPending}
+        onRefreshHistory={() => refreshSmokeHistory.mutate()}
+        refreshHistoryError={refreshSmokeHistory.isError ? "GitHub 통계를 다시 확인하지 못했습니다." : null}
         status={smokeRotationSummary}
         timezone={displayTimezone}
       />

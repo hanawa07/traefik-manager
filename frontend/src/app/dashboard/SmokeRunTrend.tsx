@@ -43,6 +43,9 @@ interface SmokeRunTrendProps {
   failureRateMinRuns: number;
   failureRateThresholdPercent: number;
   failureRateWindowDays: 7 | 30;
+  isRefreshingHistory: boolean;
+  onRefreshHistory: () => void;
+  refreshHistoryError: string | null;
   runs: SmokeMonitoringRecentRun[];
   localRuns: SmokeLocalRun[];
   localRunLimit: number;
@@ -60,10 +63,13 @@ export function SmokeRunTrend({
   failureRateMinRuns,
   failureRateThresholdPercent,
   failureRateWindowDays,
+  isRefreshingHistory,
   localRuns,
   localRunLimit,
   localRunRetentionDays,
   localRunTotal,
+  onRefreshHistory,
+  refreshHistoryError,
   runs,
   statistics,
   statisticsSnapshots,
@@ -195,14 +201,30 @@ export function SmokeRunTrend({
         GitHub 과금값 아님
       </span>
       {error ? (
-        <span
-          className="basis-full rounded bg-amber-100 px-2 py-1 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
+        <div
+          className="flex basis-full flex-wrap items-center gap-2 rounded bg-amber-100 px-2 py-1 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
           data-testid="smoke-history-error-detail"
         >
-          {error} · {dataCheckedAt
-            ? `캐시 기준 ${formatDateTime(dataCheckedAt, timezone)}`
-            : "사용 가능한 캐시 없음"}
-        </span>
+          <span className="min-w-0 flex-1">
+            {error} · {dataCheckedAt
+              ? `캐시 기준 ${formatDateTime(dataCheckedAt, timezone)}`
+              : "사용 가능한 캐시 없음"}
+          </span>
+          <button
+            className="rounded border border-current/30 bg-white/70 px-2 py-1 font-semibold disabled:cursor-wait disabled:opacity-60 dark:bg-slate-950/50"
+            data-testid="smoke-history-retry"
+            disabled={isRefreshingHistory}
+            onClick={onRefreshHistory}
+            type="button"
+          >
+            {isRefreshingHistory ? "재확인 중..." : "즉시 재확인"}
+          </button>
+          {refreshHistoryError ? (
+            <span className="basis-full font-semibold" data-testid="smoke-history-retry-error">
+              {refreshHistoryError}
+            </span>
+          ) : null}
+        </div>
       ) : null}
       <SmokeDurationTrend
         localRuns={localRuns}
