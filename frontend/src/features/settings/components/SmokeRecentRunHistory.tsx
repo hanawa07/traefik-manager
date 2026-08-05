@@ -1,15 +1,18 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 import {
   settingsApi,
   type SmokeCancellationReasonFilter,
+  type SmokeFailureTypeRun,
   type SmokeFailureType,
   type SmokeHistoryDays,
   type SmokeHistoryStatus,
   type SmokeRotationStatus,
 } from "@/features/settings/api/settingsApi";
+import { useClassifySmokeFailure } from "@/features/settings/hooks/useSettings";
 import { settingsQueryKeys } from "@/features/settings/hooks/settingsQueryKeys";
 import { SmokeFailureTypeTrend } from "./SmokeFailureTypeTrend";
 import { SmokeRecentRunItem } from "./SmokeRecentRunItem";
@@ -24,6 +27,8 @@ interface SmokeRecentRunHistoryProps {
 }
 
 export function SmokeRecentRunHistory({ status: initialStatus, timezone }: SmokeRecentRunHistoryProps) {
+  const classifyFailure = useClassifySmokeFailure();
+  const [classificationError, setClassificationError] = useState("");
   const {
     search,
     setSearch,
@@ -97,6 +102,21 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
     (statistic) => statistic.window_days === days,
   );
   const referenceTime = Date.parse(history?.monitoring_history_checked_at || "");
+  const handleClassifyRun = async (
+    run: SmokeFailureTypeRun,
+    failureType: SmokeFailureType,
+  ) => {
+    setClassificationError("");
+    try {
+      await classifyFailure.mutateAsync({
+        run_id: run.run_id,
+        failure_type: failureType,
+        completed_at: run.completed_at,
+      });
+    } catch {
+      setClassificationError("실패 유형을 저장하지 못했습니다.");
+    }
+  };
   return (
     <details
       className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-950"
@@ -224,7 +244,14 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
           </span>
         </div>
       </div>
-      <SmokeFailureTypeTrend key={periodStatistic?.window_days} statistic={periodStatistic} />
+      <SmokeFailureTypeTrend
+        key={periodStatistic?.window_days}
+        statistic={periodStatistic}
+        persistFilters
+        classifyingRunId={classifyFailure.isPending ? classifyFailure.variables?.run_id : undefined}
+        classificationError={classificationError}
+        onClassifyRun={handleClassifyRun}
+      />
       <p
         className="mt-2 text-[11px] text-gray-500 dark:text-slate-400"
         data-testid="smoke-failure-type-counts"

@@ -18,6 +18,7 @@ export {
 } from "./useSettingsQueries";
 export {
   useCleanupDeploymentBottleneckEvents,
+  useClassifySmokeFailure,
   usePreviewDeploymentBottleneckEventCleanup,
   useRunAuditRetentionCleanup,
   useDiagnoseCloudflareDnsDrift,

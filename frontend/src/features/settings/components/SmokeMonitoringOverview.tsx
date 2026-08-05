@@ -66,6 +66,10 @@ export function SmokeMonitoringOverview({
         value={`최근 ${status.monitoring_failure_rate_window_days}일 ${status.monitoring_failure_rate_min_runs}회 이상 · ${status.monitoring_failure_rate_threshold_percent}% 이상`}
       />
       <SettingsSummaryRow
+        label="실패 유형 증가 운영 알림"
+        value={status.monitoring_failure_type_alert_enabled ? "사용" : "사용 안 함"}
+      />
+      <SettingsSummaryRow
         label="GitHub API 반복 제한 알림"
         value={
           status.monitoring_github_rate_limit_alert_enabled

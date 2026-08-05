@@ -25,6 +25,7 @@ export interface SmokeMonitoringSettingsInput {
   monitoring_failure_rate_threshold_percent: number;
   monitoring_failure_rate_min_runs: number;
   monitoring_failure_rate_window_days: SmokeFailureRateWindowDays;
+  monitoring_failure_type_alert_enabled: boolean;
   monitoring_github_rate_limit_alert_enabled: boolean;
   monitoring_github_primary_limit_alert_threshold: number;
   monitoring_github_secondary_limit_alert_threshold: number;
@@ -75,6 +76,7 @@ export interface SmokeFailureTypeRun {
   run_id: number;
   run_number: number | null;
   run_url: string;
+  completed_at: string;
   occurred_on: string;
   failure_type: SmokeFailureCategory;
 }
@@ -132,6 +134,7 @@ export interface SmokeRotationStatus {
   monitoring_failure_rate_threshold_percent: number;
   monitoring_failure_rate_min_runs: number;
   monitoring_failure_rate_window_days: SmokeFailureRateWindowDays;
+  monitoring_failure_type_alert_enabled: boolean;
   monitoring_github_rate_limit_alert_enabled: boolean;
   monitoring_github_primary_limit_alert_threshold: number;
   monitoring_github_secondary_limit_alert_threshold: number;
@@ -189,6 +192,12 @@ export interface SmokeRotationStatus {
   log_updated_at: string | null;
 }
 
+export interface SmokeFailureClassificationInput {
+  run_id: number;
+  failure_type: SmokeFailureType;
+  completed_at: string;
+}
+
 export const smokeRotationSettingsApi = {
   getSmokeRotationStatus: async (): Promise<SmokeRotationStatus> => {
     const response = await apiClient.get<SmokeRotationStatus>("/settings/smoke-rotation");
@@ -236,6 +245,16 @@ export const smokeRotationSettingsApi = {
   refreshSmokeMonitoringHistory: async (): Promise<SmokeRotationStatus> => {
     const response = await apiClient.get<SmokeRotationStatus>(
       "/settings/smoke-rotation?refresh_monitoring_history=true",
+    );
+    return response.data;
+  },
+  classifySmokeFailure: async (
+    input: SmokeFailureClassificationInput,
+  ): Promise<SmokeFailureMetadata & { run_id: number }> => {
+    const { run_id: runId, ...payload } = input;
+    const response = await apiClient.put<SmokeFailureMetadata & { run_id: number }>(
+      `/settings/smoke-failures/${runId}/classification`,
+      payload,
     );
     return response.data;
   },

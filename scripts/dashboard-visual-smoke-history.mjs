@@ -6,6 +6,7 @@ import {
   HIDDEN_UNCLASSIFIED_RUN_URL,
   RUN_URL,
   UNCLASSIFIED_RUN_URL,
+  fulfillJsonRequest,
 } from "./dashboard-visual-smoke-history-fixture.mjs";
 import { checkSmokeHistoryFilters } from "./dashboard-visual-smoke-history-filters.mjs";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
@@ -108,7 +109,9 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
           '[data-testid="smoke-recent-run-history"] [data-testid="smoke-failure-type-filtered-runs"]'
         );
         const links = panel?.querySelectorAll('a[data-failure-type="unclassified"]');
+        const classifications = panel?.querySelectorAll('[data-testid="smoke-failure-classification"]');
         return panel?.textContent?.includes('선택 조건 실행 2건') && links?.length === 2 &&
+          classifications?.length === 2 && location.search.includes('smoke_trend_type=unclassified') &&
           Array.from(links).some((link) => link.href === ${JSON.stringify(UNCLASSIFIED_RUN_URL)}) &&
           Array.from(links).some((link) => link.href === ${JSON.stringify(HIDDEN_UNCLASSIFIED_RUN_URL)});
       })()`,
@@ -133,10 +136,33 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
         );
         const links = panel?.querySelectorAll('a');
         return panel?.textContent?.includes('선택 조건 실행 1건') && links?.length === 1 &&
-          links[0].href === ${JSON.stringify(UNCLASSIFIED_RUN_URL)};
+          links[0].href === ${JSON.stringify(UNCLASSIFIED_RUN_URL)} &&
+          location.search.includes('smoke_trend_type=unclassified') &&
+          location.search.includes('smoke_trend_date=2026-07-18');
       })()`,
       timeoutMs,
       "실패 유형·날짜 교차 필터가 적용되지 않았습니다",
+    );
+    const trendReloadRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
+    const trendReloaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await fulfillJsonRequest(cdp, await trendReloadRequest, fixture);
+    await trendReloaded;
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const history = document.querySelector('[data-testid="smoke-recent-run-history"]');
+        if (history instanceof HTMLDetailsElement) history.open = true;
+        const type = history?.querySelector('[data-testid="smoke-failure-type-filter-unclassified"]');
+        const dates = Array.from(history?.querySelectorAll('[data-testid="smoke-failure-date-filter"]') ?? []);
+        const date = dates.find((item) => item.getAttribute('title')?.startsWith('2026-07-18'));
+        const panel = history?.querySelector('[data-testid="smoke-failure-type-filtered-runs"]');
+        return type?.getAttribute('aria-pressed') === 'true' &&
+          date?.getAttribute('aria-pressed') === 'true' &&
+          panel?.textContent?.includes('선택 조건 실행 1건');
+      })()`,
+      timeoutMs,
+      "실패 유형·날짜 필터가 새로고침 후 복원되지 않았습니다",
     );
     await evaluate(cdp, `document.querySelector(
       '[data-testid="smoke-recent-run-history"] [data-testid="smoke-failure-type-filtered-runs"] button'
@@ -145,7 +171,8 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
       cdp,
       `!document.querySelector(
         '[data-testid="smoke-recent-run-history"] [data-testid="smoke-failure-type-filtered-runs"]'
-      )`,
+      ) && !location.search.includes('smoke_trend_type') &&
+        !location.search.includes('smoke_trend_date')`,
       timeoutMs,
       "실패 유형·날짜 필터가 초기화되지 않았습니다",
     );

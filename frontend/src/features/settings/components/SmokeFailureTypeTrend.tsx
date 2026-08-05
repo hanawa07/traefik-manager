@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type {
   SmokeFailureCategory,
+  SmokeFailureType,
+  SmokeFailureTypeRun,
   SmokeRunStatistics,
 } from "@/features/settings/api/settingsApi";
 
@@ -23,11 +25,30 @@ const TYPE_BARS = [
 
 interface SmokeFailureTypeTrendProps {
   statistic?: SmokeRunStatistics;
+  persistFilters?: boolean;
+  classifyingRunId?: number;
+  classificationError?: string;
+  onClassifyRun?: (run: SmokeFailureTypeRun, failureType: SmokeFailureType) => Promise<void>;
 }
 
-export function SmokeFailureTypeTrend({ statistic }: SmokeFailureTypeTrendProps) {
+export function SmokeFailureTypeTrend({
+  statistic,
+  persistFilters = false,
+  classifyingRunId,
+  classificationError,
+  onClassifyRun,
+}: SmokeFailureTypeTrendProps) {
   const [selectedCategory, setSelectedCategory] = useState<SmokeFailureCategory | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!persistFilters) return;
+    const params = new URLSearchParams(window.location.search);
+    const category = params.get("smoke_trend_type");
+    const date = params.get("smoke_trend_date");
+    if (isFailureCategory(category)) setSelectedCategory(category);
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) setSelectedDate(date);
+  }, [persistFilters]);
 
   if (!statistic) return null;
   const counts = { ...EMPTY_COUNTS, ...statistic.failure_type_counts };
@@ -68,9 +89,11 @@ export function SmokeFailureTypeTrend({ statistic }: SmokeFailureTypeTrendProps)
             data-testid={`smoke-failure-type-filter-${key}`}
             disabled={counts[key] === 0}
             key={key}
-            onClick={() =>
-              setSelectedCategory((current) => current === key ? null : key)
-            }
+            onClick={() => {
+              const next = selectedCategory === key ? null : key;
+              setSelectedCategory(next);
+              if (persistFilters) replaceTrendUrl("smoke_trend_type", next);
+            }}
             type="button"
           >
             <span className={`h-2 w-2 rounded-sm ${style}`} aria-hidden="true" />
@@ -111,11 +134,11 @@ export function SmokeFailureTypeTrend({ statistic }: SmokeFailureTypeTrendProps)
                     : "hover:bg-white/70 dark:hover:bg-slate-950/60"
                 }`}
                 data-testid="smoke-failure-date-filter"
-                onClick={() =>
-                  setSelectedDate((current) =>
-                    current === point.captured_on ? null : point.captured_on,
-                  )
-                }
+                onClick={() => {
+                  const next = selectedDate === point.captured_on ? null : point.captured_on;
+                  setSelectedDate(next);
+                  if (persistFilters) replaceTrendUrl("smoke_trend_date", next);
+                }}
                 title={`${point.captured_on} · 로그인 ${point.login} · 외부 API ${point.external_api} · 화면 회귀 ${point.visual_regression} · 미분류 ${point.unclassified ?? 0}`}
                 type="button"
               >
@@ -156,6 +179,10 @@ export function SmokeFailureTypeTrend({ statistic }: SmokeFailureTypeTrendProps)
               onClick={() => {
                 setSelectedCategory(null);
                 setSelectedDate(null);
+                if (persistFilters) {
+                  replaceTrendUrl("smoke_trend_type", null);
+                  replaceTrendUrl("smoke_trend_date", null);
+                }
               }}
               type="button"
             >
@@ -165,23 +192,49 @@ export function SmokeFailureTypeTrend({ statistic }: SmokeFailureTypeTrendProps)
           {filteredRuns.length ? (
             <div className="mt-1 flex flex-wrap gap-1.5">
               {filteredRuns.map((run) => (
-                <a
-                  className="rounded-full border border-current/20 px-2 py-1 font-semibold hover:bg-white dark:hover:bg-slate-900"
-                  data-failure-type={run.failure_type}
-                  data-occurred-on={run.occurred_on}
-                  href={run.run_url}
-                  key={run.run_id}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  #{run.run_number ?? run.run_id} · {run.occurred_on} ·{" "}
-                  {failureCategoryLabel(run.failure_type)}
-                </a>
+                <span className="inline-flex items-center gap-1" key={run.run_id}>
+                  <a
+                    className="rounded-full border border-current/20 px-2 py-1 font-semibold hover:bg-white dark:hover:bg-slate-900"
+                    data-failure-type={run.failure_type}
+                    data-occurred-on={run.occurred_on}
+                    href={run.run_url}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    #{run.run_number ?? run.run_id} · {run.occurred_on} ·{" "}
+                    {failureCategoryLabel(run.failure_type)}
+                  </a>
+                  {run.failure_type === "unclassified" && onClassifyRun ? (
+                    <select
+                      aria-label={`실행 #${run.run_number ?? run.run_id} 실패 유형 수동 분류`}
+                      className="rounded border border-current/20 bg-white px-1.5 py-1 text-[11px] dark:bg-slate-900"
+                      data-testid="smoke-failure-classification"
+                      disabled={classifyingRunId === run.run_id}
+                      onChange={(event) => {
+                        const failureType = event.target.value as SmokeFailureType;
+                        if (failureType) void onClassifyRun(run, failureType);
+                      }}
+                      value=""
+                    >
+                      <option value="">
+                        {classifyingRunId === run.run_id ? "분류 중" : "수동 분류"}
+                      </option>
+                      <option value="login">로그인</option>
+                      <option value="external_api">외부 API</option>
+                      <option value="visual_regression">화면 회귀</option>
+                    </select>
+                  ) : null}
+                </span>
               ))}
             </div>
           ) : (
             <p className="mt-1 opacity-70">두 조건에 모두 맞는 실행이 없습니다.</p>
           )}
+          {classificationError ? (
+            <p className="mt-1 text-rose-700 dark:text-rose-300" role="alert">
+              {classificationError}
+            </p>
+          ) : null}
         </div>
       ) : null}
       <p className="mt-1 opacity-70">
@@ -193,4 +246,18 @@ export function SmokeFailureTypeTrend({ statistic }: SmokeFailureTypeTrendProps)
 
 function failureCategoryLabel(category: SmokeFailureCategory): string {
   return TYPE_BARS.find(({ key }) => key === category)?.label ?? category;
+}
+
+function isFailureCategory(value: string | null): value is SmokeFailureCategory {
+  return TYPE_BARS.some(({ key }) => key === value);
+}
+
+function replaceTrendUrl(
+  key: "smoke_trend_type" | "smoke_trend_date",
+  value: string | null,
+): void {
+  const url = new URL(window.location.href);
+  if (value) url.searchParams.set(key, value);
+  else url.searchParams.delete(key);
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
 }

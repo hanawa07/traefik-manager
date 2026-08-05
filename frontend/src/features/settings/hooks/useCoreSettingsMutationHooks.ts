@@ -81,6 +81,13 @@ export function useUpdateSmokeMonitoringSettings() {
   );
 }
 
+export function useClassifySmokeFailure() {
+  return useSettingsMutationForQuery(
+    settingsApi.classifySmokeFailure,
+    settingsQueryKeys.smokeRotation,
+  );
+}
+
 export function useRefreshSmokeMonitoringHistory() {
   return useSettingsMutation({
     mutationFn: settingsApi.refreshSmokeMonitoringHistory,

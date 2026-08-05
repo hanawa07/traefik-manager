@@ -129,6 +129,29 @@ export function SmokeMonitoringSettingsEditForm({
         실패율이 기준 이상이면 대시보드에 경고합니다.
       </p>
 
+      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-rose-200 bg-rose-50/60 p-3 dark:border-rose-900 dark:bg-rose-950/30">
+        <input
+          type="checkbox"
+          className="mt-0.5 h-4 w-4 rounded border-gray-300"
+          checked={formValue.monitoring_failure_type_alert_enabled}
+          onChange={(event) =>
+            onFormChange({
+              ...formValue,
+              monitoring_failure_type_alert_enabled: event.target.checked,
+            })
+          }
+        />
+        <span>
+          <span className="block text-sm font-medium text-gray-800 dark:text-slate-200">
+            실패 유형 증가 운영 알림
+          </span>
+          <span className="mt-1 block text-xs text-gray-500 dark:text-slate-400">
+            최근 7일 같은 유형이 2건 이상이고 직전 7일보다 늘면 Manager 상태 운영 알림
+            경로(Telegram 등)로 한 번 전송합니다.
+          </span>
+        </span>
+      </label>
+
       <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/30">
         <label className="flex cursor-pointer items-start gap-3">
           <input

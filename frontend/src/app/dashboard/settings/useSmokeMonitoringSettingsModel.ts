@@ -24,6 +24,7 @@ const DEFAULT_FORM: SmokeMonitoringSettingsInput = {
   monitoring_failure_rate_threshold_percent: 30,
   monitoring_failure_rate_min_runs: 3,
   monitoring_failure_rate_window_days: 7,
+  monitoring_failure_type_alert_enabled: false,
   monitoring_github_rate_limit_alert_enabled: false,
   monitoring_github_primary_limit_alert_threshold: 3,
   monitoring_github_secondary_limit_alert_threshold: 3,
@@ -67,6 +68,8 @@ export function useSmokeMonitoringSettingsModel(
       monitoring_failure_rate_min_runs: query.data?.monitoring_failure_rate_min_runs ?? 3,
       monitoring_failure_rate_window_days:
         query.data?.monitoring_failure_rate_window_days ?? 7,
+      monitoring_failure_type_alert_enabled:
+        query.data?.monitoring_failure_type_alert_enabled ?? false,
       monitoring_github_rate_limit_alert_enabled:
         query.data?.monitoring_github_rate_limit_alert_enabled ?? false,
       monitoring_github_primary_limit_alert_threshold:
