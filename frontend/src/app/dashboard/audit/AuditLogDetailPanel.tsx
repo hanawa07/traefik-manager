@@ -3,6 +3,7 @@ import {
   type getAuditDiffRows,
   type getDeliveryDetailRows,
   type getManagerHttpErrorDetailRows,
+  type getSmokeFailureClassificationDetailRows,
   type getSmokeRotationDetailRows,
 } from "./auditPageHelpers";
 import { AuditDetailList } from "./AuditDetailList";
@@ -14,6 +15,9 @@ import { AuditSecuritySettingChanges } from "./AuditSecuritySettingChanges";
 type AuditDiffRows = ReturnType<typeof getAuditDiffRows>;
 type AuditDeliveryRows = ReturnType<typeof getDeliveryDetailRows>;
 type AuditManagerDetailRows = ReturnType<typeof getManagerHttpErrorDetailRows>;
+type SmokeFailureClassificationDetailRows = ReturnType<
+  typeof getSmokeFailureClassificationDetailRows
+>;
 type SmokeRotationDetailRows = ReturnType<typeof getSmokeRotationDetailRows>;
 
 interface AuditLogDetailPanelProps {
@@ -22,6 +26,7 @@ interface AuditLogDetailPanelProps {
   diffRows: AuditDiffRows;
   deliveryRows: AuditDeliveryRows;
   managerDetailRows: AuditManagerDetailRows;
+  smokeFailureClassificationDetailRows: SmokeFailureClassificationDetailRows;
   smokeRotationDetailRows: SmokeRotationDetailRows;
   sourceTraefikRequestId: string | null;
   rollbackSupported: boolean;
@@ -41,6 +46,7 @@ export function AuditLogDetailPanel({
   diffRows,
   deliveryRows,
   managerDetailRows,
+  smokeFailureClassificationDetailRows,
   smokeRotationDetailRows,
   sourceTraefikRequestId,
   rollbackSupported,
@@ -72,6 +78,12 @@ export function AuditLogDetailPanel({
           </a>
         </section>
       ) : null}
+      <AuditDetailList
+        logId={logId}
+        rows={smokeFailureClassificationDetailRows}
+        testId="smoke-failure-classification-audit-detail"
+        title="실패 유형 분류 상세"
+      />
       <AuditDetailList
         logId={logId}
         rows={managerDetailRows}

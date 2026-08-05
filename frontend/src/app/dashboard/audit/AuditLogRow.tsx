@@ -17,6 +17,7 @@ import {
   getGithubApiRateLimitDetailRows,
   getManagerHttpErrorDetailRows,
   getManagerHttpLogStorageDetailRows,
+  getSmokeFailureClassificationDetailRows,
   getSmokeRotationDetailRows,
   isRecord,
   isRollbackResourceType,
@@ -63,6 +64,10 @@ export function AuditLogRow({
     ...getGithubApiRateLimitDetailRows(managerEvent, detail),
   ];
   const smokeRotationDetailRows = getSmokeRotationDetailRows(managerEvent, detail);
+  const smokeFailureClassificationDetailRows = getSmokeFailureClassificationDetailRows(
+    managerEvent,
+    detail,
+  );
   const sourceTraefikRequestId =
     managerEvent === "traefik_rollback_alert_retry_requested" &&
     typeof detail?.source_request_id === "string"
@@ -77,6 +82,7 @@ export function AuditLogRow({
     deliveryRows.length > 0 ||
     managerDetailRows.length > 0 ||
     smokeRotationDetailRows.length > 0 ||
+    smokeFailureClassificationDetailRows.length > 0 ||
     sourceTraefikRequestId !== null;
   const rollbackResourceType = isRollbackResourceType(log.resource_type) ? log.resource_type : null;
   const rollbackSupported =
@@ -133,6 +139,7 @@ export function AuditLogRow({
               diffRows={diffRows}
               deliveryRows={deliveryRows}
               managerDetailRows={managerDetailRows}
+              smokeFailureClassificationDetailRows={smokeFailureClassificationDetailRows}
               smokeRotationDetailRows={smokeRotationDetailRows}
               sourceTraefikRequestId={sourceTraefikRequestId}
               rollbackSupported={rollbackSupported}
