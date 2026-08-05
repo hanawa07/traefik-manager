@@ -14,6 +14,7 @@ async def test_history_reader_rejects_non_github_source_without_request() -> Non
         "latest_failure": None,
         "statistics": [],
         "checked_at": None,
+        "data_checked_at": None,
         "recent_days": None,
         "page": 1,
         "per_page": 5,
