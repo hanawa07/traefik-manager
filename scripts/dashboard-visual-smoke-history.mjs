@@ -44,6 +44,7 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
         const metadata = history?.querySelector('[data-testid="smoke-failure-metadata-preview"]');
         if (metadata instanceof HTMLDetailsElement) metadata.open = true;
         const checkName = metadata?.querySelector('[data-testid="smoke-failure-check-name"]');
+        const failureType = metadata?.querySelector('[data-testid="smoke-failure-type"]');
         const latestMetadata = document.querySelector('[data-testid="smoke-latest-failure-metadata-preview"]');
         if (latestMetadata instanceof HTMLDetailsElement) latestMetadata.open = true;
         const latestCommit = document.querySelector('[data-testid="smoke-latest-failure-commit-link"]');
@@ -65,6 +66,7 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
           filterCount?.textContent?.includes('4/8건') &&
           metadata?.textContent?.includes('/dashboard/settings') &&
           checkName?.textContent?.includes('설정 화면 검사 실패') &&
+          failureType?.textContent?.includes('화면 회귀') &&
           latestMetadata?.textContent?.includes('만료된 실패 화면 검사') &&
           latestCommit?.href === ${JSON.stringify(COMMIT_URL)} &&
           cancellationReason?.textContent?.includes('새 실행으로 대체') &&

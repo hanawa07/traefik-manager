@@ -238,6 +238,7 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
     assert result.monitoring_recent_runs[0].artifact_url.endswith("/artifact")
     assert result.monitoring_recent_runs[0].artifact_expires_at == "2026-07-18T06:54:58Z"
     assert result.monitoring_recent_runs[0].failure_metadata.check_name == "설정 화면 검사 실패"
+    assert result.monitoring_recent_runs[0].failure_metadata.failure_type == "visual_regression"
     assert result.monitoring_recent_runs[0].failure_metadata.screen_path == "/dashboard/settings"
     assert result.monitoring_latest_failure.run_number == 78
     assert result.monitoring_run_statistics[0].estimated_runner_minutes == 14

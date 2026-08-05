@@ -30,6 +30,7 @@ export async function buildSmokeHistoryFixtures(cdp) {
       failure_metadata: {
         captured_at: '2026-07-20T06:00:01Z',
         check_name: '설정 화면 검사 실패',
+        failure_type: 'visual_regression',
         screen_path: '/dashboard/settings',
         page_title: 'Traefik Manager 설정',
       },

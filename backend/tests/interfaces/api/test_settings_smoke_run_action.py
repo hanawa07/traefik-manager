@@ -88,6 +88,7 @@ async def test_record_smoke_run_failure_accepts_metadata_from_dedicated_viewer(
             run_id=456,
             captured_at="2026-07-21T01:02:03Z",
             check_name="설정 화면 검사 실패",
+            failure_type="external_api",
             screen_path="/dashboard/settings",
             page_title="설정",
             started_at="2026-07-21T01:00:03Z",
@@ -99,6 +100,7 @@ async def test_record_smoke_run_failure_accepts_metadata_from_dedicated_viewer(
     )
 
     assert response.run_id == 456
+    assert response.failure_type == "external_api"
     assert response.screen_path == "/dashboard/settings"
     assert '"run_id": 456' in repo.values["dashboard_smoke_failure_metadata"]
     local_run = json.loads(repo.values["dashboard_smoke_local_run_456"])

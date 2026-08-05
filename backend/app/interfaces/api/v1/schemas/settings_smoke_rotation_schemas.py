@@ -5,6 +5,7 @@ from pydantic import AwareDatetime, BaseModel, Field
 
 SmokeMonitoringFrequency = Literal["daily", "weekly"]
 SmokeFailureRateWindowDays = Literal[7, 30]
+SmokeFailureType = Literal["login", "external_api", "visual_regression"]
 SmokeCancellationReason = Literal["timeout", "superseded", "manual_or_unknown"]
 SmokeCancellationReasonFilter = Literal[
     "all",
@@ -17,6 +18,7 @@ SmokeCancellationReasonFilter = Literal[
 class SmokeFailureMetadataResponse(BaseModel):
     captured_at: datetime
     check_name: str = Field(min_length=1, max_length=500)
+    failure_type: SmokeFailureType = "visual_regression"
     screen_path: str | None = Field(default=None, max_length=500)
     page_title: str | None = Field(default=None, max_length=300)
 

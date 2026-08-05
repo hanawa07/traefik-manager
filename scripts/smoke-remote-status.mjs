@@ -5,6 +5,11 @@ import { formatCookieHeader } from "./smoke-session-auth.mjs";
 
 const ADMIN_STALE_DRY_RUN_MESSAGE =
   "관리자 전용 점검이 2일 넘게 성공하지 않았습니다 (dry-run)";
+const FAILURE_TYPE_LABELS = {
+  external_api: "외부 API",
+  login: "로그인",
+  visual_regression: "화면 회귀",
+};
 
 if (process.argv.includes("--admin-stale-dry-run")) {
   await writeSmokeAlertDetail(ADMIN_STALE_DRY_RUN_MESSAGE);
@@ -80,6 +85,7 @@ export async function recordRemoteSmokeFailure(
     body: JSON.stringify({
       run_id: Number(runId),
       ...metadata,
+      failure_type: metadata.failure_type ?? classifySmokeFailure(metadata.check_name),
       started_at: env.TM_SMOKE_STARTED_AT || null,
       completed_at: metadata.captured_at || new Date().toISOString(),
     }),
@@ -92,8 +98,17 @@ export async function recordRemoteSmokeFailure(
 
 export async function writeSmokeAlertDetail(message, env = process.env) {
   const path = env.TM_SMOKE_ALERT_DETAIL_FILE;
-  if (!path || !isAlertDetail(message)) return;
-  await writeFile(path, message.slice(0, 500), "utf8");
+  if (!path) return;
+  await writeFile(path, buildSmokeAlertDetail(message).slice(0, 500), "utf8");
+}
+
+export function classifySmokeFailure(message) {
+  const text = String(message || "");
+  if (/로그인|세션|인증|계정 자동 회전/.test(text)) return "login";
+  if (/GitHub|Cloudflare|Traefik/.test(text)) return "external_api";
+  if (/관리자 전용 점검/.test(text)) return "login";
+  if (/원격|(?:^|\s)API(?:\s|$)/.test(text)) return "external_api";
+  return "visual_regression";
 }
 
 function getAdminSmokeAlertMessage(status) {
@@ -107,11 +122,10 @@ function getAdminSmokeAlertMessage(status) {
   return null;
 }
 
-function isAlertDetail(message) {
-  return (
-    message.startsWith("스모크 계정 자동 회전") ||
-    message.startsWith("관리자 전용 점검")
-  );
+function buildSmokeAlertDetail(message) {
+  const detail = String(message || "알 수 없는 오류").replace(/\s+/g, " ").trim();
+  const failureType = classifySmokeFailure(detail);
+  return `유형: ${FAILURE_TYPE_LABELS[failureType]}\n상세: ${detail}`;
 }
 
 export async function runRemoteSmokeStatusSelfTest() {
@@ -167,6 +181,7 @@ export async function runRemoteSmokeStatusSelfTest() {
   assert.match(failureRequests[0].url, /smoke-run-failure$/);
   const failureBody = JSON.parse(failureRequests[0].options.body);
   assert.equal(failureBody.run_id, 456);
+  assert.equal(failureBody.failure_type, "visual_regression");
   assert.equal(failureBody.screen_path, "/dashboard/settings");
   assert.equal(failureBody.started_at, "2026-07-21T01:00:03Z");
   assert.equal(failureBody.completed_at, "2026-07-21T01:02:03Z");
@@ -183,7 +198,13 @@ export async function runRemoteSmokeStatusSelfTest() {
     getAdminSmokeAlertMessage({ monitoring_admin_is_stale: true, monitoring_enabled: false }),
     null,
   );
-  assert.equal(isAlertDetail("관리자 전용 점검이 지연되었습니다"), true);
-  assert.equal(isAlertDetail("일반 화면 오류"), false);
+  assert.equal(classifySmokeFailure("로그인 API 401"), "login");
+  assert.equal(classifySmokeFailure("Traefik Manager 인증 실패"), "login");
+  assert.equal(classifySmokeFailure("GitHub API 503"), "external_api");
+  assert.equal(classifySmokeFailure("설정 화면 검사 실패"), "visual_regression");
+  assert.equal(
+    buildSmokeAlertDetail("GitHub API 503"),
+    "유형: 외부 API\n상세: GitHub API 503",
+  );
   assert.match(ADMIN_STALE_DRY_RUN_MESSAGE, /dry-run/);
 }

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { classifySmokeFailure } from "./smoke-remote-status.mjs";
+
 export async function captureVisualScreenshot({ artifactDir, cdp, name }) {
   const screenshot = await cdp.send("Page.captureScreenshot", {
     captureBeyondViewport: false,
@@ -31,6 +33,7 @@ function buildVisualFailureMetadata({ capturedAt, message, page }) {
   return {
     captured_at: capturedAt,
     check_name: String(message).slice(0, 500),
+    failure_type: classifySmokeFailure(message),
     screen_path: page?.path ? String(page.path).slice(0, 500) : null,
     page_title: page?.title ? String(page.title).slice(0, 300) : null,
   };

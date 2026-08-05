@@ -7,6 +7,12 @@ interface SmokeFailureMetadataPreviewProps {
   timezone?: string;
 }
 
+const FAILURE_TYPE_LABELS = {
+  external_api: "외부 API",
+  login: "로그인",
+  visual_regression: "화면 회귀",
+} as const;
+
 export function SmokeFailureMetadataPreview({
   metadata,
   testId = "smoke-failure-metadata-preview",
@@ -21,6 +27,12 @@ export function SmokeFailureMetadataPreview({
         실패 정보 미리보기
       </summary>
       <dl className="mt-2 grid gap-1.5 text-[11px] text-gray-600 dark:text-slate-300">
+        <div>
+          <dt className="inline font-semibold">유형: </dt>
+          <dd className="inline" data-testid="smoke-failure-type">
+            {FAILURE_TYPE_LABELS[metadata.failure_type] ?? "화면 회귀"}
+          </dd>
+        </div>
         <div>
           <dt className="inline font-semibold">검사: </dt>
           <dd className="inline" data-testid="smoke-failure-check-name">{metadata.check_name}</dd>

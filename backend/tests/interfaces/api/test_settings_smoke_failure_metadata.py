@@ -40,6 +40,7 @@ async def test_smoke_failure_metadata_keeps_latest_twenty_unique_runs() -> None:
 
     assert len(stored) == 20
     assert list(indexed) == list(range(22, 2, -1))
+    assert indexed[22]["failure_type"] == "visual_regression"
     assert SMOKE_FAILURE_METADATA_KEY == "dashboard_smoke_failure_metadata"
 
     history = {

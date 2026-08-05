@@ -8,10 +8,12 @@ export type SmokeHistoryDays = 7 | 30;
 export type SmokeHistoryStatus = "all" | "success" | "failure" | "cancelled";
 export type SmokeCancellationReason = "timeout" | "superseded" | "manual_or_unknown";
 export type SmokeCancellationReasonFilter = "all" | SmokeCancellationReason;
+export type SmokeFailureType = "login" | "external_api" | "visual_regression";
 
 export interface SmokeFailureMetadata {
   captured_at: string;
   check_name: string;
+  failure_type: SmokeFailureType;
   screen_path: string | null;
   page_title: string | null;
 }

@@ -40,6 +40,7 @@ export async function runDashboardVisualSmokeSelfTest() {
     });
     const metadata = JSON.parse(await readFile(join(artifactDir, "failure-metadata.json"), "utf8"));
     assert.equal(metadata.check_name, "설정 화면 검사 실패");
+    assert.equal(metadata.failure_type, "visual_regression");
     assert.equal(metadata.screen_path, "/dashboard/settings");
     assert.equal(metadata.page_title, "설정");
     assert.match(metadata.captured_at, /^\d{4}-\d{2}-\d{2}T/);

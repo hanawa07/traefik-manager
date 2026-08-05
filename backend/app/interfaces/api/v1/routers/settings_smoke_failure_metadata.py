@@ -3,6 +3,7 @@ from typing import Any
 
 SMOKE_FAILURE_METADATA_KEY = "dashboard_smoke_failure_metadata"
 SMOKE_FAILURE_METADATA_LIMIT = 20
+SMOKE_FAILURE_TYPES = {"login", "external_api", "visual_regression"}
 
 
 async def record_smoke_failure_metadata(
@@ -72,10 +73,14 @@ def _normalize_entry(value: object) -> dict[str, Any] | None:
     check_name = _required_text(value.get("check_name"), 500)
     if not captured_at or not check_name:
         return None
+    failure_type = value.get("failure_type")
+    if failure_type not in SMOKE_FAILURE_TYPES:
+        failure_type = "visual_regression"
     return {
         "run_id": value["run_id"],
         "captured_at": captured_at,
         "check_name": check_name,
+        "failure_type": failure_type,
         "screen_path": _optional_text(value.get("screen_path"), 500),
         "page_title": _optional_text(value.get("page_title"), 300),
     }
