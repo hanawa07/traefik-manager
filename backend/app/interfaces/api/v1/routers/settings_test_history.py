@@ -37,8 +37,8 @@ async def get_settings_test_history_response(db: AsyncSession) -> SettingsTestHi
             return cached
 
         response = await _load_settings_test_history_response(db)
-        # ponytail: match the frontend's 10-second freshness window instead of
-        # adding cross-cutting cache invalidation to every audit writer.
+        # ponytail: keep the frontend's 10-second freshness window; add writer
+        # invalidation only if stale history starts affecting operations.
         _history_cache_bind = db.bind
         _history_cache_response = response
         _history_cache_expires_at = monotonic() + _HISTORY_CACHE_TTL_SECONDS

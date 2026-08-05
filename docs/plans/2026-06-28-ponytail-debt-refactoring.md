@@ -54,10 +54,30 @@
 - 검증: backend 전체 pytest.
 
 ## 7. 프론트엔드 ESLint 10 전환 - 업스트림 대기
-- `PONYTAIL-DEBT(frontend-eslint-10)`: `eslint-config-next@16.2.12`의 내부 `eslint-plugin-react`, `eslint-plugin-import`, `eslint-plugin-jsx-a11y`가 ESLint 10 API를 지원하지 않는다.
+- `PONYTAIL-DEBT(frontend-eslint-10)`: 최신 `eslint-config-next@16.3.0`도 내부 `eslint-plugin-react`, `eslint-plugin-import`, `eslint-plugin-jsx-a11y`가 ESLint 10 API를 지원하지 않는다.
 - 2026-07-30 기준 ESLint 10 전환 시 `react/display-name` 규칙 로딩이 실패하는 것을 확인하고 ESLint 9로 복구했다.
 - 2026-08-01 재점검에서도 최신 `eslint@10.8.0`, `eslint-config-next@16.2.12` 조합은 동일한 `contextOrFilename.getFilename is not a function` 오류로 중단됐다. 최신 React 7.37.5, Import 2.32.0, JSX a11y 6.10.2 플러그인의 peer 범위도 ESLint 9까지만 허용한다.
+- 2026-08-05 재점검에서도 `eslint@10.8.0` 실제 lint가 같은 오류로 중단됐다. `eslint-config-next@16.3.0`은 ESLint peer 범위를 `>=9`로 선언하지만, 포함된 세 플러그인의 최신 peer 범위는 여전히 ESLint 9까지다.
 - 재현 명령: `cd frontend && npm exec --yes --package=eslint@10.8.0 -- eslint .`.
-- 취약한 `brace-expansion` 1.x를 5.x로 강제 교체하면 CommonJS 호출 형식이 달라 기존 `minimatch` 3.x와 호환되지 않으므로 override하지 않는다.
-- 현재 `npm audit --omit=dev`는 0건이며, 전체 audit의 High 9건은 ESLint와 내장 플러그인의 개발 전용 경로에 한정된다.
-- 재개 조건: Next.js 내장 플러그인이 ESLint 10을 공식 지원하고 `npm audit`에서 `GHSA-mh99-v99m-4gvg` 경로가 제거될 때 lint/build를 다시 검증한다.
+- 현재 `npm audit --omit=dev`와 전체 `npm audit`는 모두 0건이다. 보안상 강제 override나 ESLint 10 선행 전환이 필요한 상태가 아니다.
+- 재개 조건: Next.js 내장 플러그인이 ESLint 10 API와 peer 범위를 공식 지원할 때 lint/build를 다시 검증한다.
+
+## 8. 2026-08-05 Ponytail debt 재감사 - 완료
+
+### 1) 정말 삭제 가능한 것
+- 없음. 완료된 계획 문서는 의사결정 이력이고, production 구현 하나인 Repository ABC는 domain port로 유지한다는 기존 결정을 뒤집을 새 근거가 없다.
+
+### 2) 리팩토링 후보
+- 즉시 분리할 후보는 없다. 가장 긴 소스인 `Service` 355줄은 aggregate root, `SmokeRunStatisticsHistory` 316줄은 한 화면 기능, `app_background_checks` 238줄은 background task composition root로 각각 한 책임을 유지한다.
+- 추적 중인 Python, TypeScript, JavaScript, shell 소스에서 500줄을 넘는 파일은 0개다. 500줄을 넘는 추적 파일은 lockfile과 이미지뿐이다.
+
+### 3) 위험해서 보류할 것
+- `Service.create()`와 `Service.update()`는 인자가 많지만 API·persistence mapping과 맞물린 aggregate 불변식 경계다. 줄 수만 줄이기 위한 요청 객체나 추가 계층은 변경 범위를 키우므로 실제 필드군이 더 늘거나 불변식 누락이 발견될 때만 재검토한다.
+- `SmokeRunStatisticsHistory`와 background task wiring은 500줄 기준에 충분한 여유가 있고 호출 흐름도 한 파일에서 읽힌다. 별도 책임이 추가되기 전에는 분리하지 않는다.
+
+### 4) Ponytail debt marker로 남길 것
+- `containerImportFiltering.ts`: 비 HTTP 컨테이너 식별자는 실제 오탐·미탐 엔진이 관측될 때만 확장한다.
+- `containerImportFiltering.ts`: Compose gateway 검색은 Docker 목록에서 실제 병목이 측정될 때만 프로젝트 맵으로 바꾼다.
+- `smokeStatisticsHistory.ts`: 지연 임계치는 실제 오탐이 관측될 때만 설정값으로 승격한다.
+- `settings_test_history.py`: 10초 cache는 audit writer 전반의 즉시 invalidation 요구가 생길 때만 교체한다.
+- 코드의 `PONYTAIL-DEBT(...)` marker는 0개이며, 위 `ponytail:` marker 4개는 모두 구체적인 재검토 조건을 가진다.
