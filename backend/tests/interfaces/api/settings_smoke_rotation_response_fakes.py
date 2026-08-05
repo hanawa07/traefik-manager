@@ -75,6 +75,7 @@ class StubSmokeHistoryReader:
             "latest_failure": failed_run.copy(),
             "statistics": _statistics(),
             "checked_at": "2026-07-13T01:00:00+00:00",
+            "data_checked_at": "2026-07-13T00:55:00+00:00",
             "recent_days": recent_days,
             "page": page,
             "per_page": 5,

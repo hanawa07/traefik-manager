@@ -121,6 +121,7 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_local_run_limit: int = 20
     monitoring_local_run_retention_days: int = 365
     monitoring_history_checked_at: str | None = None
+    monitoring_history_data_checked_at: str | None = None
     monitoring_history_error: str | None = None
     monitoring_history_days: Literal[7, 30] = 30
     monitoring_history_page: int = 1

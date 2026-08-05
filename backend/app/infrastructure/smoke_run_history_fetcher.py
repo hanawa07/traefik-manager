@@ -177,6 +177,7 @@ def build_smoke_history_error(
         "latest_failure": None,
         "statistics": [],
         "checked_at": None,
+        "data_checked_at": None,
         "recent_days": recent_days,
         "page": page,
         "per_page": RECENT_RUN_LIMIT,

@@ -55,7 +55,9 @@ async function checkSmokeHistoryAdminReadOnly({
           'select[aria-label="로컬 스모크 실행 결과 필터"] option[value="failure"]'
         );
         const historyState = trend?.getAttribute('data-smoke-history-state');
+        const errorDetail = trend?.querySelector('[data-testid="smoke-history-error-detail"]');
         return (historyState === 'ready' || historyState === 'error') &&
+          (historyState !== 'error' || errorDetail instanceof HTMLElement) &&
           thirty instanceof HTMLButtonElement && counts instanceof HTMLElement &&
           Number(history?.getAttribute('data-local-run-visible-count')) > 0 &&
           failure instanceof HTMLOptionElement;
@@ -85,6 +87,15 @@ async function checkSmokeHistoryAdminReadOnly({
         )`,
         timeoutMs,
         "관리자 GitHub 30일 실행 통계가 표시되지 않았습니다",
+      );
+    } else {
+      const errorDetail = await evaluate(cdp, `document.querySelector(
+        '[data-testid="smoke-history-error-detail"]'
+      )?.textContent`);
+      assert.match(
+        errorDetail || "",
+        /캐시 기준|사용 가능한 캐시 없음/,
+        "GitHub 실행 통계 오류의 캐시 기준이 표시되지 않았습니다",
       );
     }
     const failureCount = await evaluate(cdp, `Number(document.querySelector(

@@ -118,6 +118,7 @@ export interface SmokeRotationStatus {
   monitoring_local_run_limit: number;
   monitoring_local_run_retention_days: number;
   monitoring_history_checked_at: string | null;
+  monitoring_history_data_checked_at: string | null;
   monitoring_history_error: string | null;
   monitoring_history_days: SmokeHistoryDays;
   monitoring_history_page: number;

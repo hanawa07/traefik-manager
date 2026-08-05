@@ -44,6 +44,7 @@ export function SmokeAdminStatusSummary({
                   runs={status.monitoring_recent_runs}
                 />
                 <SmokeRunTrend
+                  dataCheckedAt={status.monitoring_history_data_checked_at}
                   error={status.monitoring_history_error}
                   failureRateMinRuns={status.monitoring_failure_rate_min_runs}
                   failureRateThresholdPercent={status.monitoring_failure_rate_threshold_percent}

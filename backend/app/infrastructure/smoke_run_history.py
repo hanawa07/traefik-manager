@@ -117,6 +117,11 @@ class GitHubSmokeRunHistoryReader:
                     history["total"] = cached[1]["total"]
                     history["total_pages"] = cached[1]["total_pages"]
                 history["statistics"] = cached[1].get("statistics", [])
+                history["data_checked_at"] = cached[1].get("data_checked_at")
+            elif history["error"]:
+                history["data_checked_at"] = None
+            else:
+                history["data_checked_at"] = history["checked_at"]
             GitHubSmokeRunHistoryReader._cache[cache_key] = (now, _copy_history(history))
             _prune_history_cache(now)
             return history
@@ -214,6 +219,7 @@ def _copy_history(history: dict[str, Any]) -> dict[str, Any]:
         else None,
         "statistics": [item.copy() for item in history.get("statistics", [])],
         "checked_at": history["checked_at"],
+        "data_checked_at": history.get("data_checked_at"),
         "recent_days": history["recent_days"],
         "page": history["page"],
         "per_page": history["per_page"],

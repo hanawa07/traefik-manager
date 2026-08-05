@@ -8,6 +8,7 @@ import type {
   SmokeRunStatistics,
   SmokeStatisticsSnapshot,
 } from "@/features/settings/api/settingsApi";
+import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { formatDurationSeconds } from "@/shared/lib/formatDurationSeconds";
 import {
   getCompletedSmokeRunsInWindow,
@@ -37,6 +38,7 @@ const STATUS_LABELS = {
 } as const;
 
 interface SmokeRunTrendProps {
+  dataCheckedAt: string | null;
   error: string | null;
   failureRateMinRuns: number;
   failureRateThresholdPercent: number;
@@ -53,6 +55,7 @@ interface SmokeRunTrendProps {
 }
 
 export function SmokeRunTrend({
+  dataCheckedAt,
   error,
   failureRateMinRuns,
   failureRateThresholdPercent,
@@ -191,6 +194,16 @@ export function SmokeRunTrend({
         GitHub workflow 결론·벽시계 기준 추정 · 내부 단계 건너뜀은 성공에 포함될 수 있음 ·
         GitHub 과금값 아님
       </span>
+      {error ? (
+        <span
+          className="basis-full rounded bg-amber-100 px-2 py-1 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
+          data-testid="smoke-history-error-detail"
+        >
+          {error} · {dataCheckedAt
+            ? `캐시 기준 ${formatDateTime(dataCheckedAt, timezone)}`
+            : "사용 가능한 캐시 없음"}
+        </span>
+      ) : null}
       <SmokeDurationTrend
         localRuns={localRuns}
         statistics={statistics}

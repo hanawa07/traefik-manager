@@ -50,11 +50,12 @@ async def test_history_error_keeps_cached_statistics_when_filtered_runs_are_empt
         "cancellation_reason_filter": "timeout",
     }
 
-    await reader.get_history(source_url, **kwargs)
+    initial = await reader.get_history(source_url, **kwargs)
     refreshed = await reader.get_history(source_url, force_refresh=True, **kwargs)
 
     assert refreshed["error"] == "원격 오류"
     assert refreshed["statistics"] == statistics
+    assert refreshed["data_checked_at"] == initial["checked_at"]
 
 
 def test_history_response_cache_removes_expired_and_oldest_items(monkeypatch) -> None:
@@ -138,6 +139,7 @@ async def test_history_reader_force_refresh_bypasses_cache(monkeypatch) -> None:
 
     assert reader.calls == 2
     assert first["checked_at"] is not None
+    assert first["data_checked_at"] == first["checked_at"]
     assert read_smoke_history_cache_diagnostics()["hits"] == 1
     assert read_smoke_history_cache_diagnostics()["misses"] == 2
 

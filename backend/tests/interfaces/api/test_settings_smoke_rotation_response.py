@@ -249,6 +249,7 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
     assert result.monitoring_local_run_limit == 20
     assert result.monitoring_local_run_retention_days == 365
     assert result.monitoring_history_checked_at == "2026-07-13T01:00:00+00:00"
+    assert result.monitoring_history_data_checked_at == "2026-07-13T00:55:00+00:00"
     assert result.monitoring_history_error is None
     assert result.monitoring_history_days == 30
     assert result.monitoring_history_page == 2
