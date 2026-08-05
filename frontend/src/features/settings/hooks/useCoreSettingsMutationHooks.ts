@@ -86,7 +86,6 @@ export function useRefreshSmokeMonitoringHistory() {
     mutationFn: settingsApi.refreshSmokeMonitoringHistory,
     invalidateKeys: [
       settingsQueryKeys.smokeRotation,
-      settingsQueryKeys.smokeRotationSummary,
       settingsQueryKeys.auditLogs,
     ],
   });
