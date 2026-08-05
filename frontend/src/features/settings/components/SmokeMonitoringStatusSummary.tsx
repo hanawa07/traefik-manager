@@ -25,11 +25,13 @@ interface SmokeMonitoringStatusSummaryProps {
   lastManualRun: TrackedManualSmokeRun | null;
   isTestingStaleAlert: boolean;
   isTestingGithubRateLimitAlert: boolean;
+  isTestingFailureTypeIncreaseAlert: boolean;
   onRefreshHistory: () => void;
   onManualRunOpen: () => void;
   onClearManualRun: () => void;
   onTestStaleAlert: () => void;
   onTestGithubRateLimitAlert: () => void;
+  onTestFailureTypeIncreaseAlert: () => void;
 }
 
 export function SmokeMonitoringStatusSummary({
@@ -47,11 +49,13 @@ export function SmokeMonitoringStatusSummary({
   lastManualRun,
   isTestingStaleAlert,
   isTestingGithubRateLimitAlert,
+  isTestingFailureTypeIncreaseAlert,
   onRefreshHistory,
   onManualRunOpen,
   onClearManualRun,
   onTestStaleAlert,
   onTestGithubRateLimitAlert,
+  onTestFailureTypeIncreaseAlert,
 }: SmokeMonitoringStatusSummaryProps) {
   const isGithubRefreshBlocked = useGithubApiRefreshBlocked(
     status.monitoring_github_rate_limit_remaining,
@@ -65,8 +69,10 @@ export function SmokeMonitoringStatusSummary({
       <SmokeMonitoringOverview
         canManage={canManage}
         isTestingGithubRateLimitAlert={isTestingGithubRateLimitAlert}
+        isTestingFailureTypeIncreaseAlert={isTestingFailureTypeIncreaseAlert}
         isTestingStaleAlert={isTestingStaleAlert}
         onTestGithubRateLimitAlert={onTestGithubRateLimitAlert}
+        onTestFailureTypeIncreaseAlert={onTestFailureTypeIncreaseAlert}
         onTestStaleAlert={onTestStaleAlert}
         staleAlertHistory={staleAlertHistory}
         status={status}

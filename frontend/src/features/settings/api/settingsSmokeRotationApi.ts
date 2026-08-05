@@ -26,6 +26,7 @@ export interface SmokeMonitoringSettingsInput {
   monitoring_failure_rate_min_runs: number;
   monitoring_failure_rate_window_days: SmokeFailureRateWindowDays;
   monitoring_failure_type_alert_enabled: boolean;
+  monitoring_failure_metadata_limit: number;
   monitoring_github_rate_limit_alert_enabled: boolean;
   monitoring_github_primary_limit_alert_threshold: number;
   monitoring_github_secondary_limit_alert_threshold: number;
@@ -239,6 +240,12 @@ export const smokeRotationSettingsApi = {
   testGithubApiRateLimitAlert: async (): Promise<SettingsActionTestResult> => {
     const response = await apiClient.post<SettingsActionTestResult>(
       "/settings/github-api-rate-limit-alert/test",
+    );
+    return response.data;
+  },
+  testSmokeFailureTypeIncreaseAlert: async (): Promise<SettingsActionTestResult> => {
+    const response = await apiClient.post<SettingsActionTestResult>(
+      "/settings/smoke-failure-type-increase-alert/test",
     );
     return response.data;
   },

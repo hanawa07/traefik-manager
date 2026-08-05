@@ -5,6 +5,7 @@ SETTINGS_TEST_EVENTS = {
     "security_alert": "settings_test_security_alert",
     "smoke_admin_stale": "settings_test_smoke_admin_stale",
     "github_api_rate_limit": "settings_test_github_api_rate_limit",
+    "smoke_failure_type_increase": "settings_test_smoke_failure_type_increase",
 }
 
 SETTINGS_DELIVERY_EVENTS = {

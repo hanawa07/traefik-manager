@@ -152,6 +152,29 @@ export function SmokeMonitoringSettingsEditForm({
         </span>
       </label>
 
+      <div>
+        <label className="label" htmlFor="smoke-failure-metadata-limit">
+          실패 분류 정보 보관 (건)
+        </label>
+        <input
+          id="smoke-failure-metadata-limit"
+          className="input"
+          type="number"
+          min={20}
+          max={200}
+          value={formValue.monitoring_failure_metadata_limit}
+          onChange={(event) =>
+            onFormChange({
+              ...formValue,
+              monitoring_failure_metadata_limit: Number(event.target.value),
+            })
+          }
+        />
+        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+          20~200건을 보관합니다. 현재보다 줄이면 저장할 때 오래된 기록부터 즉시 정리합니다.
+        </p>
+      </div>
+
       <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/30">
         <label className="flex cursor-pointer items-start gap-3">
           <input

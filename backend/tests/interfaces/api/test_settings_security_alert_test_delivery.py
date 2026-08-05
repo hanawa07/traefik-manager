@@ -8,6 +8,7 @@ from tests.interfaces.api.settings_security_alert_router_fakes import (
     patch_github_api_rate_limit_test_alert_sender,
     patch_settings_repository,
     patch_smoke_admin_stale_test_alert_sender,
+    patch_smoke_failure_type_increase_test_alert_sender,
     patch_test_alert_sender,
 )
 
@@ -104,4 +105,32 @@ async def test_github_api_rate_limit_dry_run_returns_operational_route_result(mo
     assert response.provider == "telegram"
     assert recorded[0]["resource_name"] == "GitHub API 반복 제한 알림 dry-run"
     assert recorded[0]["detail"]["event"] == "settings_test_github_api_rate_limit"
+    assert recorded[0]["detail"]["provider"] == "telegram"
+
+
+@pytest.mark.asyncio
+async def test_smoke_failure_type_increase_dry_run_returns_operational_route_result(monkeypatch):
+    called = patch_smoke_failure_type_increase_test_alert_sender(
+        monkeypatch,
+        {
+            "success": True,
+            "provider": "telegram",
+            "message": "실패 유형 증가 dry-run을 전송했습니다",
+            "detail": "telegram 채널로 전송했습니다",
+        },
+    )
+    recorded = capture_audit_records(monkeypatch)
+    db = object()
+
+    response = await settings_router.test_smoke_failure_type_increase_alert(
+        request=make_http_request(),
+        db=db,
+        actor=ADMIN_USER,
+    )
+
+    assert called["db"] is db
+    assert response.success is True
+    assert response.provider == "telegram"
+    assert recorded[0]["resource_name"] == "실패 유형 증가 알림 dry-run"
+    assert recorded[0]["detail"]["event"] == "settings_test_smoke_failure_type_increase"
     assert recorded[0]["detail"]["provider"] == "telegram"

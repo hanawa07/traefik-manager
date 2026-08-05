@@ -17,6 +17,7 @@ export {
   useRefreshSmokeMonitoringHistory,
   useRunAuditRetentionCleanup,
   useTestGithubApiRateLimitAlert,
+  useTestSmokeFailureTypeIncreaseAlert,
   useTestSmokeAdminStaleAlert,
   useUpdateCertificateDiagnosticsSettings,
   useUpdateDeploymentBottleneckSettings,

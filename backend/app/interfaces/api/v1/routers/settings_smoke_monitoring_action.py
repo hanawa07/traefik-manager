@@ -37,6 +37,7 @@ async def update_smoke_monitoring_settings_action(
         failure_rate_min_runs=request.monitoring_failure_rate_min_runs,
         failure_rate_window_days=request.monitoring_failure_rate_window_days,
         failure_type_alert_enabled=request.monitoring_failure_type_alert_enabled,
+        failure_metadata_limit=request.monitoring_failure_metadata_limit,
         github_rate_limit_alert_enabled=request.monitoring_github_rate_limit_alert_enabled,
         github_primary_limit_alert_threshold=(
             request.monitoring_github_primary_limit_alert_threshold

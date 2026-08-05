@@ -71,3 +71,21 @@ def patch_github_api_rate_limit_test_alert_sender(monkeypatch, result: dict[str,
         fake_send_github_api_rate_limit_test_alert,
     )
     return called
+
+
+def patch_smoke_failure_type_increase_test_alert_sender(
+    monkeypatch,
+    result: dict[str, object],
+):
+    called = {}
+
+    async def fake_send_smoke_failure_type_increase_test_alert(db):
+        called["db"] = db
+        return result
+
+    monkeypatch.setattr(
+        settings_router.security_alert_test_sender,
+        "send_smoke_failure_type_increase_test_alert",
+        fake_send_smoke_failure_type_increase_test_alert,
+    )
+    return called

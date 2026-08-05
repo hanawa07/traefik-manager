@@ -24,6 +24,10 @@ def build_settings_test_history_response(logs: list[AuditLogModel]) -> SettingsT
         logs,
         SETTINGS_TEST_EVENTS["github_api_rate_limit"],
     )
+    smoke_failure_type_increase = find_latest_settings_test_event(
+        logs,
+        SETTINGS_TEST_EVENTS["smoke_failure_type_increase"],
+    )
     security_alert_delivery = find_latest_settings_events(logs, SETTINGS_DELIVERY_EVENTS["security_alert_delivery"])
     change_alert_delivery = find_latest_settings_events(logs, SETTINGS_DELIVERY_EVENTS["change_alert_delivery"])
     github_api_rate_limit_delivery = find_latest_settings_events(
@@ -40,6 +44,7 @@ def build_settings_test_history_response(logs: list[AuditLogModel]) -> SettingsT
         security_alert=security_alert,
         smoke_admin_stale=smoke_admin_stale,
         github_api_rate_limit=github_api_rate_limit,
+        smoke_failure_type_increase=smoke_failure_type_increase,
         security_alert_delivery=security_alert_delivery,
         change_alert_delivery=change_alert_delivery,
         github_api_rate_limit_delivery=github_api_rate_limit_delivery,

@@ -52,6 +52,7 @@ class SettingsTestHistoryResponse(BaseModel):
     security_alert: SettingsTestHistoryItemResponse
     smoke_admin_stale: SettingsTestHistoryItemResponse
     github_api_rate_limit: SettingsTestHistoryItemResponse
+    smoke_failure_type_increase: SettingsTestHistoryItemResponse
     security_alert_delivery: SettingsTestHistoryItemResponse
     change_alert_delivery: SettingsTestHistoryItemResponse
     github_api_rate_limit_delivery: SettingsTestHistoryItemResponse

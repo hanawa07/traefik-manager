@@ -179,7 +179,7 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_history_status: Literal["all", "success", "failure", "cancelled"] = "all"
     monitoring_history_cancellation_reason: SmokeCancellationReasonFilter = "all"
     monitoring_failure_metadata_count: int = 0
-    monitoring_failure_metadata_limit: int = 20
+    monitoring_failure_metadata_limit: int = Field(default=20, ge=20, le=200)
     monitoring_github_rate_limit_remaining: int | None = None
     monitoring_github_rate_limit_limit: int | None = None
     monitoring_github_rate_limit_reset_at: str | None = None
@@ -202,6 +202,7 @@ class SmokeMonitoringSettingsUpdateRequest(BaseModel):
     monitoring_failure_rate_min_runs: int = Field(default=3, ge=1, le=30)
     monitoring_failure_rate_window_days: SmokeFailureRateWindowDays = 7
     monitoring_failure_type_alert_enabled: bool = False
+    monitoring_failure_metadata_limit: int = Field(default=20, ge=20, le=200)
     monitoring_github_rate_limit_alert_enabled: bool = False
     monitoring_github_primary_limit_alert_threshold: int = Field(default=3, ge=1, le=100)
     monitoring_github_secondary_limit_alert_threshold: int = Field(default=3, ge=1, le=100)

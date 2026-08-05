@@ -31,6 +31,7 @@ export {
   useRollbackSettingsChange,
   useTestCloudflareConnection,
   useTestGithubApiRateLimitAlert,
+  useTestSmokeFailureTypeIncreaseAlert,
   useTestSecurityAlertSettings,
   useTestSmokeAdminStaleAlert,
   useUpdateCertificateDiagnosticsSettings,

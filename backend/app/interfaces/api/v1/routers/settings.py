@@ -34,6 +34,7 @@ from app.interfaces.api.v1.routers.settings_security_alert_actions import (
     test_github_api_rate_limit_alert_action as _test_github_api_rate_limit_alert_action,
     test_security_alert_settings_action as _test_security_alert_settings_action,
     test_smoke_admin_stale_alert_action as _test_smoke_admin_stale_alert_action,
+    test_smoke_failure_type_increase_alert_action as _test_smoke_failure_type_increase_alert_action,
 )
 from app.interfaces.api.v1.routers.settings_smoke_router import (
     get_smoke_rotation_status,
@@ -160,6 +161,26 @@ async def test_github_api_rate_limit_alert(
     actor: dict = Depends(require_admin),
 ):
     return await _test_github_api_rate_limit_alert_action(
+        request=request,
+        db=db,
+        actor=actor,
+        notifier=security_alert_test_sender,
+        audit_service=audit_service,
+        client_ip_getter=get_client_ip,
+    )
+
+
+@router.post(
+    "/smoke-failure-type-increase-alert/test",
+    response_model=SettingsTestActionResponse,
+    summary="스모크 실패 유형 증가 운영 경로 dry-run 전송",
+)
+async def test_smoke_failure_type_increase_alert(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    actor: dict = Depends(require_admin),
+):
+    return await _test_smoke_failure_type_increase_alert_action(
         request=request,
         db=db,
         actor=actor,

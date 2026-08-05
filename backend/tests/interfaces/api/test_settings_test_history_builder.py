@@ -76,6 +76,22 @@ def test_settings_history_separates_smoke_admin_stale_dry_run():
     assert result.security_alert.last_success is False
 
 
+def test_settings_history_tracks_smoke_failure_type_increase_dry_run():
+    result = build_settings_test_history_response(
+        [
+            make_settings_history_log(
+                log_id="failure-type-increase",
+                event="settings_test_smoke_failure_type_increase",
+                detail={"success": True, "provider": "telegram"},
+                created_at=datetime.now(timezone.utc),
+            )
+        ]
+    )
+
+    assert result.smoke_failure_type_increase.last_success is True
+    assert result.smoke_failure_type_increase.last_provider == "telegram"
+
+
 def test_settings_history_keeps_five_recent_events_in_order():
     now = datetime.now(timezone.utc)
     logs = [

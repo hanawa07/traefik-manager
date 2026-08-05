@@ -13,8 +13,10 @@ import { SmokeStaleAlertHistory } from "./SmokeStaleAlertHistory";
 interface SmokeMonitoringOverviewProps {
   canManage: boolean;
   isTestingGithubRateLimitAlert: boolean;
+  isTestingFailureTypeIncreaseAlert: boolean;
   isTestingStaleAlert: boolean;
   onTestGithubRateLimitAlert: () => void;
+  onTestFailureTypeIncreaseAlert: () => void;
   onTestStaleAlert: () => void;
   staleAlertHistory?: SettingsTestHistoryItem;
   status: SmokeRotationStatus;
@@ -24,8 +26,10 @@ interface SmokeMonitoringOverviewProps {
 export function SmokeMonitoringOverview({
   canManage,
   isTestingGithubRateLimitAlert,
+  isTestingFailureTypeIncreaseAlert,
   isTestingStaleAlert,
   onTestGithubRateLimitAlert,
+  onTestFailureTypeIncreaseAlert,
   onTestStaleAlert,
   staleAlertHistory,
   status,
@@ -68,6 +72,31 @@ export function SmokeMonitoringOverview({
       <SettingsSummaryRow
         label="실패 유형 증가 운영 알림"
         value={status.monitoring_failure_type_alert_enabled ? "사용" : "사용 안 함"}
+      />
+      {canManage ? (
+        <SettingsSummaryRow
+          label="실패 유형 증가 알림 dry-run"
+          value={
+            <button
+              type="button"
+              className="btn-secondary inline-flex items-center gap-1.5 py-1.5 text-xs"
+              data-testid="smoke-failure-type-increase-alert-test"
+              onClick={onTestFailureTypeIncreaseAlert}
+              disabled={isTestingFailureTypeIncreaseAlert}
+            >
+              <Send className="h-3.5 w-3.5" />
+              {isTestingFailureTypeIncreaseAlert ? "전송 중" : "운영 경로 테스트"}
+            </button>
+          }
+        />
+      ) : null}
+      <SettingsSummaryRow
+        label="실패 분류 정보 보관"
+        value={
+          canManage
+            ? `${status.monitoring_failure_metadata_count}/${status.monitoring_failure_metadata_limit}건`
+            : `최대 ${status.monitoring_failure_metadata_limit}건`
+        }
       />
       <SettingsSummaryRow
         label="GitHub API 반복 제한 알림"

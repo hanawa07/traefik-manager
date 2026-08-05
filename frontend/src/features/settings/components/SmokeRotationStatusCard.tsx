@@ -35,6 +35,7 @@ interface SmokeRotationStatusCardProps {
   lastManualRun: TrackedManualSmokeRun | null;
   isTestingStaleAlert: boolean;
   isTestingGithubRateLimitAlert: boolean;
+  isTestingFailureTypeIncreaseAlert: boolean;
   onEdit: () => void;
   onSave: () => void;
   onRefreshHistory: () => void;
@@ -42,6 +43,7 @@ interface SmokeRotationStatusCardProps {
   onClearManualRun: () => void;
   onTestStaleAlert: () => void;
   onTestGithubRateLimitAlert: () => void;
+  onTestFailureTypeIncreaseAlert: () => void;
   onCancel: () => void;
   onFormChange: (value: SmokeMonitoringSettingsInput) => void;
 }
@@ -67,6 +69,7 @@ export function SmokeRotationStatusCard({
   lastManualRun,
   isTestingStaleAlert,
   isTestingGithubRateLimitAlert,
+  isTestingFailureTypeIncreaseAlert,
   onEdit,
   onSave,
   onRefreshHistory,
@@ -74,6 +77,7 @@ export function SmokeRotationStatusCard({
   onClearManualRun,
   onTestStaleAlert,
   onTestGithubRateLimitAlert,
+  onTestFailureTypeIncreaseAlert,
   onCancel,
   onFormChange,
 }: SmokeRotationStatusCardProps) {
@@ -132,11 +136,13 @@ export function SmokeRotationStatusCard({
             lastManualRun={lastManualRun}
             isTestingStaleAlert={isTestingStaleAlert}
             isTestingGithubRateLimitAlert={isTestingGithubRateLimitAlert}
+            isTestingFailureTypeIncreaseAlert={isTestingFailureTypeIncreaseAlert}
             onRefreshHistory={onRefreshHistory}
             onManualRunOpen={onManualRunOpen}
             onClearManualRun={onClearManualRun}
             onTestStaleAlert={onTestStaleAlert}
             onTestGithubRateLimitAlert={onTestGithubRateLimitAlert}
+            onTestFailureTypeIncreaseAlert={onTestFailureTypeIncreaseAlert}
           />
           <SmokeAccountRotationSummary status={status} timezone={timezone} />
         </SettingsSummary>

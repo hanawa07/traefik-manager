@@ -165,6 +165,7 @@ export async function runDashboardVisualSmokeSelfTest() {
   assert.ok(dashboardRoute.requiredMarkers.includes("경로 필터"));
   assert.ok(dashboardRoute.requiredMarkers.includes("연속 실패"));
   assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");
+  assert.ok(settingsRoute.requiredMarkers.includes("실패 분류 정보 보관"));
   assert.ok(
     settingsRoute.requiredMarkers.includes("전체 통계는 GitHub workflow 결론 기준"),
   );

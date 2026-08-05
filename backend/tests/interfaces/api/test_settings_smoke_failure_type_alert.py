@@ -93,6 +93,10 @@ async def test_failure_type_alert_notifies_only_when_increase_becomes_active() -
         "change",
         "manager_health",
     )
+    assert get_alert_category_and_group("smoke_failure_type_increase_test") == (
+        "change",
+        "manager_health",
+    )
     message = build_telegram_message(
         StubAuditLog(),
         "smoke_failure_type_increase",

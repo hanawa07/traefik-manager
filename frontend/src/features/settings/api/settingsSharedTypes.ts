@@ -47,6 +47,7 @@ export interface SettingsTestHistoryStatus {
   security_alert: SettingsTestHistoryItem;
   smoke_admin_stale: SettingsTestHistoryItem;
   github_api_rate_limit: SettingsTestHistoryItem;
+  smoke_failure_type_increase: SettingsTestHistoryItem;
   security_alert_delivery: SettingsTestHistoryItem;
   change_alert_delivery: SettingsTestHistoryItem;
   github_api_rate_limit_delivery: SettingsTestHistoryItem;

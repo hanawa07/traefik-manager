@@ -111,3 +111,9 @@ export function useTestGithubApiRateLimitAlert() {
     settingsQueryKeys.testHistory,
   );
 }
+
+export function useTestSmokeFailureTypeIncreaseAlert() {
+  return useSettingsMutation({
+    mutationFn: settingsApi.testSmokeFailureTypeIncreaseAlert,
+  });
+}

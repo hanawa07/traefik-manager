@@ -6,6 +6,7 @@ import {
   useSettingsTestHistory,
   useSmokeRotationStatus,
   useTestGithubApiRateLimitAlert,
+  useTestSmokeFailureTypeIncreaseAlert,
   useTestSmokeAdminStaleAlert,
   useUpdateSmokeMonitoringSettings,
 } from "@/features/settings/hooks/useSettings";
@@ -25,6 +26,7 @@ const DEFAULT_FORM: SmokeMonitoringSettingsInput = {
   monitoring_failure_rate_min_runs: 3,
   monitoring_failure_rate_window_days: 7,
   monitoring_failure_type_alert_enabled: false,
+  monitoring_failure_metadata_limit: 20,
   monitoring_github_rate_limit_alert_enabled: false,
   monitoring_github_primary_limit_alert_threshold: 3,
   monitoring_github_secondary_limit_alert_threshold: 3,
@@ -42,6 +44,7 @@ export function useSmokeMonitoringSettingsModel(
   const testHistory = useSettingsTestHistory();
   const testStaleAlert = useTestSmokeAdminStaleAlert();
   const testGithubRateLimitAlert = useTestGithubApiRateLimitAlert();
+  const testFailureTypeIncreaseAlert = useTestSmokeFailureTypeIncreaseAlert();
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState(DEFAULT_FORM);
   const [errorMessage, setErrorMessage] = useState("");
@@ -70,6 +73,8 @@ export function useSmokeMonitoringSettingsModel(
         query.data?.monitoring_failure_rate_window_days ?? 7,
       monitoring_failure_type_alert_enabled:
         query.data?.monitoring_failure_type_alert_enabled ?? false,
+      monitoring_failure_metadata_limit:
+        query.data?.monitoring_failure_metadata_limit ?? 20,
       monitoring_github_rate_limit_alert_enabled:
         query.data?.monitoring_github_rate_limit_alert_enabled ?? false,
       monitoring_github_primary_limit_alert_threshold:
@@ -90,6 +95,8 @@ export function useSmokeMonitoringSettingsModel(
       formValue.monitoring_failure_rate_threshold_percent > 100 ||
       formValue.monitoring_failure_rate_min_runs < 1 ||
       formValue.monitoring_failure_rate_min_runs > 30 ||
+      formValue.monitoring_failure_metadata_limit < 20 ||
+      formValue.monitoring_failure_metadata_limit > 200 ||
       ![7, 30].includes(formValue.monitoring_failure_rate_window_days) ||
       formValue.monitoring_github_primary_limit_alert_threshold < 1 ||
       formValue.monitoring_github_primary_limit_alert_threshold > 100 ||
@@ -98,7 +105,7 @@ export function useSmokeMonitoringSettingsModel(
       formValue.monitoring_github_rate_limit_alert_window_hours < 1 ||
       formValue.monitoring_github_rate_limit_alert_window_hours > 168
     ) {
-      setErrorMessage("실패율과 GitHub API 경고 기준의 입력 범위를 확인해주세요.");
+      setErrorMessage("실패율, 보존 건수와 GitHub API 경고 기준의 입력 범위를 확인해주세요.");
       return;
     }
     try {
@@ -196,6 +203,26 @@ export function useSmokeMonitoringSettingsModel(
     }
   };
 
+  const handleTestFailureTypeIncreaseAlert = async () => {
+    if (!window.confirm("현재 Manager 상태 운영 알림 경로로 실패 유형 증가 테스트를 전송할까요?")) {
+      return;
+    }
+    try {
+      const result = await testFailureTypeIncreaseAlert.mutateAsync();
+      onToast({
+        tone: result.success ? "success" : "error",
+        message: result.message,
+        detail: result.detail,
+      });
+    } catch (error) {
+      onToast({
+        tone: "error",
+        message: "실패 유형 증가 dry-run 실패",
+        detail: getSettingsModelErrorMessage(error, "운영 알림 경로를 확인하지 못했습니다"),
+      });
+    }
+  };
+
   return {
     canManage,
     isLoading: query.isLoading,
@@ -221,6 +248,7 @@ export function useSmokeMonitoringSettingsModel(
     lastManualRun: manualRunTracking.lastRun,
     isTestingStaleAlert: testStaleAlert.isPending,
     isTestingGithubRateLimitAlert: testGithubRateLimitAlert.isPending,
+    isTestingFailureTypeIncreaseAlert: testFailureTypeIncreaseAlert.isPending,
     onEdit: handleEdit,
     onSave: handleSave,
     onRefreshHistory: handleRefreshHistory,
@@ -228,6 +256,7 @@ export function useSmokeMonitoringSettingsModel(
     onClearManualRun: manualRunTracking.onClear,
     onTestStaleAlert: handleTestStaleAlert,
     onTestGithubRateLimitAlert: handleTestGithubRateLimitAlert,
+    onTestFailureTypeIncreaseAlert: handleTestFailureTypeIncreaseAlert,
     onCancel: () => setIsEditing(false),
     onFormChange: setFormValue,
   };

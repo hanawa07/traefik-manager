@@ -3,6 +3,11 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from app.interfaces.api.v1.routers.settings_value_helpers import get_bool_setting, get_int_setting
+from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
+    SMOKE_FAILURE_METADATA_LIMIT_KEY,
+    read_smoke_failure_metadata_limit,
+    trim_smoke_failure_metadata,
+)
 
 SMOKE_MONITORING_ENABLED_KEY = "dashboard_smoke_monitoring_enabled"
 SMOKE_MONITORING_FREQUENCY_KEY = "dashboard_smoke_monitoring_frequency"
@@ -72,6 +77,7 @@ async def read_smoke_monitoring_values(repo: Any) -> dict[str, Any]:
             SMOKE_FAILURE_TYPE_ALERT_ENABLED_KEY,
             default=False,
         ),
+        "monitoring_failure_metadata_limit": await read_smoke_failure_metadata_limit(repo),
         **await read_github_api_rate_limit_alert_values(repo),
         "monitoring_schedule_time": SMOKE_MONITORING_SCHEDULE_TIME,
         "monitoring_schedule_timezone": SMOKE_MONITORING_SCHEDULE_TIMEZONE,
@@ -87,6 +93,7 @@ async def update_smoke_monitoring_values(
     failure_rate_min_runs: int,
     failure_rate_window_days: int,
     failure_type_alert_enabled: bool,
+    failure_metadata_limit: int,
     github_rate_limit_alert_enabled: bool,
     github_primary_limit_alert_threshold: int,
     github_secondary_limit_alert_threshold: int,
@@ -104,6 +111,8 @@ async def update_smoke_monitoring_values(
     )
     if before["monitoring_failure_type_alert_enabled"] != failure_type_alert_enabled:
         await repo.set(SMOKE_FAILURE_TYPE_ALERT_STATE_KEY, "[]")
+    await repo.set(SMOKE_FAILURE_METADATA_LIMIT_KEY, str(failure_metadata_limit))
+    await trim_smoke_failure_metadata(repo, limit=failure_metadata_limit)
     await repo.set(
         SMOKE_GITHUB_RATE_LIMIT_ALERT_ENABLED_KEY,
         "true" if github_rate_limit_alert_enabled else "false",

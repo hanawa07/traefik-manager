@@ -78,14 +78,48 @@ async def send_smoke_admin_stale_test_alert(db: AsyncSession) -> dict[str, Any]:
 
 
 async def send_github_api_rate_limit_test_alert(db: AsyncSession) -> dict[str, Any]:
+    return await _send_manager_health_test_alert(
+        db,
+        event="github_api_rate_limit_test",
+        label="GitHub API 반복 제한",
+        resource_id="github-api-rate-limit-alert",
+        resource_name="GitHub API 보조 요청 제한",
+        detail={
+            "alert_window_hours": 24,
+            "alert_cooldown_hours": 24,
+            "alert_threshold": 3,
+            "window_occurrence_count": 3,
+        },
+    )
+
+
+async def send_smoke_failure_type_increase_test_alert(db: AsyncSession) -> dict[str, Any]:
+    return await _send_manager_health_test_alert(
+        db,
+        event="smoke_failure_type_increase_test",
+        label="실패 유형 증가",
+        resource_id="smoke-failure-type-increase-alert",
+        resource_name="화면 회귀",
+        detail={"window_days": 7, "recent_count": 3, "previous_count": 1},
+    )
+
+
+async def _send_manager_health_test_alert(
+    db: AsyncSession,
+    *,
+    event: str,
+    label: str,
+    resource_id: str,
+    resource_name: str,
+    detail: dict[str, Any],
+) -> dict[str, Any]:
     repo = SQLiteSystemSettingsRepository(db)
-    event = "github_api_rate_limit_test"
     alert_context = await get_alert_context(repo, event)
     if alert_context is None:
         return {
             "success": False,
             "provider": None,
-            "message": "GitHub API 반복 제한 dry-run을 전송하지 못했습니다",
+            "message": f"{label} dry-run을 전송하지 못했습니다",
             "detail": "운영 변경 알림과 Manager 상태 알림 경로를 확인하세요",
         }
 
@@ -93,15 +127,10 @@ async def send_github_api_rate_limit_test_alert(db: AsyncSession) -> dict[str, A
     success, detail = await deliver_alert(
         repo,
         _build_test_log(
-            resource_id="github-api-rate-limit-alert",
-            resource_name="GitHub API 보조 요청 제한",
+            resource_id=resource_id,
+            resource_name=resource_name,
             event=event,
-            detail={
-                "alert_window_hours": 24,
-                "alert_cooldown_hours": 24,
-                "alert_threshold": 3,
-                "window_occurrence_count": 3,
-            },
+            detail=detail,
         ),
         event,
         provider,
@@ -111,9 +140,9 @@ async def send_github_api_rate_limit_test_alert(db: AsyncSession) -> dict[str, A
         "success": success,
         "provider": provider,
         "message": (
-            "GitHub API 반복 제한 dry-run을 전송했습니다"
+            f"{label} dry-run을 전송했습니다"
             if success
-            else "GitHub API 반복 제한 dry-run 전송에 실패했습니다"
+            else f"{label} dry-run 전송에 실패했습니다"
         ),
         "detail": detail,
     }

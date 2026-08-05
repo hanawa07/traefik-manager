@@ -3,8 +3,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from app.interfaces.api.v1.routers.settings_value_helpers import get_int_setting
+
 SMOKE_FAILURE_METADATA_KEY = "dashboard_smoke_failure_metadata"
+SMOKE_FAILURE_METADATA_LIMIT_KEY = "dashboard_smoke_failure_metadata_limit"
 SMOKE_FAILURE_METADATA_LIMIT = 20
+SMOKE_FAILURE_METADATA_LIMIT_MAX = 200
 SMOKE_FAILURE_TYPES = ("login", "external_api", "visual_regression")
 SMOKE_FAILURE_CATEGORIES = (*SMOKE_FAILURE_TYPES, "unclassified")
 SMOKE_FAILURE_INCREASE_MIN_COUNT = 2
@@ -21,11 +25,36 @@ async def record_smoke_failure_metadata(
         raise ValueError("invalid smoke failure metadata")
     entries = await _read_entries(repo)
     entries = [entry, *(item for item in entries if item["run_id"] != run_id)]
+    limit = await read_smoke_failure_metadata_limit(repo)
     await repo.set(
         SMOKE_FAILURE_METADATA_KEY,
-        json.dumps(entries[:SMOKE_FAILURE_METADATA_LIMIT], ensure_ascii=False),
+        json.dumps(entries[:limit], ensure_ascii=False),
     )
     return entry
+
+
+async def read_smoke_failure_metadata_limit(repo: Any) -> int:
+    limit = await get_int_setting(
+        repo,
+        SMOKE_FAILURE_METADATA_LIMIT_KEY,
+        default=SMOKE_FAILURE_METADATA_LIMIT,
+    )
+    return (
+        limit
+        if SMOKE_FAILURE_METADATA_LIMIT <= limit <= SMOKE_FAILURE_METADATA_LIMIT_MAX
+        else SMOKE_FAILURE_METADATA_LIMIT
+    )
+
+
+async def trim_smoke_failure_metadata(repo: Any, *, limit: int) -> int:
+    entries = await _read_entries(repo)
+    retained = entries[:limit]
+    if len(retained) != len(entries):
+        await repo.set(
+            SMOKE_FAILURE_METADATA_KEY,
+            json.dumps(retained, ensure_ascii=False),
+        )
+    return len(retained)
 
 
 async def read_smoke_failure_metadata(repo: Any) -> dict[int, dict[str, Any]]:
