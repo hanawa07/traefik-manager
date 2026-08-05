@@ -16,6 +16,15 @@ export async function checkAdminVisualFixtures(options) {
   return checkTraefikAlertRetryAdminFixture(options);
 }
 
+export function runAdminVisualFixturesSelfTest() {
+  assert.equal(shouldRequirePositiveGithubRunCount("ready"), true);
+  assert.equal(shouldRequirePositiveGithubRunCount("error"), false);
+  assert.throws(
+    () => shouldRequirePositiveGithubRunCount(null),
+    /GitHub 실행 통계 상태를 확인하지 못했습니다/,
+  );
+}
+
 async function checkSmokeHistoryAdminReadOnly({
   artifactDir,
   baseUrl,
@@ -45,7 +54,8 @@ async function checkSmokeHistoryAdminReadOnly({
         const failure = history?.querySelector(
           'select[aria-label="로컬 스모크 실행 결과 필터"] option[value="failure"]'
         );
-        return trend?.getAttribute('data-smoke-history-access') !== 'restricted' &&
+        const historyState = trend?.getAttribute('data-smoke-history-state');
+        return (historyState === 'ready' || historyState === 'error') &&
           thirty instanceof HTMLButtonElement && counts instanceof HTMLElement &&
           Number(history?.getAttribute('data-local-run-visible-count')) > 0 &&
           failure instanceof HTMLOptionElement;
@@ -58,12 +68,25 @@ async function checkSmokeHistoryAdminReadOnly({
     ).find((button) => button.textContent?.trim() === '30일')?.click()`);
     await waitForCondition(
       cdp,
-      `/30일 전체 [1-9][0-9]*건/.test(
-        document.querySelector('[data-testid="smoke-run-status-counts"]')?.textContent || ''
-      )`,
+      `Array.from(
+        document.querySelectorAll('[data-testid="smoke-run-trend"] button')
+      ).find((button) => button.textContent?.trim() === '30일')?.getAttribute('aria-pressed') === 'true'`,
       timeoutMs,
-      "관리자 GitHub 30일 실행 통계가 표시되지 않았습니다",
+      "관리자 GitHub 실행 통계가 30일 범위로 전환되지 않았습니다",
     );
+    const historyState = await evaluate(cdp, `document.querySelector(
+      '[data-testid="smoke-run-trend"]'
+    )?.getAttribute('data-smoke-history-state')`);
+    if (shouldRequirePositiveGithubRunCount(historyState)) {
+      await waitForCondition(
+        cdp,
+        `/30일 전체 [1-9][0-9]*건/.test(
+          document.querySelector('[data-testid="smoke-run-status-counts"]')?.textContent || ''
+        )`,
+        timeoutMs,
+        "관리자 GitHub 30일 실행 통계가 표시되지 않았습니다",
+      );
+    }
     const failureCount = await evaluate(cdp, `Number(document.querySelector(
       '[data-testid="smoke-statistics-history"] select[aria-label="로컬 스모크 실행 결과 필터"] option[value="failure"]'
     )?.getAttribute('data-count') || 0)`);
@@ -81,6 +104,14 @@ async function checkSmokeHistoryAdminReadOnly({
     await cdp.send("Network.clearBrowserCookies");
     await evaluate(cdp, `localStorage.removeItem("auth")`);
   }
+}
+
+function shouldRequirePositiveGithubRunCount(historyState) {
+  assert.ok(
+    historyState === "ready" || historyState === "error",
+    "GitHub 실행 통계 상태를 확인하지 못했습니다",
+  );
+  return historyState === "ready";
 }
 
 async function checkSmokeRateLimitAdminFixture({

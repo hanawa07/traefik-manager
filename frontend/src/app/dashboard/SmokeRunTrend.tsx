@@ -119,6 +119,7 @@ export function SmokeRunTrend({
     <div
       className="mt-2 flex flex-wrap items-center gap-2 text-[11px]"
       data-artifact-reference-time={periodReferenceTime}
+      data-smoke-history-state={error ? "error" : "ready"}
       data-testid="smoke-run-trend"
     >
       <span className="font-semibold">운영 점검 추이</span>

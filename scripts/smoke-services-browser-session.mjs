@@ -22,7 +22,10 @@ import {
   resolveOptionalSmokeAdminReadOnlySession,
   runSmokeAdminReadOnlySelfTest,
 } from "./smoke-admin-read-only.mjs";
-import { checkAdminVisualFixtures } from "./dashboard-visual-admin-fixtures.mjs";
+import {
+  checkAdminVisualFixtures,
+  runAdminVisualFixturesSelfTest,
+} from "./dashboard-visual-admin-fixtures.mjs";
 import {
   recordRemoteSmokeSuccess,
   runRemoteSmokeStatusSelfTest,
@@ -192,6 +195,7 @@ async function runSelfTest() {
     { name: "tm_session", value: "abc" },
   ]);
   runSmokeServicesApiChecksSelfTest();
+  runAdminVisualFixturesSelfTest();
   await runSmokeAdminReadOnlySelfTest();
   await runRemoteSmokeStatusSelfTest();
   runSmokeCiSummarySelfTest();
