@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 
 import {
   type SmokeCancellationReasonFilter,
-  type SmokeFailureType,
+  type SmokeFailureCategory,
   type SmokeHistoryDays,
   type SmokeHistoryStatus,
   type SmokeRotationStatus,
 } from "@/features/settings/api/settingsApi";
 
-export type SmokeFailureTypeFilter = "all" | SmokeFailureType;
+export type SmokeFailureTypeFilter = "all" | SmokeFailureCategory;
 
 export function useSmokeRecentRunFilters(initialStatus: SmokeRotationStatus) {
   const [search, setSearch] = useState("");
@@ -176,7 +176,8 @@ function readHistoryFilters(): {
       normalizedStatus === "failure" &&
       (failureType === "login" ||
         failureType === "external_api" ||
-        failureType === "visual_regression")
+        failureType === "visual_regression" ||
+        failureType === "unclassified")
         ? failureType
         : "all",
     cancellationReason:

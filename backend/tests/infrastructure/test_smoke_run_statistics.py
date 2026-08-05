@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from app.infrastructure.smoke_run_statistics import (
-    build_smoke_failure_run_ids_by_window,
+    build_smoke_failure_runs_by_window,
     build_smoke_run_statistics,
 )
 
@@ -97,7 +97,33 @@ def test_build_smoke_run_statistics_counts_status_and_duration_without_test_runs
         "commit_sha": None,
         "run_url": "https://github.com/example/repository/actions/runs/14",
     }
-    assert build_smoke_failure_run_ids_by_window(
+    assert build_smoke_failure_runs_by_window(
         runs,
+        public_url="https://github.com/example/repository",
         now=datetime(2026, 7, 18, tzinfo=timezone.utc),
-    ) == {7: [14], 30: [14]}
+    ) == {
+        7: [
+            {
+                "run_id": 14,
+                "run_number": None,
+                "completed_at": "2026-07-16T00:02:00Z",
+                "run_url": "https://github.com/example/repository/actions/runs/14",
+            }
+        ],
+        14: [
+            {
+                "run_id": 14,
+                "run_number": None,
+                "completed_at": "2026-07-16T00:02:00Z",
+                "run_url": "https://github.com/example/repository/actions/runs/14",
+            }
+        ],
+        30: [
+            {
+                "run_id": 14,
+                "run_number": None,
+                "completed_at": "2026-07-16T00:02:00Z",
+                "run_url": "https://github.com/example/repository/actions/runs/14",
+            }
+        ],
+    }

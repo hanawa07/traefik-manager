@@ -9,6 +9,7 @@ export type SmokeHistoryStatus = "all" | "success" | "failure" | "cancelled";
 export type SmokeCancellationReason = "timeout" | "superseded" | "manual_or_unknown";
 export type SmokeCancellationReasonFilter = "all" | SmokeCancellationReason;
 export type SmokeFailureType = "login" | "external_api" | "visual_regression";
+export type SmokeFailureCategory = SmokeFailureType | "unclassified";
 
 export interface SmokeFailureMetadata {
   captured_at: string;
@@ -67,6 +68,21 @@ export interface SmokeFailureTypeDaily {
   login: number;
   external_api: number;
   visual_regression: number;
+  unclassified: number;
+}
+
+export interface SmokeFailureTypeRun {
+  run_id: number;
+  run_number: number | null;
+  run_url: string;
+  occurred_on: string;
+  failure_type: SmokeFailureCategory;
+}
+
+export interface SmokeFailureTypeIncreaseAlert {
+  failure_type: SmokeFailureCategory;
+  recent_count: number;
+  previous_count: number;
 }
 
 export interface SmokeRunStatistics {
@@ -83,6 +99,8 @@ export interface SmokeRunStatistics {
   slowest_runs: SmokeSlowRun[];
   failure_type_counts: SmokeFailureTypeCounts;
   failure_type_daily: SmokeFailureTypeDaily[];
+  failure_type_runs: SmokeFailureTypeRun[];
+  failure_type_increase_alerts: SmokeFailureTypeIncreaseAlert[];
 }
 
 export interface SmokeStatisticsSnapshot {

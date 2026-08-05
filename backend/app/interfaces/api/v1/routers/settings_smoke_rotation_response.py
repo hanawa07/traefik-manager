@@ -122,7 +122,7 @@ async def get_smoke_rotation_status_response(
         )
         attach_smoke_failure_type_statistics(
             run_history["statistics"],
-            run_history.get("failure_run_ids_by_window", {}),
+            run_history.get("failure_runs_by_window", {}),
             failure_metadata,
             timezone_name=monitoring["monitoring_schedule_timezone"],
         )

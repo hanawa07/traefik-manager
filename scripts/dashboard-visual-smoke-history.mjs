@@ -3,10 +3,12 @@ import {
   buildSmokeHistoryFixtures,
   COMMIT_URL,
   EXPIRED_ARTIFACT_URL,
+  HIDDEN_UNCLASSIFIED_RUN_URL,
   RUN_URL,
+  UNCLASSIFIED_RUN_URL,
 } from "./dashboard-visual-smoke-history-fixture.mjs";
 import { checkSmokeHistoryFilters } from "./dashboard-visual-smoke-history-filters.mjs";
-import { waitForCondition } from "./dashboard-visual-runtime.mjs";
+import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
   const fixtures = await buildSmokeHistoryFixtures(cdp);
@@ -55,6 +57,7 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
         const typeSummary = history?.querySelector('[data-testid="smoke-failure-type-summary"]');
         const typeCounts = history?.querySelector('[data-testid="smoke-failure-type-period-counts"]');
         const typeTrend = history?.querySelector('[data-testid="smoke-failure-type-trend"]');
+        const typeAlert = history?.querySelector('[data-testid="smoke-failure-type-increase-alert"]');
         const cancellationReason = history?.querySelector('[data-testid="smoke-cancellation-reason"]');
         const run = history?.querySelector('a[href="${RUN_URL}"]');
         const commit = history?.querySelector('[data-testid="smoke-recent-run-commit-link"]');
@@ -66,7 +69,7 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
           expiredArtifact.textContent?.includes('화면 만료') &&
           latestExpiredArtifact?.getAttribute('aria-disabled') === 'true' &&
           !history?.querySelector('a[href="${EXPIRED_ARTIFACT_URL}"]') &&
-          filterCount?.textContent?.includes('4/8건') &&
+          filterCount?.textContent?.includes('5/8건') &&
           metadata?.textContent?.includes('/dashboard/settings') &&
           checkName?.textContent?.includes('설정 화면 검사 실패') &&
           failureType?.textContent?.includes('화면 회귀') &&
@@ -79,14 +82,72 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
           (!refreshButton || (refreshButton instanceof HTMLButtonElement && refreshButton.disabled)) &&
           retention?.textContent?.includes('실패 정보 1/20건 보관') &&
           typeSummary?.getAttribute('data-window-days') === '30' &&
-          typeCounts?.textContent?.includes('분류 2/2건') &&
+          typeCounts?.textContent?.includes('분류 2/4건') &&
           typeSummary?.textContent?.includes('로그인 1') &&
           typeSummary?.textContent?.includes('화면 회귀 1') &&
-          typeTrend?.querySelectorAll('li').length === 2 &&
+          typeSummary?.textContent?.includes('미분류 2') &&
+          typeAlert?.textContent?.includes('미분류 · 최근 7일 2건') &&
+          typeTrend?.querySelectorAll('li').length === 4 &&
           exclusionNote?.textContent?.includes('전체 통계는 GitHub workflow 결론 기준');
       })()`,
       timeoutMs,
       "최근 운영 점검 이력 또는 GitHub API 잔여량 보호 상태가 표시되지 않았습니다",
+    );
+    const unclassifiedClicked = await evaluate(cdp, `(() => {
+      const history = document.querySelector('[data-testid="smoke-recent-run-history"]');
+      const button = history?.querySelector('[data-testid="smoke-failure-type-filter-unclassified"]');
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!unclassifiedClicked) throw new Error("미분류 전체 기간 필터를 누르지 못했습니다");
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const panel = document.querySelector(
+          '[data-testid="smoke-recent-run-history"] [data-testid="smoke-failure-type-filtered-runs"]'
+        );
+        const links = panel?.querySelectorAll('a[data-failure-type="unclassified"]');
+        return panel?.textContent?.includes('선택 조건 실행 2건') && links?.length === 2 &&
+          Array.from(links).some((link) => link.href === ${JSON.stringify(UNCLASSIFIED_RUN_URL)}) &&
+          Array.from(links).some((link) => link.href === ${JSON.stringify(HIDDEN_UNCLASSIFIED_RUN_URL)});
+      })()`,
+      timeoutMs,
+      "미분류 실패 실행 링크가 표시되지 않았습니다",
+    );
+    const dateClicked = await evaluate(cdp, `(() => {
+      const buttons = Array.from(document.querySelectorAll(
+        '[data-testid="smoke-recent-run-history"] [data-testid="smoke-failure-date-filter"]'
+      ));
+      const button = buttons.find((item) => item.getAttribute('title')?.startsWith('2026-07-18'));
+      if (!(button instanceof HTMLButtonElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!dateClicked) throw new Error("실패 발생일 필터를 누르지 못했습니다");
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const panel = document.querySelector(
+          '[data-testid="smoke-recent-run-history"] [data-testid="smoke-failure-type-filtered-runs"]'
+        );
+        const links = panel?.querySelectorAll('a');
+        return panel?.textContent?.includes('선택 조건 실행 1건') && links?.length === 1 &&
+          links[0].href === ${JSON.stringify(UNCLASSIFIED_RUN_URL)};
+      })()`,
+      timeoutMs,
+      "실패 유형·날짜 교차 필터가 적용되지 않았습니다",
+    );
+    await evaluate(cdp, `document.querySelector(
+      '[data-testid="smoke-recent-run-history"] [data-testid="smoke-failure-type-filtered-runs"] button'
+    )?.click()`);
+    await waitForCondition(
+      cdp,
+      `!document.querySelector(
+        '[data-testid="smoke-recent-run-history"] [data-testid="smoke-failure-type-filtered-runs"]'
+      )`,
+      timeoutMs,
+      "실패 유형·날짜 필터가 초기화되지 않았습니다",
     );
     await checkSmokeHistoryFilters({
       cdp,

@@ -256,7 +256,12 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
         "login": 0,
         "external_api": 0,
         "visual_regression": 1,
+        "unclassified": 0,
     }
+    assert result.monitoring_run_statistics[0].failure_type_runs[0].run_url.endswith(
+        "/actions/runs/456"
+    )
+    assert result.monitoring_run_statistics[0].failure_type_increase_alerts == []
     assert result.monitoring_run_statistics[1].failure_type_counts.model_dump() == {
         "login": 0,
         "external_api": 1,

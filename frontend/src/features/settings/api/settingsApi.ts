@@ -71,6 +71,7 @@ export type {
 } from "./settingsSharedTypes";
 export type {
   SmokeFailureMetadata,
+  SmokeFailureCategory,
   SmokeFailureType,
   SmokeHistoryDays,
   SmokeHistoryStatus,

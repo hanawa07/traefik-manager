@@ -6,6 +6,12 @@ from pydantic import AwareDatetime, BaseModel, Field
 SmokeMonitoringFrequency = Literal["daily", "weekly"]
 SmokeFailureRateWindowDays = Literal[7, 30]
 SmokeFailureType = Literal["login", "external_api", "visual_regression"]
+SmokeFailureCategory = Literal[
+    "login",
+    "external_api",
+    "visual_regression",
+    "unclassified",
+]
 SmokeCancellationReason = Literal["timeout", "superseded", "manual_or_unknown"]
 SmokeCancellationReasonFilter = Literal[
     "all",
@@ -60,6 +66,21 @@ class SmokeFailureTypeDailyResponse(BaseModel):
     login: int = Field(default=0, ge=0)
     external_api: int = Field(default=0, ge=0)
     visual_regression: int = Field(default=0, ge=0)
+    unclassified: int = Field(default=0, ge=0)
+
+
+class SmokeFailureTypeRunResponse(BaseModel):
+    run_id: int = Field(gt=0)
+    run_number: int | None = None
+    run_url: str
+    occurred_on: str
+    failure_type: SmokeFailureCategory
+
+
+class SmokeFailureTypeIncreaseAlertResponse(BaseModel):
+    failure_type: SmokeFailureCategory
+    recent_count: int = Field(ge=0)
+    previous_count: int = Field(ge=0)
 
 
 class SmokeRunStatisticsResponse(BaseModel):
@@ -78,6 +99,10 @@ class SmokeRunStatisticsResponse(BaseModel):
         default_factory=SmokeFailureTypeCountsResponse
     )
     failure_type_daily: list[SmokeFailureTypeDailyResponse] = Field(default_factory=list)
+    failure_type_runs: list[SmokeFailureTypeRunResponse] = Field(default_factory=list)
+    failure_type_increase_alerts: list[SmokeFailureTypeIncreaseAlertResponse] = Field(
+        default_factory=list
+    )
 
 
 class SmokeStatisticsSnapshotResponse(BaseModel):

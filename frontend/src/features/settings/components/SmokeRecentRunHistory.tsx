@@ -86,7 +86,11 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
   );
   const visibleRuns = failureType === "all"
     ? runs
-    : failureRuns.filter((run) => run.failure_metadata?.failure_type === failureType);
+    : failureRuns.filter((run) =>
+        failureType === "unclassified"
+          ? !run.failure_metadata
+          : run.failure_metadata?.failure_type === failureType,
+      );
   const total = history?.monitoring_history_total ?? runs.length;
   const totalPages = history?.monitoring_history_total_pages ?? (total ? 1 : 0);
   const periodStatistic = history?.monitoring_run_statistics.find(
@@ -161,6 +165,9 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
             <option value="visual_regression">
               화면 회귀 ({failureTypeCounts.visual_regression})
             </option>
+            <option value="unclassified">
+              미분류 ({failureRuns.length - classifiedFailureCount})
+            </option>
           </select>
         </label>
         <label
@@ -217,7 +224,7 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
           </span>
         </div>
       </div>
-      <SmokeFailureTypeTrend statistic={periodStatistic} />
+      <SmokeFailureTypeTrend key={periodStatistic?.window_days} statistic={periodStatistic} />
       <p
         className="mt-2 text-[11px] text-gray-500 dark:text-slate-400"
         data-testid="smoke-failure-type-counts"

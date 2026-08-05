@@ -13,6 +13,15 @@ def _failed_run() -> dict:
     }
 
 
+def _failure_summary(run_id: int, completed_at: str) -> dict:
+    return {
+        "run_id": run_id,
+        "run_number": run_id,
+        "completed_at": completed_at,
+        "run_url": f"https://github.com/hanawa07/traefik-manager/actions/runs/{run_id}",
+    }
+
+
 def _statistics() -> list[dict]:
     return [
         {
@@ -74,9 +83,14 @@ class StubSmokeHistoryReader:
             "runs": [failed_run.copy()],
             "latest_failure": failed_run.copy(),
             "statistics": _statistics(),
-            "failure_run_ids_by_window": {
-                7: [456],
-                30: [456, 457, 458],
+            "failure_runs_by_window": {
+                7: [_failure_summary(456, "2026-07-11T06:54:58Z")],
+                14: [_failure_summary(456, "2026-07-11T06:54:58Z")],
+                30: [
+                    _failure_summary(456, "2026-07-11T06:54:58Z"),
+                    _failure_summary(457, "2026-07-01T06:54:58Z"),
+                    _failure_summary(458, "2026-06-30T06:54:58Z"),
+                ],
             },
             "checked_at": "2026-07-13T01:00:00+00:00",
             "data_checked_at": "2026-07-13T00:55:00+00:00",

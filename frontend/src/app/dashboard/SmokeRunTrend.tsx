@@ -178,7 +178,7 @@ export function SmokeRunTrend({
         {rangeDays}일 전체 {totalCount}건 · 성공 {successCount} · 실패 {failureCount} · 취소 {cancelledCount} · 건너뜀 {skippedCount}
       </span>
       <span className="opacity-80">표시 링크 {recent.length}건</span>
-      <SmokeFailureTypeTrend statistic={statistic} />
+      <SmokeFailureTypeTrend key={statistic?.window_days} statistic={statistic} />
       <span className="opacity-80" data-testid="smoke-failure-rate-basis">
         실패율 분모: workflow 성공+실패 · 취소·전체 건너뜀 제외
       </span>

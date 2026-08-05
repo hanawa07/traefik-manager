@@ -21,6 +21,15 @@ class StubRepository:
         self.value = value
 
 
+def _failure_run(run_id: int, completed_at: str) -> dict[str, object]:
+    return {
+        "run_id": run_id,
+        "run_number": run_id,
+        "completed_at": completed_at,
+        "run_url": f"https://github.com/example/repository/actions/runs/{run_id}",
+    }
+
+
 @pytest.mark.asyncio
 async def test_smoke_failure_metadata_keeps_latest_twenty_unique_runs() -> None:
     repo = StubRepository()
@@ -77,7 +86,24 @@ def test_failure_type_statistics_counts_full_window_and_invalid_metadata() -> No
 
     attach_smoke_failure_type_statistics(
         statistics,
-        {7: [1, 2, 4], 30: [1, 2, 3, 4]},
+        {
+            7: [
+                _failure_run(1, "2026-07-21T23:30:00Z"),
+                _failure_run(2, "2026-07-20T01:00:00Z"),
+                _failure_run(4, "2026-07-19T01:00:00Z"),
+            ],
+            14: [
+                _failure_run(1, "2026-07-21T23:30:00Z"),
+                _failure_run(2, "2026-07-20T01:00:00Z"),
+                _failure_run(4, "2026-07-19T01:00:00Z"),
+            ],
+            30: [
+                _failure_run(1, "2026-07-21T23:30:00Z"),
+                _failure_run(2, "2026-07-20T01:00:00Z"),
+                _failure_run(3, "2026-07-18T01:00:00Z"),
+                _failure_run(4, "2026-07-19T01:00:00Z"),
+            ],
+        },
         metadata,
         timezone_name="Asia/Seoul",
     )
@@ -90,17 +116,72 @@ def test_failure_type_statistics_counts_full_window_and_invalid_metadata() -> No
     }
     assert statistics[0]["failure_type_daily"] == [
         {
+            "captured_on": "2026-07-19",
+            "login": 0,
+            "external_api": 0,
+            "visual_regression": 0,
+            "unclassified": 1,
+        },
+        {
             "captured_on": "2026-07-20",
             "login": 0,
             "external_api": 1,
             "visual_regression": 0,
+            "unclassified": 0,
         },
         {
             "captured_on": "2026-07-22",
             "login": 1,
             "external_api": 0,
             "visual_regression": 0,
+            "unclassified": 0,
         },
     ]
+    assert statistics[0]["failure_type_runs"][2] == {
+        "run_id": 4,
+        "run_number": 4,
+        "run_url": "https://github.com/example/repository/actions/runs/4",
+        "occurred_on": "2026-07-19",
+        "failure_type": "unclassified",
+    }
+    assert statistics[0]["failure_type_increase_alerts"] == []
     assert statistics[1]["failure_type_counts"]["visual_regression"] == 1
     assert statistics[1]["failure_type_counts"]["unclassified"] == 1
+
+
+def test_failure_type_statistics_warns_when_recent_type_increases() -> None:
+    statistics = [{"window_days": 7, "failure_count": 2}]
+    metadata = {
+        run_id: {
+            "run_id": run_id,
+            "captured_at": "2026-07-22T01:00:00Z",
+            "failure_type": "login",
+        }
+        for run_id in (1, 2, 3)
+    }
+
+    attach_smoke_failure_type_statistics(
+        statistics,
+        {
+            7: [
+                _failure_run(1, "2026-07-22T01:00:00Z"),
+                _failure_run(2, "2026-07-21T01:00:00Z"),
+            ],
+            14: [
+                _failure_run(1, "2026-07-22T01:00:00Z"),
+                _failure_run(2, "2026-07-21T01:00:00Z"),
+                _failure_run(3, "2026-07-15T01:00:00Z"),
+            ],
+            30: [],
+        },
+        metadata,
+        timezone_name="Asia/Seoul",
+    )
+
+    assert statistics[0]["failure_type_increase_alerts"] == [
+        {
+            "failure_type": "login",
+            "recent_count": 2,
+            "previous_count": 1,
+        }
+    ]

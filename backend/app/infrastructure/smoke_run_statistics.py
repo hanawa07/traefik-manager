@@ -10,6 +10,7 @@ from app.infrastructure.smoke_run_history_processing import (
 from app.infrastructure.smoke_workflow_runs import parse_run_timestamp
 
 STATISTICS_WINDOWS = (7, 30)
+FAILURE_DETAIL_WINDOWS = (7, 14, 30)
 SLOWEST_RUN_LIMIT = 5
 
 
@@ -31,15 +32,25 @@ def build_smoke_run_statistics(
     ]
 
 
-def build_smoke_failure_run_ids_by_window(
+def build_smoke_failure_runs_by_window(
     raw_runs: object,
     *,
+    public_url: str,
     now: datetime | None = None,
-) -> dict[int, list[int]]:
+) -> dict[int, list[dict[str, Any]]]:
     reference_time = now or datetime.now(timezone.utc)
     return {
         days: [
-            run["id"]
+            {
+                "run_id": run["id"],
+                "run_number": (
+                    run.get("run_number")
+                    if isinstance(run.get("run_number"), int)
+                    else None
+                ),
+                "completed_at": run["updated_at"],
+                "run_url": f"{public_url}/actions/runs/{run['id']}",
+            }
             for run in select_operational_smoke_runs(
                 raw_runs,
                 recent_days=days,
@@ -47,7 +58,7 @@ def build_smoke_failure_run_ids_by_window(
             )
             if is_failed_smoke_run(run)
         ]
-        for days in STATISTICS_WINDOWS
+        for days in FAILURE_DETAIL_WINDOWS
     }
 
 

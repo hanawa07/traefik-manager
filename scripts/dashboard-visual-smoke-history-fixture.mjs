@@ -8,6 +8,8 @@ export const ARTIFACT_URL = `${RUN_URL}/artifacts/654`;
 const EXPIRED_RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/runs/986";
 export const EXPIRED_ARTIFACT_URL = `${EXPIRED_RUN_URL}/artifacts/653`;
 const SUCCESS_RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/runs/985";
+export const UNCLASSIFIED_RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/runs/982";
+export const HIDDEN_UNCLASSIFIED_RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/runs/981";
 export const PAGE_TWO_RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/runs/984";
 
 export async function buildSmokeHistoryFixtures(cdp) {
@@ -68,6 +70,55 @@ export async function buildSmokeHistoryFixtures(cdp) {
       summary: 'GitHub 새 실행으로 대체 추정 · 앱 실패율 제외',
       cancellation_reason: 'superseded',
     };
+    const unclassifiedRun = {
+      ...failedRun,
+      run_id: 982,
+      completed_at: '2026-07-18T06:00:00Z',
+      run_url: ${JSON.stringify(UNCLASSIFIED_RUN_URL)},
+      run_number: 982,
+      artifact_url: null,
+      artifact_expires_at: null,
+      failure_metadata: null,
+    };
+    const failureTypeRuns = [
+      {
+        run_id: 987,
+        run_number: 987,
+        run_url: ${JSON.stringify(RUN_URL)},
+        occurred_on: '2026-07-20',
+        failure_type: 'visual_regression',
+      },
+      {
+        run_id: 986,
+        run_number: 986,
+        run_url: ${JSON.stringify(EXPIRED_RUN_URL)},
+        occurred_on: '2026-07-19',
+        failure_type: 'login',
+      },
+      {
+        run_id: 982,
+        run_number: 982,
+        run_url: ${JSON.stringify(UNCLASSIFIED_RUN_URL)},
+        occurred_on: '2026-07-18',
+        failure_type: 'unclassified',
+      },
+      {
+        run_id: 981,
+        run_number: 981,
+        run_url: ${JSON.stringify(HIDDEN_UNCLASSIFIED_RUN_URL)},
+        occurred_on: '2026-07-17',
+        failure_type: 'unclassified',
+      },
+    ];
+    const failureTypeDaily = [
+      { captured_on: '2026-07-17', login: 0, external_api: 0, visual_regression: 0, unclassified: 1 },
+      { captured_on: '2026-07-18', login: 0, external_api: 0, visual_regression: 0, unclassified: 1 },
+      { captured_on: '2026-07-19', login: 1, external_api: 0, visual_regression: 0, unclassified: 0 },
+      { captured_on: '2026-07-20', login: 0, external_api: 0, visual_regression: 1, unclassified: 0 },
+    ];
+    const failureTypeIncreaseAlerts = [
+      { failure_type: 'unclassified', recent_count: 2, previous_count: 0 },
+    ];
     const slowFailure = {
       run_id: 987,
       run_number: 987,
@@ -100,9 +151,9 @@ export async function buildSmokeHistoryFixtures(cdp) {
       monitoring_run_statistics: [
         {
           window_days: 7,
-          total_count: 4,
+          total_count: 6,
           success_count: 1,
-          failure_count: 2,
+          failure_count: 4,
           cancelled_count: 1,
           skipped_count: 0,
           duration_run_count: 4,
@@ -114,18 +165,17 @@ export async function buildSmokeHistoryFixtures(cdp) {
             login: 1,
             external_api: 0,
             visual_regression: 1,
-            unclassified: 0,
+            unclassified: 2,
           },
-          failure_type_daily: [
-            { captured_on: '2026-07-19', login: 1, external_api: 0, visual_regression: 0 },
-            { captured_on: '2026-07-20', login: 0, external_api: 0, visual_regression: 1 },
-          ],
+          failure_type_daily: failureTypeDaily,
+          failure_type_runs: failureTypeRuns,
+          failure_type_increase_alerts: failureTypeIncreaseAlerts,
         },
         {
           window_days: 30,
           total_count: 8,
-          success_count: 5,
-          failure_count: 2,
+          success_count: 3,
+          failure_count: 4,
           cancelled_count: 1,
           skipped_count: 0,
           duration_run_count: 8,
@@ -137,12 +187,11 @@ export async function buildSmokeHistoryFixtures(cdp) {
             login: 1,
             external_api: 0,
             visual_regression: 1,
-            unclassified: 0,
+            unclassified: 2,
           },
-          failure_type_daily: [
-            { captured_on: '2026-07-19', login: 1, external_api: 0, visual_regression: 0 },
-            { captured_on: '2026-07-20', login: 0, external_api: 0, visual_regression: 1 },
-          ],
+          failure_type_daily: failureTypeDaily,
+          failure_type_runs: failureTypeRuns,
+          failure_type_increase_alerts: failureTypeIncreaseAlerts,
         },
       ],
       monitoring_statistics_snapshots: [
@@ -180,7 +229,7 @@ export async function buildSmokeHistoryFixtures(cdp) {
       monitoring_github_rate_limit_limit: 60,
       monitoring_github_rate_limit_reset_at: new Date(Date.now() + 5 * 60_000).toISOString(),
       monitoring_latest_failure: expiredRun,
-      monitoring_recent_runs: [failedRun, expiredRun, successRun, cancelledRun],
+      monitoring_recent_runs: [failedRun, expiredRun, successRun, cancelledRun, unclassifiedRun],
     };
   })()`);
   assert.ok(fixture, "운영 점검 최근 이력 fixture의 기본 응답을 읽지 못했습니다");
@@ -194,9 +243,13 @@ export async function buildSmokeHistoryFixtures(cdp) {
   const failureFixture = {
     ...fixture,
     monitoring_history_status: "failure",
-    monitoring_history_total: 2,
+    monitoring_history_total: 3,
     monitoring_history_total_pages: 1,
-    monitoring_recent_runs: fixture.monitoring_recent_runs.slice(0, 2),
+    monitoring_recent_runs: [
+      fixture.monitoring_recent_runs[0],
+      fixture.monitoring_recent_runs[1],
+      fixture.monitoring_recent_runs[4],
+    ],
   };
   const cancelledFixture = {
     ...fixture,

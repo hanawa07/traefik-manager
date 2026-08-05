@@ -6,6 +6,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 SMOKE_FAILURE_METADATA_KEY = "dashboard_smoke_failure_metadata"
 SMOKE_FAILURE_METADATA_LIMIT = 20
 SMOKE_FAILURE_TYPES = ("login", "external_api", "visual_regression")
+SMOKE_FAILURE_CATEGORIES = (*SMOKE_FAILURE_TYPES, "unclassified")
+SMOKE_FAILURE_INCREASE_MIN_COUNT = 2
 
 
 async def record_smoke_failure_metadata(
@@ -52,55 +54,117 @@ def attach_smoke_failure_metadata(
 
 def attach_smoke_failure_type_statistics(
     statistics: list[dict[str, Any]],
-    failure_run_ids_by_window: dict[object, object],
+    failure_runs_by_window: dict[object, object],
     metadata_by_run_id: dict[int, dict[str, Any]],
     *,
     timezone_name: str,
 ) -> None:
     timezone = _timezone(timezone_name)
+    normalized_by_window = {
+        days: _normalize_failure_runs(
+            failure_runs_by_window.get(
+                days,
+                failure_runs_by_window.get(str(days), []),
+            ),
+            metadata_by_run_id,
+            timezone,
+        )
+        for days in (7, 14, 30)
+    }
+    increase_alerts = _build_failure_increase_alerts(normalized_by_window)
     for statistic in statistics:
         window_days = statistic.get("window_days")
-        raw_run_ids = failure_run_ids_by_window.get(
-            window_days,
-            failure_run_ids_by_window.get(str(window_days), []),
-        )
-        run_ids = (
-            {
-                run_id
-                for run_id in raw_run_ids
-                if isinstance(run_id, int)
-                and not isinstance(run_id, bool)
-                and run_id > 0
-            }
-            if isinstance(raw_run_ids, list)
-            else set()
-        )
-        counts = {failure_type: 0 for failure_type in SMOKE_FAILURE_TYPES}
+        runs = normalized_by_window.get(window_days, [])
+        counts = {category: 0 for category in SMOKE_FAILURE_CATEGORIES}
         daily: dict[str, dict[str, int]] = {}
-        for run_id in run_ids:
-            metadata = metadata_by_run_id.get(run_id)
-            if not metadata:
-                continue
-            failure_type = metadata["failure_type"]
-            counts[failure_type] += 1
-            captured_on = _captured_on(metadata.get("captured_at"), timezone)
-            if captured_on:
-                point = daily.setdefault(
-                    captured_on,
-                    {failure_type_name: 0 for failure_type_name in SMOKE_FAILURE_TYPES},
-                )
-                point[failure_type] += 1
-        classified_count = sum(counts.values())
+        for run in runs:
+            category = run["failure_type"]
+            counts[category] += 1
+            point = daily.setdefault(
+                run["occurred_on"],
+                {name: 0 for name in SMOKE_FAILURE_CATEGORIES},
+            )
+            point[category] += 1
         failure_count = statistic.get("failure_count")
-        total_failures = failure_count if isinstance(failure_count, int) else len(run_ids)
-        statistic["failure_type_counts"] = {
-            **counts,
-            "unclassified": max(total_failures - classified_count, 0),
-        }
+        total_failures = failure_count if isinstance(failure_count, int) else len(runs)
+        counts["unclassified"] += max(total_failures - len(runs), 0)
+        statistic["failure_type_counts"] = counts
         statistic["failure_type_daily"] = [
             {"captured_on": captured_on, **daily[captured_on]}
             for captured_on in sorted(daily)
         ]
+        statistic["failure_type_runs"] = runs
+        statistic["failure_type_increase_alerts"] = increase_alerts
+
+
+def _normalize_failure_runs(
+    raw_runs: object,
+    metadata_by_run_id: dict[int, dict[str, Any]],
+    timezone: ZoneInfo,
+) -> list[dict[str, Any]]:
+    if not isinstance(raw_runs, list):
+        return []
+    normalized = []
+    for raw_run in raw_runs:
+        if not isinstance(raw_run, dict):
+            continue
+        run_id = raw_run.get("run_id")
+        if not isinstance(run_id, int) or isinstance(run_id, bool) or run_id < 1:
+            continue
+        run_url = _required_text(raw_run.get("run_url"), 1000)
+        completed_at = raw_run.get("completed_at")
+        if not run_url:
+            continue
+        metadata = metadata_by_run_id.get(run_id)
+        category = metadata["failure_type"] if metadata else "unclassified"
+        occurred_on = (
+            _captured_on(metadata.get("captured_at"), timezone)
+            if metadata
+            else None
+        ) or _captured_on(completed_at, timezone)
+        if not occurred_on:
+            continue
+        run_number = raw_run.get("run_number")
+        normalized.append(
+            {
+                "run_id": run_id,
+                "run_number": (
+                    run_number
+                    if isinstance(run_number, int) and not isinstance(run_number, bool)
+                    else None
+                ),
+                "run_url": run_url,
+                "occurred_on": occurred_on,
+                "failure_type": category,
+            }
+        )
+    return normalized
+
+
+def _build_failure_increase_alerts(
+    runs_by_window: dict[int, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    recent_runs = runs_by_window[7]
+    recent_ids = {run["run_id"] for run in recent_runs}
+    previous_runs = [
+        run for run in runs_by_window[14] if run["run_id"] not in recent_ids
+    ]
+    alerts = []
+    for category in SMOKE_FAILURE_CATEGORIES:
+        recent_count = sum(run["failure_type"] == category for run in recent_runs)
+        previous_count = sum(run["failure_type"] == category for run in previous_runs)
+        if (
+            recent_count >= SMOKE_FAILURE_INCREASE_MIN_COUNT
+            and recent_count > previous_count
+        ):
+            alerts.append(
+                {
+                    "failure_type": category,
+                    "recent_count": recent_count,
+                    "previous_count": previous_count,
+                }
+            )
+    return alerts
 
 
 async def _read_entries(repo: Any) -> list[dict[str, Any]]:
