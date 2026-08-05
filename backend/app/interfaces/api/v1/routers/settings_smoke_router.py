@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.audit import audit_service
@@ -18,6 +20,9 @@ from app.interfaces.api.v1.routers.settings_github_api_rate_limit_audit import (
 from app.interfaces.api.v1.routers.settings_smoke_monitoring_action import (
     update_smoke_monitoring_settings_action as _update_smoke_monitoring_settings_action,
 )
+from app.interfaces.api.v1.routers.settings_smoke_failure_classification import (
+    classify_smoke_failure_action as _classify_smoke_failure_action,
+)
 from app.interfaces.api.v1.routers.settings_smoke_monitoring_values import (
     read_smoke_monitoring_values,
     should_run_scheduled_smoke,
@@ -30,6 +35,8 @@ from app.interfaces.api.v1.routers.settings_smoke_run_action import (
     record_smoke_run_success_action as _record_smoke_run_success_action,
 )
 from app.interfaces.api.v1.schemas.settings_schemas import (
+    SmokeFailureClassificationRequest,
+    SmokeFailureClassificationResponse,
     SmokeMonitoringRunFailureRequest,
     SmokeMonitoringRunFailureResponse,
     SmokeMonitoringRunSuccessRequest,
@@ -166,6 +173,30 @@ async def record_smoke_run_failure(
         actor=actor,
         db=db,
         settings_repository_factory=SQLiteSystemSettingsRepository,
+        audit_service=audit_service,
+    )
+
+
+@router.put(
+    "/smoke-failures/{run_id}/classification",
+    response_model=SmokeFailureClassificationResponse,
+    summary="원격 운영 스모크 실패 유형 수동 분류",
+)
+async def classify_smoke_failure(
+    run_id: Annotated[int, Path(gt=0)],
+    request: SmokeFailureClassificationRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+    actor: dict = Depends(require_admin),
+):
+    return await _classify_smoke_failure_action(
+        run_id=run_id,
+        request=request,
+        actor=actor,
+        db=db,
+        settings_repository_factory=SQLiteSystemSettingsRepository,
+        audit_service=audit_service,
+        client_ip=_maybe_get_client_ip(http_request),
     )
 
 

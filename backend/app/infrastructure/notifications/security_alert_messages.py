@@ -36,6 +36,7 @@ def build_message(event: str, resource_name: str, client_ip: Any, category: str)
         "github_api_rate_limit_test": "[테스트] GitHub API 반복 제한",
         "github_api_primary_rate_limit": "GitHub API 기본 요청 한도 반복",
         "github_api_secondary_rate_limit": "GitHub API 보조 요청 제한 반복",
+        "smoke_failure_type_increase": "스모크 실패 유형 증가",
         "manager_docker_unhealthy": "Manager Docker 이상",
         "manager_docker_recovered": "Manager Docker 회복",
         "manager_http_errors_high": "Manager API 오류 임계치 초과",
@@ -114,6 +115,12 @@ def _append_change_details(lines: list[str], detail: dict[str, Any], event: str)
         )
         if detail.get("alert_cooldown_hours") is not None:
             lines.append(f"재알림 간격: {detail.get('alert_cooldown_hours')}시간")
+    if event == "smoke_failure_type_increase":
+        lines.append(f"집계 구간: 최근 {detail.get('window_days')}일")
+        lines.append(
+            f"실패 횟수: {detail.get('recent_count')}건 / "
+            f"직전 {detail.get('window_days')}일 {detail.get('previous_count')}건"
+        )
     if event in {"manager_docker_unhealthy", "manager_docker_recovered"}:
         lines.append(f"Docker 상태: {detail.get('health_status') or '-'}")
         if detail.get("failing_streak") is not None:

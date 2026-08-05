@@ -73,6 +73,7 @@ class SmokeFailureTypeRunResponse(BaseModel):
     run_id: int = Field(gt=0)
     run_number: int | None = None
     run_url: str
+    completed_at: str
     occurred_on: str
     failure_type: SmokeFailureCategory
 
@@ -142,6 +143,7 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_failure_rate_threshold_percent: int = 30
     monitoring_failure_rate_min_runs: int = 3
     monitoring_failure_rate_window_days: SmokeFailureRateWindowDays = 7
+    monitoring_failure_type_alert_enabled: bool = False
     monitoring_github_rate_limit_alert_enabled: bool = False
     monitoring_github_primary_limit_alert_threshold: int = 3
     monitoring_github_secondary_limit_alert_threshold: int = 3
@@ -199,6 +201,7 @@ class SmokeMonitoringSettingsUpdateRequest(BaseModel):
     monitoring_failure_rate_threshold_percent: int = Field(default=30, ge=1, le=100)
     monitoring_failure_rate_min_runs: int = Field(default=3, ge=1, le=30)
     monitoring_failure_rate_window_days: SmokeFailureRateWindowDays = 7
+    monitoring_failure_type_alert_enabled: bool = False
     monitoring_github_rate_limit_alert_enabled: bool = False
     monitoring_github_primary_limit_alert_threshold: int = Field(default=3, ge=1, le=100)
     monitoring_github_secondary_limit_alert_threshold: int = Field(default=3, ge=1, le=100)
@@ -229,3 +232,12 @@ class SmokeMonitoringRunFailureRequest(SmokeFailureMetadataResponse):
 
 class SmokeMonitoringRunFailureResponse(SmokeMonitoringRunFailureRequest):
     pass
+
+
+class SmokeFailureClassificationRequest(BaseModel):
+    failure_type: SmokeFailureType
+    completed_at: AwareDatetime
+
+
+class SmokeFailureClassificationResponse(SmokeFailureMetadataResponse):
+    run_id: int = Field(gt=0)

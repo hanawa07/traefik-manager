@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 import pytest
 
@@ -6,6 +7,7 @@ from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
     SMOKE_FAILURE_METADATA_KEY,
     attach_smoke_failure_metadata,
     attach_smoke_failure_type_statistics,
+    build_smoke_failure_type_increase_alerts,
     read_smoke_failure_metadata,
     record_smoke_failure_metadata,
 )
@@ -141,6 +143,7 @@ def test_failure_type_statistics_counts_full_window_and_invalid_metadata() -> No
         "run_id": 4,
         "run_number": 4,
         "run_url": "https://github.com/example/repository/actions/runs/4",
+        "completed_at": "2026-07-19T01:00:00Z",
         "occurred_on": "2026-07-19",
         "failure_type": "unclassified",
     }
@@ -179,6 +182,26 @@ def test_failure_type_statistics_warns_when_recent_type_increases() -> None:
     )
 
     assert statistics[0]["failure_type_increase_alerts"] == [
+        {
+            "failure_type": "login",
+            "recent_count": 2,
+            "previous_count": 1,
+        }
+    ]
+
+
+def test_failure_metadata_increase_alert_uses_rolling_two_week_window() -> None:
+    metadata = {
+        1: {"failure_type": "login", "captured_at": "2026-08-05T00:00:00Z"},
+        2: {"failure_type": "login", "captured_at": "2026-08-04T00:00:00Z"},
+        3: {"failure_type": "login", "captured_at": "2026-07-28T00:00:00Z"},
+        4: {"failure_type": "external_api", "captured_at": "2026-08-03T00:00:00Z"},
+    }
+
+    assert build_smoke_failure_type_increase_alerts(
+        metadata,
+        now=datetime.fromisoformat("2026-08-06T00:00:00+00:00"),
+    ) == [
         {
             "failure_type": "login",
             "recent_count": 2,

@@ -13,6 +13,8 @@ SMOKE_FAILURE_RATE_THRESHOLD_PERCENT_DEFAULT = 30
 SMOKE_FAILURE_RATE_MIN_RUNS_DEFAULT = 3
 SMOKE_FAILURE_RATE_WINDOW_DAYS_DEFAULT = 7
 SMOKE_FAILURE_RATE_WINDOW_DAYS = {7, 30}
+SMOKE_FAILURE_TYPE_ALERT_ENABLED_KEY = "dashboard_smoke_failure_type_alert_enabled"
+SMOKE_FAILURE_TYPE_ALERT_STATE_KEY = "dashboard_smoke_failure_type_alert_state"
 SMOKE_GITHUB_RATE_LIMIT_ALERT_ENABLED_KEY = "dashboard_smoke_github_rate_limit_alert_enabled"
 SMOKE_GITHUB_PRIMARY_LIMIT_ALERT_THRESHOLD_KEY = (
     "dashboard_smoke_github_primary_limit_alert_threshold"
@@ -65,6 +67,11 @@ async def read_smoke_monitoring_values(repo: Any) -> dict[str, Any]:
         "monitoring_failure_rate_threshold_percent": failure_rate_threshold,
         "monitoring_failure_rate_min_runs": failure_rate_min_runs,
         "monitoring_failure_rate_window_days": failure_rate_window_days,
+        "monitoring_failure_type_alert_enabled": await get_bool_setting(
+            repo,
+            SMOKE_FAILURE_TYPE_ALERT_ENABLED_KEY,
+            default=False,
+        ),
         **await read_github_api_rate_limit_alert_values(repo),
         "monitoring_schedule_time": SMOKE_MONITORING_SCHEDULE_TIME,
         "monitoring_schedule_timezone": SMOKE_MONITORING_SCHEDULE_TIMEZONE,
@@ -79,6 +86,7 @@ async def update_smoke_monitoring_values(
     failure_rate_threshold_percent: int,
     failure_rate_min_runs: int,
     failure_rate_window_days: int,
+    failure_type_alert_enabled: bool,
     github_rate_limit_alert_enabled: bool,
     github_primary_limit_alert_threshold: int,
     github_secondary_limit_alert_threshold: int,
@@ -90,6 +98,12 @@ async def update_smoke_monitoring_values(
     await repo.set(SMOKE_FAILURE_RATE_THRESHOLD_PERCENT_KEY, str(failure_rate_threshold_percent))
     await repo.set(SMOKE_FAILURE_RATE_MIN_RUNS_KEY, str(failure_rate_min_runs))
     await repo.set(SMOKE_FAILURE_RATE_WINDOW_DAYS_KEY, str(failure_rate_window_days))
+    await repo.set(
+        SMOKE_FAILURE_TYPE_ALERT_ENABLED_KEY,
+        "true" if failure_type_alert_enabled else "false",
+    )
+    if before["monitoring_failure_type_alert_enabled"] != failure_type_alert_enabled:
+        await repo.set(SMOKE_FAILURE_TYPE_ALERT_STATE_KEY, "[]")
     await repo.set(
         SMOKE_GITHUB_RATE_LIMIT_ALERT_ENABLED_KEY,
         "true" if github_rate_limit_alert_enabled else "false",

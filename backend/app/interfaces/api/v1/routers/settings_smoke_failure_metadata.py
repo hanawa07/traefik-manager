@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -97,6 +97,43 @@ def attach_smoke_failure_type_statistics(
         statistic["failure_type_increase_alerts"] = increase_alerts
 
 
+def build_smoke_failure_type_increase_alerts(
+    metadata_by_run_id: dict[int, dict[str, Any]],
+    *,
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    current = current.astimezone(timezone.utc)
+    recent_cutoff = current - timedelta(days=7)
+    previous_cutoff = current - timedelta(days=14)
+    counts = {
+        category: {"recent": 0, "previous": 0}
+        for category in SMOKE_FAILURE_TYPES
+    }
+    for metadata in metadata_by_run_id.values():
+        category = metadata.get("failure_type")
+        captured_at = _aware_datetime(metadata.get("captured_at"))
+        if category not in counts or captured_at is None or captured_at > current:
+            continue
+        captured_at = captured_at.astimezone(timezone.utc)
+        if captured_at >= recent_cutoff:
+            counts[category]["recent"] += 1
+        elif captured_at >= previous_cutoff:
+            counts[category]["previous"] += 1
+    return [
+        {
+            "failure_type": category,
+            "recent_count": values["recent"],
+            "previous_count": values["previous"],
+        }
+        for category, values in counts.items()
+        if values["recent"] >= SMOKE_FAILURE_INCREASE_MIN_COUNT
+        and values["recent"] > values["previous"]
+    ]
+
+
 def _normalize_failure_runs(
     raw_runs: object,
     metadata_by_run_id: dict[int, dict[str, Any]],
@@ -112,8 +149,8 @@ def _normalize_failure_runs(
         if not isinstance(run_id, int) or isinstance(run_id, bool) or run_id < 1:
             continue
         run_url = _required_text(raw_run.get("run_url"), 1000)
-        completed_at = raw_run.get("completed_at")
-        if not run_url:
+        completed_at = _required_text(raw_run.get("completed_at"), 64)
+        if not run_url or not completed_at:
             continue
         metadata = metadata_by_run_id.get(run_id)
         category = metadata["failure_type"] if metadata else "unclassified"
@@ -134,6 +171,7 @@ def _normalize_failure_runs(
                     else None
                 ),
                 "run_url": run_url,
+                "completed_at": completed_at,
                 "occurred_on": occurred_on,
                 "failure_type": category,
             }
@@ -222,12 +260,17 @@ def _timezone(value: str) -> ZoneInfo:
 
 
 def _captured_on(value: object, timezone: ZoneInfo) -> str | None:
+    captured_at = _aware_datetime(value)
+    if captured_at is None:
+        return None
+    return captured_at.astimezone(timezone).date().isoformat()
+
+
+def _aware_datetime(value: object) -> datetime | None:
     if not isinstance(value, str):
         return None
     try:
-        captured_at = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
-    if captured_at.tzinfo is None:
-        return None
-    return captured_at.astimezone(timezone).date().isoformat()
+    return parsed if parsed.tzinfo is not None else None

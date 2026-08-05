@@ -79,6 +79,7 @@ def get_alert_category_and_group(event: str) -> tuple[str, str] | None:
         "github_api_rate_limit_test",
         "github_api_primary_rate_limit",
         "github_api_secondary_rate_limit",
+        "smoke_failure_type_increase",
         "manager_docker_unhealthy",
         "manager_docker_recovered",
         "manager_http_errors_high",

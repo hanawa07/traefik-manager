@@ -43,6 +43,7 @@ async def test_update_smoke_monitoring_settings_records_change() -> None:
             monitoring_failure_rate_threshold_percent=45,
             monitoring_failure_rate_min_runs=5,
             monitoring_failure_rate_window_days=30,
+            monitoring_failure_type_alert_enabled=True,
             monitoring_github_rate_limit_alert_enabled=True,
             monitoring_github_primary_limit_alert_threshold=4,
             monitoring_github_secondary_limit_alert_threshold=2,
@@ -61,6 +62,7 @@ async def test_update_smoke_monitoring_settings_records_change() -> None:
     assert response.monitoring_failure_rate_threshold_percent == 45
     assert response.monitoring_failure_rate_min_runs == 5
     assert response.monitoring_failure_rate_window_days == 30
+    assert response.monitoring_failure_type_alert_enabled is True
     assert response.monitoring_github_rate_limit_alert_enabled is True
     assert response.monitoring_github_primary_limit_alert_threshold == 4
     assert response.monitoring_github_secondary_limit_alert_threshold == 2
@@ -70,6 +72,8 @@ async def test_update_smoke_monitoring_settings_records_change() -> None:
     assert repo.values["dashboard_smoke_failure_rate_threshold_percent"] == "45"
     assert repo.values["dashboard_smoke_failure_rate_min_runs"] == "5"
     assert repo.values["dashboard_smoke_failure_rate_window_days"] == "30"
+    assert repo.values["dashboard_smoke_failure_type_alert_enabled"] == "true"
+    assert repo.values["dashboard_smoke_failure_type_alert_state"] == "[]"
     assert repo.values["dashboard_smoke_github_rate_limit_alert_enabled"] == "true"
     assert repo.values["dashboard_smoke_github_primary_limit_alert_threshold"] == "4"
     assert repo.values["dashboard_smoke_github_secondary_limit_alert_threshold"] == "2"
@@ -80,6 +84,7 @@ async def test_update_smoke_monitoring_settings_records_change() -> None:
         "monitoring_failure_rate_min_runs",
         "monitoring_failure_rate_threshold_percent",
         "monitoring_failure_rate_window_days",
+        "monitoring_failure_type_alert_enabled",
         "monitoring_frequency",
         "monitoring_github_primary_limit_alert_threshold",
         "monitoring_github_rate_limit_alert_enabled",

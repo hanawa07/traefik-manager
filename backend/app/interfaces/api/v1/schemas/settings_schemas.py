@@ -37,6 +37,8 @@ from app.interfaces.api.v1.schemas.settings_security_alert_schemas import (
     normalize_email_recipients,
 )
 from app.interfaces.api.v1.schemas.settings_smoke_rotation_schemas import (
+    SmokeFailureClassificationRequest,
+    SmokeFailureClassificationResponse,
     SmokeMonitoringRunFailureRequest,
     SmokeMonitoringRunFailureResponse,
     SmokeMonitoringRunSuccessRequest,
@@ -70,6 +72,8 @@ __all__ = [
     "LoginDefenseSettingsUpdateRequest",
     "SecurityAlertSettingsResponse",
     "SecurityAlertSettingsUpdateRequest",
+    "SmokeFailureClassificationRequest",
+    "SmokeFailureClassificationResponse",
     "SmokeMonitoringRunFailureRequest",
     "SmokeMonitoringRunFailureResponse",
     "SmokeMonitoringRunSuccessRequest",

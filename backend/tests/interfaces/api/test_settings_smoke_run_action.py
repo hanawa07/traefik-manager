@@ -32,6 +32,11 @@ class StubRepository:
         self.values.pop(key, None)
 
 
+class StubAuditService:
+    async def record(self, **_kwargs) -> None:
+        pass
+
+
 @pytest.mark.asyncio
 async def test_record_smoke_run_success_accepts_dedicated_viewer(
     monkeypatch: pytest.MonkeyPatch,
@@ -97,6 +102,7 @@ async def test_record_smoke_run_failure_accepts_metadata_from_dedicated_viewer(
         actor={"username": "traefik-smoke-viewer", "role": "viewer"},
         db=object(),
         settings_repository_factory=lambda _db: repo,
+        audit_service=StubAuditService(),
     )
 
     assert response.run_id == 456

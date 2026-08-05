@@ -10,6 +10,9 @@ from app.infrastructure.smoke_run_history import invalidate_smoke_history_cache
 from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
     record_smoke_failure_metadata,
 )
+from app.interfaces.api.v1.routers.settings_smoke_failure_type_alert import (
+    record_smoke_failure_type_increase_alerts,
+)
 from app.interfaces.api.v1.routers.settings_smoke_run_status import (
     record_smoke_run_success,
 )
@@ -57,6 +60,7 @@ async def record_smoke_run_failure_action(
     actor: dict,
     db: AsyncSession,
     settings_repository_factory: Any,
+    audit_service: Any,
 ) -> SmokeMonitoringRunFailureResponse:
     _require_smoke_viewer(actor)
     repo = settings_repository_factory(db)
@@ -76,6 +80,12 @@ async def record_smoke_run_failure_action(
         completed_at=completed_at,
     )
     await invalidate_smoke_history_cache()
+    await record_smoke_failure_type_increase_alerts(
+        repo=repo,
+        db=db,
+        audit_service=audit_service,
+        actor=actor["username"],
+    )
     return SmokeMonitoringRunFailureResponse(
         **result,
         started_at=request.started_at,
