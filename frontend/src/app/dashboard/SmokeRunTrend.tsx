@@ -8,6 +8,7 @@ import type {
   SmokeRunStatistics,
   SmokeStatisticsSnapshot,
 } from "@/features/settings/api/settingsApi";
+import { SmokeFailureTypeTrend } from "@/features/settings/components/SmokeFailureTypeTrend";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { formatDurationSeconds } from "@/shared/lib/formatDurationSeconds";
 import {
@@ -43,6 +44,8 @@ interface SmokeRunTrendProps {
   failureRateMinRuns: number;
   failureRateThresholdPercent: number;
   failureRateWindowDays: 7 | 30;
+  historyRefreshRetryAt: string | null;
+  isHistoryRefreshBlocked: boolean;
   isRefreshingHistory: boolean;
   onRefreshHistory: () => void;
   refreshHistoryError: string | null;
@@ -63,6 +66,8 @@ export function SmokeRunTrend({
   failureRateMinRuns,
   failureRateThresholdPercent,
   failureRateWindowDays,
+  historyRefreshRetryAt,
+  isHistoryRefreshBlocked,
   isRefreshingHistory,
   localRuns,
   localRunLimit,
@@ -173,6 +178,7 @@ export function SmokeRunTrend({
         {rangeDays}일 전체 {totalCount}건 · 성공 {successCount} · 실패 {failureCount} · 취소 {cancelledCount} · 건너뜀 {skippedCount}
       </span>
       <span className="opacity-80">표시 링크 {recent.length}건</span>
+      <SmokeFailureTypeTrend statistic={statistic} />
       <span className="opacity-80" data-testid="smoke-failure-rate-basis">
         실패율 분모: workflow 성공+실패 · 취소·전체 건너뜀 제외
       </span>
@@ -213,12 +219,23 @@ export function SmokeRunTrend({
           <button
             className="rounded border border-current/30 bg-white/70 px-2 py-1 font-semibold disabled:cursor-wait disabled:opacity-60 dark:bg-slate-950/50"
             data-testid="smoke-history-retry"
-            disabled={isRefreshingHistory}
+            disabled={isRefreshingHistory || isHistoryRefreshBlocked}
             onClick={onRefreshHistory}
             type="button"
           >
-            {isRefreshingHistory ? "재확인 중..." : "즉시 재확인"}
+            {isRefreshingHistory
+              ? "재확인 중..."
+              : isHistoryRefreshBlocked
+                ? "재확인 잠김"
+                : "즉시 재확인"}
           </button>
+          {isHistoryRefreshBlocked ? (
+            <span className="basis-full font-semibold" data-testid="smoke-history-retry-at">
+              {historyRefreshRetryAt
+                ? `재확인 가능 ${formatDateTime(historyRefreshRetryAt, timezone)}`
+                : "GitHub 제한 해제 시각을 확인할 수 없습니다."}
+            </span>
+          ) : null}
           {refreshHistoryError ? (
             <span className="basis-full font-semibold" data-testid="smoke-history-retry-error">
               {refreshHistoryError}

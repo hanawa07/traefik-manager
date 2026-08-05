@@ -11,6 +11,7 @@ import {
   type SmokeRotationStatus,
 } from "@/features/settings/api/settingsApi";
 import { settingsQueryKeys } from "@/features/settings/hooks/settingsQueryKeys";
+import { SmokeFailureTypeTrend } from "./SmokeFailureTypeTrend";
 import { SmokeRecentRunItem } from "./SmokeRecentRunItem";
 import {
   type SmokeFailureTypeFilter,
@@ -88,6 +89,9 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
     : failureRuns.filter((run) => run.failure_metadata?.failure_type === failureType);
   const total = history?.monitoring_history_total ?? runs.length;
   const totalPages = history?.monitoring_history_total_pages ?? (total ? 1 : 0);
+  const periodStatistic = history?.monitoring_run_statistics.find(
+    (statistic) => statistic.window_days === days,
+  );
   const referenceTime = Date.parse(history?.monitoring_history_checked_at || "");
   return (
     <details
@@ -213,6 +217,7 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
           </span>
         </div>
       </div>
+      <SmokeFailureTypeTrend statistic={periodStatistic} />
       <p
         className="mt-2 text-[11px] text-gray-500 dark:text-slate-400"
         data-testid="smoke-failure-type-counts"

@@ -1,6 +1,9 @@
 from datetime import datetime, timezone
 
-from app.infrastructure.smoke_run_statistics import build_smoke_run_statistics
+from app.infrastructure.smoke_run_statistics import (
+    build_smoke_failure_run_ids_by_window,
+    build_smoke_run_statistics,
+)
 
 
 def _run(**overrides):
@@ -94,3 +97,7 @@ def test_build_smoke_run_statistics_counts_status_and_duration_without_test_runs
         "commit_sha": None,
         "run_url": "https://github.com/example/repository/actions/runs/14",
     }
+    assert build_smoke_failure_run_ids_by_window(
+        runs,
+        now=datetime(2026, 7, 18, tzinfo=timezone.utc),
+    ) == {7: [14], 30: [14]}

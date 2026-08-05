@@ -21,7 +21,10 @@ from app.infrastructure.smoke_run_history_processing import (
     paginate_smoke_runs,
     select_smoke_run_groups,
 )
-from app.infrastructure.smoke_run_statistics import build_smoke_run_statistics
+from app.infrastructure.smoke_run_statistics import (
+    build_smoke_failure_run_ids_by_window,
+    build_smoke_run_statistics,
+)
 from app.infrastructure.smoke_workflow_runs import read_smoke_workflow_runs
 
 WORKFLOW_FILE = "dashboard-visual-smoke.yml"
@@ -147,6 +150,10 @@ async def fetch_smoke_run_history(
         "statistics": build_smoke_run_statistics(
             raw_runs,
             public_url=public_url,
+            now=statistics_reference_time,
+        ),
+        "failure_run_ids_by_window": build_smoke_failure_run_ids_by_window(
+            raw_runs,
             now=statistics_reference_time,
         ),
         "recent_days": recent_days,

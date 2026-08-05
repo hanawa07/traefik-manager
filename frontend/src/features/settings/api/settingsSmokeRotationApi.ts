@@ -55,6 +55,20 @@ export interface SmokeSlowRun {
   run_url: string;
 }
 
+export interface SmokeFailureTypeCounts {
+  login: number;
+  external_api: number;
+  visual_regression: number;
+  unclassified: number;
+}
+
+export interface SmokeFailureTypeDaily {
+  captured_on: string;
+  login: number;
+  external_api: number;
+  visual_regression: number;
+}
+
 export interface SmokeRunStatistics {
   window_days: SmokeHistoryDays;
   total_count: number;
@@ -67,6 +81,8 @@ export interface SmokeRunStatistics {
   average_duration_seconds: number;
   estimated_runner_minutes: number;
   slowest_runs: SmokeSlowRun[];
+  failure_type_counts: SmokeFailureTypeCounts;
+  failure_type_daily: SmokeFailureTypeDaily[];
 }
 
 export interface SmokeStatisticsSnapshot {

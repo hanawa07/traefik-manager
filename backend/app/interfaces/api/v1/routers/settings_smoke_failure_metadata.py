@@ -1,9 +1,11 @@
 import json
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 SMOKE_FAILURE_METADATA_KEY = "dashboard_smoke_failure_metadata"
 SMOKE_FAILURE_METADATA_LIMIT = 20
-SMOKE_FAILURE_TYPES = {"login", "external_api", "visual_regression"}
+SMOKE_FAILURE_TYPES = ("login", "external_api", "visual_regression")
 
 
 async def record_smoke_failure_metadata(
@@ -46,6 +48,59 @@ def attach_smoke_failure_metadata(
             if metadata
             else None
         )
+
+
+def attach_smoke_failure_type_statistics(
+    statistics: list[dict[str, Any]],
+    failure_run_ids_by_window: dict[object, object],
+    metadata_by_run_id: dict[int, dict[str, Any]],
+    *,
+    timezone_name: str,
+) -> None:
+    timezone = _timezone(timezone_name)
+    for statistic in statistics:
+        window_days = statistic.get("window_days")
+        raw_run_ids = failure_run_ids_by_window.get(
+            window_days,
+            failure_run_ids_by_window.get(str(window_days), []),
+        )
+        run_ids = (
+            {
+                run_id
+                for run_id in raw_run_ids
+                if isinstance(run_id, int)
+                and not isinstance(run_id, bool)
+                and run_id > 0
+            }
+            if isinstance(raw_run_ids, list)
+            else set()
+        )
+        counts = {failure_type: 0 for failure_type in SMOKE_FAILURE_TYPES}
+        daily: dict[str, dict[str, int]] = {}
+        for run_id in run_ids:
+            metadata = metadata_by_run_id.get(run_id)
+            if not metadata:
+                continue
+            failure_type = metadata["failure_type"]
+            counts[failure_type] += 1
+            captured_on = _captured_on(metadata.get("captured_at"), timezone)
+            if captured_on:
+                point = daily.setdefault(
+                    captured_on,
+                    {failure_type_name: 0 for failure_type_name in SMOKE_FAILURE_TYPES},
+                )
+                point[failure_type] += 1
+        classified_count = sum(counts.values())
+        failure_count = statistic.get("failure_count")
+        total_failures = failure_count if isinstance(failure_count, int) else len(run_ids)
+        statistic["failure_type_counts"] = {
+            **counts,
+            "unclassified": max(total_failures - classified_count, 0),
+        }
+        statistic["failure_type_daily"] = [
+            {"captured_on": captured_on, **daily[captured_on]}
+            for captured_on in sorted(daily)
+        ]
 
 
 async def _read_entries(repo: Any) -> list[dict[str, Any]]:
@@ -93,3 +148,22 @@ def _required_text(value: object, limit: int) -> str | None:
 
 def _optional_text(value: object, limit: int) -> str | None:
     return _required_text(value, limit)
+
+
+def _timezone(value: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(value)
+    except (TypeError, ZoneInfoNotFoundError):
+        return ZoneInfo("UTC")
+
+
+def _captured_on(value: object, timezone: ZoneInfo) -> str | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        captured_at = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if captured_at.tzinfo is None:
+        return None
+    return captured_at.astimezone(timezone).date().isoformat()

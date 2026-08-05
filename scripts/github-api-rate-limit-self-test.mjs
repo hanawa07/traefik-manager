@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { auditFilters } from "../frontend/src/app/dashboard/audit/audit-page-helpers/auditFilterOptions.ts";
 import { getGithubApiRateLimitDetailRows } from "../frontend/src/app/dashboard/audit/audit-page-helpers/githubApiRateLimitDetailRows.ts";
 import {
+  getGithubApiRefreshRetryAt,
   isGithubApiRefreshBlocked,
   isGithubSecondaryRateLimitBlocked,
 } from "../frontend/src/features/settings/lib/smokeGithubRateLimit.ts";
@@ -13,6 +14,17 @@ const resetAt = "2026-07-22T02:00:00+00:00";
 assert.equal(isGithubApiRefreshBlocked(8, resetAt, null, 8, now), true);
 assert.equal(isGithubApiRefreshBlocked(9, resetAt, null, 8, now), false);
 assert.equal(isGithubSecondaryRateLimitBlocked("2026-07-22T01:01:00+00:00", now), true);
+assert.equal(
+  getGithubApiRefreshRetryAt(
+    8,
+    resetAt,
+    "2026-07-22T03:00:00+00:00",
+    8,
+    now,
+  ),
+  "2026-07-22T03:00:00+00:00",
+);
+assert.equal(getGithubApiRefreshRetryAt(9, resetAt, null, 8, now), null);
 
 const rows = getGithubApiRateLimitDetailRows("github_api_secondary_rate_limit", {
   occurred_at: "2026-07-22T01:00:00+00:00",

@@ -110,6 +110,16 @@ export async function buildSmokeHistoryFixtures(cdp) {
           average_duration_seconds: 105,
           estimated_runner_minutes: 8,
           slowest_runs: [slowFailure],
+          failure_type_counts: {
+            login: 1,
+            external_api: 0,
+            visual_regression: 1,
+            unclassified: 0,
+          },
+          failure_type_daily: [
+            { captured_on: '2026-07-19', login: 1, external_api: 0, visual_regression: 0 },
+            { captured_on: '2026-07-20', login: 0, external_api: 0, visual_regression: 1 },
+          ],
         },
         {
           window_days: 30,
@@ -123,6 +133,16 @@ export async function buildSmokeHistoryFixtures(cdp) {
           average_duration_seconds: 113,
           estimated_runner_minutes: 17,
           slowest_runs: [slowFailure, slowSuccess],
+          failure_type_counts: {
+            login: 1,
+            external_api: 0,
+            visual_regression: 1,
+            unclassified: 0,
+          },
+          failure_type_daily: [
+            { captured_on: '2026-07-19', login: 1, external_api: 0, visual_regression: 0 },
+            { captured_on: '2026-07-20', login: 0, external_api: 0, visual_regression: 1 },
+          ],
         },
       ],
       monitoring_statistics_snapshots: [

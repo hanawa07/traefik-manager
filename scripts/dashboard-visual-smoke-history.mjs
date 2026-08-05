@@ -52,6 +52,9 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
         const rateLimitWarning = document.querySelector('[data-testid="smoke-github-rate-limit-warning"]');
         const refreshButton = document.querySelector('[data-testid="smoke-history-refresh"]');
         const retention = history?.querySelector('[data-testid="smoke-failure-metadata-retention"]');
+        const typeSummary = history?.querySelector('[data-testid="smoke-failure-type-summary"]');
+        const typeCounts = history?.querySelector('[data-testid="smoke-failure-type-period-counts"]');
+        const typeTrend = history?.querySelector('[data-testid="smoke-failure-type-trend"]');
         const cancellationReason = history?.querySelector('[data-testid="smoke-cancellation-reason"]');
         const run = history?.querySelector('a[href="${RUN_URL}"]');
         const commit = history?.querySelector('[data-testid="smoke-recent-run-commit-link"]');
@@ -75,6 +78,11 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
           rateLimitWarning?.textContent?.includes('수동 새로고침과 자동 결과 확인을 잠갔습니다') &&
           (!refreshButton || (refreshButton instanceof HTMLButtonElement && refreshButton.disabled)) &&
           retention?.textContent?.includes('실패 정보 1/20건 보관') &&
+          typeSummary?.getAttribute('data-window-days') === '30' &&
+          typeCounts?.textContent?.includes('분류 2/2건') &&
+          typeSummary?.textContent?.includes('로그인 1') &&
+          typeSummary?.textContent?.includes('화면 회귀 1') &&
+          typeTrend?.querySelectorAll('li').length === 2 &&
           exclusionNote?.textContent?.includes('전체 통계는 GitHub workflow 결론 기준');
       })()`,
       timeoutMs,

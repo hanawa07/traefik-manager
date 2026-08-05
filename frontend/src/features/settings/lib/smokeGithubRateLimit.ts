@@ -17,6 +17,27 @@ export function isGithubApiRefreshBlocked(
   return Number.isNaN(resetTime) || resetTime > now;
 }
 
+export function getGithubApiRefreshRetryAt(
+  remaining: number | null | undefined,
+  resetAt: string | null | undefined,
+  secondaryRetryAt?: string | null,
+  refreshReserve = GITHUB_API_DEFAULT_REFRESH_RESERVE,
+  now = Date.now(),
+): string | null {
+  const retryCandidates = [
+    remaining !== null && remaining !== undefined && remaining <= refreshReserve
+      ? resetAt
+      : null,
+    isGithubSecondaryRateLimitBlocked(secondaryRetryAt, now) ? secondaryRetryAt : null,
+  ].filter(
+    (value): value is string => typeof value === "string" && Date.parse(value) > now,
+  );
+  if (!retryCandidates.length) return null;
+  return retryCandidates.reduce((latest, candidate) =>
+    Date.parse(candidate) > Date.parse(latest) ? candidate : latest,
+  );
+}
+
 export function useGithubApiRefreshBlocked(
   remaining: number | null | undefined,
   resetAt: string | null | undefined,
@@ -26,18 +47,21 @@ export function useGithubApiRefreshBlocked(
   const [, setResetTick] = useState(0);
 
   useEffect(() => {
-    if (!isGithubApiRefreshBlocked(remaining, resetAt, secondaryRetryAt, refreshReserve)) return;
     const now = Date.now();
-    const unblockTimes = [
-      remaining !== null && remaining !== undefined && remaining <= refreshReserve
-        ? Date.parse(resetAt || "")
-        : Number.NaN,
-      Date.parse(secondaryRetryAt || ""),
-    ].filter((value) => Number.isFinite(value) && value > now);
-    if (!unblockTimes.length) return;
+    if (!isGithubApiRefreshBlocked(remaining, resetAt, secondaryRetryAt, refreshReserve, now)) {
+      return;
+    }
+    const retryAt = getGithubApiRefreshRetryAt(
+      remaining,
+      resetAt,
+      secondaryRetryAt,
+      refreshReserve,
+      now,
+    );
+    if (!retryAt) return;
     const timer = window.setTimeout(
       () => setResetTick((value) => value + 1),
-      Math.max(...unblockTimes) - now + 50,
+      Date.parse(retryAt) - now + 50,
     );
     return () => window.clearTimeout(timer);
   }, [remaining, refreshReserve, resetAt, secondaryRetryAt]);

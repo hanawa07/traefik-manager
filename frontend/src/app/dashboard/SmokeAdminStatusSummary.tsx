@@ -9,7 +9,9 @@ import { SmokeRunTrend } from "./SmokeRunTrend";
 interface SmokeAdminStatusSummaryProps {
   canViewHistory: boolean;
   deployedRevision?: string | null;
+  historyRefreshRetryAt: string | null;
   isError: boolean;
+  isHistoryRefreshBlocked: boolean;
   isLoading: boolean;
   isRefreshingHistory: boolean;
   onRefreshHistory: () => void;
@@ -21,7 +23,9 @@ interface SmokeAdminStatusSummaryProps {
 export function SmokeAdminStatusSummary({
   canViewHistory,
   deployedRevision,
+  historyRefreshRetryAt,
   isError,
+  isHistoryRefreshBlocked,
   isLoading,
   isRefreshingHistory,
   onRefreshHistory,
@@ -55,6 +59,8 @@ export function SmokeAdminStatusSummary({
                   failureRateMinRuns={status.monitoring_failure_rate_min_runs}
                   failureRateThresholdPercent={status.monitoring_failure_rate_threshold_percent}
                   failureRateWindowDays={status.monitoring_failure_rate_window_days}
+                  historyRefreshRetryAt={historyRefreshRetryAt}
+                  isHistoryRefreshBlocked={isHistoryRefreshBlocked}
                   localRuns={status.monitoring_local_runs ?? []}
                   localRunLimit={status.monitoring_local_run_limit ?? 20}
                   localRunRetentionDays={status.monitoring_local_run_retention_days ?? 365}

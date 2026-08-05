@@ -195,7 +195,10 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
         "dashboard_smoke_failure_metadata": (
             '[{"run_id": 456, "captured_at": "2026-07-11T06:54:58Z", '
             '"check_name": "설정 화면 검사 실패", "screen_path": "/dashboard/settings", '
-            '"page_title": "설정"}]'
+            '"page_title": "설정"}, '
+            '{"run_id": 457, "captured_at": "2026-07-01T06:54:58Z", '
+            '"check_name": "GitHub API 실패", "failure_type": "external_api", '
+            '"screen_path": null, "page_title": null}]'
         ),
         "dashboard_smoke_local_run_456": (
             '{"run_id":456,"status":"failure","started_at":"2026-07-13T00:58:00+00:00",'
@@ -242,6 +245,24 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
     assert result.monitoring_recent_runs[0].failure_metadata.screen_path == "/dashboard/settings"
     assert result.monitoring_latest_failure.run_number == 78
     assert result.monitoring_run_statistics[0].estimated_runner_minutes == 14
+    assert result.monitoring_run_statistics[0].failure_type_counts.model_dump() == {
+        "login": 0,
+        "external_api": 0,
+        "visual_regression": 1,
+        "unclassified": 0,
+    }
+    assert result.monitoring_run_statistics[0].failure_type_daily[0].model_dump() == {
+        "captured_on": "2026-07-11",
+        "login": 0,
+        "external_api": 0,
+        "visual_regression": 1,
+    }
+    assert result.monitoring_run_statistics[1].failure_type_counts.model_dump() == {
+        "login": 0,
+        "external_api": 1,
+        "visual_regression": 1,
+        "unclassified": 1,
+    }
     assert result.monitoring_statistics_snapshots[0].captured_on == "2026-07-13"
     assert result.monitoring_statistics_snapshots[0].estimated_runner_minutes == 60
     assert result.monitoring_local_runs[0].run_id == 456
@@ -259,7 +280,7 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
     assert result.monitoring_history_search == "456"
     assert result.monitoring_history_status == "failure"
     assert result.monitoring_history_cancellation_reason == "all"
-    assert result.monitoring_failure_metadata_count == 1
+    assert result.monitoring_failure_metadata_count == 2
     assert result.monitoring_failure_metadata_limit == 20
     assert result.monitoring_github_rate_limit_remaining == 42
     assert result.monitoring_github_rate_limit_limit == 60

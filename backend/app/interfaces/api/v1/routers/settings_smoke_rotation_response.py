@@ -35,6 +35,7 @@ from app.infrastructure.smoke_statistics_snapshots import (
 from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
     SMOKE_FAILURE_METADATA_LIMIT,
     attach_smoke_failure_metadata,
+    attach_smoke_failure_type_statistics,
     read_smoke_failure_metadata,
 )
 from app.interfaces.api.v1.routers.settings_smoke_monitoring_values import (
@@ -118,6 +119,12 @@ async def get_smoke_rotation_status_response(
         attach_smoke_failure_metadata(
             run_history,
             failure_metadata,
+        )
+        attach_smoke_failure_type_statistics(
+            run_history["statistics"],
+            run_history.get("failure_run_ids_by_window", {}),
+            failure_metadata,
+            timezone_name=monitoring["monitoring_schedule_timezone"],
         )
         statistics_snapshots = await sync_smoke_statistics_snapshots(
             repo,

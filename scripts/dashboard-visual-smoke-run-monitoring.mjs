@@ -18,6 +18,8 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
       revisionText: document.querySelector('[data-testid="smoke-deployment-revision-status"]')
         ?.textContent,
       sevenPressed: seven?.getAttribute('aria-pressed'),
+      typeWindow: trend?.querySelector('[data-testid="smoke-failure-type-summary"]')
+        ?.getAttribute('data-window-days'),
       text: trend?.textContent,
       thirtyFound: Boolean(thirty),
     };
@@ -29,6 +31,7 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     return;
   }
   assert.equal(initial.sevenPressed, "true", "운영 점검 추이의 기본 7일 범위가 선택되지 않았습니다");
+  assert.equal(initial.typeWindow, "7", "실패 유형 추이의 기본 7일 범위가 표시되지 않았습니다");
   assert.equal(initial.thirtyFound, true, "운영 점검 추이의 30일 범위를 찾지 못했습니다");
   await waitForCondition(
     cdp,
@@ -36,8 +39,12 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
       const buttons = Array.from(document.querySelectorAll('[data-testid="smoke-run-trend"] button'));
       const seven = buttons.find((button) => button.textContent?.trim() === '7일');
       const thirty = buttons.find((button) => button.textContent?.trim() === '30일');
+      const typeSummary = document.querySelector(
+        '[data-testid="smoke-run-trend"] [data-testid="smoke-failure-type-summary"]'
+      );
       return seven?.getAttribute('aria-pressed') === 'false' &&
-        thirty?.getAttribute('aria-pressed') === 'true';
+        thirty?.getAttribute('aria-pressed') === 'true' &&
+        typeSummary?.getAttribute('data-window-days') === '30';
     })()`,
     timeoutMs,
     "운영 점검 추이가 30일 범위로 전환되지 않았습니다",

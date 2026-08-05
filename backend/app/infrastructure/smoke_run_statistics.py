@@ -31,6 +31,26 @@ def build_smoke_run_statistics(
     ]
 
 
+def build_smoke_failure_run_ids_by_window(
+    raw_runs: object,
+    *,
+    now: datetime | None = None,
+) -> dict[int, list[int]]:
+    reference_time = now or datetime.now(timezone.utc)
+    return {
+        days: [
+            run["id"]
+            for run in select_operational_smoke_runs(
+                raw_runs,
+                recent_days=days,
+                now=reference_time,
+            )
+            if is_failed_smoke_run(run)
+        ]
+        for days in STATISTICS_WINDOWS
+    }
+
+
 def _build_window_statistics(
     raw_runs: object,
     *,

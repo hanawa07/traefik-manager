@@ -17,6 +17,10 @@ import {
   useTimeDisplaySettings,
 } from "@/features/settings/hooks/useSettings";
 import {
+  getGithubApiRefreshRetryAt,
+  useGithubApiRefreshBlocked,
+} from "@/features/settings/lib/smokeGithubRateLimit";
+import {
   useRefreshTraefikLatest,
   useTraefikDeployment,
   useTraefikEncodedPathBlocks,
@@ -82,6 +86,18 @@ export default function DashboardPage() {
   const deploymentUpdatedAtIso = deploymentUpdatedAt
     ? new Date(deploymentUpdatedAt).toISOString()
     : undefined;
+  const isSmokeHistoryRefreshBlocked = useGithubApiRefreshBlocked(
+    smokeRotationSummary?.monitoring_github_rate_limit_remaining,
+    smokeRotationSummary?.monitoring_github_rate_limit_reset_at,
+    smokeRotationSummary?.monitoring_github_secondary_limit_retry_at,
+    smokeRotationSummary?.monitoring_github_refresh_reserve,
+  );
+  const smokeHistoryRefreshRetryAt = getGithubApiRefreshRetryAt(
+    smokeRotationSummary?.monitoring_github_rate_limit_remaining,
+    smokeRotationSummary?.monitoring_github_rate_limit_reset_at,
+    smokeRotationSummary?.monitoring_github_secondary_limit_retry_at,
+    smokeRotationSummary?.monitoring_github_refresh_reserve,
+  );
   const handleRefreshDeploymentStatus = async () => {
     const result = await refreshDeploymentStatus();
     if (result.isSuccess) setLastDeploymentManualRefreshAt(new Date().toISOString());
@@ -103,8 +119,10 @@ export default function DashboardPage() {
         canViewHistory={canManage}
         deployedRevision={deploymentInfo?.revision}
         isError={isSmokeRotationSummaryError}
+        isHistoryRefreshBlocked={isSmokeHistoryRefreshBlocked}
         isLoading={isSmokeRotationSummaryLoading}
         isRefreshingHistory={refreshSmokeHistory.isPending}
+        historyRefreshRetryAt={smokeHistoryRefreshRetryAt}
         onRefreshHistory={() => refreshSmokeHistory.mutate()}
         refreshHistoryError={refreshSmokeHistory.isError ? "GitHub 통계를 다시 확인하지 못했습니다." : null}
         status={smokeRotationSummary}

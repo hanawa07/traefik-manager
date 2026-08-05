@@ -37,13 +37,19 @@ async function checkSmokeHistoryRetryAdminFixture({
       return response.ok ? response.json() : null;
     })()`);
     assert.ok(fixture, "GitHub 통계 재확인 fixture를 읽지 못했습니다");
+    const refreshReserve = fixture.monitoring_github_refresh_reserve ?? 10;
     const readyFixture = {
       ...fixture,
+      monitoring_github_rate_limit_remaining: Math.max(refreshReserve + 1, 42),
+      monitoring_github_rate_limit_reset_at: null,
+      monitoring_github_secondary_limit_retry_at: null,
       monitoring_history_data_checked_at: "2026-07-20T06:00:00Z",
       monitoring_history_error: null,
     };
     const errorFixture = {
       ...readyFixture,
+      monitoring_github_rate_limit_remaining: refreshReserve,
+      monitoring_github_rate_limit_reset_at: new Date(Date.now() + 5_000).toISOString(),
       monitoring_history_error: "GitHub API 임시 오류",
     };
 
@@ -65,12 +71,25 @@ async function checkSmokeHistoryRetryAdminFixture({
       `(() => {
         const retry = document.querySelector('[data-testid="smoke-history-retry"]');
         const detail = document.querySelector('[data-testid="smoke-history-error-detail"]');
-        return retry instanceof HTMLButtonElement && !retry.disabled &&
-          retry.textContent?.includes('즉시 재확인') &&
+        const retryAt = document.querySelector('[data-testid="smoke-history-retry-at"]');
+        return retry instanceof HTMLButtonElement && retry.disabled &&
+          retry.textContent?.includes('재확인 잠김') &&
+          retryAt?.textContent?.includes('재확인 가능') &&
           detail?.textContent?.includes('GitHub API 임시 오류');
       })()`,
       timeoutMs,
-      "GitHub 통계 오류의 즉시 재확인 버튼이 표시되지 않았습니다",
+      "GitHub 통계 오류의 재확인 제한 해제 시각이 표시되지 않았습니다",
+    );
+    await waitForCondition(
+      cdp,
+      `(() => {
+        const retry = document.querySelector('[data-testid="smoke-history-retry"]');
+        return retry instanceof HTMLButtonElement && !retry.disabled &&
+          retry.textContent?.includes('즉시 재확인') &&
+          !document.querySelector('[data-testid="smoke-history-retry-at"]');
+      })()`,
+      timeoutMs,
+      "GitHub 통계 재확인 제한이 예정 시각에 해제되지 않았습니다",
     );
 
     const refreshRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);

@@ -48,6 +48,20 @@ class SmokeSlowRunResponse(BaseModel):
     run_url: str
 
 
+class SmokeFailureTypeCountsResponse(BaseModel):
+    login: int = Field(default=0, ge=0)
+    external_api: int = Field(default=0, ge=0)
+    visual_regression: int = Field(default=0, ge=0)
+    unclassified: int = Field(default=0, ge=0)
+
+
+class SmokeFailureTypeDailyResponse(BaseModel):
+    captured_on: str
+    login: int = Field(default=0, ge=0)
+    external_api: int = Field(default=0, ge=0)
+    visual_regression: int = Field(default=0, ge=0)
+
+
 class SmokeRunStatisticsResponse(BaseModel):
     window_days: SmokeFailureRateWindowDays
     total_count: int = Field(ge=0)
@@ -60,6 +74,10 @@ class SmokeRunStatisticsResponse(BaseModel):
     average_duration_seconds: int = Field(ge=0)
     estimated_runner_minutes: int = Field(ge=0)
     slowest_runs: list[SmokeSlowRunResponse] = Field(default_factory=list)
+    failure_type_counts: SmokeFailureTypeCountsResponse = Field(
+        default_factory=SmokeFailureTypeCountsResponse
+    )
+    failure_type_daily: list[SmokeFailureTypeDailyResponse] = Field(default_factory=list)
 
 
 class SmokeStatisticsSnapshotResponse(BaseModel):
