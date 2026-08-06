@@ -280,10 +280,16 @@ async function checkSmokeRateLimitAdminFixture({
     applySmokeFailureMetadataFixture(fixture);
 
     await cdp.send("Fetch.enable", {
-      patterns: [{
-        requestStage: "Request",
-        urlPattern: "*/api/v1/settings/smoke-rotation*",
-      }],
+      patterns: [
+        {
+          requestStage: "Request",
+          urlPattern: "*/api/v1/settings/smoke-rotation*",
+        },
+        {
+          requestStage: "Request",
+          urlPattern: "*/api/v1/settings/smoke-failure-metadata/cleanup*",
+        },
+      ],
     });
     const requestPaused = cdp.waitFor("Fetch.requestPaused", timeoutMs);
     const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);

@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 import { fulfillJsonRequest } from "./dashboard-visual-smoke-history-fixture.mjs";
 import { checkSmokeFailureMetadataSavedFilters } from "./dashboard-visual-smoke-failure-metadata-saved-filters.mjs";
-import { checkSmokeFailureMetadataCleanupPreview } from "./dashboard-visual-smoke-failure-metadata-cleanup-preview.mjs";
+import {
+  checkSmokeFailureMetadataCleanupPreview,
+  checkSmokeFailureMetadataCleanupSuccess,
+} from "./dashboard-visual-smoke-failure-metadata-cleanup-preview.mjs";
 import { checkSmokeFailureMetadataExport } from "./dashboard-visual-smoke-failure-metadata-export.mjs";
 
 export function applySmokeFailureMetadataFixture(fixture) {
@@ -279,4 +282,5 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
     timeoutMs,
     "실패 정보 기본 필터가 URL에서 제거되지 않았습니다",
   );
+  await checkSmokeFailureMetadataCleanupSuccess({ cdp, fixture, timeoutMs });
 }
