@@ -206,7 +206,12 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
   );
   const visibleSelectionPrepared = await evaluate(cdp, `(() => {
     const period = document.querySelector('[data-testid="smoke-failure-metadata-period-filter"]');
-    if (!(period instanceof HTMLSelectElement)) return false;
+    const search = document.querySelector('[data-testid="smoke-failure-metadata-search"]');
+    if (!(period instanceof HTMLSelectElement) || !(search instanceof HTMLInputElement)) return false;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (!setValue) return false;
+    setValue.call(search, '');
+    search.dispatchEvent(new Event('input', { bubbles: true }));
     period.value = 'all';
     period.dispatchEvent(new Event('change', { bubbles: true }));
     return true;
@@ -253,12 +258,6 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
 
   await evaluate(cdp, `(() => {
     const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
-    const search = management?.querySelector('[data-testid="smoke-failure-metadata-search"]');
-    if (search instanceof HTMLInputElement) {
-      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-      setValue?.call(search, '');
-      search.dispatchEvent(new Event('input', { bubbles: true }));
-    }
     for (const [testId, value] of [
       ['smoke-failure-metadata-type-filter', 'all'],
       ['smoke-failure-metadata-period-filter', 'all'],
