@@ -157,7 +157,7 @@ export function parseSmokeFailureMetadataFilters(
   };
 }
 
-export function normalizeSmokeFailureMetadataSearch(value: unknown): string {
+function normalizeSmokeFailureMetadataSearch(value: unknown): string {
   return typeof value === "string"
     ? value.slice(0, SMOKE_FAILURE_METADATA_SEARCH_LIMIT)
     : "";
