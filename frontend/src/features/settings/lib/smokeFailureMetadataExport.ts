@@ -3,6 +3,7 @@ import type { SmokeFailureMetadataEntry } from "@/features/settings/api/settings
 export function downloadSmokeFailureMetadata(
   entries: SmokeFailureMetadataEntry[],
   timezone?: string,
+  scope: "all" | "selected" = "all",
 ): string {
   const exportedAt = new Date().toISOString();
   const content = JSON.stringify(
@@ -11,6 +12,7 @@ export function downloadSmokeFailureMetadata(
         exported_at: exportedAt,
         result_count: entries.length,
         schema_version: 1,
+        scope,
         timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
       },
       entries,
@@ -23,7 +25,7 @@ export function downloadSmokeFailureMetadata(
   );
   const link = document.createElement("a");
   link.href = url;
-  link.download = `traefik-manager-smoke-failure-metadata-${exportedAt.slice(0, 10)}.json`;
+  link.download = `traefik-manager-smoke-failure-metadata-${scope}-${exportedAt.slice(0, 10)}.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();

@@ -98,6 +98,7 @@ jobs:
           npm --prefix frontend run test:traefik-update-history
           npm --prefix frontend run test:smoke-rotation-audit
           npm --prefix frontend run test:smoke-failure-classification-audit
+          npm --prefix frontend run test:smoke-failure-metadata
           npm --prefix frontend run test:smoke-failure-rate
           npm --prefix frontend run test:github-api-rate-limit
           npm --prefix frontend run test:service-routing
