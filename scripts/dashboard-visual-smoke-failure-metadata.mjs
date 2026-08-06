@@ -8,6 +8,7 @@ import {
   checkSmokeFailureMetadataCleanupSuccess,
 } from "./dashboard-visual-smoke-failure-metadata-cleanup-preview.mjs";
 import { checkSmokeFailureMetadataExport } from "./dashboard-visual-smoke-failure-metadata-export.mjs";
+import { checkSmokeFailureMetadataActiveFilters } from "./dashboard-visual-smoke-failure-metadata-active-filters.mjs";
 
 export function applySmokeFailureMetadataFixture(fixture) {
   fixture.monitoring_failure_metadata_count = 2;
@@ -139,6 +140,7 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
     timeoutMs,
     "실패 정보 필터가 URL과 결과에 반영되지 않았습니다",
   );
+  await checkSmokeFailureMetadataActiveFilters({ cdp, timeoutMs });
   await checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs });
 
   const requestPaused = cdp.waitFor("Fetch.requestPaused", timeoutMs);
@@ -256,20 +258,13 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
     "실패 정보 선택이 모두 해제되지 않았습니다",
   );
 
-  await evaluate(cdp, `(() => {
-    const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
-    for (const [testId, value] of [
-      ['smoke-failure-metadata-type-filter', 'all'],
-      ['smoke-failure-metadata-period-filter', 'all'],
-      ['smoke-failure-metadata-sort', 'newest'],
-    ]) {
-      const select = management?.querySelector('[data-testid="' + testId + '"]');
-      if (select instanceof HTMLSelectElement) {
-        select.value = value;
-        select.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    }
+  const filtersCleared = await evaluate(cdp, `(() => {
+    const button = document.querySelector('[data-testid="smoke-failure-metadata-active-filter-clear-all"]');
+    if (!(button instanceof HTMLButtonElement)) return false;
+    button.click();
+    return true;
   })()`);
+  assert.equal(filtersCleared, true, "실패 정보 필터 전체 초기화를 실행하지 못했습니다");
   await waitForCondition(
     cdp,
     `!location.search.includes('smoke_metadata_type') &&
@@ -277,7 +272,9 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
       !location.search.includes('smoke_metadata_from') &&
       !location.search.includes('smoke_metadata_to') &&
       !location.search.includes('smoke_metadata_q') &&
-      !location.search.includes('smoke_metadata_sort')`,
+      !location.search.includes('smoke_metadata_sort') &&
+      !document.querySelector('[data-testid="smoke-failure-metadata-active-filters"]') &&
+      document.querySelector('[data-testid="smoke-failure-metadata-result-count"]')?.textContent?.includes('조회 2/2건')`,
     timeoutMs,
     "실패 정보 기본 필터가 URL에서 제거되지 않았습니다",
   );

@@ -18,6 +18,7 @@ import { githubActionsRunUrl } from "@/features/settings/lib/smokeGithubUrls";
 import { updateSmokeFailureMetadataSelection } from "@/features/settings/lib/smokeFailureMetadataSelection";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { SmokeFailureMetadataBulkSelection } from "./SmokeFailureMetadataBulkSelection";
+import { SmokeFailureMetadataActiveFilters } from "./SmokeFailureMetadataActiveFilters";
 import { SmokeFailureMetadataCleanupPreview } from "./SmokeFailureMetadataCleanupPreview";
 import { SmokeFailureMetadataDateFilters } from "./SmokeFailureMetadataDateFilters";
 import { SmokeFailureMetadataExportControls } from "./SmokeFailureMetadataExportControls";
@@ -57,6 +58,14 @@ export function SmokeFailureMetadataManagement({
   const [cleanupPreviewOpen, setCleanupPreviewOpen] = useState(false);
   const activeStartDate = periodFilter === "custom" ? startDate : "";
   const activeEndDate = periodFilter === "custom" ? endDate : "";
+  const filters = {
+    endDate,
+    period: periodFilter,
+    query,
+    sort,
+    startDate,
+    type: typeFilter,
+  };
   const visibleEntries = sortSmokeFailureMetadata(
     filterSmokeFailureMetadata(entries, typeFilter, periodFilter, {
       endDate: activeEndDate,
@@ -197,8 +206,25 @@ export function SmokeFailureMetadataManagement({
         startDate={startDate}
         timezone={timezone}
       />
+      <SmokeFailureMetadataActiveFilters
+        filters={filters}
+        onClearAll={() =>
+          applyFilters({
+            endDate: "",
+            period: "all",
+            query: "",
+            sort: "newest",
+            startDate: "",
+            type: "all",
+          })
+        }
+        onClearPeriod={() => changePeriodFilter("all")}
+        onClearQuery={() => changeQuery("")}
+        onClearSort={() => changeSort("newest")}
+        onClearType={() => changeTypeFilter("all")}
+      />
       <SmokeFailureMetadataSavedFilters
-        filters={{ endDate, period: periodFilter, query, sort, startDate, type: typeFilter }}
+        filters={filters}
         onApply={applyFilters}
       />
       <SmokeFailureMetadataExportControls
