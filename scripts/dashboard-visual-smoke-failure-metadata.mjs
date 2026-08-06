@@ -161,10 +161,12 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
       const period = management?.querySelector('[data-testid="smoke-failure-metadata-period-filter"]');
       const sort = management?.querySelector('[data-testid="smoke-failure-metadata-sort"]');
       const search = management?.querySelector('[data-testid="smoke-failure-metadata-search"]');
+      const savedFilterSort = management?.querySelector('[data-testid="smoke-failure-metadata-saved-filter-sort"]');
       const start = management?.querySelector('[data-testid="smoke-failure-metadata-start-date"]');
       const end = management?.querySelector('[data-testid="smoke-failure-metadata-end-date"]');
       const runLink = management?.querySelector('[data-testid="smoke-failure-metadata-run-link"]');
       return type?.value === 'login' && period?.value === 'custom' && sort?.value === 'run_asc' && search?.value === '관리자' &&
+        savedFilterSort?.value === 'name_desc' &&
         start?.value === ${JSON.stringify(customRange.startDate)} &&
         end?.value === ${JSON.stringify(customRange.endDate)} &&
         runLink?.getAttribute('href')?.endsWith('/actions/runs/987') &&

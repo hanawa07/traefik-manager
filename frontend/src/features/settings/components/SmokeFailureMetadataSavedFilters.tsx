@@ -6,10 +6,12 @@ import { useEffect, useState } from "react";
 import type { SmokeFailureMetadataFilters } from "@/features/settings/lib/smokeFailureMetadataFilters";
 import {
   normalizeSmokeFailureMetadataSavedFilterName,
+  parseSmokeFailureMetadataSavedFilterSort,
   parseSmokeFailureMetadataSavedFilters,
   removeSmokeFailureMetadataSavedFilter,
   renameSmokeFailureMetadataSavedFilter,
   SMOKE_FAILURE_METADATA_SAVED_FILTER_NAME_LIMIT,
+  SMOKE_FAILURE_METADATA_SAVED_FILTER_SORT_STORAGE_KEY,
   SMOKE_FAILURE_METADATA_SAVED_FILTERS_STORAGE_KEY,
   sortSmokeFailureMetadataSavedFilters,
   upsertSmokeFailureMetadataSavedFilter,
@@ -40,6 +42,11 @@ export function SmokeFailureMetadataSavedFilters({
           localStorage.getItem(SMOKE_FAILURE_METADATA_SAVED_FILTERS_STORAGE_KEY),
         ),
       );
+      setSort(
+        parseSmokeFailureMetadataSavedFilterSort(
+          localStorage.getItem(SMOKE_FAILURE_METADATA_SAVED_FILTER_SORT_STORAGE_KEY),
+        ),
+      );
     } catch {
       setNotice("브라우저에서 저장 필터를 불러오지 못했습니다.");
     }
@@ -56,6 +63,15 @@ export function SmokeFailureMetadataSavedFilters({
     } catch {
       setNotice("브라우저에 저장 필터를 기록하지 못했습니다.");
       return false;
+    }
+  };
+
+  const changeSort = (value: SmokeFailureMetadataSavedFilterSort) => {
+    setSort(value);
+    try {
+      localStorage.setItem(SMOKE_FAILURE_METADATA_SAVED_FILTER_SORT_STORAGE_KEY, value);
+    } catch {
+      setNotice("브라우저에 목록 정렬 기준을 저장하지 못했습니다.");
     }
   };
 
@@ -161,7 +177,7 @@ export function SmokeFailureMetadataSavedFilters({
             className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
             data-testid="smoke-failure-metadata-saved-filter-sort"
             onChange={(event) =>
-              setSort(event.target.value as SmokeFailureMetadataSavedFilterSort)
+              changeSort(event.target.value as SmokeFailureMetadataSavedFilterSort)
             }
             value={sort}
           >

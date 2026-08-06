@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import {
   normalizeSmokeFailureMetadataSavedFilterName,
+  parseSmokeFailureMetadataSavedFilterSort,
   parseSmokeFailureMetadataSavedFilters,
   removeSmokeFailureMetadataSavedFilter,
   renameSmokeFailureMetadataSavedFilter,
@@ -20,6 +21,9 @@ const loginFilters = {
 };
 
 assert.equal(normalizeSmokeFailureMetadataSavedFilterName("  최근   로그인  "), "최근 로그인");
+assert.equal(parseSmokeFailureMetadataSavedFilterSort(null), "recent");
+assert.equal(parseSmokeFailureMetadataSavedFilterSort("name_asc"), "name_asc");
+assert.equal(parseSmokeFailureMetadataSavedFilterSort("invalid"), "recent");
 assert.deepEqual(parseSmokeFailureMetadataSavedFilters(null), []);
 assert.deepEqual(parseSmokeFailureMetadataSavedFilters("invalid"), []);
 assert.deepEqual(

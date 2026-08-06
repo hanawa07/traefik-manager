@@ -7,6 +7,8 @@ import type {
 
 export const SMOKE_FAILURE_METADATA_SAVED_FILTERS_STORAGE_KEY =
   "traefik-manager:smoke-failure-metadata-saved-filters";
+export const SMOKE_FAILURE_METADATA_SAVED_FILTER_SORT_STORAGE_KEY =
+  "traefik-manager:smoke-failure-metadata-saved-filter-sort";
 export const SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT = 20;
 export const SMOKE_FAILURE_METADATA_SAVED_FILTER_NAME_LIMIT = 40;
 
@@ -14,6 +16,12 @@ export type SmokeFailureMetadataSavedFilterSort =
   | "recent"
   | "name_asc"
   | "name_desc";
+
+export function parseSmokeFailureMetadataSavedFilterSort(
+  value: string | null,
+): SmokeFailureMetadataSavedFilterSort {
+  return value === "name_asc" || value === "name_desc" ? value : "recent";
+}
 
 export interface SmokeFailureMetadataSavedFilter {
   filters: SmokeFailureMetadataFilters;
