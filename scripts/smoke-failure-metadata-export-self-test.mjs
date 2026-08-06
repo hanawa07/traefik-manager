@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildSmokeFailureMetadataExport,
   normalizeSmokeFailureMetadataExportBaseName,
+  resolveSmokeFailureMetadataExportFilenamePreference,
 } from "../frontend/src/features/settings/lib/smokeFailureMetadataExport.ts";
 
 const entries = [
@@ -33,6 +34,14 @@ assert.equal(
 assert.equal(
   normalizeSmokeFailureMetadataExportBaseName("🔥🔥"),
   "traefik-manager-smoke-failure-metadata",
+);
+assert.equal(
+  resolveSmokeFailureMetadataExportFilenamePreference(null),
+  "traefik-manager-smoke-failure-metadata",
+);
+assert.equal(
+  resolveSmokeFailureMetadataExportFilenamePreference("가".repeat(100)).length,
+  80,
 );
 assert.equal(csv.mimeType, "text/csv;charset=utf-8");
 assert.ok(csv.content.startsWith('\uFEFF"run_id","failure_type","captured_at"'));

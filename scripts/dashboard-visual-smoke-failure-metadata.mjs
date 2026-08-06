@@ -7,7 +7,10 @@ import {
   checkSmokeFailureMetadataCleanupPreview,
   checkSmokeFailureMetadataCleanupSuccess,
 } from "./dashboard-visual-smoke-failure-metadata-cleanup-preview.mjs";
-import { checkSmokeFailureMetadataExport } from "./dashboard-visual-smoke-failure-metadata-export.mjs";
+import {
+  checkSmokeFailureMetadataExport,
+  prepareSmokeFailureMetadataExportFilename,
+} from "./dashboard-visual-smoke-failure-metadata-export.mjs";
 import { checkSmokeFailureMetadataActiveFilters } from "./dashboard-visual-smoke-failure-metadata-active-filters.mjs";
 
 export function applySmokeFailureMetadataFixture(fixture) {
@@ -142,6 +145,7 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
   );
   await checkSmokeFailureMetadataActiveFilters({ cdp, timeoutMs });
   await checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs });
+  await prepareSmokeFailureMetadataExportFilename({ cdp });
 
   const requestPaused = cdp.waitFor("Fetch.requestPaused", timeoutMs);
   const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
@@ -170,7 +174,7 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
     "실패 정보 필터가 새로고침 후 복원되지 않았습니다",
   );
 
-  await checkSmokeFailureMetadataExport({ cdp, customRange });
+  await checkSmokeFailureMetadataExport({ cdp, customRange, timeoutMs });
 
   const hiddenSelectionCreated = await evaluate(cdp, `(() => {
     const type = document.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');

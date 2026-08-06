@@ -29,6 +29,8 @@ export type SmokeFailureMetadataExportScope = "all" | "filtered" | "selected";
 export const DEFAULT_SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME =
   "traefik-manager-smoke-failure-metadata";
 export const SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME_LIMIT = 80;
+export const SMOKE_FAILURE_METADATA_EXPORT_FILENAME_STORAGE_KEY =
+  "traefik-manager:smoke-failure-metadata-export-filename";
 
 export interface SmokeFailureMetadataExportFilters {
   end_date: string;
@@ -96,6 +98,15 @@ export function normalizeSmokeFailureMetadataExportBaseName(
     .join("")
     .replace(/^[._-]+|[._-]+$/g, "");
   return normalized || DEFAULT_SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME;
+}
+
+export function resolveSmokeFailureMetadataExportFilenamePreference(
+  value: string | null,
+): string {
+  if (!value) return DEFAULT_SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME;
+  return Array.from(value)
+    .slice(0, SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME_LIMIT)
+    .join("");
 }
 
 export function downloadSmokeFailureMetadata(

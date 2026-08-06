@@ -1,17 +1,35 @@
 import assert from "node:assert/strict";
 
-import { evaluate } from "./dashboard-visual-runtime.mjs";
+import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
-export async function checkSmokeFailureMetadataExport({ cdp, customRange }) {
-  const exported = await evaluate(cdp, `(async () => {
-    const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
-    const filename = management?.querySelector('[data-testid="smoke-failure-metadata-export-filename"]');
+const CUSTOM_FILENAME = "운영 / 실패 정보";
+const STORAGE_KEY = "traefik-manager:smoke-failure-metadata-export-filename";
+
+export async function prepareSmokeFailureMetadataExportFilename({ cdp }) {
+  const stored = await evaluate(cdp, `(async () => {
+    const filename = document.querySelector('[data-testid="smoke-failure-metadata-export-filename"]');
     if (!(filename instanceof HTMLInputElement)) return null;
     const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
     if (!setValue) return null;
-    setValue.call(filename, '운영 / 실패 정보');
+    setValue.call(filename, ${JSON.stringify(CUSTOM_FILENAME)});
     filename.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return localStorage.getItem(${JSON.stringify(STORAGE_KEY)});
+  })()`);
+  assert.equal(stored, CUSTOM_FILENAME, "실패 정보 내보내기 파일명이 브라우저에 저장되지 않았습니다");
+}
+
+export async function checkSmokeFailureMetadataExport({ cdp, customRange, timeoutMs }) {
+  await waitForCondition(
+    cdp,
+    `document.querySelector('[data-testid="smoke-failure-metadata-export-filename"]')?.value === ${JSON.stringify(CUSTOM_FILENAME)}`,
+    timeoutMs,
+    "실패 정보 내보내기 파일명이 새로고침 후 복원되지 않았습니다",
+  );
+  const exported = await evaluate(cdp, `(async () => {
+    const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
+    const filename = management?.querySelector('[data-testid="smoke-failure-metadata-export-filename"]');
+    if (!(filename instanceof HTMLInputElement) || filename.value !== ${JSON.stringify(CUSTOM_FILENAME)}) return null;
 
     const capture = async (testId) => {
       const button = management?.querySelector('[data-testid="' + testId + '"]');
@@ -39,13 +57,20 @@ export async function checkSmokeFailureMetadataExport({ cdp, customRange }) {
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const selectedCsv = await capture('smoke-failure-metadata-selected-csv');
     const selectedJson = await capture('smoke-failure-metadata-selected-export');
-    return { filteredCsv, filteredJson, selectedCsv, selectedJson };
+    return {
+      filteredCsv,
+      filteredJson,
+      selectedCsv,
+      selectedJson,
+      storedFilename: localStorage.getItem(${JSON.stringify(STORAGE_KEY)}),
+    };
   })()`);
 
   assert.ok(exported?.filteredCsv, "현재 필터 결과 CSV를 캡처하지 못했습니다");
   assert.ok(exported.filteredJson, "현재 필터 결과 JSON을 캡처하지 못했습니다");
   assert.ok(exported.selectedCsv, "선택 실패 정보 CSV를 캡처하지 못했습니다");
   assert.ok(exported.selectedJson, "선택 실패 정보 JSON을 캡처하지 못했습니다");
+  assert.equal(exported.storedFilename, CUSTOM_FILENAME);
   assert.match(exported.filteredCsv.filename, /^운영-실패-정보-filtered-\d{4}-\d{2}-\d{2}\.csv$/);
   assert.match(exported.filteredJson.filename, /^운영-실패-정보-filtered-\d{4}-\d{2}-\d{2}\.json$/);
   assert.match(exported.selectedCsv.filename, /^운영-실패-정보-selected-\d{4}-\d{2}-\d{2}\.csv$/);

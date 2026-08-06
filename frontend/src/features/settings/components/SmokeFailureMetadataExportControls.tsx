@@ -1,14 +1,16 @@
 "use client";
 
 import { Download } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { SmokeFailureMetadataEntry } from "@/features/settings/api/settingsApi";
 import {
   DEFAULT_SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME,
   downloadSmokeFailureMetadata,
   normalizeSmokeFailureMetadataExportBaseName,
+  resolveSmokeFailureMetadataExportFilenamePreference,
   SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME_LIMIT,
+  SMOKE_FAILURE_METADATA_EXPORT_FILENAME_STORAGE_KEY,
   type SmokeFailureMetadataExportFilters,
   type SmokeFailureMetadataExportFormat,
   type SmokeFailureMetadataExportScope,
@@ -31,6 +33,27 @@ export function SmokeFailureMetadataExportControls({
     DEFAULT_SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME,
   );
   const normalizedFilenameBase = normalizeSmokeFailureMetadataExportBaseName(filenameBase);
+
+  useEffect(() => {
+    try {
+      setFilenameBase(
+        resolveSmokeFailureMetadataExportFilenamePreference(
+          localStorage.getItem(SMOKE_FAILURE_METADATA_EXPORT_FILENAME_STORAGE_KEY),
+        ),
+      );
+    } catch {
+      // The default name remains usable when browser storage is unavailable.
+    }
+  }, []);
+
+  const changeFilenameBase = (value: string) => {
+    setFilenameBase(value);
+    try {
+      localStorage.setItem(SMOKE_FAILURE_METADATA_EXPORT_FILENAME_STORAGE_KEY, value);
+    } catch {
+      // Keep the current-session value even if persistence is blocked.
+    }
+  };
 
   const download = (
     entries: SmokeFailureMetadataEntry[],
@@ -58,7 +81,7 @@ export function SmokeFailureMetadataExportControls({
             className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
             data-testid="smoke-failure-metadata-export-filename"
             maxLength={SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME_LIMIT}
-            onChange={(event) => setFilenameBase(event.target.value)}
+            onChange={(event) => changeFilenameBase(event.target.value)}
             value={filenameBase}
           />
         </label>
@@ -66,7 +89,7 @@ export function SmokeFailureMetadataExportControls({
           className="break-all text-[11px] text-gray-500 dark:text-slate-400"
           data-testid="smoke-failure-metadata-export-filename-preview"
         >
-          생성 예: {normalizedFilenameBase}-filtered-YYYY-MM-DD.csv
+          생성 예: {normalizedFilenameBase}-filtered-YYYY-MM-DD.csv · 이 브라우저에 자동 저장
         </p>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
