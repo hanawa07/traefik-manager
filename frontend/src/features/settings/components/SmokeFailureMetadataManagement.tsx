@@ -148,6 +148,17 @@ export function SmokeFailureMetadataManagement({
           <Download className="h-3.5 w-3.5" /> 선택 JSON ({selectedEntries.length})
         </button>
         <button
+          className="btn-secondary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs"
+          data-testid="smoke-failure-metadata-selected-csv"
+          disabled={!selectedEntries.length}
+          onClick={() =>
+            downloadSmokeFailureMetadata(selectedEntries, timezone, "selected", "csv")
+          }
+          type="button"
+        >
+          <Download className="h-3.5 w-3.5" /> 선택 CSV ({selectedEntries.length})
+        </button>
+        <button
           className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-950/40"
           data-testid="smoke-failure-metadata-cleanup"
           disabled={!selectedEntries.length || cleanup.isPending}

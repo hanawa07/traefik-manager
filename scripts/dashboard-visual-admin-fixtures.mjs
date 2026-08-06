@@ -6,6 +6,10 @@ import {
 } from "./dashboard-visual-artifacts.mjs";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 import { checkServiceGatewayImportAdminFixture } from "./dashboard-visual-service-gateway-import.mjs";
+import {
+  applySmokeFailureMetadataFixture,
+  checkSmokeFailureMetadataManagement,
+} from "./dashboard-visual-smoke-failure-metadata.mjs";
 import { fulfillJsonRequest } from "./dashboard-visual-smoke-history-fixture.mjs";
 import { checkSmokeLocalRunFilters } from "./dashboard-visual-smoke-statistics-history.mjs";
 import { checkTraefikAlertRetryAdminFixture } from "./dashboard-visual-traefik-alert-retry.mjs";
@@ -273,25 +277,7 @@ async function checkSmokeRateLimitAdminFixture({
     fixture.monitoring_github_last_workflow_request_count = 1;
     fixture.monitoring_github_last_job_request_count = 4;
     fixture.monitoring_github_last_artifact_request_count = 1;
-    fixture.monitoring_failure_metadata_count = 2;
-    fixture.monitoring_failure_metadata_entries = [
-      {
-        run_id: 987,
-        captured_at: new Date(Date.now() - 60_000).toISOString(),
-        check_name: '관리자 로그인 검사 실패',
-        failure_type: 'login',
-        screen_path: '/login',
-        page_title: '로그인',
-      },
-      {
-        run_id: 986,
-        captured_at: new Date(Date.now() - 10 * 24 * 60 * 60_000).toISOString(),
-        check_name: '외부 API 검사 실패',
-        failure_type: 'external_api',
-        screen_path: null,
-        page_title: null,
-      },
-    ];
+    applySmokeFailureMetadataFixture(fixture);
 
     await cdp.send("Fetch.enable", {
       patterns: [{
@@ -324,11 +310,6 @@ async function checkSmokeRateLimitAdminFixture({
         const alertTest = document.querySelector('[data-testid="smoke-github-rate-limit-alert-test"]');
         const alertSuccess = document.querySelector('[data-testid="smoke-github-rate-limit-alert-last-success"]');
         const smokeCard = document.querySelector('[data-testid="smoke-rotation-status-card"]');
-        const failureMetadataManagement = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
-        const failureMetadataExport = document.querySelector('[data-testid="smoke-failure-metadata-export"]');
-        const failureMetadataSelectedExport = document.querySelector('[data-testid="smoke-failure-metadata-selected-export"]');
-        const failureMetadataTypeFilter = document.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');
-        const failureMetadataPeriodFilter = document.querySelector('[data-testid="smoke-failure-metadata-period-filter"]');
         const primarySuccess = document.querySelector('[data-testid="smoke-github-primary-rate-limit-operational-last-success"]');
         const secondarySuccess = document.querySelector('[data-testid="smoke-github-secondary-rate-limit-operational-last-success"]');
         const primaryNextAlertAt = document.querySelector('[data-testid="smoke-github-primary-rate-limit-next-alert-at"]');
@@ -339,11 +320,6 @@ async function checkSmokeRateLimitAdminFixture({
           alertSuccess?.textContent?.includes('최근 제한 알림 테스트 성공') &&
           smokeCard?.textContent?.includes('실패 유형 증가 최근 dry-run 결과') &&
           smokeCard?.textContent?.includes('실패 유형 증가 dry-run 최근 이력') &&
-          failureMetadataManagement instanceof HTMLDetailsElement &&
-          failureMetadataExport instanceof HTMLButtonElement &&
-          failureMetadataSelectedExport instanceof HTMLButtonElement &&
-          failureMetadataTypeFilter instanceof HTMLSelectElement &&
-          failureMetadataPeriodFilter instanceof HTMLSelectElement &&
           primarySuccess?.textContent?.includes('기본 제한 운영 알림 성공') &&
           secondarySuccess?.textContent?.includes('보조 제한 운영 알림 성공') &&
           primaryNextAlertAt?.textContent?.includes('기본 제한 다음 재알림 가능') &&
@@ -372,64 +348,7 @@ async function checkSmokeRateLimitAdminFixture({
       timeoutMs,
       "GitHub API 초기화 후 관리자 새로고침 버튼이 자동 해제되지 않았습니다",
     );
-    const metadataFiltersChanged = await evaluate(cdp, `(() => {
-      const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
-      if (management instanceof HTMLDetailsElement) management.open = true;
-      const type = management?.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');
-      const period = management?.querySelector('[data-testid="smoke-failure-metadata-period-filter"]');
-      if (!(type instanceof HTMLSelectElement) || !(period instanceof HTMLSelectElement)) return false;
-      type.value = 'login';
-      type.dispatchEvent(new Event('change', { bubbles: true }));
-      period.value = '7';
-      period.dispatchEvent(new Event('change', { bubbles: true }));
-      return true;
-    })()`);
-    assert.equal(metadataFiltersChanged, true, "실패 정보 필터를 변경하지 못했습니다");
-    await waitForCondition(
-      cdp,
-      `location.search.includes('smoke_metadata_type=login') &&
-        location.search.includes('smoke_metadata_period=7') &&
-        document.querySelector('[data-testid="smoke-failure-metadata-result-count"]')?.textContent?.includes('조회 1/2건')`,
-      timeoutMs,
-      "실패 정보 필터가 URL과 결과에 반영되지 않았습니다",
-    );
-    const metadataReloadRequest = cdp.waitFor("Fetch.requestPaused", timeoutMs);
-    const metadataReloaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
-    await cdp.send("Page.reload", { ignoreCache: true });
-    await fulfillJsonRequest(cdp, await metadataReloadRequest, fixture);
-    await metadataReloaded;
-    await waitForCondition(
-      cdp,
-      `(() => {
-        const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
-        if (management instanceof HTMLDetailsElement) management.open = true;
-        const type = management?.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');
-        const period = management?.querySelector('[data-testid="smoke-failure-metadata-period-filter"]');
-        const runLink = management?.querySelector('[data-testid="smoke-failure-metadata-run-link"]');
-        return type?.value === 'login' && period?.value === '7' &&
-          runLink?.getAttribute('href')?.endsWith('/actions/runs/987') &&
-          management?.querySelector('[data-testid="smoke-failure-metadata-result-count"]')?.textContent?.includes('조회 1/2건');
-      })()`,
-      timeoutMs,
-      "실패 정보 필터가 새로고침 후 복원되지 않았습니다",
-    );
-    await evaluate(cdp, `(() => {
-      const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
-      for (const testId of ['smoke-failure-metadata-type-filter', 'smoke-failure-metadata-period-filter']) {
-        const select = management?.querySelector('[data-testid="' + testId + '"]');
-        if (select instanceof HTMLSelectElement) {
-          select.value = 'all';
-          select.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }
-    })()`);
-    await waitForCondition(
-      cdp,
-      `!location.search.includes('smoke_metadata_type') &&
-        !location.search.includes('smoke_metadata_period')`,
-      timeoutMs,
-      "실패 정보 기본 필터가 URL에서 제거되지 않았습니다",
-    );
+    await checkSmokeFailureMetadataManagement({ cdp, fixture, timeoutMs });
   } catch (error) {
     await Promise.allSettled([
       captureVisualScreenshot({ artifactDir, cdp, name: "admin-smoke-rate-limit-failure" }),
