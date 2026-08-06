@@ -6,6 +6,7 @@ import {
   parseSmokeFailureMetadataFilters,
   SMOKE_FAILURE_METADATA_QUERY,
   type SmokeFailureMetadataPeriodFilter,
+  type SmokeFailureMetadataSort,
   type SmokeFailureMetadataTypeFilter,
 } from "@/features/settings/lib/smokeFailureMetadataFilters";
 import { replaceBrowserQueryParams } from "@/shared/lib/replaceBrowserQueryParams";
@@ -16,6 +17,7 @@ export function useSmokeFailureMetadataFilters() {
     useState<SmokeFailureMetadataPeriodFilter>("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [sort, setSort] = useState<SmokeFailureMetadataSort>("newest");
 
   useEffect(() => {
     const filters = parseSmokeFailureMetadataFilters(window.location.search);
@@ -23,6 +25,7 @@ export function useSmokeFailureMetadataFilters() {
     setPeriodFilter(filters.period);
     setStartDate(filters.startDate);
     setEndDate(filters.endDate);
+    setSort(filters.sort);
   }, []);
 
   const changeTypeFilter = (value: SmokeFailureMetadataTypeFilter) => {
@@ -45,6 +48,10 @@ export function useSmokeFailureMetadataFilters() {
     setEndDate(value);
     replaceBrowserQueryParams([[SMOKE_FAILURE_METADATA_QUERY.endDate, value, ""]]);
   };
+  const changeSort = (value: SmokeFailureMetadataSort) => {
+    setSort(value);
+    replaceBrowserQueryParams([[SMOKE_FAILURE_METADATA_QUERY.sort, value, "newest"]]);
+  };
   const changeDateRange = (nextStartDate: string, nextEndDate: string) => {
     setPeriodFilter("custom");
     setStartDate(nextStartDate);
@@ -61,9 +68,11 @@ export function useSmokeFailureMetadataFilters() {
     changeEndDate,
     changePeriodFilter,
     changeStartDate,
+    changeSort,
     changeTypeFilter,
     endDate,
     periodFilter,
+    sort,
     startDate,
     typeFilter,
   };

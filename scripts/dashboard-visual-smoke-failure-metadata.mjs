@@ -41,11 +41,27 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
         management.querySelector('[data-testid="smoke-failure-metadata-select-all"]') instanceof HTMLButtonElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-type-filter"]') instanceof HTMLSelectElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-period-filter"]') instanceof HTMLSelectElement &&
+        management.querySelector('[data-testid="smoke-failure-metadata-sort"]') instanceof HTMLSelectElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-period-filter"] option[value="custom"]') instanceof HTMLOptionElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-date-preset-today"]') instanceof HTMLButtonElement;
     })()`,
     timeoutMs,
     "실패 정보 관리·내보내기 컨트롤을 찾지 못했습니다",
+  );
+  const sorted = await evaluate(cdp, `(() => {
+    const sort = document.querySelector('[data-testid="smoke-failure-metadata-sort"]');
+    if (!(sort instanceof HTMLSelectElement)) return false;
+    sort.value = 'run_asc';
+    sort.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(sorted, true, "실패 정보 정렬을 변경하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `new URLSearchParams(location.search).get('smoke_metadata_sort') === 'run_asc' &&
+      document.querySelector('[data-testid="smoke-failure-metadata-run-link"]')?.getAttribute('href')?.endsWith('/actions/runs/986')`,
+    timeoutMs,
+    "실패 정보 실행 번호 낮은순 정렬이 반영되지 않았습니다",
   );
   const changed = await evaluate(cdp, `(() => {
     const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
@@ -122,10 +138,11 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
       if (management instanceof HTMLDetailsElement) management.open = true;
       const type = management?.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');
       const period = management?.querySelector('[data-testid="smoke-failure-metadata-period-filter"]');
+      const sort = management?.querySelector('[data-testid="smoke-failure-metadata-sort"]');
       const start = management?.querySelector('[data-testid="smoke-failure-metadata-start-date"]');
       const end = management?.querySelector('[data-testid="smoke-failure-metadata-end-date"]');
       const runLink = management?.querySelector('[data-testid="smoke-failure-metadata-run-link"]');
-      return type?.value === 'login' && period?.value === 'custom' &&
+      return type?.value === 'login' && period?.value === 'custom' && sort?.value === 'run_asc' &&
         start?.value === ${JSON.stringify(customRange.startDate)} &&
         end?.value === ${JSON.stringify(customRange.endDate)} &&
         runLink?.getAttribute('href')?.endsWith('/actions/runs/987') &&
@@ -265,10 +282,14 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
 
   await evaluate(cdp, `(() => {
     const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
-    for (const testId of ['smoke-failure-metadata-type-filter', 'smoke-failure-metadata-period-filter']) {
+    for (const [testId, value] of [
+      ['smoke-failure-metadata-type-filter', 'all'],
+      ['smoke-failure-metadata-period-filter', 'all'],
+      ['smoke-failure-metadata-sort', 'newest'],
+    ]) {
       const select = management?.querySelector('[data-testid="' + testId + '"]');
       if (select instanceof HTMLSelectElement) {
-        select.value = 'all';
+        select.value = value;
         select.dispatchEvent(new Event('change', { bubbles: true }));
       }
     }
@@ -278,7 +299,8 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
     `!location.search.includes('smoke_metadata_type') &&
       !location.search.includes('smoke_metadata_period') &&
       !location.search.includes('smoke_metadata_from') &&
-      !location.search.includes('smoke_metadata_to')`,
+      !location.search.includes('smoke_metadata_to') &&
+      !location.search.includes('smoke_metadata_sort')`,
     timeoutMs,
     "실패 정보 기본 필터가 URL에서 제거되지 않았습니다",
   );

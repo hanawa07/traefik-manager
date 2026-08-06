@@ -8,7 +8,9 @@ import { useCleanupSmokeFailureMetadata } from "@/features/settings/hooks/useSet
 import { downloadSmokeFailureMetadata } from "@/features/settings/lib/smokeFailureMetadataExport";
 import {
   filterSmokeFailureMetadata,
+  sortSmokeFailureMetadata,
   type SmokeFailureMetadataPeriodFilter,
+  type SmokeFailureMetadataSort,
   type SmokeFailureMetadataTypeFilter,
 } from "@/features/settings/lib/smokeFailureMetadataFilters";
 import { githubActionsRunUrl } from "@/features/settings/lib/smokeGithubUrls";
@@ -41,9 +43,11 @@ export function SmokeFailureMetadataManagement({
     changeEndDate,
     changePeriodFilter,
     changeStartDate,
+    changeSort,
     changeTypeFilter,
     endDate,
     periodFilter,
+    sort,
     startDate,
     typeFilter,
   } = useSmokeFailureMetadataFilters();
@@ -51,11 +55,14 @@ export function SmokeFailureMetadataManagement({
   const [notice, setNotice] = useState("");
   const activeStartDate = periodFilter === "custom" ? startDate : "";
   const activeEndDate = periodFilter === "custom" ? endDate : "";
-  const visibleEntries = filterSmokeFailureMetadata(entries, typeFilter, periodFilter, {
-    endDate: activeEndDate,
-    startDate: activeStartDate,
-    timezone,
-  });
+  const visibleEntries = sortSmokeFailureMetadata(
+    filterSmokeFailureMetadata(entries, typeFilter, periodFilter, {
+      endDate: activeEndDate,
+      startDate: activeStartDate,
+      timezone,
+    }),
+    sort,
+  );
   const selectedEntries = entries.filter((entry) => selectedRunIds.has(entry.run_id));
   const visibleSelectedCount = visibleEntries.filter((entry) =>
     selectedRunIds.has(entry.run_id),
@@ -113,7 +120,7 @@ export function SmokeFailureMetadataManagement({
       <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
         실패 분류 정보 관리 {entries.length}건
       </summary>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto] lg:items-end">
         <label className="grid gap-1 text-[11px] text-gray-500 dark:text-slate-400">
           실패 유형
           <select
@@ -146,6 +153,21 @@ export function SmokeFailureMetadataManagement({
             <option value="7">최근 7일</option>
             <option value="30">최근 30일</option>
             <option value="custom">사용자 지정</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-[11px] text-gray-500 dark:text-slate-400">
+          정렬
+          <select
+            aria-label="실패 분류 정보 정렬"
+            className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+            data-testid="smoke-failure-metadata-sort"
+            onChange={(event) => changeSort(event.target.value as SmokeFailureMetadataSort)}
+            value={sort}
+          >
+            <option value="newest">최신순</option>
+            <option value="oldest">오래된순</option>
+            <option value="run_desc">실행 번호 높은순</option>
+            <option value="run_asc">실행 번호 낮은순</option>
           </select>
         </label>
         <span

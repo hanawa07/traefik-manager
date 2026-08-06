@@ -5,6 +5,7 @@ import {
   filterSmokeFailureMetadata,
   parseSmokeFailureMetadataFilters,
   SMOKE_FAILURE_METADATA_QUERY,
+  sortSmokeFailureMetadata,
 } from "../frontend/src/features/settings/lib/smokeFailureMetadataFilters.ts";
 
 const presetNow = Date.parse("2026-01-01T15:30:00Z");
@@ -46,6 +47,24 @@ const entries = [
 ];
 
 assert.deepEqual(
+  sortSmokeFailureMetadata(entries, "newest").map(({ run_id }) => run_id),
+  [1, 2, 3, 4],
+);
+assert.deepEqual(
+  sortSmokeFailureMetadata(entries, "oldest").map(({ run_id }) => run_id),
+  [3, 2, 1, 4],
+);
+assert.deepEqual(
+  sortSmokeFailureMetadata(entries, "run_desc").map(({ run_id }) => run_id),
+  [4, 3, 2, 1],
+);
+assert.deepEqual(
+  sortSmokeFailureMetadata(entries, "run_asc").map(({ run_id }) => run_id),
+  [1, 2, 3, 4],
+);
+assert.deepEqual(entries.map(({ run_id }) => run_id), [1, 2, 3, 4]);
+
+assert.deepEqual(
   filterSmokeFailureMetadata(entries, "login", "all", { now }).map(({ run_id }) => run_id),
   [1, 4],
 );
@@ -80,19 +99,29 @@ assert.deepEqual(
   parseSmokeFailureMetadataFilters(
     `?${SMOKE_FAILURE_METADATA_QUERY.type}=login&${SMOKE_FAILURE_METADATA_QUERY.period}=7`,
   ),
-  { endDate: "", period: "7", startDate: "", type: "login" },
+  { endDate: "", period: "7", sort: "newest", startDate: "", type: "login" },
 );
 assert.deepEqual(
   parseSmokeFailureMetadataFilters(
     "?smoke_metadata_period=custom&smoke_metadata_from=2026-08-01&smoke_metadata_to=2026-08-06",
   ),
-  { endDate: "2026-08-06", period: "custom", startDate: "2026-08-01", type: "all" },
+  {
+    endDate: "2026-08-06",
+    period: "custom",
+    sort: "newest",
+    startDate: "2026-08-01",
+    type: "all",
+  },
 );
 assert.deepEqual(
   parseSmokeFailureMetadataFilters(
     "?smoke_metadata_type=unknown&smoke_metadata_period=custom&smoke_metadata_from=2026-02-30",
   ),
-  { endDate: "", period: "custom", startDate: "", type: "all" },
+  { endDate: "", period: "custom", sort: "newest", startDate: "", type: "all" },
+);
+assert.equal(
+  parseSmokeFailureMetadataFilters("?smoke_metadata_sort=run_asc").sort,
+  "run_asc",
 );
 
 console.log("스모크 실패 정보 유형·기간 필터 self-test 통과");

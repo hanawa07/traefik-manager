@@ -5,6 +5,7 @@ import type {
 
 export type SmokeFailureMetadataTypeFilter = "all" | SmokeFailureType;
 export type SmokeFailureMetadataPeriodFilter = "all" | "7" | "30" | "custom";
+export type SmokeFailureMetadataSort = "newest" | "oldest" | "run_desc" | "run_asc";
 export type SmokeFailureMetadataDatePreset =
   | "today"
   | "yesterday"
@@ -26,6 +27,7 @@ export interface SmokeFailureMetadataFilterOptions {
 export const SMOKE_FAILURE_METADATA_QUERY = {
   endDate: "smoke_metadata_to",
   period: "smoke_metadata_period",
+  sort: "smoke_metadata_sort",
   startDate: "smoke_metadata_from",
   type: "smoke_metadata_type",
 } as const;
@@ -79,14 +81,37 @@ export function filterSmokeFailureMetadata(
   });
 }
 
+export function sortSmokeFailureMetadata(
+  entries: SmokeFailureMetadataEntry[],
+  sort: SmokeFailureMetadataSort,
+): SmokeFailureMetadataEntry[] {
+  return [...entries].sort((left, right) => {
+    if (sort === "run_desc") return right.run_id - left.run_id;
+    if (sort === "run_asc") return left.run_id - right.run_id;
+    const leftTime = Date.parse(left.captured_at);
+    const rightTime = Date.parse(right.captured_at);
+    const leftValid = Number.isFinite(leftTime);
+    const rightValid = Number.isFinite(rightTime);
+    if (!leftValid || !rightValid) {
+      if (leftValid) return -1;
+      if (rightValid) return 1;
+      return right.run_id - left.run_id;
+    }
+    if (leftTime === rightTime) return right.run_id - left.run_id;
+    return sort === "oldest" ? leftTime - rightTime : rightTime - leftTime;
+  });
+}
+
 export function parseSmokeFailureMetadataFilters(search: string): {
   endDate: string;
   period: SmokeFailureMetadataPeriodFilter;
+  sort: SmokeFailureMetadataSort;
   startDate: string;
   type: SmokeFailureMetadataTypeFilter;
 } {
   const params = new URLSearchParams(search);
   const periodValue = params.get(SMOKE_FAILURE_METADATA_QUERY.period);
+  const sortValue = params.get(SMOKE_FAILURE_METADATA_QUERY.sort);
   const type = params.get(SMOKE_FAILURE_METADATA_QUERY.type);
   const period =
     periodValue === "7" || periodValue === "30" || periodValue === "custom"
@@ -98,6 +123,10 @@ export function parseSmokeFailureMetadataFilters(search: string): {
         ? normalizeCalendarDate(params.get(SMOKE_FAILURE_METADATA_QUERY.endDate))
         : "",
     period,
+    sort:
+      sortValue === "oldest" || sortValue === "run_desc" || sortValue === "run_asc"
+        ? sortValue
+        : "newest",
     startDate:
       period === "custom"
         ? normalizeCalendarDate(params.get(SMOKE_FAILURE_METADATA_QUERY.startDate))
