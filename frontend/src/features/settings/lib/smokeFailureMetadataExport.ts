@@ -23,6 +23,9 @@ const CSV_FILTER_COLUMNS = [
 
 export type SmokeFailureMetadataExportFormat = "csv" | "json";
 export type SmokeFailureMetadataExportScope = "all" | "filtered" | "selected";
+export const DEFAULT_SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME =
+  "traefik-manager-smoke-failure-metadata";
+export const SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME_LIMIT = 80;
 
 export interface SmokeFailureMetadataExportFilters {
   end_date: string;
@@ -33,6 +36,7 @@ export interface SmokeFailureMetadataExportFilters {
 
 export interface SmokeFailureMetadataExportOptions {
   exportedAt?: string;
+  filenameBase?: string;
   filters?: SmokeFailureMetadataExportFilters;
   format: SmokeFailureMetadataExportFormat;
   scope: SmokeFailureMetadataExportScope;
@@ -66,10 +70,27 @@ export function buildSmokeFailureMetadataExport(
       );
   return {
     content,
-    filename: `traefik-manager-smoke-failure-metadata-${options.scope}-${exportedAt.slice(0, 10)}.${extension}`,
+    filename: `${normalizeSmokeFailureMetadataExportBaseName(options.filenameBase)}-${options.scope}-${exportedAt.slice(0, 10)}.${extension}`,
     mimeType:
       options.format === "csv" ? "text/csv;charset=utf-8" : "application/json;charset=utf-8",
   };
+}
+
+export function normalizeSmokeFailureMetadataExportBaseName(
+  value?: string,
+): string {
+  const normalized = Array.from(
+    (value || DEFAULT_SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME)
+      .normalize("NFKC")
+      .trim()
+      .replace(/[^\p{L}\p{N}._-]+/gu, "-")
+      .replace(/\.{2,}/g, ".")
+      .replace(/-{2,}/g, "-"),
+  )
+    .slice(0, SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME_LIMIT)
+    .join("")
+    .replace(/^[._-]+|[._-]+$/g, "");
+  return normalized || DEFAULT_SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME;
 }
 
 export function downloadSmokeFailureMetadata(

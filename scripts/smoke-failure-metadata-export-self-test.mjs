@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import {
   buildSmokeFailureMetadataExport,
+  normalizeSmokeFailureMetadataExportBaseName,
 } from "../frontend/src/features/settings/lib/smokeFailureMetadataExport.ts";
 
 const entries = [
@@ -25,6 +26,14 @@ assert.equal(
   csv.filename,
   "traefik-manager-smoke-failure-metadata-selected-2026-08-06.csv",
 );
+assert.equal(
+  normalizeSmokeFailureMetadataExportBaseName("  ../운영 / 실패   정보  "),
+  "운영-실패-정보",
+);
+assert.equal(
+  normalizeSmokeFailureMetadataExportBaseName("🔥🔥"),
+  "traefik-manager-smoke-failure-metadata",
+);
 assert.equal(csv.mimeType, "text/csv;charset=utf-8");
 assert.ok(csv.content.startsWith('\uFEFF"run_id","failure_type","captured_at"'));
 assert.ok(csv.content.includes('"987","login","2026-08-06T00:00:00Z"'));
@@ -42,6 +51,15 @@ assert.equal(payload.metadata.result_count, 1);
 assert.equal(payload.metadata.scope, "selected");
 assert.equal(payload.metadata.timezone, "Asia/Seoul");
 assert.equal(payload.entries[0].run_id, 987);
+
+const customJson = buildSmokeFailureMetadataExport(entries, {
+  exportedAt: "2026-08-06T01:02:03Z",
+  filenameBase: "운영 / 실패 정보",
+  format: "json",
+  scope: "selected",
+  timezone: "Asia/Seoul",
+});
+assert.equal(customJson.filename, "운영-실패-정보-selected-2026-08-06.json");
 
 const filteredJson = buildSmokeFailureMetadataExport(entries, {
   exportedAt: "2026-08-06T01:02:03Z",

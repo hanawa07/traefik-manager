@@ -4,6 +4,7 @@ import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 import { fulfillJsonRequest } from "./dashboard-visual-smoke-history-fixture.mjs";
 import { checkSmokeFailureMetadataSavedFilters } from "./dashboard-visual-smoke-failure-metadata-saved-filters.mjs";
 import { checkSmokeFailureMetadataCleanupPreview } from "./dashboard-visual-smoke-failure-metadata-cleanup-preview.mjs";
+import { checkSmokeFailureMetadataExport } from "./dashboard-visual-smoke-failure-metadata-export.mjs";
 
 export function applySmokeFailureMetadataFixture(fixture) {
   fixture.monitoring_failure_metadata_count = 2;
@@ -155,53 +156,7 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
     "실패 정보 필터가 새로고침 후 복원되지 않았습니다",
   );
 
-  const exported = await evaluate(cdp, `(async () => {
-    const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
-    const captureCsv = async (button) => {
-      if (!(button instanceof HTMLButtonElement) || button.disabled) return null;
-      const originalCreateObjectUrl = URL.createObjectURL;
-      const originalClick = HTMLAnchorElement.prototype.click;
-      let blob = null;
-      let filename = '';
-      try {
-        URL.createObjectURL = (value) => { blob = value; return 'blob:smoke-failure-metadata'; };
-        HTMLAnchorElement.prototype.click = function () { filename = this.download; };
-        button.click();
-        return { content: blob ? await blob.text() : '', filename };
-      } finally {
-        URL.createObjectURL = originalCreateObjectUrl;
-        HTMLAnchorElement.prototype.click = originalClick;
-      }
-    };
-    const filtered = await captureCsv(
-      management?.querySelector('[data-testid="smoke-failure-metadata-filtered-csv"]'),
-    );
-    const selectVisible = management?.querySelector('[data-testid="smoke-failure-metadata-select-visible"]');
-    if (!(selectVisible instanceof HTMLButtonElement) || selectVisible.disabled) return null;
-    selectVisible.click();
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    const selected = await captureCsv(
-      management?.querySelector('[data-testid="smoke-failure-metadata-selected-csv"]'),
-    );
-    return { filtered, selected };
-  })()`);
-  assert.ok(exported?.filtered, "현재 필터 결과 CSV를 캡처하지 못했습니다");
-  assert.ok(exported.selected, "선택 실패 정보 CSV를 캡처하지 못했습니다");
-  assert.match(exported.filtered.filename, /^traefik-manager-smoke-failure-metadata-filtered-\d{4}-\d{2}-\d{2}\.csv$/);
-  assert.match(exported.selected.filename, /^traefik-manager-smoke-failure-metadata-selected-\d{4}-\d{2}-\d{2}\.csv$/);
-  for (const result of [exported.filtered, exported.selected]) {
-    assert.match(result.content, /^"run_id","failure_type","captured_at"/);
-    assert.match(result.content, /"987","login"/);
-    assert.doesNotMatch(result.content, /"986","external_api"/);
-  }
-  assert.match(
-    exported.filtered.content,
-    /"filter_type","filter_period","filter_start_date","filter_end_date","filter_timezone"/,
-  );
-  assert.match(
-    exported.filtered.content,
-    new RegExp(`"login","custom","${customRange.startDate}","${customRange.endDate}",`),
-  );
+  await checkSmokeFailureMetadataExport({ cdp, customRange });
 
   const hiddenSelectionCreated = await evaluate(cdp, `(() => {
     const type = document.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');
