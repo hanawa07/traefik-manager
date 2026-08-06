@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import {
   buildSmokeFailureMetadataDatePresetRange,
   type SmokeFailureMetadataDatePreset,
@@ -37,23 +35,9 @@ export function SmokeFailureMetadataDateFilters({
   startDate,
   timezone,
 }: SmokeFailureMetadataDateFiltersProps) {
-  const [activePreset, setActivePreset] =
-    useState<SmokeFailureMetadataDatePreset | null>(null);
   const invalidDateRange = Boolean(
     period === "custom" && startDate && endDate && startDate > endDate,
   );
-
-  useEffect(() => {
-    if (!activePreset) return;
-    const range = buildSmokeFailureMetadataDatePresetRange(activePreset, { timezone });
-    if (
-      period !== "custom" ||
-      range.startDate !== startDate ||
-      range.endDate !== endDate
-    ) {
-      setActivePreset(null);
-    }
-  }, [activePreset, endDate, period, startDate, timezone]);
 
   return (
     <>
@@ -66,7 +50,11 @@ export function SmokeFailureMetadataDateFilters({
           빠른 기간
         </span>
         {DATE_PRESETS.map(({ label, value }) => {
-          const active = period === "custom" && activePreset === value;
+          const range = buildSmokeFailureMetadataDatePresetRange(value, { timezone });
+          const active =
+            period === "custom" &&
+            range.startDate === startDate &&
+            range.endDate === endDate;
           return (
             <button
               aria-pressed={active}
@@ -77,11 +65,7 @@ export function SmokeFailureMetadataDateFilters({
               }`}
               data-testid={`smoke-failure-metadata-date-preset-${value}`}
               key={value}
-              onClick={() => {
-                const range = buildSmokeFailureMetadataDatePresetRange(value, { timezone });
-                setActivePreset(value);
-                onRangeChange(range.startDate, range.endDate);
-              }}
+              onClick={() => onRangeChange(range.startDate, range.endDate)}
               type="button"
             >
               {label}
@@ -101,10 +85,7 @@ export function SmokeFailureMetadataDateFilters({
               className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
               data-testid="smoke-failure-metadata-start-date"
               max={endDate || undefined}
-              onChange={(event) => {
-                setActivePreset(null);
-                onStartDateChange(event.target.value);
-              }}
+              onChange={(event) => onStartDateChange(event.target.value)}
               type="date"
               value={startDate}
             />
@@ -116,10 +97,7 @@ export function SmokeFailureMetadataDateFilters({
               className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
               data-testid="smoke-failure-metadata-end-date"
               min={startDate || undefined}
-              onChange={(event) => {
-                setActivePreset(null);
-                onEndDateChange(event.target.value);
-              }}
+              onChange={(event) => onEndDateChange(event.target.value)}
               type="date"
               value={endDate}
             />

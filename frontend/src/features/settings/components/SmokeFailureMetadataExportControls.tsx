@@ -72,28 +72,24 @@ export function SmokeFailureMetadataExportControls({
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <ExportButton
           count={filteredEntries.length}
-          format="json"
           label="현재 JSON"
           onClick={() => download(filteredEntries, "json", "filtered")}
           testId="smoke-failure-metadata-export"
         />
         <ExportButton
           count={filteredEntries.length}
-          format="csv"
           label="현재 CSV"
           onClick={() => download(filteredEntries, "csv", "filtered")}
           testId="smoke-failure-metadata-filtered-csv"
         />
         <ExportButton
           count={selectedEntries.length}
-          format="json"
           label="선택 JSON"
           onClick={() => download(selectedEntries, "json", "selected")}
           testId="smoke-failure-metadata-selected-export"
         />
         <ExportButton
           count={selectedEntries.length}
-          format="csv"
           label="선택 CSV"
           onClick={() => download(selectedEntries, "csv", "selected")}
           testId="smoke-failure-metadata-selected-csv"
@@ -105,18 +101,16 @@ export function SmokeFailureMetadataExportControls({
 
 interface ExportButtonProps {
   count: number;
-  format: SmokeFailureMetadataExportFormat;
   label: string;
   onClick: () => void;
   testId: string;
 }
 
-function ExportButton({ count, format, label, onClick, testId }: ExportButtonProps) {
+function ExportButton({ count, label, onClick, testId }: ExportButtonProps) {
   return (
     <button
       aria-label={`${label} ${count}건 내보내기`}
       className="btn-secondary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs"
-      data-export-format={format}
       data-testid={testId}
       disabled={!count}
       onClick={onClick}
