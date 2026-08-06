@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Trash2 } from "lucide-react";
+import { Download, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
 import type { SmokeFailureMetadataEntry } from "@/features/settings/api/settingsApi";
@@ -52,6 +52,10 @@ export function SmokeFailureMetadataManagement({
     timezone,
   });
   const selectedEntries = entries.filter((entry) => selectedRunIds.has(entry.run_id));
+  const visibleSelectedCount = visibleEntries.filter((entry) =>
+    selectedRunIds.has(entry.run_id),
+  ).length;
+  const hiddenSelectedCount = selectedEntries.length - visibleSelectedCount;
   const allVisibleSelected =
     visibleEntries.length > 0 &&
     visibleEntries.every((entry) => selectedRunIds.has(entry.run_id));
@@ -208,6 +212,18 @@ export function SmokeFailureMetadataManagement({
           <Download className="h-3.5 w-3.5" /> 선택 CSV ({selectedEntries.length})
         </button>
         <button
+          className="btn-secondary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs"
+          data-testid="smoke-failure-metadata-clear-selection"
+          disabled={!selectedEntries.length}
+          onClick={() => {
+            setSelectedRunIds(new Set());
+            setNotice("선택을 모두 해제했습니다.");
+          }}
+          type="button"
+        >
+          <X className="h-3.5 w-3.5" /> 선택 전체 해제
+        </button>
+        <button
           className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-950/40"
           data-testid="smoke-failure-metadata-cleanup"
           disabled={!selectedEntries.length || cleanup.isPending}
@@ -217,10 +233,23 @@ export function SmokeFailureMetadataManagement({
           <Trash2 className="h-3.5 w-3.5" />
           {cleanup.isPending ? "정리 중" : `선택 정리 (${selectedEntries.length})`}
         </button>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
         <span
           aria-live="polite"
-          className="text-xs text-gray-500 dark:text-slate-400"
+          className={
+            hiddenSelectedCount
+              ? "font-medium text-amber-700 dark:text-amber-300"
+              : "text-gray-500 dark:text-slate-400"
+          }
+          data-hidden-count={hiddenSelectedCount}
+          data-testid="smoke-failure-metadata-selection-summary"
         >
+          {selectedEntries.length
+            ? `선택 ${selectedEntries.length}건 · 현재 결과 ${visibleSelectedCount}건 · 숨김 ${hiddenSelectedCount}건`
+            : "선택 없음"}
+        </span>
+        <span aria-live="polite" className="text-gray-500 dark:text-slate-400">
           {notice}
         </span>
       </div>

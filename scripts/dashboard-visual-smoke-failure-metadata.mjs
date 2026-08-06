@@ -34,6 +34,7 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
       return management?.querySelector('[data-testid="smoke-failure-metadata-export"]') instanceof HTMLButtonElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-selected-export"]') instanceof HTMLButtonElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-selected-csv"]') instanceof HTMLButtonElement &&
+        management.querySelector('[data-testid="smoke-failure-metadata-clear-selection"]') instanceof HTMLButtonElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-type-filter"]') instanceof HTMLSelectElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-period-filter"]')?.querySelector('option[value="custom"]');
     })()`,
@@ -134,6 +135,41 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
   assert.match(exported.content, /^"run_id","failure_type","captured_at"/);
   assert.match(exported.content, /"987","login"/);
   assert.doesNotMatch(exported.content, /"986","external_api"/);
+
+  const hiddenSelectionCreated = await evaluate(cdp, `(() => {
+    const type = document.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');
+    if (!(type instanceof HTMLSelectElement)) return false;
+    type.value = 'external_api';
+    type.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(hiddenSelectionCreated, true, "선택 항목을 필터 밖으로 숨기지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const summary = document.querySelector('[data-testid="smoke-failure-metadata-selection-summary"]');
+      const clear = document.querySelector('[data-testid="smoke-failure-metadata-clear-selection"]');
+      return summary?.getAttribute('data-hidden-count') === '1' &&
+        summary.textContent?.includes('선택 1건 · 현재 결과 0건 · 숨김 1건') &&
+        clear instanceof HTMLButtonElement && !clear.disabled;
+    })()`,
+    timeoutMs,
+    "필터 밖 숨김 선택 건수가 표시되지 않았습니다",
+  );
+  const selectionCleared = await evaluate(cdp, `(() => {
+    const clear = document.querySelector('[data-testid="smoke-failure-metadata-clear-selection"]');
+    if (!(clear instanceof HTMLButtonElement) || clear.disabled) return false;
+    clear.click();
+    return true;
+  })()`);
+  assert.equal(selectionCleared, true, "실패 정보 선택 전체 해제를 실행하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `document.querySelector('[data-testid="smoke-failure-metadata-selection-summary"]')?.textContent === '선택 없음' &&
+      document.querySelector('[data-testid="smoke-failure-metadata-selected-csv"]')?.disabled`,
+    timeoutMs,
+    "실패 정보 선택이 모두 해제되지 않았습니다",
+  );
 
   await evaluate(cdp, `(() => {
     const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
