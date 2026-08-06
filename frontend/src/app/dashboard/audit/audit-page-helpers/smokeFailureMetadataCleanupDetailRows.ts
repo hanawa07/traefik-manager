@@ -13,14 +13,18 @@ export function getSmokeFailureMetadataCleanupDetailRows(
   const requestedRunIds = Array.isArray(detail.requested_run_ids)
     ? detail.requested_run_ids
         .filter((value): value is number => Number.isInteger(value) && Number(value) > 0)
-        .map((runId) => `#${runId}`)
     : [];
 
   return [
     {
       key: "requested_run_ids",
       label: "요청 실행 번호",
-      value: requestedRunIds,
+      links: requestedRunIds.map((runId) => ({
+        href: getSmokeFailureRunHistoryUrl(runId),
+        label: `#${runId}`,
+        testId: "smoke-failure-run-history-link",
+      })),
+      value: requestedRunIds.map((runId) => `#${runId}`),
     },
     {
       key: "deleted_count",
@@ -38,4 +42,12 @@ export function getSmokeFailureMetadataCleanupDetailRows(
       value: detail.client_ip,
     },
   ];
+}
+
+export function getSmokeFailureRunHistoryUrl(runId: number): string {
+  const query = new URLSearchParams({
+    smoke_search: String(runId),
+    smoke_status: "failure",
+  });
+  return `/dashboard/settings?${query.toString()}#smoke-recent-run-history`;
 }

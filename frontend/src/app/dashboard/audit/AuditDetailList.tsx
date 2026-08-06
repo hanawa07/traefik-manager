@@ -4,6 +4,11 @@ import { formatAuditValue } from "./auditPageHelpers";
 interface AuditDetailRow {
   key: string;
   label: string;
+  links?: Array<{
+    href: string;
+    label: string;
+    testId?: string;
+  }>;
   value: unknown;
 }
 
@@ -11,6 +16,20 @@ const GITHUB_ACTIONS_RUN_URL = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z
 
 function AuditDetailValue({ row }: { row: AuditDetailRow }) {
   const value = formatAuditValue(row.value);
+  if (row.links?.length) {
+    return row.links.map((link, index) => (
+      <span key={`${link.href}-${link.label}`}>
+        {index ? ", " : ""}
+        <a
+          className="font-semibold underline underline-offset-2"
+          data-testid={link.testId}
+          href={link.href}
+        >
+          {link.label}
+        </a>
+      </span>
+    ));
+  }
   if (row.key !== "alert_run_url" || typeof row.value !== "string" || !GITHUB_ACTIONS_RUN_URL.test(row.value)) {
     return value;
   }

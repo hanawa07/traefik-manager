@@ -11,6 +11,7 @@ import {
   type SmokeFailureMetadataPeriodFilter,
   type SmokeFailureMetadataTypeFilter,
 } from "@/features/settings/lib/smokeFailureMetadataFilters";
+import { githubActionsRunUrl } from "@/features/settings/lib/smokeGithubUrls";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 const FAILURE_TYPE_LABELS = {
@@ -22,11 +23,13 @@ const FAILURE_TYPE_LABELS = {
 interface SmokeFailureMetadataManagementProps {
   entries: SmokeFailureMetadataEntry[];
   timezone?: string;
+  workflowUrl: string;
 }
 
 export function SmokeFailureMetadataManagement({
   entries,
   timezone,
+  workflowUrl,
 }: SmokeFailureMetadataManagementProps) {
   const cleanup = useCleanupSmokeFailureMetadata();
   const [selectedRunIds, setSelectedRunIds] = useState<Set<number>>(new Set());
@@ -178,26 +181,34 @@ export function SmokeFailureMetadataManagement({
           </label>
           <ol className="divide-y divide-gray-100 dark:divide-slate-800">
             {visibleEntries.map((entry) => (
-              <li className="px-3 py-2" key={entry.run_id}>
-                <label className="flex cursor-pointer items-start gap-2 text-xs">
-                  <input
-                    checked={selectedRunIds.has(entry.run_id)}
-                    className="mt-0.5"
-                    onChange={() => toggleRun(entry.run_id)}
-                    type="checkbox"
-                  />
-                  <span className="min-w-0">
-                    <span className="block font-semibold text-gray-800 dark:text-slate-200">
-                      실행 #{entry.run_id} · {FAILURE_TYPE_LABELS[entry.failure_type]}
-                    </span>
-                    <span className="block break-words text-gray-600 dark:text-slate-300">
-                      {entry.check_name}
-                    </span>
-                    <span className="block text-gray-500 dark:text-slate-400">
-                      {formatDateTime(entry.captured_at, timezone)}
-                    </span>
+              <li className="flex items-start gap-2 px-3 py-2 text-xs" key={entry.run_id}>
+                <input
+                  aria-label={`실행 #${entry.run_id} 선택`}
+                  checked={selectedRunIds.has(entry.run_id)}
+                  className="mt-0.5"
+                  onChange={() => toggleRun(entry.run_id)}
+                  type="checkbox"
+                />
+                <span className="min-w-0">
+                  <span className="block font-semibold text-gray-800 dark:text-slate-200">
+                    <a
+                      className="text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+                      data-testid="smoke-failure-metadata-run-link"
+                      href={githubActionsRunUrl(workflowUrl, entry.run_id)}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      실행 #{entry.run_id}
+                    </a>
+                    {` · ${FAILURE_TYPE_LABELS[entry.failure_type]}`}
                   </span>
-                </label>
+                  <span className="block break-words text-gray-600 dark:text-slate-300">
+                    {entry.check_name}
+                  </span>
+                  <span className="block text-gray-500 dark:text-slate-400">
+                    {formatDateTime(entry.captured_at, timezone)}
+                  </span>
+                </span>
               </li>
             ))}
           </ol>

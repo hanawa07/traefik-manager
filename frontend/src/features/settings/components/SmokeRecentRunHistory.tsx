@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   settingsApi,
@@ -34,6 +34,7 @@ export function SmokeRecentRunHistory({
   timezone,
 }: SmokeRecentRunHistoryProps) {
   const classifyFailure = useClassifySmokeFailure();
+  const historyDetailsRef = useRef<HTMLDetailsElement>(null);
   const [classificationError, setClassificationError] = useState("");
   const {
     search,
@@ -54,6 +55,14 @@ export function SmokeRecentRunHistory({
     changePage,
     resetFilters,
   } = useSmokeRecentRunFilters(initialStatus);
+
+  useEffect(() => {
+    if (!filtersRestored || window.location.hash !== "#smoke-recent-run-history") return;
+    const details = historyDetailsRef.current;
+    if (!details) return;
+    details.open = true;
+    details.scrollIntoView({ block: "start" });
+  }, [filtersRestored]);
 
   const usesInitialHistory =
     days === initialStatus.monitoring_history_days &&
@@ -125,8 +134,10 @@ export function SmokeRecentRunHistory({
   };
   return (
     <details
-      className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-950"
+      className="scroll-mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-950"
       data-testid="smoke-recent-run-history"
+      id="smoke-recent-run-history"
+      ref={historyDetailsRef}
     >
       <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
         최근 GitHub 원격 실행 검색 결과 총 {total}건
@@ -279,6 +290,7 @@ export function SmokeRecentRunHistory({
         <SmokeFailureMetadataManagement
           entries={history?.monitoring_failure_metadata_entries ?? []}
           timezone={timezone}
+          workflowUrl={initialStatus.monitoring_workflow_url}
         />
       ) : null}
 
