@@ -1,10 +1,41 @@
 import assert from "node:assert/strict";
 
 import {
+  buildSmokeFailureMetadataDatePresetRange,
   filterSmokeFailureMetadata,
   parseSmokeFailureMetadataFilters,
   SMOKE_FAILURE_METADATA_QUERY,
 } from "../frontend/src/features/settings/lib/smokeFailureMetadataFilters.ts";
+
+const presetNow = Date.parse("2026-01-01T15:30:00Z");
+assert.deepEqual(
+  buildSmokeFailureMetadataDatePresetRange("today", {
+    now: presetNow,
+    timezone: "Asia/Seoul",
+  }),
+  { endDate: "2026-01-02", startDate: "2026-01-02" },
+);
+assert.deepEqual(
+  buildSmokeFailureMetadataDatePresetRange("yesterday", {
+    now: presetNow,
+    timezone: "Asia/Seoul",
+  }),
+  { endDate: "2026-01-01", startDate: "2026-01-01" },
+);
+assert.deepEqual(
+  buildSmokeFailureMetadataDatePresetRange("this_month", {
+    now: presetNow,
+    timezone: "Asia/Seoul",
+  }),
+  { endDate: "2026-01-02", startDate: "2026-01-01" },
+);
+assert.deepEqual(
+  buildSmokeFailureMetadataDatePresetRange("last_month", {
+    now: presetNow,
+    timezone: "Asia/Seoul",
+  }),
+  { endDate: "2025-12-31", startDate: "2025-12-01" },
+);
 
 const now = Date.parse("2026-08-06T00:00:00Z");
 const entries = [

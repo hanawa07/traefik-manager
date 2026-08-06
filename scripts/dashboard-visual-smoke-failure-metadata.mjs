@@ -38,7 +38,8 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
         management.querySelector('[data-testid="smoke-failure-metadata-clear-selection"]') instanceof HTMLButtonElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-type-filter"]') instanceof HTMLSelectElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-period-filter"]') instanceof HTMLSelectElement &&
-        management.querySelector('[data-testid="smoke-failure-metadata-period-filter"] option[value="custom"]') instanceof HTMLOptionElement;
+        management.querySelector('[data-testid="smoke-failure-metadata-period-filter"] option[value="custom"]') instanceof HTMLOptionElement &&
+        management.querySelector('[data-testid="smoke-failure-metadata-date-preset-today"]') instanceof HTMLButtonElement;
     })()`,
     timeoutMs,
     "실패 정보 관리·내보내기 컨트롤을 찾지 못했습니다",
@@ -46,15 +47,31 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
   const changed = await evaluate(cdp, `(() => {
     const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
     const type = management?.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');
-    const period = management?.querySelector('[data-testid="smoke-failure-metadata-period-filter"]');
-    if (!(type instanceof HTMLSelectElement) || !(period instanceof HTMLSelectElement)) return false;
+    const preset = management?.querySelector('[data-testid="smoke-failure-metadata-date-preset-today"]');
+    if (!(type instanceof HTMLSelectElement) || !(preset instanceof HTMLButtonElement)) return false;
     type.value = 'login';
     type.dispatchEvent(new Event('change', { bubbles: true }));
-    period.value = 'custom';
-    period.dispatchEvent(new Event('change', { bubbles: true }));
+    preset.click();
     return true;
   })()`);
-  assert.equal(changed, true, "실패 정보 필터를 변경하지 못했습니다");
+  assert.equal(changed, true, "실패 정보 빠른 기간을 적용하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const params = new URLSearchParams(location.search);
+      const start = document.querySelector('[data-testid="smoke-failure-metadata-start-date"]');
+      const end = document.querySelector('[data-testid="smoke-failure-metadata-end-date"]');
+      return params.get('smoke_metadata_type') === 'login' &&
+        params.get('smoke_metadata_period') === 'custom' &&
+        params.get('smoke_metadata_from') === start?.value &&
+        params.get('smoke_metadata_to') === end?.value &&
+        start?.value === end?.value &&
+        document.querySelector('[data-testid="smoke-failure-metadata-date-preset-today"]')?.getAttribute('aria-pressed') === 'true' &&
+        document.querySelector('[data-testid="smoke-failure-metadata-result-count"]')?.textContent?.includes('조회 1/2건');
+    })()`,
+    timeoutMs,
+    "실패 정보 오늘 빠른 기간이 URL과 결과에 반영되지 않았습니다",
+  );
   await waitForCondition(
     cdp,
     `document.querySelector('[data-testid="smoke-failure-metadata-date-range"]') instanceof HTMLElement`,

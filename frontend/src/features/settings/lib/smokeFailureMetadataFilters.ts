@@ -5,6 +5,16 @@ import type {
 
 export type SmokeFailureMetadataTypeFilter = "all" | SmokeFailureType;
 export type SmokeFailureMetadataPeriodFilter = "all" | "7" | "30" | "custom";
+export type SmokeFailureMetadataDatePreset =
+  | "today"
+  | "yesterday"
+  | "this_month"
+  | "last_month";
+
+export interface SmokeFailureMetadataDateRange {
+  endDate: string;
+  startDate: string;
+}
 
 export interface SmokeFailureMetadataFilterOptions {
   endDate?: string;
@@ -21,6 +31,26 @@ export const SMOKE_FAILURE_METADATA_QUERY = {
 } as const;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function buildSmokeFailureMetadataDatePresetRange(
+  preset: SmokeFailureMetadataDatePreset,
+  options: Pick<SmokeFailureMetadataFilterOptions, "now" | "timezone"> = {},
+): SmokeFailureMetadataDateRange {
+  const today = calendarDateInTimezone(options.now ?? Date.now(), options.timezone);
+  if (preset === "today") return { endDate: today, startDate: today };
+  if (preset === "yesterday") {
+    const yesterday = shiftCalendarDate(today, -1);
+    return { endDate: yesterday, startDate: yesterday };
+  }
+  if (preset === "this_month") {
+    return { endDate: today, startDate: `${today.slice(0, 7)}-01` };
+  }
+  const previousMonthEnd = shiftCalendarDate(`${today.slice(0, 7)}-01`, -1);
+  return {
+    endDate: previousMonthEnd,
+    startDate: `${previousMonthEnd.slice(0, 7)}-01`,
+  };
+}
 
 export function filterSmokeFailureMetadata(
   entries: SmokeFailureMetadataEntry[],
@@ -100,4 +130,9 @@ function calendarDateInTimezone(timestamp: number, timezone?: string): string {
   } catch {
     return new Date(timestamp).toISOString().slice(0, 10);
   }
+}
+
+function shiftCalendarDate(value: string, days: number): string {
+  const timestamp = Date.parse(`${value}T00:00:00Z`) + days * DAY_MS;
+  return new Date(timestamp).toISOString().slice(0, 10);
 }

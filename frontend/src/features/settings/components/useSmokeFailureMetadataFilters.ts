@@ -45,8 +45,19 @@ export function useSmokeFailureMetadataFilters() {
     setEndDate(value);
     replaceBrowserQueryParams([[SMOKE_FAILURE_METADATA_QUERY.endDate, value, ""]]);
   };
+  const changeDateRange = (nextStartDate: string, nextEndDate: string) => {
+    setPeriodFilter("custom");
+    setStartDate(nextStartDate);
+    setEndDate(nextEndDate);
+    replaceBrowserQueryParams([
+      [SMOKE_FAILURE_METADATA_QUERY.period, "custom", "all"],
+      [SMOKE_FAILURE_METADATA_QUERY.startDate, nextStartDate, ""],
+      [SMOKE_FAILURE_METADATA_QUERY.endDate, nextEndDate, ""],
+    ]);
+  };
 
   return {
+    changeDateRange,
     changeEndDate,
     changePeriodFilter,
     changeStartDate,

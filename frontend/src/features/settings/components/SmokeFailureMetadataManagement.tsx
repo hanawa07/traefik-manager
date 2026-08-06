@@ -13,6 +13,7 @@ import {
 } from "@/features/settings/lib/smokeFailureMetadataFilters";
 import { githubActionsRunUrl } from "@/features/settings/lib/smokeGithubUrls";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { SmokeFailureMetadataDateFilters } from "./SmokeFailureMetadataDateFilters";
 import { useSmokeFailureMetadataFilters } from "./useSmokeFailureMetadataFilters";
 
 const FAILURE_TYPE_LABELS = {
@@ -34,6 +35,7 @@ export function SmokeFailureMetadataManagement({
 }: SmokeFailureMetadataManagementProps) {
   const cleanup = useCleanupSmokeFailureMetadata();
   const {
+    changeDateRange,
     changeEndDate,
     changePeriodFilter,
     changeStartDate,
@@ -47,9 +49,6 @@ export function SmokeFailureMetadataManagement({
   const [notice, setNotice] = useState("");
   const activeStartDate = periodFilter === "custom" ? startDate : "";
   const activeEndDate = periodFilter === "custom" ? endDate : "";
-  const invalidDateRange = Boolean(
-    activeStartDate && activeEndDate && activeStartDate > activeEndDate,
-  );
   const visibleEntries = filterSmokeFailureMetadata(entries, typeFilter, periodFilter, {
     endDate: activeEndDate,
     startDate: activeStartDate,
@@ -144,45 +143,15 @@ export function SmokeFailureMetadataManagement({
           조회 {visibleEntries.length}/{entries.length}건
         </span>
       </div>
-      {periodFilter === "custom" ? (
-        <div
-          className="mt-2 grid gap-2 sm:grid-cols-2"
-          data-testid="smoke-failure-metadata-date-range"
-        >
-          <label className="grid gap-1 text-[11px] text-gray-500 dark:text-slate-400">
-            시작일
-            <input
-              aria-label="실패 분류 정보 시작일"
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
-              data-testid="smoke-failure-metadata-start-date"
-              max={endDate || undefined}
-              onChange={(event) => changeStartDate(event.target.value)}
-              type="date"
-              value={startDate}
-            />
-          </label>
-          <label className="grid gap-1 text-[11px] text-gray-500 dark:text-slate-400">
-            종료일
-            <input
-              aria-label="실패 분류 정보 종료일"
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
-              data-testid="smoke-failure-metadata-end-date"
-              min={startDate || undefined}
-              onChange={(event) => changeEndDate(event.target.value)}
-              type="date"
-              value={endDate}
-            />
-          </label>
-          <p
-            className={`text-[11px] sm:col-span-2 ${invalidDateRange ? "text-rose-600 dark:text-rose-300" : "text-gray-500 dark:text-slate-400"}`}
-            data-testid="smoke-failure-metadata-date-range-note"
-          >
-            {invalidDateRange
-              ? "시작일은 종료일보다 늦을 수 없습니다."
-              : `${timezone || "브라우저 시간대"} 기준 · 시작일과 종료일 포함`}
-          </p>
-        </div>
-      ) : null}
+      <SmokeFailureMetadataDateFilters
+        endDate={endDate}
+        onEndDateChange={changeEndDate}
+        onRangeChange={changeDateRange}
+        onStartDateChange={changeStartDate}
+        period={periodFilter}
+        startDate={startDate}
+        timezone={timezone}
+      />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           aria-label={`현재 필터 결과 JSON ${visibleEntries.length}건 내보내기`}
