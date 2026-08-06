@@ -171,6 +171,14 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
     assert.match(result.content, /"987","login"/);
     assert.doesNotMatch(result.content, /"986","external_api"/);
   }
+  assert.match(
+    exported.filtered.content,
+    /"filter_type","filter_period","filter_start_date","filter_end_date","filter_timezone"/,
+  );
+  assert.match(
+    exported.filtered.content,
+    new RegExp(`"login","custom","${customRange.startDate}","${customRange.endDate}",`),
+  );
 
   const hiddenSelectionCreated = await evaluate(cdp, `(() => {
     const type = document.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');

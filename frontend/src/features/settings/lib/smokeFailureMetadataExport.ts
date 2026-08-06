@@ -13,6 +13,14 @@ const CSV_COLUMNS = [
   "page_title",
 ] as const satisfies readonly (keyof SmokeFailureMetadataEntry)[];
 
+const CSV_FILTER_COLUMNS = [
+  "filter_type",
+  "filter_period",
+  "filter_start_date",
+  "filter_end_date",
+  "filter_timezone",
+] as const;
+
 export type SmokeFailureMetadataExportFormat = "csv" | "json";
 export type SmokeFailureMetadataExportScope = "all" | "filtered" | "selected";
 
@@ -37,8 +45,10 @@ export function buildSmokeFailureMetadataExport(
 ): { content: string; filename: string; mimeType: string } {
   const exportedAt = options.exportedAt ?? new Date().toISOString();
   const extension = options.format;
+  const timezone =
+    options.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const content = options.format === "csv"
-    ? buildCsv(entries)
+    ? buildCsv(entries, options.filters, timezone)
     : JSON.stringify(
         {
           metadata: {
@@ -47,8 +57,7 @@ export function buildSmokeFailureMetadataExport(
             schema_version: 1,
             scope: options.scope,
             ...(options.filters ? { filters: options.filters } : {}),
-            timezone:
-              options.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+            timezone,
           },
           entries,
         },
@@ -79,9 +88,19 @@ export function downloadSmokeFailureMetadata(
   return link.download;
 }
 
-function buildCsv(entries: SmokeFailureMetadataEntry[]): string {
-  const rows = entries.map((entry) => CSV_COLUMNS.map((column) => entry[column]));
-  return `\uFEFF${[CSV_COLUMNS, ...rows]
+function buildCsv(
+  entries: SmokeFailureMetadataEntry[],
+  filters: SmokeFailureMetadataExportFilters | undefined,
+  timezone: string,
+): string {
+  const filterValues = filters
+    ? [filters.type, filters.period, filters.start_date, filters.end_date, timezone]
+    : ["", "", "", "", ""];
+  const rows = entries.map((entry) => [
+    ...CSV_COLUMNS.map((column) => entry[column]),
+    ...filterValues,
+  ]);
+  return `\uFEFF${[[...CSV_COLUMNS, ...CSV_FILTER_COLUMNS], ...rows]
     .map((row) => row.map(toCsvCell).join(","))
     .join("\r\n")}\r\n`;
 }

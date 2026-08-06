@@ -43,7 +43,7 @@ assert.equal(payload.metadata.scope, "selected");
 assert.equal(payload.metadata.timezone, "Asia/Seoul");
 assert.equal(payload.entries[0].run_id, 987);
 
-const filtered = buildSmokeFailureMetadataExport(entries, {
+const filteredJson = buildSmokeFailureMetadataExport(entries, {
   exportedAt: "2026-08-06T01:02:03Z",
   filters: {
     end_date: "2026-08-06",
@@ -55,9 +55,9 @@ const filtered = buildSmokeFailureMetadataExport(entries, {
   scope: "filtered",
   timezone: "Asia/Seoul",
 });
-const filteredPayload = JSON.parse(filtered.content);
+const filteredPayload = JSON.parse(filteredJson.content);
 assert.equal(
-  filtered.filename,
+  filteredJson.filename,
   "traefik-manager-smoke-failure-metadata-filtered-2026-08-06.json",
 );
 assert.deepEqual(filteredPayload.metadata.filters, {
@@ -66,5 +66,28 @@ assert.deepEqual(filteredPayload.metadata.filters, {
   start_date: "2026-08-01",
   type: "login",
 });
+
+const filteredCsv = buildSmokeFailureMetadataExport(entries, {
+  exportedAt: "2026-08-06T01:02:03Z",
+  filters: {
+    end_date: "2026-08-06",
+    period: "custom",
+    start_date: "2026-08-01",
+    type: "login",
+  },
+  format: "csv",
+  scope: "filtered",
+  timezone: "Asia/Seoul",
+});
+assert.ok(
+  filteredCsv.content.startsWith(
+    '\uFEFF"run_id","failure_type","captured_at","check_name","screen_path","page_title","filter_type","filter_period","filter_start_date","filter_end_date","filter_timezone"',
+  ),
+);
+assert.ok(
+  filteredCsv.content.includes(
+    '"login","custom","2026-08-01","2026-08-06","Asia/Seoul"',
+  ),
+);
 
 console.log("스모크 실패 정보 JSON·CSV 내보내기 self-test 통과");
