@@ -18,6 +18,7 @@ export {
 } from "./useSettingsQueries";
 export {
   useCleanupDeploymentBottleneckEvents,
+  useCleanupSmokeFailureMetadata,
   useClassifySmokeFailure,
   usePreviewDeploymentBottleneckEventCleanup,
   useRunAuditRetentionCleanup,

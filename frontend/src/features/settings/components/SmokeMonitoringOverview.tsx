@@ -19,6 +19,7 @@ interface SmokeMonitoringOverviewProps {
   onTestFailureTypeIncreaseAlert: () => void;
   onTestStaleAlert: () => void;
   staleAlertHistory?: SettingsTestHistoryItem;
+  failureTypeIncreaseAlertHistory?: SettingsTestHistoryItem;
   status: SmokeRotationStatus;
   timezone?: string;
 }
@@ -32,6 +33,7 @@ export function SmokeMonitoringOverview({
   onTestFailureTypeIncreaseAlert,
   onTestStaleAlert,
   staleAlertHistory,
+  failureTypeIncreaseAlertHistory,
   status,
   timezone,
 }: SmokeMonitoringOverviewProps) {
@@ -88,6 +90,14 @@ export function SmokeMonitoringOverview({
               {isTestingFailureTypeIncreaseAlert ? "전송 중" : "운영 경로 테스트"}
             </button>
           }
+        />
+      ) : null}
+      {canManage ? (
+        <SmokeStaleAlertHistory
+          history={failureTypeIncreaseAlertHistory}
+          label="실패 유형 증가 최근 dry-run 결과"
+          historyLabel="실패 유형 증가 dry-run 최근 이력"
+          timezone={timezone}
         />
       ) : null}
       <SettingsSummaryRow

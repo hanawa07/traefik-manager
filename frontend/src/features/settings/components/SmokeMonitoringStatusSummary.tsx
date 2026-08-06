@@ -14,6 +14,7 @@ interface SmokeMonitoringStatusSummaryProps {
   canManage: boolean;
   status: SmokeRotationStatus;
   staleAlertHistory?: SettingsTestHistoryItem;
+  failureTypeIncreaseAlertHistory?: SettingsTestHistoryItem;
   githubRateLimitAlertHistory?: SettingsTestHistoryItem;
   githubPrimaryRateLimitDeliveryHistory?: SettingsTestHistoryItem;
   githubSecondaryRateLimitDeliveryHistory?: SettingsTestHistoryItem;
@@ -38,6 +39,7 @@ export function SmokeMonitoringStatusSummary({
   canManage,
   status,
   staleAlertHistory,
+  failureTypeIncreaseAlertHistory,
   githubRateLimitAlertHistory,
   githubPrimaryRateLimitDeliveryHistory,
   githubSecondaryRateLimitDeliveryHistory,
@@ -75,6 +77,7 @@ export function SmokeMonitoringStatusSummary({
         onTestFailureTypeIncreaseAlert={onTestFailureTypeIncreaseAlert}
         onTestStaleAlert={onTestStaleAlert}
         staleAlertHistory={staleAlertHistory}
+        failureTypeIncreaseAlertHistory={failureTypeIncreaseAlertHistory}
         status={status}
         timezone={timezone}
       />
@@ -142,7 +145,7 @@ export function SmokeMonitoringStatusSummary({
         primaryLastTriggeredAt={githubPrimaryRateLimitLastTriggeredAt}
         secondaryLastTriggeredAt={githubSecondaryRateLimitLastTriggeredAt}
       />
-      <SmokeRecentRunHistory status={status} timezone={timezone} />
+      <SmokeRecentRunHistory canManage={canManage} status={status} timezone={timezone} />
     </>
   );
 }

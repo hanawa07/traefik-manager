@@ -108,6 +108,19 @@ export function useSmokeMonitoringSettingsModel(
       setErrorMessage("실패율, 보존 건수와 GitHub API 경고 기준의 입력 범위를 확인해주세요.");
       return;
     }
+    const deletionCount = Math.max(
+      (query.data?.monitoring_failure_metadata_count ?? 0) -
+        formValue.monitoring_failure_metadata_limit,
+      0,
+    );
+    if (
+      deletionCount > 0 &&
+      !window.confirm(
+        `현재 기준으로 오래된 실패 분류 정보 ${deletionCount}건이 삭제될 것으로 예상됩니다. 계속할까요?`,
+      )
+    ) {
+      return;
+    }
     try {
       await update.mutateAsync(formValue);
       onToast({
@@ -230,6 +243,7 @@ export function useSmokeMonitoringSettingsModel(
     isEditing,
     status: query.data,
     staleAlertHistory: testHistory.data?.smoke_admin_stale,
+    failureTypeIncreaseAlertHistory: testHistory.data?.smoke_failure_type_increase,
     githubRateLimitAlertHistory: testHistory.data?.github_api_rate_limit,
     githubPrimaryRateLimitDeliveryHistory:
       testHistory.data?.github_api_primary_rate_limit_delivery,

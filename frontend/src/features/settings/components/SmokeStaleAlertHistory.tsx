@@ -6,21 +6,28 @@ import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 interface SmokeStaleAlertHistoryProps {
   history?: SettingsTestHistoryItem;
+  historyLabel?: string;
+  label?: string;
   timezone?: string;
 }
 
-export function SmokeStaleAlertHistory({ history, timezone }: SmokeStaleAlertHistoryProps) {
+export function SmokeStaleAlertHistory({
+  history,
+  historyLabel = "dry-run 최근 이력",
+  label = "최근 dry-run 결과",
+  timezone,
+}: SmokeStaleAlertHistoryProps) {
   const recentEvents = history?.recent_events ?? [];
   return (
     <>
       <SettingsSummaryRow
-        label="최근 dry-run 결과"
+        label={label}
         value={
           history?.last_created_at ? (
             <span className="inline-flex flex-wrap items-center gap-2">
               <StatusBadge success={history.last_success} />
               <span>
-                {history.last_provider || "telegram"} · {formatDateTime(history.last_created_at, timezone)}
+                {history.last_provider || "채널 미확인"} · {formatDateTime(history.last_created_at, timezone)}
               </span>
             </span>
           ) : (
@@ -30,7 +37,7 @@ export function SmokeStaleAlertHistory({ history, timezone }: SmokeStaleAlertHis
       />
       <details className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-950">
         <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
-          dry-run 최근 이력 {recentEvents.length}건 (최대 5건)
+          {historyLabel} {recentEvents.length}건 (최대 5건)
         </summary>
         {recentEvents.length ? (
           <ol className="mt-3 space-y-2">
@@ -41,7 +48,7 @@ export function SmokeStaleAlertHistory({ history, timezone }: SmokeStaleAlertHis
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge success={event.success} />
-                  <span>{event.provider || "telegram"}</span>
+                  <span>{event.provider || "채널 미확인"}</span>
                   <span className="text-gray-500 dark:text-slate-400">
                     {formatDateTime(event.created_at, timezone)}
                   </span>

@@ -88,6 +88,17 @@ export function useClassifySmokeFailure() {
   );
 }
 
+export function useCleanupSmokeFailureMetadata() {
+  return useSettingsMutation({
+    mutationFn: settingsApi.cleanupSmokeFailureMetadata,
+    invalidateKeys: [
+      settingsQueryKeys.smokeRotation,
+      settingsQueryKeys.smokeRotationSummary,
+      settingsQueryKeys.auditLogs,
+    ],
+  });
+}
+
 export function useRefreshSmokeMonitoringHistory() {
   return useSettingsMutation({
     mutationFn: settingsApi.refreshSmokeMonitoringHistory,
@@ -115,5 +126,6 @@ export function useTestGithubApiRateLimitAlert() {
 export function useTestSmokeFailureTypeIncreaseAlert() {
   return useSettingsMutation({
     mutationFn: settingsApi.testSmokeFailureTypeIncreaseAlert,
+    invalidateKeys: [settingsQueryKeys.testHistory],
   });
 }

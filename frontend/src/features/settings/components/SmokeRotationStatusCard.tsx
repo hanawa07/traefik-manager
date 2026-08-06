@@ -21,6 +21,7 @@ interface SmokeRotationStatusCardProps {
   isEditing: boolean;
   status?: SmokeRotationStatus;
   staleAlertHistory?: SettingsTestHistoryItem;
+  failureTypeIncreaseAlertHistory?: SettingsTestHistoryItem;
   githubRateLimitAlertHistory?: SettingsTestHistoryItem;
   githubPrimaryRateLimitDeliveryHistory?: SettingsTestHistoryItem;
   githubSecondaryRateLimitDeliveryHistory?: SettingsTestHistoryItem;
@@ -55,6 +56,7 @@ export function SmokeRotationStatusCard({
   isEditing,
   status,
   staleAlertHistory,
+  failureTypeIncreaseAlertHistory,
   githubRateLimitAlertHistory,
   githubPrimaryRateLimitDeliveryHistory,
   githubSecondaryRateLimitDeliveryHistory,
@@ -106,6 +108,7 @@ export function SmokeRotationStatusCard({
           scheduleTime={scheduleTime}
           scheduleTimezone={scheduleTimezone}
           errorMessage={errorMessage}
+          failureMetadataCount={status.monitoring_failure_metadata_count}
           isSaving={isSaving}
           onSave={onSave}
           onCancel={onCancel}
@@ -117,6 +120,7 @@ export function SmokeRotationStatusCard({
             canManage={canManage}
             status={status}
             staleAlertHistory={staleAlertHistory}
+            failureTypeIncreaseAlertHistory={failureTypeIncreaseAlertHistory}
             githubRateLimitAlertHistory={githubRateLimitAlertHistory}
             githubPrimaryRateLimitDeliveryHistory={
               githubPrimaryRateLimitDeliveryHistory

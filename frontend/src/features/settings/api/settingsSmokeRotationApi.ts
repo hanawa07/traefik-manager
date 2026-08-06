@@ -19,6 +19,15 @@ export interface SmokeFailureMetadata {
   page_title: string | null;
 }
 
+export interface SmokeFailureMetadataEntry extends SmokeFailureMetadata {
+  run_id: number;
+}
+
+export interface SmokeFailureMetadataCleanupResult {
+  deleted_count: number;
+  retained_count: number;
+}
+
 export interface SmokeMonitoringSettingsInput {
   monitoring_enabled: boolean;
   monitoring_frequency: SmokeMonitoringFrequency;
@@ -170,6 +179,7 @@ export interface SmokeRotationStatus {
   monitoring_history_cancellation_reason: SmokeCancellationReasonFilter;
   monitoring_failure_metadata_count: number;
   monitoring_failure_metadata_limit: number;
+  monitoring_failure_metadata_entries: SmokeFailureMetadataEntry[];
   monitoring_github_rate_limit_remaining: number | null;
   monitoring_github_rate_limit_limit: number | null;
   monitoring_github_rate_limit_reset_at: string | null;
@@ -262,6 +272,15 @@ export const smokeRotationSettingsApi = {
     const response = await apiClient.put<SmokeFailureMetadata & { run_id: number }>(
       `/settings/smoke-failures/${runId}/classification`,
       payload,
+    );
+    return response.data;
+  },
+  cleanupSmokeFailureMetadata: async (
+    runIds: number[],
+  ): Promise<SmokeFailureMetadataCleanupResult> => {
+    const response = await apiClient.post<SmokeFailureMetadataCleanupResult>(
+      "/settings/smoke-failure-metadata/cleanup",
+      { run_ids: runIds },
     );
     return response.data;
   },

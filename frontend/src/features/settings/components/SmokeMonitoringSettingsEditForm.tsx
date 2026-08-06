@@ -8,6 +8,7 @@ interface SmokeMonitoringSettingsEditFormProps {
   scheduleTime: string;
   scheduleTimezone: string;
   errorMessage: string;
+  failureMetadataCount: number;
   isSaving: boolean;
   onSave: () => void;
   onCancel: () => void;
@@ -19,11 +20,16 @@ export function SmokeMonitoringSettingsEditForm({
   scheduleTime,
   scheduleTimezone,
   errorMessage,
+  failureMetadataCount,
   isSaving,
   onSave,
   onCancel,
   onFormChange,
 }: SmokeMonitoringSettingsEditFormProps) {
+  const deletionCount = Math.max(
+    failureMetadataCount - formValue.monitoring_failure_metadata_limit,
+    0,
+  );
   return (
     <div className="space-y-4">
       <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 dark:border-slate-700">
@@ -173,6 +179,14 @@ export function SmokeMonitoringSettingsEditForm({
         <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
           20~200건을 보관합니다. 현재보다 줄이면 저장할 때 오래된 기록부터 즉시 정리합니다.
         </p>
+        {deletionCount > 0 ? (
+          <p
+            className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300"
+            data-testid="smoke-failure-metadata-deletion-preview"
+          >
+            현재 기준으로 오래된 실패 분류 정보 {deletionCount}건이 삭제될 것으로 예상됩니다.
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/30">

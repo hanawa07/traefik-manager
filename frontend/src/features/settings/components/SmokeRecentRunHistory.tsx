@@ -14,6 +14,7 @@ import {
 } from "@/features/settings/api/settingsApi";
 import { useClassifySmokeFailure } from "@/features/settings/hooks/useSettings";
 import { settingsQueryKeys } from "@/features/settings/hooks/settingsQueryKeys";
+import { SmokeFailureMetadataManagement } from "./SmokeFailureMetadataManagement";
 import { SmokeFailureTypeTrend } from "./SmokeFailureTypeTrend";
 import { SmokeRecentRunItem } from "./SmokeRecentRunItem";
 import {
@@ -22,11 +23,16 @@ import {
 } from "./useSmokeRecentRunFilters";
 
 interface SmokeRecentRunHistoryProps {
+  canManage: boolean;
   status: SmokeRotationStatus;
   timezone?: string;
 }
 
-export function SmokeRecentRunHistory({ status: initialStatus, timezone }: SmokeRecentRunHistoryProps) {
+export function SmokeRecentRunHistory({
+  canManage,
+  status: initialStatus,
+  timezone,
+}: SmokeRecentRunHistoryProps) {
   const classifyFailure = useClassifySmokeFailure();
   const [classificationError, setClassificationError] = useState("");
   const {
@@ -269,6 +275,12 @@ export function SmokeRecentRunHistory({ status: initialStatus, timezone }: Smoke
         실패 정보 {history?.monitoring_failure_metadata_count ?? 0}/
         {history?.monitoring_failure_metadata_limit ?? 20}건 보관 · 초과 시 오래된 기록 자동 정리
       </p>
+      {canManage ? (
+        <SmokeFailureMetadataManagement
+          entries={history?.monitoring_failure_metadata_entries ?? []}
+          timezone={timezone}
+        />
+      ) : null}
 
       {!usesInitialHistory && historyQuery.isPending ? (
         <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">원격 실행 이력을 불러오는 중입니다.</p>

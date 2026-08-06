@@ -12,6 +12,7 @@ export {
 } from "./useCloudflareMutationHooks";
 export {
   useCleanupDeploymentBottleneckEvents,
+  useCleanupSmokeFailureMetadata,
   useClassifySmokeFailure,
   usePreviewDeploymentBottleneckEventCleanup,
   useRefreshSmokeMonitoringHistory,
