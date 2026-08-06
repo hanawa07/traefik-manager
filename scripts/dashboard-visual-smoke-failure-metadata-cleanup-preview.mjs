@@ -117,7 +117,7 @@ export async function checkSmokeFailureMetadataCleanupSuccess({
     `(() => {
       const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
       return !document.querySelector('[data-testid="smoke-failure-metadata-cleanup-preview"]') &&
-        management?.querySelector('summary')?.textContent?.includes('관리 1건') &&
+        management?.querySelector('[data-testid="smoke-failure-metadata-summary"]')?.textContent?.includes('조회 1/1건 · 선택 0건 · 조건 0개') &&
         management?.querySelector('[data-testid="smoke-failure-metadata-notice"]')?.textContent?.includes('1건을 정리했습니다') &&
         management?.querySelector('[data-testid="smoke-failure-metadata-selection-summary"]')?.textContent === '선택 없음' &&
         !management?.querySelector('input[aria-label="실행 #987 선택"]');
