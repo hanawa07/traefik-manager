@@ -64,12 +64,17 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
     const start = document.querySelector('[data-testid="smoke-failure-metadata-start-date"]');
     const end = document.querySelector('[data-testid="smoke-failure-metadata-end-date"]');
     if (!(start instanceof HTMLInputElement) || !(end instanceof HTMLInputElement)) return null;
+    const setInputValue = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )?.set;
+    if (!setInputValue) return null;
     const startDate = new Date(Date.now() - 2 * 24 * 60 * 60_000).toISOString().slice(0, 10);
     const endDate = new Date(Date.now() + 2 * 24 * 60 * 60_000).toISOString().slice(0, 10);
-    start.value = startDate;
-    start.dispatchEvent(new Event('change', { bubbles: true }));
-    end.value = endDate;
-    end.dispatchEvent(new Event('change', { bubbles: true }));
+    setInputValue.call(start, startDate);
+    start.dispatchEvent(new Event('input', { bubbles: true }));
+    setInputValue.call(end, endDate);
+    end.dispatchEvent(new Event('input', { bubbles: true }));
     return { endDate, startDate };
   })()`);
   assert.ok(customRange, "실패 정보 사용자 지정 날짜를 입력하지 못했습니다");
