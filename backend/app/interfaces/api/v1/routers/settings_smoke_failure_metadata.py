@@ -57,6 +57,18 @@ async def trim_smoke_failure_metadata(repo: Any, *, limit: int) -> int:
     return len(retained)
 
 
+async def delete_smoke_failure_metadata(repo: Any, *, run_ids: set[int]) -> tuple[int, int]:
+    entries = await _read_entries(repo)
+    retained = [entry for entry in entries if entry["run_id"] not in run_ids]
+    deleted_count = len(entries) - len(retained)
+    if deleted_count:
+        await repo.set(
+            SMOKE_FAILURE_METADATA_KEY,
+            json.dumps(retained, ensure_ascii=False),
+        )
+    return deleted_count, len(retained)
+
+
 async def read_smoke_failure_metadata(repo: Any) -> dict[int, dict[str, Any]]:
     return {entry["run_id"]: entry for entry in await _read_entries(repo)}
 

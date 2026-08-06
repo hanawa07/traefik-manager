@@ -23,6 +23,9 @@ from app.interfaces.api.v1.routers.settings_smoke_monitoring_action import (
 from app.interfaces.api.v1.routers.settings_smoke_failure_classification import (
     classify_smoke_failure_action as _classify_smoke_failure_action,
 )
+from app.interfaces.api.v1.routers.settings_smoke_failure_metadata_cleanup import (
+    cleanup_smoke_failure_metadata_action as _cleanup_smoke_failure_metadata_action,
+)
 from app.interfaces.api.v1.routers.settings_smoke_monitoring_values import (
     read_smoke_monitoring_values,
     should_run_scheduled_smoke,
@@ -37,6 +40,8 @@ from app.interfaces.api.v1.routers.settings_smoke_run_action import (
 from app.interfaces.api.v1.schemas.settings_schemas import (
     SmokeFailureClassificationRequest,
     SmokeFailureClassificationResponse,
+    SmokeFailureMetadataCleanupRequest,
+    SmokeFailureMetadataCleanupResponse,
     SmokeMonitoringRunFailureRequest,
     SmokeMonitoringRunFailureResponse,
     SmokeMonitoringRunSuccessRequest,
@@ -191,6 +196,27 @@ async def classify_smoke_failure(
 ):
     return await _classify_smoke_failure_action(
         run_id=run_id,
+        request=request,
+        actor=actor,
+        db=db,
+        settings_repository_factory=SQLiteSystemSettingsRepository,
+        audit_service=audit_service,
+        client_ip=_maybe_get_client_ip(http_request),
+    )
+
+
+@router.post(
+    "/smoke-failure-metadata/cleanup",
+    response_model=SmokeFailureMetadataCleanupResponse,
+    summary="선택한 원격 운영 스모크 실패 분류 정보 정리",
+)
+async def cleanup_smoke_failure_metadata(
+    request: SmokeFailureMetadataCleanupRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+    actor: dict = Depends(require_admin),
+):
+    return await _cleanup_smoke_failure_metadata_action(
         request=request,
         actor=actor,
         db=db,

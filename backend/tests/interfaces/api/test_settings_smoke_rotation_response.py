@@ -287,6 +287,7 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
     assert result.monitoring_history_cancellation_reason == "all"
     assert result.monitoring_failure_metadata_count == 2
     assert result.monitoring_failure_metadata_limit == 20
+    assert [entry.run_id for entry in result.monitoring_failure_metadata_entries] == [456, 457]
     assert result.monitoring_github_rate_limit_remaining == 42
     assert result.monitoring_github_rate_limit_limit == 60
     assert result.monitoring_github_rate_limit_reset_at == "2026-07-21T07:00:00+00:00"

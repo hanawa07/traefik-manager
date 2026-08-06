@@ -182,6 +182,7 @@ async def get_smoke_rotation_status_response(
         monitoring_history_status=run_history["status_filter"],
         monitoring_history_cancellation_reason=run_history["cancellation_reason_filter"],
         monitoring_failure_metadata_count=len(failure_metadata),
+        monitoring_failure_metadata_entries=list(failure_metadata.values()),
         monitoring_github_rate_limit_remaining=github_rate_limit["remaining"],
         monitoring_github_rate_limit_limit=github_rate_limit["limit"],
         monitoring_github_rate_limit_reset_at=github_rate_limit["reset_at"],

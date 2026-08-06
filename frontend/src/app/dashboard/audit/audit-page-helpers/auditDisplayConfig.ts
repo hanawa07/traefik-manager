@@ -32,6 +32,7 @@ export const resourceTypeConfig: Record<string, ResourceTypeConfig> = {
   certificate: { icon: Shield, label: "인증서", color: "border border-amber-200 bg-amber-50 text-amber-700" },
   manager_component: { icon: Activity, label: "Manager", color: "border border-slate-200 bg-slate-50 text-slate-700" },
   smoke_run: { icon: Activity, label: "스모크 실행", color: "border border-cyan-200 bg-cyan-50 text-cyan-700" },
+  smoke_failure_metadata: { icon: Activity, label: "스모크 실패 정보", color: "border border-rose-200 bg-rose-50 text-rose-700" },
   traefik: { icon: Server, label: "Traefik", color: "border border-cyan-200 bg-cyan-50 text-cyan-700" },
   traefik_security: { icon: Shield, label: "Traefik 보안", color: "border border-amber-200 bg-amber-50 text-amber-700" },
 };
@@ -72,6 +73,7 @@ export const securityEventConfig: Record<string, BadgeConfig> = {
   smoke_rotation_succeeded: { label: "Secret 회전 성공", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   smoke_rotation_failed: { label: "Secret 회전 실패", color: "bg-rose-50 text-rose-700 border-rose-200" },
   smoke_failure_classified: { label: "스모크 실패 수동 분류", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
+  smoke_failure_metadata_cleanup: { label: "스모크 실패 정보 정리", color: "bg-rose-50 text-rose-700 border-rose-200" },
   smoke_failure_type_increase: { label: "스모크 실패 유형 증가", color: "bg-rose-50 text-rose-700 border-rose-200" },
   settings_rollback_time_display: { label: "시간 표시 설정 롤백", color: "bg-amber-50 text-amber-700 border-amber-200" },
   settings_rollback_upstream_security: {

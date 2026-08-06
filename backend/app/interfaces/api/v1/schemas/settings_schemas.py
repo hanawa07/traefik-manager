@@ -39,6 +39,8 @@ from app.interfaces.api.v1.schemas.settings_security_alert_schemas import (
 from app.interfaces.api.v1.schemas.settings_smoke_rotation_schemas import (
     SmokeFailureClassificationRequest,
     SmokeFailureClassificationResponse,
+    SmokeFailureMetadataCleanupRequest,
+    SmokeFailureMetadataCleanupResponse,
     SmokeMonitoringRunFailureRequest,
     SmokeMonitoringRunFailureResponse,
     SmokeMonitoringRunSuccessRequest,
@@ -74,6 +76,8 @@ __all__ = [
     "SecurityAlertSettingsUpdateRequest",
     "SmokeFailureClassificationRequest",
     "SmokeFailureClassificationResponse",
+    "SmokeFailureMetadataCleanupRequest",
+    "SmokeFailureMetadataCleanupResponse",
     "SmokeMonitoringRunFailureRequest",
     "SmokeMonitoringRunFailureResponse",
     "SmokeMonitoringRunSuccessRequest",

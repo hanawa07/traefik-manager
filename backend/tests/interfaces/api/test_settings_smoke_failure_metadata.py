@@ -9,6 +9,7 @@ from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
     attach_smoke_failure_metadata,
     attach_smoke_failure_type_statistics,
     build_smoke_failure_type_increase_alerts,
+    delete_smoke_failure_metadata,
     read_smoke_failure_metadata,
     record_smoke_failure_metadata,
     trim_smoke_failure_metadata,
@@ -87,6 +88,28 @@ async def test_smoke_failure_metadata_uses_configured_limit_and_trims_immediatel
     assert len(json.loads(repo.value)) == 25
     assert await trim_smoke_failure_metadata(repo, limit=20) == 20
     assert [entry["run_id"] for entry in json.loads(repo.value)] == list(range(27, 7, -1))
+
+
+@pytest.mark.asyncio
+async def test_smoke_failure_metadata_deletes_only_selected_runs() -> None:
+    repo = StubRepository()
+    for run_id in range(1, 4):
+        await record_smoke_failure_metadata(
+            repo,
+            run_id=run_id,
+            metadata={
+                "captured_at": "2026-07-21T01:02:03Z",
+                "check_name": f"실패 {run_id}",
+            },
+        )
+
+    deleted_count, retained_count = await delete_smoke_failure_metadata(
+        repo,
+        run_ids={2, 99},
+    )
+
+    assert (deleted_count, retained_count) == (1, 2)
+    assert [entry["run_id"] for entry in json.loads(repo.value)] == [3, 1]
 
 
 def test_failure_type_statistics_counts_full_window_and_invalid_metadata() -> None:

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import AwareDatetime, BaseModel, Field
 
@@ -27,6 +27,10 @@ class SmokeFailureMetadataResponse(BaseModel):
     failure_type: SmokeFailureType = "visual_regression"
     screen_path: str | None = Field(default=None, max_length=500)
     page_title: str | None = Field(default=None, max_length=300)
+
+
+class SmokeFailureMetadataEntryResponse(SmokeFailureMetadataResponse):
+    run_id: int = Field(gt=0)
 
 
 class SmokeMonitoringRecentRunResponse(BaseModel):
@@ -180,6 +184,9 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_history_cancellation_reason: SmokeCancellationReasonFilter = "all"
     monitoring_failure_metadata_count: int = 0
     monitoring_failure_metadata_limit: int = Field(default=20, ge=20, le=200)
+    monitoring_failure_metadata_entries: list[SmokeFailureMetadataEntryResponse] = Field(
+        default_factory=list
+    )
     monitoring_github_rate_limit_remaining: int | None = None
     monitoring_github_rate_limit_limit: int | None = None
     monitoring_github_rate_limit_reset_at: str | None = None
@@ -242,3 +249,12 @@ class SmokeFailureClassificationRequest(BaseModel):
 
 class SmokeFailureClassificationResponse(SmokeFailureMetadataResponse):
     run_id: int = Field(gt=0)
+
+
+class SmokeFailureMetadataCleanupRequest(BaseModel):
+    run_ids: list[Annotated[int, Field(gt=0)]] = Field(min_length=1, max_length=200)
+
+
+class SmokeFailureMetadataCleanupResponse(BaseModel):
+    deleted_count: int = Field(ge=0)
+    retained_count: int = Field(ge=0)
