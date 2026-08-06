@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   parseSmokeFailureMetadataFilters,
   SMOKE_FAILURE_METADATA_QUERY,
+  type SmokeFailureMetadataFilters,
   type SmokeFailureMetadataPeriodFilter,
   type SmokeFailureMetadataSort,
   type SmokeFailureMetadataTypeFilter,
@@ -62,8 +63,25 @@ export function useSmokeFailureMetadataFilters() {
       [SMOKE_FAILURE_METADATA_QUERY.endDate, nextEndDate, ""],
     ]);
   };
+  const applyFilters = (filters: SmokeFailureMetadataFilters) => {
+    const nextStartDate = filters.period === "custom" ? filters.startDate : "";
+    const nextEndDate = filters.period === "custom" ? filters.endDate : "";
+    setTypeFilter(filters.type);
+    setPeriodFilter(filters.period);
+    setStartDate(nextStartDate);
+    setEndDate(nextEndDate);
+    setSort(filters.sort);
+    replaceBrowserQueryParams([
+      [SMOKE_FAILURE_METADATA_QUERY.type, filters.type, "all"],
+      [SMOKE_FAILURE_METADATA_QUERY.period, filters.period, "all"],
+      [SMOKE_FAILURE_METADATA_QUERY.startDate, nextStartDate, ""],
+      [SMOKE_FAILURE_METADATA_QUERY.endDate, nextEndDate, ""],
+      [SMOKE_FAILURE_METADATA_QUERY.sort, filters.sort, "newest"],
+    ]);
+  };
 
   return {
+    applyFilters,
     changeDateRange,
     changeEndDate,
     changePeriodFilter,

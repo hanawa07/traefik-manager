@@ -18,6 +18,7 @@ import { updateSmokeFailureMetadataSelection } from "@/features/settings/lib/smo
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { SmokeFailureMetadataBulkSelection } from "./SmokeFailureMetadataBulkSelection";
 import { SmokeFailureMetadataDateFilters } from "./SmokeFailureMetadataDateFilters";
+import { SmokeFailureMetadataSavedFilters } from "./SmokeFailureMetadataSavedFilters";
 import { useSmokeFailureMetadataFilters } from "./useSmokeFailureMetadataFilters";
 
 const FAILURE_TYPE_LABELS = {
@@ -39,6 +40,7 @@ export function SmokeFailureMetadataManagement({
 }: SmokeFailureMetadataManagementProps) {
   const cleanup = useCleanupSmokeFailureMetadata();
   const {
+    applyFilters,
     changeDateRange,
     changeEndDate,
     changePeriodFilter,
@@ -186,6 +188,10 @@ export function SmokeFailureMetadataManagement({
         period={periodFilter}
         startDate={startDate}
         timezone={timezone}
+      />
+      <SmokeFailureMetadataSavedFilters
+        filters={{ endDate, period: periodFilter, sort, startDate, type: typeFilter }}
+        onApply={applyFilters}
       />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button

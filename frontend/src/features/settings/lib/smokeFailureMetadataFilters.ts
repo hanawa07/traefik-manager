@@ -17,6 +17,12 @@ export interface SmokeFailureMetadataDateRange {
   startDate: string;
 }
 
+export interface SmokeFailureMetadataFilters extends SmokeFailureMetadataDateRange {
+  period: SmokeFailureMetadataPeriodFilter;
+  sort: SmokeFailureMetadataSort;
+  type: SmokeFailureMetadataTypeFilter;
+}
+
 export interface SmokeFailureMetadataFilterOptions {
   endDate?: string;
   now?: number;
@@ -102,13 +108,9 @@ export function sortSmokeFailureMetadata(
   });
 }
 
-export function parseSmokeFailureMetadataFilters(search: string): {
-  endDate: string;
-  period: SmokeFailureMetadataPeriodFilter;
-  sort: SmokeFailureMetadataSort;
-  startDate: string;
-  type: SmokeFailureMetadataTypeFilter;
-} {
+export function parseSmokeFailureMetadataFilters(
+  search: string,
+): SmokeFailureMetadataFilters {
   const params = new URLSearchParams(search);
   const periodValue = params.get(SMOKE_FAILURE_METADATA_QUERY.period);
   const sortValue = params.get(SMOKE_FAILURE_METADATA_QUERY.sort);

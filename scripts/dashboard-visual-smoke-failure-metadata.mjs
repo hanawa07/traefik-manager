@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 import { fulfillJsonRequest } from "./dashboard-visual-smoke-history-fixture.mjs";
+import { checkSmokeFailureMetadataSavedFilters } from "./dashboard-visual-smoke-failure-metadata-saved-filters.mjs";
 
 export function applySmokeFailureMetadataFixture(fixture) {
   fixture.monitoring_failure_metadata_count = 2;
@@ -125,6 +126,7 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
     timeoutMs,
     "실패 정보 필터가 URL과 결과에 반영되지 않았습니다",
   );
+  await checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs });
 
   const requestPaused = cdp.waitFor("Fetch.requestPaused", timeoutMs);
   const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);

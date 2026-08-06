@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   buildSmokeFailureMetadataDatePresetRange,
@@ -42,6 +42,18 @@ export function SmokeFailureMetadataDateFilters({
   const invalidDateRange = Boolean(
     period === "custom" && startDate && endDate && startDate > endDate,
   );
+
+  useEffect(() => {
+    if (!activePreset) return;
+    const range = buildSmokeFailureMetadataDatePresetRange(activePreset, { timezone });
+    if (
+      period !== "custom" ||
+      range.startDate !== startDate ||
+      range.endDate !== endDate
+    ) {
+      setActivePreset(null);
+    }
+  }, [activePreset, endDate, period, startDate, timezone]);
 
   return (
     <>
