@@ -107,6 +107,15 @@ export function SmokeFailureMetadataSavedFilters({
     setSelectedName("");
   };
 
+  const clearAll = () => {
+    const count = savedFilters.length;
+    if (!count || !window.confirm(`저장 필터 ${count}개를 모두 삭제할까요?`)) return;
+    if (!persist([])) return;
+    setName("");
+    setSelectedName("");
+    setNotice(`저장 필터 ${count}개를 모두 삭제했습니다.`);
+  };
+
   const rename = () => {
     if (!selectedName) return;
     const normalizedName = normalizeSmokeFailureMetadataSavedFilterName(name);
@@ -226,6 +235,15 @@ export function SmokeFailureMetadataSavedFilters({
           type="button"
         >
           <Trash2 className="h-3.5 w-3.5" /> 삭제
+        </button>
+        <button
+          className="inline-flex items-center justify-center gap-1.5 rounded-md border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-950/40"
+          data-testid="smoke-failure-metadata-saved-filter-clear-all"
+          disabled={!savedFilters.length}
+          onClick={clearAll}
+          type="button"
+        >
+          <Trash2 className="h-3.5 w-3.5" /> 전체 삭제
         </button>
       </div>
       <p
