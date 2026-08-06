@@ -43,4 +43,28 @@ assert.equal(payload.metadata.scope, "selected");
 assert.equal(payload.metadata.timezone, "Asia/Seoul");
 assert.equal(payload.entries[0].run_id, 987);
 
+const filtered = buildSmokeFailureMetadataExport(entries, {
+  exportedAt: "2026-08-06T01:02:03Z",
+  filters: {
+    end_date: "2026-08-06",
+    period: "custom",
+    start_date: "2026-08-01",
+    type: "login",
+  },
+  format: "json",
+  scope: "filtered",
+  timezone: "Asia/Seoul",
+});
+const filteredPayload = JSON.parse(filtered.content);
+assert.equal(
+  filtered.filename,
+  "traefik-manager-smoke-failure-metadata-filtered-2026-08-06.json",
+);
+assert.deepEqual(filteredPayload.metadata.filters, {
+  end_date: "2026-08-06",
+  period: "custom",
+  start_date: "2026-08-01",
+  type: "login",
+});
+
 console.log("스모크 실패 정보 JSON·CSV 내보내기 self-test 통과");

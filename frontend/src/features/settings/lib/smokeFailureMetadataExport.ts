@@ -1,4 +1,8 @@
 import type { SmokeFailureMetadataEntry } from "@/features/settings/api/settingsApi";
+import type {
+  SmokeFailureMetadataPeriodFilter,
+  SmokeFailureMetadataTypeFilter,
+} from "@/features/settings/lib/smokeFailureMetadataFilters";
 
 const CSV_COLUMNS = [
   "run_id",
@@ -10,10 +14,18 @@ const CSV_COLUMNS = [
 ] as const satisfies readonly (keyof SmokeFailureMetadataEntry)[];
 
 export type SmokeFailureMetadataExportFormat = "csv" | "json";
-export type SmokeFailureMetadataExportScope = "all" | "selected";
+export type SmokeFailureMetadataExportScope = "all" | "filtered" | "selected";
 
-interface SmokeFailureMetadataExportOptions {
+export interface SmokeFailureMetadataExportFilters {
+  end_date: string;
+  period: SmokeFailureMetadataPeriodFilter;
+  start_date: string;
+  type: SmokeFailureMetadataTypeFilter;
+}
+
+export interface SmokeFailureMetadataExportOptions {
   exportedAt?: string;
+  filters?: SmokeFailureMetadataExportFilters;
   format: SmokeFailureMetadataExportFormat;
   scope: SmokeFailureMetadataExportScope;
   timezone?: string;
@@ -34,6 +46,7 @@ export function buildSmokeFailureMetadataExport(
             result_count: entries.length,
             schema_version: 1,
             scope: options.scope,
+            ...(options.filters ? { filters: options.filters } : {}),
             timezone:
               options.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
           },
@@ -52,11 +65,9 @@ export function buildSmokeFailureMetadataExport(
 
 export function downloadSmokeFailureMetadata(
   entries: SmokeFailureMetadataEntry[],
-  timezone?: string,
-  scope: SmokeFailureMetadataExportScope = "all",
-  format: SmokeFailureMetadataExportFormat = "json",
+  options: Omit<SmokeFailureMetadataExportOptions, "exportedAt">,
 ): string {
-  const exported = buildSmokeFailureMetadataExport(entries, { format, scope, timezone });
+  const exported = buildSmokeFailureMetadataExport(entries, options);
   const url = URL.createObjectURL(new Blob([exported.content], { type: exported.mimeType }));
   const link = document.createElement("a");
   link.href = url;

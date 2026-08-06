@@ -45,10 +45,14 @@ export function SmokeFailureMetadataManagement({
   } = useSmokeFailureMetadataFilters();
   const [selectedRunIds, setSelectedRunIds] = useState<Set<number>>(new Set());
   const [notice, setNotice] = useState("");
-  const invalidDateRange = Boolean(startDate && endDate && startDate > endDate);
+  const activeStartDate = periodFilter === "custom" ? startDate : "";
+  const activeEndDate = periodFilter === "custom" ? endDate : "";
+  const invalidDateRange = Boolean(
+    activeStartDate && activeEndDate && activeStartDate > activeEndDate,
+  );
   const visibleEntries = filterSmokeFailureMetadata(entries, typeFilter, periodFilter, {
-    endDate,
-    startDate,
+    endDate: activeEndDate,
+    startDate: activeStartDate,
     timezone,
   });
   const selectedEntries = entries.filter((entry) => selectedRunIds.has(entry.run_id));
@@ -181,20 +185,59 @@ export function SmokeFailureMetadataManagement({
       ) : null}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
+          aria-label={`현재 필터 결과 JSON ${visibleEntries.length}건 내보내기`}
           className="btn-secondary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs"
           data-testid="smoke-failure-metadata-export"
-          disabled={!entries.length}
-          onClick={() => downloadSmokeFailureMetadata(entries, timezone)}
+          disabled={!visibleEntries.length}
+          onClick={() =>
+            downloadSmokeFailureMetadata(visibleEntries, {
+              filters: {
+                end_date: activeEndDate,
+                period: periodFilter,
+                start_date: activeStartDate,
+                type: typeFilter,
+              },
+              format: "json",
+              scope: "filtered",
+              timezone,
+            })
+          }
           type="button"
         >
-          <Download className="h-3.5 w-3.5" /> 전체 JSON
+          <Download className="h-3.5 w-3.5" /> 현재 JSON ({visibleEntries.length})
+        </button>
+        <button
+          aria-label={`현재 필터 결과 CSV ${visibleEntries.length}건 내보내기`}
+          className="btn-secondary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs"
+          data-testid="smoke-failure-metadata-filtered-csv"
+          disabled={!visibleEntries.length}
+          onClick={() =>
+            downloadSmokeFailureMetadata(visibleEntries, {
+              filters: {
+                end_date: activeEndDate,
+                period: periodFilter,
+                start_date: activeStartDate,
+                type: typeFilter,
+              },
+              format: "csv",
+              scope: "filtered",
+              timezone,
+            })
+          }
+          type="button"
+        >
+          <Download className="h-3.5 w-3.5" /> 현재 CSV ({visibleEntries.length})
         </button>
         <button
           className="btn-secondary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs"
           data-testid="smoke-failure-metadata-selected-export"
           disabled={!selectedEntries.length}
           onClick={() =>
-            downloadSmokeFailureMetadata(selectedEntries, timezone, "selected")
+            downloadSmokeFailureMetadata(selectedEntries, {
+              format: "json",
+              scope: "selected",
+              timezone,
+            })
           }
           type="button"
         >
@@ -205,7 +248,11 @@ export function SmokeFailureMetadataManagement({
           data-testid="smoke-failure-metadata-selected-csv"
           disabled={!selectedEntries.length}
           onClick={() =>
-            downloadSmokeFailureMetadata(selectedEntries, timezone, "selected", "csv")
+            downloadSmokeFailureMetadata(selectedEntries, {
+              format: "csv",
+              scope: "selected",
+              timezone,
+            })
           }
           type="button"
         >
