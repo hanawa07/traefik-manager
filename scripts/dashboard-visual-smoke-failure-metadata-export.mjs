@@ -50,6 +50,10 @@ export async function checkSmokeFailureMetadataExport({ cdp, customRange }) {
   assert.match(exported.filteredJson.filename, /^운영-실패-정보-filtered-\d{4}-\d{2}-\d{2}\.json$/);
   assert.match(exported.selectedCsv.filename, /^운영-실패-정보-selected-\d{4}-\d{2}-\d{2}\.csv$/);
   assert.match(exported.selectedJson.filename, /^운영-실패-정보-selected-\d{4}-\d{2}-\d{2}\.json$/);
+  const filteredPayload = JSON.parse(exported.filteredJson.content);
+  assert.equal(filteredPayload.metadata.schema_version, 2);
+  assert.equal(filteredPayload.metadata.filters.query, "관리자");
+  assert.equal(filteredPayload.metadata.filters.sort, "run_asc");
   for (const result of [exported.filteredCsv, exported.selectedCsv]) {
     assert.match(result.content, /^"run_id","failure_type","captured_at"/);
     assert.match(result.content, /"987","login"/);
@@ -57,10 +61,11 @@ export async function checkSmokeFailureMetadataExport({ cdp, customRange }) {
   }
   assert.match(
     exported.filteredCsv.content,
-    /"filter_type","filter_period","filter_start_date","filter_end_date","filter_timezone"/,
+    /"filter_type","filter_period","filter_start_date","filter_end_date","filter_timezone","filter_query","filter_sort"/,
   );
   assert.match(
     exported.filteredCsv.content,
     new RegExp(`"login","custom","${customRange.startDate}","${customRange.endDate}",`),
   );
+  assert.match(exported.filteredCsv.content, /,"관리자","run_asc"\r?\n/);
 }

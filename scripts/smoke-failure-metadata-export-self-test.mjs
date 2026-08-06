@@ -47,6 +47,7 @@ const json = buildSmokeFailureMetadataExport(entries, {
   timezone: "Asia/Seoul",
 });
 const payload = JSON.parse(json.content);
+assert.equal(payload.metadata.schema_version, 2);
 assert.equal(payload.metadata.result_count, 1);
 assert.equal(payload.metadata.scope, "selected");
 assert.equal(payload.metadata.timezone, "Asia/Seoul");
@@ -66,6 +67,8 @@ const filteredJson = buildSmokeFailureMetadataExport(entries, {
   filters: {
     end_date: "2026-08-06",
     period: "custom",
+    query: "관리자",
+    sort: "run_asc",
     start_date: "2026-08-01",
     type: "login",
   },
@@ -81,6 +84,8 @@ assert.equal(
 assert.deepEqual(filteredPayload.metadata.filters, {
   end_date: "2026-08-06",
   period: "custom",
+  query: "관리자",
+  sort: "run_asc",
   start_date: "2026-08-01",
   type: "login",
 });
@@ -90,6 +95,8 @@ const filteredCsv = buildSmokeFailureMetadataExport(entries, {
   filters: {
     end_date: "2026-08-06",
     period: "custom",
+    query: "관리자",
+    sort: "run_asc",
     start_date: "2026-08-01",
     type: "login",
   },
@@ -99,12 +106,12 @@ const filteredCsv = buildSmokeFailureMetadataExport(entries, {
 });
 assert.ok(
   filteredCsv.content.startsWith(
-    '\uFEFF"run_id","failure_type","captured_at","check_name","screen_path","page_title","filter_type","filter_period","filter_start_date","filter_end_date","filter_timezone"',
+    '\uFEFF"run_id","failure_type","captured_at","check_name","screen_path","page_title","filter_type","filter_period","filter_start_date","filter_end_date","filter_timezone","filter_query","filter_sort"',
   ),
 );
 assert.ok(
   filteredCsv.content.includes(
-    '"login","custom","2026-08-01","2026-08-06","Asia/Seoul"',
+    '"login","custom","2026-08-01","2026-08-06","Asia/Seoul","관리자","run_asc"',
   ),
 );
 

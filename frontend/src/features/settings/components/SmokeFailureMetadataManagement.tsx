@@ -206,6 +206,8 @@ export function SmokeFailureMetadataManagement({
         filters={{
           end_date: activeEndDate,
           period: periodFilter,
+          query,
+          sort,
           start_date: activeStartDate,
           type: typeFilter,
         }}

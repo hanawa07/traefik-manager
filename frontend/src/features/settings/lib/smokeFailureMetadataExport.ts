@@ -1,6 +1,7 @@
 import type { SmokeFailureMetadataEntry } from "@/features/settings/api/settingsApi";
 import type {
   SmokeFailureMetadataPeriodFilter,
+  SmokeFailureMetadataSort,
   SmokeFailureMetadataTypeFilter,
 } from "@/features/settings/lib/smokeFailureMetadataFilters";
 
@@ -19,6 +20,8 @@ const CSV_FILTER_COLUMNS = [
   "filter_start_date",
   "filter_end_date",
   "filter_timezone",
+  "filter_query",
+  "filter_sort",
 ] as const;
 
 export type SmokeFailureMetadataExportFormat = "csv" | "json";
@@ -30,6 +33,8 @@ export const SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME_LIMIT = 80;
 export interface SmokeFailureMetadataExportFilters {
   end_date: string;
   period: SmokeFailureMetadataPeriodFilter;
+  query: string;
+  sort: SmokeFailureMetadataSort;
   start_date: string;
   type: SmokeFailureMetadataTypeFilter;
 }
@@ -58,7 +63,7 @@ export function buildSmokeFailureMetadataExport(
           metadata: {
             exported_at: exportedAt,
             result_count: entries.length,
-            schema_version: 1,
+            schema_version: 2,
             scope: options.scope,
             ...(options.filters ? { filters: options.filters } : {}),
             timezone,
@@ -115,8 +120,16 @@ function buildCsv(
   timezone: string,
 ): string {
   const filterValues = filters
-    ? [filters.type, filters.period, filters.start_date, filters.end_date, timezone]
-    : ["", "", "", "", ""];
+    ? [
+        filters.type,
+        filters.period,
+        filters.start_date,
+        filters.end_date,
+        timezone,
+        filters.query,
+        filters.sort,
+      ]
+    : ["", "", "", "", "", "", ""];
   const rows = entries.map((entry) => [
     ...CSV_COLUMNS.map((column) => entry[column]),
     ...filterValues,
