@@ -167,6 +167,10 @@ export async function runDashboardVisualSmokeSelfTest() {
   assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");
   assert.ok(settingsRoute.requiredMarkers.includes("실패 분류 정보 보관"));
   assert.ok(
+    !settingsRoute.requiredMarkers.includes("실패 유형 증가 최근 dry-run 결과"),
+  );
+  assert.ok(!settingsRoute.requiredMarkers.includes("실패 분류 정보 관리"));
+  assert.ok(
     settingsRoute.requiredMarkers.includes("전체 통계는 GitHub workflow 결론 기준"),
   );
   assert.ok(settingsRoute.requiredMarkers.includes("감사 로그 보존"));

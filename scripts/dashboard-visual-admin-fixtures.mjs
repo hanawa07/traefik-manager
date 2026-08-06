@@ -304,6 +304,9 @@ async function checkSmokeRateLimitAdminFixture({
         const auditSummary = document.querySelector('[data-testid="smoke-github-rate-limit-audit-summary"]');
         const alertTest = document.querySelector('[data-testid="smoke-github-rate-limit-alert-test"]');
         const alertSuccess = document.querySelector('[data-testid="smoke-github-rate-limit-alert-last-success"]');
+        const smokeCard = document.querySelector('[data-testid="smoke-rotation-status-card"]');
+        const failureMetadataManagement = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
+        const failureMetadataExport = document.querySelector('[data-testid="smoke-failure-metadata-export"]');
         const primarySuccess = document.querySelector('[data-testid="smoke-github-primary-rate-limit-operational-last-success"]');
         const secondarySuccess = document.querySelector('[data-testid="smoke-github-secondary-rate-limit-operational-last-success"]');
         const primaryNextAlertAt = document.querySelector('[data-testid="smoke-github-primary-rate-limit-next-alert-at"]');
@@ -312,6 +315,10 @@ async function checkSmokeRateLimitAdminFixture({
           alertTest instanceof HTMLButtonElement && !alertTest.disabled &&
           alertTest.textContent?.includes('운영 경로 테스트') &&
           alertSuccess?.textContent?.includes('최근 제한 알림 테스트 성공') &&
+          smokeCard?.textContent?.includes('실패 유형 증가 최근 dry-run 결과') &&
+          smokeCard?.textContent?.includes('실패 유형 증가 dry-run 최근 이력') &&
+          failureMetadataManagement instanceof HTMLDetailsElement &&
+          failureMetadataExport instanceof HTMLButtonElement &&
           primarySuccess?.textContent?.includes('기본 제한 운영 알림 성공') &&
           secondarySuccess?.textContent?.includes('보조 제한 운영 알림 성공') &&
           primaryNextAlertAt?.textContent?.includes('기본 제한 다음 재알림 가능') &&
