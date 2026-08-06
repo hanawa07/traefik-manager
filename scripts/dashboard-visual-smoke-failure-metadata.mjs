@@ -35,7 +35,7 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
         management.querySelector('[data-testid="smoke-failure-metadata-selected-export"]') instanceof HTMLButtonElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-selected-csv"]') instanceof HTMLButtonElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-type-filter"]') instanceof HTMLSelectElement &&
-        management.querySelector('[data-testid="smoke-failure-metadata-period-filter"]') instanceof HTMLSelectElement;
+        management.querySelector('[data-testid="smoke-failure-metadata-period-filter"]')?.querySelector('option[value="custom"]');
     })()`,
     timeoutMs,
     "실패 정보 관리·내보내기 컨트롤을 찾지 못했습니다",
@@ -47,15 +47,36 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
     if (!(type instanceof HTMLSelectElement) || !(period instanceof HTMLSelectElement)) return false;
     type.value = 'login';
     type.dispatchEvent(new Event('change', { bubbles: true }));
-    period.value = '7';
+    period.value = 'custom';
     period.dispatchEvent(new Event('change', { bubbles: true }));
     return true;
   })()`);
   assert.equal(changed, true, "실패 정보 필터를 변경하지 못했습니다");
   await waitForCondition(
     cdp,
+    `document.querySelector('[data-testid="smoke-failure-metadata-date-range"]') instanceof HTMLElement`,
+    timeoutMs,
+    "실패 정보 사용자 지정 날짜 입력이 표시되지 않았습니다",
+  );
+  const customRange = await evaluate(cdp, `(() => {
+    const start = document.querySelector('[data-testid="smoke-failure-metadata-start-date"]');
+    const end = document.querySelector('[data-testid="smoke-failure-metadata-end-date"]');
+    if (!(start instanceof HTMLInputElement) || !(end instanceof HTMLInputElement)) return null;
+    const startDate = new Date(Date.now() - 2 * 24 * 60 * 60_000).toISOString().slice(0, 10);
+    const endDate = new Date(Date.now() + 2 * 24 * 60 * 60_000).toISOString().slice(0, 10);
+    start.value = startDate;
+    start.dispatchEvent(new Event('change', { bubbles: true }));
+    end.value = endDate;
+    end.dispatchEvent(new Event('change', { bubbles: true }));
+    return { endDate, startDate };
+  })()`);
+  assert.ok(customRange, "실패 정보 사용자 지정 날짜를 입력하지 못했습니다");
+  await waitForCondition(
+    cdp,
     `location.search.includes('smoke_metadata_type=login') &&
-      location.search.includes('smoke_metadata_period=7') &&
+      location.search.includes('smoke_metadata_period=custom') &&
+      location.search.includes('smoke_metadata_from=${customRange.startDate}') &&
+      location.search.includes('smoke_metadata_to=${customRange.endDate}') &&
       document.querySelector('[data-testid="smoke-failure-metadata-result-count"]')?.textContent?.includes('조회 1/2건')`,
     timeoutMs,
     "실패 정보 필터가 URL과 결과에 반영되지 않았습니다",
@@ -73,8 +94,12 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
       if (management instanceof HTMLDetailsElement) management.open = true;
       const type = management?.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');
       const period = management?.querySelector('[data-testid="smoke-failure-metadata-period-filter"]');
+      const start = management?.querySelector('[data-testid="smoke-failure-metadata-start-date"]');
+      const end = management?.querySelector('[data-testid="smoke-failure-metadata-end-date"]');
       const runLink = management?.querySelector('[data-testid="smoke-failure-metadata-run-link"]');
-      return type?.value === 'login' && period?.value === '7' &&
+      return type?.value === 'login' && period?.value === 'custom' &&
+        start?.value === ${JSON.stringify(customRange.startDate)} &&
+        end?.value === ${JSON.stringify(customRange.endDate)} &&
         runLink?.getAttribute('href')?.endsWith('/actions/runs/987') &&
         management?.querySelector('[data-testid="smoke-failure-metadata-result-count"]')?.textContent?.includes('조회 1/2건');
     })()`,
@@ -122,7 +147,10 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
   })()`);
   await waitForCondition(
     cdp,
-    `!location.search.includes('smoke_metadata_type') && !location.search.includes('smoke_metadata_period')`,
+    `!location.search.includes('smoke_metadata_type') &&
+      !location.search.includes('smoke_metadata_period') &&
+      !location.search.includes('smoke_metadata_from') &&
+      !location.search.includes('smoke_metadata_to')`,
     timeoutMs,
     "실패 정보 기본 필터가 URL에서 제거되지 않았습니다",
   );

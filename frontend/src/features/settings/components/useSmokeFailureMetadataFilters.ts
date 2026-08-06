@@ -14,11 +14,15 @@ export function useSmokeFailureMetadataFilters() {
   const [typeFilter, setTypeFilter] = useState<SmokeFailureMetadataTypeFilter>("all");
   const [periodFilter, setPeriodFilter] =
     useState<SmokeFailureMetadataPeriodFilter>("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   useEffect(() => {
     const filters = parseSmokeFailureMetadataFilters(window.location.search);
     setTypeFilter(filters.type);
     setPeriodFilter(filters.period);
+    setStartDate(filters.startDate);
+    setEndDate(filters.endDate);
   }, []);
 
   const changeTypeFilter = (value: SmokeFailureMetadataTypeFilter) => {
@@ -27,13 +31,29 @@ export function useSmokeFailureMetadataFilters() {
   };
   const changePeriodFilter = (value: SmokeFailureMetadataPeriodFilter) => {
     setPeriodFilter(value);
-    replaceBrowserQueryParams([[SMOKE_FAILURE_METADATA_QUERY.period, value, "all"]]);
+    replaceBrowserQueryParams([
+      [SMOKE_FAILURE_METADATA_QUERY.period, value, "all"],
+      [SMOKE_FAILURE_METADATA_QUERY.startDate, value === "custom" ? startDate : "", ""],
+      [SMOKE_FAILURE_METADATA_QUERY.endDate, value === "custom" ? endDate : "", ""],
+    ]);
+  };
+  const changeStartDate = (value: string) => {
+    setStartDate(value);
+    replaceBrowserQueryParams([[SMOKE_FAILURE_METADATA_QUERY.startDate, value, ""]]);
+  };
+  const changeEndDate = (value: string) => {
+    setEndDate(value);
+    replaceBrowserQueryParams([[SMOKE_FAILURE_METADATA_QUERY.endDate, value, ""]]);
   };
 
   return {
+    changeEndDate,
     changePeriodFilter,
+    changeStartDate,
     changeTypeFilter,
+    endDate,
     periodFilter,
+    startDate,
     typeFilter,
   };
 }
