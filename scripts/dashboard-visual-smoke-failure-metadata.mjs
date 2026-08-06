@@ -37,7 +37,8 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
         management.querySelector('[data-testid="smoke-failure-metadata-selected-csv"]') instanceof HTMLButtonElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-clear-selection"]') instanceof HTMLButtonElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-type-filter"]') instanceof HTMLSelectElement &&
-        management.querySelector('[data-testid="smoke-failure-metadata-period-filter"]')?.querySelector('option[value="custom"]');
+        management.querySelector('[data-testid="smoke-failure-metadata-period-filter"]') instanceof HTMLSelectElement &&
+        management.querySelector('[data-testid="smoke-failure-metadata-period-filter"] option[value="custom"]') instanceof HTMLOptionElement;
     })()`,
     timeoutMs,
     "실패 정보 관리·내보내기 컨트롤을 찾지 못했습니다",
