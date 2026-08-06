@@ -45,6 +45,17 @@ export const SMOKE_FAILURE_METADATA_SEARCH_LIMIT = 100;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+export function countSmokeFailureMetadataActiveFilters(
+  filters: SmokeFailureMetadataFilters,
+): number {
+  return [
+    filters.type !== "all",
+    filters.period !== "all",
+    Boolean(filters.query),
+    filters.sort !== "newest",
+  ].filter(Boolean).length;
+}
+
 export function buildSmokeFailureMetadataDatePresetRange(
   preset: SmokeFailureMetadataDatePreset,
   options: Pick<SmokeFailureMetadataFilterOptions, "now" | "timezone"> = {},

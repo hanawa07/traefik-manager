@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { SmokeFailureMetadataEntry } from "@/features/settings/api/settingsApi";
 import { useCleanupSmokeFailureMetadata } from "@/features/settings/hooks/useSettings";
 import {
+  countSmokeFailureMetadataActiveFilters,
   filterSmokeFailureMetadata,
   SMOKE_FAILURE_METADATA_SEARCH_LIMIT,
   sortSmokeFailureMetadata,
@@ -76,6 +77,7 @@ export function SmokeFailureMetadataManagement({
     sort,
   );
   const selectedEntries = entries.filter((entry) => selectedRunIds.has(entry.run_id));
+  const activeFilterCount = countSmokeFailureMetadataActiveFilters(filters);
   const visibleSelectedCount = visibleEntries.filter((entry) =>
     selectedRunIds.has(entry.run_id),
   ).length;
@@ -125,7 +127,15 @@ export function SmokeFailureMetadataManagement({
       data-testid="smoke-failure-metadata-management"
     >
       <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
-        실패 분류 정보 관리 {entries.length}건
+        실패 분류 정보 관리
+        <span
+          aria-live="polite"
+          className="ml-1 font-normal text-gray-500 dark:text-slate-400"
+          data-testid="smoke-failure-metadata-summary"
+        >
+          조회 {visibleEntries.length}/{entries.length}건 · 선택 {selectedEntries.length}건 · 조건{" "}
+          {activeFilterCount}개
+        </span>
       </summary>
       <label className="mt-3 grid gap-1 text-[11px] text-gray-500 dark:text-slate-400">
         실행 번호 또는 검사명 검색

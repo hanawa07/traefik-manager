@@ -2,7 +2,10 @@
 
 import { RotateCcw, X } from "lucide-react";
 
-import type { SmokeFailureMetadataFilters } from "@/features/settings/lib/smokeFailureMetadataFilters";
+import {
+  countSmokeFailureMetadataActiveFilters,
+  type SmokeFailureMetadataFilters,
+} from "@/features/settings/lib/smokeFailureMetadataFilters";
 import { SMOKE_FAILURE_TYPE_LABELS } from "@/features/settings/lib/smokeFailureMetadataLabels";
 
 interface SmokeFailureMetadataActiveFiltersProps {
@@ -41,7 +44,7 @@ export function SmokeFailureMetadataActiveFilters({
       : PERIOD_LABELS[filters.period];
   const queryLabel = filters.query.trim() || (filters.query ? "공백" : "");
   const sortLabel = filters.sort === "newest" ? "" : SORT_LABELS[filters.sort];
-  const activeFilterCount = [typeLabel, periodLabel, queryLabel, sortLabel].filter(Boolean).length;
+  const activeFilterCount = countSmokeFailureMetadataActiveFilters(filters);
   if (!activeFilterCount) return null;
 
   return (

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import {
   buildSmokeFailureMetadataDatePresetRange,
+  countSmokeFailureMetadataActiveFilters,
   filterSmokeFailureMetadata,
   parseSmokeFailureMetadataFilters,
   SMOKE_FAILURE_METADATA_QUERY,
@@ -9,6 +10,28 @@ import {
 } from "../frontend/src/features/settings/lib/smokeFailureMetadataFilters.ts";
 
 const presetNow = Date.parse("2026-01-01T15:30:00Z");
+assert.equal(
+  countSmokeFailureMetadataActiveFilters({
+    endDate: "",
+    period: "all",
+    query: "",
+    sort: "newest",
+    startDate: "",
+    type: "all",
+  }),
+  0,
+);
+assert.equal(
+  countSmokeFailureMetadataActiveFilters({
+    endDate: "2026-08-06",
+    period: "custom",
+    query: "관리자",
+    sort: "run_asc",
+    startDate: "2026-08-01",
+    type: "login",
+  }),
+  4,
+);
 assert.deepEqual(
   buildSmokeFailureMetadataDatePresetRange("today", {
     now: presetNow,

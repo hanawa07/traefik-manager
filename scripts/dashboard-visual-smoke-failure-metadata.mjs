@@ -177,6 +177,12 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
   );
 
   await checkSmokeFailureMetadataExport({ cdp, customRange, timeoutMs });
+  await waitForCondition(
+    cdp,
+    `document.querySelector('[data-testid="smoke-failure-metadata-summary"]')?.textContent?.includes('조회 1/2건 · 선택 1건 · 조건 4개')`,
+    timeoutMs,
+    "실패 정보 관리 요약에 선택 건수가 반영되지 않았습니다",
+  );
 
   const hiddenSelectionCreated = await evaluate(cdp, `(() => {
     const type = document.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');
