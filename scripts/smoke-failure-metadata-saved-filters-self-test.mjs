@@ -11,6 +11,7 @@ import {
 const loginFilters = {
   endDate: "2026-08-06",
   period: "custom",
+  query: "관리자",
   sort: "run_asc",
   startDate: "2026-08-01",
   type: "login",
@@ -43,6 +44,7 @@ assert.deepEqual(
       filters: {
         endDate: "",
         period: "custom",
+        query: "",
         sort: "newest",
         startDate: "",
         type: "all",

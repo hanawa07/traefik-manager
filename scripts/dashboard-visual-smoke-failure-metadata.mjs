@@ -45,6 +45,7 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
         management.querySelector('[data-testid="smoke-failure-metadata-type-filter"]') instanceof HTMLSelectElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-period-filter"]') instanceof HTMLSelectElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-sort"]') instanceof HTMLSelectElement &&
+        management.querySelector('[data-testid="smoke-failure-metadata-search"]') instanceof HTMLInputElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-period-filter"] option[value="custom"]') instanceof HTMLOptionElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-date-preset-today"]') instanceof HTMLButtonElement;
     })()`,
@@ -69,10 +70,15 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
   const changed = await evaluate(cdp, `(() => {
     const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
     const type = management?.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');
+    const search = management?.querySelector('[data-testid="smoke-failure-metadata-search"]');
     const preset = management?.querySelector('[data-testid="smoke-failure-metadata-date-preset-today"]');
-    if (!(type instanceof HTMLSelectElement) || !(preset instanceof HTMLButtonElement)) return false;
+    if (!(type instanceof HTMLSelectElement) || !(search instanceof HTMLInputElement) || !(preset instanceof HTMLButtonElement)) return false;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (!setValue) return false;
     type.value = 'login';
     type.dispatchEvent(new Event('change', { bubbles: true }));
+    setValue.call(search, '관리자');
+    search.dispatchEvent(new Event('input', { bubbles: true }));
     preset.click();
     return true;
   })()`);
@@ -84,6 +90,7 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
       const start = document.querySelector('[data-testid="smoke-failure-metadata-start-date"]');
       const end = document.querySelector('[data-testid="smoke-failure-metadata-end-date"]');
       return params.get('smoke_metadata_type') === 'login' &&
+        params.get('smoke_metadata_q') === '관리자' &&
         params.get('smoke_metadata_period') === 'custom' &&
         params.get('smoke_metadata_from') === start?.value &&
         params.get('smoke_metadata_to') === end?.value &&
@@ -124,6 +131,7 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
       location.search.includes('smoke_metadata_period=custom') &&
       location.search.includes('smoke_metadata_from=${customRange.startDate}') &&
       location.search.includes('smoke_metadata_to=${customRange.endDate}') &&
+      new URLSearchParams(location.search).get('smoke_metadata_q') === '관리자' &&
       document.querySelector('[data-testid="smoke-failure-metadata-result-count"]')?.textContent?.includes('조회 1/2건')`,
     timeoutMs,
     "실패 정보 필터가 URL과 결과에 반영되지 않았습니다",
@@ -143,10 +151,11 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
       const type = management?.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');
       const period = management?.querySelector('[data-testid="smoke-failure-metadata-period-filter"]');
       const sort = management?.querySelector('[data-testid="smoke-failure-metadata-sort"]');
+      const search = management?.querySelector('[data-testid="smoke-failure-metadata-search"]');
       const start = management?.querySelector('[data-testid="smoke-failure-metadata-start-date"]');
       const end = management?.querySelector('[data-testid="smoke-failure-metadata-end-date"]');
       const runLink = management?.querySelector('[data-testid="smoke-failure-metadata-run-link"]');
-      return type?.value === 'login' && period?.value === 'custom' && sort?.value === 'run_asc' &&
+      return type?.value === 'login' && period?.value === 'custom' && sort?.value === 'run_asc' && search?.value === '관리자' &&
         start?.value === ${JSON.stringify(customRange.startDate)} &&
         end?.value === ${JSON.stringify(customRange.endDate)} &&
         runLink?.getAttribute('href')?.endsWith('/actions/runs/987') &&
@@ -241,6 +250,12 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
 
   await evaluate(cdp, `(() => {
     const management = document.querySelector('[data-testid="smoke-failure-metadata-management"]');
+    const search = management?.querySelector('[data-testid="smoke-failure-metadata-search"]');
+    if (search instanceof HTMLInputElement) {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      setValue?.call(search, '');
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+    }
     for (const [testId, value] of [
       ['smoke-failure-metadata-type-filter', 'all'],
       ['smoke-failure-metadata-period-filter', 'all'],
@@ -259,6 +274,7 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
       !location.search.includes('smoke_metadata_period') &&
       !location.search.includes('smoke_metadata_from') &&
       !location.search.includes('smoke_metadata_to') &&
+      !location.search.includes('smoke_metadata_q') &&
       !location.search.includes('smoke_metadata_sort')`,
     timeoutMs,
     "실패 정보 기본 필터가 URL에서 제거되지 않았습니다",

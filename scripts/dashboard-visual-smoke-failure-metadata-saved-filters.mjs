@@ -31,15 +31,21 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
 
   const changed = await evaluate(cdp, `(() => {
     const type = document.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');
-    if (!(type instanceof HTMLSelectElement)) return false;
+    const search = document.querySelector('[data-testid="smoke-failure-metadata-search"]');
+    if (!(type instanceof HTMLSelectElement) || !(search instanceof HTMLInputElement)) return false;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (!setValue) return false;
     type.value = 'external_api';
     type.dispatchEvent(new Event('change', { bubbles: true }));
+    setValue.call(search, '외부');
+    search.dispatchEvent(new Event('input', { bubbles: true }));
     return true;
   })()`);
   assert.equal(changed, true, "저장 필터 적용 전 유형을 변경하지 못했습니다");
   await waitForCondition(
     cdp,
-    `new URLSearchParams(location.search).get('smoke_metadata_type') === 'external_api'`,
+    `new URLSearchParams(location.search).get('smoke_metadata_type') === 'external_api' &&
+      new URLSearchParams(location.search).get('smoke_metadata_q') === '외부'`,
     timeoutMs,
     "저장 필터 적용 전 유형 변경이 반영되지 않았습니다",
   );
@@ -56,6 +62,7 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
     `(() => {
       const params = new URLSearchParams(location.search);
       return params.get('smoke_metadata_type') === 'login' &&
+        params.get('smoke_metadata_q') === '관리자' &&
         params.get('smoke_metadata_period') === 'custom' &&
         params.get('smoke_metadata_sort') === 'run_asc' &&
         document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-notice"]')?.textContent?.includes('필터를 적용했습니다');

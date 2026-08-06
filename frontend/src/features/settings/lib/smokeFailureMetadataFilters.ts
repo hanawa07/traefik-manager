@@ -19,6 +19,7 @@ export interface SmokeFailureMetadataDateRange {
 
 export interface SmokeFailureMetadataFilters extends SmokeFailureMetadataDateRange {
   period: SmokeFailureMetadataPeriodFilter;
+  query: string;
   sort: SmokeFailureMetadataSort;
   type: SmokeFailureMetadataTypeFilter;
 }
@@ -26,6 +27,7 @@ export interface SmokeFailureMetadataFilters extends SmokeFailureMetadataDateRan
 export interface SmokeFailureMetadataFilterOptions {
   endDate?: string;
   now?: number;
+  query?: string;
   startDate?: string;
   timezone?: string;
 }
@@ -33,10 +35,13 @@ export interface SmokeFailureMetadataFilterOptions {
 export const SMOKE_FAILURE_METADATA_QUERY = {
   endDate: "smoke_metadata_to",
   period: "smoke_metadata_period",
+  query: "smoke_metadata_q",
   sort: "smoke_metadata_sort",
   startDate: "smoke_metadata_from",
   type: "smoke_metadata_type",
 } as const;
+
+export const SMOKE_FAILURE_METADATA_SEARCH_LIMIT = 100;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -67,6 +72,8 @@ export function filterSmokeFailureMetadata(
   options: SmokeFailureMetadataFilterOptions = {},
 ): SmokeFailureMetadataEntry[] {
   const now = options.now ?? Date.now();
+  const query = normalizeSmokeFailureMetadataSearch(options.query).trim().toLowerCase();
+  const runQuery = query.replace(/^#/, "");
   const cutoff = period === "7" || period === "30" ? now - Number(period) * DAY_MS : null;
   const invalidCustomRange =
     period === "custom" &&
@@ -74,6 +81,13 @@ export function filterSmokeFailureMetadata(
   if (invalidCustomRange) return [];
 
   return entries.filter((entry) => {
+    if (
+      query &&
+      !entry.check_name.toLowerCase().includes(query) &&
+      !(runQuery && String(entry.run_id).includes(runQuery))
+    ) {
+      return false;
+    }
     if (type !== "all" && entry.failure_type !== type) return false;
     if (period === "all") return true;
     const capturedAt = Date.parse(entry.captured_at);
@@ -125,6 +139,9 @@ export function parseSmokeFailureMetadataFilters(
         ? normalizeCalendarDate(params.get(SMOKE_FAILURE_METADATA_QUERY.endDate))
         : "",
     period,
+    query: normalizeSmokeFailureMetadataSearch(
+      params.get(SMOKE_FAILURE_METADATA_QUERY.query),
+    ),
     sort:
       sortValue === "oldest" || sortValue === "run_desc" || sortValue === "run_asc"
         ? sortValue
@@ -138,6 +155,12 @@ export function parseSmokeFailureMetadataFilters(
         ? type
         : "all",
   };
+}
+
+export function normalizeSmokeFailureMetadataSearch(value: unknown): string {
+  return typeof value === "string"
+    ? value.slice(0, SMOKE_FAILURE_METADATA_SEARCH_LIMIT)
+    : "";
 }
 
 function normalizeCalendarDate(value: string | null): string {

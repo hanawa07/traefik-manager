@@ -74,6 +74,7 @@ function normalizeFilters(value: unknown): SmokeFailureMetadataFilters {
   return {
     endDate: period === "custom" ? normalizeCalendarDate(filters.endDate) : "",
     period,
+    query: typeof filters.query === "string" ? filters.query.slice(0, 100) : "",
     sort: isSort(filters.sort) ? filters.sort : "newest",
     startDate: period === "custom" ? normalizeCalendarDate(filters.startDate) : "",
     type: isType(filters.type) ? filters.type : "all",

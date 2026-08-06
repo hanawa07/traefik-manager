@@ -18,6 +18,7 @@ export function useSmokeFailureMetadataFilters() {
     useState<SmokeFailureMetadataPeriodFilter>("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SmokeFailureMetadataSort>("newest");
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export function useSmokeFailureMetadataFilters() {
     setPeriodFilter(filters.period);
     setStartDate(filters.startDate);
     setEndDate(filters.endDate);
+    setQuery(filters.query);
     setSort(filters.sort);
   }, []);
 
@@ -53,6 +55,10 @@ export function useSmokeFailureMetadataFilters() {
     setSort(value);
     replaceBrowserQueryParams([[SMOKE_FAILURE_METADATA_QUERY.sort, value, "newest"]]);
   };
+  const changeQuery = (value: string) => {
+    setQuery(value);
+    replaceBrowserQueryParams([[SMOKE_FAILURE_METADATA_QUERY.query, value, ""]]);
+  };
   const changeDateRange = (nextStartDate: string, nextEndDate: string) => {
     setPeriodFilter("custom");
     setStartDate(nextStartDate);
@@ -70,12 +76,14 @@ export function useSmokeFailureMetadataFilters() {
     setPeriodFilter(filters.period);
     setStartDate(nextStartDate);
     setEndDate(nextEndDate);
+    setQuery(filters.query);
     setSort(filters.sort);
     replaceBrowserQueryParams([
       [SMOKE_FAILURE_METADATA_QUERY.type, filters.type, "all"],
       [SMOKE_FAILURE_METADATA_QUERY.period, filters.period, "all"],
       [SMOKE_FAILURE_METADATA_QUERY.startDate, nextStartDate, ""],
       [SMOKE_FAILURE_METADATA_QUERY.endDate, nextEndDate, ""],
+      [SMOKE_FAILURE_METADATA_QUERY.query, filters.query, ""],
       [SMOKE_FAILURE_METADATA_QUERY.sort, filters.sort, "newest"],
     ]);
   };
@@ -85,11 +93,13 @@ export function useSmokeFailureMetadataFilters() {
     changeDateRange,
     changeEndDate,
     changePeriodFilter,
+    changeQuery,
     changeStartDate,
     changeSort,
     changeTypeFilter,
     endDate,
     periodFilter,
+    query,
     sort,
     startDate,
     typeFilter,

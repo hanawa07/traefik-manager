@@ -7,6 +7,7 @@ import type { SmokeFailureMetadataEntry } from "@/features/settings/api/settings
 import { useCleanupSmokeFailureMetadata } from "@/features/settings/hooks/useSettings";
 import {
   filterSmokeFailureMetadata,
+  SMOKE_FAILURE_METADATA_SEARCH_LIMIT,
   sortSmokeFailureMetadata,
   type SmokeFailureMetadataPeriodFilter,
   type SmokeFailureMetadataSort,
@@ -40,11 +41,13 @@ export function SmokeFailureMetadataManagement({
     changeDateRange,
     changeEndDate,
     changePeriodFilter,
+    changeQuery,
     changeStartDate,
     changeSort,
     changeTypeFilter,
     endDate,
     periodFilter,
+    query,
     sort,
     startDate,
     typeFilter,
@@ -57,6 +60,7 @@ export function SmokeFailureMetadataManagement({
   const visibleEntries = sortSmokeFailureMetadata(
     filterSmokeFailureMetadata(entries, typeFilter, periodFilter, {
       endDate: activeEndDate,
+      query,
       startDate: activeStartDate,
       timezone,
     }),
@@ -114,6 +118,18 @@ export function SmokeFailureMetadataManagement({
       <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
         실패 분류 정보 관리 {entries.length}건
       </summary>
+      <label className="mt-3 grid gap-1 text-[11px] text-gray-500 dark:text-slate-400">
+        실행 번호 또는 검사명 검색
+        <input
+          className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+          data-testid="smoke-failure-metadata-search"
+          maxLength={SMOKE_FAILURE_METADATA_SEARCH_LIMIT}
+          onChange={(event) => changeQuery(event.target.value)}
+          placeholder="예: 987 또는 관리자 로그인"
+          type="search"
+          value={query}
+        />
+      </label>
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto] lg:items-end">
         <label className="grid gap-1 text-[11px] text-gray-500 dark:text-slate-400">
           실패 유형
@@ -182,7 +198,7 @@ export function SmokeFailureMetadataManagement({
         timezone={timezone}
       />
       <SmokeFailureMetadataSavedFilters
-        filters={{ endDate, period: periodFilter, sort, startDate, type: typeFilter }}
+        filters={{ endDate, period: periodFilter, query, sort, startDate, type: typeFilter }}
         onApply={applyFilters}
       />
       <SmokeFailureMetadataExportControls
