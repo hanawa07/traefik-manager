@@ -41,7 +41,8 @@ export function SmokeFailureMetadataActiveFilters({
       : PERIOD_LABELS[filters.period];
   const queryLabel = filters.query.trim() || (filters.query ? "공백" : "");
   const sortLabel = filters.sort === "newest" ? "" : SORT_LABELS[filters.sort];
-  if (!typeLabel && !periodLabel && !queryLabel && !sortLabel) return null;
+  const activeFilterCount = [typeLabel, periodLabel, queryLabel, sortLabel].filter(Boolean).length;
+  if (!activeFilterCount) return null;
 
   return (
     <div
@@ -49,8 +50,12 @@ export function SmokeFailureMetadataActiveFilters({
       className="mt-2 flex flex-wrap items-center gap-1.5"
       data-testid="smoke-failure-metadata-active-filters"
     >
-      <span className="mr-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">
-        적용 조건
+      <span
+        aria-live="polite"
+        className="mr-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400"
+        data-testid="smoke-failure-metadata-active-filter-count"
+      >
+        적용 조건 {activeFilterCount}개
       </span>
       {typeLabel ? (
         <FilterChip

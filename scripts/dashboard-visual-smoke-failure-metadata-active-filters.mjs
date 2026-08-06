@@ -7,7 +7,8 @@ export async function checkSmokeFailureMetadataActiveFilters({ cdp, timeoutMs })
     cdp,
     `(() => {
       const filters = document.querySelector('[data-testid="smoke-failure-metadata-active-filters"]');
-      return filters?.querySelector('[data-testid="smoke-failure-metadata-active-filter-type"]')?.textContent?.includes('유형: 로그인') &&
+      return filters?.querySelector('[data-testid="smoke-failure-metadata-active-filter-count"]')?.textContent?.includes('적용 조건 4개') &&
+        filters.querySelector('[data-testid="smoke-failure-metadata-active-filter-type"]')?.textContent?.includes('유형: 로그인') &&
         filters.querySelector('[data-testid="smoke-failure-metadata-active-filter-period"]')?.textContent?.includes('기간:') &&
         filters.querySelector('[data-testid="smoke-failure-metadata-active-filter-query"]')?.textContent?.includes('검색: 관리자') &&
         filters.querySelector('[data-testid="smoke-failure-metadata-active-filter-sort"]')?.textContent?.includes('정렬: 실행 번호 낮은순');
@@ -27,7 +28,8 @@ export async function checkSmokeFailureMetadataActiveFilters({ cdp, timeoutMs })
     cdp,
     `!new URLSearchParams(location.search).has('smoke_metadata_q') &&
       document.querySelector('[data-testid="smoke-failure-metadata-search"]')?.value === '' &&
-      !document.querySelector('[data-testid="smoke-failure-metadata-active-filter-query"]')`,
+      !document.querySelector('[data-testid="smoke-failure-metadata-active-filter-query"]') &&
+      document.querySelector('[data-testid="smoke-failure-metadata-active-filter-count"]')?.textContent?.includes('적용 조건 3개')`,
     timeoutMs,
     "실패 정보 검색 필터 해제가 화면과 URL에 반영되지 않았습니다",
   );
@@ -45,7 +47,8 @@ export async function checkSmokeFailureMetadataActiveFilters({ cdp, timeoutMs })
   await waitForCondition(
     cdp,
     `new URLSearchParams(location.search).get('smoke_metadata_q') === '관리자' &&
-      document.querySelector('[data-testid="smoke-failure-metadata-active-filter-query"]')?.textContent?.includes('검색: 관리자')`,
+      document.querySelector('[data-testid="smoke-failure-metadata-active-filter-query"]')?.textContent?.includes('검색: 관리자') &&
+      document.querySelector('[data-testid="smoke-failure-metadata-active-filter-count"]')?.textContent?.includes('적용 조건 4개')`,
     timeoutMs,
     "실패 정보 검색 필터 복원이 화면과 URL에 반영되지 않았습니다",
   );
