@@ -18,6 +18,7 @@ import {
   getManagerHttpErrorDetailRows,
   getManagerHttpLogStorageDetailRows,
   getSmokeFailureClassificationDetailRows,
+  getSmokeFailureMetadataCleanupDetailRows,
   getSmokeRotationDetailRows,
   isRecord,
   isRollbackResourceType,
@@ -68,6 +69,8 @@ export function AuditLogRow({
     managerEvent,
     detail,
   );
+  const smokeFailureMetadataCleanupDetailRows =
+    getSmokeFailureMetadataCleanupDetailRows(managerEvent, detail);
   const sourceTraefikRequestId =
     managerEvent === "traefik_rollback_alert_retry_requested" &&
     typeof detail?.source_request_id === "string"
@@ -83,6 +86,7 @@ export function AuditLogRow({
     managerDetailRows.length > 0 ||
     smokeRotationDetailRows.length > 0 ||
     smokeFailureClassificationDetailRows.length > 0 ||
+    smokeFailureMetadataCleanupDetailRows.length > 0 ||
     sourceTraefikRequestId !== null;
   const rollbackResourceType = isRollbackResourceType(log.resource_type) ? log.resource_type : null;
   const rollbackSupported =
@@ -140,6 +144,7 @@ export function AuditLogRow({
               deliveryRows={deliveryRows}
               managerDetailRows={managerDetailRows}
               smokeFailureClassificationDetailRows={smokeFailureClassificationDetailRows}
+              smokeFailureMetadataCleanupDetailRows={smokeFailureMetadataCleanupDetailRows}
               smokeRotationDetailRows={smokeRotationDetailRows}
               sourceTraefikRequestId={sourceTraefikRequestId}
               rollbackSupported={rollbackSupported}

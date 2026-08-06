@@ -52,6 +52,9 @@ export { getSmokeRotationDetailRows } from "./audit-page-helpers/smokeRotationDe
 export {
   getSmokeFailureClassificationDetailRows,
 } from "./audit-page-helpers/smokeFailureClassificationDetailRows";
+export {
+  getSmokeFailureMetadataCleanupDetailRows,
+} from "./audit-page-helpers/smokeFailureMetadataCleanupDetailRows";
 export { getGithubApiRateLimitDetailRows } from "./audit-page-helpers/githubApiRateLimitDetailRows";
 export {
   formatAuditValue,
