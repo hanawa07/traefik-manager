@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 const VISUAL_PRESET_NAME = "시각 스모크 필터";
+const RENAMED_PRESET_NAME = "Z 시각 필터";
+const SECONDARY_PRESET_NAME = "A 시각 필터";
 
 export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) {
   const saved = await evaluate(cdp, `(() => {
@@ -27,6 +29,86 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
     })()`,
     timeoutMs,
     "저장한 실패 정보 필터가 목록에 표시되지 않았습니다",
+  );
+
+  const renamed = await evaluate(cdp, `(async () => {
+    const name = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-name"]');
+    const button = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-rename"]');
+    if (!(name instanceof HTMLInputElement) || !(button instanceof HTMLButtonElement)) return false;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (!setValue) return false;
+    setValue.call(name, ${JSON.stringify(RENAMED_PRESET_NAME)});
+    name.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    if (button.disabled) return false;
+    button.click();
+    return true;
+  })()`);
+  assert.equal(renamed, true, "저장 필터 이름을 변경하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const select = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-select"]');
+      const notice = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-notice"]');
+      return select?.value === ${JSON.stringify(RENAMED_PRESET_NAME)} &&
+        !Array.from(select?.options || []).some((option) => option.value === ${JSON.stringify(VISUAL_PRESET_NAME)}) &&
+        notice?.textContent?.includes('이름을');
+    })()`,
+    timeoutMs,
+    "변경한 저장 필터 이름이 목록에 반영되지 않았습니다",
+  );
+
+  const secondarySaved = await evaluate(cdp, `(() => {
+    const name = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-name"]');
+    const button = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-save"]');
+    if (!(name instanceof HTMLInputElement) || !(button instanceof HTMLButtonElement)) return false;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (!setValue) return false;
+    setValue.call(name, ${JSON.stringify(SECONDARY_PRESET_NAME)});
+    name.dispatchEvent(new Event('input', { bubbles: true }));
+    button.click();
+    return true;
+  })()`);
+  assert.equal(secondarySaved, true, "정렬 확인용 저장 필터를 추가하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-select"]')?.value === ${JSON.stringify(SECONDARY_PRESET_NAME)}`,
+    timeoutMs,
+    "정렬 확인용 저장 필터가 선택되지 않았습니다",
+  );
+
+  const sorted = await evaluate(cdp, `(() => {
+    const sort = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-sort"]');
+    if (!(sort instanceof HTMLSelectElement)) return false;
+    sort.value = 'name_desc';
+    sort.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(sorted, true, "저장 필터 목록 정렬을 변경하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const select = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-select"]');
+      const names = Array.from(select?.options || []).slice(1).map((option) => option.value);
+      return JSON.stringify(names) === ${JSON.stringify(JSON.stringify([RENAMED_PRESET_NAME, SECONDARY_PRESET_NAME]))};
+    })()`,
+    timeoutMs,
+    "저장 필터 이름 내림차순이 목록에 반영되지 않았습니다",
+  );
+
+  const renamedSelected = await evaluate(cdp, `(() => {
+    const select = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-select"]');
+    if (!(select instanceof HTMLSelectElement)) return false;
+    select.value = ${JSON.stringify(RENAMED_PRESET_NAME)};
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(renamedSelected, true, "이름을 변경한 저장 필터를 선택하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-select"]')?.value === ${JSON.stringify(RENAMED_PRESET_NAME)}`,
+    timeoutMs,
+    "이름을 변경한 저장 필터 선택이 반영되지 않았습니다",
   );
 
   const changed = await evaluate(cdp, `(() => {
@@ -83,9 +165,28 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
     `(() => {
       const select = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-select"]');
       return select?.value === '' &&
-        !Array.from(select?.options || []).some((option) => option.value === ${JSON.stringify(VISUAL_PRESET_NAME)});
+        !Array.from(select?.options || []).some((option) => option.value === ${JSON.stringify(RENAMED_PRESET_NAME)});
     })()`,
     timeoutMs,
     "삭제한 실패 정보 필터가 목록에 남아 있습니다",
+  );
+
+  const secondaryRemoved = await evaluate(cdp, `(async () => {
+    const select = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-select"]');
+    const button = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-delete"]');
+    if (!(select instanceof HTMLSelectElement) || !(button instanceof HTMLButtonElement)) return false;
+    select.value = ${JSON.stringify(SECONDARY_PRESET_NAME)};
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    if (button.disabled) return false;
+    button.click();
+    return true;
+  })()`);
+  assert.equal(secondaryRemoved, true, "정렬 확인용 저장 필터를 삭제하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-select"]')?.options.length === 1`,
+    timeoutMs,
+    "정렬 확인용 저장 필터가 목록에 남아 있습니다",
   );
 }

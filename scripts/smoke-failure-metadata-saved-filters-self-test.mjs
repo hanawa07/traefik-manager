@@ -4,7 +4,9 @@ import {
   normalizeSmokeFailureMetadataSavedFilterName,
   parseSmokeFailureMetadataSavedFilters,
   removeSmokeFailureMetadataSavedFilter,
+  renameSmokeFailureMetadataSavedFilter,
   SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT,
+  sortSmokeFailureMetadataSavedFilters,
   upsertSmokeFailureMetadataSavedFilter,
 } from "../frontend/src/features/settings/lib/smokeFailureMetadataSavedFilters.ts";
 
@@ -64,7 +66,29 @@ saved = upsertSmokeFailureMetadataSavedFilter(saved, {
 });
 assert.equal(saved.length, 1);
 assert.equal(saved[0].filters.sort, "oldest");
-assert.deepEqual(removeSmokeFailureMetadataSavedFilter(saved, " 로그인 "), []);
+saved = renameSmokeFailureMetadataSavedFilter(saved, "로그인", "Z 운영 로그인");
+assert.equal(saved[0].name, "Z 운영 로그인");
+assert.equal(saved[0].filters.sort, "oldest");
+saved = upsertSmokeFailureMetadataSavedFilter(saved, {
+  filters: loginFilters,
+  name: "A API",
+});
+assert.deepEqual(
+  sortSmokeFailureMetadataSavedFilters(saved, "name_asc").map(({ name }) => name),
+  ["A API", "Z 운영 로그인"],
+);
+assert.deepEqual(
+  sortSmokeFailureMetadataSavedFilters(saved, "name_desc").map(({ name }) => name),
+  ["Z 운영 로그인", "A API"],
+);
+assert.deepEqual(
+  renameSmokeFailureMetadataSavedFilter(saved, "Z 운영 로그인", "A API"),
+  saved,
+);
+assert.deepEqual(
+  removeSmokeFailureMetadataSavedFilter(saved, " Z 운영 로그인 ").map(({ name }) => name),
+  ["A API"],
+);
 
 for (let index = 0; index < SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT + 3; index += 1) {
   saved = upsertSmokeFailureMetadataSavedFilter(saved, {
