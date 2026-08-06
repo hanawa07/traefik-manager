@@ -294,16 +294,15 @@ export function SmokeFailureMetadataManagement({
             <input
               aria-label="현재 실패 정보 결과 전체 선택 또는 해제"
               checked={allVisibleSelected}
-              onChange={() => {
-                setSelectedRunIds((current) => {
-                  const next = new Set(current);
-                  for (const entry of visibleEntries) {
-                    if (allVisibleSelected) next.delete(entry.run_id);
-                    else next.add(entry.run_id);
-                  }
-                  return next;
-                });
-              }}
+              onChange={() =>
+                updateSelection(
+                  visibleEntries,
+                  !allVisibleSelected,
+                  allVisibleSelected
+                    ? `현재 결과 ${visibleEntries.length}건을 해제했습니다.`
+                    : `현재 결과 ${visibleEntries.length}건을 선택했습니다.`,
+                )
+              }
               ref={(element) => {
                 if (element) {
                   element.indeterminate =
