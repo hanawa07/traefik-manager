@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { SmokeFailureMetadataEntry } from "@/features/settings/api/settingsApi";
@@ -55,6 +55,15 @@ export function SmokeFailureMetadataExportControls({
     }
   };
 
+  const resetFilenameBase = () => {
+    setFilenameBase(DEFAULT_SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME);
+    try {
+      localStorage.removeItem(SMOKE_FAILURE_METADATA_EXPORT_FILENAME_STORAGE_KEY);
+    } catch {
+      // The default remains active for the current session.
+    }
+  };
+
   const download = (
     entries: SmokeFailureMetadataEntry[],
     format: SmokeFailureMetadataExportFormat,
@@ -74,7 +83,7 @@ export function SmokeFailureMetadataExportControls({
       className="mt-3 rounded-md border border-gray-200 p-2.5 dark:border-slate-700"
       data-testid="smoke-failure-metadata-export-controls"
     >
-      <div className="grid gap-1 sm:max-w-xl">
+      <div className="grid gap-2 sm:max-w-xl sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <label className="grid gap-1 text-[11px] text-gray-500 dark:text-slate-400">
           내보내기 파일 이름
           <input
@@ -85,8 +94,17 @@ export function SmokeFailureMetadataExportControls({
             value={filenameBase}
           />
         </label>
+        <button
+          className="btn-secondary inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs"
+          data-testid="smoke-failure-metadata-export-filename-reset"
+          disabled={filenameBase === DEFAULT_SMOKE_FAILURE_METADATA_EXPORT_BASE_NAME}
+          onClick={resetFilenameBase}
+          type="button"
+        >
+          <RotateCcw className="h-3.5 w-3.5" /> 기본값 복원
+        </button>
         <p
-          className="break-all text-[11px] text-gray-500 dark:text-slate-400"
+          className="break-all text-[11px] text-gray-500 dark:text-slate-400 sm:col-span-2"
           data-testid="smoke-failure-metadata-export-filename-preview"
         >
           생성 예: {normalizedFilenameBase}-filtered-YYYY-MM-DD.csv · 이 브라우저에 자동 저장

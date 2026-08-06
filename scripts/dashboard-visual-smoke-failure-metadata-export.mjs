@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 const CUSTOM_FILENAME = "운영 / 실패 정보";
+const DEFAULT_FILENAME = "traefik-manager-smoke-failure-metadata";
 const STORAGE_KEY = "traefik-manager:smoke-failure-metadata-export-filename";
 
 export async function prepareSmokeFailureMetadataExportFilename({ cdp }) {
@@ -93,4 +94,20 @@ export async function checkSmokeFailureMetadataExport({ cdp, customRange, timeou
     new RegExp(`"login","custom","${customRange.startDate}","${customRange.endDate}",`),
   );
   assert.match(exported.filteredCsv.content, /,"관리자","run_asc"\r?\n/);
+
+  const reset = await evaluate(cdp, `(async () => {
+    const button = document.querySelector('[data-testid="smoke-failure-metadata-export-filename-reset"]');
+    if (!(button instanceof HTMLButtonElement) || button.disabled) return null;
+    button.click();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return {
+      stored: localStorage.getItem(${JSON.stringify(STORAGE_KEY)}),
+      value: document.querySelector('[data-testid="smoke-failure-metadata-export-filename"]')?.value,
+    };
+  })()`);
+  assert.deepEqual(
+    reset,
+    { stored: null, value: DEFAULT_FILENAME },
+    "실패 정보 내보내기 파일명을 기본값으로 복원하지 못했습니다",
+  );
 }
