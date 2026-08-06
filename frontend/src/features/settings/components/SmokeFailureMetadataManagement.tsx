@@ -13,6 +13,7 @@ import {
 } from "@/features/settings/lib/smokeFailureMetadataFilters";
 import { githubActionsRunUrl } from "@/features/settings/lib/smokeGithubUrls";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { useSmokeFailureMetadataFilters } from "./useSmokeFailureMetadataFilters";
 
 const FAILURE_TYPE_LABELS = {
   external_api: "외부 API",
@@ -32,10 +33,13 @@ export function SmokeFailureMetadataManagement({
   workflowUrl,
 }: SmokeFailureMetadataManagementProps) {
   const cleanup = useCleanupSmokeFailureMetadata();
+  const {
+    changePeriodFilter,
+    changeTypeFilter,
+    periodFilter,
+    typeFilter,
+  } = useSmokeFailureMetadataFilters();
   const [selectedRunIds, setSelectedRunIds] = useState<Set<number>>(new Set());
-  const [typeFilter, setTypeFilter] = useState<SmokeFailureMetadataTypeFilter>("all");
-  const [periodFilter, setPeriodFilter] =
-    useState<SmokeFailureMetadataPeriodFilter>("all");
   const [notice, setNotice] = useState("");
   const visibleEntries = filterSmokeFailureMetadata(entries, typeFilter, periodFilter);
   const selectedEntries = entries.filter((entry) => selectedRunIds.has(entry.run_id));
@@ -88,7 +92,7 @@ export function SmokeFailureMetadataManagement({
             className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
             data-testid="smoke-failure-metadata-type-filter"
             onChange={(event) =>
-              setTypeFilter(event.target.value as SmokeFailureMetadataTypeFilter)
+              changeTypeFilter(event.target.value as SmokeFailureMetadataTypeFilter)
             }
             value={typeFilter}
           >
@@ -105,7 +109,7 @@ export function SmokeFailureMetadataManagement({
             className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
             data-testid="smoke-failure-metadata-period-filter"
             onChange={(event) =>
-              setPeriodFilter(event.target.value as SmokeFailureMetadataPeriodFilter)
+              changePeriodFilter(event.target.value as SmokeFailureMetadataPeriodFilter)
             }
             value={periodFilter}
           >

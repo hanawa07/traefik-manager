@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 
-import { filterSmokeFailureMetadata } from "../frontend/src/features/settings/lib/smokeFailureMetadataFilters.ts";
+import {
+  filterSmokeFailureMetadata,
+  parseSmokeFailureMetadataFilters,
+  SMOKE_FAILURE_METADATA_QUERY,
+} from "../frontend/src/features/settings/lib/smokeFailureMetadataFilters.ts";
 
 const now = Date.parse("2026-08-06T00:00:00Z");
 const entries = [
@@ -21,6 +25,16 @@ assert.deepEqual(
 assert.deepEqual(
   filterSmokeFailureMetadata(entries, "external_api", "30", now).map(({ run_id }) => run_id),
   [2],
+);
+assert.deepEqual(
+  parseSmokeFailureMetadataFilters(
+    `?${SMOKE_FAILURE_METADATA_QUERY.type}=login&${SMOKE_FAILURE_METADATA_QUERY.period}=7`,
+  ),
+  { period: "7", type: "login" },
+);
+assert.deepEqual(
+  parseSmokeFailureMetadataFilters("?smoke_metadata_type=unknown&smoke_metadata_period=90"),
+  { period: "all", type: "all" },
 );
 
 console.log("스모크 실패 정보 유형·기간 필터 self-test 통과");
