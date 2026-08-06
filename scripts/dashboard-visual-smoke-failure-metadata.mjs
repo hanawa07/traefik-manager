@@ -36,6 +36,9 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
         management.querySelector('[data-testid="smoke-failure-metadata-selected-export"]') instanceof HTMLButtonElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-selected-csv"]') instanceof HTMLButtonElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-clear-selection"]') instanceof HTMLButtonElement &&
+        management.querySelector('[data-testid="smoke-failure-metadata-select-visible"]') instanceof HTMLButtonElement &&
+        management.querySelector('[data-testid="smoke-failure-metadata-clear-visible"]') instanceof HTMLButtonElement &&
+        management.querySelector('[data-testid="smoke-failure-metadata-select-all"]') instanceof HTMLButtonElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-type-filter"]') instanceof HTMLSelectElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-period-filter"]') instanceof HTMLSelectElement &&
         management.querySelector('[data-testid="smoke-failure-metadata-period-filter"] option[value="custom"]') instanceof HTMLOptionElement &&
@@ -153,9 +156,9 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
     const filtered = await captureCsv(
       management?.querySelector('[data-testid="smoke-failure-metadata-filtered-csv"]'),
     );
-    const checkbox = management?.querySelector('input[aria-label="실행 #987 선택"]');
-    if (!(checkbox instanceof HTMLInputElement)) return null;
-    checkbox.click();
+    const selectVisible = management?.querySelector('[data-testid="smoke-failure-metadata-select-visible"]');
+    if (!(selectVisible instanceof HTMLButtonElement) || selectVisible.disabled) return null;
+    selectVisible.click();
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const selected = await captureCsv(
       management?.querySelector('[data-testid="smoke-failure-metadata-selected-csv"]'),
@@ -199,6 +202,51 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
     })()`,
     timeoutMs,
     "필터 밖 숨김 선택 건수가 표시되지 않았습니다",
+  );
+  const allRecordsSelected = await evaluate(cdp, `(() => {
+    const selectAll = document.querySelector('[data-testid="smoke-failure-metadata-select-all"]');
+    if (!(selectAll instanceof HTMLButtonElement) || selectAll.disabled) return false;
+    selectAll.click();
+    return true;
+  })()`);
+  assert.equal(allRecordsSelected, true, "실패 정보 전체 기록을 선택하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `document.querySelector('[data-testid="smoke-failure-metadata-selection-summary"]')?.textContent?.includes('선택 2건 · 현재 결과 0건 · 숨김 2건')`,
+    timeoutMs,
+    "실패 정보 전체 기록 선택 결과가 표시되지 않았습니다",
+  );
+  const visibleSelectionPrepared = await evaluate(cdp, `(() => {
+    const period = document.querySelector('[data-testid="smoke-failure-metadata-period-filter"]');
+    if (!(period instanceof HTMLSelectElement)) return false;
+    period.value = 'all';
+    period.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(visibleSelectionPrepared, true, "현재 결과 선택 해제를 준비하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const summary = document.querySelector('[data-testid="smoke-failure-metadata-selection-summary"]');
+      const clearVisible = document.querySelector('[data-testid="smoke-failure-metadata-clear-visible"]');
+      return summary?.textContent?.includes('선택 2건 · 현재 결과 1건 · 숨김 1건') &&
+        clearVisible instanceof HTMLButtonElement && !clearVisible.disabled;
+    })()`,
+    timeoutMs,
+    "현재 결과 선택 해제 대상이 표시되지 않았습니다",
+  );
+  const visibleSelectionCleared = await evaluate(cdp, `(() => {
+    const clearVisible = document.querySelector('[data-testid="smoke-failure-metadata-clear-visible"]');
+    if (!(clearVisible instanceof HTMLButtonElement) || clearVisible.disabled) return false;
+    clearVisible.click();
+    return true;
+  })()`);
+  assert.equal(visibleSelectionCleared, true, "현재 결과 선택을 해제하지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `document.querySelector('[data-testid="smoke-failure-metadata-selection-summary"]')?.textContent?.includes('선택 1건 · 현재 결과 0건 · 숨김 1건')`,
+    timeoutMs,
+    "현재 결과 선택 해제가 필터 밖 선택을 보존하지 못했습니다",
   );
   const selectionCleared = await evaluate(cdp, `(() => {
     const clear = document.querySelector('[data-testid="smoke-failure-metadata-clear-selection"]');

@@ -101,6 +101,7 @@ jobs:
           npm --prefix frontend run test:smoke-failure-metadata-cleanup-audit
           npm --prefix frontend run test:smoke-failure-metadata-export
           npm --prefix frontend run test:smoke-failure-metadata
+          npm --prefix frontend run test:smoke-failure-metadata-selection
           npm --prefix frontend run test:smoke-failure-rate
           npm --prefix frontend run test:github-api-rate-limit
           npm --prefix frontend run test:service-routing

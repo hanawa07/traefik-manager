@@ -17,6 +17,7 @@
     "test:smoke-failure-metadata-cleanup-audit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/smoke-failure-metadata-cleanup-audit-detail-self-test.mjs",
     "test:smoke-failure-metadata-export": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/smoke-failure-metadata-export-self-test.mjs",
     "test:smoke-failure-metadata": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/smoke-failure-metadata-filter-self-test.mjs",
+    "test:smoke-failure-metadata-selection": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/smoke-failure-metadata-selection-self-test.mjs",
     "test:smoke-failure-rate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/smoke-run-failure-rate-self-test.mjs",
     "test:github-api-rate-limit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/github-api-rate-limit-self-test.mjs",
     "test:container-import": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ../scripts/container-import-self-test.mjs",

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Trash2, X } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import type { SmokeFailureMetadataEntry } from "@/features/settings/api/settingsApi";
@@ -12,7 +12,9 @@ import {
   type SmokeFailureMetadataTypeFilter,
 } from "@/features/settings/lib/smokeFailureMetadataFilters";
 import { githubActionsRunUrl } from "@/features/settings/lib/smokeGithubUrls";
+import { updateSmokeFailureMetadataSelection } from "@/features/settings/lib/smokeFailureMetadataSelection";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
+import { SmokeFailureMetadataBulkSelection } from "./SmokeFailureMetadataBulkSelection";
 import { SmokeFailureMetadataDateFilters } from "./SmokeFailureMetadataDateFilters";
 import { useSmokeFailureMetadataFilters } from "./useSmokeFailureMetadataFilters";
 
@@ -70,6 +72,17 @@ export function SmokeFailureMetadataManagement({
       else next.add(runId);
       return next;
     });
+  };
+
+  const updateSelection = (
+    targetEntries: SmokeFailureMetadataEntry[],
+    selected: boolean,
+    message: string,
+  ) => {
+    setSelectedRunIds((current) =>
+      updateSmokeFailureMetadataSelection(current, targetEntries, selected),
+    );
+    setNotice(message);
   };
 
   const handleCleanup = async () => {
@@ -228,18 +241,6 @@ export function SmokeFailureMetadataManagement({
           <Download className="h-3.5 w-3.5" /> 선택 CSV ({selectedEntries.length})
         </button>
         <button
-          className="btn-secondary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs"
-          data-testid="smoke-failure-metadata-clear-selection"
-          disabled={!selectedEntries.length}
-          onClick={() => {
-            setSelectedRunIds(new Set());
-            setNotice("선택을 모두 해제했습니다.");
-          }}
-          type="button"
-        >
-          <X className="h-3.5 w-3.5" /> 선택 전체 해제
-        </button>
-        <button
           className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-950/40"
           data-testid="smoke-failure-metadata-cleanup"
           disabled={!selectedEntries.length || cleanup.isPending}
@@ -250,29 +251,48 @@ export function SmokeFailureMetadataManagement({
           {cleanup.isPending ? "정리 중" : `선택 정리 (${selectedEntries.length})`}
         </button>
       </div>
-      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-        <span
+      <SmokeFailureMetadataBulkSelection
+        allEntryCount={entries.length}
+        hiddenSelectedCount={hiddenSelectedCount}
+        onClearAll={() => {
+          setSelectedRunIds(new Set());
+          setNotice("선택을 모두 해제했습니다.");
+        }}
+        onClearVisible={() =>
+          updateSelection(
+            visibleEntries,
+            false,
+            `현재 결과에서 ${visibleSelectedCount}건을 해제했습니다.`,
+          )
+        }
+        onSelectAll={() =>
+          updateSelection(entries, true, `전체 기록 ${entries.length}건을 선택했습니다.`)
+        }
+        onSelectVisible={() =>
+          updateSelection(
+            visibleEntries,
+            true,
+            `현재 결과 ${visibleEntries.length}건을 선택했습니다.`,
+          )
+        }
+        selectedCount={selectedEntries.length}
+        visibleCount={visibleEntries.length}
+        visibleSelectedCount={visibleSelectedCount}
+      />
+      {notice ? (
+        <p
           aria-live="polite"
-          className={
-            hiddenSelectedCount
-              ? "font-medium text-amber-700 dark:text-amber-300"
-              : "text-gray-500 dark:text-slate-400"
-          }
-          data-hidden-count={hiddenSelectedCount}
-          data-testid="smoke-failure-metadata-selection-summary"
+          className="mt-1.5 text-xs text-gray-500 dark:text-slate-400"
+          data-testid="smoke-failure-metadata-notice"
         >
-          {selectedEntries.length
-            ? `선택 ${selectedEntries.length}건 · 현재 결과 ${visibleSelectedCount}건 · 숨김 ${hiddenSelectedCount}건`
-            : "선택 없음"}
-        </span>
-        <span aria-live="polite" className="text-gray-500 dark:text-slate-400">
           {notice}
-        </span>
-      </div>
+        </p>
+      ) : null}
       {visibleEntries.length ? (
         <div className="mt-3 max-h-72 overflow-auto rounded-md border border-gray-200 dark:border-slate-700">
           <label className="flex cursor-pointer items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold dark:border-slate-700 dark:bg-slate-950">
             <input
+              aria-label="현재 실패 정보 결과 전체 선택 또는 해제"
               checked={allVisibleSelected}
               onChange={() => {
                 setSelectedRunIds((current) => {
@@ -284,9 +304,15 @@ export function SmokeFailureMetadataManagement({
                   return next;
                 });
               }}
+              ref={(element) => {
+                if (element) {
+                  element.indeterminate =
+                    visibleSelectedCount > 0 && !allVisibleSelected;
+                }
+              }}
               type="checkbox"
             />
-            현재 결과 전체 선택
+            현재 결과 {visibleSelectedCount}/{visibleEntries.length}건 선택
           </label>
           <ol className="divide-y divide-gray-100 dark:divide-slate-800">
             {visibleEntries.map((entry) => (
