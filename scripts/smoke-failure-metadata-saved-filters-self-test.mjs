@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 
 import {
+  buildSmokeFailureMetadataSavedFiltersBackup,
   normalizeSmokeFailureMetadataSavedFilterName,
   parseSmokeFailureMetadataSavedFilterSort,
   parseSmokeFailureMetadataSavedFilters,
+  parseSmokeFailureMetadataSavedFiltersBackup,
   removeSmokeFailureMetadataSavedFilter,
   renameSmokeFailureMetadataSavedFilter,
   SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT,
@@ -92,6 +94,21 @@ assert.deepEqual(
 assert.deepEqual(
   removeSmokeFailureMetadataSavedFilter(saved, " Z 운영 로그인 ").map(({ name }) => name),
   ["A API"],
+);
+
+const backup = buildSmokeFailureMetadataSavedFiltersBackup(
+  saved,
+  "2026-08-06T01:02:03Z",
+);
+assert.equal(
+  backup.filename,
+  "traefik-manager-smoke-failure-filters-2026-08-06.json",
+);
+assert.deepEqual(parseSmokeFailureMetadataSavedFiltersBackup(backup.content), saved);
+assert.equal(parseSmokeFailureMetadataSavedFiltersBackup("invalid"), null);
+assert.equal(
+  parseSmokeFailureMetadataSavedFiltersBackup('{"schema_version":2,"filters":[]}'),
+  null,
 );
 
 for (let index = 0; index < SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT + 3; index += 1) {

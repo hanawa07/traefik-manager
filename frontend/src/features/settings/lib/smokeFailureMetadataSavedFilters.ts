@@ -11,6 +11,7 @@ export const SMOKE_FAILURE_METADATA_SAVED_FILTER_SORT_STORAGE_KEY =
   "traefik-manager:smoke-failure-metadata-saved-filter-sort";
 export const SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT = 20;
 export const SMOKE_FAILURE_METADATA_SAVED_FILTER_NAME_LIMIT = 40;
+export const SMOKE_FAILURE_METADATA_SAVED_FILTER_BACKUP_SIZE_LIMIT = 256 * 1024;
 
 export type SmokeFailureMetadataSavedFilterSort =
   | "recent"
@@ -28,6 +29,24 @@ export interface SmokeFailureMetadataSavedFilter {
   name: string;
 }
 
+export function buildSmokeFailureMetadataSavedFiltersBackup(
+  current: SmokeFailureMetadataSavedFilter[],
+  exportedAt = new Date().toISOString(),
+): { content: string; filename: string } {
+  return {
+    content: JSON.stringify(
+      {
+        exported_at: exportedAt,
+        filters: normalizeSavedFilters(current),
+        schema_version: 1,
+      },
+      null,
+      2,
+    ),
+    filename: `traefik-manager-smoke-failure-filters-${exportedAt.slice(0, 10)}.json`,
+  };
+}
+
 export function normalizeSmokeFailureMetadataSavedFilterName(value: string): string {
   return value.trim().replace(/\s+/g, " ").slice(0, SMOKE_FAILURE_METADATA_SAVED_FILTER_NAME_LIMIT);
 }
@@ -37,24 +56,23 @@ export function parseSmokeFailureMetadataSavedFilters(
 ): SmokeFailureMetadataSavedFilter[] {
   if (!rawValue) return [];
   try {
-    const value: unknown = JSON.parse(rawValue);
-    if (!Array.isArray(value)) return [];
-    const result: SmokeFailureMetadataSavedFilter[] = [];
-    const names = new Set<string>();
-    for (const item of value) {
-      if (!isRecord(item)) continue;
-      const name = normalizeSmokeFailureMetadataSavedFilterName(
-        typeof item.name === "string" ? item.name : "",
-      );
-      const normalizedName = name.toLowerCase();
-      if (!name || names.has(normalizedName)) continue;
-      result.push({ filters: normalizeFilters(item.filters), name });
-      names.add(normalizedName);
-      if (result.length === SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT) break;
-    }
-    return result;
+    return normalizeSavedFilters(JSON.parse(rawValue));
   } catch {
     return [];
+  }
+}
+
+export function parseSmokeFailureMetadataSavedFiltersBackup(
+  rawValue: string,
+): SmokeFailureMetadataSavedFilter[] | null {
+  try {
+    const value: unknown = JSON.parse(rawValue);
+    if (!isRecord(value) || value.schema_version !== 1 || !Array.isArray(value.filters)) {
+      return null;
+    }
+    return normalizeSavedFilters(value.filters);
+  } catch {
+    return null;
   }
 }
 
@@ -112,6 +130,24 @@ export function sortSmokeFailureMetadataSavedFilters(
   return [...current].sort(
     (left, right) => direction * left.name.localeCompare(right.name, "ko"),
   );
+}
+
+function normalizeSavedFilters(value: unknown): SmokeFailureMetadataSavedFilter[] {
+  if (!Array.isArray(value)) return [];
+  const result: SmokeFailureMetadataSavedFilter[] = [];
+  const names = new Set<string>();
+  for (const item of value) {
+    if (!isRecord(item)) continue;
+    const name = normalizeSmokeFailureMetadataSavedFilterName(
+      typeof item.name === "string" ? item.name : "",
+    );
+    const normalizedName = name.toLowerCase();
+    if (!name || names.has(normalizedName)) continue;
+    result.push({ filters: normalizeFilters(item.filters), name });
+    names.add(normalizedName);
+    if (result.length === SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT) break;
+  }
+  return result;
 }
 
 function normalizeFilters(value: unknown): SmokeFailureMetadataFilters {

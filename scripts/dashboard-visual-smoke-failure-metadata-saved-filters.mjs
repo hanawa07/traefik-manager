@@ -97,6 +97,35 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
     "저장 필터 이름 내림차순이 목록에 반영되지 않았습니다",
   );
 
+  const backup = await evaluate(cdp, `(async () => {
+    const button = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-backup"]');
+    if (!(button instanceof HTMLButtonElement) || button.disabled) return null;
+    const originalCreateObjectUrl = URL.createObjectURL;
+    const originalClick = HTMLAnchorElement.prototype.click;
+    let blob = null;
+    let filename = '';
+    try {
+      URL.createObjectURL = (value) => { blob = value; return 'blob:saved-filter-backup'; };
+      HTMLAnchorElement.prototype.click = function () { filename = this.download; };
+      button.click();
+      return { content: blob ? await blob.text() : '', filename };
+    } finally {
+      URL.createObjectURL = originalCreateObjectUrl;
+      HTMLAnchorElement.prototype.click = originalClick;
+    }
+  })()`);
+  assert.ok(backup, "저장 필터 JSON 백업을 캡처하지 못했습니다");
+  assert.match(
+    backup.filename,
+    /^traefik-manager-smoke-failure-filters-\d{4}-\d{2}-\d{2}\.json$/,
+  );
+  const backupPayload = JSON.parse(backup.content);
+  assert.equal(backupPayload.schema_version, 1);
+  assert.deepEqual(
+    backupPayload.filters.map(({ name }) => name),
+    [SECONDARY_PRESET_NAME, RENAMED_PRESET_NAME],
+  );
+
   const renamedSelected = await evaluate(cdp, `(() => {
     const select = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-select"]');
     if (!(select instanceof HTMLSelectElement)) return false;
@@ -199,5 +228,47 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
       stored: "[]",
     },
     "저장 필터 전체 삭제를 확인 후 실행하지 못했습니다",
+  );
+
+  const restored = await evaluate(cdp, `(async () => {
+    const input = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore"]');
+    const select = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-select"]');
+    const notice = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-notice"]');
+    if (!(input instanceof HTMLInputElement) || !(select instanceof HTMLSelectElement)) return null;
+    const originalConfirm = window.confirm;
+    let confirmation = '';
+    try {
+      window.confirm = (message) => { confirmation = message; return true; };
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(
+        [${JSON.stringify(backup.content)}],
+        ${JSON.stringify(backup.filename)},
+        { type: 'application/json' },
+      ));
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      for (let attempt = 0; attempt < 120; attempt += 1) {
+        if (select.options.length === 3 && notice?.textContent?.includes('JSON 백업에서 복원했습니다')) break;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      return {
+        confirmation,
+        inputValue: input.value,
+        names: Array.from(select.options).slice(1).map((option) => option.value),
+        storedCount: JSON.parse(localStorage.getItem(${JSON.stringify(STORAGE_KEY)}) || '[]').length,
+      };
+    } finally {
+      window.confirm = originalConfirm;
+    }
+  })()`);
+  assert.deepEqual(
+    restored,
+    {
+      confirmation: "백업의 저장 필터 2개로 현재 목록을 교체할까요?",
+      inputValue: "",
+      names: [RENAMED_PRESET_NAME, SECONDARY_PRESET_NAME],
+      storedCount: 2,
+    },
+    "저장 필터 JSON 백업을 복원하지 못했습니다",
   );
 }

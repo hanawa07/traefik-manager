@@ -1,16 +1,19 @@
 "use client";
 
-import { BookmarkPlus, Check, Pencil, Trash2 } from "lucide-react";
+import { BookmarkPlus, Check, Download, Pencil, Trash2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { SmokeFailureMetadataFilters } from "@/features/settings/lib/smokeFailureMetadataFilters";
 import {
+  buildSmokeFailureMetadataSavedFiltersBackup,
   normalizeSmokeFailureMetadataSavedFilterName,
   parseSmokeFailureMetadataSavedFilterSort,
   parseSmokeFailureMetadataSavedFilters,
+  parseSmokeFailureMetadataSavedFiltersBackup,
   removeSmokeFailureMetadataSavedFilter,
   renameSmokeFailureMetadataSavedFilter,
   SMOKE_FAILURE_METADATA_SAVED_FILTER_NAME_LIMIT,
+  SMOKE_FAILURE_METADATA_SAVED_FILTER_BACKUP_SIZE_LIMIT,
   SMOKE_FAILURE_METADATA_SAVED_FILTER_SORT_STORAGE_KEY,
   SMOKE_FAILURE_METADATA_SAVED_FILTERS_STORAGE_KEY,
   sortSmokeFailureMetadataSavedFilters,
@@ -114,6 +117,49 @@ export function SmokeFailureMetadataSavedFilters({
     setName("");
     setSelectedName("");
     setNotice(`저장 필터 ${count}개를 모두 삭제했습니다.`);
+  };
+
+  const downloadBackup = () => {
+    try {
+      const backup = buildSmokeFailureMetadataSavedFiltersBackup(savedFilters);
+      const url = URL.createObjectURL(
+        new Blob([backup.content], { type: "application/json;charset=utf-8" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = backup.filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setNotice(`저장 필터 ${savedFilters.length}개를 JSON으로 백업했습니다.`);
+    } catch {
+      setNotice("저장 필터 JSON 백업을 만들지 못했습니다.");
+    }
+  };
+
+  const restoreBackup = async (file?: File) => {
+    if (!file) return;
+    if (file.size > SMOKE_FAILURE_METADATA_SAVED_FILTER_BACKUP_SIZE_LIMIT) {
+      setNotice("저장 필터 백업 파일은 256KB 이하여야 합니다.");
+      return;
+    }
+    try {
+      const restored = parseSmokeFailureMetadataSavedFiltersBackup(await file.text());
+      if (restored === null) {
+        setNotice("지원하는 저장 필터 JSON 백업 파일이 아닙니다.");
+        return;
+      }
+      if (!window.confirm(`백업의 저장 필터 ${restored.length}개로 현재 목록을 교체할까요?`)) {
+        return;
+      }
+      if (!persist(restored)) return;
+      setName("");
+      setSelectedName("");
+      setNotice(`저장 필터 ${restored.length}개를 JSON 백업에서 복원했습니다.`);
+    } catch {
+      setNotice("저장 필터 JSON 백업을 읽지 못했습니다.");
+    }
   };
 
   const rename = () => {
@@ -245,6 +291,35 @@ export function SmokeFailureMetadataSavedFilters({
         >
           <Trash2 className="h-3.5 w-3.5" /> 전체 삭제
         </button>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-gray-200 pt-2 dark:border-slate-800">
+        <button
+          className="btn-secondary inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs"
+          data-testid="smoke-failure-metadata-saved-filter-backup"
+          disabled={!savedFilters.length}
+          onClick={downloadBackup}
+          type="button"
+        >
+          <Download className="h-3.5 w-3.5" /> JSON 백업
+        </button>
+        <label className="btn-secondary inline-flex cursor-pointer items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs">
+          <Upload className="h-3.5 w-3.5" /> JSON 복원
+          <input
+            accept="application/json,.json"
+            className="sr-only"
+            data-testid="smoke-failure-metadata-saved-filter-restore"
+            onChange={(event) => {
+              const input = event.currentTarget;
+              void restoreBackup(input.files?.[0]).finally(() => {
+                input.value = "";
+              });
+            }}
+            type="file"
+          />
+        </label>
+        <span className="text-[11px] text-gray-500 dark:text-slate-400">
+          현재 브라우저 목록을 백업하거나 백업 목록으로 교체합니다.
+        </span>
       </div>
       <p
         aria-live="polite"
