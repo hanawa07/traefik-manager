@@ -13,19 +13,15 @@ import {
   type SmokeFailureMetadataSort,
   type SmokeFailureMetadataTypeFilter,
 } from "@/features/settings/lib/smokeFailureMetadataFilters";
+import { SMOKE_FAILURE_TYPE_LABELS } from "@/features/settings/lib/smokeFailureMetadataLabels";
 import { githubActionsRunUrl } from "@/features/settings/lib/smokeGithubUrls";
 import { updateSmokeFailureMetadataSelection } from "@/features/settings/lib/smokeFailureMetadataSelection";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { SmokeFailureMetadataBulkSelection } from "./SmokeFailureMetadataBulkSelection";
+import { SmokeFailureMetadataCleanupPreview } from "./SmokeFailureMetadataCleanupPreview";
 import { SmokeFailureMetadataDateFilters } from "./SmokeFailureMetadataDateFilters";
 import { SmokeFailureMetadataSavedFilters } from "./SmokeFailureMetadataSavedFilters";
 import { useSmokeFailureMetadataFilters } from "./useSmokeFailureMetadataFilters";
-
-const FAILURE_TYPE_LABELS = {
-  external_api: "외부 API",
-  login: "로그인",
-  visual_regression: "화면 회귀",
-} as const;
 
 interface SmokeFailureMetadataManagementProps {
   entries: SmokeFailureMetadataEntry[];
@@ -55,6 +51,7 @@ export function SmokeFailureMetadataManagement({
   } = useSmokeFailureMetadataFilters();
   const [selectedRunIds, setSelectedRunIds] = useState<Set<number>>(new Set());
   const [notice, setNotice] = useState("");
+  const [cleanupPreviewOpen, setCleanupPreviewOpen] = useState(false);
   const activeStartDate = periodFilter === "custom" ? startDate : "";
   const activeEndDate = periodFilter === "custom" ? endDate : "";
   const visibleEntries = sortSmokeFailureMetadata(
@@ -96,20 +93,15 @@ export function SmokeFailureMetadataManagement({
 
   const handleCleanup = async () => {
     const runIds = selectedEntries.map((entry) => entry.run_id);
-    if (
-      !runIds.length ||
-      !window.confirm(
-        `선택한 실패 분류 정보 ${runIds.length}건을 삭제할까요? 삭제 후 복구할 수 없습니다.`,
-      )
-    ) {
-      return;
-    }
+    if (!runIds.length) return;
     setNotice("");
     try {
       const result = await cleanup.mutateAsync(runIds);
       setSelectedRunIds(new Set());
+      setCleanupPreviewOpen(false);
       setNotice(`${result.deleted_count}건을 정리했습니다.`);
     } catch {
+      setCleanupPreviewOpen(false);
       setNotice("선택한 실패 분류 정보를 정리하지 못했습니다.");
     }
   };
@@ -272,7 +264,7 @@ export function SmokeFailureMetadataManagement({
           className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-950/40"
           data-testid="smoke-failure-metadata-cleanup"
           disabled={!selectedEntries.length || cleanup.isPending}
-          onClick={() => void handleCleanup()}
+          onClick={() => setCleanupPreviewOpen(true)}
           type="button"
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -362,7 +354,7 @@ export function SmokeFailureMetadataManagement({
                     >
                       실행 #{entry.run_id}
                     </a>
-                    {` · ${FAILURE_TYPE_LABELS[entry.failure_type]}`}
+                    {` · ${SMOKE_FAILURE_TYPE_LABELS[entry.failure_type]}`}
                   </span>
                   <span className="block break-words text-gray-600 dark:text-slate-300">
                     {entry.check_name}
@@ -382,6 +374,16 @@ export function SmokeFailureMetadataManagement({
             : "보관된 실패 분류 정보가 없습니다."}
         </p>
       )}
+      <SmokeFailureMetadataCleanupPreview
+        entries={selectedEntries}
+        hiddenSelectedCount={hiddenSelectedCount}
+        isOpen={cleanupPreviewOpen}
+        isPending={cleanup.isPending}
+        onCancel={() => setCleanupPreviewOpen(false)}
+        onConfirm={() => void handleCleanup()}
+        timezone={timezone}
+        workflowUrl={workflowUrl}
+      />
     </details>
   );
 }

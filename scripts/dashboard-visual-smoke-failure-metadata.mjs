@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 import { fulfillJsonRequest } from "./dashboard-visual-smoke-history-fixture.mjs";
 import { checkSmokeFailureMetadataSavedFilters } from "./dashboard-visual-smoke-failure-metadata-saved-filters.mjs";
+import { checkSmokeFailureMetadataCleanupPreview } from "./dashboard-visual-smoke-failure-metadata-cleanup-preview.mjs";
 
 export function applySmokeFailureMetadataFixture(fixture) {
   fixture.monitoring_failure_metadata_count = 2;
@@ -222,6 +223,7 @@ export async function checkSmokeFailureMetadataManagement({ cdp, fixture, timeou
     timeoutMs,
     "필터 밖 숨김 선택 건수가 표시되지 않았습니다",
   );
+  await checkSmokeFailureMetadataCleanupPreview({ cdp, timeoutMs });
   const allRecordsSelected = await evaluate(cdp, `(() => {
     const selectAll = document.querySelector('[data-testid="smoke-failure-metadata-select-all"]');
     if (!(selectAll instanceof HTMLButtonElement) || selectAll.disabled) return false;
