@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import {
   buildSmokeFailureMetadataSavedFiltersBackup,
+  mergeSmokeFailureMetadataSavedFilters,
   normalizeSmokeFailureMetadataSavedFilterName,
   parseSmokeFailureMetadataSavedFilterSort,
   parseSmokeFailureMetadataSavedFilters,
@@ -98,18 +99,37 @@ assert.deepEqual(
 
 const backup = buildSmokeFailureMetadataSavedFiltersBackup(
   saved,
+  "name_desc",
   "2026-08-06T01:02:03Z",
 );
 assert.equal(
   backup.filename,
   "traefik-manager-smoke-failure-filters-2026-08-06.json",
 );
-assert.deepEqual(parseSmokeFailureMetadataSavedFiltersBackup(backup.content), saved);
+assert.deepEqual(parseSmokeFailureMetadataSavedFiltersBackup(backup.content), {
+  filters: saved,
+  sort: "name_desc",
+});
+assert.deepEqual(
+  parseSmokeFailureMetadataSavedFiltersBackup(
+    JSON.stringify({ filters: saved, schema_version: 1 }),
+  ),
+  { filters: saved, sort: "recent" },
+);
 assert.equal(parseSmokeFailureMetadataSavedFiltersBackup("invalid"), null);
 assert.equal(
   parseSmokeFailureMetadataSavedFiltersBackup('{"schema_version":2,"filters":[]}'),
   null,
 );
+const merged = mergeSmokeFailureMetadataSavedFilters(
+  [
+    { filters: { ...loginFilters, sort: "oldest" }, name: "A API" },
+    { filters: loginFilters, name: "현재 전용" },
+  ],
+  saved,
+);
+assert.deepEqual(merged.map(({ name }) => name), ["A API", "Z 운영 로그인", "현재 전용"]);
+assert.equal(merged[0].filters.sort, "run_asc");
 
 for (let index = 0; index < SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT + 3; index += 1) {
   saved = upsertSmokeFailureMetadataSavedFilter(saved, {
