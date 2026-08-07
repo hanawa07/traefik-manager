@@ -5,23 +5,29 @@ import { fulfillJsonRequest } from "./dashboard-visual-smoke-history-fixture.mjs
 
 const INITIAL_REQUEST_ATTEMPTS = 2;
 
-export async function checkServiceMiddlewareRequestRecovery({
+export async function checkListRequestRecovery({
   baseUrl,
   cdp,
   timeoutMs,
 }) {
   const fixtures = await evaluate(cdp, `(async () => {
-    const [services, middlewares] = await Promise.all([
+    const [services, middlewares, redirects, certificates] = await Promise.all([
       fetch('/api/v1/services'),
       fetch('/api/v1/middlewares'),
+      fetch('/api/v1/redirects'),
+      fetch('/api/v1/certificates'),
     ]);
     return {
+      certificates: certificates.ok ? await certificates.json() : null,
       middlewares: middlewares.ok ? await middlewares.json() : null,
+      redirects: redirects.ok ? await redirects.json() : null,
       services: services.ok ? await services.json() : null,
     };
   })()`);
   assert.ok(Array.isArray(fixtures.services), "서비스 복구 fixture를 읽지 못했습니다");
   assert.ok(Array.isArray(fixtures.middlewares), "미들웨어 복구 fixture를 읽지 못했습니다");
+  assert.ok(Array.isArray(fixtures.redirects), "리다이렉트 복구 fixture를 읽지 못했습니다");
+  assert.ok(Array.isArray(fixtures.certificates), "인증서 복구 fixture를 읽지 못했습니다");
 
   await checkRequestRecovery({
     baseUrl,
@@ -47,6 +53,32 @@ export async function checkServiceMiddlewareRequestRecovery({
       `!document.querySelector('[data-testid="middleware-templates-error"]') && ` +
       `document.body.innerText.includes('공유 미들웨어 템플릿')`,
     retrySelector: '[data-testid="middleware-templates-retry"]',
+    timeoutMs,
+  });
+  await checkRequestRecovery({
+    baseUrl,
+    cdp,
+    endpoint: "/api/v1/redirects",
+    errorSelector: '[data-testid="redirects-list-error"]',
+    fixture: fixtures.redirects,
+    pagePath: "/dashboard/redirects",
+    recoveryExpression:
+      `!document.querySelector('[data-testid="redirects-list-error"]') && ` +
+      `!document.body.innerText.includes('확인 실패')`,
+    retrySelector: '[data-testid="redirects-list-retry"]',
+    timeoutMs,
+  });
+  await checkRequestRecovery({
+    baseUrl,
+    cdp,
+    endpoint: "/api/v1/certificates",
+    errorSelector: '[data-testid="certificates-list-error"]',
+    fixture: fixtures.certificates,
+    pagePath: "/dashboard/certificates",
+    recoveryExpression:
+      `!document.querySelector('[data-testid="certificates-list-error"]') && ` +
+      `document.body.innerText.includes('Traefik API 기반 TLS 인증서 상태')`,
+    retrySelector: '[data-testid="certificates-list-retry"]',
     timeoutMs,
   });
 }
