@@ -1,4 +1,4 @@
-import { Layers3, Shield } from "lucide-react";
+import { Layers3, RefreshCw, Shield } from "lucide-react";
 
 export function RuntimeStatusBanner({ message }: { message: string | null }) {
   if (!message) return null;
@@ -21,12 +21,34 @@ export function SharedMiddlewareLoadingState() {
   );
 }
 
-export function SharedMiddlewareErrorState({ message }: { message: string }) {
+export function SharedMiddlewareErrorState({
+  isRetrying,
+  message,
+  onRetry,
+}: {
+  isRetrying: boolean;
+  message: string;
+  onRetry: () => void;
+}) {
   return (
-    <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-10 text-center dark:border-red-500/50 dark:bg-red-950/30">
+    <div
+      className="rounded-2xl border border-red-200 bg-red-50 px-6 py-10 text-center dark:border-red-500/50 dark:bg-red-950/30"
+      data-testid="middleware-templates-error"
+      role="alert"
+    >
       <Shield className="mx-auto mb-3 h-10 w-10 text-red-300 dark:text-red-400" />
       <p className="text-sm font-medium text-red-600 dark:text-red-300">미들웨어 관리 화면을 불러오지 못했습니다</p>
       <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">{message}</p>
+      <button
+        className="btn-secondary mt-4 inline-flex items-center gap-1.5 px-3 py-2 text-xs"
+        data-testid="middleware-templates-retry"
+        disabled={isRetrying}
+        onClick={onRetry}
+        type="button"
+      >
+        <RefreshCw className={`h-3.5 w-3.5 ${isRetrying ? "animate-spin" : ""}`} />
+        {isRetrying ? "다시 확인 중" : "다시 시도"}
+      </button>
     </div>
   );
 }

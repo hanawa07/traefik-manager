@@ -20,6 +20,7 @@ interface SharedMiddlewareTemplatesTabProps {
   runtimeBannerMessage: string | null;
   isTemplateLoading: boolean;
   isServicesLoading: boolean;
+  isRetrying: boolean;
   sharedTabBlocked: boolean;
   sharedTabErrorMessage: string;
   templateFilterCounts: {
@@ -40,6 +41,7 @@ interface SharedMiddlewareTemplatesTabProps {
   onEdit: (template: MiddlewareTemplate) => void;
   onDelete: (template: MiddlewareTemplate) => void;
   onAssign: (template: MiddlewareTemplate) => void;
+  onRetry: () => void;
 }
 
 export default function SharedMiddlewareTemplatesTab({
@@ -48,6 +50,7 @@ export default function SharedMiddlewareTemplatesTab({
   runtimeBannerMessage,
   isTemplateLoading,
   isServicesLoading,
+  isRetrying,
   sharedTabBlocked,
   sharedTabErrorMessage,
   templateFilterCounts,
@@ -63,6 +66,7 @@ export default function SharedMiddlewareTemplatesTab({
   onEdit,
   onDelete,
   onAssign,
+  onRetry,
 }: SharedMiddlewareTemplatesTabProps) {
   const resetFilters = () => {
     onTemplateSearchChange("");
@@ -76,7 +80,11 @@ export default function SharedMiddlewareTemplatesTab({
       {isTemplateLoading || isServicesLoading ? (
         <SharedMiddlewareLoadingState />
       ) : sharedTabBlocked ? (
-        <SharedMiddlewareErrorState message={sharedTabErrorMessage} />
+        <SharedMiddlewareErrorState
+          isRetrying={isRetrying}
+          message={sharedTabErrorMessage}
+          onRetry={onRetry}
+        />
       ) : templatesCount === 0 ? (
         <SharedMiddlewareEmptyState canManage={canManage} onCreateOpen={onCreateOpen} />
       ) : (

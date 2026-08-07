@@ -23,9 +23,11 @@ interface GeneratedMiddlewaresTabProps {
   isServicesLoading: boolean;
   isRuntimeLoading: boolean;
   isServicesError: boolean;
+  isRetrying: boolean;
   servicesError: unknown;
   generatedServiceCount: number;
   generatedServiceGroups: GeneratedMiddlewareServiceGroup[];
+  onRetry: () => void;
 }
 
 export default function GeneratedMiddlewaresTab({
@@ -37,9 +39,11 @@ export default function GeneratedMiddlewaresTab({
   isServicesLoading,
   isRuntimeLoading,
   isServicesError,
+  isRetrying,
   servicesError,
   generatedServiceCount,
   generatedServiceGroups,
+  onRetry,
 }: GeneratedMiddlewaresTabProps) {
   const filterCounts = countGeneratedMiddlewareStatuses(generatedServiceGroups);
   const emptyState = getGeneratedMiddlewareEmptyState({
@@ -88,8 +92,10 @@ export default function GeneratedMiddlewaresTab({
         generatedServiceCount={generatedServiceCount === 0 ? 0 : visibleServiceGroups.length}
         isRuntimeLoading={isRuntimeLoading}
         isServicesError={isServicesError}
+        isRetrying={isRetrying}
         isServicesLoading={isServicesLoading}
         servicesError={servicesError}
+        onRetry={onRetry}
       />
 
       {shouldShowGroups ? (

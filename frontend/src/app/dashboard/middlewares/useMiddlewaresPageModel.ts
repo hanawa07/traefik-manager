@@ -53,6 +53,7 @@ export function useMiddlewaresPageModel() {
       runtimeBannerMessage: derived.runtimeBannerMessage,
       isTemplateLoading: data.isTemplateLoading,
       isServicesLoading: data.isServicesLoading,
+      isRetrying: data.isTemplateFetching || data.isServicesFetching,
       sharedTabBlocked: derived.sharedTabBlocked,
       sharedTabErrorMessage: derived.sharedTabErrorMessage,
       templateFilterCounts: derived.templateFilterCounts,
@@ -68,6 +69,9 @@ export function useMiddlewaresPageModel() {
       onEdit: uiState.setEditTarget,
       onDelete: uiState.setDeleteTarget,
       onAssign: uiState.setAssignmentTarget,
+      onRetry: () => {
+        void Promise.all([data.refetchTemplates(), data.refetchServices()]);
+      },
     },
     generatedTab: {
       generatedSearch: uiState.generatedSearch,
@@ -78,9 +82,11 @@ export function useMiddlewaresPageModel() {
       isServicesLoading: data.isServicesLoading,
       isRuntimeLoading: data.isRuntimeLoading,
       isServicesError: data.isServicesError,
+      isRetrying: data.isServicesFetching,
       servicesError: data.servicesError,
       generatedServiceCount: derived.generatedServiceGroups.length,
       generatedServiceGroups: derived.generatedServiceGroups,
+      onRetry: () => void data.refetchServices(),
     },
     modals: {
       canManage,

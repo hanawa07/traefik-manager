@@ -23,13 +23,17 @@ export function useMiddlewaresPageData({
     data: templates = [],
     error: templateError,
     isError: isTemplateError,
+    isFetching: isTemplateFetching,
     isLoading: isTemplateLoading,
+    refetch: refetchTemplates,
   } = useMiddlewareTemplates();
   const {
     data: services = [],
     error: servicesError,
     isError: isServicesError,
+    isFetching: isServicesFetching,
     isLoading: isServicesLoading,
+    refetch: refetchServices,
   } = useServices();
   const {
     data: runtimeMiddlewaresResponse,
@@ -47,9 +51,13 @@ export function useMiddlewaresPageData({
     deleteTemplate,
     isRuntimeLoading,
     isServicesError,
+    isServicesFetching,
     isServicesLoading,
     isTemplateError,
+    isTemplateFetching,
     isTemplateLoading,
+    refetchServices,
+    refetchTemplates,
     runtimeError,
     runtimeMiddlewaresResponse,
     services,
