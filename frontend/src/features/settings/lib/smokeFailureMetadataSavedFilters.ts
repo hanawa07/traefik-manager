@@ -29,8 +29,14 @@ export interface SmokeFailureMetadataSavedFilter {
   name: string;
 }
 
+export interface SmokeFailureMetadataSavedFiltersBackup {
+  filters: SmokeFailureMetadataSavedFilter[];
+  sort: SmokeFailureMetadataSavedFilterSort;
+}
+
 export function buildSmokeFailureMetadataSavedFiltersBackup(
   current: SmokeFailureMetadataSavedFilter[],
+  sort: SmokeFailureMetadataSavedFilterSort = "recent",
   exportedAt = new Date().toISOString(),
 ): { content: string; filename: string } {
   return {
@@ -39,6 +45,7 @@ export function buildSmokeFailureMetadataSavedFiltersBackup(
         exported_at: exportedAt,
         filters: normalizeSavedFilters(current),
         schema_version: 1,
+        sort,
       },
       null,
       2,
@@ -64,16 +71,36 @@ export function parseSmokeFailureMetadataSavedFilters(
 
 export function parseSmokeFailureMetadataSavedFiltersBackup(
   rawValue: string,
-): SmokeFailureMetadataSavedFilter[] | null {
+): SmokeFailureMetadataSavedFiltersBackup | null {
   try {
     const value: unknown = JSON.parse(rawValue);
     if (!isRecord(value) || value.schema_version !== 1 || !Array.isArray(value.filters)) {
       return null;
     }
-    return normalizeSavedFilters(value.filters);
+    return {
+      filters: normalizeSavedFilters(value.filters),
+      sort:
+        typeof value.sort === "string"
+          ? parseSmokeFailureMetadataSavedFilterSort(value.sort)
+          : "recent",
+    };
   } catch {
     return null;
   }
+}
+
+export function mergeSmokeFailureMetadataSavedFilters(
+  current: SmokeFailureMetadataSavedFilter[],
+  restored: SmokeFailureMetadataSavedFilter[],
+): SmokeFailureMetadataSavedFilter[] {
+  const normalizedRestored = normalizeSavedFilters(restored);
+  const restoredNames = new Set(normalizedRestored.map((item) => item.name.toLowerCase()));
+  return [
+    ...normalizedRestored,
+    ...normalizeSavedFilters(current).filter(
+      (item) => !restoredNames.has(item.name.toLowerCase()),
+    ),
+  ].slice(0, SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT);
 }
 
 export function upsertSmokeFailureMetadataSavedFilter(

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import type { SmokeFailureMetadataFilters } from "@/features/settings/lib/smokeFailureMetadataFilters";
 import {
   buildSmokeFailureMetadataSavedFiltersBackup,
+  mergeSmokeFailureMetadataSavedFilters,
   normalizeSmokeFailureMetadataSavedFilterName,
   parseSmokeFailureMetadataSavedFilterSort,
   parseSmokeFailureMetadataSavedFilters,
@@ -20,11 +21,22 @@ import {
   upsertSmokeFailureMetadataSavedFilter,
   type SmokeFailureMetadataSavedFilter,
   type SmokeFailureMetadataSavedFilterSort,
+  type SmokeFailureMetadataSavedFiltersBackup,
 } from "@/features/settings/lib/smokeFailureMetadataSavedFilters";
+import {
+  SmokeFailureMetadataSavedFilterRestorePreview,
+  type SmokeFailureMetadataSavedFilterRestoreMode,
+} from "./SmokeFailureMetadataSavedFilterRestorePreview";
 
 interface SmokeFailureMetadataSavedFiltersProps {
   filters: SmokeFailureMetadataFilters;
   onApply: (filters: SmokeFailureMetadataFilters) => void;
+}
+
+interface PendingRestore {
+  backup: SmokeFailureMetadataSavedFiltersBackup;
+  filename: string;
+  key: string;
 }
 
 export function SmokeFailureMetadataSavedFilters({
@@ -33,6 +45,7 @@ export function SmokeFailureMetadataSavedFilters({
 }: SmokeFailureMetadataSavedFiltersProps) {
   const [name, setName] = useState("");
   const [notice, setNotice] = useState("");
+  const [pendingRestore, setPendingRestore] = useState<PendingRestore | null>(null);
   const [savedFilters, setSavedFilters] = useState<SmokeFailureMetadataSavedFilter[]>([]);
   const [sort, setSort] = useState<SmokeFailureMetadataSavedFilterSort>("recent");
   const [selectedName, setSelectedName] = useState("");
@@ -55,13 +68,20 @@ export function SmokeFailureMetadataSavedFilters({
     }
   }, []);
 
-  const persist = (next: SmokeFailureMetadataSavedFilter[]): boolean => {
+  const persist = (
+    next: SmokeFailureMetadataSavedFilter[],
+    nextSort?: SmokeFailureMetadataSavedFilterSort,
+  ): boolean => {
     try {
       localStorage.setItem(
         SMOKE_FAILURE_METADATA_SAVED_FILTERS_STORAGE_KEY,
         JSON.stringify(next),
       );
+      if (nextSort) {
+        localStorage.setItem(SMOKE_FAILURE_METADATA_SAVED_FILTER_SORT_STORAGE_KEY, nextSort);
+      }
       setSavedFilters(next);
+      if (nextSort) setSort(nextSort);
       return true;
     } catch {
       setNotice("브라우저에 저장 필터를 기록하지 못했습니다.");
@@ -121,7 +141,7 @@ export function SmokeFailureMetadataSavedFilters({
 
   const downloadBackup = () => {
     try {
-      const backup = buildSmokeFailureMetadataSavedFiltersBackup(savedFilters);
+      const backup = buildSmokeFailureMetadataSavedFiltersBackup(savedFilters, sort);
       const url = URL.createObjectURL(
         new Blob([backup.content], { type: "application/json;charset=utf-8" }),
       );
@@ -138,28 +158,46 @@ export function SmokeFailureMetadataSavedFilters({
     }
   };
 
-  const restoreBackup = async (file?: File) => {
+  const prepareRestoreBackup = async (file?: File) => {
     if (!file) return;
+    setPendingRestore(null);
     if (file.size > SMOKE_FAILURE_METADATA_SAVED_FILTER_BACKUP_SIZE_LIMIT) {
       setNotice("저장 필터 백업 파일은 256KB 이하여야 합니다.");
       return;
     }
     try {
-      const restored = parseSmokeFailureMetadataSavedFiltersBackup(await file.text());
-      if (restored === null) {
+      const backup = parseSmokeFailureMetadataSavedFiltersBackup(await file.text());
+      if (backup === null) {
         setNotice("지원하는 저장 필터 JSON 백업 파일이 아닙니다.");
         return;
       }
-      if (!window.confirm(`백업의 저장 필터 ${restored.length}개로 현재 목록을 교체할까요?`)) {
-        return;
-      }
-      if (!persist(restored)) return;
-      setName("");
-      setSelectedName("");
-      setNotice(`저장 필터 ${restored.length}개를 JSON 백업에서 복원했습니다.`);
+      setPendingRestore({
+        backup,
+        filename: file.name,
+        key: `${file.name}:${file.size}:${file.lastModified}`,
+      });
+      setNotice("백업 내용을 확인한 뒤 교체 또는 병합을 선택하세요.");
     } catch {
       setNotice("저장 필터 JSON 백업을 읽지 못했습니다.");
     }
+  };
+
+  const restoreBackup = (mode: SmokeFailureMetadataSavedFilterRestoreMode) => {
+    if (!pendingRestore) return;
+    const next =
+      mode === "merge"
+        ? mergeSmokeFailureMetadataSavedFilters(
+            savedFilters,
+            pendingRestore.backup.filters,
+          )
+        : pendingRestore.backup.filters;
+    if (!persist(next, pendingRestore.backup.sort)) return;
+    setName("");
+    setSelectedName("");
+    setPendingRestore(null);
+    setNotice(
+      `저장 필터를 JSON 백업과 ${mode === "merge" ? "병합" : "교체"}했습니다. 결과 ${next.length}개입니다.`,
+    );
   };
 
   const rename = () => {
@@ -310,7 +348,7 @@ export function SmokeFailureMetadataSavedFilters({
             data-testid="smoke-failure-metadata-saved-filter-restore"
             onChange={(event) => {
               const input = event.currentTarget;
-              void restoreBackup(input.files?.[0]).finally(() => {
+              void prepareRestoreBackup(input.files?.[0]).finally(() => {
                 input.value = "";
               });
             }}
@@ -318,9 +356,22 @@ export function SmokeFailureMetadataSavedFilters({
           />
         </label>
         <span className="text-[11px] text-gray-500 dark:text-slate-400">
-          현재 브라우저 목록을 백업하거나 백업 목록으로 교체합니다.
+          파일 선택 후 내용을 확인하고 현재 목록과 교체하거나 병합합니다.
         </span>
       </div>
+      {pendingRestore ? (
+        <SmokeFailureMetadataSavedFilterRestorePreview
+          backup={pendingRestore.backup}
+          current={savedFilters}
+          filename={pendingRestore.filename}
+          key={pendingRestore.key}
+          onCancel={() => {
+            setPendingRestore(null);
+            setNotice("저장 필터 JSON 복원을 취소했습니다.");
+          }}
+          onRestore={restoreBackup}
+        />
+      ) : null}
       <p
         aria-live="polite"
         className="mt-1.5 text-[11px] text-gray-500 dark:text-slate-400"
