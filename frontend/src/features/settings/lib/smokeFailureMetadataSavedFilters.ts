@@ -34,6 +34,11 @@ export interface SmokeFailureMetadataSavedFiltersBackup {
   sort: SmokeFailureMetadataSavedFilterSort;
 }
 
+export interface SmokeFailureMetadataSavedFiltersMergeResult {
+  filters: SmokeFailureMetadataSavedFilter[];
+  omitted: SmokeFailureMetadataSavedFilter[];
+}
+
 export function buildSmokeFailureMetadataSavedFiltersBackup(
   current: SmokeFailureMetadataSavedFilter[],
   sort: SmokeFailureMetadataSavedFilterSort = "recent",
@@ -51,6 +56,22 @@ export function buildSmokeFailureMetadataSavedFiltersBackup(
       2,
     ),
     filename: `traefik-manager-smoke-failure-filters-${exportedAt.slice(0, 10)}.json`,
+  };
+}
+
+export function buildSmokeFailureMetadataSavedFilterBackup(
+  current: SmokeFailureMetadataSavedFilter,
+  sort: SmokeFailureMetadataSavedFilterSort = "recent",
+  exportedAt = new Date().toISOString(),
+): { content: string; filename: string } {
+  const backup = buildSmokeFailureMetadataSavedFiltersBackup([current], sort, exportedAt);
+  const filenameName = normalizeSmokeFailureMetadataSavedFilterName(current.name)
+    .normalize("NFKC")
+    .replace(/[^\p{L}\p{N}._-]+/gu, "-")
+    .replace(/^[._-]+|[._-]+$/g, "") || "filter";
+  return {
+    ...backup,
+    filename: `traefik-manager-smoke-failure-filter-${filenameName}-${exportedAt.slice(0, 10)}.json`,
   };
 }
 
@@ -92,15 +113,19 @@ export function parseSmokeFailureMetadataSavedFiltersBackup(
 export function mergeSmokeFailureMetadataSavedFilters(
   current: SmokeFailureMetadataSavedFilter[],
   restored: SmokeFailureMetadataSavedFilter[],
-): SmokeFailureMetadataSavedFilter[] {
+): SmokeFailureMetadataSavedFiltersMergeResult {
   const normalizedRestored = normalizeSavedFilters(restored);
   const restoredNames = new Set(normalizedRestored.map((item) => item.name.toLowerCase()));
-  return [
+  const candidates = [
     ...normalizedRestored,
     ...normalizeSavedFilters(current).filter(
       (item) => !restoredNames.has(item.name.toLowerCase()),
     ),
-  ].slice(0, SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT);
+  ];
+  return {
+    filters: candidates.slice(0, SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT),
+    omitted: candidates.slice(SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT),
+  };
 }
 
 export function upsertSmokeFailureMetadataSavedFilter(

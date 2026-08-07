@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import type { SmokeFailureMetadataFilters } from "@/features/settings/lib/smokeFailureMetadataFilters";
 import {
+  buildSmokeFailureMetadataSavedFilterBackup,
   buildSmokeFailureMetadataSavedFiltersBackup,
   mergeSmokeFailureMetadataSavedFilters,
   normalizeSmokeFailureMetadataSavedFilterName,
@@ -50,6 +51,7 @@ export function SmokeFailureMetadataSavedFilters({
   const [sort, setSort] = useState<SmokeFailureMetadataSavedFilterSort>("recent");
   const [selectedName, setSelectedName] = useState("");
   const displayedFilters = sortSmokeFailureMetadataSavedFilters(savedFilters, sort);
+  const selectedFilter = savedFilters.find((item) => item.name === selectedName);
 
   useEffect(() => {
     try {
@@ -115,10 +117,9 @@ export function SmokeFailureMetadataSavedFilters({
   };
 
   const apply = () => {
-    const selected = savedFilters.find((item) => item.name === selectedName);
-    if (!selected) return;
-    onApply(selected.filters);
-    setNotice(`‘${selected.name}’ 필터를 적용했습니다.`);
+    if (!selectedFilter) return;
+    onApply(selectedFilter.filters);
+    setNotice(`‘${selectedFilter.name}’ 필터를 적용했습니다.`);
   };
 
   const remove = () => {
@@ -141,20 +142,20 @@ export function SmokeFailureMetadataSavedFilters({
 
   const downloadBackup = () => {
     try {
-      const backup = buildSmokeFailureMetadataSavedFiltersBackup(savedFilters, sort);
-      const url = URL.createObjectURL(
-        new Blob([backup.content], { type: "application/json;charset=utf-8" }),
-      );
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = backup.filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      downloadJsonBackup(buildSmokeFailureMetadataSavedFiltersBackup(savedFilters, sort));
       setNotice(`저장 필터 ${savedFilters.length}개를 JSON으로 백업했습니다.`);
     } catch {
       setNotice("저장 필터 JSON 백업을 만들지 못했습니다.");
+    }
+  };
+
+  const downloadSelectedBackup = () => {
+    if (!selectedFilter) return;
+    try {
+      downloadJsonBackup(buildSmokeFailureMetadataSavedFilterBackup(selectedFilter, sort));
+      setNotice(`‘${selectedFilter.name}’ 필터를 개별 JSON으로 백업했습니다.`);
+    } catch {
+      setNotice("선택한 저장 필터 JSON 백업을 만들지 못했습니다.");
     }
   };
 
@@ -184,19 +185,18 @@ export function SmokeFailureMetadataSavedFilters({
 
   const restoreBackup = (mode: SmokeFailureMetadataSavedFilterRestoreMode) => {
     if (!pendingRestore) return;
-    const next =
-      mode === "merge"
-        ? mergeSmokeFailureMetadataSavedFilters(
-            savedFilters,
-            pendingRestore.backup.filters,
-          )
-        : pendingRestore.backup.filters;
+    const merged = mode === "merge"
+      ? mergeSmokeFailureMetadataSavedFilters(savedFilters, pendingRestore.backup.filters)
+      : null;
+    const next = merged?.filters ?? pendingRestore.backup.filters;
     if (!persist(next, pendingRestore.backup.sort)) return;
     setName("");
     setSelectedName("");
     setPendingRestore(null);
     setNotice(
-      `저장 필터를 JSON 백업과 ${mode === "merge" ? "병합" : "교체"}했습니다. 결과 ${next.length}개입니다.`,
+      merged?.omitted.length
+        ? `저장 필터를 JSON 백업과 병합했습니다. 결과 ${next.length}개이며, 20개 제한으로 ${merged.omitted.length}개를 제외했습니다.`
+        : `저장 필터를 JSON 백업과 ${mode === "merge" ? "병합" : "교체"}했습니다. 결과 ${next.length}개입니다.`,
     );
   };
 
@@ -338,10 +338,19 @@ export function SmokeFailureMetadataSavedFilters({
           onClick={downloadBackup}
           type="button"
         >
-          <Download className="h-3.5 w-3.5" /> JSON 백업
+          <Download className="h-3.5 w-3.5" /> 전체 JSON
+        </button>
+        <button
+          className="btn-secondary inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs"
+          data-testid="smoke-failure-metadata-saved-filter-backup-selected"
+          disabled={!selectedFilter}
+          onClick={downloadSelectedBackup}
+          type="button"
+        >
+          <Download className="h-3.5 w-3.5" /> 선택 JSON
         </button>
         <label className="btn-secondary inline-flex cursor-pointer items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs">
-          <Upload className="h-3.5 w-3.5" /> JSON 복원
+          <Upload className="h-3.5 w-3.5" /> JSON 가져오기
           <input
             accept="application/json,.json"
             className="sr-only"
@@ -356,7 +365,7 @@ export function SmokeFailureMetadataSavedFilters({
           />
         </label>
         <span className="text-[11px] text-gray-500 dark:text-slate-400">
-          파일 선택 후 내용을 확인하고 현재 목록과 교체하거나 병합합니다.
+          전체 또는 선택 항목 JSON을 확인한 뒤 현재 목록과 교체하거나 병합합니다.
         </span>
       </div>
       {pendingRestore ? (
@@ -381,4 +390,17 @@ export function SmokeFailureMetadataSavedFilters({
       </p>
     </section>
   );
+}
+
+function downloadJsonBackup(backup: { content: string; filename: string }): void {
+  const url = URL.createObjectURL(
+    new Blob([backup.content], { type: "application/json;charset=utf-8" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = backup.filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
