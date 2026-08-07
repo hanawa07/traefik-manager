@@ -14,6 +14,7 @@ import {
   parseSmokeFailureMetadataSavedFiltersBackup,
   removeSmokeFailureMetadataSavedFilter,
   renameSmokeFailureMetadataSavedFilter,
+  SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT,
   SMOKE_FAILURE_METADATA_SAVED_FILTER_NAME_LIMIT,
   SMOKE_FAILURE_METADATA_SAVED_FILTER_BACKUP_SIZE_LIMIT,
   SMOKE_FAILURE_METADATA_SAVED_FILTER_SORT_STORAGE_KEY,
@@ -50,8 +51,13 @@ export function SmokeFailureMetadataSavedFilters({
   const [savedFilters, setSavedFilters] = useState<SmokeFailureMetadataSavedFilter[]>([]);
   const [sort, setSort] = useState<SmokeFailureMetadataSavedFilterSort>("recent");
   const [selectedName, setSelectedName] = useState("");
+  const normalizedName = normalizeSmokeFailureMetadataSavedFilterName(name);
   const displayedFilters = sortSmokeFailureMetadataSavedFilters(savedFilters, sort);
   const selectedFilter = savedFilters.find((item) => item.name === selectedName);
+  const isNewFilterAtLimit =
+    savedFilters.length >= SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT &&
+    Boolean(normalizedName) &&
+    !savedFilters.some((item) => item.name.toLowerCase() === normalizedName.toLowerCase());
 
   useEffect(() => {
     try {
@@ -101,9 +107,12 @@ export function SmokeFailureMetadataSavedFilters({
   };
 
   const save = () => {
-    const normalizedName = normalizeSmokeFailureMetadataSavedFilterName(name);
     if (!normalizedName) {
       setNotice("저장할 필터 이름을 입력하세요.");
+      return;
+    }
+    if (isNewFilterAtLimit) {
+      setNotice("저장 필터는 최대 20개입니다. 기존 항목을 삭제하거나 같은 이름으로 덮어쓰세요.");
       return;
     }
     const next = upsertSmokeFailureMetadataSavedFilter(savedFilters, {
@@ -202,7 +211,6 @@ export function SmokeFailureMetadataSavedFilters({
 
   const rename = () => {
     if (!selectedName) return;
-    const normalizedName = normalizeSmokeFailureMetadataSavedFilterName(name);
     if (!normalizedName) {
       setNotice("변경할 필터 이름을 입력하세요.");
       return;
@@ -284,6 +292,7 @@ export function SmokeFailureMetadataSavedFilters({
         <button
           className="btn-secondary inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs"
           data-testid="smoke-failure-metadata-saved-filter-save"
+          disabled={isNewFilterAtLimit}
           onClick={save}
           type="button"
         >
@@ -294,8 +303,8 @@ export function SmokeFailureMetadataSavedFilters({
           data-testid="smoke-failure-metadata-saved-filter-rename"
           disabled={
             !selectedName ||
-            !normalizeSmokeFailureMetadataSavedFilterName(name) ||
-            normalizeSmokeFailureMetadataSavedFilterName(name) === selectedName
+            !normalizedName ||
+            normalizedName === selectedName
           }
           onClick={rename}
           type="button"
@@ -330,6 +339,15 @@ export function SmokeFailureMetadataSavedFilters({
           <Trash2 className="h-3.5 w-3.5" /> 전체 삭제
         </button>
       </div>
+      {savedFilters.length >= SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT ? (
+        <p
+          className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] font-medium text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+          data-testid="smoke-failure-metadata-saved-filter-limit"
+          role="status"
+        >
+          저장 필터가 최대 20개입니다. 새 이름을 저장하려면 기존 항목을 삭제하세요. 같은 이름은 덮어쓸 수 있습니다.
+        </p>
+      ) : null}
       <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-gray-200 pt-2 dark:border-slate-800">
         <button
           className="btn-secondary inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs"
