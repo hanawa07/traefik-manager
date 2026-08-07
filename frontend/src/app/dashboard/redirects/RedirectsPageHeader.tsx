@@ -2,7 +2,7 @@ import { Plus } from "lucide-react";
 
 interface RedirectsPageHeaderProps {
   canManage: boolean;
-  redirectCount: number;
+  redirectCount: number | null;
   onCreate: () => void;
 }
 
@@ -16,7 +16,7 @@ export function RedirectsPageHeader({
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">리다이렉트</h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
-          도메인 리다이렉트 호스트 관리 ({redirectCount}개)
+          도메인 리다이렉트 호스트 관리 ({redirectCount === null ? "확인 실패" : `${redirectCount}개`})
         </p>
       </div>
       {canManage ? (

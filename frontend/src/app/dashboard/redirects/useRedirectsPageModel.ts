@@ -20,7 +20,14 @@ interface ApiErrorWithDetail {
 export function useRedirectsPageModel() {
   const role = useAuthStore((state) => state.role);
   const canManage = role === "admin";
-  const { data: redirects = [], isLoading } = useRedirectHosts();
+  const {
+    data: redirects = [],
+    error: redirectsError,
+    isError: isRedirectsError,
+    isFetching: isRedirectsFetching,
+    isLoading,
+    refetch: refetchRedirects,
+  } = useRedirectHosts();
   const createRedirect = useCreateRedirectHost();
   const deleteRedirect = useDeleteRedirectHost();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -47,6 +54,12 @@ export function useRedirectsPageModel() {
   return {
     canManage,
     redirects,
+    redirectsErrorMessage: getRedirectErrorMessage(
+      redirectsError,
+      "리다이렉트 목록을 불러오지 못했습니다",
+    ),
+    isRedirectsError,
+    isRedirectsFetching,
     isLoading,
     isCreateOpen,
     editTarget,
@@ -71,6 +84,7 @@ export function useRedirectsPageModel() {
     onCreate: handleCreate,
     onUpdate: handleUpdate,
     onConfirmDelete: handleConfirmDelete,
+    onRetry: () => void refetchRedirects(),
   };
 }
 

@@ -14,16 +14,20 @@ export default function RedirectsPage() {
     <div>
       <RedirectsPageHeader
         canManage={page.canManage}
-        redirectCount={page.redirects.length}
+        redirectCount={page.isRedirectsError ? null : page.redirects.length}
         onCreate={page.onOpenCreate}
       />
       <RedirectsListCard
         canManage={page.canManage}
+        errorMessage={page.redirectsErrorMessage}
+        isError={page.isRedirectsError}
         isLoading={page.isLoading}
+        isRetrying={page.isRedirectsFetching}
         redirects={page.redirects}
         onCreate={page.onOpenCreate}
         onEdit={page.onEdit}
         onDelete={page.onDelete}
+        onRetry={page.onRetry}
       />
       <RedirectCreateModal
         canManage={page.canManage}
