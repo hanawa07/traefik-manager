@@ -25,6 +25,7 @@ import {
 import { DASHBOARD_ROUTES, VISUAL_PROFILES } from "./dashboard-visual-routes.mjs";
 import { evaluate, runDashboardVisualRuntimeSelfTest } from "./dashboard-visual-runtime.mjs";
 import { checkSecurityAlertRetryDelaySetting } from "./dashboard-visual-security-alert-settings.mjs";
+import { checkServiceMiddlewareRequestRecovery } from "./dashboard-visual-service-middleware-recovery.mjs";
 import { checkManualSmokeRunResultPersistence } from "./dashboard-visual-smoke-manual-run.mjs";
 import { checkSettingsTestAuditLinks } from "./dashboard-visual-settings-test-monitoring.mjs";
 import { runSmokeStatisticsHistoryAssertionsSelfTest } from "./dashboard-visual-smoke-statistics-history.mjs";
@@ -109,6 +110,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
     });
     labels.push(`${profile.label} ${DASHBOARD_ROUTES.length}개 화면`);
   }
+  await checkServiceMiddlewareRequestRecovery({ baseUrl, cdp, timeoutMs });
+  labels.push("서비스·미들웨어 API 404 표시·재시도 복구");
   labels.push("Docker 정상 표시", "Artifact 필터 건수·정렬·URL 공유·복사 성공 초기화·실패 fallback·새로고침 유지");
   const cleanupCancelChecked = await checkOptionalDeploymentBottleneckCleanupCancel({
     baseUrl,

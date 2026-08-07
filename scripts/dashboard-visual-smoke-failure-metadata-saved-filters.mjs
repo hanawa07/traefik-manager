@@ -313,6 +313,16 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
     }
+    setValue.call(name, '21번째 새 필터');
+    name.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const newNameDisabled = save.disabled;
+    const limitNotice = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-limit"]')
+      ?.textContent?.replace(/\s+/g, ' ').trim();
+    setValue.call(name, '제한 필터 17');
+    name.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const existingNameEnabled = !save.disabled;
     const transfer = new DataTransfer();
     transfer.items.add(new File(
       [${JSON.stringify(limitBackupContent)}],
@@ -332,6 +342,11 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
     if (!(merge instanceof HTMLInputElement) || !(cancel instanceof HTMLButtonElement)) return null;
     const result = {
       defaultMerge: merge.checked,
+      existingNameEnabled,
+      limitNotice,
+      newNameDisabled,
+      newNameStored: JSON.parse(localStorage.getItem(${JSON.stringify(STORAGE_KEY)}) || '[]')
+        .some((item) => item.name === '21번째 새 필터'),
       omitted: omitted?.textContent?.replace(/\s+/g, ' ').trim(),
       storedCount: JSON.parse(localStorage.getItem(${JSON.stringify(STORAGE_KEY)}) || '[]').length,
       summary: summary?.textContent?.replace(/\s+/g, ' ').trim(),
@@ -347,6 +362,10 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
     limitPreview,
     {
       defaultMerge: true,
+      existingNameEnabled: true,
+      limitNotice: "저장 필터가 최대 20개입니다. 새 이름을 저장하려면 기존 항목을 삭제하세요. 같은 이름은 덮어쓸 수 있습니다.",
+      newNameDisabled: true,
+      newNameStored: false,
       omitted: `20개 제한으로 제외: ${SECONDARY_PRESET_NAME}`,
       previewRemoved: true,
       storedCount: 20,
