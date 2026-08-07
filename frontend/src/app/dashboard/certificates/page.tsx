@@ -2,6 +2,7 @@
 
 import CertificateDetailDrawer from "./CertificateDetailDrawer";
 import CertificateErrorBanner from "./CertificateErrorBanner";
+import CertificateListErrorState from "./CertificateListErrorState";
 import CertificateListCard from "./CertificateListCard";
 import CertificatePageHeader from "./CertificatePageHeader";
 import CertificateOverviewPanels from "./CertificateOverviewPanels";
@@ -14,15 +15,15 @@ export default function CertificatesPage() {
     <div>
       <CertificatePageHeader {...model.header} />
 
-      <CertificateOverviewPanels {...model.overview} />
+      {!model.loadError.isVisible ? <CertificateOverviewPanels {...model.overview} /> : null}
 
-      {model.loadError.isVisible && (
-        <CertificateErrorBanner
-          title="인증서 정보를 가져오지 못했습니다"
+      {model.loadError.isVisible ? (
+        <CertificateListErrorState
           error={model.loadError.error}
-          fallback="잠시 후 다시 시도해 주세요"
+          isRetrying={model.loadError.isRetrying}
+          onRetry={model.loadError.onRetry}
         />
-      )}
+      ) : null}
 
       {model.checkError.isVisible && (
         <CertificateErrorBanner
@@ -32,8 +33,10 @@ export default function CertificatesPage() {
         />
       )}
 
-      <CertificateListCard {...model.list} />
-      {model.drawer ? <CertificateDetailDrawer {...model.drawer} /> : null}
+      {!model.loadError.isVisible ? <CertificateListCard {...model.list} /> : null}
+      {!model.loadError.isVisible && model.drawer ? (
+        <CertificateDetailDrawer {...model.drawer} />
+      ) : null}
     </div>
   );
 }

@@ -46,6 +46,8 @@ export function useCertificatesPageModel() {
     loadError: {
       error: data.error,
       isVisible: data.isError,
+      isRetrying: data.isFetching,
+      onRetry: () => void data.refetch(),
     },
     overview,
   };
