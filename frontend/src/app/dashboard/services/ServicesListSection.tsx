@@ -3,6 +3,7 @@ import type { Service, UpstreamHealth } from "@/features/services/api/serviceApi
 import ServiceCard from "@/features/services/components/ServiceCard";
 import type { TraefikRouterStatus } from "@/features/traefik/api/traefikApi";
 import { ServicesEmptyState } from "./ServicesEmptyState";
+import { ServicesErrorState } from "./ServicesErrorState";
 import { ServicesLoadingGrid } from "./ServicesLoadingGrid";
 import type { ServiceDiagnosisHistoryMap } from "./serviceGatewayDiagnosisAuditSnapshots";
 import type { ServiceDiagnosisSnapshotMap } from "./serviceSaveDiagnosis";
@@ -10,6 +11,9 @@ import type { HealthHistoryEntry } from "./useServicesPageModel";
 
 interface ServicesListSectionProps {
   isLoading: boolean;
+  isError: boolean;
+  isRetrying: boolean;
+  error: unknown;
   services: Service[];
   search: string;
   canManage: boolean;
@@ -23,11 +27,15 @@ interface ServicesListSectionProps {
   selectedServiceIds: string[];
   onClearSearch: () => void;
   onDelete: (service: Service) => void;
+  onRetry: () => void;
   onSelectionChange: (service: Service, selected: boolean) => void;
 }
 
 export default function ServicesListSection({
   isLoading,
+  isError,
+  isRetrying,
+  error,
   services,
   search,
   canManage,
@@ -41,9 +49,13 @@ export default function ServicesListSection({
   selectedServiceIds,
   onClearSearch,
   onDelete,
+  onRetry,
   onSelectionChange,
 }: ServicesListSectionProps) {
   if (isLoading) return <ServicesLoadingGrid />;
+  if (isError) {
+    return <ServicesErrorState error={error} isRetrying={isRetrying} onRetry={onRetry} />;
+  }
   if (services.length === 0) {
     return (
       <ServicesEmptyState

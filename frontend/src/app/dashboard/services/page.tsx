@@ -53,7 +53,11 @@ export default function ServicesPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">서비스</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
-            Traefik 라우팅 서비스 관리 ({model.filteredServices.length}/{model.services.length}개)
+            Traefik 라우팅 서비스 관리 (
+            {model.isServicesError
+              ? "확인 실패"
+              : `${model.filteredServices.length}/${model.services.length}개`}
+            )
           </p>
         </div>
         {model.canManage ? (
@@ -73,7 +77,7 @@ export default function ServicesPage() {
         />
       ) : null}
 
-      {!model.isLoading ? (
+      {!model.isLoading && !model.isServicesError ? (
         <ServiceRoutingSummary
           services={model.services}
           activeFilter={model.healthFilter}
@@ -82,18 +86,20 @@ export default function ServicesPage() {
       ) : null}
 
       {/* 검색 + 정렬 툴바 */}
-      <ServicesToolbar
-        search={model.search}
-        healthFilter={model.healthFilter}
-        sortKey={model.sortKey}
-        sortDir={model.sortDir}
-        onSearchChange={model.setSearch}
-        onHealthFilterChange={model.setHealthFilter}
-        onSortKeyChange={model.setSortKey}
-        onSortDirChange={model.setSortDir}
-      />
+      {!model.isServicesError ? (
+        <ServicesToolbar
+          search={model.search}
+          healthFilter={model.healthFilter}
+          sortKey={model.sortKey}
+          sortDir={model.sortDir}
+          onSearchChange={model.setSearch}
+          onHealthFilterChange={model.setHealthFilter}
+          onSortKeyChange={model.setSortKey}
+          onSortDirChange={model.setSortDir}
+        />
+      ) : null}
 
-      {model.canManage && !model.isLoading ? (
+      {model.canManage && !model.isLoading && !model.isServicesError ? (
         <ServiceBulkRoutingActions
           allVisibleSelected={bulkRouting.allVisibleSelected}
           failureNames={bulkRouting.failureNames}
@@ -112,6 +118,9 @@ export default function ServicesPage() {
       {/* 목록 */}
       <ServicesListSection
         isLoading={model.isLoading}
+        isError={model.isServicesError}
+        isRetrying={model.isServicesFetching}
+        error={model.servicesError}
         services={model.filteredServices}
         search={model.search}
         canManage={model.canManage}
@@ -125,6 +134,7 @@ export default function ServicesPage() {
         selectedServiceIds={bulkRouting.selectedServiceIds}
         onClearSearch={() => model.setSearch("")}
         onDelete={model.setDeleteTarget}
+        onRetry={() => void model.refetchServices()}
         onSelectionChange={bulkRouting.selectService}
       />
 

@@ -7,7 +7,14 @@ import { useTimeDisplaySettings } from "@/features/settings/hooks/useSettings";
 import { useTraefikRouterStatus } from "@/features/traefik/hooks/useTraefik";
 
 export function useServicesPageData() {
-  const { data: services = [], isLoading } = useServices();
+  const {
+    data: services = [],
+    error: servicesError,
+    isError: isServicesError,
+    isFetching: isServicesFetching,
+    isLoading,
+    refetch: refetchServices,
+  } = useServices();
   const { data: routerStatus } = useTraefikRouterStatus();
   const { data: healthMap } = useAllServicesHealth();
   const { data: certificates = [] } = useCertificates();
@@ -23,8 +30,12 @@ export function useServicesPageData() {
     displayTimeZone: timeDisplaySettings?.display_timezone,
     healthMap,
     isLoading,
+    isServicesError,
+    isServicesFetching,
     gatewayDiagnosisLogs,
+    refetchServices,
     routerStatus,
     services,
+    servicesError,
   };
 }

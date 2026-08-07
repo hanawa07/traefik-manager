@@ -48,6 +48,9 @@ export function useServicesPageModel() {
     services: data.services,
     filteredServices: filters.filteredServices,
     isLoading: data.isLoading,
+    isServicesError: data.isServicesError,
+    isServicesFetching: data.isServicesFetching,
+    servicesError: data.servicesError,
     routerStatus: data.routerStatus,
     healthMap: data.healthMap,
     healthHistory,
@@ -67,5 +70,6 @@ export function useServicesPageModel() {
     setSortDir: filters.setSortDir,
     setHealthFilter: filters.setHealthFilter,
     handleDelete: deleteAction.handleDelete,
+    refetchServices: data.refetchServices,
   };
 }
