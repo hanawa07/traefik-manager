@@ -77,7 +77,7 @@ jobs:
       - name: 프론트 운영 의존성 high 이상 보안 검사
         run: npm --prefix frontend audit --package-lock-only --omit=dev --audit-level=high
 
-      # PONYTAIL-DEBT(dependencies): Next ESLint가 minimatch 3을 제거하면 dev high 차단을 복구한다.
+      # PONYTAIL-DEBT(dependencies): ESLint 전이 의존성의 dev high가 해소되면 high 차단을 복구한다.
       - name: 프론트 전체 의존성 critical 보안 검사
         run: npm --prefix frontend audit --package-lock-only --audit-level=critical
 
