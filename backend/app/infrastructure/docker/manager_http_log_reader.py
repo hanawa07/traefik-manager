@@ -19,6 +19,9 @@ from app.infrastructure.docker.manager_http_latency import (
     SETTINGS_HISTORY_LATENCY_WINDOW_MINUTES,
     build_settings_history_latency_summary,
 )
+from app.infrastructure.manager_deployment_history import (
+    read_manager_deployment_history,
+)
 
 
 async def read_manager_http_error_summary(
@@ -35,6 +38,7 @@ async def read_manager_http_error_summary(
     summary = build_manager_http_error_summary(
         log_text,
         checked_at=checked_at,
+        deployment_history=read_manager_deployment_history(),
         window_hours=window_hours,
         path_filter=path_filter,
     )

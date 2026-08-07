@@ -7,6 +7,7 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
   const snapshot = await evaluate(cdp, `(() => {
     const card = document.querySelector('[data-testid="manager-http-error-trend"]');
     const chart = document.querySelector('[data-testid="manager-http-error-chart-scroll"]');
+    const correlation = document.querySelector('[data-testid="manager-http-deployment-correlation"]');
     const logStorage = document.querySelector('[data-testid="manager-http-log-storage"]');
     const monitor = document.querySelector('[data-testid="manager-http-error-monitor-status"]');
     const latencyMonitor = document.querySelector('[data-testid="manager-settings-history-latency-status"]');
@@ -16,6 +17,8 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
       bucketCount: card.querySelectorAll('[data-http-error-bucket="true"]').length,
       chartScrollWidth: chart?.scrollWidth ?? 0,
       chartWidth: chart?.clientWidth ?? 0,
+      correlationCount: Number(correlation?.getAttribute('data-correlation-count')),
+      correlationText: correlation?.textContent || '',
       managerApiAlert: document.querySelector('[data-testid="manager-health-alert-banner"]')
         ?.getAttribute('data-manager-api-alert'),
       managerApiAuditHref: document.querySelector('[data-testid="manager-api-audit-link"]')
@@ -58,6 +61,12 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
   assert.equal(snapshot.bucketCount, 24, "Manager API 오류 추이가 24개 시간 구간이 아닙니다");
   assert.ok(snapshot.chartScrollWidth >= snapshot.chartWidth, "Manager API 오류 차트 폭이 올바르지 않습니다");
   assert.match(snapshot.text, /관측 시작:/, "Manager API 오류 로그 관측 시각이 없습니다");
+  assert.ok(Number.isInteger(snapshot.correlationCount) && snapshot.correlationCount >= 0);
+  assert.match(
+    snapshot.correlationText,
+    /배포 시작 1분 전부터 완료 2분 후까지/,
+    "Manager API 오류와 배포 시각의 상관관계 설명이 없습니다",
+  );
   assert.ok(snapshot.logStorage, "Manager API 요청 로그 보관 상태가 없습니다");
   assert.ok(
     ["persistent", "docker", "unavailable"].includes(snapshot.logStorage.source),

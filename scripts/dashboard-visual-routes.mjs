@@ -48,6 +48,7 @@ export const DASHBOARD_ROUTES = [
       "GitHub 실행 통계와 로컬 콜백 이력은 관리자 계정에서 확인합니다.",
       "활성 슬롯",
       "Manager API 404·5xx 추이",
+      "배포 시각 상관관계",
       "최근 24시간 영속 집계",
       "임계치 감지 상태",
       "설정 이력 API p95",

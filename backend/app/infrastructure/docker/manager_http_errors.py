@@ -1,6 +1,9 @@
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
+from app.infrastructure.docker.manager_http_deployment_correlation import (
+    build_manager_http_deployment_correlations,
+)
 from app.infrastructure.docker.manager_http_request_log_parser import (
     parse_manager_http_request_log,
 )
@@ -15,6 +18,7 @@ def build_manager_http_error_summary(
     log_text: str | None,
     *,
     checked_at: datetime | None = None,
+    deployment_history: list[dict[str, object]] | None = None,
     window_hours: int = MANAGER_HTTP_ERROR_WINDOW_HOURS,
     path_filter: str | None = None,
 ) -> dict[str, object]:
@@ -38,6 +42,7 @@ def build_manager_http_error_summary(
             observed_since=None,
             buckets=buckets,
             path_counts={},
+            deployment_correlations=[],
             window_hours=effective_window_hours,
             path_filter=normalized_path_filter,
         )
@@ -85,6 +90,13 @@ def build_manager_http_error_summary(
         observed_since=observed_since,
         buckets=buckets,
         path_counts=path_counts,
+        deployment_correlations=build_manager_http_deployment_correlations(
+            log_text,
+            deployment_history or [],
+            checked_at=current,
+            path_filter=normalized_path_filter,
+            window_start=window_start,
+        ),
         window_hours=effective_window_hours,
         path_filter=normalized_path_filter,
     )
@@ -165,6 +177,7 @@ def _build_summary(
     observed_since: datetime | None,
     buckets: list[dict[str, object]],
     path_counts: dict[str, dict[str, object]],
+    deployment_correlations: list[dict[str, object]],
     window_hours: int,
     path_filter: str | None,
 ) -> dict[str, object]:
@@ -183,6 +196,7 @@ def _build_summary(
         "server_error_count": total_server_error,
         "buckets": buckets,
         "top_paths": top_paths,
+        "deployment_correlations": deployment_correlations,
     }
 
 

@@ -34,6 +34,28 @@ class ManagerHttpRequestLogStorageResponse(BaseModel):
     rotated_file_count: int = Field(default=0, ge=0)
 
 
+class ManagerHttpDeploymentCorrelationResponse(BaseModel):
+    version: str
+    revision: str
+    status: Literal[
+        "success",
+        "failed_before_switch",
+        "rolled_back",
+        "rollback_failed",
+    ]
+    started_at: datetime
+    completed_at: datetime
+    window_started_at: datetime
+    window_ended_at: datetime
+    sample_complete: bool
+    not_found_count: int = Field(default=0, ge=0)
+    server_error_count: int = Field(default=0, ge=0)
+    top_paths: list[ManagerHttpErrorPathResponse] = Field(
+        default_factory=list,
+        max_length=3,
+    )
+
+
 class ManagerHttpErrorSummaryResponse(BaseModel):
     available: bool
     message: str
@@ -46,6 +68,10 @@ class ManagerHttpErrorSummaryResponse(BaseModel):
     server_error_count: int = Field(default=0, ge=0)
     buckets: list[ManagerHttpErrorBucketResponse] = Field(default_factory=list)
     top_paths: list[ManagerHttpErrorPathResponse] = Field(default_factory=list)
+    deployment_correlations: list[ManagerHttpDeploymentCorrelationResponse] = Field(
+        default_factory=list,
+        max_length=5,
+    )
     log_storage: ManagerHttpRequestLogStorageResponse = Field(
         default_factory=ManagerHttpRequestLogStorageResponse
     )

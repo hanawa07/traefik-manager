@@ -3,6 +3,8 @@ import Link from "next/link";
 import type { ManagerHttpErrorSummary } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime, resolveDisplayTimeZone } from "@/shared/lib/dateTimeFormat";
 
+import { ManagerHttpDeploymentCorrelation } from "./ManagerHttpDeploymentCorrelation";
+
 interface ManagerHttpErrorChartProps {
   summary: ManagerHttpErrorSummary;
   timezone?: string;
@@ -76,6 +78,11 @@ export function ManagerHttpErrorChart({ summary, timezone }: ManagerHttpErrorCha
         <span>관측 시작: {formatDateTime(summary.observed_since, timezone)}</span>
         <span>확인: {formatDateTime(summary.checked_at, timezone)}</span>
       </div>
+
+      <ManagerHttpDeploymentCorrelation
+        correlations={summary.deployment_correlations ?? []}
+        timezone={timezone}
+      />
 
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">

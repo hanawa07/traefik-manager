@@ -41,6 +41,20 @@ export interface ManagerHttpErrorPath {
   last_seen_at: string;
 }
 
+export interface ManagerHttpDeploymentCorrelation {
+  version: string;
+  revision: string;
+  status: "success" | "failed_before_switch" | "rolled_back" | "rollback_failed";
+  started_at: string;
+  completed_at: string;
+  window_started_at: string;
+  window_ended_at: string;
+  sample_complete: boolean;
+  not_found_count: number;
+  server_error_count: number;
+  top_paths: ManagerHttpErrorPath[];
+}
+
 export interface ManagerHttpRequestLogStorage {
   source: "persistent" | "docker" | "unavailable";
   size_bytes: number;
@@ -62,6 +76,7 @@ export interface ManagerHttpErrorSummary {
   server_error_count: number;
   buckets: ManagerHttpErrorBucket[];
   top_paths: ManagerHttpErrorPath[];
+  deployment_correlations: ManagerHttpDeploymentCorrelation[];
   log_storage: ManagerHttpRequestLogStorage;
 }
 

@@ -107,6 +107,53 @@ def test_build_manager_http_error_summary_filters_period_and_path() -> None:
     assert [item["path"] for item in summary["top_paths"]] == ["/api/v1/services"]
 
 
+def test_build_manager_http_error_summary_correlates_errors_with_deployment() -> None:
+    started_at = CHECKED_AT - timedelta(minutes=12)
+    completed_at = CHECKED_AT - timedelta(minutes=10)
+    log_text = "\n".join(
+        [
+            _request_log(hours_ago=0.2, path="/api/v1/services", status_code=404),
+            _request_log(hours_ago=0.15, path="/api/v1/services", status_code=503),
+            _request_log(hours_ago=0.5, path="/api/v1/old", status_code=404),
+        ]
+    )
+    deployment_history = [
+        {
+            "version": "v1.38.281",
+            "revision": "a" * 40,
+            "status": "success",
+            "started_at": started_at.isoformat(),
+            "completed_at": completed_at.isoformat(),
+        },
+        {
+            "version": "v1.38.280",
+            "revision": "b" * 40,
+            "status": "success",
+            "started_at": (CHECKED_AT - timedelta(hours=2)).isoformat(),
+            "completed_at": (CHECKED_AT - timedelta(hours=1, minutes=58)).isoformat(),
+        }
+    ]
+
+    summary = build_manager_http_error_summary(
+        log_text,
+        checked_at=CHECKED_AT,
+        deployment_history=deployment_history,
+    )
+
+    assert len(summary["deployment_correlations"]) == 2
+    correlation = summary["deployment_correlations"][0]
+    assert correlation["version"] == "v1.38.281"
+    assert correlation["window_started_at"] == started_at - timedelta(minutes=1)
+    assert correlation["window_ended_at"] == completed_at + timedelta(minutes=2)
+    assert correlation["sample_complete"] is True
+    assert correlation["not_found_count"] == 1
+    assert correlation["server_error_count"] == 1
+    assert [item["path"] for item in correlation["top_paths"]] == [
+        "/api/v1/services"
+    ]
+    assert summary["deployment_correlations"][1]["sample_complete"] is False
+
+
 def test_count_manager_http_errors_uses_minute_window() -> None:
     log_text = "\n".join(
         [
