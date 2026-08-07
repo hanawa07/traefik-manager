@@ -5,6 +5,7 @@ import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 const VISUAL_PRESET_NAME = "시각 스모크 필터";
 const RENAMED_PRESET_NAME = "Z 시각 필터";
 const SECONDARY_PRESET_NAME = "A 시각 필터";
+const LIMIT_BACKUP_NAME = "제한 백업 필터";
 const STORAGE_KEY = "traefik-manager:smoke-failure-metadata-saved-filters";
 const SORT_STORAGE_KEY = "traefik-manager:smoke-failure-metadata-saved-filter-sort";
 
@@ -143,6 +144,35 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
     "이름을 변경한 저장 필터 선택이 반영되지 않았습니다",
   );
 
+  const selectedBackup = await evaluate(cdp, `(async () => {
+    const button = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-backup-selected"]');
+    if (!(button instanceof HTMLButtonElement) || button.disabled) return null;
+    const originalCreateObjectUrl = URL.createObjectURL;
+    const originalClick = HTMLAnchorElement.prototype.click;
+    let blob = null;
+    let filename = '';
+    try {
+      URL.createObjectURL = (value) => { blob = value; return 'blob:selected-filter-backup'; };
+      HTMLAnchorElement.prototype.click = function () { filename = this.download; };
+      button.click();
+      return { content: blob ? await blob.text() : '', filename };
+    } finally {
+      URL.createObjectURL = originalCreateObjectUrl;
+      HTMLAnchorElement.prototype.click = originalClick;
+    }
+  })()`);
+  assert.ok(selectedBackup, "선택한 저장 필터 JSON 백업을 캡처하지 못했습니다");
+  assert.match(
+    selectedBackup.filename,
+    /^traefik-manager-smoke-failure-filter-Z-시각-필터-\d{4}-\d{2}-\d{2}\.json$/,
+  );
+  const selectedBackupPayload = JSON.parse(selectedBackup.content);
+  assert.equal(selectedBackupPayload.sort, "name_desc");
+  assert.deepEqual(
+    selectedBackupPayload.filters.map(({ name }) => name),
+    [RENAMED_PRESET_NAME],
+  );
+
   const changed = await evaluate(cdp, `(() => {
     const type = document.querySelector('[data-testid="smoke-failure-metadata-type-filter"]');
     const search = document.querySelector('[data-testid="smoke-failure-metadata-search"]');
@@ -203,15 +233,15 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
     "삭제한 실패 정보 필터가 목록에 남아 있습니다",
   );
 
-  const merged = await evaluate(cdp, `(async () => {
+  const selectedRestored = await evaluate(cdp, `(async () => {
     const input = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore"]');
     const select = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-select"]');
     const notice = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-notice"]');
     if (!(input instanceof HTMLInputElement) || !(select instanceof HTMLSelectElement)) return null;
     const transfer = new DataTransfer();
     transfer.items.add(new File(
-      [${JSON.stringify(backup.content)}],
-      ${JSON.stringify(backup.filename)},
+      [${JSON.stringify(selectedBackup.content)}],
+      ${JSON.stringify(selectedBackup.filename)},
       { type: 'application/json' },
     ));
     input.files = transfer.files;
@@ -222,11 +252,13 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
     }
     const summary = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore-summary"]');
     const backupSort = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore-sort"]');
+    const conditions = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore-names"]');
     const merge = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore-mode-merge"]');
     const execute = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore-execute"]');
     if (!(merge instanceof HTMLInputElement) || !(execute instanceof HTMLButtonElement)) return null;
-    merge.click();
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const defaultMerge = merge.checked;
+    const previewConditions = conditions?.textContent?.replace(/\s+/g, ' ').trim();
+    const previewSummary = summary?.textContent?.replace(/\s+/g, ' ').trim();
     execute.click();
     for (let attempt = 0; attempt < 120; attempt += 1) {
       if (!document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore-preview"]') &&
@@ -235,24 +267,92 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
     }
     return {
       backupSort: backupSort?.textContent?.replace(/\s+/g, ' ').trim(),
+      conditions: previewConditions,
+      defaultMerge,
       inputValue: input.value,
       names: Array.from(select.options).slice(1).map((option) => option.value),
       sort: localStorage.getItem(${JSON.stringify(SORT_STORAGE_KEY)}),
       storedNames: JSON.parse(localStorage.getItem(${JSON.stringify(STORAGE_KEY)}) || '[]').map((item) => item.name),
+      summary: previewSummary,
+    };
+  })()`);
+  assert.equal(selectedRestored?.backupSort, "백업 정렬: 이름 내림차순");
+  assert.equal(selectedRestored?.defaultMerge, true, "개별 JSON 가져오기는 병합이 기본이어야 합니다");
+  assert.equal(selectedRestored?.inputValue, "");
+  assert.deepEqual(selectedRestored?.names, [RENAMED_PRESET_NAME, SECONDARY_PRESET_NAME]);
+  assert.equal(selectedRestored?.sort, "name_desc");
+  assert.deepEqual(selectedRestored?.storedNames, [RENAMED_PRESET_NAME, SECONDARY_PRESET_NAME]);
+  assert.equal(selectedRestored?.summary, "백업 1개 · 현재 1개 · 같은 이름 0개 · 결과 2개");
+  assert.match(selectedRestored?.conditions || "", /Z 시각 필터/);
+  assert.match(selectedRestored?.conditions || "", /유형: 로그인/);
+  assert.match(selectedRestored?.conditions || "", /기간: \d{4}-\d{2}-\d{2} ~ \d{4}-\d{2}-\d{2}/);
+  assert.match(selectedRestored?.conditions || "", /검색: 관리자/);
+  assert.match(selectedRestored?.conditions || "", /정렬: 실행 번호 낮은순/);
+
+  const limitBackupContent = JSON.stringify({
+    ...selectedBackupPayload,
+    filters: [{ ...selectedBackupPayload.filters[0], name: LIMIT_BACKUP_NAME }],
+  });
+  const limitPreview = await evaluate(cdp, `(async () => {
+    const name = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-name"]');
+    const save = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-save"]');
+    const input = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore"]');
+    if (!(name instanceof HTMLInputElement) || !(save instanceof HTMLButtonElement) ||
+        !(input instanceof HTMLInputElement)) return null;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (!setValue) return null;
+    for (let index = 0; index < 18; index += 1) {
+      setValue.call(name, \`제한 필터 \${String(index).padStart(2, '0')}\`);
+      name.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      save.click();
+      const expectedCount = index + 3;
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const stored = JSON.parse(localStorage.getItem(${JSON.stringify(STORAGE_KEY)}) || '[]');
+        if (stored.length === expectedCount) break;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(
+      [${JSON.stringify(limitBackupContent)}],
+      'traefik-manager-smoke-failure-filter-limit.json',
+      { type: 'application/json' },
+    ));
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      if (document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore-preview"]')) break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    const summary = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore-summary"]');
+    const omitted = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore-omitted"]');
+    const merge = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore-mode-merge"]');
+    const cancel = document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore-cancel"]');
+    if (!(merge instanceof HTMLInputElement) || !(cancel instanceof HTMLButtonElement)) return null;
+    const result = {
+      defaultMerge: merge.checked,
+      omitted: omitted?.textContent?.replace(/\s+/g, ' ').trim(),
+      storedCount: JSON.parse(localStorage.getItem(${JSON.stringify(STORAGE_KEY)}) || '[]').length,
       summary: summary?.textContent?.replace(/\s+/g, ' ').trim(),
+    };
+    cancel.click();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return {
+      ...result,
+      previewRemoved: !document.querySelector('[data-testid="smoke-failure-metadata-saved-filter-restore-preview"]'),
     };
   })()`);
   assert.deepEqual(
-    merged,
+    limitPreview,
     {
-      backupSort: "백업 정렬: 이름 내림차순",
-      inputValue: "",
-      names: [RENAMED_PRESET_NAME, SECONDARY_PRESET_NAME],
-      sort: "name_desc",
-      storedNames: [SECONDARY_PRESET_NAME, RENAMED_PRESET_NAME],
-      summary: "백업 2개 · 현재 1개 · 같은 이름 1개 · 결과 2개",
+      defaultMerge: true,
+      omitted: `20개 제한으로 제외: ${SECONDARY_PRESET_NAME}`,
+      previewRemoved: true,
+      storedCount: 20,
+      summary: "백업 1개 · 현재 20개 · 같은 이름 0개 · 결과 20개 · 제외 1개",
     },
-    "저장 필터 JSON 백업을 미리보기 후 병합하지 못했습니다",
+    "저장 필터 병합 제한과 제외 항목을 미리보기에서 확인하지 못했습니다",
   );
 
   const allRemoved = await evaluate(cdp, `(async () => {
@@ -277,7 +377,7 @@ export async function checkSmokeFailureMetadataSavedFilters({ cdp, timeoutMs }) 
   assert.deepEqual(
     allRemoved,
     {
-      confirmation: "저장 필터 2개를 모두 삭제할까요?",
+      confirmation: "저장 필터 20개를 모두 삭제할까요?",
       optionCount: 1,
       stored: "[]",
     },

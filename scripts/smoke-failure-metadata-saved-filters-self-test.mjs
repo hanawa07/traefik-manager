@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import {
+  buildSmokeFailureMetadataSavedFilterBackup,
   buildSmokeFailureMetadataSavedFiltersBackup,
   mergeSmokeFailureMetadataSavedFilters,
   normalizeSmokeFailureMetadataSavedFilterName,
@@ -110,6 +111,19 @@ assert.deepEqual(parseSmokeFailureMetadataSavedFiltersBackup(backup.content), {
   filters: saved,
   sort: "name_desc",
 });
+const selectedBackup = buildSmokeFailureMetadataSavedFilterBackup(
+  saved[1],
+  "name_desc",
+  "2026-08-06T01:02:03Z",
+);
+assert.equal(
+  selectedBackup.filename,
+  "traefik-manager-smoke-failure-filter-Z-운영-로그인-2026-08-06.json",
+);
+assert.deepEqual(parseSmokeFailureMetadataSavedFiltersBackup(selectedBackup.content), {
+  filters: [saved[1]],
+  sort: "name_desc",
+});
 assert.deepEqual(
   parseSmokeFailureMetadataSavedFiltersBackup(
     JSON.stringify({ filters: saved, schema_version: 1 }),
@@ -128,8 +142,9 @@ const merged = mergeSmokeFailureMetadataSavedFilters(
   ],
   saved,
 );
-assert.deepEqual(merged.map(({ name }) => name), ["A API", "Z 운영 로그인", "현재 전용"]);
-assert.equal(merged[0].filters.sort, "run_asc");
+assert.deepEqual(merged.filters.map(({ name }) => name), ["A API", "Z 운영 로그인", "현재 전용"]);
+assert.equal(merged.filters[0].filters.sort, "run_asc");
+assert.deepEqual(merged.omitted, []);
 
 for (let index = 0; index < SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT + 3; index += 1) {
   saved = upsertSmokeFailureMetadataSavedFilter(saved, {
@@ -140,5 +155,12 @@ for (let index = 0; index < SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT + 3; index
 assert.equal(saved.length, SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT);
 assert.equal(saved[0].name, "필터 22");
 assert.equal(saved.at(-1).name, "필터 3");
+const limitedMerge = mergeSmokeFailureMetadataSavedFilters(
+  saved,
+  [{ filters: loginFilters, name: "백업 우선" }],
+);
+assert.equal(limitedMerge.filters.length, SMOKE_FAILURE_METADATA_SAVED_FILTER_LIMIT);
+assert.equal(limitedMerge.filters[0].name, "백업 우선");
+assert.deepEqual(limitedMerge.omitted.map(({ name }) => name), ["필터 3"]);
 
 console.log("스모크 실패 정보 저장 필터 self-test 통과");
