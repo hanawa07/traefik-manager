@@ -25,12 +25,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: 운영 의존성 high 이상 취약점 차단
-        run: npm --prefix frontend audit --package-lock-only --omit=dev --audit-level=high
-
-      # PONYTAIL-DEBT(dependencies): Next ESLint가 minimatch 3을 제거하면 dev high 차단을 복구한다.
-      - name: 전체 의존성 critical 취약점 차단
-        run: npm --prefix frontend audit --package-lock-only --audit-level=critical
+      - name: 전체 의존성 high 이상 취약점 차단
+        run: npm --prefix frontend audit --package-lock-only --audit-level=high
 
   backend-audit:
     runs-on: ubuntu-latest

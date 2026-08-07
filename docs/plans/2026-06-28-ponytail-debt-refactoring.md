@@ -59,7 +59,8 @@
 - 2026-08-01 재점검에서도 최신 `eslint@10.8.0`, `eslint-config-next@16.2.12` 조합은 동일한 `contextOrFilename.getFilename is not a function` 오류로 중단됐다. 최신 React 7.37.5, Import 2.32.0, JSX a11y 6.10.2 플러그인의 peer 범위도 ESLint 9까지만 허용한다.
 - 2026-08-05 재점검에서도 `eslint@10.8.0` 실제 lint가 같은 오류로 중단됐다. `eslint-config-next@16.3.0`은 ESLint peer 범위를 `>=9`로 선언하지만, 포함된 세 플러그인의 최신 peer 범위는 여전히 ESLint 9까지다.
 - 재현 명령: `cd frontend && npm exec --yes --package=eslint@10.8.0 -- eslint .`.
-- 현재 `npm audit --omit=dev`와 전체 `npm audit`는 모두 0건이다. 보안상 강제 override나 ESLint 10 선행 전환이 필요한 상태가 아니다.
+- 2026-08-08 `@eslint/eslintrc` 전이 의존성 `js-yaml@4.3.0`에 high 권고가 추가됐지만, 호환 범위 안의 공식 패치 `4.3.1`로 lockfile을 갱신해 해소했다.
+- 현재 전체 `npm audit --audit-level=high`는 0건이며, 릴리스와 전용 보안 workflow 모두 production/dev 구분 없이 high 이상을 차단한다.
 - 재개 조건: Next.js 내장 플러그인이 ESLint 10 API와 peer 범위를 공식 지원할 때 lint/build를 다시 검증한다.
 
 ## 8. 2026-08-05 Ponytail debt 재감사 - 완료
