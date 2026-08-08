@@ -21,7 +21,10 @@ def build_settings_history_latency_summary(
     durations: list[float] = []
     if log_text is not None:
         for line in log_text.splitlines():
-            request = parse_manager_http_request_log(line)
+            request = parse_manager_http_request_log(
+                line,
+                include_synthetic=False,
+            )
             if request is None:
                 continue
             occurred_at, path, _, duration_ms = request

@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 
 def parse_manager_http_request_log(
     line: str,
+    *,
+    include_synthetic: bool = True,
 ) -> tuple[datetime, str, int, float | None] | None:
     json_start = line.find("{")
     if json_start < 0:
@@ -13,6 +15,8 @@ def parse_manager_http_request_log(
     except (json.JSONDecodeError, TypeError):
         return None
     if not isinstance(payload, dict) or payload.get("message") != "요청 완료":
+        return None
+    if not include_synthetic and payload.get("synthetic") is True:
         return None
 
     path = payload.get("path")

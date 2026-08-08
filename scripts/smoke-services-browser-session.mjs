@@ -76,6 +76,9 @@ async function main() {
     await cdp.send("Page.enable");
     await cdp.send("Runtime.enable");
     await cdp.send("Network.enable");
+    await cdp.send("Network.setExtraHTTPHeaders", {
+      headers: { "X-Traefik-Manager-Smoke": "visual" },
+    });
 
     for (const cookie of cookiePairs) {
       await cdp.send("Network.setCookie", { url: baseUrl, ...cookie });

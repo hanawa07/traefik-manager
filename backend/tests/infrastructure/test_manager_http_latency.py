@@ -8,7 +8,13 @@ from app.infrastructure.docker.manager_http_latency import (
 CHECKED_AT = datetime(2026, 7, 23, 1, 0, tzinfo=timezone.utc)
 
 
-def _request_log(*, minutes_ago: int, path: str, duration_ms: float | None) -> str:
+def _request_log(
+    *,
+    minutes_ago: int,
+    path: str,
+    duration_ms: float | None,
+    synthetic: bool = False,
+) -> str:
     occurred_at = CHECKED_AT - timedelta(minutes=minutes_ago)
     payload = {
         "time": occurred_at.isoformat(),
@@ -18,6 +24,8 @@ def _request_log(*, minutes_ago: int, path: str, duration_ms: float | None) -> s
     }
     if duration_ms is not None:
         payload["duration_ms"] = duration_ms
+    if synthetic:
+        payload["synthetic"] = True
     return json.dumps(payload, ensure_ascii=False)
 
 
@@ -42,6 +50,12 @@ def test_settings_history_latency_uses_recent_nearest_rank_p95() -> None:
                 minutes_ago=1,
                 path="/api/v1/settings/test-history",
                 duration_ms=None,
+            ),
+            _request_log(
+                minutes_ago=1,
+                path="/api/v1/settings/test-history",
+                duration_ms=9000,
+                synthetic=True,
             ),
         ]
     )

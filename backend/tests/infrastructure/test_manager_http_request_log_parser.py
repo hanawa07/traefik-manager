@@ -27,6 +27,21 @@ def test_parse_manager_http_request_log_normalizes_valid_request() -> None:
     )
 
 
+def test_parse_manager_http_request_log_can_exclude_synthetic_request() -> None:
+    payload = {
+        "time": "2026-07-31T00:00:00Z",
+        "message": "요청 완료",
+        "path": "/api/v1/settings/test-history",
+        "status_code": 200,
+        "duration_ms": 5000,
+        "synthetic": True,
+    }
+    line = json.dumps(payload, ensure_ascii=False)
+
+    assert parse_manager_http_request_log(line) is not None
+    assert parse_manager_http_request_log(line, include_synthetic=False) is None
+
+
 def test_parse_manager_http_request_log_rejects_unrelated_or_invalid_payload() -> None:
     invalid_payloads = [
         "not-json",

@@ -66,15 +66,18 @@ def register_request_logging(app: FastAPI) -> None:
 
         started_at = time.perf_counter()
         response = await call_next(request)
+        extra = {
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": round((time.perf_counter() - started_at) * 1000, 2),
+            "client_ip": get_client_ip(request),
+        }
+        if request.headers.get("x-traefik-manager-smoke") == "visual":
+            extra["synthetic"] = True
         request_logger.info(
             "요청 완료",
-            extra={
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": response.status_code,
-                "duration_ms": round((time.perf_counter() - started_at) * 1000, 2),
-                "client_ip": get_client_ip(request),
-            },
+            extra=extra,
         )
         return response
 
