@@ -42,6 +42,11 @@ from app.core.logging_config import (
             "198.51.100.23",
         ),
         (
+            {"x-forwarded-for": "203.0.113.77, 192.168.180.1"},
+            "192.168.180.8",
+            "192.168.180.1",
+        ),
+        (
             {"x-forwarded-for": "invalid"},
             "192.168.180.8",
             "192.168.180.8",
@@ -50,6 +55,27 @@ from app.core.logging_config import (
 )
 def test_get_client_ip_rejects_unverified_forwarded_values(headers, client_host, expected):
     request = SimpleNamespace(headers=headers, client=SimpleNamespace(host=client_host))
+
+    assert get_client_ip(request) == expected
+
+
+@pytest.mark.parametrize(
+    ("forwarded_for", "spoofed_cloudflare_ip", "expected"),
+    [
+        ("100.64.0.10, 192.168.180.1", "192.168.180.1", "100.64.0.10"),
+        ("fd7a:115c:a1e0::10, fd00::1", "fd00::1", "fd7a:115c:a1e0::10"),
+    ],
+)
+def test_get_client_ip_uses_original_tailnet_client_before_proxy_hops(
+    forwarded_for, spoofed_cloudflare_ip, expected
+):
+    request = SimpleNamespace(
+        headers={
+            "x-forwarded-for": forwarded_for,
+            "cf-connecting-ip": spoofed_cloudflare_ip,
+        },
+        client=SimpleNamespace(host="192.168.180.8"),
+    )
 
     assert get_client_ip(request) == expected
 

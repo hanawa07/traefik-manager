@@ -3,7 +3,7 @@ import logging
 import re
 import sys
 from datetime import datetime, timezone
-from ipaddress import ip_address
+from ipaddress import ip_address, ip_network
 from typing import TYPE_CHECKING, Any
 
 from app.core.manager_http_request_log import create_manager_http_request_log_handler
@@ -18,6 +18,10 @@ _RESERVED_LOG_RECORD_FIELDS = frozenset(logging.makeLogRecord({}).__dict__.keys(
 }
 _LOGGING_CONFIGURED = False
 _TELEGRAM_BOT_TOKEN_PATTERN = re.compile(r"(https://api\.telegram\.org/bot)[^/\s\"']+")
+_TAILSCALE_NETWORKS = (
+    ip_network("100.64.0.0/10"),
+    ip_network("fd7a:115c:a1e0::/48"),
+)
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -34,6 +38,9 @@ def get_client_ip(request: Any) -> str:
         for value in (request.headers.get("x-forwarded-for") or "").split(",")
         if (parsed := _parse_ip(value))
     ]
+    if forwarded_ips and _is_tailscale_ip(forwarded_ips[0]):
+        # Tailscale Serve overwrites this first value with the authenticated peer address.
+        return forwarded_ips[0]
     cloudflare_ip = _parse_ip(request.headers.get("cf-connecting-ip"))
     if cloudflare_ip and cloudflare_ip in forwarded_ips:
         return cloudflare_ip
@@ -52,6 +59,11 @@ def _parse_ip(value: str | None) -> str | None:
         return str(ip_address(value.strip()))
     except ValueError:
         return None
+
+
+def _is_tailscale_ip(value: str) -> bool:
+    parsed = ip_address(value)
+    return any(parsed in network for network in _TAILSCALE_NETWORKS)
 
 
 def setup_logging() -> None:
