@@ -80,9 +80,10 @@ async def check_manager_settings_history_latency_once(
         alert_active = breached if ready else was_active
         event: str | None = None
         suppressed_count = 0
-        if ready and breached and (
-            not was_active
-            or _alert_due(previous, current, effective_cooldown_seconds)
+        if ready and breached and _alert_due(
+            previous,
+            current,
+            effective_cooldown_seconds,
         ):
             event = "manager_settings_history_latency_high"
         elif ready and breached:

@@ -160,6 +160,42 @@ async def test_settings_history_latency_monitor_skips_frequent_log_scan(monkeypa
 
 
 @pytest.mark.asyncio
+async def test_settings_history_latency_recurrence_respects_cooldown_after_recovery(
+    monkeypatch,
+):
+    StubSettingsRepository.store = {
+        "manager_health_monitoring_enabled": "true",
+        monitor.MANAGER_SETTINGS_HISTORY_LATENCY_STATE_KEY: json.dumps(
+            {
+                "available": True,
+                "ready": True,
+                "alert_active": False,
+                "checked_at": "2026-07-23T01:10:00+00:00",
+                "last_alert_at": "2026-07-23T01:00:00+00:00",
+                "sample_count": 10,
+                "p95_ms": 30,
+            }
+        ),
+    }
+    StubLatencyReader.summary = _summary(p95_ms=800)
+    recorded: list[dict] = []
+    _patch_dependencies(monkeypatch, recorded)
+
+    result = await monitor.check_manager_settings_history_latency_once(
+        session_factory=make_session,
+        latency_reader=read_stub_latency,
+        now=datetime(2026, 7, 23, 1, 20, tzinfo=timezone.utc),
+        minimum_interval_seconds=0,
+    )
+
+    assert result["alert_active"] is True
+    assert result["recorded_event_count"] == 0
+    assert result["suppressed_count"] == 1
+    assert result["last_alert_at"] == "2026-07-23T01:00:00+00:00"
+    assert recorded == []
+
+
+@pytest.mark.asyncio
 async def test_settings_history_latency_monitor_disabled_clears_state(monkeypatch):
     StubSettingsRepository.store = {
         "manager_health_monitoring_enabled": "false",
