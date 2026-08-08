@@ -5,6 +5,7 @@ import pytest
 from app.core.smoke_rotation_status import (
     SMOKE_ROTATION_DETAIL_KEY,
     SMOKE_ROTATION_LAST_ATTEMPT_AT_KEY,
+    SMOKE_ROTATION_LAST_REVISION_KEY,
     SMOKE_ROTATION_LAST_SUCCESS_AT_KEY,
     SMOKE_ROTATION_STATUS_KEY,
 )
@@ -32,6 +33,7 @@ async def test_record_smoke_rotation_success_updates_last_success() -> None:
         db=object(),
         repo=repo,
         status="success",
+        revision="ABCDEF1234567",
         now=now,
         audit_recorder=record_audit,
     )
@@ -39,9 +41,24 @@ async def test_record_smoke_rotation_success_updates_last_success() -> None:
     assert repo.values[SMOKE_ROTATION_STATUS_KEY] == "success"
     assert repo.values[SMOKE_ROTATION_LAST_ATTEMPT_AT_KEY] == now.isoformat()
     assert repo.values[SMOKE_ROTATION_LAST_SUCCESS_AT_KEY] == now.isoformat()
+    assert repo.values[SMOKE_ROTATION_LAST_REVISION_KEY] == "abcdef1234567"
     assert repo.values[SMOKE_ROTATION_DETAIL_KEY] is None
-    assert recorded[0]["detail"] == {"event": "smoke_rotation_succeeded"}
+    assert recorded[0]["detail"] == {
+        "event": "smoke_rotation_succeeded",
+        "revision": "abcdef1234567",
+    }
     assert recorded[0]["resource_id"] == "smoke-accounts"
+
+
+@pytest.mark.asyncio
+async def test_record_smoke_rotation_rejects_invalid_revision() -> None:
+    with pytest.raises(ValueError, match="배포 커밋 형식"):
+        await record_smoke_rotation_status(
+            db=object(),
+            repo=StubRepository(),
+            status="success",
+            revision="not-a-revision",
+        )
 
 
 @pytest.mark.asyncio

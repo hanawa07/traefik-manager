@@ -58,3 +58,13 @@ def test_github_visual_smoke_is_manual_and_does_not_require_live_credentials() -
         "TM_SMOKE_ADMIN_PASSWORD",
     ):
         assert f"secrets.{secret_name}" not in workflow
+
+
+def test_local_smoke_records_the_active_deployment_revision() -> None:
+    script = (PROJECT_ROOT / "scripts/rotate-smoke-viewer-password.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "blue-green-deployment.state" in script
+    assert "TM_SMOKE_ROTATION_REVISION" in script
+    assert 'smoke_revision="$(resolve_deployed_revision)"' in script

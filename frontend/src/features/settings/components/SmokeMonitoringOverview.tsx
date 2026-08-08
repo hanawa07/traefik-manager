@@ -38,6 +38,7 @@ export function SmokeMonitoringOverview({
   timezone,
 }: SmokeMonitoringOverviewProps) {
   const monitoringEnabled = status.monitoring_enabled ?? true;
+  const isLocalMode = status.monitoring_mode === "local";
   const monitoringFrequency = status.monitoring_frequency ?? "daily";
   const scheduleTime = status.monitoring_schedule_time ?? "03:17";
   const scheduleTimezone = status.monitoring_schedule_timezone ?? "Asia/Seoul";
@@ -48,24 +49,32 @@ export function SmokeMonitoringOverview({
   return (
     <>
       <div className="rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-xs text-cyan-900 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200">
-        전용 viewer로 일반 화면을, 전용 admin으로 관리자 안전 흐름을 확인합니다. 비밀번호
-        공격이나 침입 징후는 별도 로그인 보안 방어 설정에서 처리합니다.
+        {isLocalMode
+          ? "Tailnet 호스트에서 전용 viewer와 admin으로 실제 로그인·주요 화면을 점검합니다. GitHub workflow는 코드와 알림 경로 self-test만 수행합니다."
+          : "전용 viewer로 일반 화면을, 전용 admin으로 관리자 안전 흐름을 확인합니다. 비밀번호 공격이나 침입 징후는 별도 로그인 보안 방어 설정에서 처리합니다."}
         <span className="mt-1 block" data-testid="smoke-test-run-exclusion-note">
-          [테스트] 실행은 제외합니다. 전체 통계는 GitHub workflow 결론 기준이며, 내부 단계만
-          건너뛴 성공 workflow는 성공에 포함될 수 있습니다.
+          {isLocalMode
+            ? "아래 전체 통계는 GitHub workflow 결론 기준의 참고 이력입니다. 전환 전 원격 점검과 이후 도구 self-test가 섞일 수 있어 현재 운영 정상 여부는 로컬 점검 결과로 판단합니다."
+            : "[테스트] 실행은 제외합니다. 전체 통계는 GitHub workflow 결론 기준이며, 내부 단계만 건너뛴 성공 workflow는 성공에 포함될 수 있습니다."}
         </span>
       </div>
       <SettingsSummaryRow
-        label="예약 자동 점검"
-        value={monitoringEnabled ? "사용" : "중지"}
+        label={isLocalMode ? "운영 점검 방식" : "예약 자동 점검"}
+        value={isLocalMode ? "Tailnet 호스트 로컬 점검" : monitoringEnabled ? "사용" : "중지"}
       />
       <SettingsSummaryRow
         label="점검 주기"
-        value={monitoringFrequency === "daily" ? "매일" : "매주 일요일"}
+        value={
+          isLocalMode
+            ? "매월 1일 계정 회전 후"
+            : monitoringFrequency === "daily"
+              ? "매일"
+              : "매주 일요일"
+        }
       />
       <SettingsSummaryRow
         label="점검 시각"
-        value={`${scheduleTime} (${scheduleTimezone})`}
+        value={isLocalMode ? "04:17 (호스트 시간)" : `${scheduleTime} (${scheduleTimezone})`}
       />
       <SettingsSummaryRow
         label="실패율 경고 기준"
@@ -134,7 +143,7 @@ export function SmokeMonitoringOverview({
         />
       ) : null}
       <SettingsSummaryRow
-        label="최근 원격 점검 성공"
+        label={isLocalMode ? "최근 원격 점검 성공 (GitHub 참고 이력)" : "최근 원격 점검 성공"}
         value={
           status.monitoring_last_run_url ? (
             <a
@@ -151,7 +160,7 @@ export function SmokeMonitoringOverview({
         }
       />
       <SettingsSummaryRow
-        label="관리자 전용 점검 최근 성공"
+        label={isLocalMode ? "관리자 전용 점검 최근 성공 (GitHub 참고 이력)" : "관리자 전용 점검 최근 성공"}
         value={
           status.monitoring_admin_last_run_url ? (
             <a
@@ -169,10 +178,10 @@ export function SmokeMonitoringOverview({
         }
       />
       <SettingsSummaryRow
-        label="관리자 점검 지연 판정"
-        value={`최근 성공 ${status.monitoring_admin_stale_after_days}일 초과 시 경고`}
+        label={isLocalMode ? "관리자 점검 지연 판정 (로컬)" : "관리자 점검 지연 판정"}
+        value={`최근 성공 ${isLocalMode ? status.stale_after_days : status.monitoring_admin_stale_after_days}일 초과 시 경고`}
       />
-      {canManage ? (
+      {canManage && !isLocalMode ? (
         <SettingsSummaryRow
           label="관리자 지연 알림 dry-run"
           value={
@@ -188,7 +197,7 @@ export function SmokeMonitoringOverview({
           }
         />
       ) : null}
-      <SmokeStaleAlertHistory history={staleAlertHistory} timezone={timezone} />
+      {!isLocalMode ? <SmokeStaleAlertHistory history={staleAlertHistory} timezone={timezone} /> : null}
       {status.monitoring_admin_is_stale ? (
         <div
           className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200"
@@ -200,7 +209,7 @@ export function SmokeMonitoringOverview({
       ) : null}
       <SmokeLatestFailureSummary canManage={canManage} status={status} timezone={timezone} />
       <SettingsSummaryRow
-        label="반복 실패 알림 억제"
+        label={isLocalMode ? "GitHub 참고 이력 반복 알림 억제" : "반복 실패 알림 억제"}
         value={
           status.monitoring_history_error && recentRuns.length === 0
             ? "확인 불가"

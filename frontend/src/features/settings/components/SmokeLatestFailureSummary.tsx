@@ -26,7 +26,7 @@ export function SmokeLatestFailureSummary({
   return (
     <>
       <SettingsSummaryRow
-        label="최근 원격 점검 실패"
+        label={status.monitoring_mode === "local" ? "원격 점검 실패 (GitHub 참고 이력)" : "최근 원격 점검 실패"}
         value={
           latestFailure ? (
             <a

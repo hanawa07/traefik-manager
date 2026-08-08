@@ -26,6 +26,7 @@ async def test_get_smoke_rotation_status_returns_saved_result() -> None:
         "smoke_viewer_rotation_status": "failure",
         "smoke_viewer_rotation_last_attempt_at": "2026-07-10T04:17:00+00:00",
         "smoke_viewer_rotation_last_success_at": "2026-06-01T04:17:00+00:00",
+        "smoke_viewer_rotation_last_revision": "abcdef1234567890",
         "smoke_viewer_rotation_detail": "GitHub secret 갱신",
     }
 
@@ -52,9 +53,33 @@ async def test_get_smoke_rotation_status_returns_saved_result() -> None:
     assert result.monitoring_workflow_url.endswith("/actions/workflows/dashboard-visual-smoke.yml")
     assert result.last_attempt_at == "2026-07-10T04:17:00+00:00"
     assert result.last_success_at == "2026-06-01T04:17:00+00:00"
+    assert result.last_revision == "abcdef1234567890"
     assert result.detail == "GitHub secret 갱신"
     assert result.is_stale is True
     assert result.stale_after_days == 35
+
+
+@pytest.mark.asyncio
+async def test_get_smoke_rotation_status_uses_local_mode_for_tailnet_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.interfaces.api.v1.routers.settings_smoke_monitoring_values.settings.TRAEFIK_MANAGER_PUBLIC_ROUTER_ENABLED",
+        False,
+    )
+    monkeypatch.setattr(
+        "app.interfaces.api.v1.routers.settings_smoke_monitoring_values.settings.TRAEFIK_MANAGER_TAILNET_ROUTER_ENABLED",
+        True,
+    )
+    StubSettingsRepository.store = {"dashboard_smoke_monitoring_enabled": "true"}
+
+    result = await get_smoke_rotation_status_response(
+        object(),
+        settings_repository_factory=StubSettingsRepository,
+    )
+
+    assert result.monitoring_mode == "local"
+    assert result.monitoring_enabled is False
 
 
 @pytest.mark.asyncio

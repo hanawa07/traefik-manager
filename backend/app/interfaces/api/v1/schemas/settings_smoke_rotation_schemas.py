@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 from pydantic import AwareDatetime, BaseModel, Field
 
 SmokeMonitoringFrequency = Literal["daily", "weekly"]
+SmokeMonitoringMode = Literal["local", "remote"]
 SmokeFailureRateWindowDays = Literal[7, 30]
 SmokeFailureType = Literal["login", "external_api", "visual_regression"]
 SmokeFailureCategory = Literal[
@@ -137,12 +138,14 @@ class SmokeRotationStatusResponse(BaseModel):
     status: Literal["never", "running", "success", "failure"]
     last_attempt_at: str | None = None
     last_success_at: str | None = None
+    last_revision: str | None = None
     detail: str | None = None
     is_stale: bool = False
     stale_after_days: int = 35
     recent_log_lines: list[str] = Field(default_factory=list)
     log_updated_at: str | None = None
     monitoring_enabled: bool = True
+    monitoring_mode: SmokeMonitoringMode = "remote"
     monitoring_frequency: SmokeMonitoringFrequency = "daily"
     monitoring_failure_rate_threshold_percent: int = 30
     monitoring_failure_rate_min_runs: int = 3

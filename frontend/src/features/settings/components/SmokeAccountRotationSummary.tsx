@@ -58,6 +58,12 @@ export function SmokeAccountRotationSummary({
         label="최근 회전 성공"
         value={formatDateTime(status.last_success_at, timezone)}
       />
+      {status.monitoring_mode === "local" ? (
+        <SettingsSummaryRow
+          label="최근 로컬 점검 커밋"
+          value={status.last_revision ? <code>{status.last_revision.slice(0, 12)}</code> : "기록 없음"}
+        />
+      ) : null}
       <SettingsSummaryRow label="계정 회전 주기" value="매월 1일 04:17" />
       <SettingsSummaryRow
         label="회전 실패 단계"
@@ -83,8 +89,8 @@ export function SmokeAccountRotationSummary({
       ) : null}
       {status.is_stale ? (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
-          마지막 성공 후 {status.stale_after_days}일이 지났습니다. cron 실행 로그와 GitHub
-          secret 동기화를 확인하세요.
+          마지막 성공 후 {status.stale_after_days}일이 지났습니다. cron 실행 로그와 Tailnet
+          로컬 점검 경로를 확인하세요.
         </div>
       ) : null}
       <details className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-950">

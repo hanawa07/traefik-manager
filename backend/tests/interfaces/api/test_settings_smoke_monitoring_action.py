@@ -1,4 +1,5 @@
 import pytest
+from fastapi import HTTPException
 from pydantic import ValidationError
 
 from app.interfaces.api.v1.routers.settings_smoke_monitoring_action import (
@@ -95,6 +96,32 @@ async def test_update_smoke_monitoring_settings_records_change() -> None:
         "monitoring_github_rate_limit_alert_window_hours",
         "monitoring_github_secondary_limit_alert_threshold",
     ]
+
+
+@pytest.mark.asyncio
+async def test_update_smoke_monitoring_rejects_schedule_in_local_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.interfaces.api.v1.routers.settings_smoke_monitoring_action.get_smoke_monitoring_mode",
+        lambda: "local",
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await update_smoke_monitoring_settings_action(
+            request=SmokeMonitoringSettingsUpdateRequest(
+                monitoring_enabled=True,
+                monitoring_frequency="daily",
+            ),
+            http_request=None,
+            db=object(),
+            actor={"username": "admin"},
+            settings_repository_factory=lambda _db: StubRepository(),
+            audit_service=StubAuditService(),
+            client_ip_getter=lambda _request: "127.0.0.1",
+        )
+
+    assert exc_info.value.status_code == 409
 
 
 @pytest.mark.parametrize(

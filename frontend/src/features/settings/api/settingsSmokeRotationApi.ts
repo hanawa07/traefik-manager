@@ -3,6 +3,7 @@ import type { SettingsActionTestResult } from "./settingsSharedTypes";
 
 export type SmokeRotationState = "never" | "running" | "success" | "failure";
 export type SmokeMonitoringFrequency = "daily" | "weekly";
+export type SmokeMonitoringMode = "local" | "remote";
 export type SmokeFailureRateWindowDays = 7 | 30;
 export type SmokeHistoryDays = 7 | 30;
 export type SmokeHistoryStatus = "all" | "success" | "failure" | "cancelled";
@@ -140,6 +141,7 @@ export interface SmokeLocalRun {
 
 export interface SmokeRotationStatus {
   monitoring_enabled: boolean;
+  monitoring_mode: SmokeMonitoringMode;
   monitoring_frequency: SmokeMonitoringFrequency;
   monitoring_failure_rate_threshold_percent: number;
   monitoring_failure_rate_min_runs: number;
@@ -196,6 +198,7 @@ export interface SmokeRotationStatus {
   status: SmokeRotationState;
   last_attempt_at: string | null;
   last_success_at: string | null;
+  last_revision: string | null;
   detail: string | null;
   is_stale: boolean;
   stale_after_days: number;

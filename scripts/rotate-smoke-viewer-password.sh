@@ -11,10 +11,12 @@ readonly VIEWER_USERNAME="${TM_SMOKE_USERNAME:-traefik-smoke-viewer}"
 readonly SMOKE_ADMIN_USERNAME="${TM_SMOKE_ADMIN_USERNAME:-traefik-smoke-admin}"
 readonly ROTATION_STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/traefik-manager"
 readonly ROTATION_LOCK_FILE="${ROTATION_STATE_DIR}/smoke-password-rotation.lock"
+readonly DEPLOYMENT_STATE_FILE="${ROTATION_STATE_DIR}/blue-green-deployment.state"
 readonly HOST_ALERT_SCRIPT="${TM_HOST_OPERATION_ALERT_SCRIPT:-${SCRIPT_DIR}/request-host-operation-alert.sh}"
 backend_service=""
 viewer_password=""
 admin_password=""
+smoke_revision=""
 rotation_step="초기화"
 
 cd "${REPO_ROOT}"
@@ -66,10 +68,24 @@ report_rotation_status() {
   local detail="${2:-}"
   [[ -n "${backend_service}" ]] || return 1
   TM_SMOKE_ROTATION_STATUS="${status}" TM_SMOKE_ROTATION_DETAIL="${detail}" \
+    TM_SMOKE_ROTATION_REVISION="${smoke_revision}" \
     docker compose exec -T \
       -e TM_SMOKE_ROTATION_STATUS \
       -e TM_SMOKE_ROTATION_DETAIL \
+      -e TM_SMOKE_ROTATION_REVISION \
       "${backend_service}" python -m app.interfaces.cli.smoke_rotation_reporter
+}
+
+resolve_deployed_revision() {
+  local revision=""
+  if [[ -f "${DEPLOYMENT_STATE_FILE}" ]]; then
+    revision="$(awk -F= '$1 == "revision" {print $2; exit}' "${DEPLOYMENT_STATE_FILE}")"
+  fi
+  if [[ "${revision}" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+    printf '%s\n' "${revision,,}"
+    return
+  fi
+  git rev-parse HEAD
 }
 
 request_external_failure_alert() {
@@ -122,7 +138,7 @@ fi
 
 trap handle_exit EXIT
 
-for command_name in docker flock openssl; do
+for command_name in docker flock git openssl; do
   command -v "${command_name}" >/dev/null || {
     echo "필수 명령을 찾을 수 없습니다: ${command_name}" >&2
     exit 1
@@ -139,6 +155,9 @@ fi
 
 rotation_step="활성 backend 확인"
 backend_service="$(resolve_backend_service)"
+
+rotation_step="배포 커밋 확인"
+smoke_revision="$(resolve_deployed_revision)"
 
 rotation_step="회전 시작 상태 기록"
 report_rotation_status running "회전을 시작했습니다"

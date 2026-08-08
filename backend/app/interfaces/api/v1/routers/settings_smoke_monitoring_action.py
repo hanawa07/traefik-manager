@@ -1,12 +1,13 @@
 from collections.abc import Callable
 from typing import Any
 
-from fastapi import Request
+from fastapi import HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.interfaces.api.v1.routers.settings_audit_helpers import record_settings_update
 from app.interfaces.api.v1.routers.settings_events import SETTINGS_UPDATE_EVENTS
 from app.interfaces.api.v1.routers.settings_smoke_monitoring_values import (
+    get_smoke_monitoring_mode,
     update_smoke_monitoring_values,
 )
 from app.interfaces.api.v1.routers.settings_smoke_rotation_response import (
@@ -28,6 +29,11 @@ async def update_smoke_monitoring_settings_action(
     audit_service: Any,
     client_ip_getter: Callable[[Request | None], str | None],
 ) -> SmokeRotationStatusResponse:
+    if request.monitoring_enabled and get_smoke_monitoring_mode() == "local":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Tailnet 전용 모드에서는 GitHub 예약 점검을 사용할 수 없습니다",
+        )
     repo = settings_repository_factory(db)
     before, after = await update_smoke_monitoring_values(
         repo,

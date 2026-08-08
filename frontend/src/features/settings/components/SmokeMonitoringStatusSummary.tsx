@@ -59,6 +59,7 @@ export function SmokeMonitoringStatusSummary({
   onTestGithubRateLimitAlert,
   onTestFailureTypeIncreaseAlert,
 }: SmokeMonitoringStatusSummaryProps) {
+  const isLocalMode = status.monitoring_mode === "local";
   const isGithubRefreshBlocked = useGithubApiRefreshBlocked(
     status.monitoring_github_rate_limit_remaining,
     status.monitoring_github_rate_limit_reset_at,
@@ -82,7 +83,7 @@ export function SmokeMonitoringStatusSummary({
         timezone={timezone}
       />
       <SettingsSummaryRow
-        label="수동 점검"
+        label={isLocalMode ? "도구 자가 점검" : "수동 점검"}
         value={
           <span className="flex max-w-md flex-col items-end gap-1 text-right">
             <a
@@ -92,14 +93,15 @@ export function SmokeMonitoringStatusSummary({
               target="_blank"
               rel="noreferrer"
             >
-              GitHub Actions에서 실행
+              {isLocalMode ? "GitHub Actions self-test 열기" : "GitHub Actions에서 실행"}
             </a>
             <span
               className="text-[11px] font-normal text-slate-500 dark:text-slate-400"
               data-testid="smoke-manual-suppress-notice"
             >
-              실행 창에서 &quot;수동 실행 실패 시 Telegram 알림 생략&quot;을 체크할 수
-              있습니다.
+              {isLocalMode
+                ? "실제 Tailnet 앱에는 접속하지 않으며 코드와 실패 알림 경로만 확인합니다. 수동 실행 실패 시 Telegram 알림 생략을 선택할 수 있습니다."
+                : "실행 창에서 수동 실행 실패 시 Telegram 알림 생략을 체크할 수 있습니다."}
             </span>
             <span
               aria-live="polite"

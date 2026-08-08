@@ -34,6 +34,7 @@ export function SmokeAdminStatusSummary({
   timezone,
 }: SmokeAdminStatusSummaryProps) {
   const summary = getSummary(isError, isLoading, status, timezone);
+  const isLocalMode = status?.monitoring_mode === "local";
 
   return (
     <section
@@ -47,7 +48,29 @@ export function SmokeAdminStatusSummary({
           <p className="text-sm font-semibold">관리자 운영 점검</p>
           <p className="mt-1 text-xs">{summary.detail}</p>
           {status ? (
-            canViewHistory ? (
+            isLocalMode ? (
+              <>
+                <SmokeDeploymentRevisionStatus
+                  deployedRevision={deployedRevision}
+                  localCheckedAt={status.last_success_at}
+                  localRevision={status.last_revision}
+                  mode="local"
+                  runs={[]}
+                  timezone={timezone}
+                />
+                <div
+                  className="mt-2 flex flex-wrap items-center gap-2 text-[11px]"
+                  data-smoke-history-access="local"
+                  data-testid="smoke-run-trend"
+                >
+                  <span className="font-semibold">운영 점검 추이</span>
+                  <span>Tailnet 호스트의 월간 로컬 점검을 사용합니다.</span>
+                  <span>
+                    전환 전 GitHub 실행 통계와 로컬 콜백 이력은 관리자 계정에서 확인합니다.
+                  </span>
+                </div>
+              </>
+            ) : canViewHistory ? (
               <>
                 <SmokeDeploymentRevisionStatus
                   deployedRevision={deployedRevision}
@@ -117,6 +140,14 @@ function getSummary(
 ) {
   if (isLoading) return summary("pending", "확인 중", "최근 성공 기록을 확인하는 중입니다.");
   if (isError || !status) return summary("error", "확인 실패", "관리자 점검 상태를 불러오지 못했습니다.");
+  if (status.monitoring_mode === "local") {
+    if (status.status === "running") return summary("pending", "점검 중", "Tailnet 로컬 점검을 실행하는 중입니다.");
+    if (status.status === "failure") return summary("error", "로컬 실패", `Tailnet 로컬 점검 실패 · ${status.detail || "실패 단계를 확인하세요."}`);
+    if (!status.last_success_at) return summary("missing", "기록 없음", "Tailnet 로컬 점검 성공 기록이 없습니다.");
+    const detail = `Tailnet 로컬 점검 최근 성공 ${formatDateTime(status.last_success_at, timezone)} · ${status.stale_after_days}일 초과 시 경고`;
+    if (status.is_stale) return summary("stale", "점검 지연", detail);
+    return summary("fresh", "로컬 정상", detail);
+  }
   if (!status.monitoring_enabled) return summary("disabled", "예약 중지", "예약 자동 점검이 중지되어 있습니다.");
   if (!status.monitoring_admin_last_success_at) return summary("missing", "기록 없음", "관리자 전용 점검 성공 기록이 없습니다.");
   const detail = `최근 성공 ${formatDateTime(status.monitoring_admin_last_success_at, timezone)} · ${status.monitoring_admin_stale_after_days}일 초과 시 경고`;

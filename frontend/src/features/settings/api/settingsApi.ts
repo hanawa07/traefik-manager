@@ -82,6 +82,7 @@ export type {
   SmokeLocalRun,
   SmokeCancellationReasonFilter,
   SmokeMonitoringFrequency,
+  SmokeMonitoringMode,
   SmokeMonitoringRecentRun,
   SmokeMonitoringSettingsInput,
   SmokeRotationState,

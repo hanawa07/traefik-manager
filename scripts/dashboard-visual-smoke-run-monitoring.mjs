@@ -28,7 +28,14 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     assert.match(initial.text || "", /GitHub 실행 통계와 로컬 콜백 이력은 관리자 계정에서 확인/);
     assert.equal(initial.revisionStatus, "restricted");
     assert.match(initial.revisionText || "", /운영 스모크 커밋.*관리자 계정에서 확인/s);
-    return;
+    return "restricted";
+  }
+  if (initial.access === "local") {
+    assert.match(initial.text || "", /Tailnet 호스트의 월간 로컬 점검/);
+    assert.match(initial.text || "", /전환 전 GitHub 실행 통계/);
+    assert.ok(["pending", "match", "mismatch"].includes(initial.revisionStatus));
+    assert.match(initial.revisionText || "", /운영 스모크 커밋/);
+    return "local";
   }
   assert.equal(initial.sevenPressed, "true", "운영 점검 추이의 기본 7일 범위가 선택되지 않았습니다");
   assert.equal(initial.typeWindow, "7", "실패 유형 추이의 기본 7일 범위가 표시되지 않았습니다");
@@ -75,4 +82,5 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
   );
   await checkSmokeRunSummary({ cdp, timeoutMs });
   await checkSmokeFailureArtifactFilters({ cdp, timeoutMs });
+  return "remote";
 }

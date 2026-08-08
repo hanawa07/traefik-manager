@@ -1,13 +1,20 @@
+import re
 from datetime import datetime, timedelta, timezone
 
 
 SMOKE_ROTATION_STATUS_KEY = "smoke_viewer_rotation_status"
 SMOKE_ROTATION_LAST_ATTEMPT_AT_KEY = "smoke_viewer_rotation_last_attempt_at"
 SMOKE_ROTATION_LAST_SUCCESS_AT_KEY = "smoke_viewer_rotation_last_success_at"
+SMOKE_ROTATION_LAST_REVISION_KEY = "smoke_viewer_rotation_last_revision"
 SMOKE_ROTATION_DETAIL_KEY = "smoke_viewer_rotation_detail"
 
 SMOKE_ROTATION_STATUSES = {"running", "success", "failure"}
 SMOKE_ROTATION_STALE_AFTER_DAYS = 35
+
+
+def normalize_smoke_revision(revision: str | None) -> str | None:
+    value = (revision or "").strip().lower()
+    return value if re.fullmatch(r"[0-9a-f]{7,40}", value) else None
 
 
 def is_smoke_success_stale(

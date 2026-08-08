@@ -140,7 +140,7 @@ export function SmokeRecentRunHistory({
       ref={historyDetailsRef}
     >
       <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
-        최근 GitHub 원격 실행 검색 결과 총 {total}건
+        {initialStatus.monitoring_mode === "local" ? "참고용 GitHub 운영·도구" : "최근 GitHub 원격"} 실행 검색 결과 총 {total}건
       </summary>
       <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[minmax(14rem,1fr)_8rem_10rem_10rem_7rem_auto] 2xl:items-end">
         <form

@@ -105,6 +105,7 @@ export function SmokeRotationStatusCard({
       ) : isEditing ? (
         <SmokeMonitoringSettingsEditForm
           formValue={formValue}
+          mode={status.monitoring_mode}
           scheduleTime={scheduleTime}
           scheduleTimezone={scheduleTimezone}
           errorMessage={errorMessage}

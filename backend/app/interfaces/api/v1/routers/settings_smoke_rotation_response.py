@@ -9,6 +9,7 @@ from app.core.smoke_rotation_log import read_smoke_rotation_log_tail
 from app.core.smoke_rotation_status import (
     SMOKE_ROTATION_DETAIL_KEY,
     SMOKE_ROTATION_LAST_ATTEMPT_AT_KEY,
+    SMOKE_ROTATION_LAST_REVISION_KEY,
     SMOKE_ROTATION_LAST_SUCCESS_AT_KEY,
     SMOKE_ROTATION_STATUSES,
     SMOKE_ROTATION_STALE_AFTER_DAYS,
@@ -38,6 +39,7 @@ from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
     read_smoke_failure_metadata,
 )
 from app.interfaces.api.v1.routers.settings_smoke_monitoring_values import (
+    get_smoke_monitoring_mode,
     read_smoke_monitoring_values,
 )
 from app.interfaces.api.v1.routers.settings_smoke_run_status import read_smoke_run_status
@@ -75,6 +77,9 @@ async def get_smoke_rotation_status_response(
             settings.SMOKE_ROTATION_LOG_PATH,
         )
     monitoring = await read_smoke_monitoring_values(repo)
+    monitoring_mode = get_smoke_monitoring_mode()
+    if monitoring_mode == "local":
+        monitoring["monitoring_enabled"] = False
     run_status = await read_smoke_run_status(repo)
     admin_stale_after_days = 8 if monitoring["monitoring_frequency"] == "weekly" else 2
     admin_is_stale = monitoring["monitoring_enabled"] and is_smoke_success_stale(
@@ -153,12 +158,14 @@ async def get_smoke_rotation_status_response(
         status=status,
         last_attempt_at=await repo.get(SMOKE_ROTATION_LAST_ATTEMPT_AT_KEY),
         last_success_at=last_success_at,
+        last_revision=await repo.get(SMOKE_ROTATION_LAST_REVISION_KEY),
         detail=await repo.get(SMOKE_ROTATION_DETAIL_KEY),
         is_stale=is_smoke_rotation_stale(last_success_at, now=now),
         stale_after_days=SMOKE_ROTATION_STALE_AFTER_DAYS,
         recent_log_lines=log_lines,
         log_updated_at=log_updated_at,
         **monitoring,
+        monitoring_mode=monitoring_mode,
         **run_status,
         monitoring_admin_is_stale=admin_is_stale,
         monitoring_admin_stale_after_days=admin_stale_after_days,

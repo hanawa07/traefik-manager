@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
+from app.core.config import settings
 from app.interfaces.api.v1.routers.settings_value_helpers import get_bool_setting, get_int_setting
 from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
     SMOKE_FAILURE_METADATA_LIMIT_KEY,
@@ -35,6 +36,16 @@ SMOKE_GITHUB_RATE_LIMIT_ALERT_WINDOW_HOURS_DEFAULT = 24
 SMOKE_MONITORING_FREQUENCIES = {"daily", "weekly"}
 SMOKE_MONITORING_SCHEDULE_TIME = "03:17"
 SMOKE_MONITORING_SCHEDULE_TIMEZONE = "Asia/Seoul"
+SmokeMonitoringMode = Literal["local", "remote"]
+
+
+def get_smoke_monitoring_mode() -> SmokeMonitoringMode:
+    if (
+        settings.TRAEFIK_MANAGER_TAILNET_ROUTER_ENABLED
+        and not settings.TRAEFIK_MANAGER_PUBLIC_ROUTER_ENABLED
+    ):
+        return "local"
+    return "remote"
 
 
 async def read_smoke_monitoring_values(repo: Any) -> dict[str, Any]:

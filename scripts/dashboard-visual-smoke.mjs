@@ -44,8 +44,12 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
         const sessionRoute = buildSessionRoute(route, capabilities.canManage);
         await checkVisualRoute({ artifactDir, baseUrl, cdp, profile, route: sessionRoute, timeoutMs });
         if (route.path === "/dashboard") {
-          await checkSmokeRunTrendRange({ cdp, timeoutMs });
-          labels.push(`${profile.label} 운영 점검 7일·30일 실행시간·로컬 필터 URL·CSV·배포 커밋`);
+          const smokeMode = await checkSmokeRunTrendRange({ cdp, timeoutMs });
+          labels.push(
+            smokeMode === "local"
+              ? `${profile.label} Tailnet 로컬 운영 점검·배포 커밋`
+              : `${profile.label} 운영 점검 7일·30일 실행시간·로컬 필터 URL·CSV·배포 커밋`,
+          );
           await checkManagerHttpErrorTrend({ cdp, timeoutMs });
           labels.push(`${profile.label} Manager file-provider 라우터`);
           const deploymentHistory = await checkManagerDeploymentHistory({ cdp, timeoutMs });
