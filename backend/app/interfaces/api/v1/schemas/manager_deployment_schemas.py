@@ -82,6 +82,7 @@ class ManagerRouteStatusResponse(BaseModel):
     provider: str | None = None
     https_router_status: str | None = None
     http_router_status: str | None = None
+    tailnet_router_status: str | None = None
     service_status: str | None = None
     upstream_url: str | None = None
     upstream_status: str | None = None

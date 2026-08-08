@@ -54,6 +54,12 @@ JWT_SECRET_KEY=
 # 도메인
 FRONTEND_DOMAIN=traefik-manager.example.com
 BACKEND_DOMAIN=traefik-manager-api.example.com
+TAILNET_FRONTEND_URL=https://server-name.example.ts.net:8444
+
+# Manager 자체 라우터
+TRAEFIK_MANAGER_PUBLIC_ROUTER_ENABLED=true
+TRAEFIK_MANAGER_TAILNET_ROUTER_ENABLED=false
+TRAEFIK_MANAGER_TAILNET_ENTRYPOINT=manager-tailnet
 
 # 프론트엔드/백엔드 연결
 NEXT_PUBLIC_API_URL=/api/v1
@@ -69,6 +75,8 @@ AUTHENTIK_TOKEN=
 ```
 
 - `FRONTEND_DOMAIN`은 프런트 공개 도메인이며 Next.js `metadataBase` 기준 URL로도 사용됩니다. 스킴을 생략하면 `https://`를 기준으로 처리합니다.
+- `TAILNET_FRONTEND_URL`은 Tailscale Serve로 노출하는 운영 URL입니다. 값이 있으면 배포 health, watchdog, 로컬 스모크가 이 주소를 우선합니다.
+- 공개 도메인과 Tailnet을 함께 검증한 뒤 `TRAEFIK_MANAGER_PUBLIC_ROUTER_ENABLED=false`로 바꾸면 공개 라우터만 제거할 수 있습니다.
 - `NEXT_PUBLIC_API_URL`의 운영 권장값은 상대 경로 `/api/v1`입니다.
 - `BACKEND_UPSTREAM_URL`은 프런트 컨테이너가 내부적으로 백엔드 API를 프록시할 때 사용하는 업스트림 주소입니다.
   공유 Docker 네트워크를 쓰는 경우 `backend` 같은 범용 호스트명 대신 `traefik-manager-backend`처럼 충돌 없는 이름을 권장합니다.
@@ -79,7 +87,7 @@ AUTHENTIK_TOKEN=
 docker compose up -d --build
 ```
 
-프론트엔드: `https://<FRONTEND_DOMAIN>`
+프론트엔드: 공개 라우터 사용 시 `https://<FRONTEND_DOMAIN>`, Tailnet 사용 시 `TAILNET_FRONTEND_URL`
 
 배포 시 네트워크, Traefik 연동, 보안 헤더 구조, 검증 체크리스트는 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)를 참고하세요.
 

@@ -117,6 +117,7 @@ export interface ManagerRouteStatus {
   provider: string | null;
   https_router_status: string | null;
   http_router_status: string | null;
+  tailnet_router_status: string | null;
   service_status: string | null;
   upstream_url: string | null;
   upstream_status: string | null;

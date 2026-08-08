@@ -28,3 +28,33 @@ def test_candidate_backends_join_proxy_network_only_after_health_checks():
     assert 'history_status="rollback_failed"' in recovery_script
     assert 'notify_rollback_failure "${history_active_slot}"' in recovery_script
     assert 'manager-deployment-bottleneck-alert.sh" "${HISTORY_FILE}"' in recovery_script
+
+
+def test_manager_self_route_supports_tailnet_cutover() -> None:
+    compose = yaml.safe_load((PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    init_environment = compose["services"]["init-traefik-config"]["environment"]
+
+    assert "TRAEFIK_MANAGER_PUBLIC_ROUTER_ENABLED" in init_environment
+    assert "TRAEFIK_MANAGER_TAILNET_ROUTER_ENABLED" in init_environment
+    assert init_environment["TRAEFIK_MANAGER_TAILNET_ENTRYPOINT"].endswith(
+        ":-manager-tailnet}"
+    )
+
+
+def test_github_visual_smoke_is_manual_and_does_not_require_live_credentials() -> None:
+    workflow = (PROJECT_ROOT / ".github/workflows/dashboard-visual-smoke.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "workflow_dispatch:" in workflow
+    assert "  schedule:" not in workflow
+    assert "smoke-services-browser-session.mjs --self-test" in workflow
+    for secret_name in (
+        "TM_SMOKE_BASE_URL",
+        "TM_SMOKE_COOKIE",
+        "TM_SMOKE_USERNAME",
+        "TM_SMOKE_PASSWORD",
+        "TM_SMOKE_ADMIN_USERNAME",
+        "TM_SMOKE_ADMIN_PASSWORD",
+    ):
+        assert f"secrets.{secret_name}" not in workflow

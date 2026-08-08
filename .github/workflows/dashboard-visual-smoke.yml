@@ -1,5 +1,5 @@
-name: 운영 로그인·화면 스모크
-run-name: ${{ inputs.test_admin_stale_notification && '[테스트] 관리자 점검 지연 알림' || inputs.test_failure_notification && '[테스트] 운영 로그인·화면 스모크' || '운영 로그인·화면 스모크' }}
+name: 운영 스모크 도구 자가 점검
+run-name: ${{ inputs.test_admin_stale_notification && '[테스트] 관리자 점검 지연 알림' || inputs.test_failure_notification && '[테스트] 운영 스모크 실패 알림' || '운영 스모크 도구 자가 점검' }}
 
 on:
   workflow_dispatch:
@@ -19,8 +19,6 @@ on:
         required: false
         default: false
         type: boolean
-  schedule:
-    - cron: "17 18 * * *"
 
 permissions:
   actions: read
@@ -35,13 +33,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      TM_SMOKE_BASE_URL: ${{ secrets.TM_SMOKE_BASE_URL }}
-      TM_SMOKE_COOKIE: ${{ secrets.TM_SMOKE_COOKIE }}
-      TM_SMOKE_USERNAME: ${{ secrets.TM_SMOKE_USERNAME }}
-      TM_SMOKE_PASSWORD: ${{ secrets.TM_SMOKE_PASSWORD }}
-      TM_SMOKE_ADMIN_USERNAME: ${{ secrets.TM_SMOKE_ADMIN_USERNAME }}
-      TM_SMOKE_ADMIN_PASSWORD: ${{ secrets.TM_SMOKE_ADMIN_PASSWORD }}
-      TM_SMOKE_ADMIN_EXPECT_READ_ONLY: "1"
       TM_SMOKE_ARTIFACT_DIR: smoke-artifacts
       TM_SMOKE_ALERT_DETAIL_FILE: smoke-alert-detail.txt
     steps:
@@ -53,39 +44,14 @@ jobs:
         with:
           node-version: 22
 
-      - name: 예약 실행 설정 확인
-        id: schedule
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "$GITHUB_EVENT_NAME" != "schedule" ]]; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [[ -z "$TM_SMOKE_BASE_URL" ]]; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          node scripts/smoke-schedule-check.mjs >> "$GITHUB_OUTPUT"
-
       - name: 운영 로그인·화면 검사
-        if: steps.schedule.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
           if [[ "${{ inputs.test_admin_stale_notification }}" == "true" ]]; then
             node scripts/smoke-remote-status.mjs --admin-stale-dry-run
           fi
-          if [[ -z "$TM_SMOKE_BASE_URL" ]]; then
-            echo "::notice::TM_SMOKE_BASE_URL이 없어 self-test만 실행합니다."
-            node scripts/smoke-services-browser-session.mjs --self-test
-            exit 0
-          fi
-          if [[ -z "$TM_SMOKE_COOKIE" && ( -z "$TM_SMOKE_USERNAME" || -z "$TM_SMOKE_PASSWORD" ) ]]; then
-            echo "::notice::인증 비밀값이 없어 self-test만 실행합니다."
-            node scripts/smoke-services-browser-session.mjs --self-test
-            exit 0
-          fi
+          node scripts/smoke-services-browser-session.mjs --self-test
           if [[ "${{ inputs.test_failure_notification }}" == "true" ]]; then
             mkdir -p "$TM_SMOKE_ARTIFACT_DIR"
             printf '%s\n' '<!doctype html><title>failure notification test</title>' > "$TM_SMOKE_ARTIFACT_DIR/notification-test.html"
@@ -94,7 +60,6 @@ jobs:
             echo "::error::실패 알림 경로 점검을 위해 의도적으로 종료합니다."
             exit 1
           fi
-          node scripts/smoke-services-browser-session.mjs
 
       - name: 실패 화면 업로드
         id: failure_artifact
@@ -127,9 +92,9 @@ jobs:
             echo "::notice::Telegram 비밀값이 없어 실패 알림을 건너뜁니다."
             exit 0
           fi
-          title="Traefik Manager 운영 로그인·화면 스모크 실패"
+          title="Traefik Manager 운영 스모크 도구 자가 점검 실패"
           if [[ "$TEST_FAILURE_NOTIFICATION" == "true" ]]; then
-            title="[테스트] Traefik Manager 운영 로그인·화면 스모크 실패"
+            title="[테스트] Traefik Manager 운영 스모크 실패 알림"
           fi
           if [[ "$TEST_ADMIN_STALE_NOTIFICATION" == "true" ]]; then
             title="[테스트] Traefik Manager 관리자 점검 지연 알림"

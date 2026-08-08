@@ -88,28 +88,10 @@ update_account() {
       "${backend_service}" python -m app.interfaces.cli.smoke_account_updater
 }
 
-set_github_secret() {
-  local name="$1"
-  local value="$2"
-  local attempt
-  for attempt in 1 2 3; do
-    rotation_step="GitHub secret 갱신: ${name} (시도 ${attempt}/3)"
-    if printf %s "${value}" | gh secret set "${name}" --app actions; then
-      return
-    fi
-    echo "GitHub secret 갱신 재시도: ${name} ${attempt}/3" >&2
-    sleep 5
-  done
-  rotation_step="GitHub secret 갱신 실패: ${name} (시도 3/3)"
-  echo "GitHub secret 갱신 실패: ${name}" >&2
-  return 1
-}
-
 run_self_test() {
-  local attempt_count attempts_file route_file temp_dir
+  local route_file temp_dir
   temp_dir="$(mktemp -d)"
   route_file="${temp_dir}/route.yml"
-  attempts_file="${temp_dir}/secret-attempts"
   trap 'rm -rf "${temp_dir}"' RETURN
   printf 'url: "http://traefik-manager-frontend-green:3000"\n' >"${route_file}"
   [[ "$(resolve_backend_service "${route_file}")" == "backend-green" ]]
@@ -117,28 +99,6 @@ run_self_test() {
   [[ "$(resolve_backend_service "${route_file}")" == "backend-blue" ]]
   printf 'url: "http://traefik-manager-frontend:3000"\n' >"${route_file}"
   [[ "$(resolve_backend_service "${route_file}")" == "backend" ]]
-
-  gh() {
-    local attempt=0
-    if [[ -f "${attempts_file}" ]]; then
-      read -r attempt <"${attempts_file}"
-    fi
-    attempt=$((attempt + 1))
-    printf '%s\n' "${attempt}" >"${attempts_file}"
-    cat >/dev/null
-    (( attempt > 3 ))
-  }
-  sleep() { :; }
-
-  if set_github_secret TM_SMOKE_PASSWORD first-attempt >/dev/null 2>&1; then
-    echo "GitHub secret 3회 실패를 감지하지 못했습니다" >&2
-    return 1
-  fi
-  [[ "${rotation_step}" == "GitHub secret 갱신 실패: TM_SMOKE_PASSWORD (시도 3/3)" ]]
-  set_github_secret TM_SMOKE_PASSWORD recovery-attempt >/dev/null 2>&1
-  read -r attempt_count <"${attempts_file}"
-  [[ "${attempt_count}" == "4" ]]
-  [[ "${rotation_step}" == "GitHub secret 갱신: TM_SMOKE_PASSWORD (시도 1/3)" ]]
   echo "스모크 계정 회전 self-test 통과"
 }
 
@@ -162,7 +122,7 @@ fi
 
 trap handle_exit EXIT
 
-for command_name in docker flock gh openssl; do
+for command_name in docker flock openssl; do
   command -v "${command_name}" >/dev/null || {
     echo "필수 명령을 찾을 수 없습니다: ${command_name}" >&2
     exit 1
@@ -177,10 +137,6 @@ if ! flock -n 9; then
   exit 0
 fi
 
-rotation_step="GitHub 인증 확인"
-gh auth status >/dev/null
-gh secret list --app actions >/dev/null
-
 rotation_step="활성 backend 확인"
 backend_service="$(resolve_backend_service)"
 
@@ -193,13 +149,9 @@ admin_password="$(openssl rand -hex 32)"
 
 rotation_step="viewer 계정 갱신"
 update_account "${VIEWER_USERNAME}" viewer "${viewer_password}"
-set_github_secret TM_SMOKE_USERNAME "${VIEWER_USERNAME}"
-set_github_secret TM_SMOKE_PASSWORD "${viewer_password}"
 
 rotation_step="admin 계정 갱신"
 update_account "${SMOKE_ADMIN_USERNAME}" admin "${admin_password}"
-set_github_secret TM_SMOKE_ADMIN_USERNAME "${SMOKE_ADMIN_USERNAME}"
-set_github_secret TM_SMOKE_ADMIN_PASSWORD "${admin_password}"
 
 rotation_step="Node.js 실행 환경 준비"
 if [[ -s "${HOME}/.nvm/nvm.sh" ]]; then
@@ -210,7 +162,10 @@ if [[ -s "${HOME}/.nvm/nvm.sh" ]]; then
 fi
 
 rotation_step="회전 후 viewer·admin 스모크 검증"
-base_url="$(read_env_value FRONTEND_DOMAIN)"
+base_url="$(read_env_value TAILNET_FRONTEND_URL)"
+if [[ -z "${base_url}" ]]; then
+  base_url="$(read_env_value FRONTEND_DOMAIN)"
+fi
 if command -v node >/dev/null && [[ -n "${base_url}" ]]; then
   TM_SMOKE_BASE_URL="${base_url}" \
     TM_SMOKE_USERNAME="${VIEWER_USERNAME}" \
@@ -220,10 +175,10 @@ if command -v node >/dev/null && [[ -n "${base_url}" ]]; then
     TM_SMOKE_ADMIN_EXPECT_READ_ONLY=1 \
     node scripts/smoke-services-browser-session.mjs
 else
-  echo "Node.js 또는 .env의 FRONTEND_DOMAIN이 없어 로컬 스모크 검증을 실행할 수 없습니다" >&2
+  echo "Node.js 또는 .env의 TAILNET_FRONTEND_URL/FRONTEND_DOMAIN이 없어 로컬 스모크 검증을 실행할 수 없습니다" >&2
   exit 1
 fi
 
 rotation_step="성공 상태 기록"
 report_rotation_status success
-echo "스모크 viewer·admin 비밀번호와 GitHub secret 회전 완료"
+echo "스모크 viewer·admin 비밀번호 회전과 로컬 검증 완료"

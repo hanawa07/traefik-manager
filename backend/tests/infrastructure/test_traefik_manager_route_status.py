@@ -48,10 +48,52 @@ async def test_manager_route_status_reads_file_provider_upstream(monkeypatch):
         "provider": "file",
         "https_router_status": "enabled",
         "http_router_status": "enabled",
+        "tailnet_router_status": None,
         "service_status": "enabled",
         "upstream_url": "http://traefik-manager-frontend-blue:3000",
         "upstream_status": "UP",
     }
+
+
+@pytest.mark.asyncio
+async def test_manager_route_status_accepts_tailnet_only_router(monkeypatch):
+    client = TraefikApiClient()
+
+    async def fake_get(path: str):
+        if path == "/api/http/routers":
+            return [
+                {
+                    "name": "traefik-manager-tailnet-file@file",
+                    "provider": "file",
+                    "status": "enabled",
+                }
+            ]
+        return [
+            {
+                "name": "traefik-manager-frontend-file@file",
+                "provider": "file",
+                "status": "enabled",
+                "loadBalancer": {
+                    "servers": [
+                        {"url": "http://traefik-manager-frontend-green:3000"}
+                    ],
+                },
+                "serverStatus": {
+                    "http://traefik-manager-frontend-green:3000": "UP"
+                },
+            }
+        ]
+
+    monkeypatch.setattr(client, "_get", fake_get)
+
+    result = await client.get_manager_route_status()
+
+    assert result["healthy"] is True
+    assert result["active_slot"] == "green"
+    assert result["https_router_status"] is None
+    assert result["http_router_status"] is None
+    assert result["tailnet_router_status"] == "enabled"
+    assert result["upstream_status"] == "UP"
 
 
 @pytest.mark.asyncio

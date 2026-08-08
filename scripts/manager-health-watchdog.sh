@@ -33,10 +33,13 @@ read_env_value() {
 resolve_health_url() {
   local base_url="${TM_MANAGER_WATCHDOG_URL:-}"
   if [[ -z "${base_url}" ]]; then
+    base_url="$(read_env_value TAILNET_FRONTEND_URL)"
+  fi
+  if [[ -z "${base_url}" ]]; then
     base_url="$(read_env_value FRONTEND_DOMAIN)"
   fi
   if [[ -z "${base_url}" ]]; then
-    echo "TM_MANAGER_WATCHDOG_URL 또는 .env의 FRONTEND_DOMAIN이 필요합니다" >&2
+    echo "TM_MANAGER_WATCHDOG_URL 또는 .env의 TAILNET_FRONTEND_URL/FRONTEND_DOMAIN이 필요합니다" >&2
     return 1
   fi
   if [[ "${base_url}" != http://* && "${base_url}" != https://* ]]; then

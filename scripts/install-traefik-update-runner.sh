@@ -67,13 +67,33 @@ validate_compose_files() {
 }
 
 resolve_health_url() {
-  local domain=""
-  if [[ -f "${REPO_ROOT}/.env" ]]; then
-    domain="$(awk -F= '$1 == "FRONTEND_DOMAIN" {print $2; exit}' "${REPO_ROOT}/.env")"
+  local base_url="${TM_TRAEFIK_MANAGER_HEALTH_URL:-}"
+  local key raw
+  if [[ -z "${base_url}" && -f "${REPO_ROOT}/.env" ]]; then
+    for key in TAILNET_FRONTEND_URL FRONTEND_DOMAIN; do
+      raw="$(grep -E "^${key}=" "${REPO_ROOT}/.env" | tail -n 1 | cut -d= -f2- || true)"
+      raw="${raw%$'\r'}"
+      raw="${raw#\"}"
+      raw="${raw%\"}"
+      raw="${raw#\'}"
+      raw="${raw%\'}"
+      if [[ -n "${raw}" ]]; then
+        base_url="${raw}"
+        break
+      fi
+    done
   fi
-  if [[ "${domain}" =~ ^[A-Za-z0-9.-]+$ ]]; then
-    printf 'https://%s/api/health\n' "${domain}"
+  [[ -n "${base_url}" ]] || return 0
+  if [[ "${base_url}" != http://* && "${base_url}" != https://* ]]; then
+    base_url="https://${base_url}"
   fi
+  base_url="${base_url%/}"
+  if [[ "${base_url}" != */api/health ]]; then
+    base_url="${base_url}/api/health"
+  fi
+  [[ "${base_url}" =~ ^https?://[A-Za-z0-9.-]+(:[1-9][0-9]{0,4})?/api/health$ ]] \
+    || { echo "Manager health URL이 올바르지 않습니다" >&2; exit 2; }
+  printf '%s\n' "${base_url}"
 }
 
 prepare_request_dir() {

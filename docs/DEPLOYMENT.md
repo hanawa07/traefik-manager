@@ -2,7 +2,9 @@
 
 ## Traefik Manager compose
 
-- `frontend`는 `https://<FRONTEND_DOMAIN>`로 외부 노출됩니다.
+- `frontend`는 기본적으로 `https://<FRONTEND_DOMAIN>`에 공개되며, `TRAEFIK_MANAGER_PUBLIC_ROUTER_ENABLED=false`이면 공개 라우터를 생성하지 않습니다.
+- `TRAEFIK_MANAGER_TAILNET_ROUTER_ENABLED=true`이면 `TRAEFIK_MANAGER_TAILNET_ENTRYPOINT`에 Host 제한 없는 전용 라우터를 생성합니다. 이 엔트리포인트는 반드시 호스트 loopback에만 게시하고 Tailscale Serve를 통해서만 연결합니다.
+- `TAILNET_FRONTEND_URL`이 있으면 blue-green 배포, 외부 watchdog, 로컬 브라우저 스모크와 계정 회전 검증이 공개 도메인보다 이 URL을 우선합니다.
 - `FRONTEND_DOMAIN`은 Traefik 라우팅뿐 아니라 Next.js `metadataBase` 기준 URL로도 사용됩니다. 호스트명만 넣으면 빌드 시 `https://` 기준으로 처리됩니다.
 - `backend`는 기본 권장 구성이면 프론트의 `/api` 리버스 프록시를 통해서만 접근합니다.
 - `NEXT_PUBLIC_API_URL`은 브라우저 번들에 포함되므로 운영 권장값은 고정 상대 경로인 `/api/v1`입니다.
@@ -47,6 +49,28 @@ services:
     networks:
       - proxy-network
 ```
+
+## Tailnet 전용 Manager 경로
+
+Traefik에 별도 엔트리포인트를 만들고 호스트 loopback에만 게시합니다. 예시는 컨테이너 `18081`을 호스트 `127.0.0.1:18081`에 연결합니다.
+
+```yaml
+services:
+  traefik:
+    ports:
+      - "127.0.0.1:18081:18081"
+    command:
+      - --entrypoints.manager-tailnet.address=:18081
+      - --entrypoints.manager-tailnet.forwardedheaders.insecure=true
+```
+
+`forwardedheaders.insecure`는 이 loopback 전용 엔트리포인트에서만 사용해 Tailscale Serve가 전달한 실제 클라이언트 주소를 보존합니다. 인터넷에 바인딩된 엔트리포인트에는 적용하지 않습니다.
+
+```bash
+tailscale serve --yes --bg --https=8444 http://127.0.0.1:18081
+```
+
+전환 중에는 공개·Tailnet 라우터를 함께 켜고 `https://<TAILNET_HOST>:8444/api/health`와 로그인을 확인합니다. 확인 후 `TRAEFIK_MANAGER_PUBLIC_ROUTER_ENABLED=false`로 바꾸고 active blue-green upstream을 유지한 채 `init-traefik-config`를 다시 실행합니다.
 
 정적 설정 파일을 쓰는 경우에는 `traefik.yml`에 아래 항목이 필요합니다.
 
@@ -126,7 +150,7 @@ scripts/blue-green-deploy.sh vX.Y.Z
 - 대시보드 `배포 전환 이력`은 최근·보관 기록을 분리하거나 통합해서 검색하며 통합 카드에는 현재·보관 소스와 선택 기간별 건수를 표시합니다. 보관 이력은 상세·일별 표본만 따로 볼 수 있습니다. 프리셋 또는 시작일·종료일, 상태·실패 단계·버전·커밋·실패 원인으로 필터링하고 성공률·실패율·롤백률을 누르면 해당 상태만 바로 볼 수 있으며 `산정 기준`에서 분모와 집계 상태를 확인할 수 있습니다. 선택 소스와 기간의 평균·중앙값·보간 P95 배포시간과 시간순 추이 차트를 표시하며, 기간을 선택하면 직전 동일 길이 구간의 평균선·현재 대비 증감률과 단계별 현재·직전 평균 막대를 함께 보여줍니다. 평균 또는 P95를 누르면 해당 기준보다 느린 배포만 필터링하며 카드의 초과 시간, URL, 내보내기 metadata에도 기준이 유지됩니다. 신규 배포 기록은 단계별 소요시간과 가장 오래 걸린 병목을 표시하고, 선택 소스·기간의 단계별 표본 수·평균·보간 P95·최대를 집계합니다. 병목 경고 기준은 15초·30초·1분·2분·5분 중 선택하며 초과 항목이 있으면 이력 상단 경고와 배포·단계 행을 함께 강조하고 URL에 유지합니다. 기존 기록은 단계 정보가 없으면 단계 집계에서 제외됩니다. 실패 단계별 평균 소요시간, 검색 일치 부분, 배포 소요시간과 슬롯 전환을 확인할 수 있습니다. 커밋 SHA·실패 원인·각 기록의 전체 JSON을 복사하거나 연속 배포 버전을 GitHub에서 비교할 수 있습니다. 선택 조건은 URL에 유지되고 현재 결과를 JSON 또는 Excel 호환 CSV로 내보냅니다. 내보내기 버튼은 현재 결과 건수를 표시하고 완료 알림은 적용 소스·표본·기간·상태와 활성 실패 단계·검색어를 요약합니다. JSON은 `metadata`와 `entries`로 구성되고 CSV는 상단 메타데이터 블록에 적용 필터와 결과 건수를 기록하며, 통합 내보내기에는 각 기록의 `source`도 포함됩니다. 내보내기 스키마 v6에는 `stage_durations_ms`, 보관 표본, 병목 경고 기준과 운영 알림 채널이 포함되며 `metadata`에는 `schema_version`, 표시 시간대와 적용 필터가 기록되고 파일명에도 소스·기간·상태가 반영됩니다.
 - `보관 구성`은 실제 조회에 포함된 상세·일별 표본 수와 최초·최종 시각을 표시합니다. 단계별 기간 비교의 버전 링크를 누르면 현재 필터 결과의 해당 배포 카드로 이동해 전체 단계 시간을 바로 확인할 수 있습니다.
 
-배포 전 `scripts/blue-green-deploy.sh --self-test`, `scripts/test-blue-green-rollback-failure.sh`, `scripts/manager-deployment-history.sh --self-test`, `scripts/manager-deployment-bottleneck-alert.sh --self-test`, `scripts/request-host-operation-alert.sh --self-test`와 `scripts/manager-deployment-probe.sh --self-test`를 실행할 수 있습니다. 격리 rollback 시험은 운영 route나 Docker를 건드리지 않고 실제 상태 머신에 복구 실패를 주입합니다. GitHub의 `운영 로그인·화면 스모크`도 배포 관련 self-test를 매번 수행합니다.
+배포 전 `scripts/blue-green-deploy.sh --self-test`, `scripts/test-blue-green-rollback-failure.sh`, `scripts/manager-deployment-history.sh --self-test`, `scripts/manager-deployment-bottleneck-alert.sh --self-test`, `scripts/request-host-operation-alert.sh --self-test`와 `scripts/manager-deployment-probe.sh --self-test`를 실행할 수 있습니다. 격리 rollback 시험은 운영 route나 Docker를 건드리지 않고 실제 상태 머신에 복구 실패를 주입합니다. 전체 배포 회귀 검사는 태그 릴리스의 `릴리스 최종 통합 검사`에서 실행합니다.
 
 ## Traefik 패치 안전 업데이트
 
@@ -138,12 +162,12 @@ Compose 파일명이 기본 `docker-compose.yml`이 아니면 Traefik 디렉터�
 
 - backend에는 Docker 쓰기 권한 대신 ACL로 backend UID만 허용한 `traefik-update-requests` 디렉터리 하나를 쓰기 가능으로 마운트합니다.
 - 자동 요청은 동일 메이저·마이너의 상향 패치 버전만 허용하고, 호스트 실행기가 공식 Traefik 이미지·Compose 서비스·설정된 Docker 네트워크·ACME 파일을 다시 검증합니다.
-- 실행기는 Compose와 `acme.json`을 백업한 뒤 Traefik 서비스만 재생성합니다. 컨테이너 버전·네트워크·Manager 공개 health 검증이 실패하면 이전 Compose로 자동 롤백합니다.
+- 실행기는 Compose와 `acme.json`을 백업한 뒤 Traefik 서비스만 재생성합니다. 컨테이너 버전·네트워크·Manager health 검증이 실패하면 이전 Compose로 자동 롤백합니다.
 - 요청, 백업 위치, 검증, 롤백 결과는 `~/.local/state/traefik-manager/traefik-updates.jsonl`에 최대 200줄로 보관되며 대시보드에서 확인할 수 있습니다.
 
 ## 검증 체크리스트
 
-- `curl https://<FRONTEND_DOMAIN>/api/health`가 `{"status":"정상"}`을 반환하며, 이 경로는 frontend를 거쳐 backend까지 확인합니다.
+- `curl <MANAGER_BASE_URL>/api/health`가 `{"status":"정상"}`을 반환하며, 이 경로는 frontend를 거쳐 backend까지 확인합니다.
 - backend는 자체 `/api/health`, frontend는 같은 슬롯 backend까지 이어지는 `/api/health`를 Docker healthcheck로 사용하므로 active backend/frontend가 모두 `healthy`인지 확인합니다. Manager 자체 라우터는 `init-traefik-config`가 `traefik-manager-self.yml`로 원자 생성하고 blue-green 스크립트가 준비된 슬롯으로 upstream만 교체합니다. 대시보드 배포 카드에서 active 슬롯, provider `file`, HTTPS/HTTP router와 service `enabled`, upstream `UP`을 함께 확인합니다.
 - 대시보드 Manager 배포 카드는 Docker 상태를 30초마다 갱신하며, `unhealthy`이면 연속 실패 횟수와 마지막 검사 시각·종료 코드를 표시합니다. 외부 watchdog 상태·연속 실패·마지막 실행과 최근 운영 알림 전송 결과·채널을 표시하고, 과거 GitHub Actions 알림은 실행 링크·최근 실행 5건의 최종 상태·결과 확인 시각·조회 오류를 읽기 전용으로 유지합니다. Anubis 호스트 timer가 기록한 Traefik 자기 차단 점검 상태와 최근 감지·자동 해제 이력도 표시하지만, Traefik 장애 중에는 Manager 자체가 열리지 않으므로 이 정보는 복구 후 확인하는 기록입니다. 과거 GitHub 실행은 장애·복구와 실행 결과로 즉시 필터링하고 성공·실패·진행·기타 완료 건수를 집계하며 카드에서 직접 새로고침할 수 있습니다. 필터는 URL에 유지되며 적용 조건을 하나씩 제거하거나 전체 초기화할 수 있고, 마지막 수동 갱신 완료 시각을 자동 갱신과 구분해 표시합니다. 설정한 지연 판정 시간이 지나면 상단 경고를 노출하며 healthcheck 원문 출력은 노출하지 않습니다.
 - 배포 카드에는 마지막 상태 갱신 시각과 수동 새로고침 버튼이 있으며, unavailable·중지·unhealthy 컴포넌트가 있으면 대시보드 상단에 경고 배너를 표시합니다.
@@ -152,38 +176,34 @@ Compose 파일명이 기본 `docker-compose.yml`이 아니면 Traefik 디렉터�
 - 대시보드의 `Manager 상태 전이 이력`은 Docker, Manager API 오류 임계치, 요청 로그 보관 상태 및 외부 watchdog의 최근 이상·복구 감사 기록을 30초마다 갱신합니다. API 오류 임계치 초과 항목은 당시 상위 발생 경로를 접어서 표시하고, 요청 로그 보관 경고는 소스·사용률·파일 수를 표시합니다. watchdog 실행이 설정 기준보다 늦거나 다시 정상 갱신되면 각각 감사 로그에 기록합니다. 감사 로그는 행위자·대상 이름·대상 ID 검색과 `Manager 소스`·`Manager 상태` 조합, 반대 축 기준 교차 집계 수치를 지원합니다. 전체·24시간·7일·30일·90일 기간 또는 UTC 시작일·종료일과 페이지당 25·50·100건을 선택할 수 있고 페이지 번호를 직접 입력해 이동할 수 있습니다. 목록 필터·총 건수·페이지 슬라이스는 DB에서 처리하며 `created_at` 인덱스를 사용합니다. 적용 조건은 개별 제거하거나 전체 초기화할 수 있으며 필터 변경 중에도 화면을 닫지 않고 표만 갱신하고, 모바일에서는 필터 필드를 한 열로 배치합니다. 검색어와 선택한 필터·기간·시작일·종료일·Manager 소스·Manager 상태·전송 상태·채널·집계 기간·페이지 크기·페이지는 URL에 저장되어 새로고침 후에도 유지됩니다.
 - 감사 로그 화면의 `현재 조건 CSV`는 화면의 검색·분류·기간·UTC 날짜 범위를 그대로 사용하고 페이지 번호·페이지 크기는 제외합니다. 응답은 Excel 호환 UTF-8 BOM을 포함하며 수식으로 해석될 수 있는 셀을 이스케이프합니다.
 - 감사 로그 보존 정책은 기본 365일이며 backend 시작 시와 이후 24시간마다 실행됩니다. 아카이브가 켜져 있으면 삭제 전에 `AUDIT_ARCHIVE_DIR`의 gzip JSONL 파일에 저장하고 파일 권한을 `0600`으로 제한합니다. 관리자는 설정 화면에서 30~3650일 조정·즉시 실행·파일 다운로드·복원을 수행할 수 있습니다. 복원은 생성 파일명과 경로, 압축·해제 크기, 행 수, 모든 필드를 먼저 검증하고 기존 UUID는 건너뛰며, 손상된 파일은 일부도 반영하지 않습니다. 아카이브를 끄면 기간이 지난 로그는 영구 삭제됩니다.
-- 브라우저에서 `https://<FRONTEND_DOMAIN>` 접속 시 로그인 페이지가 보입니다.
-- `curl -Ik https://<FRONTEND_DOMAIN>` 응답이 `200` 또는 `302`입니다.
-- 서비스 목록과 의존 API, 모바일 다크모드 주요 화면을 함께 확인하려면 `TM_SMOKE_COOKIE='tm_session=...; tm_csrf=...' ./scripts/check-services.sh`를 실행합니다. `TM_SMOKE_BASE_URL`이 없으면 `.env`의 `FRONTEND_DOMAIN`을 사용합니다.
+- 브라우저에서 `<MANAGER_BASE_URL>` 접속 시 로그인 페이지가 보입니다.
+- `curl -Ik <MANAGER_BASE_URL>` 응답이 `200` 또는 `302`입니다.
+- 서비스 목록과 의존 API, 모바일 다크모드 주요 화면을 함께 확인하려면 `TM_SMOKE_COOKIE='tm_session=...; tm_csrf=...' ./scripts/check-services.sh`를 실행합니다. `TM_SMOKE_BASE_URL`이 없으면 `.env`의 `TAILNET_FRONTEND_URL`, `FRONTEND_DOMAIN` 순서로 사용합니다.
 - 점검 안내 라우팅을 실제 Traefik file-provider까지 확인하려면 `scripts/smoke-maintenance-route.sh`를 실행합니다. 이 스모크는 `.invalid` 임시 Host만 사용하고 DB·DNS·인증서를 변경하지 않으며 확인 직후 라우터 파일을 제거합니다.
 - 운영 세션 쿠키 대신 테스트 계정으로 확인하려면 `TM_SMOKE_USERNAME`과 `TM_SMOKE_PASSWORD`를 사용합니다. Turnstile이 필요한 환경에서는 기존 세션 쿠키 방식이 더 안전합니다.
-- GitHub Actions의 `운영 로그인·화면 스모크`는 매일 03:17(KST)에 실행되며 수동 실행도 지원합니다.
-- 일일 스모크는 예약 설정과 실제 운영 브라우저만 확인합니다. 정적 검사와 self-test, blue-green 회귀 검사는 태그 릴리스의 `릴리스 최종 통합 검사`에서 한 번 수행합니다.
-- 운영 로그인·화면 스모크는 대시보드의 `Docker 정상`, Manager file-provider 라우터의 `file / healthy / UP`, Manager API 오류 추이 24개 기본 구간과 6시간·경로 필터 전환·임계치 감지 상태·영속 로그 회전 상태·보관 경고의 감사 링크·권장값 API, 감사 로그 조건 CSV, 설정 화면의 `Artifact 만료`와 감사 로그 보존 카드를 명시적으로 확인합니다. Manager API 오류와 요청 로그 보관 감사 상세는 운영 감사 데이터를 만들지 않고 브라우저 요청에 fixture를 주입해 매번 검사합니다. 관리자 세션에서는 저장 없이 권장값 계산·제외 경로 미리보기·입력 적용도 확인합니다.
-- 저장소 비밀값에 `TM_SMOKE_BASE_URL`과 `TM_SMOKE_COOKIE`를 등록하거나, 쿠키 대신 `TM_SMOKE_USERNAME`과 `TM_SMOKE_PASSWORD`를 등록하면 실제 인증 화면을 검사합니다.
+- GitHub Actions의 `운영 스모크 도구 자가 점검`은 수동 실행만 지원하며 실제 Tailnet 앱이나 로그인 비밀값을 사용하지 않습니다. 코드 self-test와 실패 아티팩트·Telegram 알림 경로만 확인합니다.
+- 실제 운영 화면 검증은 Tailnet에 연결된 호스트에서 `scripts/check-services.sh` 또는 월간 `scripts/rotate-smoke-viewer-password.sh`로 수행합니다. 태그 릴리스의 `릴리스 최종 통합 검사`는 정적 검사와 전체 회귀 검사를 한 번 수행합니다.
 - Manager health 감시는 구조화 요청 로그에서 `/api/v1/settings/test-history`의 최근 60분 p95를 5분마다 계산합니다. 최소 5개 표본에서 750ms를 초과하면 운영 알림과 감사 로그를 남기고, 정상화되면 복구 이벤트를 한 번 기록합니다.
-- `TM_SMOKE_ADMIN_USERNAME`과 `TM_SMOKE_ADMIN_PASSWORD`를 함께 등록하면 관리자 전용 병목 이벤트 정리 확인창과 취소 흐름도 검사합니다. 미리보기 응답을 브라우저에서 대체하고 POST를 차단하므로 운영 이벤트는 삭제하지 않습니다.
-- 인증 비밀값이 아직 없으면 예약 작업은 브라우저 스모크 self-test만 실행하고 정상 종료합니다.
-- 인증 화면 검사에 실패하면 모바일 화면 PNG를 GitHub Actions 아티팩트로 7일간 보관합니다.
+- 로컬 실행에 `TM_SMOKE_ADMIN_USERNAME`과 `TM_SMOKE_ADMIN_PASSWORD`를 함께 전달하면 관리자 전용 병목 이벤트 정리 확인창과 취소 흐름도 검사합니다. 미리보기 응답을 브라우저에서 대체하고 POST를 차단하므로 운영 이벤트는 삭제하지 않습니다.
+- GitHub 수동 실패 시험은 합성 화면 PNG를 아티팩트로 7일간 보관합니다.
 - `TM_SMOKE_TELEGRAM_BOT_TOKEN`과 `TM_SMOKE_TELEGRAM_CHAT_ID` 비밀값이 있으면 실패 실행 링크를 Telegram으로 전송합니다.
-- `scripts/rotate-smoke-viewer-password.sh`는 활성 blue/green backend를 찾아 `traefik-smoke-viewer`와 `traefik-smoke-admin` 비밀번호, 대응하는 GitHub secret을 함께 교체하고 일반·관리자 인증 스모크로 검증합니다.
-- 전용 계정 이름을 바꾸는 경우 backend의 `SMOKE_VIEWER_USERNAME`·`SMOKE_ADMIN_USERNAME`과 GitHub secret `TM_SMOKE_USERNAME`·`TM_SMOKE_ADMIN_USERNAME`을 각각 같은 값으로 설정합니다.
+- `scripts/rotate-smoke-viewer-password.sh`는 활성 blue/green backend를 찾아 `traefik-smoke-viewer`와 `traefik-smoke-admin` 비밀번호를 교체하고 같은 실행에서 일반·관리자 인증 스모크로 검증합니다. 비밀번호는 GitHub로 전송하거나 저장하지 않습니다.
+- 전용 계정 이름을 바꾸는 경우 backend의 `SMOKE_VIEWER_USERNAME`·`SMOKE_ADMIN_USERNAME`을 각각 같은 값으로 설정합니다.
 - 운영 호스트에서는 매월 1일 04:17에 두 계정을 회전하는 기존 사용자 cron을 사용합니다. 실행 로그는 `~/.local/state/traefik-manager/smoke-password-rotation.log`에 저장합니다.
 - 회전 결과는 설정 화면의 `운영 로그인·화면 점검` 카드 안에 별도 표시되며, 실패하면 현재 설정 변경 알림 채널로 실패 단계가 전송됩니다.
 - 정기 회전의 viewer·admin 비밀번호 단독 변경은 감사 로그만 남기고 운영 알림에서는 제외하며, 수동 실패 시험 알림은 제목에 `[테스트]`를 표시합니다.
 - 회전 스크립트는 `~/.local/state/traefik-manager/smoke-password-rotation.lock` 잠금을 사용해 cron과 수동 실행의 중복 회전을 건너뜁니다.
 - 마지막 성공 후 35일이 지나면 설정 화면의 회전 상태가 `점검 필요`로 표시됩니다.
-- 일일 인증 스모크도 35일 미회전을 실패로 처리해 Telegram으로 능동 통지합니다.
 - 운영 로그인·화면 스모크는 보안 공격 검사가 아니라 viewer 로그인, 주요 API, 화면 로딩을 확인하는 가용성 점검입니다. 로그인 공격 방어는 별도 `로그인 보안 방어` 설정에서 관리합니다.
-- 관리자 설정 화면에서 예약 자동 점검을 끄거나 `매일`/`매주 일요일`로 조정할 수 있습니다. GitHub Actions는 매일 03:17(Asia/Seoul)에 설정을 확인하며, 수동 실행과 월간 비밀번호 회전 후 검증은 항상 실행합니다.
+- Tailnet 전용 배포에서는 관리자 설정의 예약 자동 점검을 꺼 둡니다. 기존 예약 설정과 GitHub 실행 이력은 호환용으로 조회할 수 있으며, 월간 비밀번호 회전 후 로컬 검증은 계속 실행합니다.
 - 원격 스모크가 성공하면 전용 viewer 세션으로 GitHub run ID를 기록합니다. admin 취소 흐름까지 통과한 실행은 관리자 전용 최근 성공 시각과 실행 링크도 별도로 기록합니다. 관리자 설정 카드는 공개 GitHub Actions 메타데이터를 10분간 캐시해 최근 5회의 성공·실패·예약 건너뜀, 실패 단계, 중복 Telegram 억제 여부를 함께 표시합니다.
 - 관리자는 마지막 GitHub 확인 시각을 확인하고 `지금 새로고침`으로 10분 캐시를 우회할 수 있습니다. 최근 5건 밖으로 밀린 마지막 실패도 별도로 유지되며, 보관 기간이 지나지 않았다면 만료 시각과 함께 `실패 화면` artifact를 바로 받을 수 있습니다.
 - GitHub 이력 조회가 실패해도 설정 API 전체를 실패시키지 않으며, 앱에 저장된 최근 성공 시각과 실행 링크는 계속 표시합니다.
 - 같은 커밋의 원격 스모크 실패가 6시간 안에 반복되면 GitHub 실패 기록과 아티팩트는 유지하되 중복 Telegram 알림만 억제합니다.
 - backend 상태 기록 자체가 실패하면 호스트 스크립트가 정형 실패 단계만 Anubis 전용 CLI에 전달해 Telegram으로 직접 통지합니다.
-- backend 자체 중단은 호스트의 `scripts/manager-health-watchdog.sh`가 공개 `/api/health`를 5분마다 확인해 감지합니다. 장애·60분 지속 장애·복구 때 제한된 HTTP 결과와 연속 실패 횟수만 Anubis 컨테이너의 전용 CLI에 전달해 Telegram으로 직접 알립니다. Telegram 비밀값은 Anubis 안에만 유지하며, 전환 전 GitHub Actions 실행 URL 이력은 호스트 상태 파일에서 읽기 전용으로 보존합니다. 지연 판정 기준은 설정 화면에서 5~1440분으로 조정할 수 있습니다.
+- backend 자체 중단은 호스트의 `scripts/manager-health-watchdog.sh`가 `TAILNET_FRONTEND_URL`의 `/api/health`를 5분마다 확인해 감지합니다. 장애·60분 지속 장애·복구 때 제한된 HTTP 결과와 연속 실패 횟수만 Anubis 컨테이너의 전용 CLI에 전달해 Telegram으로 직접 알립니다. Telegram 비밀값은 Anubis 안에만 유지하며, 전환 전 GitHub Actions 실행 URL 이력은 호스트 상태 파일에서 읽기 전용으로 보존합니다. 지연 판정 기준은 설정 화면에서 5~1440분으로 조정할 수 있습니다.
 - watchdog 설치 예시는 `*/5 * * * * cd /path/to/traefik-manager && /usr/bin/bash scripts/manager-health-watchdog.sh >> ~/.local/state/traefik-manager/manager-health-watchdog.log 2>&1`입니다. 적용 전 `scripts/manager-health-watchdog.sh --self-test`와 정상 상태 1회 실행으로 기준 상태를 생성합니다.
-- 공개 주소나 cooldown을 바꿔야 하면 cron 앞에 `TM_MANAGER_WATCHDOG_URL=https://manager.example.com` 또는 `TM_MANAGER_WATCHDOG_COOLDOWN_SECONDS=3600`을 지정합니다.
+- 기본 주소나 cooldown을 바꿔야 하면 cron 앞에 `TM_MANAGER_WATCHDOG_URL=https://server-name.example.ts.net:8444` 또는 `TM_MANAGER_WATCHDOG_COOLDOWN_SECONDS=3600`을 지정합니다.
 - `scripts/test-manager-health-watchdog.sh`는 가짜 health 응답과 가짜 Docker CLI로 정상→장애→복구 및 직접 알림 실패 기록을 검증하므로 운영 컨테이너와 실제 알림을 중단하거나 호출하지 않습니다.
 - Traefik 자기 차단의 즉시 감지·직접 Telegram 알림·정확한 ticket 자동 해제는 Manager 프로세스가 아니라 Anubis의 `anubis-traefik-self-ban-watchdog.timer`가 담당합니다. 결과 파일 `~/.local/state/traefik-manager/traefik-self-ban-watchdog.json`만 backend에 읽기 전용으로 공유하며, API는 내부 IP를 버리고 상태·Jail 이름·시각·해제 건수만 반환합니다.
 - 최근 24시간의 실패 알림은 5분 간격으로 최대 3회 자동 재시도하며, 각 재시도 결과도 감사 로그에 남깁니다.

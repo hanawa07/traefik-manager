@@ -54,6 +54,7 @@ run_installer() {
   env -u TM_TRAEFIK_UPDATE_COMPOSE_FILES -u TM_TRAEFIK_UPDATE_COMPOSE_FILE \
     -u TM_TRAEFIK_UPDATE_ACME_FILE -u TM_TRAEFIK_UPDATE_SERVICE \
     -u TM_TRAEFIK_UPDATE_CONTAINER -u TM_TRAEFIK_UPDATE_NETWORK \
+    -u TM_TRAEFIK_MANAGER_HEALTH_URL \
     HOME="${home_dir}" \
     XDG_CONFIG_HOME="${config_dir}" \
     TM_MANAGER_DEPLOY_STATE_DIR="${state_dir}" \
@@ -62,6 +63,7 @@ run_installer() {
     TM_TRAEFIK_UPDATE_SERVICE="${TM_TEST_SERVICE:-${compose_service}}" \
     TM_TRAEFIK_UPDATE_CONTAINER="${TM_TEST_CONTAINER:-${traefik_container}}" \
     TM_TRAEFIK_UPDATE_NETWORK="${TM_TEST_NETWORK:-${traefik_network}}" \
+    TM_TRAEFIK_MANAGER_HEALTH_URL="${TM_TEST_HEALTH_URL:-https://server-name.example.ts.net:8444/api/health}" \
     TM_TEST_SYSTEMCTL_LOG="${systemctl_log}" \
     PATH="${fake_bin}:${PATH}" \
     "${compose_environment[@]}" \
@@ -76,6 +78,7 @@ grep -Fxq "Environment=TM_TRAEFIK_UPDATE_ACME_FILE=${acme_file}" "${service_unit
 grep -Fxq "Environment=TM_TRAEFIK_UPDATE_SERVICE=${compose_service}" "${service_unit}"
 grep -Fxq "Environment=TM_TRAEFIK_UPDATE_CONTAINER=${traefik_container}" "${service_unit}"
 grep -Fxq "Environment=TM_TRAEFIK_UPDATE_NETWORK=${traefik_network}" "${service_unit}"
+grep -Fxq 'Environment=TM_TRAEFIK_MANAGER_HEALTH_URL=https://server-name.example.ts.net:8444/api/health' "${service_unit}"
 grep -Fq 'enable --now traefik-manager-traefik-update.path traefik-manager-traefik-update.timer' "${systemctl_log}"
 grep -Fq 'start traefik-manager-traefik-update.service' "${systemctl_log}"
 
@@ -112,5 +115,12 @@ grep -Fq 'Compose 서비스 이름이 올바르지 않습니다' "${temporary_di
 
 TM_TEST_USE_LEGACY=true run_installer
 grep -Fxq "Environment=TM_TRAEFIK_UPDATE_COMPOSE_FILES=${compose_overlay_file}" "${service_unit}"
+
+if TM_TEST_HEALTH_URL='https://server-name.example.ts.net:8444/not-health' \
+  run_installer > "${temporary_dir}/invalid-health.out" 2>&1; then
+  echo "잘못된 Manager health URL이 허용되었습니다" >&2
+  exit 1
+fi
+grep -Fq 'Manager health URL이 올바르지 않습니다' "${temporary_dir}/invalid-health.out"
 
 echo "Traefik 업데이트 실행기 설치 self-test 통과"

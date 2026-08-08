@@ -6,6 +6,7 @@ from app.infrastructure.traefik.runtime_parsers import (
 
 MANAGER_HTTPS_ROUTER = "traefik-manager-frontend-file@file"
 MANAGER_HTTP_ROUTER = "traefik-manager-frontend-http-file@file"
+MANAGER_TAILNET_ROUTER = "traefik-manager-tailnet-file@file"
 MANAGER_SERVICE = "traefik-manager-frontend-file@file"
 
 
@@ -79,19 +80,23 @@ def build_manager_route_status(
     available = isinstance(routers_payload, list) and isinstance(services_payload, list)
     https_router = _find_runtime_item(routers_payload, MANAGER_HTTPS_ROUTER)
     http_router = _find_runtime_item(routers_payload, MANAGER_HTTP_ROUTER)
+    tailnet_router = _find_runtime_item(routers_payload, MANAGER_TAILNET_ROUTER)
     service = _find_runtime_item(services_payload, MANAGER_SERVICE)
     upstream_url, upstream_status = _read_upstream_status(service)
     active_slot = _read_manager_slot(upstream_url)
-    provider = _shared_provider(https_router, http_router, service)
+    provider = _shared_provider(https_router, http_router, tailnet_router, service)
     https_status = _runtime_status(https_router)
     http_status = _runtime_status(http_router)
+    tailnet_status = _runtime_status(tailnet_router)
     service_status = _runtime_status(service)
+    route_enabled = (
+        https_status == "enabled" and http_status == "enabled"
+    ) or tailnet_status == "enabled"
     healthy = (
         available
         and active_slot is not None
         and provider == "file"
-        and https_status == "enabled"
-        and http_status == "enabled"
+        and route_enabled
         and service_status == "enabled"
         and upstream_status == "UP"
     )
@@ -111,6 +116,7 @@ def build_manager_route_status(
         "provider": provider,
         "https_router_status": https_status,
         "http_router_status": http_status,
+        "tailnet_router_status": tailnet_status,
         "service_status": service_status,
         "upstream_url": upstream_url,
         "upstream_status": upstream_status,

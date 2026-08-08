@@ -18,10 +18,13 @@ read_env_value() {
 resolve_health_url() {
   local base_url="${TM_BLUE_GREEN_BASE_URL:-}"
   if [[ -z "${base_url}" ]]; then
+    base_url="$(read_env_value TAILNET_FRONTEND_URL)"
+  fi
+  if [[ -z "${base_url}" ]]; then
     base_url="$(read_env_value FRONTEND_DOMAIN)"
   fi
   if [[ -z "${base_url}" ]]; then
-    echo "TM_BLUE_GREEN_BASE_URL 또는 .env의 FRONTEND_DOMAIN이 필요합니다" >&2
+    echo "TM_BLUE_GREEN_BASE_URL 또는 .env의 TAILNET_FRONTEND_URL/FRONTEND_DOMAIN이 필요합니다" >&2
     return 1
   fi
   if [[ "${base_url}" != http://* && "${base_url}" != https://* ]]; then
@@ -73,7 +76,7 @@ configure_health_probe() {
     [[ -n "${address}" ]] || continue
     health_curl_resolve="$(build_health_curl_resolve "${url}" "${address}")"
     if probe_health_url "${url}" 2 >/dev/null 2>&1; then
-      echo "공인 self-probe를 Traefik 내부 경로로 대체합니다: ${address}"
+      echo "Manager self-probe를 Traefik 내부 경로로 대체합니다: ${address}"
       return
     fi
   done < <(
@@ -83,7 +86,7 @@ configure_health_probe() {
   )
 
   health_curl_resolve=""
-  echo "Manager 공개 health와 Traefik 내부 fallback에 모두 연결하지 못했습니다" >&2
+  echo "Manager health와 Traefik 내부 fallback에 모두 연결하지 못했습니다" >&2
   return 1
 }
 

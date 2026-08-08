@@ -13,6 +13,13 @@ export function ManagerRouteStatusCard({ route }: ManagerRouteStatusCardProps) {
     : route?.healthy
       ? "정상"
       : "점검 필요";
+  const publicRouterStatus = route?.https_router_status || route?.http_router_status
+    ? `공개 ${route?.https_router_status || "-"} / ${route?.http_router_status || "-"}`
+    : null;
+  const tailnetRouterStatus = route?.tailnet_router_status
+    ? `Tailnet ${route.tailnet_router_status}`
+    : null;
+  const routerStatus = [publicRouterStatus, tailnetRouterStatus].filter(Boolean).join(" · ") || "-";
 
   return (
     <section
@@ -20,6 +27,7 @@ export function ManagerRouteStatusCard({ route }: ManagerRouteStatusCardProps) {
       data-route-healthy={route?.healthy ? "true" : "false"}
       data-route-active-slot={route?.active_slot ?? "unknown"}
       data-route-provider={route?.provider ?? "unknown"}
+      data-route-tailnet-status={route?.tailnet_router_status ?? "missing"}
       data-route-upstream-status={route?.upstream_status ?? "unknown"}
       data-testid="manager-route-status"
     >
@@ -36,10 +44,7 @@ export function ManagerRouteStatusCard({ route }: ManagerRouteStatusCardProps) {
       <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
         <RouteFact label="활성 슬롯" value={route?.active_slot || "-"} />
         <RouteFact label="Provider" value={route?.provider ? `${route.provider} provider` : "-"} />
-        <RouteFact
-          label="라우터"
-          value={`${route?.https_router_status || "-"} / ${route?.http_router_status || "-"}`}
-        />
+        <RouteFact label="라우터" value={routerStatus} />
         <RouteFact label="서비스" value={route?.service_status || "-"} />
         <RouteFact label="업스트림" value={route?.upstream_status || "-"} />
       </dl>
