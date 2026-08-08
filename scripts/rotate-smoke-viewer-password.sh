@@ -79,16 +79,62 @@ report_rotation_status() {
       "${backend_service}" python -m app.interfaces.cli.smoke_rotation_reporter
 }
 
-resolve_deployed_revision() {
+is_revision() {
+  [[ "${1:-}" =~ ^[0-9a-f]{7,40}$ ]]
+}
+
+read_active_container_revision() {
+  local container_id=""
   local revision=""
-  if [[ -f "${DEPLOYMENT_STATE_FILE}" ]]; then
-    revision="$(awk -F= '$1 == "revision" {print $2; exit}' "${DEPLOYMENT_STATE_FILE}")"
-  fi
-  if [[ "${revision}" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
-    printf '%s\n' "${revision,,}"
+  [[ -n "${backend_service}" ]] || return 1
+  container_id="$(docker compose ps -q "${backend_service}" 2>/dev/null | head -n 1)"
+  [[ -n "${container_id}" ]] || return 1
+
+  revision="$(docker inspect --format \
+    '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
+    "${container_id}" 2>/dev/null || true)"
+  revision="${revision,,}"
+  if is_revision "${revision}"; then
+    printf '%s\n' "${revision}"
     return
   fi
-  git rev-parse HEAD
+
+  revision="$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \
+    "${container_id}" 2>/dev/null \
+    | awk -F= '$1 == "TRAEFIK_MANAGER_GIT_SHA" {print $2; exit}' || true)"
+  revision="${revision,,}"
+  is_revision "${revision}" || return 1
+  printf '%s\n' "${revision}"
+}
+
+select_deployed_revision() {
+  local state_revision="${1,,}"
+  local container_revision="${2,,}"
+  if is_revision "${container_revision}"; then
+    if is_revision "${state_revision}" \
+      && [[ "${state_revision}" != "${container_revision}"* \
+        && "${container_revision}" != "${state_revision}"* ]]; then
+      echo "배포 상태 파일과 활성 backend revision이 달라 활성 컨테이너 값을 사용합니다: state=${state_revision:0:12}, active=${container_revision:0:12}" >&2
+    fi
+    printf '%s\n' "${container_revision}"
+    return
+  fi
+  if is_revision "${state_revision}"; then
+    printf '%s\n' "${state_revision}"
+    return
+  fi
+  echo "활성 backend 이미지와 배포 상태 파일에서 revision을 확인하지 못했습니다" >&2
+  return 1
+}
+
+resolve_deployed_revision() {
+  local state_revision=""
+  local container_revision=""
+  if [[ -f "${DEPLOYMENT_STATE_FILE}" ]]; then
+    state_revision="$(awk -F= '$1 == "revision" {print $2; exit}' "${DEPLOYMENT_STATE_FILE}")"
+  fi
+  container_revision="$(read_active_container_revision || true)"
+  select_deployed_revision "${state_revision}" "${container_revision}"
 }
 
 request_external_failure_alert() {
@@ -108,9 +154,10 @@ update_account() {
 }
 
 run_self_test() {
-  local route_file temp_dir
+  local route_file state_file state_revision temp_dir
   temp_dir="$(mktemp -d)"
   route_file="${temp_dir}/route.yml"
+  state_file="${temp_dir}/deployment.state"
   trap 'rm -rf "${temp_dir}"' RETURN
   printf 'url: "http://traefik-manager-frontend-green:3000"\n' >"${route_file}"
   [[ "$(resolve_backend_service "${route_file}")" == "backend-green" ]]
@@ -118,6 +165,18 @@ run_self_test() {
   [[ "$(resolve_backend_service "${route_file}")" == "backend-blue" ]]
   printf 'url: "http://traefik-manager-frontend:3000"\n' >"${route_file}"
   [[ "$(resolve_backend_service "${route_file}")" == "backend" ]]
+  printf 'slot=blue\nrevision=ABCDEF1234567\n' >"${state_file}"
+  state_revision="$(awk -F= '$1 == "revision" {print $2; exit}' "${state_file}")"
+  [[ "$(select_deployed_revision "${state_revision}" 'not-a-revision')" == "abcdef1234567" ]]
+  [[ "$(select_deployed_revision 'abcdef1234567' '1234567abcdef' 2>"${temp_dir}/mismatch-warning")" == "1234567abcdef" ]]
+  grep -Fq '활성 컨테이너 값을 사용합니다' "${temp_dir}/mismatch-warning"
+  [[ "$(select_deployed_revision 'not-a-revision' '1234567abcdef')" == "1234567abcdef" ]]
+  [[ "$(select_deployed_revision 'abcdef1' 'abcdef1234567890' 2>"${temp_dir}/prefix-warning")" == "abcdef1234567890" ]]
+  [[ ! -s "${temp_dir}/prefix-warning" ]]
+  if select_deployed_revision 'not-a-revision' '' >/dev/null 2>&1; then
+    echo "유효하지 않은 revision이 선택됐습니다" >&2
+    return 1
+  fi
   echo "스모크 계정 회전 self-test 통과"
 }
 
@@ -141,7 +200,7 @@ fi
 
 trap handle_exit EXIT
 
-for command_name in date docker flock git openssl; do
+for command_name in awk date docker flock openssl; do
   command -v "${command_name}" >/dev/null || {
     echo "필수 명령을 찾을 수 없습니다: ${command_name}" >&2
     exit 1
