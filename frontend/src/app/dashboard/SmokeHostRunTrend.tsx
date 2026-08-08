@@ -108,8 +108,8 @@ export function SmokeHostRunTrend({
         ) : null}
       </details>
       <p className="mt-1 opacity-75">
-        GitHub 실행 통계와 로컬 콜백 이력은 관리자 계정에서 확인합니다. 현재 운영 판정에는
-        사용하지 않습니다.
+        전환 전 GitHub 실행 통계와 로컬 콜백 이력은 관리자 계정에서 확인합니다. 현재 운영
+        판정에는 사용하지 않습니다.
       </p>
     </div>
   );
