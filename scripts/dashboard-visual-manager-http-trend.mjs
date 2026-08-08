@@ -12,11 +12,15 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
     const monitor = document.querySelector('[data-testid="manager-http-error-monitor-status"]');
     const latencyMonitor = document.querySelector('[data-testid="manager-settings-history-latency-status"]');
     const route = document.querySelector('[data-testid="manager-route-status"]');
+    const correlationAuditHrefs = Array.from(
+      correlation?.querySelectorAll('[data-deployment-audit-link="true"]') || [],
+    ).map((link) => link.getAttribute('href') || '');
     return card ? {
       available: card.getAttribute('data-http-error-available'),
       bucketCount: card.querySelectorAll('[data-http-error-bucket="true"]').length,
       chartScrollWidth: chart?.scrollWidth ?? 0,
       chartWidth: chart?.clientWidth ?? 0,
+      correlationAuditHrefs,
       correlationCount: Number(correlation?.getAttribute('data-correlation-count')),
       correlationText: correlation?.textContent || '',
       managerApiAlert: document.querySelector('[data-testid="manager-health-alert-banner"]')
@@ -66,6 +70,17 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
     snapshot.correlationText,
     /배포 시작 1분 전부터 완료 2분 후까지/,
     "Manager API 오류와 배포 시각의 상관관계 설명이 없습니다",
+  );
+  assert.equal(
+    snapshot.correlationAuditHrefs.length,
+    snapshot.correlationCount,
+    "배포 상관관계별 감사 로그 링크 수가 올바르지 않습니다",
+  );
+  assert.ok(
+    snapshot.correlationAuditHrefs.every((href) =>
+      /^\/dashboard\/audit\?start_date=\d{4}-\d{2}-\d{2}&end_date=\d{4}-\d{2}-\d{2}$/.test(href),
+    ),
+    "배포 상관관계 감사 로그 링크의 UTC 날짜 범위가 올바르지 않습니다",
   );
   assert.ok(snapshot.logStorage, "Manager API 요청 로그 보관 상태가 없습니다");
   assert.ok(

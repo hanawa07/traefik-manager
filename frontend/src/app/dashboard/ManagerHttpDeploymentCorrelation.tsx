@@ -1,4 +1,5 @@
 import { GitCompareArrows } from "lucide-react";
+import Link from "next/link";
 
 import type { ManagerHttpDeploymentCorrelation as Correlation } from "@/features/deployment/api/deploymentApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
@@ -62,6 +63,13 @@ export function ManagerHttpDeploymentCorrelation({
                   상위 경로: {item.top_paths.map((path) => path.path).join(", ")}
                 </p>
               ) : null}
+              <Link
+                className="mt-1 inline-flex text-[11px] font-medium text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                data-deployment-audit-link="true"
+                href={`/dashboard/audit?start_date=${item.window_started_at.slice(0, 10)}&end_date=${item.window_ended_at.slice(0, 10)}`}
+              >
+                같은 UTC 날짜 감사 로그
+              </Link>
             </li>
           ))}
         </ul>
