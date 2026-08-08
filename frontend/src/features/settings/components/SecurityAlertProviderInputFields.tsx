@@ -24,6 +24,8 @@ export function TextField({
         placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        autoComplete={type === "password" ? "off" : undefined}
+        data-bwignore={type === "password" ? "true" : undefined}
       />
       {help ? <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{help}</p> : null}
     </div>
