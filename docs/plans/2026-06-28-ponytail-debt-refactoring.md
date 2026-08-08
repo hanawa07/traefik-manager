@@ -58,8 +58,10 @@
 - 2026-07-30 기준 ESLint 10 전환 시 `react/display-name` 규칙 로딩이 실패하는 것을 확인하고 ESLint 9로 복구했다.
 - 2026-08-01 재점검에서도 최신 `eslint@10.8.0`, `eslint-config-next@16.2.12` 조합은 동일한 `contextOrFilename.getFilename is not a function` 오류로 중단됐다. 최신 React 7.37.5, Import 2.32.0, JSX a11y 6.10.2 플러그인의 peer 범위도 ESLint 9까지만 허용한다.
 - 2026-08-05 재점검에서도 `eslint@10.8.0` 실제 lint가 같은 오류로 중단됐다. `eslint-config-next@16.3.0`은 ESLint peer 범위를 `>=9`로 선언하지만, 포함된 세 플러그인의 최신 peer 범위는 여전히 ESLint 9까지다.
-- 재현 명령: `cd frontend && npm exec --yes --package=eslint@10.8.0 -- eslint .`.
+- 2026-08-08 최신 `eslint@10.8.1`로 다시 실행해도 `react/display-name`의 `contextOrFilename.getFilename is not a function` 오류가 동일하게 발생했다. React 7.37.5, Import 2.32.0, JSX a11y 6.10.2 플러그인의 최신 peer 범위도 ESLint 9까지다.
+- 재현 명령: `cd frontend && npm exec --yes --package=eslint@10.8.1 -- eslint .`.
 - 2026-08-08 `@eslint/eslintrc` 전이 의존성 `js-yaml@4.3.0`에 high 권고가 추가됐지만, 호환 범위 안의 공식 패치 `4.3.1`로 lockfile을 갱신해 해소했다.
+- 같은 날 `postcss` 전이 의존성 `nanoid@3.3.16`의 high 권고도 확인해 호환 범위 안의 `3.3.18`로 lockfile을 갱신했다. 공식 최초 수정 버전은 `3.3.17`이다.
 - 현재 전체 `npm audit --audit-level=high`는 0건이며, 릴리스와 전용 보안 workflow 모두 production/dev 구분 없이 high 이상을 차단한다.
 - 재개 조건: Next.js 내장 플러그인이 ESLint 10 API와 peer 범위를 공식 지원할 때 lint/build를 다시 검증한다.
 
@@ -82,3 +84,17 @@
 - `smokeStatisticsHistory.ts`: 지연 임계치는 실제 오탐이 관측될 때만 설정값으로 승격한다.
 - `settings_test_history.py`: 10초 cache는 audit writer 전반의 즉시 invalidation 요구가 생길 때만 교체한다.
 - 코드의 `PONYTAIL-DEBT(...)` marker는 0개이며, 위 `ponytail:` marker 4개는 모두 구체적인 재검토 조건을 가진다.
+
+## 9. 2026-08-08 Ponytail debt 재감사 - 완료
+
+### 1) 정말 삭제 가능한 것
+- 없음. 코드의 `PONYTAIL-DEBT(...)` marker는 0개이고 기존 domain port와 기능별 파일을 제거할 새 근거가 없다.
+
+### 2) 리팩토링 후보
+- 즉시 분리할 후보는 없다. 추적 중인 소스에서 500줄을 넘는 파일은 0개이며, 500줄을 넘는 파일은 lockfile과 이미지뿐이다.
+
+### 3) 위험해서 보류할 것
+- `PONYTAIL-DEBT(frontend-eslint-10)`은 최신 ESLint 10.8.1에서도 실제 lint가 중단되므로 유지한다. 업스트림 플러그인이 ESLint 10 API와 peer 범위를 지원하기 전에는 강제 전환하지 않는다.
+
+### 4) Ponytail debt marker로 남길 것
+- 기존 `ponytail:` marker 4개를 유지한다. 운영 스모크 지연 오탐, 설정 이력 10초 cache로 인한 운영 문제, 비 HTTP 엔진 미탐, Docker 목록 탐색 병목이 새로 관측되지 않아 어느 재개 조건도 충족되지 않았다.
