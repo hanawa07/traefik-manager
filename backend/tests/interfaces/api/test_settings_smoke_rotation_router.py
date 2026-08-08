@@ -64,6 +64,33 @@ async def test_get_smoke_rotation_status_skips_admin_details_for_summary(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(("reference_history", "expected"), [(False, False), (True, True)])
+async def test_local_summary_only_reads_explicit_reference_history(
+    monkeypatch,
+    reference_history: bool,
+    expected: bool,
+):
+    calls = []
+
+    async def fake_status_response(_db, **kwargs):
+        calls.append(kwargs)
+        return object()
+
+    monkeypatch.setattr(smoke_router, "get_smoke_monitoring_mode", lambda: "local")
+    monkeypatch.setattr(smoke_router, "_get_smoke_rotation_status_response", fake_status_response)
+
+    await smoke_router.get_smoke_rotation_status(
+        db=object(),
+        current_user={"role": "admin"},
+        summary=True,
+        history=True,
+        reference_history=reference_history,
+    )
+
+    assert calls[0]["include_monitoring_history"] is expected
+
+
+@pytest.mark.asyncio
 async def test_get_smoke_rotation_status_rejects_unsupported_history_days():
     with pytest.raises(HTTPException, match="history_days는 7 또는 30이어야 합니다"):
         await smoke_router.get_smoke_rotation_status(

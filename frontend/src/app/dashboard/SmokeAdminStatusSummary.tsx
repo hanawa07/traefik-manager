@@ -4,6 +4,7 @@ import { MonitorCheck } from "lucide-react";
 import type { SmokeRotationStatus } from "@/features/settings/api/settingsApi";
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 import { SmokeDeploymentRevisionStatus } from "./SmokeDeploymentRevisionStatus";
+import { SmokeHostRunTrend } from "./SmokeHostRunTrend";
 import { SmokeRunTrend } from "./SmokeRunTrend";
 
 interface SmokeAdminStatusSummaryProps {
@@ -58,17 +59,13 @@ export function SmokeAdminStatusSummary({
                   runs={[]}
                   timezone={timezone}
                 />
-                <div
-                  className="mt-2 flex flex-wrap items-center gap-2 text-[11px]"
-                  data-smoke-history-access="local"
-                  data-testid="smoke-run-trend"
-                >
-                  <span className="font-semibold">운영 점검 추이</span>
-                  <span>Tailnet 호스트의 월간 로컬 점검을 사용합니다.</span>
-                  <span>
-                    전환 전 GitHub 실행 통계와 로컬 콜백 이력은 관리자 계정에서 확인합니다.
-                  </span>
-                </div>
+                <SmokeHostRunTrend
+                  limit={status.monitoring_host_run_limit ?? 20}
+                  retentionDays={status.monitoring_host_run_retention_days ?? 365}
+                  runs={status.monitoring_host_runs ?? []}
+                  timezone={timezone}
+                  total={status.monitoring_host_run_total ?? 0}
+                />
               </>
             ) : canViewHistory ? (
               <>

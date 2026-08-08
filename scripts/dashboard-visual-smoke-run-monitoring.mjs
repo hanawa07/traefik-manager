@@ -33,6 +33,7 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
   if (initial.access === "local") {
     assert.match(initial.text || "", /Tailnet 호스트의 월간 로컬 점검/);
     assert.match(initial.text || "", /전환 전 GitHub 실행 통계/);
+    assert.match(initial.text || "", /호스트 실행 이력/);
     assert.ok(["pending", "match", "mismatch"].includes(initial.revisionStatus));
     assert.match(initial.revisionText || "", /운영 스모크 커밋/);
     return "local";

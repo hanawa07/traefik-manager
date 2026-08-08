@@ -137,6 +137,9 @@ export interface SmokeLocalRun {
   completed_at: string;
   duration_seconds: number | null;
   admin_checked: boolean;
+  source: "github" | "host";
+  revision: string | null;
+  detail: string | null;
 }
 
 export interface SmokeRotationStatus {
@@ -168,6 +171,12 @@ export interface SmokeRotationStatus {
   monitoring_local_run_total: number;
   monitoring_local_run_limit: number;
   monitoring_local_run_retention_days: number;
+  monitoring_host_runs: SmokeLocalRun[];
+  monitoring_host_run_total: number;
+  monitoring_host_run_limit: number;
+  monitoring_host_run_retention_days: number;
+  monitoring_github_history_max_days: number;
+  monitoring_statistics_snapshot_retention_days: number;
   monitoring_history_checked_at: string | null;
   monitoring_history_data_checked_at: string | null;
   monitoring_history_error: string | null;
@@ -233,6 +242,7 @@ export const smokeRotationSettingsApi = {
     const response = await apiClient.get<SmokeRotationStatus>("/settings/smoke-rotation", {
       params: {
         history: true,
+        reference_history: true,
         history_days: days,
         history_page: page,
         history_search: search || undefined,

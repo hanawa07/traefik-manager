@@ -187,7 +187,8 @@ Compose 파일명이 기본 `docker-compose.yml`이 아니면 Traefik 디렉터�
 - 로컬 실행에 `TM_SMOKE_ADMIN_USERNAME`과 `TM_SMOKE_ADMIN_PASSWORD`를 함께 전달하면 관리자 전용 병목 이벤트 정리 확인창과 취소 흐름도 검사합니다. 미리보기 응답을 브라우저에서 대체하고 POST를 차단하므로 운영 이벤트는 삭제하지 않습니다.
 - GitHub 수동 실패 시험은 합성 화면 PNG를 아티팩트로 7일간 보관합니다.
 - `TM_SMOKE_TELEGRAM_BOT_TOKEN`과 `TM_SMOKE_TELEGRAM_CHAT_ID` 비밀값이 있으면 실패 실행 링크를 Telegram으로 전송합니다.
-- `scripts/rotate-smoke-viewer-password.sh`는 활성 blue/green backend를 찾아 `traefik-smoke-viewer`와 `traefik-smoke-admin` 비밀번호를 교체하고 같은 실행에서 일반·관리자 인증 스모크로 검증합니다. 비밀번호는 GitHub로 전송하거나 저장하지 않습니다.
+- `scripts/rotate-smoke-viewer-password.sh`는 활성 blue/green backend를 찾아 `traefik-smoke-viewer`와 `traefik-smoke-admin` 비밀번호를 교체하고 같은 실행에서 일반·관리자 인증 스모크로 검증합니다. 실행 결과와 소요시간은 Manager에 365일 보관하고 최근 20건을 표시하며, 비밀번호는 GitHub로 전송하거나 저장하지 않습니다.
+- Tailnet 전용 모드에서 GitHub 실행은 운영 상태가 아닌 참고 이력입니다. 대시보드는 GitHub API를 조회하지 않고, 설정에서 참고 이력을 열 때만 최대 30일 조회합니다. 콜백과 일별 통계 스냅샷은 365일 보관하며 GitHub 원본 실행 보존 기간은 저장소의 Actions 정책을 따릅니다.
 - 전용 계정 이름을 바꾸는 경우 backend의 `SMOKE_VIEWER_USERNAME`·`SMOKE_ADMIN_USERNAME`을 각각 같은 값으로 설정합니다.
 - 운영 호스트에서는 매월 1일 04:17에 두 계정을 회전하는 기존 사용자 cron을 사용합니다. 실행 로그는 `~/.local/state/traefik-manager/smoke-password-rotation.log`에 저장합니다.
 - 회전 결과는 설정 화면의 `운영 로그인·화면 점검` 카드 안에 별도 표시되며, 실패하면 현재 설정 변경 알림 채널로 실패 단계가 전송됩니다.

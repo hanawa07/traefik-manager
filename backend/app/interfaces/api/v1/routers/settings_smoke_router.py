@@ -27,6 +27,7 @@ from app.interfaces.api.v1.routers.settings_smoke_failure_metadata_cleanup impor
     cleanup_smoke_failure_metadata_action as _cleanup_smoke_failure_metadata_action,
 )
 from app.interfaces.api.v1.routers.settings_smoke_monitoring_values import (
+    get_smoke_monitoring_mode,
     read_smoke_monitoring_values,
     should_run_scheduled_smoke,
 )
@@ -81,6 +82,7 @@ async def get_smoke_rotation_status(
     refresh_monitoring_history: bool = False,
     summary: bool = False,
     history: bool = False,
+    reference_history: bool = False,
     history_days: int | None = None,
     history_page: int = 1,
     history_search: str | None = None,
@@ -110,7 +112,11 @@ async def get_smoke_rotation_status(
         )
     is_admin = current_user["role"] == "admin"
     include_admin_details = is_admin and not summary
-    include_monitoring_history = include_admin_details or (is_admin and history)
+    include_monitoring_history = include_admin_details or (
+        is_admin
+        and history
+        and (get_smoke_monitoring_mode() != "local" or reference_history)
+    )
     if include_admin_details and refresh_monitoring_history:
         refresh_block_message = github_api_manual_refresh_block_message()
         if refresh_block_message:

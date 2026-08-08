@@ -180,6 +180,7 @@ async function checkSmokeHistoryAdminReadOnly({
       })`);
       assert.ok(["pending", "match", "mismatch"].includes(localStatus.revision));
       assert.match(localStatus.text || "", /Tailnet 호스트의 월간 로컬 점검/);
+      assert.match(localStatus.text || "", /호스트 실행 이력/);
       return;
     }
     await waitForCondition(

@@ -32,6 +32,9 @@ export function SmokeAccountRotationSummary({
   const recentLogLines = status.recent_log_lines ?? [];
   const secretRetryCount =
     status.detail?.match(/GitHub secret 갱신 실패: .+ \(시도 (\d+\/\d+)\)$/)?.[1];
+  const hostRunTotal = status.monitoring_host_run_total ?? 0;
+  const hostRunLimit = status.monitoring_host_run_limit ?? 20;
+  const hostRunRetentionDays = status.monitoring_host_run_retention_days ?? 365;
 
   return (
     <>
@@ -59,10 +62,16 @@ export function SmokeAccountRotationSummary({
         value={formatDateTime(status.last_success_at, timezone)}
       />
       {status.monitoring_mode === "local" ? (
-        <SettingsSummaryRow
-          label="최근 로컬 점검 커밋"
-          value={status.last_revision ? <code>{status.last_revision.slice(0, 12)}</code> : "기록 없음"}
-        />
+        <>
+          <SettingsSummaryRow
+            label="최근 로컬 점검 커밋"
+            value={status.last_revision ? <code>{status.last_revision.slice(0, 12)}</code> : "기록 없음"}
+          />
+          <SettingsSummaryRow
+            label="로컬 점검 실행 이력"
+            value={`${hostRunTotal}건 · ${hostRunRetentionDays}일 보관 · 최근 ${Math.min(hostRunTotal, hostRunLimit)}건 표시`}
+          />
+        </>
       ) : null}
       <SettingsSummaryRow label="계정 회전 주기" value="매월 1일 04:17" />
       <SettingsSummaryRow

@@ -76,6 +76,23 @@ export function SmokeMonitoringOverview({
         label="점검 시각"
         value={isLocalMode ? "04:17 (호스트 시간)" : `${scheduleTime} (${scheduleTimezone})`}
       />
+      {isLocalMode ? (
+        <SettingsSummaryRow
+          label="GitHub 참고 이력 정책"
+          value={
+            <span className="flex max-w-md flex-col items-end text-right text-xs">
+              <span>
+                실행 조회 최대 {status.monitoring_github_history_max_days ?? 30}일 · 콜백{" "}
+                {status.monitoring_local_run_retention_days ?? 365}일 · 통계 스냅샷{" "}
+                {status.monitoring_statistics_snapshot_retention_days ?? 365}일
+              </span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                GitHub 원본 실행 보존 기간은 저장소의 Actions 정책을 따릅니다.
+              </span>
+            </span>
+          }
+        />
+      ) : null}
       <SettingsSummaryRow
         label="실패율 경고 기준"
         value={`최근 ${status.monitoring_failure_rate_window_days}일 ${status.monitoring_failure_rate_min_runs}회 이상 · ${status.monitoring_failure_rate_threshold_percent}% 이상`}

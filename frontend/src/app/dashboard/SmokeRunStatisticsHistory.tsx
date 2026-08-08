@@ -101,7 +101,7 @@ function SmokeRunStatisticsHistoryContent({
       data-testid="smoke-statistics-history"
     >
       <summary className="cursor-pointer font-semibold">
-        로컬 기록 · 통계 {snapshots.length}회 · 실행 {localRunTotal}건
+        Manager 저장 기록 · 통계 {snapshots.length}회 · 실행 {localRunTotal}건
       </summary>
       <div className="mt-2 flex flex-wrap items-start justify-between gap-2">
         <p className="max-w-3xl opacity-75">
@@ -160,7 +160,7 @@ function SmokeRunStatisticsHistoryContent({
       <div className="mt-3 border-t border-current/15 pt-2">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <p className="font-semibold">콜백 실행 이력</p>
+            <p className="font-semibold">GitHub 콜백 실행 이력</p>
             <p className="mt-1 tabular-nums" data-testid="smoke-local-run-counts">
               전체 보관 {localRunTotal}건 · 화면 최근 {localRuns.length}/{localRunLimit}건 · 현재
               조건 {filteredLocalRuns.length}건
