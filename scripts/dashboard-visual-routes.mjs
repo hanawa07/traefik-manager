@@ -128,8 +128,6 @@ export const DASHBOARD_ROUTES = [
       "보조 제한 다음 재알림 가능",
       "수동 실행 실패 시 Telegram 알림 생략",
       "링크를 열면 새 실행 결과를 6분간 자동 확인합니다.",
-      "최근 dry-run 결과",
-      "dry-run 최근 이력",
       "회전 실패 단계",
       "Secret 재시도 횟수",
       "Manager Docker 감지",
