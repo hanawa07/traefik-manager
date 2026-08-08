@@ -6,6 +6,7 @@ import pytest
 from app.infrastructure.smoke_local_run_records import (
     SMOKE_LOCAL_RUN_KEY_PREFIX,
     read_smoke_local_runs,
+    record_smoke_host_run,
     record_smoke_local_run,
 )
 
@@ -73,3 +74,63 @@ async def test_record_smoke_local_run_is_idempotent_and_removes_expired() -> Non
     assert total == 1
     assert updated[0]["status"] == "failure"
     assert updated[0]["duration_seconds"] is None
+
+
+@pytest.mark.asyncio
+async def test_host_runs_are_kept_separate_from_github_callbacks() -> None:
+    repository = StubRepository()
+    completed_at = datetime(2026, 8, 2, 1, 2, tzinfo=timezone.utc)
+    await record_smoke_host_run(
+        repository,
+        status="success",
+        started_at=datetime(2026, 8, 2, 1, 0, tzinfo=timezone.utc),
+        completed_at=completed_at,
+        revision="ABCDEF1234567",
+    )
+
+    github_runs, github_total = await read_smoke_local_runs(
+        repository,
+        now=completed_at,
+        source="github",
+    )
+    host_runs, host_total = await read_smoke_local_runs(
+        repository,
+        now=completed_at,
+        source="host",
+    )
+
+    assert github_runs == []
+    assert github_total == 0
+    assert host_total == 1
+    assert host_runs[0]["source"] == "host"
+    assert host_runs[0]["revision"] == "abcdef1234567"
+    assert host_runs[0]["duration_seconds"] == 120
+
+
+@pytest.mark.asyncio
+async def test_invalid_host_record_types_are_ignored() -> None:
+    repository = StubRepository(
+        {
+            f"{SMOKE_LOCAL_RUN_KEY_PREFIX}3": json.dumps(
+                {
+                    "run_id": 3,
+                    "status": "success",
+                    "started_at": None,
+                    "completed_at": "2026-08-02T01:02:00+00:00",
+                    "duration_seconds": None,
+                    "admin_checked": True,
+                    "source": [],
+                    "revision": 123,
+                }
+            )
+        }
+    )
+
+    records, total = await read_smoke_local_runs(
+        repository,
+        now=datetime(2026, 8, 2, 1, 2, tzinfo=timezone.utc),
+        source="host",
+    )
+
+    assert records == []
+    assert total == 0

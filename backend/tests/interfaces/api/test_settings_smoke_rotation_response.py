@@ -114,6 +114,10 @@ async def test_get_smoke_rotation_status_defaults_to_never() -> None:
     assert result.monitoring_local_runs == []
     assert result.monitoring_local_run_total == 0
     assert result.monitoring_local_run_limit == 20
+    assert result.monitoring_host_runs == []
+    assert result.monitoring_host_run_total == 0
+    assert result.monitoring_github_history_max_days == 30
+    assert result.monitoring_statistics_snapshot_retention_days == 365
 
 
 @pytest.mark.asyncio
@@ -230,6 +234,13 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
             '"completed_at":"2026-07-13T01:00:00+00:00","duration_seconds":120,'
             '"admin_checked":false}'
         ),
+        "dashboard_smoke_local_run_1780000000000000": (
+            '{"run_id":1780000000000000,"status":"success",'
+            '"started_at":"2026-07-13T00:57:00+00:00",'
+            '"completed_at":"2026-07-13T01:00:00+00:00","duration_seconds":180,'
+            '"admin_checked":true,"source":"host","revision":"abcdef1234567",'
+            '"detail":null}'
+        ),
     }
     history_reader = StubSmokeHistoryReader()
     monkeypatch.setattr(
@@ -300,6 +311,12 @@ async def test_get_smoke_rotation_status_includes_remote_history_for_admin(monke
     assert result.monitoring_local_run_total == 1
     assert result.monitoring_local_run_limit == 20
     assert result.monitoring_local_run_retention_days == 365
+    assert result.monitoring_host_runs[0].source == "host"
+    assert result.monitoring_host_runs[0].duration_seconds == 180
+    assert result.monitoring_host_runs[0].revision == "abcdef1234567"
+    assert result.monitoring_host_run_total == 1
+    assert result.monitoring_host_run_limit == 20
+    assert result.monitoring_host_run_retention_days == 365
     assert result.monitoring_history_checked_at == "2026-07-13T01:00:00+00:00"
     assert result.monitoring_history_data_checked_at == "2026-07-13T00:55:00+00:00"
     assert result.monitoring_history_error is None

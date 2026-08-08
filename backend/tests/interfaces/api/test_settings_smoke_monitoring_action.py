@@ -23,6 +23,9 @@ class StubRepository:
     async def set(self, key: str, value: str) -> None:
         self.values[key] = value
 
+    async def get_all_dict(self) -> dict[str, str]:
+        return dict(self.values)
+
 
 class StubAuditService:
     def __init__(self) -> None:

@@ -19,6 +19,8 @@ from app.infrastructure.persistence.database import AsyncSessionLocal
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
     SQLiteSystemSettingsRepository,
 )
+from app.infrastructure.smoke_local_run_records import record_smoke_host_run
+from app.infrastructure.smoke_workflow_runs import parse_run_timestamp
 
 
 async def record_smoke_rotation_status(
@@ -28,13 +30,15 @@ async def record_smoke_rotation_status(
     status: str,
     detail: str | None = None,
     revision: str | None = None,
+    started_at: datetime | None = None,
     now: datetime | None = None,
     audit_recorder: Callable[..., Any] = audit_service.record,
 ) -> None:
     if status not in SMOKE_ROTATION_STATUSES:
         raise ValueError(f"지원하지 않는 회전 상태입니다: {status}")
 
-    recorded_at = (now or datetime.now(timezone.utc)).isoformat()
+    completed_at = now or datetime.now(timezone.utc)
+    recorded_at = completed_at.isoformat()
     safe_detail = (detail or "").strip()[:200] or None
     safe_revision = normalize_smoke_revision(revision)
     if revision and safe_revision is None:
@@ -51,6 +55,16 @@ async def record_smoke_rotation_status(
         audit_event = "smoke_rotation_succeeded"
     elif status == "failure":
         audit_event = "smoke_rotation_failed"
+
+    if status in {"success", "failure"} and started_at is not None:
+        await record_smoke_host_run(
+            repo,
+            status=status,
+            started_at=started_at,
+            completed_at=completed_at,
+            revision=safe_revision,
+            detail=safe_detail,
+        )
 
     if audit_event:
         audit_detail = {"event": audit_event}
@@ -73,6 +87,7 @@ async def report_smoke_rotation(
     status: str,
     detail: str | None = None,
     revision: str | None = None,
+    started_at: datetime | None = None,
 ) -> None:
     async with AsyncSessionLocal() as db:
         repo = SQLiteSystemSettingsRepository(db)
@@ -82,6 +97,7 @@ async def report_smoke_rotation(
             status=status,
             detail=detail,
             revision=revision,
+            started_at=started_at,
         )
         await db.commit()
 
@@ -96,11 +112,15 @@ def main() -> None:
     )
     parser.add_argument("--detail", default=os.getenv("TM_SMOKE_ROTATION_DETAIL"))
     parser.add_argument("--revision", default=os.getenv("TM_SMOKE_ROTATION_REVISION"))
+    parser.add_argument("--started-at", default=os.getenv("TM_SMOKE_ROTATION_STARTED_AT"))
     args = parser.parse_args()
     if args.status is None:
         parser.error("status가 필요합니다")
 
-    asyncio.run(report_smoke_rotation(args.status, args.detail, args.revision))
+    started_at = parse_run_timestamp(args.started_at or "")
+    if args.started_at and started_at is None:
+        parser.error("started-at 형식이 올바르지 않습니다")
+    asyncio.run(report_smoke_rotation(args.status, args.detail, args.revision, started_at))
     print(f"스모크 계정 회전 상태 기록 완료: {args.status}")
 
 

@@ -67,4 +67,5 @@ def test_local_smoke_records_the_active_deployment_revision() -> None:
 
     assert "blue-green-deployment.state" in script
     assert "TM_SMOKE_ROTATION_REVISION" in script
+    assert "TM_SMOKE_ROTATION_STARTED_AT" in script
     assert 'smoke_revision="$(resolve_deployed_revision)"' in script

@@ -31,6 +31,7 @@ from app.infrastructure.smoke_run_history import (
     read_smoke_history_cache_diagnostics,
 )
 from app.infrastructure.smoke_statistics_snapshots import (
+    SMOKE_STATISTICS_SNAPSHOT_RETENTION_DAYS,
     sync_smoke_statistics_snapshots,
 )
 from app.interfaces.api.v1.routers.settings_smoke_failure_metadata import (
@@ -81,6 +82,11 @@ async def get_smoke_rotation_status_response(
     if monitoring_mode == "local":
         monitoring["monitoring_enabled"] = False
     run_status = await read_smoke_run_status(repo)
+    host_runs, host_run_total = await read_smoke_local_runs(
+        repo,
+        now=now,
+        source="host",
+    )
     admin_stale_after_days = 8 if monitoring["monitoring_frequency"] == "weekly" else 2
     admin_is_stale = monitoring["monitoring_enabled"] and is_smoke_success_stale(
         run_status["monitoring_admin_last_success_at"],
@@ -136,7 +142,11 @@ async def get_smoke_rotation_status_response(
             checked_at=run_history["checked_at"],
             now=now,
         )
-        local_runs, local_run_total = await read_smoke_local_runs(repo, now=now)
+        local_runs, local_run_total = await read_smoke_local_runs(
+            repo,
+            now=now,
+            source="github",
+        )
     github_rate_limit = (
         read_github_api_rate_limit()
         if include_monitoring_history
@@ -177,6 +187,14 @@ async def get_smoke_rotation_status_response(
         monitoring_local_run_total=local_run_total,
         monitoring_local_run_limit=SMOKE_LOCAL_RUN_DISPLAY_LIMIT,
         monitoring_local_run_retention_days=SMOKE_LOCAL_RUN_RETENTION_DAYS,
+        monitoring_host_runs=host_runs,
+        monitoring_host_run_total=host_run_total,
+        monitoring_host_run_limit=SMOKE_LOCAL_RUN_DISPLAY_LIMIT,
+        monitoring_host_run_retention_days=SMOKE_LOCAL_RUN_RETENTION_DAYS,
+        monitoring_github_history_max_days=30,
+        monitoring_statistics_snapshot_retention_days=(
+            SMOKE_STATISTICS_SNAPSHOT_RETENTION_DAYS
+        ),
         monitoring_history_checked_at=run_history["checked_at"],
         monitoring_history_data_checked_at=run_history["data_checked_at"],
         monitoring_history_error=run_history["error"],

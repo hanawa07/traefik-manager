@@ -132,6 +132,9 @@ class SmokeLocalRunResponse(BaseModel):
     completed_at: str
     duration_seconds: int | None = Field(default=None, ge=0)
     admin_checked: bool = False
+    source: Literal["github", "host"] = "github"
+    revision: str | None = Field(default=None, min_length=7, max_length=40)
+    detail: str | None = Field(default=None, max_length=200)
 
 
 class SmokeRotationStatusResponse(BaseModel):
@@ -174,6 +177,12 @@ class SmokeRotationStatusResponse(BaseModel):
     monitoring_local_run_total: int = 0
     monitoring_local_run_limit: int = 20
     monitoring_local_run_retention_days: int = 365
+    monitoring_host_runs: list[SmokeLocalRunResponse] = Field(default_factory=list)
+    monitoring_host_run_total: int = 0
+    monitoring_host_run_limit: int = 20
+    monitoring_host_run_retention_days: int = 365
+    monitoring_github_history_max_days: int = 30
+    monitoring_statistics_snapshot_retention_days: int = 365
     monitoring_history_checked_at: str | None = None
     monitoring_history_data_checked_at: str | None = None
     monitoring_history_error: str | None = None

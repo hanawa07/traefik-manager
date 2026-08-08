@@ -17,6 +17,7 @@ backend_service=""
 viewer_password=""
 admin_password=""
 smoke_revision=""
+smoke_started_at=""
 rotation_step="초기화"
 
 cd "${REPO_ROOT}"
@@ -69,10 +70,12 @@ report_rotation_status() {
   [[ -n "${backend_service}" ]] || return 1
   TM_SMOKE_ROTATION_STATUS="${status}" TM_SMOKE_ROTATION_DETAIL="${detail}" \
     TM_SMOKE_ROTATION_REVISION="${smoke_revision}" \
+    TM_SMOKE_ROTATION_STARTED_AT="${smoke_started_at}" \
     docker compose exec -T \
       -e TM_SMOKE_ROTATION_STATUS \
       -e TM_SMOKE_ROTATION_DETAIL \
       -e TM_SMOKE_ROTATION_REVISION \
+      -e TM_SMOKE_ROTATION_STARTED_AT \
       "${backend_service}" python -m app.interfaces.cli.smoke_rotation_reporter
 }
 
@@ -138,7 +141,7 @@ fi
 
 trap handle_exit EXIT
 
-for command_name in docker flock git openssl; do
+for command_name in date docker flock git openssl; do
   command -v "${command_name}" >/dev/null || {
     echo "필수 명령을 찾을 수 없습니다: ${command_name}" >&2
     exit 1
@@ -158,6 +161,7 @@ backend_service="$(resolve_backend_service)"
 
 rotation_step="배포 커밋 확인"
 smoke_revision="$(resolve_deployed_revision)"
+smoke_started_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
 rotation_step="회전 시작 상태 기록"
 report_rotation_status running "회전을 시작했습니다"
