@@ -77,7 +77,7 @@ async def check_manager_settings_history_latency_once(
         ready = bool(summary.get("ready"))
         breached = bool(summary.get("breached"))
         was_active = bool(previous.get("alert_active"))
-        alert_active = breached if ready else was_active
+        alert_active = ready and breached
         event: str | None = None
         suppressed_count = 0
         if ready and breached and _alert_due(

@@ -111,7 +111,7 @@ async def test_settings_history_latency_alerts_cools_down_and_recovers(monkeypat
 
     assert first["recorded_event_count"] == 1
     assert sampling["ready"] is False
-    assert sampling["alert_active"] is True
+    assert sampling["alert_active"] is False
     assert sampling["recorded_event_count"] == 0
     assert suppressed["suppressed_count"] == 1
     assert repeated["recorded_event_count"] == 1
