@@ -44,6 +44,8 @@ async function checkSmokeHistoryRetryAdminFixture({
     const refreshReserve = fixture.monitoring_github_refresh_reserve ?? 10;
     const readyFixture = {
       ...fixture,
+      monitoring_enabled: true,
+      monitoring_mode: "remote",
       monitoring_github_rate_limit_remaining: Math.max(refreshReserve + 1, 42),
       monitoring_github_rate_limit_reset_at: null,
       monitoring_github_secondary_limit_retry_at: null,
@@ -161,6 +163,25 @@ async function checkSmokeHistoryAdminReadOnly({
     const loaded = cdp.waitFor("Page.loadEventFired", timeoutMs);
     await cdp.send("Page.navigate", { url: `${baseUrl}/dashboard` });
     await loaded;
+    await waitForCondition(
+      cdp,
+      `document.querySelector('[data-testid="smoke-run-trend"]') instanceof HTMLElement`,
+      timeoutMs,
+      "관리자 운영 점검 상태를 확인하지 못했습니다",
+    );
+    const historyAccess = await evaluate(cdp, `document.querySelector(
+      '[data-testid="smoke-run-trend"]'
+    )?.getAttribute('data-smoke-history-access')`);
+    if (historyAccess === "local") {
+      const localStatus = await evaluate(cdp, `({
+        revision: document.querySelector('[data-testid="smoke-deployment-revision-status"]')
+          ?.getAttribute('data-smoke-revision-status'),
+        text: document.querySelector('[data-testid="smoke-run-trend"]')?.textContent,
+      })`);
+      assert.ok(["pending", "match", "mismatch"].includes(localStatus.revision));
+      assert.match(localStatus.text || "", /Tailnet 호스트의 월간 로컬 점검/);
+      return;
+    }
     await waitForCondition(
       cdp,
       `(() => {
