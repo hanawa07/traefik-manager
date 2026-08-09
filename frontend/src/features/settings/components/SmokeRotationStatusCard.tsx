@@ -92,7 +92,12 @@ export function SmokeRotationStatusCard({
         icon={<MonitorCheck className="h-5 w-5 text-cyan-600" />}
         title="운영 로그인·화면 점검"
         description="정상 사용자 로그인과 주요 화면 로딩을 확인하는 운영 점검입니다. 공격 탐지나 취약점 검사는 로그인 보안 방어와 별개입니다."
-        canEdit={canManage && !isEditing && !isLoading}
+        canEdit={
+          canManage &&
+          status?.monitoring_mode === "remote" &&
+          !isEditing &&
+          !isLoading
+        }
         onEdit={onEdit}
       />
 
@@ -102,10 +107,9 @@ export function SmokeRotationStatusCard({
         <p className="text-sm text-rose-600 dark:text-rose-300">
           운영 점검 상태를 불러오지 못했습니다.
         </p>
-      ) : isEditing ? (
+      ) : isEditing && status.monitoring_mode === "remote" ? (
         <SmokeMonitoringSettingsEditForm
           formValue={formValue}
-          mode={status.monitoring_mode}
           scheduleTime={scheduleTime}
           scheduleTimezone={scheduleTimezone}
           errorMessage={errorMessage}

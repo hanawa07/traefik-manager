@@ -1,14 +1,10 @@
 import { Save, X } from "lucide-react";
 
-import type {
-  SmokeMonitoringMode,
-  SmokeMonitoringSettingsInput,
-} from "@/features/settings/api/settingsApi";
+import type { SmokeMonitoringSettingsInput } from "@/features/settings/api/settingsApi";
 import { SettingsActionRow } from "@/features/settings/components/SettingsCardPrimitives";
 
 interface SmokeMonitoringSettingsEditFormProps {
   formValue: SmokeMonitoringSettingsInput;
-  mode: SmokeMonitoringMode;
   scheduleTime: string;
   scheduleTimezone: string;
   errorMessage: string;
@@ -21,7 +17,6 @@ interface SmokeMonitoringSettingsEditFormProps {
 
 export function SmokeMonitoringSettingsEditForm({
   formValue,
-  mode,
   scheduleTime,
   scheduleTimezone,
   errorMessage,
@@ -35,7 +30,6 @@ export function SmokeMonitoringSettingsEditForm({
     failureMetadataCount - formValue.monitoring_failure_metadata_limit,
     0,
   );
-  const isLocalMode = mode === "local";
   return (
     <div className="space-y-4">
       <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 dark:border-slate-700">
@@ -43,19 +37,16 @@ export function SmokeMonitoringSettingsEditForm({
           type="checkbox"
           className="mt-0.5 h-4 w-4 rounded border-gray-300"
           checked={formValue.monitoring_enabled}
-          disabled={isLocalMode}
           onChange={(event) =>
             onFormChange({ ...formValue, monitoring_enabled: event.target.checked })
           }
         />
         <span>
           <span className="block text-sm font-medium text-gray-800 dark:text-slate-200">
-            {isLocalMode ? "GitHub 예약 점검 미사용" : "예약 자동 점검 사용"}
+            예약 자동 점검 사용
           </span>
           <span className="mt-1 block text-xs text-gray-500 dark:text-slate-400">
-            {isLocalMode
-              ? "Tailnet 전용 주소는 GitHub-hosted runner에서 접근할 수 없습니다. 월간 계정 회전 후 호스트 로컬 점검을 실행합니다."
-              : "중지해도 관리자가 시작한 수동 점검과 월간 비밀번호 회전 후 검증은 계속 실행됩니다."}
+            중지해도 관리자가 시작한 수동 점검과 월간 비밀번호 회전 후 검증은 계속 실행됩니다.
           </span>
         </span>
       </label>
@@ -66,7 +57,7 @@ export function SmokeMonitoringSettingsEditForm({
           id="smoke-monitoring-frequency"
           className="input"
           value={formValue.monitoring_frequency}
-          disabled={isLocalMode || !formValue.monitoring_enabled}
+          disabled={!formValue.monitoring_enabled}
           onChange={(event) =>
             onFormChange({
               ...formValue,
@@ -78,9 +69,7 @@ export function SmokeMonitoringSettingsEditForm({
           <option value="weekly">매주 일요일</option>
         </select>
         <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-          {isLocalMode
-            ? "Tailnet 로컬 점검은 매월 1일 04:17 계정 회전 직후 실행됩니다."
-            : `GitHub Actions가 ${scheduleTime} (${scheduleTimezone})에 설정을 확인하고 실행합니다.`}
+          GitHub Actions가 {scheduleTime} ({scheduleTimezone})에 설정을 확인하고 실행합니다.
         </p>
       </div>
 

@@ -10,6 +10,8 @@ export async function checkSmokeGithubReferenceDisclosure({ artifactDir, cdp, pr
     const disclosure = card?.querySelector('[data-testid="smoke-github-reference-history"]');
     return {
       exists: disclosure instanceof HTMLDetailsElement,
+      editVisible: Array.from(card?.querySelectorAll('button') || [])
+        .some((button) => button.textContent?.trim() === '편집'),
       open: disclosure instanceof HTMLDetailsElement ? disclosure.open : null,
       summary: disclosure?.querySelector('summary')?.textContent,
       text: card?.innerText,
@@ -19,6 +21,7 @@ export async function checkSmokeGithubReferenceDisclosure({ artifactDir, cdp, pr
     assert.match(initial.text || "", /실패율 경고 기준/);
     return false;
   }
+  assert.equal(initial.editVisible, false, "로컬 운영 점검에 원격 설정 편집 버튼이 표시됩니다");
   assert.equal(initial.open, false, "GitHub 참고 이력이 기본으로 접혀 있지 않습니다");
   assert.match(initial.summary || "", /전환 전 GitHub 실행 이력.*운영 판정 제외/s);
   assert.doesNotMatch(initial.text || "", /실패율 경고 기준/);
