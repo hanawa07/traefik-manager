@@ -11,6 +11,7 @@ import {
   checkSmokeFailureMetadataManagement,
 } from "./dashboard-visual-smoke-failure-metadata.mjs";
 import { fulfillJsonRequest } from "./dashboard-visual-smoke-history-fixture.mjs";
+import { checkRemoteSmokeSettingsForm } from "./dashboard-visual-smoke-settings-form.mjs";
 import { checkSmokeLocalRunFilters } from "./dashboard-visual-smoke-statistics-history.mjs";
 import { checkTraefikAlertRetryAdminFixture } from "./dashboard-visual-traefik-alert-retry.mjs";
 
@@ -286,6 +287,8 @@ async function checkSmokeRateLimitAdminFixture({
       return response.json();
     })()`);
     assert.ok(fixture, "관리자 운영 점검 fixture를 읽지 못했습니다");
+    fixture.monitoring_enabled = true;
+    fixture.monitoring_frequency = "daily";
     fixture.monitoring_mode = "remote";
     fixture.monitoring_github_rate_limit_remaining = 42;
     fixture.monitoring_github_rate_limit_limit = 60;
@@ -377,7 +380,8 @@ async function checkSmokeRateLimitAdminFixture({
       timeoutMs,
       "GitHub API 초기화 후 관리자 새로고침 버튼이 자동 해제되지 않았습니다",
     );
-    await checkSmokeFailureMetadataManagement({ cdp, fixture, timeoutMs });
+    const savedFixture = await checkRemoteSmokeSettingsForm({ cdp, fixture, timeoutMs });
+    await checkSmokeFailureMetadataManagement({ cdp, fixture: savedFixture, timeoutMs });
   } catch (error) {
     await Promise.allSettled([
       captureVisualScreenshot({ artifactDir, cdp, name: "admin-smoke-rate-limit-failure" }),
