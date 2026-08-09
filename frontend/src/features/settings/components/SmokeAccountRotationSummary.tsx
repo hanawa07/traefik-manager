@@ -37,8 +37,16 @@ export function SmokeAccountRotationSummary({
   const hostRunRetentionDays = status.monitoring_host_run_retention_days ?? 365;
 
   return (
-    <>
-      <div className="my-3 border-t border-gray-200 dark:border-slate-700" />
+    <section
+      aria-labelledby="smoke-account-rotation-heading"
+      className="space-y-2 border-t border-gray-200 pt-4 dark:border-slate-700"
+    >
+      <h3
+        id="smoke-account-rotation-heading"
+        className="text-sm font-semibold text-gray-800 dark:text-slate-100"
+      >
+        계정 회전 상태
+      </h3>
       <SettingsSummaryRow
         label="점검 계정 비밀번호"
         value={
@@ -102,7 +110,7 @@ export function SmokeAccountRotationSummary({
           로컬 점검 경로를 확인하세요.
         </div>
       ) : null}
-      <details className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-950">
+      <details className="mt-3 border-t border-gray-200 pt-3 dark:border-slate-700">
         <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
           최근 계정 회전 cron 로그 · {formatDateTime(status.log_updated_at, timezone)}
         </summary>
@@ -116,6 +124,6 @@ export function SmokeAccountRotationSummary({
           </p>
         )}
       </details>
-    </>
+    </section>
   );
 }

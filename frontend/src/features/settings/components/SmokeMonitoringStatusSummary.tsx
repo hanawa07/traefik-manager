@@ -5,6 +5,7 @@ import type {
 import { SettingsSummaryRow } from "@/features/settings/components/SettingsCardPrimitives";
 import { useGithubApiRefreshBlocked } from "@/features/settings/lib/smokeGithubRateLimit";
 import type { TrackedManualSmokeRun } from "@/features/settings/lib/smokeManualRunTracking";
+import { SmokeAccountRotationSummary } from "./SmokeAccountRotationSummary";
 import { SmokeGithubApiDiagnostics } from "./SmokeGithubApiDiagnostics";
 import { SmokeManualRunResult } from "./SmokeManualRunResult";
 import {
@@ -110,55 +111,78 @@ export function SmokeMonitoringStatusSummary({
 
   return (
     <>
-      <SmokeMonitoringOverview status={status} />
-      {!isLocalMode ? githubReferenceOverview : null}
-      <SettingsSummaryRow
-        label={isLocalMode ? "도구 자가 점검" : "수동 점검"}
-        value={
-          <span className="flex max-w-md flex-col items-end gap-1 text-right">
-            <a
-              className="text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
-              href={status.monitoring_workflow_url}
-              onClick={onManualRunOpen}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {isLocalMode ? "GitHub Actions self-test 열기" : "GitHub Actions에서 실행"}
-            </a>
-            <span
-              className="text-[11px] font-normal text-slate-500 dark:text-slate-400"
-              data-testid="smoke-manual-suppress-notice"
-            >
-              {isLocalMode
-                ? "실제 Tailnet 앱에는 접속하지 않으며 코드와 실패 알림 경로만 확인합니다. 수동 실행 실패 시 Telegram 알림 생략을 선택할 수 있습니다."
-                : "실행 창에서 수동 실행 실패 시 Telegram 알림 생략을 체크할 수 있습니다."}
-            </span>
-            <span
-              aria-live="polite"
-              className="text-[11px] font-normal text-slate-500 dark:text-slate-400"
-              data-testid="smoke-manual-tracking-status"
-            >
-              {canManage && isTrackingManualRun
-                ? "새 실행 결과 확인 중..."
-                : canManage && isGithubRefreshBlocked
-                  ? "GitHub API 초기화 후 새 실행 결과를 자동 확인할 수 있습니다."
-                  : `${canManage ? "" : "관리자 계정으로 "}링크를 열면 새 실행 결과를 6분간 자동 확인합니다.`}
-            </span>
-          </span>
-        }
-      />
-      {lastManualRun ? (
+      <section aria-labelledby="smoke-monitoring-status-heading" className="space-y-2">
+        <h3
+          id="smoke-monitoring-status-heading"
+          className="text-sm font-semibold text-gray-800 dark:text-slate-100"
+        >
+          점검 상태
+        </h3>
+        <SmokeMonitoringOverview status={status} />
+        {!isLocalMode ? githubReferenceOverview : null}
+      </section>
+
+      <SmokeAccountRotationSummary status={status} timezone={timezone} />
+
+      <section
+        aria-labelledby="smoke-monitoring-actions-heading"
+        className="space-y-2 border-t border-gray-200 pt-4 dark:border-slate-700"
+      >
+        <h3
+          id="smoke-monitoring-actions-heading"
+          className="text-sm font-semibold text-gray-800 dark:text-slate-100"
+        >
+          실행 작업
+        </h3>
         <SettingsSummaryRow
-          label="마지막 수동 점검 결과"
+          label={isLocalMode ? "도구 자가 점검" : "수동 점검"}
           value={
-            <SmokeManualRunResult
-              onClear={onClearManualRun}
-              run={lastManualRun}
-              timezone={timezone}
-            />
+            <span className="flex max-w-md flex-col items-end gap-1 text-right">
+              <a
+                className="text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+                href={status.monitoring_workflow_url}
+                onClick={onManualRunOpen}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {isLocalMode ? "GitHub Actions self-test 열기" : "GitHub Actions에서 실행"}
+              </a>
+              <span
+                className="text-[11px] font-normal text-slate-500 dark:text-slate-400"
+                data-testid="smoke-manual-suppress-notice"
+              >
+                {isLocalMode
+                  ? "실제 Tailnet 앱에는 접속하지 않으며 코드와 실패 알림 경로만 확인합니다. 수동 실행 실패 시 Telegram 알림 생략을 선택할 수 있습니다."
+                  : "실행 창에서 수동 실행 실패 시 Telegram 알림 생략을 체크할 수 있습니다."}
+              </span>
+              <span
+                aria-live="polite"
+                className="text-[11px] font-normal text-slate-500 dark:text-slate-400"
+                data-testid="smoke-manual-tracking-status"
+              >
+                {canManage && isTrackingManualRun
+                  ? "새 실행 결과 확인 중..."
+                  : canManage && isGithubRefreshBlocked
+                    ? "GitHub API 초기화 후 새 실행 결과를 자동 확인할 수 있습니다."
+                    : `${canManage ? "" : "관리자 계정으로 "}링크를 열면 새 실행 결과를 6분간 자동 확인합니다.`}
+              </span>
+            </span>
           }
         />
-      ) : null}
+        {lastManualRun ? (
+          <SettingsSummaryRow
+            label="마지막 수동 점검 결과"
+            value={
+              <SmokeManualRunResult
+                onClear={onClearManualRun}
+                run={lastManualRun}
+                timezone={timezone}
+              />
+            }
+          />
+        ) : null}
+      </section>
+
       {isLocalMode ? (
         <details
           className="border-t border-gray-200 pt-2 dark:border-slate-700"

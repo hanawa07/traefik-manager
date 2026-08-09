@@ -10,7 +10,6 @@ import {
   SettingsSummary,
 } from "@/features/settings/components/SettingsCardPrimitives";
 import type { TrackedManualSmokeRun } from "@/features/settings/lib/smokeManualRunTracking";
-import { SmokeAccountRotationSummary } from "./SmokeAccountRotationSummary";
 import { SmokeMonitoringSettingsEditForm } from "./SmokeMonitoringSettingsEditForm";
 import { SmokeMonitoringStatusSummary } from "./SmokeMonitoringStatusSummary";
 
@@ -153,7 +152,6 @@ export function SmokeRotationStatusCard({
             onTestGithubRateLimitAlert={onTestGithubRateLimitAlert}
             onTestFailureTypeIncreaseAlert={onTestFailureTypeIncreaseAlert}
           />
-          <SmokeAccountRotationSummary status={status} timezone={timezone} />
         </SettingsSummary>
       )}
     </div>

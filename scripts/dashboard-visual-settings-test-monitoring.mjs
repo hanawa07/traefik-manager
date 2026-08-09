@@ -8,15 +8,29 @@ export async function checkSmokeGithubReferenceDisclosure({ artifactDir, cdp, pr
   const initial = await evaluate(cdp, `(() => {
     const card = document.querySelector('[data-testid="smoke-rotation-status-card"]');
     const disclosure = card?.querySelector('[data-testid="smoke-github-reference-history"]');
+    const statusSection = card?.querySelector('[aria-labelledby="smoke-monitoring-status-heading"]');
+    const rotationSection = card?.querySelector('[aria-labelledby="smoke-account-rotation-heading"]');
+    const actionsSection = card?.querySelector('[aria-labelledby="smoke-monitoring-actions-heading"]');
+    const precedes = (first, second) => Boolean(
+      first && second && (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING)
+    );
     return {
       exists: disclosure instanceof HTMLDetailsElement,
       editVisible: Array.from(card?.querySelectorAll('button') || [])
         .some((button) => button.textContent?.trim() === '편집'),
+      sectionOrderValid: precedes(statusSection, rotationSection) &&
+        precedes(rotationSection, actionsSection),
+      sectionHeadings: [statusSection, rotationSection, actionsSection]
+        .map((section) => section?.querySelector('h3')?.textContent?.trim()),
+      actionLink: actionsSection?.querySelector('a')?.textContent,
       open: disclosure instanceof HTMLDetailsElement ? disclosure.open : null,
       summary: disclosure?.querySelector('summary')?.textContent,
       text: card?.innerText,
     };
   })()`);
+  assert.equal(initial.sectionOrderValid, true, "운영 점검 상태·계정 회전·실행 작업 순서가 올바르지 않습니다");
+  assert.deepEqual(initial.sectionHeadings, ["점검 상태", "계정 회전 상태", "실행 작업"]);
+  assert.match(initial.actionLink || "", /GitHub Actions/);
   if (!initial.exists) {
     assert.match(initial.text || "", /실패율 경고 기준/);
     return false;
