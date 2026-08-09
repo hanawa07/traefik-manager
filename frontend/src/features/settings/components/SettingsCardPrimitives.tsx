@@ -21,7 +21,7 @@ export function SettingsCardHeader({
       <div className="mb-2 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           {icon}
-          <h2 className="font-semibold text-gray-900 dark:text-slate-100">{title}</h2>
+          <h3 className="font-semibold text-gray-900 dark:text-slate-100">{title}</h3>
         </div>
         {action ? (
           action

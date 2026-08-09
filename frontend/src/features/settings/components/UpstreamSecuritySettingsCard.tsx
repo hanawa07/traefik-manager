@@ -34,7 +34,7 @@ export function UpstreamSecuritySettingsCard({
   onFormChange,
 }: UpstreamSecuritySettingsCardProps) {
   return (
-    <div className="card p-6 order-3">
+    <div className="card p-6">
       <SettingsCardHeader
         icon={<ShieldCheck className="w-5 h-5 text-rose-600" />}
         title="업스트림 보안"

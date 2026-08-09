@@ -73,7 +73,7 @@ export function DeploymentBottleneckSettingsCard({
       : `${formatDateTime(oldestEventAt, timezone)} ~ ${formatDateTime(newestEventAt, timezone)}`;
 
   return (
-    <div className="card order-2 p-6" data-testid="deployment-bottleneck-settings-card">
+    <div className="card p-6" data-testid="deployment-bottleneck-settings-card">
       <SettingsCardHeader
         icon={<TimerReset className="h-5 w-5 text-orange-600" />}
         title="배포 병목 운영 알림"

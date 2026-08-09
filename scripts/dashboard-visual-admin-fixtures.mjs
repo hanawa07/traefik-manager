@@ -12,6 +12,7 @@ import {
 } from "./dashboard-visual-smoke-failure-metadata.mjs";
 import { fulfillJsonRequest } from "./dashboard-visual-smoke-history-fixture.mjs";
 import { checkRemoteSmokeSettingsForm } from "./dashboard-visual-smoke-settings-form.mjs";
+import { checkSettingsSectionStructure } from "./dashboard-visual-settings-sections.mjs";
 import { checkSmokeLocalRunFilters } from "./dashboard-visual-smoke-statistics-history.mjs";
 import { checkTraefikAlertRetryAdminFixture } from "./dashboard-visual-traefik-alert-retry.mjs";
 
@@ -380,6 +381,7 @@ async function checkSmokeRateLimitAdminFixture({
       timeoutMs,
       "GitHub API 초기화 후 관리자 새로고침 버튼이 자동 해제되지 않았습니다",
     );
+    await checkSettingsSectionStructure({ canManage: true, cdp });
     const savedFixture = await checkRemoteSmokeSettingsForm({ cdp, fixture, timeoutMs });
     await checkSmokeFailureMetadataManagement({ cdp, fixture: savedFixture, timeoutMs });
   } catch (error) {

@@ -68,7 +68,7 @@ export function CloudflareDnsSettingsCard({
   onFormChange,
 }: CloudflareDnsSettingsCardProps) {
   return (
-    <div className="card p-6 h-full order-10">
+    <div className="card p-6 h-full">
       <SettingsCardHeader
         icon={<Cloud className="w-5 h-5 text-blue-600" />}
         title="Cloudflare DNS 자동 연동"

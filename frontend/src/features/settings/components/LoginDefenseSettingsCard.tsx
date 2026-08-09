@@ -35,7 +35,7 @@ export function LoginDefenseSettingsCard({
   onFormChange,
 }: LoginDefenseSettingsCardProps) {
   return (
-    <div className="card p-6 h-full order-4">
+    <div className="card p-6 h-full">
       <SettingsCardHeader
         icon={<ShieldCheck className="w-5 h-5 text-amber-600" />}
         title="로그인 보안 방어"

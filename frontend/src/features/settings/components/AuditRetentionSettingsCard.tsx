@@ -60,7 +60,7 @@ export function AuditRetentionSettingsCard({
   onFormChange,
 }: AuditRetentionSettingsCardProps) {
   return (
-    <div className="card order-7 p-6" data-testid="audit-retention-settings-card">
+    <div className="card p-6" data-testid="audit-retention-settings-card">
       <SettingsCardHeader
         icon={<Archive className="h-5 w-5 text-amber-600" />}
         title="감사 로그 보존"

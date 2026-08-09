@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import { BackupRestoreSettingsCard } from "@/features/settings/components/BackupRestoreSettingsCard";
 import { AuditRetentionSettingsCard } from "@/features/settings/components/AuditRetentionSettingsCard";
@@ -30,6 +30,36 @@ interface SettingsPageSectionsProps {
   backupRestore: ComponentProps<typeof BackupRestoreSettingsCard>;
 }
 
+function SettingsSectionGroup({
+  children,
+  sectionKey,
+  title,
+}: {
+  children: ReactNode;
+  sectionKey: "basic" | "security" | "operations" | "data";
+  title: string;
+}) {
+  const headingId = `settings-${sectionKey}-heading`;
+
+  return (
+    <section
+      aria-labelledby={headingId}
+      className="space-y-4"
+      data-testid={`settings-section-${sectionKey}`}
+    >
+      <h2
+        id={headingId}
+        className="border-b border-gray-200 pb-2 text-sm font-semibold text-gray-700 dark:border-slate-700 dark:text-slate-200"
+      >
+        {title}
+      </h2>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2" data-testid="settings-section-grid">
+        {children}
+      </div>
+    </section>
+  );
+}
+
 export function SettingsPageSections({
   canManage,
   timeDisplay,
@@ -46,20 +76,31 @@ export function SettingsPageSections({
   backupRestore,
 }: SettingsPageSectionsProps) {
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      <TimeDisplaySettingsCard {...timeDisplay} />
-      <AuditRetentionSettingsCard {...auditRetention} />
-      <CertificateDiagnosticsSettingsCard {...certificateDiagnostics} />
-      <DeploymentBottleneckSettingsCard {...deploymentBottleneck} />
-      <UpstreamSecuritySettingsCard {...upstreamSecurity} />
-      <LoginDefenseSettingsCard {...loginDefense} />
-      <SecurityAlertSettingsCard {...securityAlert} />
-      <SmokeRotationStatusCard {...smokeRotation} />
-      <SessionManagementCard {...sessionManagement} />
-      {canManage ? <UserManagementSection className="order-6" /> : null}
-      <TraefikDashboardSettingsCard {...traefikDashboard} />
-      <CloudflareDnsSettingsCard {...cloudflareDns} />
-      <BackupRestoreSettingsCard {...backupRestore} />
+    <div className="space-y-8" data-testid="settings-sections">
+      <SettingsSectionGroup sectionKey="basic" title="기본">
+        <TimeDisplaySettingsCard {...timeDisplay} />
+        <TraefikDashboardSettingsCard {...traefikDashboard} />
+      </SettingsSectionGroup>
+
+      <SettingsSectionGroup sectionKey="security" title="보안">
+        <LoginDefenseSettingsCard {...loginDefense} />
+        <UpstreamSecuritySettingsCard {...upstreamSecurity} />
+        <SessionManagementCard {...sessionManagement} />
+        {canManage ? <UserManagementSection /> : null}
+        <SecurityAlertSettingsCard {...securityAlert} />
+      </SettingsSectionGroup>
+
+      <SettingsSectionGroup sectionKey="operations" title="운영">
+        <CertificateDiagnosticsSettingsCard {...certificateDiagnostics} />
+        <DeploymentBottleneckSettingsCard {...deploymentBottleneck} />
+        <SmokeRotationStatusCard {...smokeRotation} />
+        <CloudflareDnsSettingsCard {...cloudflareDns} />
+      </SettingsSectionGroup>
+
+      <SettingsSectionGroup sectionKey="data" title="데이터">
+        <AuditRetentionSettingsCard {...auditRetention} />
+        <BackupRestoreSettingsCard {...backupRestore} />
+      </SettingsSectionGroup>
     </div>
   );
 }

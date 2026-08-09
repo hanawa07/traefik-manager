@@ -51,7 +51,7 @@ export function BackupRestoreSettingsCard({
   onImportModeChange,
 }: BackupRestoreSettingsCardProps) {
   return (
-    <div className="card p-6 h-full order-8">
+    <div className="card p-6 h-full">
       <SettingsCardHeader
         icon={<Settings className="w-5 h-5 text-indigo-600" />}
         title="백업 / 복원"

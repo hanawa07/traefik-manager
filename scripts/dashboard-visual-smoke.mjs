@@ -31,6 +31,10 @@ import {
   checkSettingsTestAuditLinks,
   checkSmokeGithubReferenceDisclosure,
 } from "./dashboard-visual-settings-test-monitoring.mjs";
+import {
+  checkSettingsSectionStructure,
+  runSettingsSectionStructureSelfTest,
+} from "./dashboard-visual-settings-sections.mjs";
 import { runSmokeStatisticsHistoryAssertionsSelfTest } from "./dashboard-visual-smoke-statistics-history.mjs";
 import { checkSmokeRunTrendRange } from "./dashboard-visual-smoke-run-monitoring.mjs";
 import { checkTraefikUpdateHistory } from "./dashboard-visual-traefik-update-history.mjs";
@@ -80,6 +84,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
           labels.push(`${profile.label} 감사 필터 조합·Traefik 자동 펼침·역링크·레이아웃`);
         }
         if (route.path === "/dashboard/settings") {
+          await checkSettingsSectionStructure({ canManage: capabilities.canManage, cdp });
+          labels.push(`${profile.label} 설정 기본·보안·운영·데이터 범주`);
           const githubHistoryCollapsed = await checkSmokeGithubReferenceDisclosure({
             artifactDir,
             cdp,
@@ -158,6 +164,7 @@ export async function runDashboardVisualSmokeSelfTest() {
   runDeploymentBottleneckCleanupSelfTest();
   runMaintenanceScheduleFixtureSelfTest();
   runAuditBulkOperationFixtureSelfTest();
+  runSettingsSectionStructureSelfTest();
   const serviceRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/services");
   const dashboardRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard");
   const auditRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/audit");

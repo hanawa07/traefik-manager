@@ -32,7 +32,7 @@ export function TimeDisplaySettingsCard({
   onFormValueChange: (value: string) => void;
 }) {
   return (
-    <div className="card order-1 p-6">
+    <div className="card p-6">
       <SettingsCardHeader
         icon={<Clock3 className="h-5 w-5 text-emerald-600" />}
         title="시간 표시 설정"

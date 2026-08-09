@@ -86,7 +86,7 @@ export function SmokeRotationStatusCard({
   const scheduleTimezone = status?.monitoring_schedule_timezone ?? "Asia/Seoul";
 
   return (
-    <div className="card order-6 p-6" data-testid="smoke-rotation-status-card">
+    <div className="card p-6" data-testid="smoke-rotation-status-card">
       <SettingsCardHeader
         icon={<MonitorCheck className="h-5 w-5 text-cyan-600" />}
         title="운영 로그인·화면 점검"

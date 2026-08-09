@@ -25,7 +25,7 @@ export function SessionManagementCard({
   onRevokeSession,
 }: SessionManagementCardProps) {
   return (
-    <div className="card order-5 h-full p-6">
+    <div className="card h-full p-6">
       <SettingsCardHeader
         icon={<ShieldCheck className="h-5 w-5 text-amber-600" />}
         title="세션 관리"

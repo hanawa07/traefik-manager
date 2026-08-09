@@ -34,7 +34,7 @@ export function CertificateDiagnosticsSettingsCard({
   onFormChange,
 }: CertificateDiagnosticsSettingsCardProps) {
   return (
-    <div className="card p-6 order-2">
+    <div className="card p-6">
       <SettingsCardHeader
         icon={<Bug className="w-5 h-5 text-violet-600" />}
         title="인증서 진단"

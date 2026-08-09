@@ -38,7 +38,7 @@ export function TraefikDashboardSettingsCard({
   onFormChange,
 }: TraefikDashboardSettingsCardProps) {
   return (
-    <div className="card p-6 h-full order-7">
+    <div className="card p-6 h-full">
       <SettingsCardHeader
         icon={<Bug className="w-5 h-5 text-violet-600" />}
         title="Traefik 디버그 대시보드"
