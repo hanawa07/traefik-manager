@@ -48,3 +48,41 @@ def test_request_log_reader_returns_none_without_files(tmp_path):
     assert read_manager_http_request_logs(target) is None
     assert get_manager_http_request_log_status(target)["file_count"] == 0
     assert manager_http_request_logs_available(target) is False
+
+
+def test_request_log_handler_excludes_synthetic_requests(tmp_path):
+    target = tmp_path / "manager-http-requests.jsonl"
+    handler = create_manager_http_request_log_handler(str(target))
+    handler.setFormatter(JsonFormatter())
+
+    normal = logging.LogRecord(
+        name="app.request",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="요청 완료",
+        args=(),
+        exc_info=None,
+    )
+    normal.path = "/api/v1/services"
+    normal.status_code = 200
+    synthetic = logging.LogRecord(
+        name="app.request",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="요청 완료",
+        args=(),
+        exc_info=None,
+    )
+    synthetic.path = "/api/v1/services"
+    synthetic.status_code = 200
+    synthetic.synthetic = True
+
+    handler.handle(normal)
+    handler.handle(synthetic)
+    handler.close()
+
+    lines = read_manager_http_request_logs(str(target)).splitlines()
+    assert len(lines) == 1
+    assert json.loads(lines[0])["path"] == "/api/v1/services"
