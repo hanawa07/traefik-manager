@@ -13,6 +13,11 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     thirty?.click();
     return {
       access: trend?.getAttribute('data-smoke-history-access'),
+      failureCount: Number(trend?.getAttribute('data-host-failure-count') || 0),
+      failureState: trend?.querySelector('[data-testid="smoke-host-latest-failure"]')
+        ?.getAttribute('data-host-failure-state'),
+      failureText: trend?.querySelector('[data-testid="smoke-host-latest-failure"]')
+        ?.textContent,
       revisionStatus: document.querySelector('[data-testid="smoke-deployment-revision-status"]')
         ?.getAttribute('data-smoke-revision-status'),
       revisionText: document.querySelector('[data-testid="smoke-deployment-revision-status"]')
@@ -36,6 +41,11 @@ export async function checkSmokeRunTrendRange({ cdp, timeoutMs }) {
     assert.match(initial.text || "", /호스트 실행 이력/);
     assert.ok(["pending", "match", "mismatch"].includes(initial.revisionStatus));
     assert.match(initial.revisionText || "", /운영 스모크 커밋/);
+    if (initial.failureCount > 0) {
+      assert.ok(["active", "recovered"].includes(initial.failureState));
+      assert.match(initial.failureText || "", /현재 실패 원인|최근 실패 원인/);
+      assert.match(initial.failureText || "", /단계·대상:.*완료:.*배포:/s);
+    }
     return "local";
   }
   assert.equal(initial.sevenPressed, "true", "운영 점검 추이의 기본 7일 범위가 선택되지 않았습니다");

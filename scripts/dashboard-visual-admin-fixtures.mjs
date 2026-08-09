@@ -140,12 +140,6 @@ async function checkSmokeHistoryRetryAdminFixture({
 export function runAdminVisualFixturesSelfTest() {
   assert.equal(shouldRequirePositiveGithubRunCount("ready"), true);
   assert.equal(shouldRequirePositiveGithubRunCount("error"), false);
-  assert.equal(assertLocalFailureSummary({ failureCount: "0" }), false);
-  assert.equal(assertLocalFailureSummary({
-    failureCount: "1",
-    failureState: "recovered",
-    failureText: "최근 실패 원인 · 이후 점검 성공 단계·대상: admin 계정 갱신 완료: 2026. 8. 9. 배포: abcdef123456",
-  }), true);
   assert.throws(
     () => shouldRequirePositiveGithubRunCount(null),
     /GitHub 실행 통계 상태를 확인하지 못했습니다/,
@@ -180,12 +174,6 @@ async function checkSmokeHistoryAdminReadOnly({
     )?.getAttribute('data-smoke-history-access')`);
     if (historyAccess === "local") {
       const localStatus = await evaluate(cdp, `({
-        failureCount: document.querySelector('[data-testid="smoke-run-trend"]')
-          ?.getAttribute('data-host-failure-count'),
-        failureState: document.querySelector('[data-testid="smoke-host-latest-failure"]')
-          ?.getAttribute('data-host-failure-state'),
-        failureText: document.querySelector('[data-testid="smoke-host-latest-failure"]')
-          ?.textContent,
         revision: document.querySelector('[data-testid="smoke-deployment-revision-status"]')
           ?.getAttribute('data-smoke-revision-status'),
         text: document.querySelector('[data-testid="smoke-run-trend"]')?.textContent,
@@ -193,7 +181,6 @@ async function checkSmokeHistoryAdminReadOnly({
       assert.ok(["pending", "match", "mismatch"].includes(localStatus.revision));
       assert.match(localStatus.text || "", /Tailnet 호스트의 월간 로컬 점검/);
       assert.match(localStatus.text || "", /호스트 실행 이력/);
-      assertLocalFailureSummary(localStatus);
       return;
     }
     await waitForCondition(
@@ -269,16 +256,6 @@ async function checkSmokeHistoryAdminReadOnly({
     await cdp.send("Network.clearBrowserCookies");
     await evaluate(cdp, `localStorage.removeItem("auth")`);
   }
-}
-
-function assertLocalFailureSummary({ failureCount, failureState, failureText }) {
-  if (!(Number(failureCount) > 0)) return false;
-  assert.ok(["active", "recovered"].includes(failureState));
-  assert.match(failureText || "", /현재 실패 원인|최근 실패 원인/);
-  assert.match(failureText || "", /단계·대상:/);
-  assert.match(failureText || "", /완료:/);
-  assert.match(failureText || "", /배포:/);
-  return true;
 }
 
 function shouldRequirePositiveGithubRunCount(historyState) {
