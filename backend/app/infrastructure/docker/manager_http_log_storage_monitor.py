@@ -60,10 +60,14 @@ async def check_manager_http_log_storage_once(
         previous_status = previous.get("status")
         was_active = bool(previous.get("alert_active"))
         event: str | None = None
+        repeatable_warning = status in {"docker", "unavailable"}
         if warning_active and (
             not was_active
             or previous_status != status
-            or _alert_due(previous, current, effective_cooldown_seconds)
+            or (
+                repeatable_warning
+                and _alert_due(previous, current, effective_cooldown_seconds)
+            )
         ):
             event = "manager_http_log_storage_warning"
         elif not warning_active and was_active:

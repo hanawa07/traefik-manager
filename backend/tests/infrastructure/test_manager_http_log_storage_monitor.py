@@ -71,7 +71,7 @@ def test_log_storage_monitor_compares_unrounded_capacity_percent():
 
 
 @pytest.mark.asyncio
-async def test_log_storage_monitor_alerts_cools_down_changes_and_recovers(monkeypatch):
+async def test_log_storage_monitor_does_not_repeat_capacity_warning(monkeypatch):
     StubSettingsRepository.store = {"manager_health_monitoring_enabled": "true"}
     StubDockerClient.storage = {
         "source": "persistent",
@@ -109,6 +109,14 @@ async def test_log_storage_monitor_alerts_cools_down_changes_and_recovers(monkey
         now=datetime(2026, 7, 14, 19, 2, tzinfo=timezone.utc),
         cooldown_seconds=3600,
     )
+    repeated_source_failure = (
+        await manager_http_log_storage_monitor.check_manager_http_log_storage_once(
+            session_factory=make_session,
+            client_factory=StubDockerClient,
+            now=datetime(2026, 7, 14, 20, 3, tzinfo=timezone.utc),
+            cooldown_seconds=3600,
+        )
+    )
     StubDockerClient.storage = {
         **StubDockerClient.storage,
         "source": "persistent",
@@ -117,16 +125,18 @@ async def test_log_storage_monitor_alerts_cools_down_changes_and_recovers(monkey
     recovered = await manager_http_log_storage_monitor.check_manager_http_log_storage_once(
         session_factory=make_session,
         client_factory=StubDockerClient,
-        now=datetime(2026, 7, 14, 19, 3, tzinfo=timezone.utc),
+        now=datetime(2026, 7, 14, 20, 4, tzinfo=timezone.utc),
         cooldown_seconds=3600,
     )
 
     assert first["status"] == "capacity"
     assert first["recorded_event_count"] == 1
     assert suppressed["suppressed_count"] == 1
-    assert repeated["recorded_event_count"] == 1
+    assert repeated["recorded_event_count"] == 0
+    assert repeated["suppressed_count"] == 1
     assert changed["status"] == "docker"
     assert changed["recorded_event_count"] == 1
+    assert repeated_source_failure["recorded_event_count"] == 1
     assert recovered["status"] == "healthy"
     assert recovered["recorded_event_count"] == 1
     assert [item["detail"]["event"] for item in recorded] == [
@@ -137,7 +147,7 @@ async def test_log_storage_monitor_alerts_cools_down_changes_and_recovers(monkey
     ]
     assert [item["detail"]["status"] for item in recorded] == [
         "capacity",
-        "capacity",
+        "docker",
         "docker",
         "healthy",
     ]
