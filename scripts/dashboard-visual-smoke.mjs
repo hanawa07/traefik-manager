@@ -80,7 +80,12 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
           labels.push(`${profile.label} 감사 필터 조합·Traefik 자동 펼침·역링크·레이아웃`);
         }
         if (route.path === "/dashboard/settings") {
-          const githubHistoryCollapsed = await checkSmokeGithubReferenceDisclosure({ cdp, timeoutMs });
+          const githubHistoryCollapsed = await checkSmokeGithubReferenceDisclosure({
+            artifactDir,
+            cdp,
+            profile,
+            timeoutMs,
+          });
           if (githubHistoryCollapsed) labels.push(`${profile.label} 전환 전 GitHub 참고 이력 기본 접힘·펼침`);
           await checkManualSmokeRunResultPersistence({ cdp, timeoutMs });
           labels.push(`${profile.label} 마지막 수동 점검 결과 새로고침 유지·삭제`);

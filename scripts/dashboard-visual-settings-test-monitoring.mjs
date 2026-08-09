@@ -1,15 +1,14 @@
 import assert from "node:assert/strict";
 
+import { captureVisualScreenshot } from "./dashboard-visual-artifacts.mjs";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 import { checkSmokeRecentRunArtifact } from "./dashboard-visual-smoke-history.mjs";
 
-export async function checkSmokeGithubReferenceDisclosure({ cdp, timeoutMs }) {
+export async function checkSmokeGithubReferenceDisclosure({ artifactDir, cdp, profile, timeoutMs }) {
   const initial = await evaluate(cdp, `(() => {
     const card = document.querySelector('[data-testid="smoke-rotation-status-card"]');
     const disclosure = card?.querySelector('[data-testid="smoke-github-reference-history"]');
-    const diagnostics = card?.querySelector('[data-testid="smoke-github-rate-limit-audit-summary"]');
     return {
-      diagnosticsVisible: Boolean(diagnostics?.getClientRects().length),
       exists: disclosure instanceof HTMLDetailsElement,
       open: disclosure instanceof HTMLDetailsElement ? disclosure.open : null,
       summary: disclosure?.querySelector('summary')?.textContent,
@@ -21,9 +20,16 @@ export async function checkSmokeGithubReferenceDisclosure({ cdp, timeoutMs }) {
     return false;
   }
   assert.equal(initial.open, false, "GitHub 참고 이력이 기본으로 접혀 있지 않습니다");
-  assert.equal(initial.diagnosticsVisible, false, "접힌 GitHub 진단이 화면에 노출됐습니다");
   assert.match(initial.summary || "", /전환 전 GitHub 실행 이력.*운영 판정 제외/s);
   assert.doesNotMatch(initial.text || "", /실패율 경고 기준/);
+  await evaluate(cdp, `document.querySelector(
+    '[data-testid="smoke-github-reference-history"]'
+  )?.scrollIntoView({ block: 'center' })`);
+  await captureVisualScreenshot({
+    artifactDir,
+    cdp,
+    name: `${profile.id}-smoke-github-reference-closed`,
+  });
 
   const clicked = await evaluate(cdp, `(() => {
     const disclosure = document.querySelector('[data-testid="smoke-github-reference-history"]');
@@ -37,10 +43,9 @@ export async function checkSmokeGithubReferenceDisclosure({ cdp, timeoutMs }) {
     cdp,
     `(() => {
       const disclosure = document.querySelector('[data-testid="smoke-github-reference-history"]');
-      const diagnostics = disclosure?.querySelector('[data-testid="smoke-github-rate-limit-audit-summary"]');
-      const history = disclosure?.querySelector('[data-testid="smoke-recent-run-history"]');
-      return disclosure?.open && Boolean(diagnostics?.getClientRects().length) &&
-        Boolean(history?.getClientRects().length) && disclosure.innerText.includes('실패율 경고 기준') &&
+      return disclosure?.open && disclosure.innerText.includes('실패율 경고 기준') &&
+        disclosure.innerText.includes('GitHub 이력 확인') &&
+        disclosure.innerText.includes('참고용 GitHub 운영·도구') &&
         !disclosure.querySelector('[data-testid="smoke-history-refresh"]') &&
         !disclosure.querySelector('[data-testid="smoke-failure-type-increase-alert-test"]') &&
         !disclosure.querySelector('[data-testid="smoke-github-rate-limit-alert-test"]') &&
@@ -49,6 +54,11 @@ export async function checkSmokeGithubReferenceDisclosure({ cdp, timeoutMs }) {
     timeoutMs,
     "GitHub 참고 이력을 펼친 뒤 기존 통계와 진단이 표시되지 않았습니다",
   );
+  await captureVisualScreenshot({
+    artifactDir,
+    cdp,
+    name: `${profile.id}-smoke-github-reference-open`,
+  });
   await evaluate(cdp, `document.querySelector(
     '[data-testid="smoke-github-reference-history"] > summary'
   )?.click()`);
