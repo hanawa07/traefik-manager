@@ -44,8 +44,9 @@ function SettingsSectionGroup({
   return (
     <section
       aria-labelledby={headingId}
-      className="space-y-4"
+      className="scroll-mt-20 space-y-4"
       data-testid={`settings-section-${sectionKey}`}
+      id={`settings-${sectionKey}`}
     >
       <h2
         id={headingId}

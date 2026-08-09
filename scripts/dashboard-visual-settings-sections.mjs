@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { evaluate } from "./dashboard-visual-runtime.mjs";
+import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 
 const SETTINGS_SECTIONS = [
   {
@@ -25,13 +25,21 @@ const SETTINGS_SECTIONS = [
   },
 ];
 
-export async function checkSettingsSectionStructure({ canManage, cdp }) {
+export async function checkSettingsSectionStructure({ canManage, cdp, timeoutMs }) {
   const expected = buildExpectedSettingsSections(canManage);
   const snapshot = await evaluate(cdp, `(() => {
     const root = document.querySelector('[data-testid="settings-sections"]');
+    const nav = document.querySelector('[data-testid="settings-category-nav"]');
     if (!root) return null;
     const viewportWidth = document.documentElement.clientWidth;
     return {
+      nav: {
+        links: Array.from(nav?.querySelectorAll('a') || []).map((link) => ({
+          href: link.getAttribute('href') || '',
+          label: link.textContent?.trim() || '',
+        })),
+        overflow: nav ? nav.scrollWidth > nav.clientWidth + 1 : true,
+      },
       sections: Array.from(root.querySelectorAll(':scope > section')).map((section) => {
         const grid = section.querySelector(':scope > [data-testid="settings-section-grid"]');
         const cards = Array.from(grid?.children || []).map((card) => {
@@ -65,6 +73,12 @@ export async function checkSettingsSectionStructure({ canManage, cdp }) {
 
   assert.ok(snapshot, "설정 범주 영역이 표시되지 않았습니다");
   assert.deepEqual(
+    snapshot.nav.links,
+    expected.map(({ key, title }) => ({ href: `#settings-${key}`, label: title })),
+    "설정 범주 바로가기 순서나 대상이 올바르지 않습니다",
+  );
+  assert.equal(snapshot.nav.overflow, false, "설정 범주 바로가기가 화면 너비를 벗어났습니다");
+  assert.deepEqual(
     snapshot.sections.map(({ key, title }) => ({ key, title })),
     expected.map(({ key, title }) => ({ key, title })),
     "설정 범주 순서가 기본·보안·운영·데이터와 다릅니다",
@@ -76,6 +90,28 @@ export async function checkSettingsSectionStructure({ canManage, cdp }) {
     assert.equal(section.columns, expectedColumns, `${section.title} 설정 반응형 열 수가 올바르지 않습니다`);
     assert.equal(section.overflow, false, `${section.title} 설정 카드가 화면 너비를 벗어났습니다`);
   }
+
+  const clicked = await evaluate(cdp, `(() => {
+    const link = document.querySelector('[data-testid="settings-category-nav"] a[href="#settings-operations"]');
+    if (!(link instanceof HTMLAnchorElement)) return false;
+    link.click();
+    return true;
+  })()`);
+  assert.equal(clicked, true, "운영 설정 범주 바로가기를 찾지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const target = document.querySelector('#settings-operations');
+      const top = target?.getBoundingClientRect().top;
+      return location.hash === '#settings-operations' && typeof top === 'number' && top >= 64 && top <= 96;
+    })()`,
+    timeoutMs,
+    "운영 설정 범주가 상단 메뉴에 가리지 않는 위치로 이동하지 않았습니다",
+  );
+  await evaluate(cdp, `(() => {
+    history.replaceState(history.state, '', location.pathname + location.search);
+    window.scrollTo(0, 0);
+  })()`);
 }
 
 export function runSettingsSectionStructureSelfTest() {
@@ -86,6 +122,15 @@ export function runSettingsSectionStructureSelfTest() {
   assert.equal(viewer.flatMap(({ cards }) => cards).length, 12);
   assert.ok(admin[1].cards.includes("사용자 관리"));
   assert.ok(!viewer[1].cards.includes("사용자 관리"));
+  assert.deepEqual(
+    admin.map(({ key, title }) => ({ href: `#settings-${key}`, label: title })),
+    [
+      { href: "#settings-basic", label: "기본" },
+      { href: "#settings-security", label: "보안" },
+      { href: "#settings-operations", label: "운영" },
+      { href: "#settings-data", label: "데이터" },
+    ],
+  );
 }
 
 function buildExpectedSettingsSections(canManage) {

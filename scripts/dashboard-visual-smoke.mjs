@@ -84,8 +84,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
           labels.push(`${profile.label} 감사 필터 조합·Traefik 자동 펼침·역링크·레이아웃`);
         }
         if (route.path === "/dashboard/settings") {
-          await checkSettingsSectionStructure({ canManage: capabilities.canManage, cdp });
-          labels.push(`${profile.label} 설정 기본·보안·운영·데이터 범주`);
+          await checkSettingsSectionStructure({ canManage: capabilities.canManage, cdp, timeoutMs });
+          labels.push(`${profile.label} 설정 기본·보안·운영·데이터 바로가기`);
           const githubHistoryCollapsed = await checkSmokeGithubReferenceDisclosure({
             artifactDir,
             cdp,

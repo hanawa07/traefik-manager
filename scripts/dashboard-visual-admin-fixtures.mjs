@@ -381,7 +381,7 @@ async function checkSmokeRateLimitAdminFixture({
       timeoutMs,
       "GitHub API 초기화 후 관리자 새로고침 버튼이 자동 해제되지 않았습니다",
     );
-    await checkSettingsSectionStructure({ canManage: true, cdp });
+    await checkSettingsSectionStructure({ canManage: true, cdp, timeoutMs });
     const savedFixture = await checkRemoteSmokeSettingsForm({ cdp, fixture, timeoutMs });
     await checkSmokeFailureMetadataManagement({ cdp, fixture: savedFixture, timeoutMs });
   } catch (error) {
