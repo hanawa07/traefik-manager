@@ -24,6 +24,9 @@ export function SmokeHostRunTrend({
 }: SmokeHostRunTrendProps) {
   const measuredRuns = runs.filter(isMeasuredRun);
   const latest = runs[0];
+  const latestFailure = runs.find((run) => run.status === "failure");
+  const failureCount = runs.filter((run) => run.status === "failure").length;
+  const latestFailureRecovered = Boolean(latestFailure && latest?.status === "success");
   const latestMeasured = measuredRuns[0];
   const previousMeasured = measuredRuns[1];
   const averageSeconds = measuredRuns.length
@@ -42,6 +45,7 @@ export function SmokeHostRunTrend({
       className="mt-2 text-[11px]"
       data-host-run-total={total}
       data-host-run-visible={runs.length}
+      data-host-failure-count={failureCount}
       data-smoke-history-access="local"
       data-testid="smoke-run-trend"
     >
@@ -67,6 +71,31 @@ export function SmokeHostRunTrend({
           </span>
         )}
       </div>
+      {latestFailure ? (
+        <div
+          className={`mt-2 flex flex-wrap gap-x-3 gap-y-1 border-l-2 pl-2 ${
+            latestFailureRecovered
+              ? "border-slate-400 text-slate-700 dark:text-slate-300"
+              : "border-rose-500 text-rose-800 dark:text-rose-200"
+          }`}
+          data-host-failure-state={latestFailureRecovered ? "recovered" : "active"}
+          data-testid="smoke-host-latest-failure"
+          role={latestFailureRecovered ? undefined : "alert"}
+        >
+          <span className="font-semibold">
+            {latestFailureRecovered ? "최근 실패 원인 · 이후 점검 성공" : "현재 실패 원인"}
+          </span>
+          <span className="min-w-0 break-all">
+            단계·대상: {latestFailure.detail || "기록 없음"}
+          </span>
+          <time dateTime={latestFailure.completed_at}>
+            완료: {formatDateTime(latestFailure.completed_at, timezone)}
+          </time>
+          <span>
+            배포: <code>{latestFailure.revision?.slice(0, 12) || "기록 없음"}</code>
+          </span>
+        </div>
+      ) : null}
       <details className="mt-2 rounded-md border border-current/15 bg-white/40 px-2.5 py-2 dark:bg-slate-950/30">
         <summary className="cursor-pointer font-semibold">
           호스트 실행 이력 · 전체 {total}건 · 최근 {runs.length}/{limit}건
@@ -102,6 +131,11 @@ export function SmokeHostRunTrend({
                 <code title={run.detail || undefined}>
                   {run.revision?.slice(0, 12) || "커밋 없음"}
                 </code>
+                {run.status === "failure" ? (
+                  <span className="min-w-0 break-all text-rose-700 dark:text-rose-300 sm:col-span-4">
+                    실패 단계·대상: {run.detail || "기록 없음"}
+                  </span>
+                ) : null}
               </li>
             ))}
           </ol>
