@@ -7,7 +7,10 @@ import { useGithubApiRefreshBlocked } from "@/features/settings/lib/smokeGithubR
 import type { TrackedManualSmokeRun } from "@/features/settings/lib/smokeManualRunTracking";
 import { SmokeGithubApiDiagnostics } from "./SmokeGithubApiDiagnostics";
 import { SmokeManualRunResult } from "./SmokeManualRunResult";
-import { SmokeMonitoringOverview } from "./SmokeMonitoringOverview";
+import {
+  SmokeGithubReferenceOverview,
+  SmokeMonitoringOverview,
+} from "./SmokeMonitoringOverview";
 import { SmokeRecentRunHistory } from "./SmokeRecentRunHistory";
 
 interface SmokeMonitoringStatusSummaryProps {
@@ -66,22 +69,49 @@ export function SmokeMonitoringStatusSummary({
     status.monitoring_github_secondary_limit_retry_at,
     status.monitoring_github_refresh_reserve,
   );
+  const githubReferenceOverview = (
+    <SmokeGithubReferenceOverview
+      canManage={canManage}
+      isTestingGithubRateLimitAlert={isTestingGithubRateLimitAlert}
+      isTestingFailureTypeIncreaseAlert={isTestingFailureTypeIncreaseAlert}
+      isTestingStaleAlert={isTestingStaleAlert}
+      onTestGithubRateLimitAlert={onTestGithubRateLimitAlert}
+      onTestFailureTypeIncreaseAlert={onTestFailureTypeIncreaseAlert}
+      onTestStaleAlert={onTestStaleAlert}
+      staleAlertHistory={staleAlertHistory}
+      failureTypeIncreaseAlertHistory={failureTypeIncreaseAlertHistory}
+      status={status}
+      timezone={timezone}
+    />
+  );
+  const githubHistory = (
+    <>
+      {status.monitoring_history_error ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
+          {status.monitoring_history_error}. 저장된 최근 성공 기록은 그대로 표시됩니다.
+        </div>
+      ) : null}
+      <SmokeGithubApiDiagnostics
+        canManage={canManage && !isLocalMode}
+        isRefreshBlocked={isGithubRefreshBlocked}
+        isRefreshing={isRefreshingHistory}
+        onRefresh={onRefreshHistory}
+        status={status}
+        timezone={timezone}
+        alertHistory={githubRateLimitAlertHistory}
+        primaryOperationalAlertHistory={githubPrimaryRateLimitDeliveryHistory}
+        secondaryOperationalAlertHistory={githubSecondaryRateLimitDeliveryHistory}
+        primaryLastTriggeredAt={githubPrimaryRateLimitLastTriggeredAt}
+        secondaryLastTriggeredAt={githubSecondaryRateLimitLastTriggeredAt}
+      />
+      <SmokeRecentRunHistory canManage={canManage} status={status} timezone={timezone} />
+    </>
+  );
 
   return (
     <>
-      <SmokeMonitoringOverview
-        canManage={canManage}
-        isTestingGithubRateLimitAlert={isTestingGithubRateLimitAlert}
-        isTestingFailureTypeIncreaseAlert={isTestingFailureTypeIncreaseAlert}
-        isTestingStaleAlert={isTestingStaleAlert}
-        onTestGithubRateLimitAlert={onTestGithubRateLimitAlert}
-        onTestFailureTypeIncreaseAlert={onTestFailureTypeIncreaseAlert}
-        onTestStaleAlert={onTestStaleAlert}
-        staleAlertHistory={staleAlertHistory}
-        failureTypeIncreaseAlertHistory={failureTypeIncreaseAlertHistory}
-        status={status}
-        timezone={timezone}
-      />
+      <SmokeMonitoringOverview status={status} />
+      {!isLocalMode ? githubReferenceOverview : null}
       <SettingsSummaryRow
         label={isLocalMode ? "도구 자가 점검" : "수동 점검"}
         value={
@@ -129,25 +159,23 @@ export function SmokeMonitoringStatusSummary({
           }
         />
       ) : null}
-      {status.monitoring_history_error ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
-          {status.monitoring_history_error}. 저장된 최근 성공 기록은 그대로 표시됩니다.
-        </div>
-      ) : null}
-      <SmokeGithubApiDiagnostics
-        canManage={canManage}
-        isRefreshBlocked={isGithubRefreshBlocked}
-        isRefreshing={isRefreshingHistory}
-        onRefresh={onRefreshHistory}
-        status={status}
-        timezone={timezone}
-        alertHistory={githubRateLimitAlertHistory}
-        primaryOperationalAlertHistory={githubPrimaryRateLimitDeliveryHistory}
-        secondaryOperationalAlertHistory={githubSecondaryRateLimitDeliveryHistory}
-        primaryLastTriggeredAt={githubPrimaryRateLimitLastTriggeredAt}
-        secondaryLastTriggeredAt={githubSecondaryRateLimitLastTriggeredAt}
-      />
-      <SmokeRecentRunHistory canManage={canManage} status={status} timezone={timezone} />
+      {isLocalMode ? (
+        <details
+          className="border-t border-gray-200 pt-2 dark:border-slate-700"
+          data-testid="smoke-github-reference-history"
+        >
+          <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
+            전환 전 GitHub 실행 이력
+            <span className="ml-2 font-normal text-gray-500 dark:text-slate-400">
+              운영 판정 제외 · 읽기 전용 · 최근 {status.monitoring_history_total}건
+            </span>
+          </summary>
+          <div className="mt-3 space-y-2">
+            {githubReferenceOverview}
+            {githubHistory}
+          </div>
+        </details>
+      ) : githubHistory}
     </>
   );
 }

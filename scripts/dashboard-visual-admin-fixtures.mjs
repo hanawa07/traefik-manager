@@ -286,6 +286,7 @@ async function checkSmokeRateLimitAdminFixture({
       return response.json();
     })()`);
     assert.ok(fixture, "관리자 운영 점검 fixture를 읽지 못했습니다");
+    fixture.monitoring_mode = "remote";
     fixture.monitoring_github_rate_limit_remaining = 42;
     fixture.monitoring_github_rate_limit_limit = 60;
     fixture.monitoring_github_rate_limit_reset_at = new Date(Date.now() + 60 * 60_000).toISOString();

@@ -37,6 +37,8 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
       cdp,
       `(() => {
         const history = document.querySelector('[data-testid="smoke-recent-run-history"]');
+        const githubReference = document.querySelector('[data-testid="smoke-github-reference-history"]');
+        if (githubReference instanceof HTMLDetailsElement) githubReference.open = true;
         if (history instanceof HTMLDetailsElement) history.open = true;
         const artifact = history?.querySelector('[data-testid="smoke-recent-run-artifact-link"]');
         const expiredArtifact = history?.querySelector('[data-testid="smoke-recent-run-artifact-expired"]');
@@ -110,8 +112,9 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
         );
         const links = panel?.querySelectorAll('a[data-failure-type="unclassified"]');
         const classifications = panel?.querySelectorAll('[data-testid="smoke-failure-classification"]');
+        const readOnly = Boolean(document.querySelector('[data-testid="smoke-github-reference-history"]'));
         return panel?.textContent?.includes('선택 조건 실행 2건') && links?.length === 2 &&
-          classifications?.length === 2 && location.search.includes('smoke_trend_type=unclassified') &&
+          classifications?.length === (readOnly ? 0 : 2) && location.search.includes('smoke_trend_type=unclassified') &&
           Array.from(links).some((link) => link.href === ${JSON.stringify(UNCLASSIFIED_RUN_URL)}) &&
           Array.from(links).some((link) => link.href === ${JSON.stringify(HIDDEN_UNCLASSIFIED_RUN_URL)});
       })()`,
@@ -152,6 +155,8 @@ export async function checkSmokeRecentRunArtifact({ cdp, timeoutMs }) {
       cdp,
       `(() => {
         const history = document.querySelector('[data-testid="smoke-recent-run-history"]');
+        const githubReference = document.querySelector('[data-testid="smoke-github-reference-history"]');
+        if (githubReference instanceof HTMLDetailsElement) githubReference.open = true;
         if (history instanceof HTMLDetailsElement) history.open = true;
         const type = history?.querySelector('[data-testid="smoke-failure-type-filter-unclassified"]');
         const dates = Array.from(history?.querySelectorAll('[data-testid="smoke-failure-date-filter"]') ?? []);

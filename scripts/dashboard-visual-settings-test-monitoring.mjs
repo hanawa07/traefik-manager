@@ -3,6 +3,58 @@ import assert from "node:assert/strict";
 import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
 import { checkSmokeRecentRunArtifact } from "./dashboard-visual-smoke-history.mjs";
 
+export async function checkSmokeGithubReferenceDisclosure({ cdp, timeoutMs }) {
+  const initial = await evaluate(cdp, `(() => {
+    const card = document.querySelector('[data-testid="smoke-rotation-status-card"]');
+    const disclosure = card?.querySelector('[data-testid="smoke-github-reference-history"]');
+    const diagnostics = card?.querySelector('[data-testid="smoke-github-rate-limit-audit-summary"]');
+    return {
+      diagnosticsVisible: Boolean(diagnostics?.getClientRects().length),
+      exists: disclosure instanceof HTMLDetailsElement,
+      open: disclosure instanceof HTMLDetailsElement ? disclosure.open : null,
+      summary: disclosure?.querySelector('summary')?.textContent,
+      text: card?.innerText,
+    };
+  })()`);
+  if (!initial.exists) {
+    assert.match(initial.text || "", /실패율 경고 기준/);
+    return false;
+  }
+  assert.equal(initial.open, false, "GitHub 참고 이력이 기본으로 접혀 있지 않습니다");
+  assert.equal(initial.diagnosticsVisible, false, "접힌 GitHub 진단이 화면에 노출됐습니다");
+  assert.match(initial.summary || "", /전환 전 GitHub 실행 이력.*운영 판정 제외/s);
+  assert.doesNotMatch(initial.text || "", /실패율 경고 기준/);
+
+  const clicked = await evaluate(cdp, `(() => {
+    const disclosure = document.querySelector('[data-testid="smoke-github-reference-history"]');
+    const summary = disclosure?.querySelector('summary');
+    if (!(summary instanceof HTMLElement)) return false;
+    summary.click();
+    return true;
+  })()`);
+  assert.equal(clicked, true, "GitHub 참고 이력 펼침 항목을 찾지 못했습니다");
+  await waitForCondition(
+    cdp,
+    `(() => {
+      const disclosure = document.querySelector('[data-testid="smoke-github-reference-history"]');
+      const diagnostics = disclosure?.querySelector('[data-testid="smoke-github-rate-limit-audit-summary"]');
+      const history = disclosure?.querySelector('[data-testid="smoke-recent-run-history"]');
+      return disclosure?.open && Boolean(diagnostics?.getClientRects().length) &&
+        Boolean(history?.getClientRects().length) && disclosure.innerText.includes('실패율 경고 기준') &&
+        !disclosure.querySelector('[data-testid="smoke-history-refresh"]') &&
+        !disclosure.querySelector('[data-testid="smoke-failure-type-increase-alert-test"]') &&
+        !disclosure.querySelector('[data-testid="smoke-github-rate-limit-alert-test"]') &&
+        !disclosure.querySelector('[data-testid="smoke-failure-metadata-management"]');
+    })()`,
+    timeoutMs,
+    "GitHub 참고 이력을 펼친 뒤 기존 통계와 진단이 표시되지 않았습니다",
+  );
+  await evaluate(cdp, `document.querySelector(
+    '[data-testid="smoke-github-reference-history"] > summary'
+  )?.click()`);
+  return true;
+}
+
 export async function checkSettingsTestAuditLinks({ cdp, timeoutMs }) {
   const result = await evaluate(cdp, `(() => {
     const histories = Array.from(

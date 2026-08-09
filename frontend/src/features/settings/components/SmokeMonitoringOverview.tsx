@@ -11,6 +11,10 @@ import { SmokeLatestFailureSummary } from "./SmokeLatestFailureSummary";
 import { SmokeStaleAlertHistory } from "./SmokeStaleAlertHistory";
 
 interface SmokeMonitoringOverviewProps {
+  status: SmokeRotationStatus;
+}
+
+interface SmokeGithubReferenceOverviewProps {
   canManage: boolean;
   isTestingGithubRateLimitAlert: boolean;
   isTestingFailureTypeIncreaseAlert: boolean;
@@ -25,26 +29,13 @@ interface SmokeMonitoringOverviewProps {
 }
 
 export function SmokeMonitoringOverview({
-  canManage,
-  isTestingGithubRateLimitAlert,
-  isTestingFailureTypeIncreaseAlert,
-  isTestingStaleAlert,
-  onTestGithubRateLimitAlert,
-  onTestFailureTypeIncreaseAlert,
-  onTestStaleAlert,
-  staleAlertHistory,
-  failureTypeIncreaseAlertHistory,
   status,
-  timezone,
 }: SmokeMonitoringOverviewProps) {
   const monitoringEnabled = status.monitoring_enabled ?? true;
   const isLocalMode = status.monitoring_mode === "local";
   const monitoringFrequency = status.monitoring_frequency ?? "daily";
   const scheduleTime = status.monitoring_schedule_time ?? "03:17";
   const scheduleTimezone = status.monitoring_schedule_timezone ?? "Asia/Seoul";
-  const recentRuns = status.monitoring_recent_runs ?? [];
-  const suppressedRuns = recentRuns.filter((run) => run.notification_suppressed);
-  const latestSuppressed = suppressedRuns[0];
 
   return (
     <>
@@ -76,6 +67,34 @@ export function SmokeMonitoringOverview({
         label="점검 시각"
         value={isLocalMode ? "04:17 (호스트 시간)" : `${scheduleTime} (${scheduleTimezone})`}
       />
+      <SettingsSummaryRow
+        label={isLocalMode ? "관리자 점검 지연 판정 (로컬)" : "관리자 점검 지연 판정"}
+        value={`최근 성공 ${isLocalMode ? status.stale_after_days : status.monitoring_admin_stale_after_days}일 초과 시 경고`}
+      />
+    </>
+  );
+}
+
+export function SmokeGithubReferenceOverview({
+  canManage,
+  isTestingGithubRateLimitAlert,
+  isTestingFailureTypeIncreaseAlert,
+  isTestingStaleAlert,
+  onTestGithubRateLimitAlert,
+  onTestFailureTypeIncreaseAlert,
+  onTestStaleAlert,
+  staleAlertHistory,
+  failureTypeIncreaseAlertHistory,
+  status,
+  timezone,
+}: SmokeGithubReferenceOverviewProps) {
+  const isLocalMode = status.monitoring_mode === "local";
+  const recentRuns = status.monitoring_recent_runs ?? [];
+  const suppressedRuns = recentRuns.filter((run) => run.notification_suppressed);
+  const latestSuppressed = suppressedRuns[0];
+
+  return (
+    <>
       {isLocalMode ? (
         <SettingsSummaryRow
           label="GitHub 참고 이력 정책"
@@ -101,7 +120,7 @@ export function SmokeMonitoringOverview({
         label="실패 유형 증가 운영 알림"
         value={status.monitoring_failure_type_alert_enabled ? "사용" : "사용 안 함"}
       />
-      {canManage ? (
+      {canManage && !isLocalMode ? (
         <SettingsSummaryRow
           label="실패 유형 증가 알림 dry-run"
           value={
@@ -142,7 +161,7 @@ export function SmokeMonitoringOverview({
             : "사용 안 함"
         }
       />
-      {canManage ? (
+      {canManage && !isLocalMode ? (
         <SettingsSummaryRow
           label="GitHub API 제한 알림 dry-run"
           value={
@@ -193,10 +212,6 @@ export function SmokeMonitoringOverview({
             "기록 없음"
           )
         }
-      />
-      <SettingsSummaryRow
-        label={isLocalMode ? "관리자 점검 지연 판정 (로컬)" : "관리자 점검 지연 판정"}
-        value={`최근 성공 ${isLocalMode ? status.stale_after_days : status.monitoring_admin_stale_after_days}일 초과 시 경고`}
       />
       {canManage && !isLocalMode ? (
         <SettingsSummaryRow

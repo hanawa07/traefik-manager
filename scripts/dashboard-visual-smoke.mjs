@@ -27,7 +27,10 @@ import { evaluate, runDashboardVisualRuntimeSelfTest } from "./dashboard-visual-
 import { checkSecurityAlertRetryDelaySetting } from "./dashboard-visual-security-alert-settings.mjs";
 import { checkListRequestRecovery } from "./dashboard-visual-list-request-recovery.mjs";
 import { checkManualSmokeRunResultPersistence } from "./dashboard-visual-smoke-manual-run.mjs";
-import { checkSettingsTestAuditLinks } from "./dashboard-visual-settings-test-monitoring.mjs";
+import {
+  checkSettingsTestAuditLinks,
+  checkSmokeGithubReferenceDisclosure,
+} from "./dashboard-visual-settings-test-monitoring.mjs";
 import { runSmokeStatisticsHistoryAssertionsSelfTest } from "./dashboard-visual-smoke-statistics-history.mjs";
 import { checkSmokeRunTrendRange } from "./dashboard-visual-smoke-run-monitoring.mjs";
 import { checkTraefikUpdateHistory } from "./dashboard-visual-traefik-update-history.mjs";
@@ -77,6 +80,8 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
           labels.push(`${profile.label} 감사 필터 조합·Traefik 자동 펼침·역링크·레이아웃`);
         }
         if (route.path === "/dashboard/settings") {
+          const githubHistoryCollapsed = await checkSmokeGithubReferenceDisclosure({ cdp, timeoutMs });
+          if (githubHistoryCollapsed) labels.push(`${profile.label} 전환 전 GitHub 참고 이력 기본 접힘·펼침`);
           await checkManualSmokeRunResultPersistence({ cdp, timeoutMs });
           labels.push(`${profile.label} 마지막 수동 점검 결과 새로고침 유지·삭제`);
           const historyLinked = await checkSettingsTestAuditLinks({ cdp, timeoutMs });
@@ -172,14 +177,14 @@ export async function runDashboardVisualSmokeSelfTest() {
   assert.ok(dashboardRoute.requiredMarkers.includes("경로 필터"));
   assert.ok(dashboardRoute.requiredMarkers.includes("연속 실패"));
   assert.equal(settingsRoute?.marker, "운영 로그인·화면 점검");
-  assert.ok(settingsRoute.requiredMarkers.includes("실패 분류 정보 보관"));
+  assert.ok(settingsRoute.requiredMarkers.includes("점검 주기"));
+  assert.ok(settingsRoute.requiredMarkers.includes("점검 시각"));
   assert.ok(
     !settingsRoute.requiredMarkers.includes("실패 유형 증가 최근 dry-run 결과"),
   );
   assert.ok(!settingsRoute.requiredMarkers.includes("실패 분류 정보 관리"));
-  assert.ok(
-    settingsRoute.requiredMarkers.includes("전체 통계는 GitHub workflow 결론 기준"),
-  );
+  assert.ok(settingsRoute.requiredMarkers.includes("전체 통계는 GitHub workflow 결론 기준"));
+  assert.ok(!settingsRoute.requiredMarkers.includes("실패 분류 정보 보관"));
   assert.ok(settingsRoute.requiredMarkers.includes("감사 로그 보존"));
   assert.ok(settingsRoute.requiredMarkers.includes("Manager API 오류 감지"));
   assert.ok(settingsRoute.requiredMarkers.includes("배포 병목 운영 알림"));

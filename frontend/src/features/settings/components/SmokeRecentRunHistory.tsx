@@ -36,6 +36,7 @@ export function SmokeRecentRunHistory({
   const classifyFailure = useClassifySmokeFailure();
   const historyDetailsRef = useRef<HTMLDetailsElement>(null);
   const [classificationError, setClassificationError] = useState("");
+  const isReadOnlyReference = initialStatus.monitoring_mode === "local";
   const {
     search,
     setSearch,
@@ -60,6 +61,10 @@ export function SmokeRecentRunHistory({
     if (!filtersRestored || window.location.hash !== "#smoke-recent-run-history") return;
     const details = historyDetailsRef.current;
     if (!details) return;
+    const githubReference = details.closest<HTMLDetailsElement>(
+      '[data-testid="smoke-github-reference-history"]',
+    );
+    if (githubReference) githubReference.open = true;
     details.open = true;
     details.scrollIntoView({ block: "start" });
   }, [filtersRestored]);
@@ -267,7 +272,7 @@ export function SmokeRecentRunHistory({
         persistFilters
         classifyingRunId={classifyFailure.isPending ? classifyFailure.variables?.run_id : undefined}
         classificationError={classificationError}
-        onClassifyRun={handleClassifyRun}
+        onClassifyRun={isReadOnlyReference ? undefined : handleClassifyRun}
       />
       <p
         className="mt-2 text-[11px] text-gray-500 dark:text-slate-400"
@@ -286,7 +291,7 @@ export function SmokeRecentRunHistory({
         실패 정보 {history?.monitoring_failure_metadata_count ?? 0}/
         {history?.monitoring_failure_metadata_limit ?? 20}건 보관 · 초과 시 오래된 기록 자동 정리
       </p>
-      {canManage ? (
+      {canManage && !isReadOnlyReference ? (
         <SmokeFailureMetadataManagement
           entries={history?.monitoring_failure_metadata_entries ?? []}
           timezone={timezone}
