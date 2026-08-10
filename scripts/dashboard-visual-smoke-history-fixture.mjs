@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 
-import { evaluate } from "./dashboard-visual-runtime.mjs";
+import {
+  evaluate,
+  fetchJsonReadWithRetry,
+} from "./dashboard-visual-runtime.mjs";
 
 export const RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/runs/987";
 export const COMMIT_URL = "https://github.com/hanawa07/traefik-manager/commit/abcdef0";
@@ -11,12 +14,17 @@ const SUCCESS_RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/run
 export const UNCLASSIFIED_RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/runs/982";
 export const HIDDEN_UNCLASSIFIED_RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/runs/981";
 export const PAGE_TWO_RUN_URL = "https://github.com/hanawa07/traefik-manager/actions/runs/984";
+const SMOKE_ROTATION_PATH = "/api/v1/settings/smoke-rotation";
 
 export async function buildSmokeHistoryFixtures(cdp) {
-  const fixture = await evaluate(cdp, `(async () => {
-    const response = await fetch('/api/v1/settings/smoke-rotation');
-    if (!response.ok) return null;
-    const status = await response.json();
+  const statusResponse = await fetchJsonReadWithRetry(cdp, SMOKE_ROTATION_PATH);
+  assert.equal(
+    statusResponse.ok,
+    true,
+    `운영 점검 최근 이력 fixture GET ${SMOKE_ROTATION_PATH} 실패: HTTP ${statusResponse.status}`,
+  );
+  const fixture = await evaluate(cdp, `(() => {
+    const status = ${JSON.stringify(statusResponse.data)};
     const failedRun = {
       run_id: 987,
       status: 'failure',

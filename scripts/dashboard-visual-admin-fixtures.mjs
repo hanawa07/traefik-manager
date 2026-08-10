@@ -4,7 +4,11 @@ import {
   captureVisualDom,
   captureVisualScreenshot,
 } from "./dashboard-visual-artifacts.mjs";
-import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
+import {
+  evaluate,
+  fetchJsonReadWithRetry,
+  waitForCondition,
+} from "./dashboard-visual-runtime.mjs";
 import { checkServiceGatewayImportAdminFixture } from "./dashboard-visual-service-gateway-import.mjs";
 import {
   applySmokeFailureMetadataFixture,
@@ -15,6 +19,8 @@ import { checkRemoteSmokeSettingsForm } from "./dashboard-visual-smoke-settings-
 import { checkSettingsSectionStructure } from "./dashboard-visual-settings-sections.mjs";
 import { checkSmokeLocalRunFilters } from "./dashboard-visual-smoke-statistics-history.mjs";
 import { checkTraefikAlertRetryAdminFixture } from "./dashboard-visual-traefik-alert-retry.mjs";
+
+const SMOKE_ROTATION_PATH = "/api/v1/settings/smoke-rotation";
 
 export async function checkAdminVisualFixtures(options) {
   await checkSmokeHistoryAdminReadOnly(options);
@@ -38,10 +44,16 @@ async function checkSmokeHistoryRetryAdminFixture({
   }
 
   try {
-    const fixture = await evaluate(cdp, `(async () => {
-      const response = await fetch('/api/v1/settings/smoke-rotation');
-      return response.ok ? response.json() : null;
-    })()`);
+    const fixtureResponse = await fetchJsonReadWithRetry(
+      cdp,
+      SMOKE_ROTATION_PATH,
+    );
+    assert.equal(
+      fixtureResponse.ok,
+      true,
+      `GitHub 통계 재확인 fixture GET ${SMOKE_ROTATION_PATH} 실패: HTTP ${fixtureResponse.status}`,
+    );
+    const fixture = fixtureResponse.data;
     assert.ok(fixture, "GitHub 통계 재확인 fixture를 읽지 못했습니다");
     const refreshReserve = fixture.monitoring_github_refresh_reserve ?? 10;
     const readyFixture = {
@@ -282,11 +294,16 @@ async function checkSmokeRateLimitAdminFixture({
   }
 
   try {
-    const fixture = await evaluate(cdp, `(async () => {
-      const response = await fetch('/api/v1/settings/smoke-rotation');
-      if (!response.ok) return null;
-      return response.json();
-    })()`);
+    const fixtureResponse = await fetchJsonReadWithRetry(
+      cdp,
+      SMOKE_ROTATION_PATH,
+    );
+    assert.equal(
+      fixtureResponse.ok,
+      true,
+      `관리자 운영 점검 fixture GET ${SMOKE_ROTATION_PATH} 실패: HTTP ${fixtureResponse.status}`,
+    );
+    const fixture = fixtureResponse.data;
     assert.ok(fixture, "관리자 운영 점검 fixture를 읽지 못했습니다");
     fixture.monitoring_enabled = true;
     fixture.monitoring_frequency = "daily";

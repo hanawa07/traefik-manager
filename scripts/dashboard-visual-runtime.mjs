@@ -72,6 +72,42 @@ export async function waitForCondition(cdp, expression, timeoutMs, message) {
   throw new Error(message);
 }
 
+export async function fetchJsonReadWithRetry(
+  cdp,
+  path,
+  { attempts = 2, retryDelayMs = 250 } = {},
+) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const result = await evaluate(cdp, `(async () => {
+        const response = await fetch(${JSON.stringify(path)}, {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        const text = await response.text();
+        let data = null;
+        try { data = JSON.parse(text); } catch {}
+        return {
+          data,
+          ok: response.ok,
+          status: response.status,
+          text: text.slice(0, 500),
+        };
+      })()`);
+      return { ...result, attemptCount: attempt };
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+      }
+    }
+  }
+  throw new Error(
+    `스모크 읽기 GET ${path} 실패 (${attempts}/${attempts}회): ${lastError?.message || "알 수 없는 오류"}`,
+  );
+}
+
 export async function evaluate(cdp, expression) {
   const response = await cdp.send("Runtime.evaluate", {
     expression,
@@ -99,4 +135,55 @@ export async function runDashboardVisualRuntimeSelfTest() {
       ? ["Runtime.evaluate"]
       : ["Runtime.evaluate", "Page.navigate"]);
   }
+
+  const retryResponses = [
+    { exceptionDetails: { text: "Uncaught (in promise) TypeError: Failed to fetch" } },
+    {
+      result: {
+        value: { data: { status: "ok" }, ok: true, status: 200, text: '{"status":"ok"}' },
+      },
+    },
+  ];
+  const retryResult = await fetchJsonReadWithRetry(
+    { send: async () => retryResponses.shift() },
+    "/api/v1/retry-target",
+    { retryDelayMs: 0 },
+  );
+  assert.equal(retryResult.attemptCount, 2);
+  assert.deepEqual(retryResult.data, { status: "ok" });
+
+  let failedAttempts = 0;
+  await assert.rejects(
+    fetchJsonReadWithRetry(
+      {
+        send: async () => {
+          failedAttempts += 1;
+          return { exceptionDetails: { text: "TypeError: Failed to fetch" } };
+        },
+      },
+      "/api/v1/failing-target?window=24",
+      { retryDelayMs: 0 },
+    ),
+    /GET \/api\/v1\/failing-target\?window=24 실패 \(2\/2회\).*Failed to fetch/,
+  );
+  assert.equal(failedAttempts, 2);
+
+  let httpAttempts = 0;
+  const httpError = await fetchJsonReadWithRetry(
+    {
+      send: async () => {
+        httpAttempts += 1;
+        return {
+          result: {
+            value: { data: { detail: "server error" }, ok: false, status: 500, text: "server error" },
+          },
+        };
+      },
+    },
+    "/api/v1/http-error",
+    { retryDelayMs: 0 },
+  );
+  assert.equal(httpError.status, 500);
+  assert.equal(httpError.attemptCount, 1);
+  assert.equal(httpAttempts, 1);
 }

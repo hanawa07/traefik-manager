@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { evaluateInSmokePage as evaluate } from "./smoke-browser-cdp.mjs";
+import { fetchJsonReadWithRetry } from "./dashboard-visual-runtime.mjs";
 
 const CHECKS = [
   {
@@ -73,9 +73,9 @@ const CHECKS = [
 export async function runSmokeServicesApiChecks(cdp) {
   const results = [];
   for (const check of CHECKS) {
-    const result = await fetchJsonInPage(cdp, check.path);
+    const result = await fetchJsonReadWithRetry(cdp, check.path);
     if (!result.ok) {
-      throw new Error(`${check.label} API ${result.status}: ${result.text}`);
+      throw new Error(`${check.label} API GET ${check.path} HTTP ${result.status}: ${result.text}`);
     }
     if (!check.validate(result.data)) {
       throw new Error(`${check.label} API 응답 형식이 예상과 다릅니다`);
@@ -87,24 +87,6 @@ export async function runSmokeServicesApiChecks(cdp) {
     results.push({ ...check, data: result.data });
   }
   return results;
-}
-
-async function fetchJsonInPage(cdp, path) {
-  return evaluate(
-    cdp,
-    `fetch(${JSON.stringify(path)}, { credentials: "include", cache: "no-store" })
-      .then(async (response) => {
-        const text = await response.text();
-        let data = null;
-        try { data = JSON.parse(text); } catch {}
-        return {
-          data,
-          ok: response.ok,
-          status: response.status,
-          text: text.slice(0, 500)
-        };
-      })`,
-  );
 }
 
 export function runSmokeServicesApiChecksSelfTest() {

@@ -1,22 +1,30 @@
 import assert from "node:assert/strict";
 
-import { evaluate, waitForCondition } from "./dashboard-visual-runtime.mjs";
+import {
+  evaluate,
+  fetchJsonReadWithRetry,
+  waitForCondition,
+} from "./dashboard-visual-runtime.mjs";
+
+const HTTP_ERRORS_PATH = "/api/v1/docker/http-errors?window_hours=24";
 
 export async function checkManagerHttpLogStorageWarnings({ cdp, timeoutMs }) {
-  const response = await evaluate(cdp, `(async () => {
-    const result = await fetch('/api/v1/docker/http-errors?window_hours=24', {
-      credentials: 'include',
-      cache: 'no-store',
-    });
-    return { body: await result.json(), ok: result.ok };
-  })()`);
-  assert.equal(response.ok, true, "Manager API 로그 보관 fixture 원본을 읽지 못했습니다");
-  assert.equal(response.body.buckets?.length, 24, "Manager API 로그 보관 fixture 원본 구간이 다릅니다");
+  const response = await fetchJsonReadWithRetry(cdp, HTTP_ERRORS_PATH);
+  assert.equal(
+    response.ok,
+    true,
+    `Manager API 로그 보관 fixture GET ${HTTP_ERRORS_PATH} 실패: HTTP ${response.status}`,
+  );
+  assert.equal(
+    response.data.buckets?.length,
+    24,
+    "Manager API 로그 보관 fixture 원본 구간이 다릅니다",
+  );
 
   await showWarningFixture({
     cdp,
-    fixture: buildFixture(response.body, 6, {
-      ...response.body.log_storage,
+    fixture: buildFixture(response.data, 6, {
+      ...response.data.log_storage,
       source: "persistent",
       size_bytes: 800,
       capacity_bytes: 1_000,
@@ -28,8 +36,8 @@ export async function checkManagerHttpLogStorageWarnings({ cdp, timeoutMs }) {
   });
   await showWarningFixture({
     cdp,
-    fixture: buildFixture(response.body, 12, {
-      ...response.body.log_storage,
+    fixture: buildFixture(response.data, 12, {
+      ...response.data.log_storage,
       source: "docker",
       size_bytes: 200,
       capacity_bytes: 1_000,
