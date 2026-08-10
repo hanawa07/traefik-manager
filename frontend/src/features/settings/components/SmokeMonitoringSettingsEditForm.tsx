@@ -277,7 +277,15 @@ export function SmokeMonitoringSettingsEditForm({
         </div>
       </div>
 
-      {errorMessage ? <p className="text-xs text-red-600 dark:text-red-300">{errorMessage}</p> : null}
+      {errorMessage ? (
+        <p
+          className="text-xs text-red-600 dark:text-red-300"
+          data-testid="smoke-monitoring-settings-error"
+          role="alert"
+        >
+          {errorMessage}
+        </p>
+      ) : null}
 
       <SettingsActionRow>
         <button

@@ -1,7 +1,5 @@
+import { getApiErrorDetail } from "@/features/settings/lib/settingsErrors";
+
 export function getSettingsModelErrorMessage(error: unknown, fallback: string) {
-  const detail = (error as { response?: { data?: { detail?: string | Array<{ msg?: string }> } } })?.response
-    ?.data?.detail;
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) return detail[0]?.msg || fallback;
-  return fallback;
+  return getApiErrorDetail(error, fallback);
 }
