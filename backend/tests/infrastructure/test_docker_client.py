@@ -178,10 +178,10 @@ async def test_inspect_manager_component_includes_runtime_health(monkeypatch):
 async def test_manager_http_error_summary_reads_backend_container_logs(monkeypatch):
     client = DockerClient()
     client._transport.socket_path = "/etc/hosts"
-    captured = {}
+    captured = []
 
     async def fake_read_logs(**kwargs):
-        captured.update(kwargs)
+        captured.append(kwargs)
         return ""
 
     monkeypatch.setattr(
@@ -197,11 +197,16 @@ async def test_manager_http_error_summary_reads_backend_container_logs(monkeypat
 
     summary = await client.get_manager_http_error_summary()
 
-    assert captured["container_name"] == "traefik-manager-backend"
-    assert captured["tail_lines"] == 5000
-    assert isinstance(captured["since"], int)
+    calls_by_container = {item["container_name"]: item for item in captured}
+    assert calls_by_container["traefik-manager-backend"]["tail_lines"] == 5000
+    assert calls_by_container["traefik"]["tail_lines"] == 2000
+    assert isinstance(calls_by_container["traefik-manager-backend"]["since"], int)
+    assert calls_by_container["traefik"]["since"] == (
+        calls_by_container["traefik-manager-backend"]["since"]
+    )
     assert summary["available"] is True
     assert summary["not_found_count"] == 0
+    assert summary["client_cancellation"]["available"] is True
     assert summary["log_storage"]["source"] == "docker"
 
 
@@ -215,20 +220,26 @@ async def test_manager_http_error_summary_prefers_persistent_request_logs(monkey
         lambda _path: "",
     )
 
-    async def unexpected_docker_logs(**_kwargs):
-        raise AssertionError("영속 로그가 있으면 Docker 로그를 읽지 않아야 합니다")
+    captured = []
+
+    async def fake_traefik_logs(**kwargs):
+        captured.append(kwargs)
+        assert kwargs["container_name"] == "traefik"
+        return ""
 
     monkeypatch.setattr(
         manager_http_log_reader,
         "read_docker_container_logs_text",
-        unexpected_docker_logs,
+        fake_traefik_logs,
     )
 
     summary = await client.get_manager_http_error_summary()
 
     assert summary["available"] is True
     assert summary["not_found_count"] == 0
+    assert summary["client_cancellation"]["available"] is True
     assert summary["log_storage"]["source"] == "persistent"
+    assert len(captured) == 1
 
 
 @pytest.mark.asyncio

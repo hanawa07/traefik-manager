@@ -83,6 +83,42 @@ def test_build_manager_http_error_summary_marks_unavailable_logs() -> None:
     assert len(summary["buckets"]) == 24
 
 
+def test_build_manager_http_error_summary_keeps_499_out_of_server_errors() -> None:
+    backend_log_text = _request_log(
+        hours_ago=1,
+        path="/api/v1/services",
+        status_code=500,
+    )
+    traefik_log_text = "\n".join(
+        [
+            (
+                '192.0.2.10 - - [14/Jul/2026:05:00:00 +0000] '
+                '"GET /api/v1/services HTTP/1.1" 499 21 "-" "-" 123 '
+                '"traefik-manager-tailnet-file@file" '
+                '"http://traefik-manager-frontend-blue:3000" 10ms'
+            ),
+            (
+                '192.0.2.10 - - [14/Jul/2026:05:30:00 +0000] '
+                '"GET /api/v1/services?refresh=true HTTP/1.1" 499 21 "-" "-" 124 '
+                '"traefik-manager-tailnet-file@file" '
+                '"http://traefik-manager-frontend-blue:3000" 11ms'
+            ),
+        ]
+    )
+
+    summary = build_manager_http_error_summary(
+        backend_log_text,
+        checked_at=CHECKED_AT,
+        client_cancellation_log_text=traefik_log_text,
+    )
+
+    assert summary["server_error_count"] == 1
+    assert summary["client_cancellation"]["count"] == 2
+    assert summary["client_cancellation"]["top_paths"][0]["path"] == (
+        "/api/v1/services"
+    )
+
+
 def test_build_manager_http_error_summary_filters_period_and_path() -> None:
     log_text = "\n".join(
         [

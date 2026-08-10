@@ -12,6 +12,7 @@ import type {
 import { useManagerHttpErrors } from "@/features/deployment/hooks/useDeploymentInfo";
 
 import { ManagerHttpErrorChart } from "./ManagerHttpErrorChart";
+import { ManagerHttpClientCancellationStatus } from "./ManagerHttpClientCancellationStatus";
 import { ManagerHttpLogStorageStatus } from "./ManagerHttpLogStorageStatus";
 import { ManagerHttpMonitoringStatus } from "./ManagerHttpMonitoringStatus";
 
@@ -65,6 +66,11 @@ export function ManagerHttpErrorTrend({
       <ManagerHttpMonitoringStatus
         latencyMonitor={latencyMonitor}
         monitor={monitor}
+        timezone={timezone}
+      />
+
+      <ManagerHttpClientCancellationStatus
+        summary={displayedSummary?.client_cancellation}
         timezone={timezone}
       />
 

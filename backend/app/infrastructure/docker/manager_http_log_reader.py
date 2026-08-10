@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
@@ -31,19 +32,37 @@ async def read_manager_http_error_summary(
     path_filter: str | None = None,
 ) -> dict[str, object]:
     checked_at = datetime.now(timezone.utc)
-    log_text, log_storage = await _read_request_logs(
-        docker_enabled=docker_enabled,
-        since=int((checked_at - timedelta(hours=window_hours)).timestamp()),
+    since = int((checked_at - timedelta(hours=window_hours)).timestamp())
+    (log_text, log_storage), traefik_log_text = await asyncio.gather(
+        _read_request_logs(
+            docker_enabled=docker_enabled,
+            since=since,
+        ),
+        _read_traefik_access_logs(
+            docker_enabled=docker_enabled,
+            since=since,
+        ),
     )
     summary = build_manager_http_error_summary(
         log_text,
         checked_at=checked_at,
+        client_cancellation_log_text=traefik_log_text,
         deployment_history=read_manager_deployment_history(),
         window_hours=window_hours,
         path_filter=path_filter,
     )
     summary["log_storage"] = log_storage
     return summary
+
+
+async def _read_traefik_access_logs(*, docker_enabled: bool, since: int) -> str | None:
+    if not docker_enabled:
+        return None
+    return await read_docker_container_logs_text(
+        container_name=settings.TRAEFIK_DOCKER_CONTAINER_NAME,
+        tail_lines=settings.TRAEFIK_LOG_TAIL_LINES,
+        since=since,
+    )
 
 
 async def read_manager_http_error_counts(

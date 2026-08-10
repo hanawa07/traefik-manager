@@ -58,7 +58,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
               : `${profile.label} 운영 점검 7일·30일 실행시간·로컬 필터 URL·CSV·배포 커밋`,
           );
           await checkManagerHttpErrorTrend({ cdp, timeoutMs });
-          labels.push(`${profile.label} Manager file-provider 라우터`);
+          labels.push(`${profile.label} Manager file-provider 라우터·499 분리`);
           const deploymentHistory = await checkManagerDeploymentHistory({ cdp, timeoutMs });
           if (deploymentHistory) labels.push(`${profile.label} 배포 이력 결과 건수·필터 알림·사용자 지정 파일명`);
           if (!profile.mobile && await checkTraefikUpdateHistory({ cdp, timeoutMs })) labels.push(`${profile.label} Traefik 업데이트 요청자·재시도 필터 복원·감사 링크·JSON·CSV`);
@@ -174,6 +174,7 @@ export async function runDashboardVisualSmokeSelfTest() {
   assert.ok(auditRoute?.requiredMarkers.includes("현재 조건 CSV"));
   assert.ok(auditRoute.requiredMarkers.includes("병목 이벤트 정리"));
   assert.ok(dashboardRoute.requiredMarkers.includes("Manager API 404·5xx 추이"));
+  assert.ok(dashboardRoute.requiredMarkers.includes("499 클라이언트 취소"));
   assert.ok(dashboardRoute.requiredMarkers.includes("Manager file-provider 라우터"));
   assert.ok(dashboardRoute.requiredMarkers.includes("운영 스모크 커밋"));
   assert.ok(

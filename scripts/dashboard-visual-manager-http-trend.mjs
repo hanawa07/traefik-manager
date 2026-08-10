@@ -7,6 +7,7 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
   const snapshot = await evaluate(cdp, `(() => {
     const card = document.querySelector('[data-testid="manager-http-error-trend"]');
     const chart = document.querySelector('[data-testid="manager-http-error-chart-scroll"]');
+    const clientCancellation = document.querySelector('[data-testid="manager-http-client-cancellation"]');
     const correlation = document.querySelector('[data-testid="manager-http-deployment-correlation"]');
     const logStorage = document.querySelector('[data-testid="manager-http-log-storage"]');
     const monitor = document.querySelector('[data-testid="manager-http-error-monitor-status"]');
@@ -23,6 +24,12 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
       correlationAuditHrefs,
       correlationCount: Number(correlation?.getAttribute('data-correlation-count')),
       correlationText: correlation?.textContent || '',
+      clientCancellation: clientCancellation ? {
+        available: clientCancellation.getAttribute('data-client-cancellation-available'),
+        count: Number(clientCancellation.getAttribute('data-client-cancellation-count')),
+        coverage: Number(clientCancellation.getAttribute('data-client-cancellation-coverage')),
+        text: clientCancellation.textContent || '',
+      } : null,
       managerApiAlert: document.querySelector('[data-testid="manager-health-alert-banner"]')
         ?.getAttribute('data-manager-api-alert'),
       managerApiAuditHref: document.querySelector('[data-testid="manager-api-audit-link"]')
@@ -62,6 +69,33 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
   assert.equal(snapshot.route.provider, "file", "Manager 라우터 provider가 file이 아닙니다");
   assert.equal(snapshot.route.upstreamStatus, "UP", "Manager 라우터 upstream이 UP이 아닙니다");
   assert.equal(snapshot.available, "true", "Manager API 오류 로그를 조회하지 못했습니다");
+  assert.ok(snapshot.clientCancellation, "Manager API 499 클라이언트 취소 상태가 없습니다");
+  assert.equal(
+    snapshot.clientCancellation.available,
+    "true",
+    "Traefik 접근 로그 표본을 조회하지 못했습니다",
+  );
+  assert.ok(
+    Number.isInteger(snapshot.clientCancellation.count) &&
+      snapshot.clientCancellation.count >= 0,
+    "Manager API 499 클라이언트 취소 건수가 올바르지 않습니다",
+  );
+  assert.ok(
+    Number.isInteger(snapshot.clientCancellation.coverage) &&
+      snapshot.clientCancellation.coverage >= 0 &&
+      snapshot.clientCancellation.coverage <= 100,
+    "Manager API 499 로그 표본 충족률이 올바르지 않습니다",
+  );
+  assert.match(
+    snapshot.clientCancellation.text,
+    /499 클라이언트 취소/,
+    "Manager API 499 상태 제목이 없습니다",
+  );
+  assert.match(
+    snapshot.clientCancellation.text,
+    /서버 오류·임계치 계산에서 제외/,
+    "Manager API 499 제외 기준 설명이 없습니다",
+  );
   assert.equal(snapshot.bucketCount, 24, "Manager API 오류 추이가 24개 시간 구간이 아닙니다");
   assert.ok(snapshot.chartScrollWidth >= snapshot.chartWidth, "Manager API 오류 차트 폭이 올바르지 않습니다");
   assert.match(snapshot.text, /관측 시작:/, "Manager API 오류 로그 관측 시각이 없습니다");

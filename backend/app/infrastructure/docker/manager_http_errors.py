@@ -1,6 +1,9 @@
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
+from app.infrastructure.docker.manager_http_client_cancellations import (
+    build_manager_http_client_cancellation_summary,
+)
 from app.infrastructure.docker.manager_http_deployment_correlation import (
     build_manager_http_deployment_correlations,
 )
@@ -18,6 +21,7 @@ def build_manager_http_error_summary(
     log_text: str | None,
     *,
     checked_at: datetime | None = None,
+    client_cancellation_log_text: str | None = None,
     deployment_history: list[dict[str, object]] | None = None,
     window_hours: int = MANAGER_HTTP_ERROR_WINDOW_HOURS,
     path_filter: str | None = None,
@@ -26,6 +30,12 @@ def build_manager_http_error_summary(
     effective_window_hours = max(1, min(MANAGER_HTTP_ERROR_MAX_WINDOW_HOURS, window_hours))
     normalized_path_filter = _normalize_path_filter(path_filter)
     window_start = current - timedelta(hours=effective_window_hours)
+    client_cancellation = build_manager_http_client_cancellation_summary(
+        client_cancellation_log_text,
+        checked_at=current,
+        window_hours=effective_window_hours,
+        path_filter=normalized_path_filter,
+    )
     buckets = [
         {
             "started_at": window_start + timedelta(hours=index),
@@ -45,6 +55,7 @@ def build_manager_http_error_summary(
             deployment_correlations=[],
             window_hours=effective_window_hours,
             path_filter=normalized_path_filter,
+            client_cancellation=client_cancellation,
         )
 
     observed_since: datetime | None = None
@@ -99,6 +110,7 @@ def build_manager_http_error_summary(
         ),
         window_hours=effective_window_hours,
         path_filter=normalized_path_filter,
+        client_cancellation=client_cancellation,
     )
 
 
@@ -180,6 +192,7 @@ def _build_summary(
     deployment_correlations: list[dict[str, object]],
     window_hours: int,
     path_filter: str | None,
+    client_cancellation: dict[str, object],
 ) -> dict[str, object]:
     total_not_found = sum(int(bucket["not_found_count"]) for bucket in buckets)
     total_server_error = sum(int(bucket["server_error_count"]) for bucket in buckets)
@@ -197,6 +210,7 @@ def _build_summary(
         "buckets": buckets,
         "top_paths": top_paths,
         "deployment_correlations": deployment_correlations,
+        "client_cancellation": client_cancellation,
     }
 
 

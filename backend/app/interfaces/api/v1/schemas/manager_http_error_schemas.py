@@ -25,6 +25,24 @@ class ManagerHttpErrorPathResponse(BaseModel):
     last_seen_at: datetime
 
 
+class ManagerHttpClientCancellationPathResponse(BaseModel):
+    path: str
+    count: int = Field(default=0, ge=0)
+    last_seen_at: datetime
+
+
+class ManagerHttpClientCancellationSummaryResponse(BaseModel):
+    available: bool
+    message: str
+    observed_since: datetime | None = None
+    sample_coverage_percent: int = Field(default=0, ge=0, le=100)
+    count: int = Field(default=0, ge=0)
+    top_paths: list[ManagerHttpClientCancellationPathResponse] = Field(
+        default_factory=list,
+        max_length=3,
+    )
+
+
 class ManagerHttpRequestLogStorageResponse(BaseModel):
     source: Literal["persistent", "docker", "unavailable"] = "unavailable"
     size_bytes: int = Field(default=0, ge=0)
@@ -72,6 +90,7 @@ class ManagerHttpErrorSummaryResponse(BaseModel):
         default_factory=list,
         max_length=5,
     )
+    client_cancellation: ManagerHttpClientCancellationSummaryResponse | None = None
     log_storage: ManagerHttpRequestLogStorageResponse = Field(
         default_factory=ManagerHttpRequestLogStorageResponse
     )

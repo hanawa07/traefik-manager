@@ -41,6 +41,19 @@ export interface ManagerHttpErrorPath {
   last_seen_at: string;
 }
 
+export interface ManagerHttpClientCancellationSummary {
+  available: boolean;
+  message: string;
+  observed_since: string | null;
+  sample_coverage_percent: number;
+  count: number;
+  top_paths: Array<{
+    path: string;
+    count: number;
+    last_seen_at: string;
+  }>;
+}
+
 export interface ManagerHttpDeploymentCorrelation {
   version: string;
   revision: string;
@@ -77,6 +90,7 @@ export interface ManagerHttpErrorSummary {
   buckets: ManagerHttpErrorBucket[];
   top_paths: ManagerHttpErrorPath[];
   deployment_correlations: ManagerHttpDeploymentCorrelation[];
+  client_cancellation: ManagerHttpClientCancellationSummary | null;
   log_storage: ManagerHttpRequestLogStorage;
 }
 
