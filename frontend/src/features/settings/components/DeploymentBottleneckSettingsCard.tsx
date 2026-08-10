@@ -19,6 +19,7 @@ import { DeploymentBottleneckPreview } from "./DeploymentBottleneckPreview";
 
 interface DeploymentBottleneckSettingsCardProps {
   canManage: boolean;
+  errorMessage: string;
   formValue: DeploymentBottleneckSettings;
   hostPreview?: DeploymentBottleneckPreviewValue;
   hostOverrideLabels: string[];
@@ -44,6 +45,7 @@ interface DeploymentBottleneckSettingsCardProps {
 
 export function DeploymentBottleneckSettingsCard({
   canManage,
+  errorMessage,
   formValue,
   hostPreview,
   hostOverrideLabels,
@@ -126,6 +128,15 @@ export function DeploymentBottleneckSettingsCard({
           <p className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
             저장한 값은 다음 배포 검사부터 적용됩니다. 호스트 환경 변수로 지정한 값이 있으면 환경 변수가 우선합니다.
           </p>
+          {errorMessage ? (
+            <p
+              className="text-xs text-red-600 dark:text-red-300"
+              data-testid="deployment-bottleneck-settings-error"
+              role="alert"
+            >
+              {errorMessage}
+            </p>
+          ) : null}
           <CertificateDiagnosticsSettingsActions
             isSaving={isSaving}
             onCancel={onCancel}

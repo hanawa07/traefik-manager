@@ -25,6 +25,7 @@ export function useDeploymentBottleneckSettingsModel(
 ) {
   const [isEditing, setIsEditing] = useState(false);
   const [formValue, setFormValue] = useState(DEFAULT_SETTINGS);
+  const [errorMessage, setErrorMessage] = useState("");
   const { data: settings, isLoading } = useDeploymentBottleneckSettings();
   const {
     data: deploymentInfo,
@@ -70,17 +71,23 @@ export function useDeploymentBottleneckSettingsModel(
 
   const handleEdit = () => {
     setFormValue(settings ?? DEFAULT_SETTINGS);
+    setErrorMessage("");
     setIsEditing(true);
   };
 
   const handleSave = async () => {
-    await updateSettings.mutateAsync(formValue);
-    onToast({
-      tone: "success",
-      message: "배포 병목 운영 알림 설정 저장 완료",
-      detail: `${formValue.threshold_ms / 1000}초 초과가 ${formValue.consecutive_count}회 연속되면 알림을 요청하고 이벤트는 ${formValue.event_retention_days}일 보관합니다.`,
-    });
-    setIsEditing(false);
+    setErrorMessage("");
+    try {
+      await updateSettings.mutateAsync(formValue);
+      onToast({
+        tone: "success",
+        message: "배포 병목 운영 알림 설정 저장 완료",
+        detail: `${formValue.threshold_ms / 1000}초 초과가 ${formValue.consecutive_count}회 연속되면 알림을 요청하고 이벤트는 ${formValue.event_retention_days}일 보관합니다.`,
+      });
+      setIsEditing(false);
+    } catch (error) {
+      setErrorMessage(getSettingsModelErrorMessage(error, "배포 병목 운영 알림 설정 저장에 실패했습니다"));
+    }
   };
 
   const handleCleanup = async () => {
@@ -130,6 +137,7 @@ export function useDeploymentBottleneckSettingsModel(
 
   return {
     canManage,
+    errorMessage,
     formValue,
     hostPreview,
     hostOverrideLabels,

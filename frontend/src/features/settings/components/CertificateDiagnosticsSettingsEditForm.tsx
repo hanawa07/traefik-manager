@@ -3,6 +3,7 @@ import { CertificateDiagnosticsSettingsActions } from "./CertificateDiagnosticsS
 import { CertificateDiagnosticsSettingsNumberField } from "./CertificateDiagnosticsSettingsNumberField";
 
 interface CertificateDiagnosticsSettingsEditFormProps {
+  errorMessage: string;
   formValue: CertificateDiagnosticsSettingsInput;
   isSaving: boolean;
   onSave: () => void;
@@ -11,6 +12,7 @@ interface CertificateDiagnosticsSettingsEditFormProps {
 }
 
 export function CertificateDiagnosticsSettingsEditForm({
+  errorMessage,
   formValue,
   isSaving,
   onSave,
@@ -61,6 +63,16 @@ export function CertificateDiagnosticsSettingsEditForm({
         <p>적용 범위: 수동 사전 진단, 백그라운드 자동 재검사, 반복 실패 streak 계산, 반복 실패 알림</p>
         <p>권장값: 주기 60분 / 기준 3회 / 추적 창 240분 / 쿨다운 240분</p>
       </div>
+
+      {errorMessage ? (
+        <p
+          className="text-xs text-red-600 dark:text-red-300"
+          data-testid="certificate-diagnostics-settings-error"
+          role="alert"
+        >
+          {errorMessage}
+        </p>
+      ) : null}
 
       <CertificateDiagnosticsSettingsActions
         isSaving={isSaving}

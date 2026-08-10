@@ -14,6 +14,7 @@ interface CertificateDiagnosticsSettingsCardProps {
   isEditing: boolean;
   settings?: CertificateDiagnosticsSettingsStatus;
   formValue: CertificateDiagnosticsSettingsInput;
+  errorMessage: string;
   isSaving: boolean;
   onEdit: () => void;
   onSave: () => void;
@@ -27,6 +28,7 @@ export function CertificateDiagnosticsSettingsCard({
   isEditing,
   settings,
   formValue,
+  errorMessage,
   isSaving,
   onEdit,
   onSave,
@@ -34,7 +36,7 @@ export function CertificateDiagnosticsSettingsCard({
   onFormChange,
 }: CertificateDiagnosticsSettingsCardProps) {
   return (
-    <div className="card p-6">
+    <div className="card p-6" data-testid="certificate-diagnostics-settings-card">
       <SettingsCardHeader
         icon={<Bug className="w-5 h-5 text-violet-600" />}
         title="인증서 진단"
@@ -47,6 +49,7 @@ export function CertificateDiagnosticsSettingsCard({
         <div className="h-24 animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />
       ) : isEditing ? (
         <CertificateDiagnosticsSettingsEditForm
+          errorMessage={errorMessage}
           formValue={formValue}
           isSaving={isSaving}
           onCancel={onCancel}

@@ -16,6 +16,7 @@ import {
 } from "./dashboard-visual-smoke-failure-metadata.mjs";
 import { fulfillJsonRequest } from "./dashboard-visual-smoke-history-fixture.mjs";
 import { checkRemoteSmokeSettingsForm } from "./dashboard-visual-smoke-settings-form.mjs";
+import { checkSettingsSaveErrorAdminFixture } from "./dashboard-visual-settings-save-errors.mjs";
 import { checkSettingsSectionStructure } from "./dashboard-visual-settings-sections.mjs";
 import { checkSmokeLocalRunFilters } from "./dashboard-visual-smoke-statistics-history.mjs";
 import { checkTraefikAlertRetryAdminFixture } from "./dashboard-visual-traefik-alert-retry.mjs";
@@ -27,6 +28,7 @@ export async function checkAdminVisualFixtures(options) {
   await checkSmokeHistoryRetryAdminFixture(options);
   await checkServiceGatewayImportAdminFixture(options);
   await checkSmokeRateLimitAdminFixture(options);
+  await checkSettingsSaveErrorAdminFixture(options);
   return checkTraefikAlertRetryAdminFixture(options);
 }
 

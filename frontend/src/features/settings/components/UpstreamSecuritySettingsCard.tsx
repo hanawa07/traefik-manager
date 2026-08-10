@@ -14,6 +14,7 @@ interface UpstreamSecuritySettingsCardProps {
   isEditing: boolean;
   settings?: UpstreamSecuritySettingsStatus;
   formValue: UpstreamSecurityForm;
+  errorMessage: string;
   isSaving: boolean;
   onEdit: () => void;
   onSave: () => void;
@@ -27,6 +28,7 @@ export function UpstreamSecuritySettingsCard({
   isEditing,
   settings,
   formValue,
+  errorMessage,
   isSaving,
   onEdit,
   onSave,
@@ -34,7 +36,7 @@ export function UpstreamSecuritySettingsCard({
   onFormChange,
 }: UpstreamSecuritySettingsCardProps) {
   return (
-    <div className="card p-6">
+    <div className="card p-6" data-testid="upstream-security-settings-card">
       <SettingsCardHeader
         icon={<ShieldCheck className="w-5 h-5 text-rose-600" />}
         title="업스트림 보안"
@@ -50,6 +52,7 @@ export function UpstreamSecuritySettingsCard({
         <div className="h-24 animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />
       ) : isEditing ? (
         <UpstreamSecuritySettingsEditForm
+          errorMessage={errorMessage}
           settings={settings}
           formValue={formValue}
           isSaving={isSaving}

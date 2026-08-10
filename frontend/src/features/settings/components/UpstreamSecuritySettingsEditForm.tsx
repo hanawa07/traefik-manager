@@ -10,6 +10,7 @@ import { UpstreamSecurityToggleOptionsSection } from "./UpstreamSecurityToggleOp
 interface UpstreamSecuritySettingsEditFormProps {
   settings?: UpstreamSecuritySettingsStatus;
   formValue: UpstreamSecurityForm;
+  errorMessage: string;
   isSaving: boolean;
   onSave: () => void;
   onCancel: () => void;
@@ -19,6 +20,7 @@ interface UpstreamSecuritySettingsEditFormProps {
 export function UpstreamSecuritySettingsEditForm({
   settings,
   formValue,
+  errorMessage,
   isSaving,
   onSave,
   onCancel,
@@ -35,6 +37,16 @@ export function UpstreamSecuritySettingsEditForm({
       />
       <UpstreamSecurityAllowlistSection formValue={formValue} onFormChange={onFormChange} />
       <UpstreamSecurityToggleOptionsSection formValue={formValue} onFormChange={onFormChange} />
+
+      {errorMessage ? (
+        <p
+          className="text-xs text-red-600 dark:text-red-300"
+          data-testid="upstream-security-settings-error"
+          role="alert"
+        >
+          {errorMessage}
+        </p>
+      ) : null}
 
       <SettingsActionRow>
         <button
