@@ -1,4 +1,5 @@
-from sqlalchemy import select, delete
+from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.persistence.models import SystemSettingModel
@@ -14,13 +15,15 @@ class SQLiteSystemSettingsRepository:
         return result.scalar_one_or_none()
 
     async def set(self, key: str, value: str | None) -> None:
-        stmt = select(SystemSettingModel).where(SystemSettingModel.key == key)
-        result = await self.session.execute(stmt)
-        setting = result.scalar_one_or_none()
-        if setting:
-            setting.value = value
-        else:
-            self.session.add(SystemSettingModel(key=key, value=value))
+        statement = sqlite_insert(SystemSettingModel).values(key=key, value=value)
+        statement = statement.on_conflict_do_update(
+            index_elements=[SystemSettingModel.key],
+            set_={
+                "value": statement.excluded.value,
+                "updated_at": func.now(),
+            },
+        )
+        await self.session.execute(statement)
 
     async def delete(self, key: str) -> None:
         stmt = delete(SystemSettingModel).where(SystemSettingModel.key == key)
