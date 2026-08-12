@@ -4,7 +4,9 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.infrastructure.traefik import traefik_api_client as traefik_client_module
+from app.infrastructure.traefik import encoded_path_block_history
 from app.infrastructure.traefik.encoded_path_block_history import (
+    collect_encoded_path_block_history,
     read_recent_encoded_path_block_count,
     update_encoded_path_block_history,
 )
@@ -60,6 +62,46 @@ async def test_traefik_client_builds_encoded_path_blocks_from_docker_logs(monkey
     assert result["available"] is True
     assert result["blocked_request_count"] == 1
     collector.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_encoded_path_history_reads_only_after_saved_log_cursor(
+    monkeypatch,
+    tmp_path,
+):
+    history_path = tmp_path / "encoded-path-blocks.json"
+    occurred_at = datetime(2026, 8, 1, 11, 59, 30, tzinfo=timezone.utc)
+    responses = [
+        (
+            '2026-08-01T11:59:30Z 192.0.2.1 - - '
+            '"GET /private%2Fpath HTTP/2.0" 400 0'
+        ),
+        "",
+    ]
+    since_values = []
+
+    async def fake_read_logs(*, since=None):
+        since_values.append(since)
+        return responses.pop(0)
+
+    monkeypatch.setattr(
+        encoded_path_block_history,
+        "read_docker_container_logs_text",
+        fake_read_logs,
+    )
+
+    first = await collect_encoded_path_block_history(
+        checked_at=datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc),
+        path=history_path,
+    )
+    second = await collect_encoded_path_block_history(
+        checked_at=datetime(2026, 8, 1, 12, 1, tzinfo=timezone.utc),
+        path=history_path,
+    )
+
+    assert first["blocked_request_count"] == 1
+    assert second["blocked_request_count"] == 1
+    assert since_values == [None, int(occurred_at.timestamp())]
 
 
 def test_encoded_path_history_persists_deduplicated_private_summary(tmp_path):

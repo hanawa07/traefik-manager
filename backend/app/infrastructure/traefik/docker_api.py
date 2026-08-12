@@ -64,8 +64,9 @@ async def read_docker_acme_json_text() -> str | None:
     return None
 
 
-async def read_docker_container_logs_text() -> str | None:
+async def read_docker_container_logs_text(*, since: int | None = None) -> str | None:
     return await read_container_logs_text(
         container_name=settings.TRAEFIK_DOCKER_CONTAINER_NAME,
         tail_lines=settings.TRAEFIK_LOG_TAIL_LINES,
+        since=since,
     )

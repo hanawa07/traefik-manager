@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.core.config import settings
+from app.infrastructure.traefik.acme_datetime import parse_datetime
 from app.infrastructure.traefik.docker_api import read_docker_container_logs_text
 from app.infrastructure.traefik.encoded_path_block_history_state import (
     build_summary,
@@ -27,12 +28,18 @@ async def collect_encoded_path_block_history(
     path: str | Path | None = None,
 ) -> dict[str, object]:
     current = _as_utc(checked_at or datetime.now(timezone.utc))
-    raw_text = await read_docker_container_logs_text()
+    history_path = Path(path or settings.TRAEFIK_ENCODED_PATH_BLOCK_HISTORY_PATH)
+    try:
+        since = read_encoded_path_block_log_since(history_path)
+    except (OSError, TypeError, UnicodeError, ValueError):
+        logger.warning("Traefik 인코딩 경로 로그 cursor 조회 실패", exc_info=True)
+        since = None
+    raw_text = await read_docker_container_logs_text(since=since)
     try:
         return update_encoded_path_block_history(
             raw_text,
             checked_at=current,
-            path=path,
+            path=history_path,
             tail_lines=settings.TRAEFIK_LOG_TAIL_LINES,
         )
     except (OSError, TypeError, UnicodeError, ValueError):
@@ -42,6 +49,21 @@ async def collect_encoded_path_block_history(
             collection_available=raw_text is not None,
             tail_lines=settings.TRAEFIK_LOG_TAIL_LINES,
         )
+
+
+def read_encoded_path_block_log_since(path: str | Path | None = None) -> int | None:
+    history_path = Path(path or settings.TRAEFIK_ENCODED_PATH_BLOCK_HISTORY_PATH)
+    if not history_path.exists():
+        return None
+
+    lock_path = Path(f"{history_path}.lock")
+    with lock_path.open("a", encoding="utf-8") as lock_file:
+        lock_path.chmod(0o600)
+        fcntl.flock(lock_file, fcntl.LOCK_SH)
+        state = _read_state(history_path)
+
+    cursor_at = parse_datetime(str(state.get("cursor_at") or ""))
+    return int(cursor_at.timestamp()) if cursor_at is not None else None
 
 
 def read_recent_encoded_path_block_count(
