@@ -179,6 +179,11 @@ async def test_manager_http_error_summary_reads_backend_container_logs(monkeypat
     client = DockerClient()
     client._transport.socket_path = "/etc/hosts"
     captured = []
+    monkeypatch.setattr(
+        manager_http_log_reader,
+        "_manager_traefik_access_log_reader",
+        manager_http_log_reader.ManagerTraefikAccessLogReader(),
+    )
 
     async def fake_read_logs(**kwargs):
         captured.append(kwargs)
@@ -214,6 +219,11 @@ async def test_manager_http_error_summary_reads_backend_container_logs(monkeypat
 async def test_manager_http_error_summary_prefers_persistent_request_logs(monkeypatch):
     client = DockerClient()
     client._transport.socket_path = "/etc/hosts"
+    monkeypatch.setattr(
+        manager_http_log_reader,
+        "_manager_traefik_access_log_reader",
+        manager_http_log_reader.ManagerTraefikAccessLogReader(),
+    )
     monkeypatch.setattr(
         manager_http_log_reader,
         "read_manager_http_request_logs",

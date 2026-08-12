@@ -25,6 +25,58 @@ from app.infrastructure.manager_deployment_history import (
 )
 
 
+MANAGER_TRAEFIK_ACCESS_LOG_CACHE_SECONDS = 300
+
+
+class ManagerTraefikAccessLogReader:
+    """Share one recent Traefik sample across dashboard refreshes."""
+
+    def __init__(self, cache_seconds: int = MANAGER_TRAEFIK_ACCESS_LOG_CACHE_SECONDS):
+        self._cache_seconds = max(1, cache_seconds)
+        self._cached_at: datetime | None = None
+        self._cached_text: str | None = None
+        self._lock = asyncio.Lock()
+
+    async def read(
+        self,
+        *,
+        docker_enabled: bool,
+        now: datetime | None = None,
+    ) -> str | None:
+        if not docker_enabled:
+            return None
+        current = now or datetime.now(timezone.utc)
+        if self._is_fresh(current):
+            return self._cached_text
+
+        async with self._lock:
+            current = now or datetime.now(timezone.utc)
+            if self._is_fresh(current):
+                return self._cached_text
+            log_text = await read_docker_container_logs_text(
+                container_name=settings.TRAEFIK_DOCKER_CONTAINER_NAME,
+                tail_lines=settings.TRAEFIK_LOG_TAIL_LINES,
+                since=int(
+                    (
+                        current
+                        - timedelta(hours=MANAGER_HTTP_ERROR_WINDOW_HOURS)
+                    ).timestamp()
+                ),
+            )
+            if log_text is not None:
+                self._cached_at = current
+                self._cached_text = log_text
+            return log_text
+
+    def _is_fresh(self, now: datetime) -> bool:
+        if self._cached_at is None or self._cached_text is None:
+            return False
+        return (now - self._cached_at).total_seconds() < self._cache_seconds
+
+
+_manager_traefik_access_log_reader = ManagerTraefikAccessLogReader()
+
+
 async def read_manager_http_error_summary(
     *,
     docker_enabled: bool,
@@ -40,7 +92,7 @@ async def read_manager_http_error_summary(
         ),
         _read_traefik_access_logs(
             docker_enabled=docker_enabled,
-            since=since,
+            checked_at=checked_at,
         ),
     )
     summary = build_manager_http_error_summary(
@@ -55,13 +107,14 @@ async def read_manager_http_error_summary(
     return summary
 
 
-async def _read_traefik_access_logs(*, docker_enabled: bool, since: int) -> str | None:
-    if not docker_enabled:
-        return None
-    return await read_docker_container_logs_text(
-        container_name=settings.TRAEFIK_DOCKER_CONTAINER_NAME,
-        tail_lines=settings.TRAEFIK_LOG_TAIL_LINES,
-        since=since,
+async def _read_traefik_access_logs(
+    *,
+    docker_enabled: bool,
+    checked_at: datetime,
+) -> str | None:
+    return await _manager_traefik_access_log_reader.read(
+        docker_enabled=docker_enabled,
+        now=checked_at,
     )
 
 

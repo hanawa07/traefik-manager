@@ -27,7 +27,7 @@ export function ManagerHttpClientCancellationStatus({
       {summary?.available ? (
         <>
           <p className="mt-1 text-slate-600 dark:text-slate-300">
-            Traefik 최근 로그 표본 {summary.count}건 · 관측 시작{" "}
+            Traefik 최근 로그 표본(최대 5분 간격) {summary.count}건 · 관측 시작{" "}
             {formatDateTime(summary.observed_since, timezone)} · 조회 기간 표본{" "}
             {summary.sample_coverage_percent}%
           </p>
