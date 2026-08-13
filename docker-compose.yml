@@ -68,7 +68,7 @@ x-frontend-common: &frontend-common
 
 services:
   dockerproxy:
-    image: tecnativa/docker-socket-proxy@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
+    image: tecnativa/docker-socket-proxy@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
     container_name: traefik-manager-dockerproxy
     restart: unless-stopped
     entrypoint: ["/usr/local/sbin/haproxy"]
@@ -94,7 +94,7 @@ services:
       - /tmp:noexec,nosuid,size=8m
 
   init-traefik-config:
-    image: alpine:3.24
+    image: alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
     container_name: traefik-manager-init-traefik-config
     command: ["sh", "/init-traefik-config.sh"]
     environment:
