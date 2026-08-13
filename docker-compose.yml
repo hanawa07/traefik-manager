@@ -94,7 +94,7 @@ services:
       - /tmp:noexec,nosuid,size=8m
 
   init-traefik-config:
-    image: alpine:3.20
+    image: alpine:3.24
     container_name: traefik-manager-init-traefik-config
     command: ["sh", "/init-traefik-config.sh"]
     environment:
