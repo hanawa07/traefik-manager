@@ -1,13 +1,15 @@
-FROM python:3.12-slim
+FROM python:3.12-alpine3.24
 
 ARG APP_UID=10001
 ARG APP_GID=10001
 
 WORKDIR /app
 
-# 보안: 비루트 사용자 생성
-RUN addgroup --system --gid ${APP_GID} appgroup \
-  && adduser --system --uid ${APP_UID} --ingroup appgroup appuser
+# 보안: OS 패치와 인증서 CLI 적용 후 비루트 사용자 생성
+RUN apk upgrade --no-cache \
+  && apk add --no-cache openssl \
+  && addgroup -S -g ${APP_GID} appgroup \
+  && adduser -S -D -H -u ${APP_UID} -G appgroup appuser
 
 # 의존성 설치
 COPY requirements.txt .

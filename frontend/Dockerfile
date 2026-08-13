@@ -17,8 +17,13 @@ RUN npm run build
 FROM node:24-alpine3.24 AS runner
 WORKDIR /app
 
-# 보안: 비루트 사용자
+# 보안: 실행 단계의 패키지 관리 도구 제거 후 비루트 사용자 생성
 RUN apk upgrade --no-cache \
+  && rm -rf /usr/local/lib/node_modules/npm \
+    /usr/local/lib/node_modules/corepack \
+    /opt/yarn-v1.22.22 \
+  && rm -f /usr/local/bin/npm /usr/local/bin/npx \
+    /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg \
   && addgroup --system appgroup \
   && adduser --system --ingroup appgroup appuser \
   && mkdir -p /app/.next/cache \
