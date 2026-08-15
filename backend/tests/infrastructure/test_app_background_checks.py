@@ -1,4 +1,7 @@
+import sqlite3
+
 import pytest
+from sqlalchemy.exc import OperationalError
 
 from app import app_background_checks
 from app.infrastructure.docker import (
@@ -10,6 +13,37 @@ from app.infrastructure.docker import (
     manager_watchdog_monitor,
 )
 from app.infrastructure.traefik import encoded_path_block_monitor
+
+
+@pytest.mark.parametrize(
+    ("error_message", "expected_attempts"),
+    (("database is locked", 2), ("disk I/O error", 1)),
+)
+@pytest.mark.asyncio
+async def test_auth_cleanup_only_retries_sqlite_lock(
+    monkeypatch,
+    error_message: str,
+    expected_attempts: int,
+) -> None:
+    attempts = 0
+
+    async def cleanup_attempt(_cleanup_once) -> tuple[int, int]:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise OperationalError(
+                "DELETE FROM auth_sessions",
+                {},
+                sqlite3.OperationalError(error_message),
+            )
+        return 0, 0
+
+    monkeypatch.setattr(app_background_checks, "_cleanup_auth_state_attempt", cleanup_attempt)
+    monkeypatch.setattr(app_background_checks, "AUTH_CLEANUP_LOCK_RETRY_SECONDS", 0)
+
+    await app_background_checks.cleanup_auth_state_once()
+
+    assert attempts == expected_attempts
 
 
 @pytest.mark.asyncio

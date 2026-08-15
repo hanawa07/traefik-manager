@@ -1,6 +1,8 @@
 import asyncio
 import logging
 
+from sqlalchemy.exc import OperationalError
+
 from app.core.certificate_diagnostics import build_certificate_diagnostics_settings
 from app.core.config import settings
 from app.infrastructure.persistence.database import AsyncSessionLocal
@@ -9,10 +11,10 @@ from app.infrastructure.persistence.repositories.sqlite_system_settings_reposito
 )
 
 logger = logging.getLogger(__name__)
+AUTH_CLEANUP_LOCK_RETRY_SECONDS = 1.0
 
 
-async def cleanup_auth_state_once() -> None:
-    from app.infrastructure.auth.session_cleanup import cleanup_auth_state_once as cleanup_once
+async def _cleanup_auth_state_attempt(cleanup_once) -> tuple[int, int]:
     from app.infrastructure.persistence.repositories.sqlite_auth_session_repository import (
         SQLiteAuthSessionRepository,
     )
@@ -20,21 +22,39 @@ async def cleanup_auth_state_once() -> None:
         SQLiteRevokedTokenRepository,
     )
 
-    try:
-        async with AsyncSessionLocal() as session:
-            deleted_sessions, deleted_tokens = await cleanup_once(
-                auth_session_repository=SQLiteAuthSessionRepository(session),
-                revoked_token_repository=SQLiteRevokedTokenRepository(session),
-            )
-            await session.commit()
+    async with AsyncSessionLocal() as session:
+        deleted = await cleanup_once(
+            auth_session_repository=SQLiteAuthSessionRepository(session),
+            revoked_token_repository=SQLiteRevokedTokenRepository(session),
+        )
+        await session.commit()
+        return deleted
+
+
+async def cleanup_auth_state_once() -> None:
+    from app.infrastructure.auth.session_cleanup import cleanup_auth_state_once as cleanup_once
+
+    for attempt in range(2):
+        try:
+            deleted_sessions, deleted_tokens = await _cleanup_auth_state_attempt(cleanup_once)
             if deleted_sessions or deleted_tokens:
                 logger.info(
                     "인증 상태 cleanup 완료 (세션 %d개, 폐기 토큰 %d개)",
                     deleted_sessions,
                     deleted_tokens,
                 )
-    except Exception:
-        logger.warning("인증 상태 cleanup 실패 (무시)", exc_info=True)
+            return
+        except Exception as exc:
+            if (
+                attempt == 0
+                and isinstance(exc, OperationalError)
+                and "database is locked" in str(exc.orig).lower()
+            ):
+                logger.info("인증 상태 cleanup SQLite 잠금 감지, 새 세션으로 재시도합니다")
+                await asyncio.sleep(AUTH_CLEANUP_LOCK_RETRY_SECONDS)
+                continue
+            logger.warning("인증 상태 cleanup 실패 (다음 주기에 재시도)", exc_info=True)
+            return
 
 
 async def auth_cleanup_loop() -> None:
