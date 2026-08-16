@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,10 +28,12 @@ async def record(
             resource_id=resource_id,
             resource_name=resource_name,
             detail=detail,
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0),
         )
         db.add(audit_log)
-        await db.flush()  # 호출한 곳에서 세션을 커밋할 것이므로 flush만 수행
         if notify:
-            await security_alert_notifier.notify_if_needed(db, audit_log)
+            with db.no_autoflush:
+                await security_alert_notifier.notify_if_needed(db, audit_log)
+        await db.flush()  # 호출한 곳에서 세션을 커밋할 것이므로 flush만 수행
     except Exception as e:
         logger.error(f"Failed to record audit log: {e}", exc_info=True)
