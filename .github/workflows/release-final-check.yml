@@ -113,3 +113,6 @@ jobs:
             base_revision="${head_revision}^"
           fi
           scripts/check-blue-green-migrations.sh "$base_revision" "$head_revision"
+
+      - name: 릴리스 컨테이너 이미지 취약점 검사
+        run: scripts/scan-release-images.sh

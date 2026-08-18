@@ -1,7 +1,7 @@
 # Traefik Manager 보안 점검 보고서
 
 > 최초 점검일: 2026-03-08
-> 업데이트: 2026-08-17
+> 업데이트: 2026-08-18
 
 ---
 
@@ -26,6 +26,7 @@
 | **Upstream 호스트 검증** | ✅ 강화됨 |
 | **HTTP redirect 차단 (헬스체크)** | ✅ 적용 |
 | **보안 응답 헤더** | ✅ 구조 개선 |
+| **릴리스 컨테이너 이미지 검사** | ✅ 적용 (수정 가능한 High/Critical 차단) |
 
 ---
 
@@ -46,6 +47,12 @@ socket bind의 `:ro`만으로 Docker 변경 API가 차단되지는 않으므로 
 
 실제 Docker API canary에서 허용 조회와 임시 컨테이너 네트워크 연결은 `200`, 읽기
 listener의 POST와 변경 listener의 다른 메서드·경로는 `403`임을 확인했습니다.
+
+릴리스 최종 통합 검사는 Docker socket을 검사 컨테이너에 전달하지 않고 이미지 tar를
+읽기 전용으로 내보내 Trivy로 검사합니다. backend, frontend, Compose에 digest로 고정된
+Docker API proxy와 설정 초기화 이미지에서 수정 가능한 High/Critical 취약점이 발견되면
+릴리스를 중단합니다. 이 검사는 매 push가 아니라 태그 또는 수동 최종 검사에서만
+실행합니다.
 
 ---
 
@@ -231,9 +238,25 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 
 ---
 
+### [EXTERNAL-1] Traefik v3.7.10 Go 런타임 보안 패치 대기
+
+**점검일:** 2026-08-18
+
+**현재 상태:** 운영 `traefik:v3.7.10`은 공식 최신 릴리스이지만 Go `1.26.5`로
+빌드되어 있습니다. 최신 취약점 DB 기준으로 Go 표준 라이브러리 High 취약점 8건이
+탐지됐고, 수정 버전은 Go `1.26.6`입니다. OS 패키지 취약점은 0건입니다.
+
+Traefik 공식 수정 릴리스는 아직 없으므로 운영 프록시를 비공식 자체 빌드로 교체하지
+않습니다. 다음 공식 패치가 나오면 기존 자동 업데이트의 preflight, 백업, health 검증,
+실패 rollback 절차로 갱신한 뒤 실행 이미지를 다시 검사합니다. Manager backend,
+frontend, Docker API proxy와 설정 초기화 이미지는 같은 기준에서 0건입니다.
+
+---
+
 ## 후속 검토 상태
 
-현재 확인된 필수 보안 수정은 없습니다.
+Manager 코드와 Manager가 소유한 실행 이미지에 남은 필수 보안 수정은 없습니다.
+외부 Traefik 이미지는 위 `EXTERNAL-1`의 공식 패치 릴리스를 대기합니다.
 
 | 항목 | 상태 | 적용 내용 |
 |------|------|-----------|
