@@ -30,7 +30,7 @@ x-backend-common: &backend-common
   cap_drop:
     - ALL
   security_opt:
-    - no-new-privileges:true
+    - no-new-privileges=true
   read_only: false
   tmpfs:
     - /tmp:noexec,nosuid,size=64m
@@ -59,7 +59,7 @@ x-frontend-common: &frontend-common
   cap_drop:
     - ALL
   security_opt:
-    - no-new-privileges:true
+    - no-new-privileges=true
   read_only: true
   tmpfs:
     - /tmp:noexec,nosuid,size=64m
@@ -88,7 +88,7 @@ services:
     cap_drop:
       - ALL
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges=true
     read_only: true
     tmpfs:
       - /tmp:noexec,nosuid,size=8m
@@ -105,7 +105,7 @@ services:
       TRAEFIK_MANAGER_TAILNET_ENTRYPOINT: ${TRAEFIK_MANAGER_TAILNET_ENTRYPOINT:-manager-tailnet}
     restart: "no"
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges=true
     volumes:
       - ./traefik-config:/traefik-config
       - ./scripts/init-traefik-config.sh:/init-traefik-config.sh:ro

@@ -18,7 +18,7 @@
 | subprocess shell=True 미사용 | ✅ 양호 |
 | Docker API 최소 권한 proxy | ✅ 적용 (backend 직접 소켓 없음) |
 | Production docs URL 비활성화 | ✅ 양호 |
-| no-new-privileges:true | ✅ 양호 |
+| no-new-privileges=true | ✅ 양호 |
 | **로그인 brute force 방어** | ✅ 적용 (Traefik rate limit + 앱 레벨 계정 잠금 + 이상 징후 IP 차단) |
 | **추가 로그인 검증 (Turnstile)** | ✅ 적용 (선택형) |
 | **브라우저 세션 관리** | ✅ 적용 (`auth_sessions` + cookie revoke) |
