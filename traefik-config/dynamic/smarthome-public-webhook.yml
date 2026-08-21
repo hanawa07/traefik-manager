@@ -1,0 +1,10 @@
+http:
+  routers:
+    smarthome-public-webhook:
+      entryPoints:
+        - websecure
+      priority: 1000
+      rule: Host(`smarthome.lizstudio.co.kr`) && PathPrefix(`/api/webhook/`)
+      service: smarthome-lizstudio-co-kr@file
+      tls:
+        certResolver: letsencrypt

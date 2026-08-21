@@ -1,0 +1,30 @@
+http:
+  middlewares:
+    traefik-manager-private-domain-allowlist:
+      ipAllowList:
+        sourceRange:
+          - 100.64.0.0/10
+    traefik-manager-private-domain-redirect:
+      redirectScheme:
+        permanent: true
+        scheme: https
+  routers:
+    traefik-manager-private-domain:
+      entryPoints:
+        - websecure
+      middlewares:
+        - traefik-manager-private-domain-allowlist
+      priority: 500
+      rule: Host(`traefik-manager.lizstudio.co.kr`)
+      service: traefik-manager-frontend-file@file
+      tls:
+        certResolver: letsencrypt
+    traefik-manager-private-domain-redirect:
+      entryPoints:
+        - web
+      middlewares:
+        - traefik-manager-private-domain-allowlist
+        - traefik-manager-private-domain-redirect
+      priority: 500
+      rule: Host(`traefik-manager.lizstudio.co.kr`)
+      service: traefik-manager-frontend-file@file
