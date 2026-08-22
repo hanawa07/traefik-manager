@@ -76,15 +76,48 @@ def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
         "traefik_encoded_path_blocks_recovered",
     }:
         lines.append(f"집계 구간: 최근 {detail.get('window_minutes')}분")
+        target_services = _format_target_services(detail.get("target_services"))
+        if target_services:
+            lines.append(f"대상 서비스: {target_services}")
+        if detail.get("other_target_request_count"):
+            lines.append(f"기타 대상 차단: {detail.get('other_target_request_count')}건")
         lines.append(
             f"차단 횟수: {detail.get('blocked_request_count')}건 / "
             f"임계치 {detail.get('alert_threshold')}건"
         )
+        if detail.get("total_request_count") is not None:
+            total_request_count = int(detail.get("total_request_count") or 0)
+            if detail.get("request_count_complete") is True:
+                lines.append(
+                    f"전체 요청량: {total_request_count:,}건 · "
+                    f"차단 비율 {detail.get('blocked_request_percent')}%"
+                )
+            else:
+                lines.append(
+                    f"전체 요청 표본: {total_request_count:,}건 · 차단 비율 집계 중"
+                )
         if detail.get("cooldown_minutes") is not None:
             lines.append(f"재발 알림 cooldown: {detail.get('cooldown_minutes')}분")
     if category == "change":
         _append_change_details(lines, detail, event)
     return "\n".join(lines)
+
+
+def _format_target_services(value: object) -> str:
+    if not isinstance(value, list):
+        return ""
+    labels = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        service_name = item.get("service_name")
+        domain = item.get("domain")
+        count = item.get("blocked_request_count")
+        if not isinstance(service_name, str) or not isinstance(count, int):
+            continue
+        label = f"{service_name} ({domain})" if isinstance(domain, str) else service_name
+        labels.append(f"{label} {count}건")
+    return ", ".join(labels)
 
 
 def _append_change_details(lines: list[str], detail: dict[str, Any], event: str) -> None:

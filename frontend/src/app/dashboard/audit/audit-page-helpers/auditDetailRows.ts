@@ -78,6 +78,19 @@ export function getManagerHttpErrorDetailRows(
     { key: "server_error_threshold", label: "5xx 임계치", value: withUnit(detail.server_error_threshold, "건") },
     { key: "blocked_request_count", label: "차단 횟수", value: withUnit(detail.blocked_request_count, "건") },
     { key: "alert_threshold", label: "차단 임계치", value: withUnit(detail.alert_threshold, "건") },
+    { key: "target_services", label: "대상 서비스", value: formatTargetServices(detail.target_services) },
+    { key: "other_target_request_count", label: "기타 대상 차단", value: withUnit(detail.other_target_request_count, "건") },
+    { key: "total_request_count", label: "전체 요청량", value: withUnit(detail.total_request_count, "건") },
+    { key: "blocked_request_percent", label: "차단 비율", value: withUnit(detail.blocked_request_percent, "%") },
+    {
+      key: "request_count_complete",
+      label: "요청량 집계",
+      value: detail.request_count_complete === true
+        ? "완료"
+        : detail.request_count_complete === false
+          ? "초기화 중"
+          : undefined,
+    },
     { key: "path", label: "대상 경로", value: detail.path },
     { key: "p95_ms", label: "p95", value: withUnit(detail.p95_ms, "ms") },
     { key: "threshold_ms", label: "p95 기준", value: withUnit(detail.threshold_ms, "ms") },
@@ -179,4 +192,17 @@ function formatTopPaths(value: unknown) {
     return [`${item.path} (404 ${notFound}, 5xx ${serverError})`];
   });
   return paths.length > 0 ? paths : undefined;
+}
+
+function formatTargetServices(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+  const services = value.flatMap((item) => {
+    if (!isRecord(item) || typeof item.service_name !== "string") return [];
+    const domain = typeof item.domain === "string" ? ` (${item.domain})` : "";
+    const count = typeof item.blocked_request_count === "number"
+      ? ` ${item.blocked_request_count}건`
+      : "";
+    return [`${item.service_name}${domain}${count}`];
+  });
+  return services.length ? services.join(", ") : undefined;
 }

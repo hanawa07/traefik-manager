@@ -14,6 +14,7 @@ from app.infrastructure.traefik.encoded_path_block_history_state import (
     count_recent_blocks,
     merge_log_events,
     prune_minutes,
+    summarize_recent_blocks,
     unavailable_summary,
 )
 
@@ -84,6 +85,30 @@ def read_recent_encoded_path_block_count(
         state = _read_state(history_path)
 
     return count_recent_blocks(
+        state,
+        checked_at=current,
+        window_minutes=window_minutes,
+    )
+
+
+def read_recent_encoded_path_block_stats(
+    *,
+    checked_at: datetime,
+    window_minutes: int,
+    path: str | Path | None = None,
+) -> dict[str, object] | None:
+    current = _as_utc(checked_at)
+    history_path = Path(path or settings.TRAEFIK_ENCODED_PATH_BLOCK_HISTORY_PATH)
+    if not history_path.exists():
+        return None
+
+    lock_path = Path(f"{history_path}.lock")
+    with lock_path.open("a", encoding="utf-8") as lock_file:
+        lock_path.chmod(0o600)
+        fcntl.flock(lock_file, fcntl.LOCK_SH)
+        state = _read_state(history_path)
+
+    return summarize_recent_blocks(
         state,
         checked_at=current,
         window_minutes=window_minutes,

@@ -13,12 +13,15 @@ from app.application.manager_health_monitoring import (
     read_manager_health_monitoring_values,
 )
 from app.infrastructure.persistence.database import AsyncSessionLocal
+from app.infrastructure.persistence.repositories.sqlite_service_repository import (
+    SQLiteServiceRepository,
+)
 from app.infrastructure.persistence.repositories.sqlite_system_settings_repository import (
     SQLiteSystemSettingsRepository,
 )
 from app.infrastructure.traefik.encoded_path_block_history import (
     collect_encoded_path_block_history,
-    read_recent_encoded_path_block_count,
+    read_recent_encoded_path_block_stats,
 )
 
 
@@ -51,13 +54,14 @@ async def check_encoded_path_blocks_once(
         if not history.get("available") or not history.get("collection_available"):
             return _summary(current, enabled=True, available=False)
 
-        blocked_count = read_recent_encoded_path_block_count(
+        stats = read_recent_encoded_path_block_stats(
             checked_at=current,
             window_minutes=monitoring.window_minutes,
             path=history_path,
         )
-        if blocked_count is None:
+        if stats is None:
             return _summary(current, enabled=True, available=False)
+        blocked_count = int(stats["blocked_request_count"])
 
         _, configured_cooldown_minutes = await read_manager_health_monitoring_values(repo)
         effective_cooldown_seconds = (
@@ -91,6 +95,16 @@ async def check_encoded_path_blocks_once(
             json.dumps(state, ensure_ascii=False, sort_keys=True),
         )
         if event:
+            target_routers = stats.get("target_routers")
+            services = (
+                await SQLiteServiceRepository(session).find_all()
+                if isinstance(target_routers, list) and target_routers
+                else []
+            )
+            target_services, other_target_request_count = _resolve_target_services(
+                target_routers,
+                services,
+            )
             await audit_service.record(
                 db=session,
                 actor="system",
@@ -102,6 +116,13 @@ async def check_encoded_path_blocks_once(
                     "event": event,
                     "window_minutes": monitoring.window_minutes,
                     "blocked_request_count": blocked_count,
+                    "total_request_count": stats.get("total_request_count", 0),
+                    "blocked_request_percent": stats.get("blocked_request_percent"),
+                    "request_count_complete": stats.get(
+                        "request_count_complete", False
+                    ),
+                    "target_services": target_services,
+                    "other_target_request_count": other_target_request_count,
                     "alert_threshold": monitoring.threshold,
                     "checked_at": current.isoformat(),
                     "cooldown_minutes": effective_cooldown_seconds // 60,
@@ -128,6 +149,65 @@ def _alert_due(previous: dict[str, object], now: datetime, cooldown_seconds: int
     except ValueError:
         return True
     return now - last_alert_at >= timedelta(seconds=cooldown_seconds)
+
+
+def _resolve_target_services(
+    target_routers: object,
+    services: list[Any],
+    *,
+    limit: int = 5,
+) -> tuple[list[dict[str, object]], int]:
+    service_candidates = sorted(
+        (
+            (str(service.domain).replace(".", "-"), service)
+            for service in services
+        ),
+        key=lambda item: len(item[0]),
+        reverse=True,
+    )
+    totals: dict[str, dict[str, object]] = {}
+    for target in target_routers if isinstance(target_routers, list) else []:
+        if not isinstance(target, dict):
+            continue
+        router_name = target.get("router_name")
+        count = target.get("blocked_request_count")
+        if not isinstance(router_name, str) or not isinstance(count, int):
+            continue
+        router_base = router_name.split("@", 1)[0]
+        matched_service = next(
+            (
+                service
+                for safe_domain, service in service_candidates
+                if router_base == safe_domain
+                or router_base.startswith(f"{safe_domain}-")
+            ),
+            None,
+        )
+        domain = str(matched_service.domain) if matched_service else None
+        key = domain or router_base
+        current = totals.setdefault(
+            key,
+            {
+                "service_name": (
+                    matched_service.name
+                    if matched_service
+                    else "알 수 없음" if router_base == "unknown" else router_base
+                ),
+                "domain": domain,
+                "blocked_request_count": 0,
+            },
+        )
+        current["blocked_request_count"] = (
+            int(current["blocked_request_count"]) + count
+        )
+
+    ordered = sorted(
+        totals.values(),
+        key=lambda item: (-int(item["blocked_request_count"]), str(item["service_name"])),
+    )
+    return ordered[:limit], sum(
+        int(item["blocked_request_count"]) for item in ordered[limit:]
+    )
 
 
 def _to_utc(value: datetime | None) -> datetime:

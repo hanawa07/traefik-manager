@@ -8,9 +8,11 @@ from app.infrastructure.traefik import encoded_path_block_history
 from app.infrastructure.traefik.encoded_path_block_history import (
     collect_encoded_path_block_history,
     read_recent_encoded_path_block_count,
+    read_recent_encoded_path_block_stats,
     update_encoded_path_block_history,
 )
 from app.infrastructure.traefik.encoded_path_blocks import (
+    parse_access_log_events,
     parse_encoded_path_block_events,
 )
 from app.infrastructure.traefik.traefik_api_client import TraefikApiClient
@@ -46,6 +48,25 @@ def test_encoded_path_blocks_count_each_character_once_per_request():
 
     assert len(events) == 1
     assert events[0]["encoded_characters"] == ["%2F", "%25"]
+
+
+def test_access_log_events_capture_target_router_without_request_details():
+    raw_text = "\n".join(
+        [
+            '2026-08-01T11:14:41Z 192.0.2.1 - - "GET / HTTP/2.0" '
+            '200 10 "-" "-" 1 "home-lizstudio-co-kr@file" "http://home:3000" 1ms',
+            '2026-08-01T11:14:42Z 192.0.2.1 - - "GET /admin%2Ftest HTTP/2.0" '
+            '400 0 "-" "-" 2 "home-lizstudio-co-kr@file" "-" 0ms',
+        ]
+    )
+
+    events = parse_access_log_events(raw_text)
+
+    assert len(events) == 2
+    assert events[0]["router_name"] == "home-lizstudio-co-kr@file"
+    assert events[0]["encoded_characters"] == []
+    assert events[1]["router_name"] == "home-lizstudio-co-kr@file"
+    assert events[1]["encoded_characters"] == ["%2F"]
 
 
 @pytest.mark.asyncio
@@ -202,3 +223,73 @@ def test_encoded_path_history_counts_only_recent_minute_buckets(tmp_path):
     )
 
     assert count == 2
+
+
+def test_encoded_path_history_summarizes_targets_and_total_requests(tmp_path):
+    history_path = tmp_path / "encoded-path-blocks.json"
+    checked_at = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+    update_encoded_path_block_history(
+        "\n".join(
+            [
+                '2026-08-01T11:44:00Z 192.0.2.1 - - "GET / HTTP/2.0" '
+                '200 10 "-" "-" 1 "home-lizstudio-co-kr@file" "http://home:3000" 1ms',
+                '2026-08-01T11:45:01Z 192.0.2.1 - - "GET /status HTTP/2.0" '
+                '200 10 "-" "-" 2 "home-lizstudio-co-kr@file" "http://home:3000" 1ms',
+                '2026-08-01T11:50:00Z 127.0.0.1 - - "HEAD /ping HTTP/1.1" '
+                '200 2 "-" "-" 3 "ping@internal" "-" 0ms',
+                '2026-08-01T11:50:01Z 192.0.2.1 - - "GET /admin%2Ftest HTTP/2.0" '
+                '400 0 "-" "-" 4 "home-lizstudio-co-kr@file" "-" 0ms',
+                '2026-08-01T11:59:59Z 192.0.2.2 - - "GET /api%3Btest HTTP/2.0" '
+                '400 0 "-" "-" 5 "monitor-lizstudio-co-kr@file" "-" 0ms',
+            ]
+        ),
+        checked_at=checked_at,
+        path=history_path,
+        tail_lines=2000,
+    )
+
+    stats = read_recent_encoded_path_block_stats(
+        checked_at=checked_at,
+        window_minutes=15,
+        path=history_path,
+    )
+
+    assert stats == {
+        "blocked_request_count": 2,
+        "total_request_count": 3,
+        "blocked_request_percent": 66.7,
+        "request_count_complete": True,
+        "target_routers": [
+            {
+                "router_name": "home-lizstudio-co-kr@file",
+                "blocked_request_count": 1,
+            },
+            {
+                "router_name": "monitor-lizstudio-co-kr@file",
+                "blocked_request_count": 1,
+            },
+        ],
+    }
+
+
+def test_encoded_path_history_hides_ratio_until_request_window_is_complete(tmp_path):
+    history_path = tmp_path / "encoded-path-blocks.json"
+    checked_at = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+    update_encoded_path_block_history(
+        '2026-08-01T11:59:59Z 192.0.2.1 - - "GET /api%2Ftest HTTP/2.0" '
+        '400 0 "-" "-" 1 "home-lizstudio-co-kr@file" "-" 0ms',
+        checked_at=checked_at,
+        path=history_path,
+        tail_lines=2000,
+    )
+
+    stats = read_recent_encoded_path_block_stats(
+        checked_at=checked_at,
+        window_minutes=15,
+        path=history_path,
+    )
+
+    assert stats is not None
+    assert stats["total_request_count"] == 1
+    assert stats["request_count_complete"] is False
+    assert stats["blocked_request_percent"] is None

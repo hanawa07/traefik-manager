@@ -100,6 +100,22 @@ async def test_notify_if_needed_posts_encoded_path_surge_without_private_request
         {
             "window_minutes": 15,
             "blocked_request_count": 25,
+            "total_request_count": 1250,
+            "blocked_request_percent": 2.0,
+            "request_count_complete": True,
+            "target_services": [
+                {
+                    "service_name": "Homepage",
+                    "domain": "home.lizstudio.co.kr",
+                    "blocked_request_count": 20,
+                },
+                {
+                    "service_name": "English",
+                    "domain": "english.lizstudio.co.kr",
+                    "blocked_request_count": 5,
+                },
+            ],
+            "other_target_request_count": 0,
             "alert_threshold": 20,
             "cooldown_minutes": 60,
         }
@@ -120,7 +136,9 @@ async def test_notify_if_needed_posts_encoded_path_surge_without_private_request
 
     assert result is True
     assert "Traefik 인코딩 경로 차단 급증" in posted[0][1]["text"]
+    assert "대상 서비스: Homepage (home.lizstudio.co.kr) 20건" in posted[0][1]["text"]
     assert "차단 횟수: 25건 / 임계치 20건" in posted[0][1]["text"]
+    assert "전체 요청량: 1,250건 · 차단 비율 2.0%" in posted[0][1]["text"]
     assert "192.0.2" not in posted[0][1]["text"]
     assert "%2F" not in posted[0][1]["text"]
 

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from app.infrastructure.traefik.acme_datetime import parse_datetime
 from app.infrastructure.traefik.encoded_path_blocks import (
     ENCODED_RESERVED_CHARACTERS,
-    parse_encoded_path_block_events,
+    parse_access_log_events,
 )
 
 HISTORY_WINDOW_HOURS = 24
@@ -15,7 +15,7 @@ def merge_log_events(
     raw_text: str,
     checked_at: datetime,
 ) -> None:
-    events = parse_encoded_path_block_events(raw_text)
+    events = parse_access_log_events(raw_text)
     log_timestamps = [
         occurred_at
         for line in raw_text.splitlines()
@@ -42,7 +42,7 @@ def merge_log_events(
             or (occurred_at == cursor_at and fingerprint in cursor_fingerprints)
         ):
             continue
-        _add_event_to_minute(state, event, occurred_at)
+        _add_request_to_minute(state, event, occurred_at)
 
     if log_timestamps:
         latest_log_at = max(log_timestamps)
@@ -90,20 +90,74 @@ def count_recent_blocks(
     checked_at: datetime,
     window_minutes: int,
 ) -> int:
+    return int(
+        summarize_recent_blocks(
+            state,
+            checked_at=checked_at,
+            window_minutes=window_minutes,
+        )["blocked_request_count"]
+    )
+
+
+def summarize_recent_blocks(
+    state: dict[str, object],
+    *,
+    checked_at: datetime,
+    window_minutes: int,
+) -> dict[str, object]:
     cutoff = (checked_at - timedelta(minutes=window_minutes)).replace(
         second=0,
         microsecond=0,
     )
     minutes = state.get("minutes")
     if not isinstance(minutes, dict):
-        return 0
-    return sum(
-        int(value.get("blocked_request_count", 0))
-        for key, value in minutes.items()
-        if isinstance(value, dict)
-        and (started_at := parse_datetime(key)) is not None
-        and cutoff <= started_at <= checked_at
+        minutes = {}
+
+    blocked_request_count = 0
+    total_request_count = 0
+    router_counts: dict[str, int] = {}
+    for key, value in minutes.items():
+        if (
+            not isinstance(value, dict)
+            or (started_at := parse_datetime(key)) is None
+            or not cutoff <= started_at <= checked_at
+        ):
+            continue
+        blocked_request_count += int(value.get("blocked_request_count", 0))
+        total_request_count += int(value.get("total_request_count", 0))
+        minute_router_counts = value.get("router_counts")
+        if isinstance(minute_router_counts, dict):
+            for router_name, count in minute_router_counts.items():
+                if isinstance(router_name, str):
+                    router_counts[router_name] = (
+                        router_counts.get(router_name, 0) + int(count)
+                    )
+
+    request_count_observed_since = parse_datetime(
+        str(state.get("request_count_observed_since") or "")
     )
+    request_count_complete = bool(
+        request_count_observed_since is not None
+        and request_count_observed_since <= cutoff
+    )
+    blocked_request_percent = (
+        round(blocked_request_count / total_request_count * 100, 1)
+        if request_count_complete and total_request_count
+        else 0.0 if request_count_complete else None
+    )
+    return {
+        "blocked_request_count": blocked_request_count,
+        "total_request_count": total_request_count,
+        "blocked_request_percent": blocked_request_percent,
+        "request_count_complete": request_count_complete,
+        "target_routers": [
+            {"router_name": router_name, "blocked_request_count": count}
+            for router_name, count in sorted(
+                router_counts.items(),
+                key=lambda item: (-item[1], item[0]),
+            )
+        ],
+    }
 
 
 def build_summary(
@@ -194,11 +248,23 @@ def unavailable_summary(
     return summary
 
 
-def _add_event_to_minute(
+def _add_request_to_minute(
     state: dict[str, object],
     event: dict[str, object],
     occurred_at: datetime,
 ) -> None:
+    router_name = event.get("router_name")
+    if isinstance(router_name, str) and router_name.endswith("@internal"):
+        return
+
+    request_count_observed_since = parse_datetime(
+        str(state.get("request_count_observed_since") or "")
+    )
+    state["request_count_observed_since"] = min(
+        request_count_observed_since or occurred_at,
+        occurred_at,
+    ).isoformat()
+
     minutes = state.setdefault("minutes", {})
     if not isinstance(minutes, dict):
         minutes = {}
@@ -206,17 +272,32 @@ def _add_event_to_minute(
     minute_key = occurred_at.replace(second=0, microsecond=0).isoformat()
     minute = minutes.setdefault(
         minute_key,
-        {"blocked_request_count": 0, "encoded_characters": {}, "last_blocked_at": None},
+        {
+            "total_request_count": 0,
+            "blocked_request_count": 0,
+            "encoded_characters": {},
+            "router_counts": {},
+            "last_blocked_at": None,
+        },
     )
     if not isinstance(minute, dict):
+        return
+
+    minute["total_request_count"] = int(minute.get("total_request_count", 0)) + 1
+    encoded_characters = event.get("encoded_characters")
+    if not isinstance(encoded_characters, list) or not encoded_characters:
         return
 
     minute["blocked_request_count"] = int(minute.get("blocked_request_count", 0)) + 1
     encoded_counts = minute.setdefault("encoded_characters", {})
     if isinstance(encoded_counts, dict):
-        for encoded in event.get("encoded_characters", []):
+        for encoded in encoded_characters:
             if isinstance(encoded, str):
                 encoded_counts[encoded] = int(encoded_counts.get(encoded, 0)) + 1
+    router_counts = minute.setdefault("router_counts", {})
+    if isinstance(router_counts, dict):
+        router_key = router_name if isinstance(router_name, str) else "unknown"
+        router_counts[router_key] = int(router_counts.get(router_key, 0)) + 1
     previous = parse_datetime(str(minute.get("last_blocked_at") or ""))
     minute["last_blocked_at"] = max(previous or occurred_at, occurred_at).isoformat()
 
