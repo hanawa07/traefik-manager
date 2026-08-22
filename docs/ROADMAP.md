@@ -140,6 +140,8 @@ NPM(Nginx Proxy Manager)을 대체하고, Authentik 인증을 UI에서 한 번�
 
 > 아래 항목은 설계 미완료가 아니라 선택형 확장/운영 개선 backlog입니다.
 
+- [x] Tailnet split DNS와 비공개 서비스 전환: 기존 FQDN 유지, 관리 서비스 9개 사설화, Home Assistant webhook 공개 예외 적용.
+
 - 운영 편의 기능 추가
 - 외부 시스템 연동 확장
 - 의존성 업그레이드 및 경고 정리
