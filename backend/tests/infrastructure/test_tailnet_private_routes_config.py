@@ -25,9 +25,12 @@ def test_manager_domain_is_limited_to_tailnet_clients() -> None:
 def test_smarthome_only_exposes_webhook_path() -> None:
     config = load_config("smarthome-public-webhook.yml")["http"]
     router = config["routers"]["smarthome-public-webhook"]
+    rate_limit = config["middlewares"]["smarthome-public-webhook-rate-limit"]
 
     assert router["rule"] == (
         "Host(`smarthome.lizstudio.co.kr`) && PathPrefix(`/api/webhook/`)"
     )
     assert router["priority"] == 1000
+    assert router["middlewares"] == ["smarthome-public-webhook-rate-limit"]
     assert router["service"] == "smarthome-lizstudio-co-kr@file"
+    assert rate_limit["rateLimit"] == {"average": 100, "burst": 200}

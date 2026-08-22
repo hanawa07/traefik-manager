@@ -1,10 +1,17 @@
 http:
+  middlewares:
+    smarthome-public-webhook-rate-limit:
+      rateLimit:
+        average: 100
+        burst: 200
   routers:
     smarthome-public-webhook:
       entryPoints:
         - websecure
       priority: 1000
       rule: Host(`smarthome.lizstudio.co.kr`) && PathPrefix(`/api/webhook/`)
+      middlewares:
+        - smarthome-public-webhook-rate-limit
       service: smarthome-lizstudio-co-kr@file
       tls:
         certResolver: letsencrypt
