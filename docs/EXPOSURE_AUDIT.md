@@ -61,12 +61,12 @@ Traefik까지는 공개망에서 도달할 수 있고 애플리케이션 앞의 
 
 이 그룹은 Traefik 공통 SSO가 없으므로 각 앱의 로그인, 공개 서비스 설계 또는 Cloudflare 정책에 의존합니다.
 
-## 라우터 없는 DNS
+## 라우터 없는 보존 도메인
 
 - `comfyui.lizstudio.co.kr`: Manager 서비스 비활성, 백엔드 중지, Traefik 404
 - `hanadays.co.kr`: 구형 OTA 서비스 비활성, 백엔드 중지, Traefik 404
 
-두 레코드의 권한 DNS 네임서버는 `hosting.co.kr`이며 현재 환경에는 관리 권한이 없습니다. 따라서 DNS 삭제는 보류하고 깨진 Homepage·Dashy 링크만 제거했습니다. `tax.hanadays.co.kr`과 Tailnet 전용 Portainer는 활성 서비스이므로 정리 대상이 아닙니다.
+두 DNS 레코드와 Homepage·Dashy 링크는 중지된 서비스를 기억하고 나중에 재사용하기 위해 의도적으로 유지합니다. DNS 삭제 계획은 없으며 이 목적에는 `hosting.co.kr` 관리 권한도 필요하지 않습니다. `tax.hanadays.co.kr`과 Tailnet 전용 Portainer는 현재 활성 서비스입니다.
 
 ## n8n 공개 webhook 판단
 
