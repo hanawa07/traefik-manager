@@ -37,7 +37,8 @@ readarray -t compose_runtime_images < <(
   docker compose \
     --file "${COMPOSE_FILE}" \
     --env-file "${COMPOSE_ENV_FILE}" \
-    config --format json \
+    config --no-env-resolution \
+    --format json \
     | python3 -c '
 import json
 import sys
