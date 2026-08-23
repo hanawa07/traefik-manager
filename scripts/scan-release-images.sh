@@ -34,11 +34,10 @@ cleanup() {
 trap cleanup EXIT
 
 readarray -t compose_runtime_images < <(
-  docker compose \
+  APP_ENV_FILE="${COMPOSE_ENV_FILE}" docker compose \
     --file "${COMPOSE_FILE}" \
     --env-file "${COMPOSE_ENV_FILE}" \
-    config --no-env-resolution \
-    --format json \
+    config --format json \
     | python3 -c '
 import json
 import sys
