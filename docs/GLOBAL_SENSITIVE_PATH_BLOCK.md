@@ -15,8 +15,11 @@
 - `/etc/passwd`, `/proc/self/environ`
 - 대표 SSH 개인키 파일명
 - `docker-compose.yml`, `docker-compose.yaml`
+- SQL 덤프 파일과 압축 변형(`*.sql`, `*.sql.gz`, `*.sql.zip`, `*.sql.bak`)
 
 `readme.html`, `license.txt`, 테스트 파일, WordPress 로그인·XML-RPC, ACME challenge, Authentik outpost, 일반 관리자·API 경로는 공통 차단하지 않는다. `.env-logo.svg`, `.gitignore`, `wp-config-guide`처럼 민감 이름을 일부 포함하는 정상 파일과 쿼리 문자열도 제외한다. 정규식은 비슷한 정상 경로까지 잡는 `PathPrefix` 대신 파일명과 디렉터리 경계를 명시한다.
+
+2026-08-23 점검에서 최근 7일간 SQL 덤프 경로 요청 510건은 모두 Hanastay를 겨냥한 단일 출발지 스캔이었고 정상 응답은 없었다. HTTPS 요청 459건은 WordPress까지 전달된 뒤 거부됐으므로 같은 경로를 공통 라우터에서 먼저 차단하도록 범위를 확장했다.
 
 ## 24시간 운영 관측
 

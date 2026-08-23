@@ -74,6 +74,11 @@ def test_global_sensitive_path_rule_has_bounded_matches() -> None:
         "/docker-compose.yml",
         "/docker-compose.yaml",
         "/docs/docker-compose.yml",
+        "/dump.sql",
+        "/backup/database.sql",
+        "/backup/database.SQL.GZ",
+        "/exports/site.sql.zip",
+        "/old/users.sql.bak",
     ]
     allowed_paths = [
         "/",
@@ -96,6 +101,10 @@ def test_global_sensitive_path_rule_has_bounded_matches() -> None:
         "/api?file=/.env",
         "/search?q=/etc/passwd",
         "/info.php5",
+        "/downloads/sql-guide.txt",
+        "/exports/database.sql.txt",
+        "/archive.zip",
+        "/backup.bak",
     ]
 
     assert [
