@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
@@ -12,6 +13,7 @@ from app.infrastructure.traefik.encoded_path_block_history import (
     update_encoded_path_block_history,
 )
 from app.infrastructure.traefik.encoded_path_blocks import (
+    hash_request_host,
     parse_access_log_events,
     parse_encoded_path_block_events,
 )
@@ -64,9 +66,31 @@ def test_access_log_events_capture_target_router_without_request_details():
 
     assert len(events) == 2
     assert events[0]["router_name"] == "home-lizstudio-co-kr@file"
+    assert events[0]["request_host_hash"] is None
     assert events[0]["encoded_characters"] == []
     assert events[1]["router_name"] == "home-lizstudio-co-kr@file"
     assert events[1]["encoded_characters"] == ["%2F"]
+
+
+def test_access_log_events_capture_json_host_as_hash_only():
+    raw_text = "2026-08-01T11:14:42Z " + json.dumps(
+        {
+            "DownstreamStatus": 400,
+            "RequestHost": "Home.Lizstudio.co.kr:443",
+            "RequestPath": "/admin%2Ftest",
+            "RouterName": "global-sensitive-paths-https@file",
+        }
+    )
+
+    events = parse_access_log_events(raw_text)
+
+    assert len(events) == 1
+    assert events[0]["router_name"] == "global-sensitive-paths-https@file"
+    assert events[0]["request_host_hash"] == hash_request_host(
+        "home.lizstudio.co.kr"
+    )
+    assert events[0]["encoded_characters"] == ["%2F"]
+    assert "Home.Lizstudio.co.kr" not in repr(events[0])
 
 
 @pytest.mark.asyncio
@@ -270,6 +294,53 @@ def test_encoded_path_history_summarizes_targets_and_total_requests(tmp_path):
             },
         ],
     }
+
+
+def test_encoded_path_history_limits_and_hides_json_request_hosts(tmp_path):
+    history_path = tmp_path / "encoded-path-blocks.json"
+    checked_at = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+    domains = [
+        "home.lizstudio.co.kr",
+        "monitor.lizstudio.co.kr",
+        "hanastay.co.kr",
+        "unknown.example.com",
+        "another.example.com",
+        "overflow.example.com",
+    ]
+    raw_text = "\n".join(
+        "2026-08-01T11:59:59Z "
+        + json.dumps(
+            {
+                "DownstreamStatus": 400,
+                "RequestHost": domain,
+                "RequestPath": "/admin%2Ftest",
+                "RouterName": "global-sensitive-paths-https@file",
+            }
+        )
+        for domain in domains
+    )
+
+    update_encoded_path_block_history(
+        raw_text,
+        checked_at=checked_at,
+        path=history_path,
+        tail_lines=2000,
+    )
+    stats = read_recent_encoded_path_block_stats(
+        checked_at=checked_at,
+        window_minutes=15,
+        path=history_path,
+    )
+
+    assert stats is not None
+    assert stats["blocked_request_count"] == 6
+    assert len(stats["target_routers"]) == 6
+    assert any(
+        target == {"router_name": "unknown", "blocked_request_count": 1}
+        for target in stats["target_routers"]
+    )
+    stored = history_path.read_text(encoding="utf-8")
+    assert all(domain not in stored for domain in domains)
 
 
 def test_encoded_path_history_hides_ratio_until_request_window_is_complete(tmp_path):

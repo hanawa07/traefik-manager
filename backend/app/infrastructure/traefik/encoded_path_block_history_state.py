@@ -8,6 +8,7 @@ from app.infrastructure.traefik.encoded_path_blocks import (
 
 HISTORY_WINDOW_HOURS = 24
 MAX_CURSOR_FINGERPRINTS = 100
+MAX_TARGET_KEYS_PER_MINUTE = 5
 
 
 def merge_log_events(
@@ -296,7 +297,17 @@ def _add_request_to_minute(
                 encoded_counts[encoded] = int(encoded_counts.get(encoded, 0)) + 1
     router_counts = minute.setdefault("router_counts", {})
     if isinstance(router_counts, dict):
-        router_key = router_name if isinstance(router_name, str) else "unknown"
+        request_host_hash = event.get("request_host_hash")
+        router_key = (
+            f"host:{request_host_hash}"
+            if isinstance(request_host_hash, str)
+            else router_name if isinstance(router_name, str) else "unknown"
+        )
+        if (
+            router_key not in router_counts
+            and len(router_counts) >= MAX_TARGET_KEYS_PER_MINUTE
+        ):
+            router_key = "unknown"
         router_counts[router_key] = int(router_counts.get(router_key, 0)) + 1
     previous = parse_datetime(str(minute.get("last_blocked_at") or ""))
     minute["last_blocked_at"] = max(previous or occurred_at, occurred_at).isoformat()

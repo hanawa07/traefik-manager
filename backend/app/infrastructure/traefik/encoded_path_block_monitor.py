@@ -23,6 +23,7 @@ from app.infrastructure.traefik.encoded_path_block_history import (
     collect_encoded_path_block_history,
     read_recent_encoded_path_block_stats,
 )
+from app.infrastructure.traefik.encoded_path_blocks import hash_request_host
 
 
 async def check_encoded_path_blocks_once(
@@ -157,6 +158,11 @@ def _resolve_target_services(
     *,
     limit: int = 5,
 ) -> tuple[list[dict[str, object]], int]:
+    services_by_host_hash = {
+        host_hash: service
+        for service in services
+        if (host_hash := hash_request_host(str(service.domain))) is not None
+    }
     service_candidates = sorted(
         (
             (str(service.domain).replace(".", "-"), service)
@@ -166,6 +172,7 @@ def _resolve_target_services(
         reverse=True,
     )
     totals: dict[str, dict[str, object]] = {}
+    other_target_request_count = 0
     for target in target_routers if isinstance(target_routers, list) else []:
         if not isinstance(target, dict):
             continue
@@ -174,15 +181,25 @@ def _resolve_target_services(
         if not isinstance(router_name, str) or not isinstance(count, int):
             continue
         router_base = router_name.split("@", 1)[0]
-        matched_service = next(
-            (
-                service
-                for safe_domain, service in service_candidates
-                if router_base == safe_domain
-                or router_base.startswith(f"{safe_domain}-")
-            ),
-            None,
-        )
+        if router_base.startswith("host:"):
+            matched_service = services_by_host_hash.get(
+                router_base.removeprefix("host:")
+            )
+        else:
+            matched_service = next(
+                (
+                    service
+                    for safe_domain, service in service_candidates
+                    if router_base == safe_domain
+                    or router_base.startswith(f"{safe_domain}-")
+                ),
+                None,
+            )
+        if matched_service is None and (
+            router_base.startswith("host:") or router_base == "unknown"
+        ):
+            other_target_request_count += count
+            continue
         domain = str(matched_service.domain) if matched_service else None
         key = domain or router_base
         current = totals.setdefault(
@@ -205,7 +222,7 @@ def _resolve_target_services(
         totals.values(),
         key=lambda item: (-int(item["blocked_request_count"]), str(item["service_name"])),
     )
-    return ordered[:limit], sum(
+    return ordered[:limit], other_target_request_count + sum(
         int(item["blocked_request_count"]) for item in ordered[limit:]
     )
 

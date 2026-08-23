@@ -9,6 +9,7 @@ from app.application.encoded_path_block_monitoring import (
     ENCODED_PATH_BLOCK_STATE_KEY,
 )
 from app.infrastructure.traefik import encoded_path_block_monitor
+from app.infrastructure.traefik.encoded_path_blocks import hash_request_host
 
 
 class StubSettingsRepository:
@@ -112,6 +113,23 @@ def _patch_dependencies(monkeypatch, recorded: list[dict]) -> None:
     )
 
 
+def test_target_service_resolution_hides_unregistered_request_host():
+    targets, other_count = encoded_path_block_monitor._resolve_target_services(
+        [
+            {
+                "router_name": (
+                    f"host:{hash_request_host('unregistered.example.com')}"
+                ),
+                "blocked_request_count": 3,
+            }
+        ],
+        [SimpleNamespace(name="Homepage", domain="home.lizstudio.co.kr")],
+    )
+
+    assert targets == []
+    assert other_count == 3
+
+
 @pytest.mark.asyncio
 async def test_encoded_path_block_monitor_alerts_cools_down_and_recovers(monkeypatch):
     StubSettingsRepository.store = {
@@ -123,12 +141,8 @@ async def test_encoded_path_block_monitor_alerts_cools_down_and_recovers(monkeyp
     StubHistory.total_count = 100
     StubHistory.target_routers = [
         {
-            "router_name": "home-lizstudio-co-kr@file",
-            "blocked_request_count": 1,
-        },
-        {
-            "router_name": "home-lizstudio-co-kr-redirect@file",
-            "blocked_request_count": 1,
+            "router_name": f"host:{hash_request_host('home.lizstudio.co.kr')}",
+            "blocked_request_count": 2,
         },
     ]
     recorded: list[dict] = []
