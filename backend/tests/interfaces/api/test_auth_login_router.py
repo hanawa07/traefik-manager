@@ -1,5 +1,6 @@
 from datetime import timedelta
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
@@ -25,6 +26,7 @@ async def test_login_sets_session_and_csrf_cookies(monkeypatch):
     user = make_user(token_version=4)
     repository = StubAuthSessionRepository()
     response = Response()
+    db = SimpleNamespace(commit=AsyncMock())
 
     stub_session_credentials(monkeypatch, repository)
     stub_default_system_settings(monkeypatch)
@@ -35,7 +37,7 @@ async def test_login_sets_session_and_csrf_cookies(monkeypatch):
         response=response,
         form=SimpleNamespace(username="admin", password="correct-password"),
         use_cases=StubAuthUseCases(authenticated_result(user)),
-        db=object(),
+        db=db,
     )
 
     set_cookie_headers = response.headers.getlist("set-cookie")
@@ -47,6 +49,7 @@ async def test_login_sets_session_and_csrf_cookies(monkeypatch):
     assert any("tm_csrf=csrf-token-1" in value for value in set_cookie_headers)
     assert repository.saved_sessions[0].id == "session-1"
     assert repository.saved_sessions[0].token_version == 4
+    db.commit.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -196,6 +199,7 @@ async def test_login_passes_trusted_network_policy_to_suspicious_blocker(monkeyp
     repository = StubAuthSessionRepository()
     response = Response()
     blocker_calls = []
+    db = SimpleNamespace(commit=AsyncMock())
 
     async def fake_blocker(**kwargs):
         blocker_calls.append(kwargs)
@@ -223,7 +227,7 @@ async def test_login_passes_trusted_network_policy_to_suspicious_blocker(monkeyp
         response=response,
         form=SimpleNamespace(username="admin", password="correct-password"),
         use_cases=StubAuthUseCases(authenticated_result(user)),
-        db=object(),
+        db=db,
     )
 
     assert blocker_calls[0]["block_enabled"] is False

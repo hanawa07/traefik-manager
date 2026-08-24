@@ -38,6 +38,7 @@ async def issue_successful_login_session(
         user_agent=request.headers.get("user-agent"),
     )
     await auth_session_repository_factory(db).save(auth_session)
+    await db.commit()
     set_auth_cookies_func(response, credentials.cookie_value, csrf_token)
 
     logger.info(

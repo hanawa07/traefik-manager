@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
@@ -102,6 +103,7 @@ async def test_login_verifies_turnstile_token_when_enabled(monkeypatch):
     repository = StubAuthSessionRepository()
     response = Response()
     verify_calls = []
+    db = SimpleNamespace(commit=AsyncMock())
 
     stub_session_credentials(monkeypatch, repository)
     stub_default_system_settings(
@@ -131,7 +133,7 @@ async def test_login_verifies_turnstile_token_when_enabled(monkeypatch):
         response=response,
         form=SimpleNamespace(username="admin", password="correct-password"),
         use_cases=StubAuthUseCases(authenticated_result(user)),
-        db=object(),
+        db=db,
     )
 
     assert result["username"] == "admin"
@@ -147,6 +149,7 @@ async def test_login_skips_turnstile_when_risk_based_mode_not_required(monkeypat
     response = Response()
     risk_calls = []
     verify_calls = []
+    db = SimpleNamespace(commit=AsyncMock())
 
     stub_session_credentials(monkeypatch, repository)
     stub_default_system_settings(
@@ -167,7 +170,7 @@ async def test_login_skips_turnstile_when_risk_based_mode_not_required(monkeypat
         response=response,
         form=SimpleNamespace(username="admin", password="correct-password"),
         use_cases=StubAuthUseCases(authenticated_result(user)),
-        db=object(),
+        db=db,
     )
 
     assert result["username"] == "admin"
