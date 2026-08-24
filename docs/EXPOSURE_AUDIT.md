@@ -1,6 +1,6 @@
 # 외부 노출 스냅샷
 
-기준 시각: 2026-08-23 (KST)
+기준 시각: 2026-08-25 (KST)
 
 이 문서는 Traefik 런타임의 활성 HTTPS `Host` 규칙을 기준으로 작성한 수동 스냅샷입니다. 공개 DNS가 존재하는 것과 인터넷에서 서비스에 접근할 수 있는 것은 구분합니다.
 
@@ -71,7 +71,7 @@ Traefik까지는 공개망에서 도달할 수 있고 애플리케이션 앞의 
 
 ## n8n 공개 webhook 판단
 
-조사 시점에 활성 workflow는 5개지만 등록된 webhook은 0개입니다. webhook 노드를 포함한 workflow 2개도 모두 비활성 상태이므로 n8n에는 공개 경로 예외를 만들지 않고 전체 Tailnet 전용 상태를 유지합니다.
+조사 시점에 비아카이브 workflow는 6개이고 그중 5개가 활성 상태지만, webhook 노드를 포함한 workflow와 등록된 webhook은 모두 0개입니다. 따라서 n8n에는 공개 경로 예외를 만들지 않고 전체 Tailnet 전용 상태를 유지합니다.
 
 ## 확인 근거
 
@@ -79,6 +79,7 @@ Traefik까지는 공개망에서 도달할 수 있고 애플리케이션 앞의 
 - 권한 DNS와 공개 A 레코드 조회
 - Manager 서비스 저장값과 실제 컨테이너 상태
 - n8n SQLite의 활성 workflow 및 webhook 등록 상태
-- 공개망 HTTPS 응답과 Tailnet allowlist 동작
+- 공인 IP 강제 접속의 `403` 응답과 Tailnet DNS 경로의 정상 응답
+- Homepage·Dashy의 동일 공개 FQDN 링크와 중지 서비스 보존 링크
 
 구성 변경 후에는 이 문서를 자동 현황으로 간주하지 말고 같은 항목을 다시 점검합니다.
