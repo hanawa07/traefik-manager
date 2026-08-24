@@ -19,12 +19,12 @@ export function DashboardServiceRow({ routerStatus, service }: DashboardServiceR
 
   return (
     <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-slate-800/70">
-      <td className="px-6 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">{service.name}</td>
-      <td className="px-6 py-3 text-sm text-gray-500 dark:text-slate-400">{service.domain}</td>
-      <td className="px-6 py-3 text-sm text-gray-400 dark:text-slate-500">
+      <td className="break-words px-3 py-3 text-sm font-medium text-gray-900 dark:text-slate-100 sm:px-6">{service.name}</td>
+      <td className="break-all px-3 py-3 text-sm text-gray-500 dark:text-slate-400 sm:px-6">{service.domain}</td>
+      <td className="hidden px-6 py-3 text-sm text-gray-400 dark:text-slate-500 xl:table-cell">
         {service.upstream_host}:{service.upstream_port}
       </td>
-      <td className="px-6 py-3">
+      <td className="hidden px-6 py-3 xl:table-cell">
         <DashboardStatusPill
           label={service.tls_enabled ? "HTTPS" : "HTTP"}
           className={
@@ -34,13 +34,13 @@ export function DashboardServiceRow({ routerStatus, service }: DashboardServiceR
           }
         />
       </td>
-      <td className="px-6 py-3">
+      <td className="hidden px-6 py-3 xl:table-cell">
         <DashboardStatusPill
           label={getDashboardServiceAuthLabel(service)}
           className={getDashboardServiceAuthClassName(service)}
         />
       </td>
-      <td className="px-6 py-3">
+      <td className="hidden px-6 py-3 xl:table-cell">
         <DashboardStatusPill
           label={getDashboardRouterStatusLabel(routerActive)}
           className={getDashboardRouterStatusClassName(routerActive)}

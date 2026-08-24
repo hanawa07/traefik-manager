@@ -39,15 +39,15 @@ export function DashboardServicesTable({
         <EmptyDashboardServicesState canManage={canManage} />
       ) : (
         <div className="min-w-0 overflow-x-auto" data-table-scroll="dashboard-services">
-          <table className="w-full min-w-[800px]">
+          <table className="w-full table-fixed xl:table-auto">
             <thead>
               <tr className="border-b border-gray-100 text-xs text-gray-400 dark:border-slate-800 dark:text-slate-500">
-                <th className="px-6 py-3 text-left font-medium">서비스</th>
-                <th className="px-6 py-3 text-left font-medium">도메인</th>
-                <th className="px-6 py-3 text-left font-medium">업스트림</th>
-                <th className="px-6 py-3 text-left font-medium">TLS</th>
-                <th className="px-6 py-3 text-left font-medium">인증</th>
-                <th className="px-6 py-3 text-left font-medium">라우터 상태</th>
+                <th className="px-3 py-3 text-left font-medium sm:px-6">서비스</th>
+                <th className="px-3 py-3 text-left font-medium sm:px-6">도메인</th>
+                <th className="hidden px-6 py-3 text-left font-medium xl:table-cell">업스트림</th>
+                <th className="hidden px-6 py-3 text-left font-medium xl:table-cell">TLS</th>
+                <th className="hidden px-6 py-3 text-left font-medium xl:table-cell">인증</th>
+                <th className="hidden px-6 py-3 text-left font-medium xl:table-cell">라우터 상태</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
