@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from traefik_recreate_window import seconds_until_safe_recreate
 from traefik_update_executor import process_request
 from traefik_update_models import ALERT_RETRY_OPERATION, RunnerConfig, UpdateRequest, message
 from traefik_update_storage import (
@@ -53,6 +54,17 @@ def _run_once(config: RunnerConfig) -> int:
         config.request_path.unlink(missing_ok=True)
         return 1
 
+    if request.operation != ALERT_RETRY_OPERATION:
+        wait_seconds = seconds_until_safe_recreate(
+            guard_seconds=config.recreate_guard_seconds
+        )
+        if wait_seconds:
+            write_heartbeat(
+                config,
+                "ready",
+                f"15분 단위 운영 점검을 피해 업데이트를 약 {wait_seconds}초 뒤 처리합니다",
+            )
+            return 0
     try:
         if request.operation == ALERT_RETRY_OPERATION:
             return _retry_rollback_alert(config, request)

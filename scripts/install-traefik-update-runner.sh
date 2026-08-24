@@ -13,6 +13,7 @@ readonly TRAEFIK_ACME_FILE="${TM_TRAEFIK_UPDATE_ACME_FILE:-letsencrypt/acme.json
 readonly TRAEFIK_SERVICE="${TM_TRAEFIK_UPDATE_SERVICE:-traefik}"
 readonly TRAEFIK_CONTAINER="${TM_TRAEFIK_UPDATE_CONTAINER:-traefik}"
 readonly TRAEFIK_NETWORK="${TM_TRAEFIK_UPDATE_NETWORK:-proxy_net}"
+readonly RECREATE_GUARD_SECONDS="${TM_TRAEFIK_RECREATE_GUARD_SECONDS:-120}"
 readonly UNIT_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
 readonly SERVICE_NAME="traefik-manager-traefik-update.service"
 readonly PATH_NAME="traefik-manager-traefik-update.path"
@@ -120,6 +121,7 @@ write_service_unit() {
     printf 'Environment=TM_TRAEFIK_UPDATE_SERVICE=%s\n' "${TRAEFIK_SERVICE}"
     printf 'Environment=TM_TRAEFIK_UPDATE_CONTAINER=%s\n' "${TRAEFIK_CONTAINER}"
     printf 'Environment=TM_TRAEFIK_UPDATE_NETWORK=%s\n' "${TRAEFIK_NETWORK}"
+    printf 'Environment=TM_TRAEFIK_RECREATE_GUARD_SECONDS=%s\n' "${RECREATE_GUARD_SECONDS}"
     if [[ -n "${health_url}" ]]; then
       printf 'Environment=TM_TRAEFIK_MANAGER_HEALTH_URL=%s\n' "${health_url}"
     fi
@@ -168,6 +170,8 @@ validate_relative_path "ACME 파일" "${TRAEFIK_ACME_FILE}"
 validate_name "Compose 서비스" "${TRAEFIK_SERVICE}"
 validate_name "컨테이너" "${TRAEFIK_CONTAINER}"
 validate_name "Docker 네트워크" "${TRAEFIK_NETWORK}"
+[[ "${RECREATE_GUARD_SECONDS}" =~ ^[0-9]+$ && "${RECREATE_GUARD_SECONDS}" -le 300 ]] \
+  || { echo "Traefik 재생성 보호 시간은 0~300초여야 합니다" >&2; exit 2; }
 [[ "${BACKEND_UID}" =~ ^[1-9][0-9]*$ ]] \
   || { echo "backend UID가 올바르지 않습니다: ${BACKEND_UID}" >&2; exit 2; }
 command -v docker >/dev/null || { echo "docker 명령을 찾을 수 없습니다" >&2; exit 1; }

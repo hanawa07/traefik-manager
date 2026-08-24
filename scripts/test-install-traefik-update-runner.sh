@@ -78,6 +78,7 @@ grep -Fxq "Environment=TM_TRAEFIK_UPDATE_ACME_FILE=${acme_file}" "${service_unit
 grep -Fxq "Environment=TM_TRAEFIK_UPDATE_SERVICE=${compose_service}" "${service_unit}"
 grep -Fxq "Environment=TM_TRAEFIK_UPDATE_CONTAINER=${traefik_container}" "${service_unit}"
 grep -Fxq "Environment=TM_TRAEFIK_UPDATE_NETWORK=${traefik_network}" "${service_unit}"
+grep -Fxq 'Environment=TM_TRAEFIK_RECREATE_GUARD_SECONDS=120' "${service_unit}"
 grep -Fxq 'Environment=TM_TRAEFIK_MANAGER_HEALTH_URL=https://server-name.example.ts.net:8444/api/health' "${service_unit}"
 grep -Fq 'enable --now traefik-manager-traefik-update.path traefik-manager-traefik-update.timer' "${systemctl_log}"
 grep -Fq 'start traefik-manager-traefik-update.service' "${systemctl_log}"
@@ -122,5 +123,12 @@ if TM_TEST_HEALTH_URL='https://server-name.example.ts.net:8444/not-health' \
   exit 1
 fi
 grep -Fq 'Manager health URL이 올바르지 않습니다' "${temporary_dir}/invalid-health.out"
+
+if TM_TRAEFIK_RECREATE_GUARD_SECONDS=301 run_installer \
+  > "${temporary_dir}/invalid-guard.out" 2>&1; then
+  echo "과도한 Traefik 재생성 보호 시간이 허용되었습니다" >&2
+  exit 1
+fi
+grep -Fq 'Traefik 재생성 보호 시간은 0~300초여야 합니다' "${temporary_dir}/invalid-guard.out"
 
 echo "Traefik 업데이트 실행기 설치 self-test 통과"

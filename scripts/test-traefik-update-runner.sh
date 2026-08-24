@@ -130,6 +130,7 @@ run_runner() {
     TM_TRAEFIK_UPDATE_SERVICE="${compose_service}" \
     TM_TRAEFIK_UPDATE_CONTAINER="${traefik_container}" \
     TM_TRAEFIK_UPDATE_NETWORK="${traefik_network}" \
+    TM_TRAEFIK_RECREATE_GUARD_SECONDS=0 \
     TM_TRAEFIK_MANAGER_HEALTH_URL="https://manager.example.com/api/health" \
     TM_TRAEFIK_UPDATE_DOCKER_BIN="${fake_docker}" \
     TM_TRAEFIK_UPDATE_CURL_BIN="${fake_curl}" \
@@ -243,4 +244,18 @@ write_request '66666666-6666-4666-8666-666666666666' 'v3.7.9'
 run_runner legacy
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"status":"success"'
 grep -Fq '대상 버전이 이미 적용되어' "${state_dir}/traefik-updates.jsonl"
+
+TM_MANAGER_DEPLOY_STATE_DIR="${state_dir}" \
+TM_TRAEFIK_UPDATE_COMPOSE_DIR="${compose_dir}" \
+TM_TRAEFIK_UPDATE_COMPOSE_FILES="${compose_filenames}" \
+TM_TRAEFIK_UPDATE_SERVICE="${compose_service}" \
+TM_TRAEFIK_UPDATE_DOCKER_BIN="${fake_docker}" \
+TM_TRAEFIK_RECREATE_GUARD_SECONDS=0 \
+TM_TEST_IMAGE_FILE="${temporary_dir}/image" \
+TM_TEST_DOCKER_LOG="${docker_log}" \
+TM_TEST_SERVICE="${compose_service}" \
+TM_TEST_CONTAINER="${traefik_container}" \
+TM_TEST_NETWORK="${traefik_network}" \
+  "${SCRIPT_DIR}/run-traefik-recreate-safely.sh"
+tail -n 1 "${docker_log}" | grep -Fq "up|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_overlay_filename}|-d ${compose_service}"
 echo "Traefik 안전 업데이트 실행기 self-test 통과"

@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from traefik_recreate_window import guard_seconds_from_environment
+
 REQUEST_FILENAME = "traefik-update-request.json"
 PATCH_UPDATE_OPERATION = "traefik_patch_update"
 ALERT_RETRY_OPERATION = "traefik_rollback_alert_retry"
@@ -33,6 +35,7 @@ class RunnerConfig:
     container: str
     network: str
     manager_health_url: str
+    recreate_guard_seconds: int
     docker_bin: str
     curl_bin: str
 
@@ -91,6 +94,7 @@ class RunnerConfig:
                 "TM_TRAEFIK_MANAGER_HEALTH_URL",
                 "",
             ).strip(),
+            recreate_guard_seconds=guard_seconds_from_environment(),
             docker_bin=os.environ.get("TM_TRAEFIK_UPDATE_DOCKER_BIN", "docker"),
             curl_bin=os.environ.get("TM_TRAEFIK_UPDATE_CURL_BIN", "curl"),
         )

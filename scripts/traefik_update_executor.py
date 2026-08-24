@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ from traefik_update_storage import (
     history_entry,
     write_heartbeat,
 )
+from traefik_recreate_window import seconds_until_safe_recreate
 
 
 def process_request(config: RunnerConfig, request: UpdateRequest) -> str:
@@ -79,6 +81,7 @@ def process_request(config: RunnerConfig, request: UpdateRequest) -> str:
             f"{request.target_version} 이미지를 적용하는 중입니다",
         )
         _run_compose(config, "pull")
+        _wait_for_recreate_window(config, request.target_version)
         _run_compose(config, "up", "-d")
         validations = _validate_runtime(config, request.target_version)
         append_history(
@@ -189,6 +192,18 @@ def _rollback(
         },
     )
     return rollback_status
+
+
+def _wait_for_recreate_window(config: RunnerConfig, target_version: str) -> None:
+    while wait_seconds := seconds_until_safe_recreate(
+        guard_seconds=config.recreate_guard_seconds
+    ):
+        write_heartbeat(
+            config,
+            "running",
+            f"15분 단위 운영 점검을 피해 {target_version} 적용을 약 {wait_seconds}초 대기합니다",
+        )
+        time.sleep(min(wait_seconds, 30))
 
 
 def _restore_compose_files(config: RunnerConfig, backup_dir: Path) -> None:
