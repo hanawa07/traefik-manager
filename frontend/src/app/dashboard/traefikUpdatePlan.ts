@@ -13,6 +13,7 @@ export interface TraefikUpdatePlan {
   latestVersion: string;
   risk: TraefikUpdateRisk;
   riskLabel: string;
+  securityUpdate: boolean;
   summary: string;
   checks: string[];
   commands: TraefikUpdateCommand[];
@@ -33,21 +34,32 @@ export function buildTraefikUpdatePlan(
   const currentVersion = deployment?.current_version || health.version;
   const latestVersion = deployment?.target_version || health.latest_version;
   const risk = getUpdateRisk(currentVersion, latestVersion);
+  const securityUpdate = health.latest_release_has_security_fixes === true;
+  const securityAdvisories = health.latest_release_security_advisories || [];
   const dynamicChecks = deployment?.checks.map((check) => `${check.label}: ${check.message}`);
   const dynamicCommands = deployment?.commands;
+  const checks = dynamicChecks?.length ? dynamicChecks : [
+    "업데이트 전 라우터, 인증서, 서비스 헬스 상태가 모두 정상인지 확인합니다.",
+    "Traefik 컨테이너의 현재 이미지 태그와 compose 위치를 먼저 기록합니다.",
+    "인증서 저장소(acme.json)와 Traefik 정적 설정 파일을 백업한 뒤 진행합니다.",
+    "업데이트 후 대시보드의 라우터/인증서/서비스 헬스 상태를 다시 확인합니다.",
+  ];
+  if (securityUpdate) {
+    checks.unshift(
+      securityAdvisories.length
+        ? `공식 보안 권고: ${securityAdvisories.join(", ")} 수정이 포함되어 있습니다.`
+        : "공식 릴리스 노트에 보안 수정이 포함되어 있습니다.",
+    );
+  }
 
   return {
     currentVersion,
     latestVersion,
     risk,
-    riskLabel: getRiskLabel(risk),
-    summary: getSummary(risk, currentVersion, latestVersion),
-    checks: dynamicChecks?.length ? dynamicChecks : [
-      "업데이트 전 라우터, 인증서, 서비스 헬스 상태가 모두 정상인지 확인합니다.",
-      "Traefik 컨테이너의 현재 이미지 태그와 compose 위치를 먼저 기록합니다.",
-      "인증서 저장소(acme.json)와 Traefik 정적 설정 파일을 백업한 뒤 진행합니다.",
-      "업데이트 후 대시보드의 라우터/인증서/서비스 헬스 상태를 다시 확인합니다.",
-    ],
+    riskLabel: securityUpdate && risk === "low" ? "보안 패치" : getRiskLabel(risk),
+    securityUpdate,
+    summary: getSummary(risk, currentVersion, latestVersion, securityUpdate, securityAdvisories.length),
+    checks,
     commands: dynamicCommands?.length ? dynamicCommands : [
       {
         label: "현재 이미지 확인",
@@ -109,15 +121,24 @@ function getRiskLabel(risk: TraefikUpdateRisk) {
   return "영향도 확인 필요";
 }
 
-function getSummary(risk: TraefikUpdateRisk, currentVersion: string, latestVersion: string) {
+function getSummary(
+  risk: TraefikUpdateRisk,
+  currentVersion: string,
+  latestVersion: string,
+  securityUpdate: boolean,
+  securityAdvisoryCount: number,
+) {
+  const securitySummary = securityUpdate
+    ? `공식 보안 ${securityAdvisoryCount ? `권고 ${securityAdvisoryCount}건의 ` : ""}수정이 포함되어 우선 적용을 권장합니다. `
+    : "";
   if (risk === "low") {
-    return `${currentVersion}에서 ${latestVersion}로 올라가는 패치 업데이트입니다. 보통 영향은 낮지만, 라우터와 인증서 상태 확인은 필요합니다.`;
+    return `${securitySummary}${currentVersion}에서 ${latestVersion}로 올라가는 패치 업데이트이며, 적용 후 라우터와 인증서 상태 확인이 필요합니다.`;
   }
   if (risk === "medium") {
-    return `${currentVersion}에서 ${latestVersion}로 올라가는 마이너 업데이트입니다. 릴리즈 노트 확인 후 짧은 점검 창에서 진행하는 것을 권장합니다.`;
+    return `${securitySummary}${currentVersion}에서 ${latestVersion}로 올라가는 마이너 업데이트입니다. 릴리즈 노트 확인 후 짧은 점검 창에서 진행하는 것을 권장합니다.`;
   }
   if (risk === "high") {
-    return `${currentVersion}에서 ${latestVersion}로 올라가는 메이저 업데이트입니다. 설정 호환성 검토와 롤백 계획 없이 바로 적용하면 위험합니다.`;
+    return `${securitySummary}${currentVersion}에서 ${latestVersion}로 올라가는 메이저 업데이트입니다. 설정 호환성 검토와 롤백 계획 없이 바로 적용하면 위험합니다.`;
   }
-  return `${currentVersion}에서 ${latestVersion}로 업데이트가 감지됐습니다. 버전 차이를 해석하지 못해 릴리즈 노트 확인이 필요합니다.`;
+  return `${securitySummary}${currentVersion}에서 ${latestVersion}로 업데이트가 감지됐습니다. 버전 차이를 해석하지 못해 릴리즈 노트 확인이 필요합니다.`;
 }

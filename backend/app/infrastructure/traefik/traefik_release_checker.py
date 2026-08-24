@@ -1,10 +1,15 @@
 import asyncio
+import re
 from datetime import datetime, timezone
 
 import httpx
 
 from app.core.config import settings
 from app.core.versioning import parse_version
+
+
+_GHSA_PATTERN = re.compile(r"\bGHSA-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}\b", re.IGNORECASE)
+_SECURITY_HEADING_PATTERN = re.compile(r"^#{1,6}\s*(?:security|cves?)\b", re.IGNORECASE | re.MULTILINE)
 
 
 class TraefikReleaseChecker:
@@ -56,9 +61,12 @@ class TraefikReleaseChecker:
             return self._build_error_info(checked_at, "최신 Traefik 버전 응답을 해석하지 못했습니다")
 
         latest_release_url = payload.get("html_url") if isinstance(payload, dict) else None
+        has_security_fixes, security_advisories = _extract_security_metadata(payload)
         return {
             "latest_version": latest_version,
             "latest_release_url": latest_release_url if isinstance(latest_release_url, str) else None,
+            "latest_release_has_security_fixes": has_security_fixes,
+            "latest_release_security_advisories": security_advisories,
             "update_available": None,
             "latest_version_checked_at": checked_at,
             "latest_version_error": None,
@@ -68,7 +76,19 @@ class TraefikReleaseChecker:
         return {
             "latest_version": None,
             "latest_release_url": None,
+            "latest_release_has_security_fixes": False,
+            "latest_release_security_advisories": [],
             "update_available": None,
             "latest_version_checked_at": checked_at,
             "latest_version_error": message,
         }
+
+
+def _extract_security_metadata(payload: object) -> tuple[bool, list[str]]:
+    body = payload.get("body") if isinstance(payload, dict) else None
+    if not isinstance(body, str):
+        return False, []
+
+    body = body[:200_000]
+    advisories = sorted({match.upper() for match in _GHSA_PATTERN.findall(body)})[:50]
+    return bool(advisories or _SECURITY_HEADING_PATTERN.search(body)), advisories

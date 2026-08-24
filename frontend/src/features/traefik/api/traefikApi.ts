@@ -6,6 +6,8 @@ export interface TraefikHealth {
   version: string | null;
   latest_version: string | null;
   latest_release_url: string | null;
+  latest_release_has_security_fixes: boolean;
+  latest_release_security_advisories: string[];
   update_available: boolean | null;
   latest_version_checked_at: string | null;
   latest_version_error: string | null;

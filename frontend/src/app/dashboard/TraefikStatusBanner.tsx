@@ -108,7 +108,9 @@ function TraefikVersionTile({ href, label, value }: { href?: string; label: stri
 }
 
 function getTraefikVersionStatus(health?: TraefikHealth) {
-  if (health?.update_available === true) return "업데이트 필요";
+  if (health?.update_available === true) {
+    return health.latest_release_has_security_fixes ? "보안 업데이트 필요" : "업데이트 필요";
+  }
   if (health?.update_available === false) return "최신 상태";
   if (health?.latest_version_error) return "확인 실패";
   return "확인 중";

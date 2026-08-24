@@ -18,6 +18,10 @@ async def test_release_checker_fetches_and_caches_latest_version(monkeypatch):
             return {
                 "tag_name": "v3.7.9",
                 "html_url": "https://github.com/traefik/traefik/releases/tag/v3.7.9",
+                "body": """## CVE Fixed
+- https://github.com/traefik/traefik/security/advisories/GHSA-3CCP-42PG-HGV6
+- https://github.com/traefik/traefik/security/advisories/ghsa-g55h-rg46-x9c5
+""",
             }
 
     class FakeAsyncClient:
@@ -44,5 +48,10 @@ async def test_release_checker_fetches_and_caches_latest_version(monkeypatch):
     assert requests == [release_checker_module.settings.TRAEFIK_LATEST_VERSION_API_URL]
     assert first["latest_version"] == "v3.7.9"
     assert first["latest_release_url"].endswith("/v3.7.9")
+    assert first["latest_release_has_security_fixes"] is True
+    assert first["latest_release_security_advisories"] == [
+        "GHSA-3CCP-42PG-HGV6",
+        "GHSA-G55H-RG46-X9C5",
+    ]
     assert isinstance(first["latest_version_checked_at"], datetime)
     assert second == first

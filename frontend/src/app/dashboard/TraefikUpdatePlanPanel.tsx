@@ -58,7 +58,7 @@ export function TraefikUpdatePlanPanel({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-bold text-slate-900 dark:text-slate-100">Traefik 업데이트 영향 점검</p>
-            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getRiskClassName(plan.risk)}`}>
+            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getRiskClassName(plan.risk, plan.securityUpdate)}`}>
               {plan.riskLabel}
             </span>
           </div>
@@ -162,7 +162,8 @@ function TraefikDeploymentFact({ label, monospace = false, value }: { label: str
   );
 }
 
-function getRiskClassName(risk: TraefikUpdateRisk) {
+function getRiskClassName(risk: TraefikUpdateRisk, securityUpdate: boolean) {
+  if (securityUpdate) return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200";
   if (risk === "low") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200";
   if (risk === "medium") return "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-100";
   if (risk === "high") return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200";

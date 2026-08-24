@@ -10,6 +10,8 @@ class TraefikHealthResponse(BaseModel):
     version: str | None = None
     latest_version: str | None = None
     latest_release_url: str | None = None
+    latest_release_has_security_fixes: bool = False
+    latest_release_security_advisories: list[str] = Field(default_factory=list)
     update_available: bool | None = None
     latest_version_checked_at: datetime | None = None
     latest_version_error: str | None = None

@@ -7,6 +7,8 @@ const health = {
   message: "connected",
   version: "v3.7.10",
   latest_version: "v3.7.11",
+  latest_release_has_security_fixes: true,
+  latest_release_security_advisories: ["GHSA-5W68-77R2-R64C"],
   update_available: true,
 };
 const updateCommand = {
@@ -36,6 +38,9 @@ const deployment = {
 const dynamicPlan = buildTraefikUpdatePlan(health, deployment);
 assert.ok(dynamicPlan);
 assert.deepEqual(dynamicPlan.commands, [updateCommand]);
+assert.equal(dynamicPlan.riskLabel, "보안 패치");
+assert.match(dynamicPlan.summary, /우선 적용/);
+assert.match(dynamicPlan.checks[0], /GHSA-5W68-77R2-R64C/);
 assert.match(dynamicPlan.rollbackNote, /위의 `업데이트 적용` 명령/);
 assert.doesNotMatch(dynamicPlan.rollbackNote, /docker compose up -d traefik/);
 
