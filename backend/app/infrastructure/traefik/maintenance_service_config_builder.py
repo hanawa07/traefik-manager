@@ -10,6 +10,7 @@ MANAGER_FRONTEND_SERVICE = "traefik-manager-frontend-file@file"
 def build_maintenance_service_config(*, service: Service, safe_name_getter, tls_config_builder) -> dict:
     router_name = safe_name_getter(str(service.domain))
     replace_path_name = f"{router_name}-maintenance-path"
+    ip_allowlist_name = f"{router_name}-maintenance-ipallowlist"
     routers = {
         router_name: {
             "rule": f"Host(`{service.domain}`)",
@@ -36,6 +37,14 @@ def build_maintenance_service_config(*, service: Service, safe_name_getter, tls_
             }
         }
     }
+    if service.allowed_ips:
+        middlewares[ip_allowlist_name] = {
+            "ipAllowList": {"sourceRange": service.allowed_ips}
+        }
+        routers[router_name]["middlewares"].insert(0, ip_allowlist_name)
+        routers[f"{router_name}-maintenance-assets"]["middlewares"] = [
+            ip_allowlist_name
+        ]
     context_headers = _build_maintenance_context_headers(service)
     if context_headers:
         context_name = f"{router_name}-maintenance-context"
@@ -59,6 +68,11 @@ def build_maintenance_service_config(*, service: Service, safe_name_getter, tls_
             "entryPoints": ["web"],
             "middlewares": [redirect_name],
         }
+        if service.allowed_ips:
+            routers[f"{router_name}-redirect"]["middlewares"].insert(
+                0,
+                ip_allowlist_name,
+            )
 
     return {
         "http": {

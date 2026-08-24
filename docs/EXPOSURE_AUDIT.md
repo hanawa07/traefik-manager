@@ -26,6 +26,7 @@
 - `traefik-manager.lizstudio.co.kr`
 
 공개 DNS는 유지하지만 Traefik IP allowlist가 Tailnet 밖의 요청을 차단합니다. 같은 FQDN을 Tailnet에서도 사용하므로 대시보드 주소를 별도 내부 주소로 바꾸지 않습니다.
+서비스를 점검 안내 모드로 전환해도 본문, 정적 자산, HTTP 리다이렉트 라우터에 같은 IP allowlist가 유지됩니다.
 
 ## Tailnet UI와 공개 예외
 

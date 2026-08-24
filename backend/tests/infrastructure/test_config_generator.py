@@ -173,3 +173,23 @@ def test_generate_maintenance_without_notice_keeps_generic_page(generator, make_
     middlewares = config["http"]["middlewares"]
     assert router["middlewares"] == ["paused-example-com-maintenance-path"]
     assert "paused-example-com-maintenance-context" not in middlewares
+
+
+def test_generate_maintenance_preserves_ip_allowlist_on_every_route(generator, make_service):
+    config = generator.generate(
+        make_service(
+            domain="private.example.com",
+            routing_mode="maintenance",
+            allowed_ips=["100.64.0.0/10"],
+        )
+    )
+
+    routers = config["http"]["routers"]
+    allowlist_name = "private-example-com-maintenance-ipallowlist"
+    assert config["http"]["middlewares"][allowlist_name] == {
+        "ipAllowList": {"sourceRange": ["100.64.0.0/10"]}
+    }
+    assert all(
+        allowlist_name in router.get("middlewares", [])
+        for router in routers.values()
+    )
