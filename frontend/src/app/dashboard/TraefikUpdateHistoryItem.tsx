@@ -26,22 +26,22 @@ export function TraefikUpdateHistoryItem({
 
   return (
     <li
-      className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs dark:border-slate-700 dark:bg-slate-900"
+      className="min-w-0 max-w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs dark:border-slate-700 dark:bg-slate-900"
       data-traefik-update-request-id={entry.request_id}
       data-traefik-update-status={entry.status}
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <span className={`rounded-full px-2 py-0.5 font-bold ${getStatusClassName(entry.status)}`}>
           {getStatusLabel(entry.status)}
         </span>
-        <span className="font-mono font-semibold text-slate-800 dark:text-slate-100">
+        <span className="min-w-0 break-all font-mono font-semibold text-slate-800 dark:text-slate-100">
           {entry.from_version} → {entry.target_version}
         </span>
-        <span className="ml-auto text-[11px] text-slate-500 dark:text-slate-400">
+        <span className="min-w-0 basis-full break-all text-[11px] text-slate-500 dark:text-slate-400 sm:ml-auto sm:basis-auto">
           {entry.actor} · {formatDateTime(entry.completed_at || entry.started_at, timezone)}
         </span>
       </div>
-      <p className="mt-2 leading-5 text-slate-600 dark:text-slate-300">{entry.message}</p>
+      <p className="mt-2 break-words leading-5 text-slate-600 dark:text-slate-300">{entry.message}</p>
       {entry.backup_dir ? (
         <p
           className="mt-1 truncate font-mono text-[11px] text-slate-500 dark:text-slate-400"
@@ -80,7 +80,7 @@ export function TraefikUpdateHistoryItem({
           <summary className="cursor-pointer font-semibold">검증 상세</summary>
           <ul className="mt-1 grid gap-1">
             {entry.validations.map((check) => (
-              <li key={check.key}>
+              <li className="break-words" key={check.key}>
                 {check.status === "ok" ? "정상" : "실패"} · {check.message}
               </li>
             ))}
