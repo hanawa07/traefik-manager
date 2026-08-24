@@ -238,25 +238,28 @@ ALLOWED_HOSTS=["traefik-manager.lizstudio.co.kr","traefik-manager-api.lizstudio.
 
 ---
 
-### [EXTERNAL-1] Traefik v3.7.10 Go 런타임 보안 패치 대기
+### [EXTERNAL-1] Traefik v3.7.11 공식 보안 패치 적용 완료
 
-**점검일:** 2026-08-18
+**점검일:** 2026-08-24
 
-**현재 상태:** 운영 `traefik:v3.7.10`은 공식 최신 릴리스이지만 Go `1.26.5`로
-빌드되어 있습니다. 최신 취약점 DB 기준으로 Go 표준 라이브러리 High 취약점 8건이
-탐지됐고, 수정 버전은 Go `1.26.6`입니다. OS 패키지 취약점은 0건입니다.
+**현재 상태:** 운영 Traefik을 공식 `v3.7.11`로 업데이트했습니다. 이 이미지는 Go
+`1.26.6`으로 빌드됐고, 고정 Trivy `0.74.0` 기준 Alpine과 Traefik Go 바이너리의
+수정 가능한 High/Critical 취약점은 0건입니다.
 
-Traefik 공식 수정 릴리스는 아직 없으므로 운영 프록시를 비공식 자체 빌드로 교체하지
-않습니다. 다음 공식 패치가 나오면 기존 자동 업데이트의 preflight, 백업, health 검증,
-실패 rollback 절차로 갱신한 뒤 실행 이미지를 다시 검사합니다. Manager backend,
-frontend, Docker API proxy와 설정 초기화 이미지는 같은 기준에서 0건입니다.
+공식 릴리스가 수정한 digestAuth 인증 우회와 TLS·Kubernetes 관련 보안 권고 4건을
+확인했습니다. 현재 구성은 digestAuth, clientAuth, Kubernetes provider를 사용하지
+않지만 취약 버전 자체를 교체했고, 비기본 TLS 옵션이 없는 것을 확인한 뒤
+`core.strictTLSOptions=true`를 활성화해 향후 같은 Host의 TLS 옵션 충돌도 실패 폐쇄합니다.
+업데이트는 Manager 호스트 실행기의 Compose·ACME 백업, 버전·네트워크·Manager health
+검증을 통과했으며 rollback은 실행되지 않았습니다. Manager backend, frontend, Docker
+API proxy와 설정 초기화 이미지도 같은 기준에서 0건입니다.
 
 ---
 
 ## 후속 검토 상태
 
 Manager 코드와 Manager가 소유한 실행 이미지에 남은 필수 보안 수정은 없습니다.
-외부 Traefik 이미지는 위 `EXTERNAL-1`의 공식 패치 릴리스를 대기합니다.
+외부 Traefik 이미지의 대기 중이던 공식 패치도 위 `EXTERNAL-1`과 같이 적용했습니다.
 
 | 항목 | 상태 | 적용 내용 |
 |------|------|-----------|
