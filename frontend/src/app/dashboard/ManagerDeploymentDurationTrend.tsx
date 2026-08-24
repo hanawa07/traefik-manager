@@ -56,7 +56,7 @@ export function ManagerDeploymentDurationTrend({
         </span>
       </div>
       {comparison ? <ComparisonSummary comparison={comparison} currentAverageMs={stats.averageMs} /> : null}
-      <div className="mt-2 overflow-x-auto pb-1">
+      <div className="mt-2 w-full min-w-0 max-w-full overflow-x-auto pb-1" data-horizontal-scroll>
         <div style={{ minWidth }}>
           <div
             aria-label="시간순 배포 소요시간 막대 차트"

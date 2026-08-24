@@ -66,7 +66,7 @@ export function ManagerDeploymentStageSummary({
       <p className="mt-1 text-slate-500 dark:text-slate-400">
         선택한 소스·기간에서 단계 시간이 기록된 배포만 집계합니다.
       </p>
-      <div className="mt-2 overflow-x-auto">
+      <div className="mt-2 w-full min-w-0 max-w-full overflow-x-auto" data-horizontal-scroll>
         <table className="w-full min-w-[34rem] text-left">
           <thead className="text-slate-500 dark:text-slate-400">
             <tr>

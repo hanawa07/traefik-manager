@@ -38,7 +38,11 @@ export function DashboardServicesTable({
       ) : services.length === 0 ? (
         <EmptyDashboardServicesState canManage={canManage} />
       ) : (
-        <div className="min-w-0 overflow-x-auto" data-table-scroll="dashboard-services">
+        <div
+          className="w-full min-w-0 max-w-full overflow-x-auto"
+          data-horizontal-scroll
+          data-table-scroll="dashboard-services"
+        >
           <table className="w-full table-fixed xl:table-auto">
             <thead>
               <tr className="border-b border-gray-100 text-xs text-gray-400 dark:border-slate-800 dark:text-slate-500">

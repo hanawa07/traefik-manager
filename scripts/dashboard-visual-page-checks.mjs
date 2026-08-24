@@ -49,6 +49,7 @@ async function checkRenderedRoute(cdp, route, artifactDir, profile) {
             const rect = element.getBoundingClientRect();
             return {
               className: String(element.className || '').trim().slice(0, 120),
+              insideHorizontalScroll: Boolean(element.closest('[data-horizontal-scroll]')),
               overflowX: getComputedStyle(element).overflowX,
               right: Math.round(rect.right),
               tag: element.tagName.toLowerCase(),
@@ -56,9 +57,23 @@ async function checkRenderedRoute(cdp, route, artifactDir, profile) {
               width: Math.round(rect.width),
             };
           })
-          .filter((element) => element.right > mainRect.right + 1)
+          .filter((element) =>
+            element.right > mainRect.right + 1 && !element.insideHorizontalScroll
+          )
           .sort((left, right) => right.right - left.right)
           .slice(0, 5)
+      : [];
+    const horizontalScrolls = mainRect
+      ? Array.from(main.querySelectorAll('[data-horizontal-scroll]')).map((element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            contained: rect.left >= mainRect.left - 1 && rect.right <= mainRect.right + 1,
+            id: element.getAttribute('data-testid') || element.getAttribute('data-table-scroll') || element.tagName.toLowerCase(),
+            overflow: getComputedStyle(element).overflowX,
+            scrollWidth: element.scrollWidth,
+            width: element.clientWidth,
+          };
+        })
       : [];
     const tableScrolls = Array.from(document.querySelectorAll('[data-table-scroll]')).map((element) => ({
       id: element.getAttribute('data-table-scroll'),
@@ -70,6 +85,8 @@ async function checkRenderedRoute(cdp, route, artifactDir, profile) {
       visualBackground: getComputedStyle(visualBackground || document.body).backgroundColor,
       dark: document.documentElement.classList.contains('dark'),
       documentWidth: document.documentElement.scrollWidth,
+      horizontalScrolls,
+      mainOverflowX: main ? getComputedStyle(main).overflowX : null,
       mainScrollWidth: main?.scrollWidth ?? null,
       mainWidth: main?.clientWidth ?? null,
       path: location.pathname,

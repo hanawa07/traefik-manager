@@ -43,7 +43,12 @@ export function RedirectsListCard({
       ) : redirects.length === 0 ? (
         <RedirectsEmptyState canManage={canManage} onCreate={onCreate} />
       ) : (
-        <div className="overflow-x-auto" data-table-scroll="redirects" data-testid="redirects-table-scroll">
+        <div
+          className="w-full min-w-0 max-w-full overflow-x-auto"
+          data-horizontal-scroll
+          data-table-scroll="redirects"
+          data-testid="redirects-table-scroll"
+        >
           <RedirectsTable
             canManage={canManage}
             redirects={redirects}

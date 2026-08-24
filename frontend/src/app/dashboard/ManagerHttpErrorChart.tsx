@@ -27,7 +27,11 @@ export function ManagerHttpErrorChart({ summary, timezone }: ManagerHttpErrorCha
           24시간 표본 충족 · 설정에서 권장 임계치를 다시 검토할 수 있습니다.
         </Link>
       ) : null}
-      <div className="overflow-x-auto pb-1" data-testid="manager-http-error-chart-scroll">
+      <div
+        className="w-full min-w-0 max-w-full overflow-x-auto pb-1"
+        data-horizontal-scroll
+        data-testid="manager-http-error-chart-scroll"
+      >
         <div
           aria-label={`최근 ${summary.window_hours}시간 Manager API 오류 막대 차트`}
           className="flex h-36 min-w-[640px] items-end gap-1.5"

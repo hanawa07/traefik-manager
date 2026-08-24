@@ -29,7 +29,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       data-visual-background
     >
       <Sidebar />
-      <main className="min-w-0 flex-1 overflow-auto pt-16 lg:pt-0">
+      <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-16 lg:pt-0">
         <div className="p-4 lg:p-8">
           {children}
         </div>

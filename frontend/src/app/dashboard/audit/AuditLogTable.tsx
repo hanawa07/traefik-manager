@@ -58,7 +58,11 @@ export function AuditLogTable({
           필터 결과 갱신 중...
         </div>
       ) : null}
-      <div className="overflow-x-auto" data-table-scroll="audit-log">
+      <div
+        className="w-full min-w-0 max-w-full overflow-x-auto"
+        data-horizontal-scroll
+        data-table-scroll="audit-log"
+      >
         <table className="w-full min-w-[1040px] border-collapse text-left">
           <AuditLogTableHeader />
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800">

@@ -140,7 +140,10 @@ export function TraefikUpdatePlanPanel({
                   {copiedCommand === item.label ? "복사됨" : "복사"}
                 </button>
               </div>
-              <code className="mt-2 block max-w-full overflow-x-auto whitespace-pre rounded-lg bg-black/35 px-2.5 py-2 text-[11px] leading-5 text-emerald-200">
+              <code
+                className="mt-2 block w-full min-w-0 max-w-full overflow-x-auto whitespace-pre rounded-lg bg-black/35 px-2.5 py-2 text-[11px] leading-5 text-emerald-200"
+                data-horizontal-scroll
+              >
                 {item.command}
               </code>
             </div>

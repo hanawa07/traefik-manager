@@ -45,7 +45,10 @@ export function AuditLogFilters(props: AuditLogFiltersProps) {
 
   return (
     <>
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+      <div
+        className="mb-4 flex w-full min-w-0 max-w-full gap-2 overflow-x-auto pb-1"
+        data-horizontal-scroll
+      >
         {auditFilters.map((filter) => {
           const active = selectedFilter === filter.key;
           return (

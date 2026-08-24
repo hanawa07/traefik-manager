@@ -18,10 +18,24 @@ export function assertVisualSnapshot(snapshot, route, profile) {
     `${profile.label} ${route.label}: 페이지가 뷰포트를 ${snapshot.documentWidth - snapshot.viewportWidth}px 넘습니다`,
   );
   if (snapshot.mainWidth !== null) {
-    assert.ok(
-      snapshot.mainScrollWidth <= snapshot.mainWidth + 1,
-      `${profile.label} ${route.label}: 콘텐츠가 화면 영역을 ${snapshot.mainScrollWidth - snapshot.mainWidth}px 넘습니다${formatOverflowElements(snapshot.overflowElements)}`,
+    assert.equal(
+      snapshot.mainOverflowX,
+      "hidden",
+      `${profile.label} ${route.label}: 대시보드 셸의 가로 스크롤이 차단되지 않았습니다`,
     );
+    assert.equal(
+      snapshot.overflowElements?.length ?? 0,
+      0,
+      `${profile.label} ${route.label}: 표시되지 않은 콘텐츠가 화면 영역을 ${snapshot.mainScrollWidth - snapshot.mainWidth}px 넘습니다${formatOverflowElements(snapshot.overflowElements)}`,
+    );
+  }
+  for (const scroll of snapshot.horizontalScrolls ?? []) {
+    assert.ok(
+      scroll.overflow === "auto" || scroll.overflow === "scroll",
+      `${route.label}: ${scroll.id} 내부 가로 스크롤이 비활성입니다`,
+    );
+    assert.equal(scroll.contained, true, `${route.label}: ${scroll.id} 스크롤 영역이 셸 폭을 넘습니다`);
+    assert.ok(scroll.scrollWidth >= scroll.width, `${route.label}: ${scroll.id} 스크롤 폭 계산이 잘못됐습니다`);
   }
   if (route.path === "/login") {
     assert.ok(
@@ -126,6 +140,8 @@ export function runVisualSnapshotAssertionsSelfTest() {
     visualBackground: "rgb(2, 6, 23)",
     dark: true,
     documentWidth: 390,
+    horizontalScrolls: [],
+    mainOverflowX: "hidden",
     mainScrollWidth: 390,
     mainWidth: 390,
     path: "/dashboard/services",
@@ -190,9 +206,24 @@ export function runVisualSnapshotAssertionsSelfTest() {
     () => assertVisualSnapshot({ ...valid, documentWidth: 430 }, serviceRoute, mobileProfile),
     /페이지가 뷰포트/,
   );
+  assert.doesNotThrow(() =>
+    assertVisualSnapshot(
+      {
+        ...valid,
+        horizontalScrolls: [{ contained: true, id: "sample", overflow: "auto", scrollWidth: 430, width: 390 }],
+        mainScrollWidth: 430,
+      },
+      serviceRoute,
+      mobileProfile,
+    ),
+  );
   assert.throws(
-    () => assertVisualSnapshot({ ...valid, mainScrollWidth: 430 }, serviceRoute, mobileProfile),
-    /콘텐츠가 화면 영역/,
+    () => assertVisualSnapshot({
+      ...valid,
+      mainScrollWidth: 430,
+      overflowElements: [{ className: "wide", overflowX: "visible", tag: "div", width: 430 }],
+    }, serviceRoute, mobileProfile),
+    /표시되지 않은 콘텐츠/,
   );
   assert.throws(
     () =>
