@@ -42,6 +42,24 @@ async function checkRenderedRoute(cdp, route, artifactDir, profile) {
       Array.from(document.querySelectorAll('.grid')).find((element) =>
         element.classList.contains('lg:grid-cols-5')
       );
+    const mainRect = main?.getBoundingClientRect();
+    const overflowElements = mainRect && main.scrollWidth > main.clientWidth + 1
+      ? Array.from(main.querySelectorAll('*'))
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+              className: String(element.className || '').trim().slice(0, 120),
+              overflowX: getComputedStyle(element).overflowX,
+              right: Math.round(rect.right),
+              tag: element.tagName.toLowerCase(),
+              testId: element.getAttribute('data-testid'),
+              width: Math.round(rect.width),
+            };
+          })
+          .filter((element) => element.right > mainRect.right + 1)
+          .sort((left, right) => right.right - left.right)
+          .slice(0, 5)
+      : [];
     const tableScrolls = Array.from(document.querySelectorAll('[data-table-scroll]')).map((element) => ({
       id: element.getAttribute('data-table-scroll'),
       overflow: getComputedStyle(element).overflowX,
@@ -56,6 +74,7 @@ async function checkRenderedRoute(cdp, route, artifactDir, profile) {
       mainWidth: main?.clientWidth ?? null,
       path: location.pathname,
       overviewColumns: overviewStats ? getComputedStyle(overviewStats).gridTemplateColumns.split(' ').length : null,
+      overflowElements,
       sidebarRect: sidebarRect ? {
         height: sidebarRect.height,
         right: sidebarRect.right,

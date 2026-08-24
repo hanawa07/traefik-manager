@@ -23,7 +23,7 @@ export function DashboardServicesTable({
   routerStatus,
 }: DashboardServicesTableProps) {
   return (
-    <div className="card">
+    <div className="card min-w-0 overflow-hidden">
       <div className="flex flex-col items-stretch gap-3 border-b border-gray-100 px-6 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="font-semibold text-gray-900 dark:text-slate-100">서비스 목록</h2>
         {canManage ? (
@@ -38,7 +38,7 @@ export function DashboardServicesTable({
       ) : services.length === 0 ? (
         <EmptyDashboardServicesState canManage={canManage} />
       ) : (
-        <div className="overflow-x-auto" data-table-scroll="dashboard-services">
+        <div className="min-w-0 overflow-x-auto" data-table-scroll="dashboard-services">
           <table className="w-full min-w-[800px]">
             <thead>
               <tr className="border-b border-gray-100 text-xs text-gray-400 dark:border-slate-800 dark:text-slate-500">

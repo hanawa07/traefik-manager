@@ -20,7 +20,7 @@ export function assertVisualSnapshot(snapshot, route, profile) {
   if (snapshot.mainWidth !== null) {
     assert.ok(
       snapshot.mainScrollWidth <= snapshot.mainWidth + 1,
-      `${profile.label} ${route.label}: 콘텐츠가 화면 영역을 ${snapshot.mainScrollWidth - snapshot.mainWidth}px 넘습니다`,
+      `${profile.label} ${route.label}: 콘텐츠가 화면 영역을 ${snapshot.mainScrollWidth - snapshot.mainWidth}px 넘습니다${formatOverflowElements(snapshot.overflowElements)}`,
     );
   }
   if (route.path === "/login") {
@@ -67,6 +67,17 @@ export function assertVisualSnapshot(snapshot, route, profile) {
     assert.equal(table.overflow, "auto", `${route.label}: ${table.id} 표 내부 스크롤이 비활성입니다`);
     assert.ok(table.scrollWidth >= table.width, `${route.label}: ${table.id} 표 스크롤 폭 계산이 잘못됐습니다`);
   }
+}
+
+function formatOverflowElements(elements = []) {
+  if (!elements.length) return "";
+  const summary = elements.map((element) => {
+    const selector = element.testId
+      ? `[data-testid=${element.testId}]`
+      : `${element.tag}${element.className ? `.${element.className.split(/\s+/).slice(0, 2).join(".")}` : ""}`;
+    return `${selector}(${element.width}px, overflow-x:${element.overflowX})`;
+  });
+  return ` · 초과 요소: ${summary.join(", ")}`;
 }
 
 function isDarkColor(value) {
@@ -119,6 +130,7 @@ export function runVisualSnapshotAssertionsSelfTest() {
     mainWidth: 390,
     path: "/dashboard/services",
     overviewColumns: null,
+    overflowElements: [],
     sidebarRect: { height: 844, right: 0, width: 256, x: -256 },
     mobileBarRect: { display: "flex", height: 64, width: 390 },
     sortDisplay: "grid",
