@@ -80,11 +80,49 @@ def test_read_traefik_update_operations_returns_latest_request_state(tmp_path):
         ),
         encoding="utf-8",
     )
+    recreation_history_path = tmp_path / "recreations.jsonl"
+    recreation_history_path.write_text(
+        "\n".join(
+            [
+                "not-json",
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "container_id": "c" * 64,
+                        "previous_container_id": "b" * 64,
+                        "created_at": "2026-07-20T01:00:06Z",
+                        "observed_at": "2026-07-20T01:00:07Z",
+                        "image": "traefik:v3.7.9",
+                        "status": "managed",
+                        "source": "direct_or_unknown",
+                        "request_id": None,
+                        "actor": None,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "container_id": "a" * 64,
+                        "previous_container_id": "b" * 64,
+                        "created_at": "2026-07-20T01:00:06Z",
+                        "observed_at": "2026-07-20T01:00:07Z",
+                        "image": "traefik:v3.7.9",
+                        "status": "unmanaged",
+                        "source": "direct_or_unknown",
+                        "request_id": None,
+                        "actor": None,
+                    }
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
 
     result = read_traefik_update_operations(
         history_path=history_path,
         request_dir=request_dir,
         runner_status_path=runner_path,
+        recreate_history_path=recreation_history_path,
         now=checked_at + timedelta(seconds=30),
     )
 
@@ -99,6 +137,9 @@ def test_read_traefik_update_operations_returns_latest_request_state(tmp_path):
     assert result["history"][0]["alert_retry_request_id"] is None
     assert result["history"][0]["alert_retry_actor"] is None
     assert result["history"][0]["alert_retry_requested_at"] is None
+    assert result["recreation_history"][0]["status"] == "unmanaged"
+    assert result["recreation_history"][0]["container_id"] == "a" * 64
+    assert len(result["recreation_history"]) == 1
 
 
 def test_read_traefik_update_operations_keeps_latest_rollback_alert_result(tmp_path):
@@ -219,3 +260,4 @@ def test_read_traefik_update_operations_rejects_stale_runner(tmp_path):
     assert result["runner"]["available"] is False
     assert result["runner"]["status"] == "stale"
     assert result["history"] == []
+    assert result["recreation_history"] == []

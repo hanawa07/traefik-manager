@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from traefik_recreate_window import seconds_until_safe_recreate
+from traefik_recreate_audit import observe_container_recreation
 from traefik_update_executor import process_request
 from traefik_update_models import ALERT_RETRY_OPERATION, RunnerConfig, UpdateRequest, message
 from traefik_update_storage import (
@@ -36,6 +37,22 @@ def main() -> int:
 
 
 def _run_once(config: RunnerConfig) -> int:
+    try:
+        unmanaged_recreation = observe_container_recreation(config)
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as exc:
+        write_heartbeat(
+            config,
+            "error",
+            f"Traefik 재생성 감시 실패: {message(exc)}",
+        )
+        return 1
+    if unmanaged_recreation is not None:
+        write_heartbeat(
+            config,
+            "error",
+            "안전 경로 밖에서 Traefik 컨테이너가 재생성되었습니다",
+        )
+        return 1
     if not config.request_path.exists():
         write_heartbeat(
             config,

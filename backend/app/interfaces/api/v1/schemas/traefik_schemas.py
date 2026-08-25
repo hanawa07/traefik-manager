@@ -136,10 +136,25 @@ class TraefikUpdateHistoryEntryResponse(BaseModel):
     validations: list[TraefikUpdateValidationResponse] = Field(default_factory=list)
 
 
+class TraefikRecreationHistoryEntryResponse(BaseModel):
+    container_id: str
+    previous_container_id: str | None = None
+    created_at: datetime
+    observed_at: datetime
+    image: str
+    status: Literal["managed", "unmanaged"]
+    source: Literal["patch_update", "rollback", "manual_safe", "direct_or_unknown"]
+    request_id: str | None = None
+    actor: str | None = None
+
+
 class TraefikUpdateOperationsResponse(BaseModel):
     runner: TraefikUpdateRunnerResponse
     pending_request: bool
     history: list[TraefikUpdateHistoryEntryResponse] = Field(default_factory=list)
+    recreation_history: list[TraefikRecreationHistoryEntryResponse] = Field(
+        default_factory=list
+    )
 
 
 class TraefikRouterItemResponse(BaseModel):

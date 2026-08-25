@@ -120,10 +120,23 @@ export interface TraefikUpdateHistoryEntry {
   validations: TraefikUpdateValidation[];
 }
 
+export interface TraefikRecreationHistoryEntry {
+  container_id: string;
+  previous_container_id: string | null;
+  created_at: string;
+  observed_at: string;
+  image: string;
+  status: "managed" | "unmanaged";
+  source: "patch_update" | "rollback" | "manual_safe" | "direct_or_unknown";
+  request_id: string | null;
+  actor: string | null;
+}
+
 export interface TraefikUpdateOperations {
   runner: TraefikUpdateRunner;
   pending_request: boolean;
   history: TraefikUpdateHistoryEntry[];
+  recreation_history: TraefikRecreationHistoryEntry[];
 }
 
 export interface TraefikUpdateRequestResponse {

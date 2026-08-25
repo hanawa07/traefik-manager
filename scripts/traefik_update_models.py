@@ -111,6 +111,14 @@ class RunnerConfig:
     def heartbeat_path(self) -> Path:
         return self.state_dir / "traefik-update-runner.json"
 
+    @property
+    def recreate_state_path(self) -> Path:
+        return self.state_dir / "traefik-recreate-state.json"
+
+    @property
+    def recreate_history_path(self) -> Path:
+        return self.state_dir / "traefik-recreations.jsonl"
+
 
 @dataclass(frozen=True)
 class UpdateRequest:

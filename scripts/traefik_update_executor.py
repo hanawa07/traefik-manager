@@ -2,6 +2,10 @@ import time
 from pathlib import Path
 from typing import Any
 
+from traefik_recreate_audit import (
+    record_managed_recreation,
+    safe_current_container_id,
+)
 from traefik_update_models import (
     Preflight,
     RunnerConfig,
@@ -82,8 +86,20 @@ def process_request(config: RunnerConfig, request: UpdateRequest) -> str:
         )
         _run_compose(config, "pull")
         _wait_for_recreate_window(config, request.target_version)
+        previous_container_id = safe_current_container_id(config)
         _run_compose(config, "up", "-d")
-        validations = _validate_runtime(config, request.target_version)
+        recreate_check = _record_recreation_check(
+            config,
+            previous_container_id,
+            "patch_update",
+            request.request_id,
+            request.actor,
+        )
+        validations = _validate_with_recreation_check(
+            config,
+            request.target_version,
+            recreate_check,
+        )
         append_history(
             config,
             {
@@ -156,10 +172,22 @@ def _rollback(
         if backup_dir is None:
             raise RuntimeError("복원할 Compose 백업이 없습니다")
         _restore_compose_files(config, backup_dir)
+        previous_container_id = safe_current_container_id(config)
         _run_compose(config, "up", "-d")
+        recreate_check = _record_recreation_check(
+            config,
+            previous_container_id,
+            "rollback",
+            str(entry["request_id"]),
+            str(entry["actor"]),
+        )
         rollback_validations = [
             {**check, "key": f"rollback_{check['key']}"}
-            for check in _validate_runtime(config, preflight.current_version)
+            for check in _validate_with_recreation_check(
+                config,
+                preflight.current_version,
+                recreate_check,
+            )
         ]
         rollback_status = "rolled_back"
         rollback_message = (
@@ -204,6 +232,42 @@ def _wait_for_recreate_window(config: RunnerConfig, target_version: str) -> None
             f"15분 단위 운영 점검을 피해 {target_version} 적용을 약 {wait_seconds}초 대기합니다",
         )
         time.sleep(min(wait_seconds, 30))
+
+
+def _record_recreation_check(
+    config: RunnerConfig,
+    previous_container_id: str | None,
+    source: str,
+    request_id: str,
+    actor: str,
+) -> dict[str, str]:
+    try:
+        entry = record_managed_recreation(
+            config,
+            previous_container_id,
+            source,
+            request_id=request_id,
+            actor=actor,
+        )
+        detail = "Traefik 컨테이너 재생성 이력 기록" if entry else "컨테이너 재생성 없음"
+        return {"key": "recreation_audit", "status": "ok", "message": detail}
+    except (OSError, RuntimeError, ValueError) as exc:
+        return {
+            "key": "recreation_audit",
+            "status": "fail",
+            "message": f"Traefik 재생성 이력 기록 실패: {message(exc)}",
+        }
+
+
+def _validate_with_recreation_check(
+    config: RunnerConfig,
+    expected_version: str,
+    recreate_check: dict[str, str],
+) -> list[dict[str, str]]:
+    try:
+        return [recreate_check, *_validate_runtime(config, expected_version)]
+    except ValidationError as exc:
+        raise ValidationError(str(exc), [recreate_check, *exc.validations]) from exc
 
 
 def _restore_compose_files(config: RunnerConfig, backup_dir: Path) -> None:

@@ -21,8 +21,12 @@ fake_curl="${temporary_dir}/curl"
 fake_alert="${temporary_dir}/host-alert"
 alert_capture="${temporary_dir}/host-alert-arguments"
 docker_log="${temporary_dir}/docker.log"
+container_id_file="${temporary_dir}/container-id"
+container_id_counter="${temporary_dir}/container-id-counter"
 mkdir -p "${request_dir}" "${compose_dir}/certificates"
 printf '%s\n' 'traefik:v3.7.8' > "${temporary_dir}/image"
+printf '%064x\n' 1 > "${container_id_file}"
+printf '%s\n' 1 > "${container_id_counter}"
 printf '%s\n' 'acme-state' > "${compose_dir}/${acme_filename}"
 printf '%s\n' 'services:' "  ${compose_service}:" '    command: --api.insecure=true' \
   > "${compose_dir}/${compose_base_filename}"
@@ -37,6 +41,12 @@ if [[ "${1:-}" == "inspect" ]]; then
   [[ "${4:-}" == "${TM_TEST_CONTAINER}" ]] || exit 45
   case "${3:-}" in
     '{{.Config.Image}}') cat "${TM_TEST_IMAGE_FILE}" ;;
+    '{{.Id}}') cat "${TM_TEST_CONTAINER_ID_FILE}" ;;
+    '{{.Id}}|{{.Created}}|{{.Config.Image}}')
+      printf '%s|2026-08-25T00:00:00Z|%s\n' \
+        "$(cat "${TM_TEST_CONTAINER_ID_FILE}")" \
+        "$(cat "${TM_TEST_IMAGE_FILE}")"
+      ;;
     '{{.State.Running}}') printf '%s\n' 'true' ;;
     '{{json .NetworkSettings.Networks}}') printf '{"%s":{}}\n' "${TM_TEST_NETWORK}" ;;
     *) awk -F: '{print $NF}' "${TM_TEST_IMAGE_FILE}" ;;
@@ -69,6 +79,9 @@ if [[ "${1:-}" == "compose" ]]; then
         image="$(awk '/^[[:space:]]*image: traefik:v/ {print $2; exit}' "${compose_file}")"
         if [[ -n "${image}" ]]; then
           printf '%s\n' "${image}" > "${TM_TEST_IMAGE_FILE}"
+          next_id="$(( $(cat "${TM_TEST_CONTAINER_ID_COUNTER}") + 1 ))"
+          printf '%s\n' "${next_id}" > "${TM_TEST_CONTAINER_ID_COUNTER}"
+          printf '%064x\n' "${next_id}" > "${TM_TEST_CONTAINER_ID_FILE}"
           exit 0
         fi
       done
@@ -141,6 +154,8 @@ run_runner() {
     TM_TEST_FAIL_ALERT="${TM_TEST_FAIL_ALERT:-false}" \
     TM_TEST_MUTATE_BASE_ON_PULL="${TM_TEST_MUTATE_BASE_ON_PULL:-false}" \
     TM_TEST_IMAGE_FILE="${temporary_dir}/image" \
+    TM_TEST_CONTAINER_ID_FILE="${container_id_file}" \
+    TM_TEST_CONTAINER_ID_COUNTER="${container_id_counter}" \
     TM_TEST_DOCKER_LOG="${docker_log}" \
     TM_TEST_SERVICE="${compose_service}" \
     TM_TEST_CONTAINER="${traefik_container}" \
@@ -157,6 +172,8 @@ run_runner
 grep -Fq 'command: --api.insecure=true' "${compose_dir}/${compose_base_filename}"
 grep -Fq 'image: traefik:v3.7.9' "${compose_dir}/${compose_overlay_filename}"
 grep -Fq '"status":"success"' "${state_dir}/traefik-updates.jsonl"
+grep -Fq '"status":"managed"' "${state_dir}/traefik-recreations.jsonl"
+grep -Fq '"source":"patch_update"' "${state_dir}/traefik-recreations.jsonl"
 grep -Fq '"status":"ready"' "${state_dir}/traefik-update-runner.json"
 [[ ! -e "${request_dir}/traefik-update-request.json" ]]
 find "${compose_dir}/backups" -type f -name acme.json -print -quit | grep -q .
@@ -249,13 +266,30 @@ TM_MANAGER_DEPLOY_STATE_DIR="${state_dir}" \
 TM_TRAEFIK_UPDATE_COMPOSE_DIR="${compose_dir}" \
 TM_TRAEFIK_UPDATE_COMPOSE_FILES="${compose_filenames}" \
 TM_TRAEFIK_UPDATE_SERVICE="${compose_service}" \
+TM_TRAEFIK_UPDATE_CONTAINER="${traefik_container}" \
 TM_TRAEFIK_UPDATE_DOCKER_BIN="${fake_docker}" \
 TM_TRAEFIK_RECREATE_GUARD_SECONDS=0 \
 TM_TEST_IMAGE_FILE="${temporary_dir}/image" \
+TM_TEST_CONTAINER_ID_FILE="${container_id_file}" \
+TM_TEST_CONTAINER_ID_COUNTER="${container_id_counter}" \
 TM_TEST_DOCKER_LOG="${docker_log}" \
 TM_TEST_SERVICE="${compose_service}" \
 TM_TEST_CONTAINER="${traefik_container}" \
 TM_TEST_NETWORK="${traefik_network}" \
   "${SCRIPT_DIR}/run-traefik-recreate-safely.sh"
-tail -n 1 "${docker_log}" | grep -Fq "up|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_overlay_filename}|-d ${compose_service}"
+grep -Fq "up|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_overlay_filename}|-d ${compose_service}" \
+  "${docker_log}"
+tail -n 1 "${state_dir}/traefik-recreations.jsonl" | grep -Fq '"source":"manual_safe"'
+
+printf '%064x\n' 999 > "${container_id_file}"
+if run_runner; then
+  echo "안전 경로 밖의 Traefik 재생성이 정상으로 처리되었습니다" >&2
+  exit 1
+fi
+tail -n 1 "${state_dir}/traefik-recreations.jsonl" | grep -Fq '"status":"unmanaged"'
+tail -n 1 "${state_dir}/traefik-recreations.jsonl" | grep -Fq '"source":"direct_or_unknown"'
+grep -Fq '안전 경로 밖에서 Traefik 컨테이너가 재생성되었습니다' \
+  "${state_dir}/traefik-update-runner.json"
+run_runner
+grep -Fq '"status":"ready"' "${state_dir}/traefik-update-runner.json"
 echo "Traefik 안전 업데이트 실행기 self-test 통과"

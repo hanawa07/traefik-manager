@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     )
     TRAEFIK_UPDATE_REQUEST_DIR: str = "/host-requests/traefik-updates"
     TRAEFIK_UPDATE_HISTORY_PATH: str = "/host-state/traefik-manager/traefik-updates.jsonl"
+    TRAEFIK_RECREATE_HISTORY_PATH: str = (
+        "/host-state/traefik-manager/traefik-recreations.jsonl"
+    )
     TRAEFIK_UPDATE_RUNNER_STATUS_PATH: str = (
         "/host-state/traefik-manager/traefik-update-runner.json"
     )

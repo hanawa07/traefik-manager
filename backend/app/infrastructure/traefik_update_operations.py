@@ -3,6 +3,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.core.config import settings
+from app.infrastructure.traefik_recreation_history import (
+    read_traefik_recreation_history,
+)
 from app.infrastructure.traefik_update_history_codec import (
     normalize_traefik_update_alert_result as _normalize_alert_result,
     normalize_traefik_update_history_entry as _normalize_history_entry,
@@ -22,6 +25,7 @@ def read_traefik_update_operations(
     history_path: str | Path | None = None,
     request_dir: str | Path | None = None,
     runner_status_path: str | Path | None = None,
+    recreate_history_path: str | Path | None = None,
     now: datetime | None = None,
 ) -> dict[str, object]:
     directory = Path(request_dir or settings.TRAEFIK_UPDATE_REQUEST_DIR)
@@ -32,6 +36,7 @@ def read_traefik_update_operations(
         ),
         "pending_request": (directory / REQUEST_FILENAME).is_file(),
         "history": read_traefik_update_history(history_path),
+        "recreation_history": read_traefik_recreation_history(recreate_history_path),
     }
 
 

@@ -19,6 +19,7 @@ import {
 } from "./traefikUpdateHistoryExport";
 import { TraefikUpdateHistoryFilters as HistoryFilters } from "./TraefikUpdateHistoryFilters";
 import { TraefikUpdateHistoryItem } from "./TraefikUpdateHistoryItem";
+import { TraefikRecreationHistory } from "./TraefikRecreationHistory";
 
 interface TraefikUpdateHistoryPanelProps {
   canManage: boolean;
@@ -100,6 +101,12 @@ function TraefikUpdateHistoryPanelContent({
         <p className="mt-3 rounded-lg bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-800 dark:bg-cyan-500/10 dark:text-cyan-200">
           호스트 실행기가 업데이트 요청을 처리하고 있습니다.
         </p>
+      ) : null}
+      {!isLoading && !isError ? (
+        <TraefikRecreationHistory
+          entries={operations?.recreation_history ?? []}
+          timezone={timezone}
+        />
       ) : null}
       {!isLoading && !isError ? (
         <HistoryFilters

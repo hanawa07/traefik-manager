@@ -11,6 +11,30 @@ export const TRAEFIK_UPDATE_HISTORY_FIXTURE = {
     message: "fixture ready",
   },
   pending_request: false,
+  recreation_history: [
+    {
+      container_id: "a".repeat(64),
+      previous_container_id: "b".repeat(64),
+      created_at: `${FIXTURE_DATE}T03:02:00Z`,
+      observed_at: `${FIXTURE_DATE}T03:02:01Z`,
+      image: "traefik:v3.7.9",
+      status: "unmanaged",
+      source: "direct_or_unknown",
+      request_id: null,
+      actor: null,
+    },
+    {
+      container_id: "c".repeat(64),
+      previous_container_id: "d".repeat(64),
+      created_at: `${FIXTURE_DATE}T03:01:00Z`,
+      observed_at: `${FIXTURE_DATE}T03:01:01Z`,
+      image: "traefik:v3.7.9",
+      status: "managed",
+      source: "patch_update",
+      request_id: "11111111-1111-4111-8111-111111111111",
+      actor: "smoke-admin",
+    },
+  ],
   history: [
     {
       request_id: "11111111-1111-4111-8111-111111111111",

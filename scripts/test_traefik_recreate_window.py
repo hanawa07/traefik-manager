@@ -57,6 +57,7 @@ class RecreateWindowTest(unittest.TestCase):
                 "2026-08-25T00:00:00Z",
             )
             with (
+                patch.object(RUNNER, "observe_container_recreation", return_value=None),
                 patch.object(RUNNER, "read_request", return_value=request),
                 patch.object(RUNNER, "seconds_until_safe_recreate", return_value=45),
                 patch.object(RUNNER, "write_heartbeat") as write_heartbeat,

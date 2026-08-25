@@ -7,6 +7,7 @@ readonly STATE_DIR="${TM_MANAGER_DEPLOY_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.lo
 readonly TRAEFIK_DIR="${TM_TRAEFIK_UPDATE_COMPOSE_DIR:-${HOME}/docker/traefik}"
 readonly COMPOSE_FILES="${TM_TRAEFIK_UPDATE_COMPOSE_FILES:-${TM_TRAEFIK_UPDATE_COMPOSE_FILE:-docker-compose.yml}}"
 readonly SERVICE="${TM_TRAEFIK_UPDATE_SERVICE:-traefik}"
+readonly CONTAINER="${TM_TRAEFIK_UPDATE_CONTAINER:-traefik}"
 readonly DOCKER_BIN="${TM_TRAEFIK_UPDATE_DOCKER_BIN:-docker}"
 
 [[ "${SERVICE}" =~ ^[A-Za-z0-9_.-]{1,100}$ ]] \
@@ -25,4 +26,12 @@ done
 mkdir -p "${STATE_DIR}"
 exec 9>> "${STATE_DIR}/traefik-update-runner.lock"
 flock -n 9 || { echo "다른 Traefik 업데이트 작업이 실행 중입니다" >&2; exit 1; }
-"${compose_command[@]}" up -d "${SERVICE}"
+previous_container_id="$("${DOCKER_BIN}" inspect --format '{{.Id}}' "${CONTAINER}")"
+compose_status=0
+"${compose_command[@]}" up -d "${SERVICE}" || compose_status=$?
+audit_status=0
+"${SCRIPT_DIR}/traefik_recreate_audit.py" \
+  "${previous_container_id}" manual_safe --actor "${USER:-host}" \
+  || audit_status=$?
+[[ "${compose_status}" -eq 0 ]] || exit "${compose_status}"
+exit "${audit_status}"

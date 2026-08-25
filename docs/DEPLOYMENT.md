@@ -164,7 +164,9 @@ Compose 파일명이 기본 `docker-compose.yml`이 아니면 Traefik 디렉터�
 - 자동 요청은 동일 메이저·마이너의 상향 패치 버전만 허용하고, 호스트 실행기가 공식 Traefik 이미지·Compose 서비스·설정된 Docker 네트워크·ACME 파일을 다시 검증합니다.
 - 업데이트 요청은 매시 00·15·30·45분 전후 2분에는 큐에 유지하고 안전 구간에 처리합니다. 이미지 pull 중 보호 구간에 들어가도 재생성 직전에 다시 대기하며 heartbeat를 유지합니다.
 - 실행기는 Compose와 `acme.json`을 백업한 뒤 Traefik 서비스만 재생성합니다. 컨테이너 버전·네트워크·Manager health 검증이 실패하면 이전 Compose로 자동 롤백합니다.
+- 실행기는 현재 Traefik 컨테이너 ID를 매분 비교합니다. 패치 업데이트·자동 롤백·수동 안전 경로가 정확한 새 ID를 먼저 기록하므로, 그 밖에서 바뀐 ID만 `unmanaged`로 판정합니다. 최초 실행은 현재 ID를 기준선으로만 저장해 과거 재생성을 오탐하지 않습니다.
 - 요청, 백업 위치, 검증, 롤백 결과는 `~/.local/state/traefik-manager/traefik-updates.jsonl`에 최대 200줄로 보관되며 대시보드에서 확인할 수 있습니다.
+- 관리·비관리 재생성 이력은 `~/.local/state/traefik-manager/traefik-recreations.jsonl`에 최대 200줄로 보관되며 같은 대시보드 카드에서 최근 상태를 확인할 수 있습니다.
 
 Traefik 정적 설정을 수동으로 바꾼 뒤 재생성할 때도 직접 `docker compose up -d traefik`를 실행하지 않고 `scripts/run-traefik-recreate-safely.sh`를 사용합니다. 같은 보호 구간과 업데이트 잠금을 공유하므로 자동 패치 작업과 충돌하지 않습니다. 장애 복구와 자동 롤백은 이 대기를 적용하지 않습니다.
 

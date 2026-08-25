@@ -18,7 +18,13 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
       const alert = document.querySelector('[data-traefik-update-alert="requested"]');
       const auditLink = alert?.querySelector('[data-traefik-update-alert-audit]');
       const auditUrl = auditLink ? new URL(auditLink.href) : null;
+      const recreations = document.querySelectorAll(
+        '[data-testid="traefik-recreation-history"] [data-traefik-recreation-status]',
+      );
       return entries.length === 2 && alert?.textContent?.includes('알림 실행 성공') &&
+        recreations.length === 2 &&
+        document.querySelector('[data-traefik-unmanaged-recreation-count="1"]') &&
+        recreations[0]?.getAttribute('data-traefik-recreation-status') === 'unmanaged' &&
         alert.textContent.includes('재시도 security-admin') &&
         auditUrl?.pathname === '/dashboard/audit' &&
         auditUrl.searchParams.get('q') === '33333333-3333-4333-8333-333333333333' &&

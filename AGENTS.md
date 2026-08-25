@@ -49,6 +49,7 @@ Automated tests are not fully wired yet; treat lint/build and manual API checks 
 - 관련 없는 사용자 변경, 로컬 백업, `.env`, 비밀값, 생성물은 커밋에 포함하지 않는다.
 - Traefik 자기 차단의 즉시 감지와 복구는 Traefik 밖의 호스트 watchdog이 담당한다. Manager 화면은 복구 후 상태·이력만 표시하며 장애 중에도 보인다고 설명하지 않고, watchdog 상태에서 내부 IP를 API나 화면에 노출하지 않는다.
 - Traefik 컨테이너를 재생성하는 수동 설정 변경은 `scripts/run-traefik-recreate-safely.sh`로 실행한다. 이 경로와 패치 업데이트 실행기는 매시 00·15·30·45분 전후 2분을 피해 TCG 운영 점검과 겹치지 않게 하며, 장애 복구·자동 롤백은 지연시키지 않는다.
+- 호스트 업데이트 실행기는 Traefik 컨테이너 ID를 매분 비교한다. 패치 업데이트·자동 롤백·`run-traefik-recreate-safely.sh`가 기록하지 않은 새 ID는 `unmanaged` 재생성으로 보관되므로, 직접 `docker compose up -d traefik`를 실행해 감시를 우회하지 않는다.
 - 같은 리팩토링/개선 묶음 안에서 안전하게 이어서 진행할 수 있는 작업은 사용자에게 매번 `ㄱ`를 요구하지 말고 계획, 구현, 검증, 커밋, 푸시까지 연속으로 진행한다.
 - 작업이 끝나면 결과 보고 마지막 줄에 `다음 작업: ...` 형식으로 바로 진행 가능한 후보를 여러 개 제안한다.
 
