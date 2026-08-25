@@ -73,6 +73,16 @@ Traefik까지는 공개망에서 도달할 수 있고 애플리케이션 앞의 
 
 조사 시점에 비아카이브 workflow는 6개이고 그중 5개가 활성 상태지만, webhook 노드를 포함한 workflow와 등록된 webhook은 모두 0개입니다. 따라서 n8n에는 공개 경로 예외를 만들지 않고 전체 Tailnet 전용 상태를 유지합니다.
 
+## 앱 인증 경계 점검
+
+- `vault.lizstudio.co.kr`: 공개 회원가입을 끄고 관리자 초대는 유지합니다. 기존 계정과 가족 사용에는 영향이 없습니다.
+- `hanaspace.lizstudio.co.kr`: 비밀번호 로그인 POST 경로에 IP별 분당 10건, 순간 5건의 Traefik rate limit을 적용합니다.
+- `smarthome.lizstudio.co.kr`: 최근 7일 웹훅 순간 최대 16건을 기준으로 공개 예외를 분당 120건, 순간 40건으로 제한합니다.
+- `jellyfin.lizstudio.co.kr`: 로그인 POST 경로에는 IP별 분당 10건, 순간 5건의 Traefik rate limit을 적용합니다. 공개 로그인 화면의 사용자 1명 숨김과 앱 자체 실패 잠금은 Jellyfin 관리자 화면에서 설정해야 합니다.
+- `immich.lizstudio.co.kr`, `tcg.lizstudio.co.kr`, `auth.lizstudio.co.kr`: 비인증 관리·사용자 API가 각각 `401` 또는 `403`으로 차단되는 것을 확인했습니다.
+
+버전 점검 시 Vaultwarden `1.37.2`와 Jellyfin `10.11.11`은 최신 패치이고, WordPress `7.0.4`는 7.0 계열 최신 보안 릴리스입니다. Immich `3.0.3`과 Authentik `2026.5.6`은 즉시 보안 패치가 필요한 상태로 판정하지 않았으며 기능 버전 업그레이드는 별도 호환성 점검 후 진행합니다.
+
 ## 확인 근거
 
 - Traefik 런타임 API의 활성 HTTPS 라우터와 middleware

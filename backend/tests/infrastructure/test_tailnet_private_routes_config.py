@@ -33,4 +33,8 @@ def test_smarthome_only_exposes_webhook_path() -> None:
     assert router["priority"] == 1000
     assert router["middlewares"] == ["smarthome-public-webhook-rate-limit"]
     assert router["service"] == "smarthome-lizstudio-co-kr@file"
-    assert rate_limit["rateLimit"] == {"average": 100, "burst": 200}
+    assert rate_limit["rateLimit"] == {
+        "average": 120,
+        "period": "1m",
+        "burst": 40,
+    }

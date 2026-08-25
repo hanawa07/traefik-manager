@@ -38,5 +38,6 @@ traefik-config/.runtime/
 # 정적 설정 파일은 추적
 !traefik-config/dynamic/security-headers.yml
 !traefik-config/dynamic/global-sensitive-paths.yml
+!traefik-config/dynamic/public-auth-rate-limits.yml
 !traefik-config/dynamic/smarthome-public-webhook.yml
 !traefik-config/dynamic/traefik-manager-private-domain.yml

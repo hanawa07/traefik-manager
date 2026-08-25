@@ -1,0 +1,33 @@
+http:
+  middlewares:
+    hanaspace-credentials-login-rate-limit:
+      rateLimit:
+        average: 10
+        period: 1m
+        burst: 5
+    jellyfin-login-rate-limit:
+      rateLimit:
+        average: 10
+        period: 1m
+        burst: 5
+  routers:
+    hanaspace-credentials-login:
+      entryPoints:
+        - websecure
+      priority: 1100
+      rule: Host(`hanaspace.lizstudio.co.kr`) && Path(`/api/auth/callback/credentials`) && Method(`POST`)
+      middlewares:
+        - hanaspace-credentials-login-rate-limit
+      service: hanaspace-lizstudio-co-kr@file
+      tls:
+        certResolver: letsencrypt
+    jellyfin-login:
+      entryPoints:
+        - websecure
+      priority: 1100
+      rule: Host(`jellyfin.lizstudio.co.kr`) && Path(`/Users/AuthenticateByName`) && Method(`POST`)
+      middlewares:
+        - jellyfin-login-rate-limit
+      service: jellyfin-lizstudio-co-kr@file
+      tls:
+        certResolver: letsencrypt
