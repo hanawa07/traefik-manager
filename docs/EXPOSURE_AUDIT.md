@@ -1,6 +1,6 @@
 # 외부 노출 스냅샷
 
-기준 시각: 2026-08-25 (KST)
+노출 기준 시각: 2026-08-25, 앱 점검 갱신: 2026-08-26 (KST)
 
 이 문서는 Traefik 런타임의 활성 HTTPS `Host` 규칙을 기준으로 작성한 수동 스냅샷입니다. 공개 DNS가 존재하는 것과 인터넷에서 서비스에 접근할 수 있는 것은 구분합니다.
 
@@ -78,10 +78,10 @@ Traefik까지는 공개망에서 도달할 수 있고 애플리케이션 앞의 
 - `vault.lizstudio.co.kr`: 공개 회원가입을 끄고 관리자 초대는 유지합니다. 기존 계정과 가족 사용에는 영향이 없습니다.
 - `hanaspace.lizstudio.co.kr`: 비밀번호 로그인 POST 경로에 IP별 분당 10건, 순간 5건의 Traefik rate limit을 적용합니다.
 - `smarthome.lizstudio.co.kr`: 최근 7일 웹훅 순간 최대 16건을 기준으로 공개 예외를 분당 120건, 순간 40건으로 제한합니다.
-- `jellyfin.lizstudio.co.kr`: 로그인 POST 경로에는 IP별 분당 10건, 순간 5건의 Traefik rate limit을 적용합니다. 활성 사용자 3명을 모두 공개 로그인 화면에서 숨겼고 기존 17개 기기 토큰이 계속 유효한 것을 확인했습니다. Jellyfin `10.11.11`의 앱 자체 실패 잠금은 잠금 이후에도 로그인이 가능한 upstream 결함이 있어 보안 경계로 간주하지 않습니다.
+- `jellyfin.lizstudio.co.kr`: 로그인 POST 경로에는 IP별 분당 10건, 순간 5건의 Traefik rate limit을 적용합니다. 활성 사용자 3명을 모두 공개 로그인 화면에서 숨겼고 기존 17개 기기 토큰이 계속 유효한 것을 확인했습니다. Jellyfin `10.11.11`의 앱 자체 실패 잠금은 잠금 이후에도 로그인이 가능한 upstream 결함이 있어 보안 경계로 간주하지 않습니다. GitHub HTML 페이지를 manifest로 잘못 등록한 저장소 4개와 중복 저장소 3개를 제거한 뒤 플러그인 업데이트가 오류 없이 완료됐습니다.
 - `immich.lizstudio.co.kr`, `tcg.lizstudio.co.kr`, `auth.lizstudio.co.kr`: 비인증 관리·사용자 API가 각각 `401` 또는 `403`으로 차단되는 것을 확인했습니다.
 
-버전 점검 시 Vaultwarden `1.37.2`와 Jellyfin `10.11.11`은 최신 패치이고, WordPress `7.0.4`는 7.0 계열 최신 보안 릴리스입니다. Immich `3.0.3`과 Authentik `2026.5.6`은 즉시 보안 패치가 필요한 상태로 판정하지 않았으며 [업그레이드 사전 점검](UPGRADE_PREFLIGHT_2026-08-25.md)에 실행 조건과 보류 사유를 기록했습니다.
+버전 점검 시 Vaultwarden `1.37.2`와 Jellyfin `10.11.11`은 최신 패치이고, WordPress `7.0.4`는 7.0 계열 최신 보안 릴리스입니다. Authentik은 `2026.8.0`으로 업데이트했고 Immich는 `3.0.3`을 유지합니다. [업그레이드 점검 및 결과](UPGRADE_PREFLIGHT_2026-08-25.md)에 검증값과 Immich 보류 사유를 기록했습니다.
 
 ## 인코딩 경로 차단 감시
 
