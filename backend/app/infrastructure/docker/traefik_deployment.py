@@ -110,9 +110,25 @@ def _build_commands(*, compose: dict, current_image: str | None, target_image: s
     working_dir = compose["working_dir"] or "<traefik-compose-dir>"
     service = compose["service"] or "traefik"
     config_files = compose["config_files"] or ["docker-compose.yml"]
+    root = Path(working_dir)
+    safe_config_files = [
+        str(path.relative_to(root))
+        if path.is_absolute() and path.is_relative_to(root)
+        else str(path)
+        for path in map(Path, config_files)
+    ]
     command_prefix = f"cd {quote(working_dir)}"
     compose_command = _build_compose_command(config_files)
     service_argument = quote(service)
+    safe_recreate_command = " ".join(
+        [
+            f"TM_TRAEFIK_UPDATE_COMPOSE_DIR={quote(working_dir)}",
+            f"TM_TRAEFIK_UPDATE_COMPOSE_FILES={quote(','.join(safe_config_files))}",
+            f"TM_TRAEFIK_UPDATE_SERVICE={service_argument}",
+            f"TM_TRAEFIK_UPDATE_CONTAINER={quote(settings.TRAEFIK_DOCKER_CONTAINER_NAME)}",
+            '"${HOME}/docker/traefik-manager/scripts/run-traefik-recreate-safely.sh"',
+        ]
+    )
     backup_steps = [
         'timestamp="$(date +%Y%m%d-%H%M%S)"',
         "mkdir -p backups",
@@ -146,10 +162,10 @@ def _build_commands(*, compose: dict, current_image: str | None, target_image: s
         [
             {
                 "label": "업데이트 적용",
-                "description": "새 이미지를 받은 뒤 Traefik 서비스만 재생성합니다.",
+                "description": "새 이미지를 받은 뒤 안전 경로에서 Traefik 서비스만 재생성합니다.",
                 "command": (
                     f"{command_prefix} && {compose_command} pull {service_argument} && "
-                    f"{compose_command} up -d {service_argument}"
+                    f"{safe_recreate_command}"
                 ),
             },
             {

@@ -14,7 +14,7 @@ const health = {
 const updateCommand = {
   label: "업데이트 적용",
   description: "custom compose fixture",
-  command: "docker compose -f compose.prod.yml up -d edge-proxy",
+  command: '"${HOME}/docker/traefik-manager/scripts/run-traefik-recreate-safely.sh"',
 };
 const deployment = {
   enabled: true,
@@ -43,9 +43,11 @@ assert.match(dynamicPlan.summary, /우선 적용/);
 assert.match(dynamicPlan.checks[0], /GHSA-5W68-77R2-R64C/);
 assert.match(dynamicPlan.rollbackNote, /위의 `업데이트 적용` 명령/);
 assert.doesNotMatch(dynamicPlan.rollbackNote, /docker compose up -d traefik/);
+assert.match(dynamicPlan.commands[0].command, /run-traefik-recreate-safely\.sh/);
 
 const fallbackPlan = buildTraefikUpdatePlan(health);
 assert.ok(fallbackPlan);
-assert.match(fallbackPlan.rollbackNote, /docker compose up -d traefik/);
+assert.doesNotMatch(fallbackPlan.rollbackNote, /docker compose up -d traefik/);
+assert.match(fallbackPlan.commands[2].command, /run-traefik-recreate-safely\.sh/);
 
 console.log("Traefik 업데이트 계획 self-test 통과");

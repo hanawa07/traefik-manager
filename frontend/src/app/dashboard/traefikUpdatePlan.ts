@@ -73,8 +73,10 @@ export function buildTraefikUpdatePlan(
       },
       {
         label: "업데이트 적용",
-        description: "Traefik compose 디렉터리에서 실행합니다.",
-        command: "docker compose pull traefik && docker compose up -d traefik",
+        description: "새 이미지를 받은 뒤 안전 경로에서 Traefik만 재생성합니다.",
+        command:
+          'docker compose pull traefik && ' +
+          '"${HOME}/docker/traefik-manager/scripts/run-traefik-recreate-safely.sh"',
       },
       {
         label: "업데이트 후 로그 확인",
@@ -89,7 +91,7 @@ export function buildTraefikUpdatePlan(
     targetImage: deployment?.target_image || null,
     rollbackNote: dynamicCommands?.length
       ? "문제가 생기면 Compose 파일의 Traefik image 태그를 업데이트 전 값으로 되돌린 뒤 위의 `업데이트 적용` 명령을 다시 실행합니다."
-      : "문제가 생기면 Compose 파일의 Traefik image 태그를 업데이트 전 값으로 되돌린 뒤 `docker compose up -d traefik`를 실행합니다.",
+      : "문제가 생기면 Compose 파일의 Traefik image 태그를 업데이트 전 값으로 되돌린 뒤 안전 재생성 스크립트를 다시 실행합니다.",
   };
 }
 

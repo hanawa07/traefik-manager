@@ -39,6 +39,11 @@ async def test_traefik_deployment_status_builds_compose_update_commands(monkeypa
         "acme_storage": "ok",
     }
     assert any("traefik:v3.7.6" in item["command"] for item in result["commands"])
+    apply_command = next(
+        item["command"] for item in result["commands"] if item["label"] == "업데이트 적용"
+    )
+    assert "run-traefik-recreate-safely.sh" in apply_command
+    assert " up -d " not in apply_command
     status_command = next(item["command"] for item in result["commands"] if item["label"] == "상태 확인")
     assert (
         "docker compose -f /home/lizstudio/docker/traefik/docker-compose.yml "
@@ -127,7 +132,10 @@ async def test_traefik_deployment_commands_support_multiple_custom_compose_files
     )
     assert commands["업데이트 적용"] == (
         f"cd '/srv/traefik stack' && {compose_command} pull edge-proxy && "
-        f"{compose_command} up -d edge-proxy"
+        "TM_TRAEFIK_UPDATE_COMPOSE_DIR='/srv/traefik stack' "
+        "TM_TRAEFIK_UPDATE_COMPOSE_FILES=compose.prod.yml,compose.override.yml "
+        "TM_TRAEFIK_UPDATE_SERVICE=edge-proxy TM_TRAEFIK_UPDATE_CONTAINER=traefik "
+        '"${HOME}/docker/traefik-manager/scripts/run-traefik-recreate-safely.sh"'
     )
     assert f"{compose_command} exec -T edge-proxy" in commands["상태 확인"]
     assert "cp -- '/srv/traefik stack/compose.prod.yml'" in commands["백업 생성"]
