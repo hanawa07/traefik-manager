@@ -130,6 +130,8 @@ export interface TraefikRecreationHistoryEntry {
   source: "patch_update" | "rollback" | "manual_safe" | "direct_or_unknown";
   request_id: string | null;
   actor: string | null;
+  alert_request_status: "not_needed" | "pending" | "requested" | "request_failed";
+  alert_channel: "anubis" | null;
 }
 
 export interface TraefikUpdateOperations {

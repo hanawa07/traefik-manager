@@ -101,6 +101,28 @@ def record_managed_recreation(
     return entry
 
 
+def record_unmanaged_alert_result(
+    config: RunnerConfig,
+    entry: dict[str, Any],
+    *,
+    succeeded: bool,
+) -> dict[str, Any]:
+    if (
+        entry.get("status") != "unmanaged"
+        or entry.get("source") != "direct_or_unknown"
+        or not isinstance(entry.get("container_id"), str)
+        or not CONTAINER_ID_PATTERN.fullmatch(entry["container_id"])
+    ):
+        raise ValueError("비관리 Traefik 재생성 이력이 올바르지 않습니다")
+    result = {
+        **entry,
+        "alert_request_status": "requested" if succeeded else "request_failed",
+        "alert_channel": "anubis" if succeeded else None,
+    }
+    _append_history(config, result)
+    return result
+
+
 def _history_entry(
     current: dict[str, str],
     previous_container_id: str | None,
@@ -118,6 +140,8 @@ def _history_entry(
         "source": source,
         "request_id": request_id,
         "actor": actor,
+        "alert_request_status": "pending" if status == "unmanaged" else "not_needed",
+        "alert_channel": None,
         "observed_at": utc_now(),
     }
 

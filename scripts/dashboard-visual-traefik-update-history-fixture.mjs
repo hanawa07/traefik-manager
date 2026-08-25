@@ -22,6 +22,8 @@ export const TRAEFIK_UPDATE_HISTORY_FIXTURE = {
       source: "direct_or_unknown",
       request_id: null,
       actor: null,
+      alert_request_status: "requested",
+      alert_channel: "anubis",
     },
     {
       container_id: "c".repeat(64),
@@ -33,6 +35,8 @@ export const TRAEFIK_UPDATE_HISTORY_FIXTURE = {
       source: "patch_update",
       request_id: "11111111-1111-4111-8111-111111111111",
       actor: "smoke-admin",
+      alert_request_status: "not_needed",
+      alert_channel: null,
     },
   ],
   history: [

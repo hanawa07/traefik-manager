@@ -5,9 +5,13 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 from traefik_recreate_window import seconds_until_safe_recreate
-from traefik_recreate_audit import observe_container_recreation
+from traefik_recreate_audit import (
+    observe_container_recreation,
+    record_unmanaged_alert_result,
+)
 from traefik_update_executor import process_request
 from traefik_update_models import ALERT_RETRY_OPERATION, RunnerConfig, UpdateRequest, message
 from traefik_update_storage import (
@@ -47,12 +51,7 @@ def _run_once(config: RunnerConfig) -> int:
         )
         return 1
     if unmanaged_recreation is not None:
-        write_heartbeat(
-            config,
-            "error",
-            "안전 경로 밖에서 Traefik 컨테이너가 재생성되었습니다",
-        )
-        return 1
+        return _notify_unmanaged_recreation(config, unmanaged_recreation)
     if not config.request_path.exists():
         write_heartbeat(
             config,
@@ -116,6 +115,31 @@ def _run_once(config: RunnerConfig) -> int:
     return 0
 
 
+def _notify_unmanaged_recreation(config: RunnerConfig, entry: dict[str, Any]) -> int:
+    container_id = str(entry["container_id"])
+    succeeded = False
+    try:
+        _request_host_operation_alert(
+            "Traefik 비관리 재생성",
+            f"컨테이너 ID {container_id[:12]}",
+            "failure",
+        )
+        succeeded = True
+        detail = "Anubis 알림 전송 완료"
+    except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+        detail = f"Anubis 알림 전송 실패: {message(exc)}"
+    try:
+        record_unmanaged_alert_result(config, entry, succeeded=succeeded)
+    except (OSError, ValueError) as exc:
+        detail = f"{detail}. 알림 결과 이력 저장 실패: {message(exc)}"
+    write_heartbeat(
+        config,
+        "error",
+        f"안전 경로 밖에서 Traefik 컨테이너가 재생성되었습니다. {detail}",
+    )
+    return 1
+
+
 def _retry_rollback_alert(config: RunnerConfig, request: UpdateRequest) -> int:
     source_request_id = request.source_request_id
     if source_request_id is None:
@@ -150,7 +174,11 @@ def _request_and_record_rollback_alert(
     alert_channel = None
     alert_url = None
     try:
-        alert_channel = _request_rollback_failure_alert(request_id, target_version)
+        alert_channel = _request_host_operation_alert(
+            "Traefik 패치 업데이트 자동 롤백",
+            f"{target_version} 업데이트와 자동 롤백 실패 · 요청 {request_id}",
+            "failure",
+        )
         alert_status = "requested"
         detail = f"호스트 운영 알림 요청 완료: {alert_channel}"
     except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
@@ -172,7 +200,7 @@ def _request_and_record_rollback_alert(
     return alert_status == "requested", detail
 
 
-def _request_rollback_failure_alert(request_id: str, target_version: str) -> str:
+def _request_host_operation_alert(source: str, detail: str, status: str) -> str:
     alert_script = os.environ.get(
         "TM_HOST_OPERATION_ALERT_SCRIPT",
         str(Path(__file__).resolve().with_name("request-host-operation-alert.sh")),
@@ -180,9 +208,9 @@ def _request_rollback_failure_alert(request_id: str, target_version: str) -> str
     completed = subprocess.run(
         [
             alert_script,
-            "Traefik 패치 업데이트 자동 롤백",
-            f"{target_version} 업데이트와 자동 롤백 실패 · 요청 {request_id}",
-            "failure",
+            source,
+            detail,
+            status,
         ],
         check=False,
         capture_output=True,

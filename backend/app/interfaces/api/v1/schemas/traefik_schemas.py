@@ -146,6 +146,10 @@ class TraefikRecreationHistoryEntryResponse(BaseModel):
     source: Literal["patch_update", "rollback", "manual_safe", "direct_or_unknown"]
     request_id: str | None = None
     actor: str | None = None
+    alert_request_status: Literal[
+        "not_needed", "pending", "requested", "request_failed"
+    ]
+    alert_channel: Literal["anubis"] | None = None
 
 
 class TraefikUpdateOperationsResponse(BaseModel):

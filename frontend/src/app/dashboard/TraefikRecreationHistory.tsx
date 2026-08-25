@@ -15,6 +15,13 @@ const SOURCE_LABELS: Record<TraefikRecreationHistoryEntry["source"], string> = {
   direct_or_unknown: "안전 경로 외부",
 };
 
+const ALERT_LABELS: Record<TraefikRecreationHistoryEntry["alert_request_status"], string> = {
+  not_needed: "",
+  pending: "알림 처리 대기",
+  requested: "Anubis 전송 완료",
+  request_failed: "Anubis 전송 실패",
+};
+
 export function TraefikRecreationHistory({
   entries,
   timezone,
@@ -54,17 +61,31 @@ export function TraefikRecreationHistory({
           {entries.slice(0, 5).map((entry) => (
             <li
               className="grid min-w-0 gap-1 py-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
+              data-traefik-recreation-alert={entry.alert_request_status}
               data-traefik-recreation-status={entry.status}
               key={entry.container_id}
             >
-              <span
-                className={
-                  entry.status === "managed"
-                    ? "font-semibold text-emerald-700 dark:text-emerald-300"
-                    : "font-semibold text-rose-700 dark:text-rose-300"
-                }
-              >
-                {entry.status === "managed" ? "관리됨" : "경로 외부"}
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span
+                  className={
+                    entry.status === "managed"
+                      ? "font-semibold text-emerald-700 dark:text-emerald-300"
+                      : "font-semibold text-rose-700 dark:text-rose-300"
+                  }
+                >
+                  {entry.status === "managed" ? "관리됨" : "경로 외부"}
+                </span>
+                {entry.status === "unmanaged" ? (
+                  <span
+                    className={
+                      entry.alert_request_status === "requested"
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : "text-rose-700 dark:text-rose-300"
+                    }
+                  >
+                    {ALERT_LABELS[entry.alert_request_status]}
+                  </span>
+                ) : null}
               </span>
               <span className="min-w-0 truncate text-slate-600 dark:text-slate-300">
                 {SOURCE_LABELS[entry.source]} · {entry.image} · {entry.container_id.slice(0, 12)}

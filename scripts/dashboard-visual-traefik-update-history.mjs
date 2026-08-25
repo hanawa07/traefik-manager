@@ -25,6 +25,8 @@ export async function checkTraefikUpdateHistory({ cdp, timeoutMs }) {
         recreations.length === 2 &&
         document.querySelector('[data-traefik-unmanaged-recreation-count="1"]') &&
         recreations[0]?.getAttribute('data-traefik-recreation-status') === 'unmanaged' &&
+        recreations[0]?.getAttribute('data-traefik-recreation-alert') === 'requested' &&
+        recreations[0]?.textContent?.includes('Anubis 전송 완료') &&
         alert.textContent.includes('재시도 security-admin') &&
         auditUrl?.pathname === '/dashboard/audit' &&
         auditUrl.searchParams.get('q') === '33333333-3333-4333-8333-333333333333' &&

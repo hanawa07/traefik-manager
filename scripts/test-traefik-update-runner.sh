@@ -20,10 +20,12 @@ fake_docker="${temporary_dir}/docker"
 fake_curl="${temporary_dir}/curl"
 fake_alert="${temporary_dir}/host-alert"
 alert_capture="${temporary_dir}/host-alert-arguments"
+alert_call_log="${temporary_dir}/host-alert-calls"
 docker_log="${temporary_dir}/docker.log"
 container_id_file="${temporary_dir}/container-id"
 container_id_counter="${temporary_dir}/container-id-counter"
 mkdir -p "${request_dir}" "${compose_dir}/certificates"
+: > "${alert_call_log}"
 printf '%s\n' 'traefik:v3.7.8' > "${temporary_dir}/image"
 printf '%064x\n' 1 > "${container_id_file}"
 printf '%s\n' 1 > "${container_id_counter}"
@@ -104,6 +106,7 @@ printf '%s\n' '{"status":"정상"}'
 SCRIPT
 cat > "${fake_alert}" <<'SCRIPT'
 #!/usr/bin/env bash
+printf '%s\n' 'called' >> "${TM_TEST_ALERT_CALL_LOG}"
 [[ "${TM_TEST_FAIL_ALERT:-false}" != "true" ]] || exit 44
 printf '%s\n' "$@" > "${TM_TEST_ALERT_CAPTURE}"
 printf '%s\n' 'anubis'
@@ -149,6 +152,7 @@ run_runner() {
     TM_TRAEFIK_UPDATE_CURL_BIN="${fake_curl}" \
     TM_HOST_OPERATION_ALERT_SCRIPT="${fake_alert}" \
     TM_TEST_ALERT_CAPTURE="${alert_capture}" \
+    TM_TEST_ALERT_CALL_LOG="${alert_call_log}" \
     TM_TEST_FAIL_PULL="${TM_TEST_FAIL_PULL:-false}" \
     TM_TEST_FAIL_UP="${TM_TEST_FAIL_UP:-false}" \
     TM_TEST_FAIL_ALERT="${TM_TEST_FAIL_ALERT:-false}" \
@@ -281,15 +285,38 @@ grep -Fq "up|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_ov
   "${docker_log}"
 tail -n 1 "${state_dir}/traefik-recreations.jsonl" | grep -Fq '"source":"manual_safe"'
 
-printf '%064x\n' 999 > "${container_id_file}"
+alert_calls_before="$(wc -l < "${alert_call_log}")"
+printf '%s\n' 'abcdef012345abcdef012345abcdef012345abcdef012345abcdef012345abcd' \
+  > "${container_id_file}"
 if run_runner; then
   echo "안전 경로 밖의 Traefik 재생성이 정상으로 처리되었습니다" >&2
   exit 1
 fi
 tail -n 1 "${state_dir}/traefik-recreations.jsonl" | grep -Fq '"status":"unmanaged"'
 tail -n 1 "${state_dir}/traefik-recreations.jsonl" | grep -Fq '"source":"direct_or_unknown"'
+tail -n 1 "${state_dir}/traefik-recreations.jsonl" | grep -Fq '"alert_request_status":"requested"'
+tail -n 1 "${state_dir}/traefik-recreations.jsonl" | grep -Fq '"alert_channel":"anubis"'
+grep -Fxq 'Traefik 비관리 재생성' "${alert_capture}"
+grep -Fxq '컨테이너 ID abcdef012345' "${alert_capture}"
+grep -Fxq 'failure' "${alert_capture}"
+[[ "$(wc -l < "${alert_call_log}")" -eq "$((alert_calls_before + 1))" ]]
 grep -Fq '안전 경로 밖에서 Traefik 컨테이너가 재생성되었습니다' \
   "${state_dir}/traefik-update-runner.json"
+grep -Fq 'Anubis 알림 전송 완료' "${state_dir}/traefik-update-runner.json"
 run_runner
 grep -Fq '"status":"ready"' "${state_dir}/traefik-update-runner.json"
+[[ "$(wc -l < "${alert_call_log}")" -eq "$((alert_calls_before + 1))" ]]
+
+printf '%s\n' 'fedcba987654fedcba987654fedcba987654fedcba987654fedcba987654fedc' \
+  > "${container_id_file}"
+if TM_TEST_FAIL_ALERT=true run_runner; then
+  echo "실패한 비관리 재생성 알림이 정상으로 처리되었습니다" >&2
+  exit 1
+fi
+tail -n 1 "${state_dir}/traefik-recreations.jsonl" | grep -Fq '"alert_request_status":"request_failed"'
+tail -n 1 "${state_dir}/traefik-recreations.jsonl" | grep -Fq '"alert_channel":null'
+grep -Fq 'Anubis 알림 전송 실패' "${state_dir}/traefik-update-runner.json"
+[[ "$(wc -l < "${alert_call_log}")" -eq "$((alert_calls_before + 2))" ]]
+run_runner
+[[ "$(wc -l < "${alert_call_log}")" -eq "$((alert_calls_before + 2))" ]]
 echo "Traefik 안전 업데이트 실행기 self-test 통과"

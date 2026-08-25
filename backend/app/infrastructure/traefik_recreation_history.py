@@ -14,6 +14,7 @@ MAX_HISTORY_LINE_BYTES = 4096
 CONTAINER_ID_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 RECREATE_STATUSES = {"managed", "unmanaged"}
 RECREATE_SOURCES = {"patch_update", "rollback", "manual_safe", "direct_or_unknown"}
+ALERT_REQUEST_STATUSES = {"not_needed", "pending", "requested", "request_failed"}
 
 
 def read_traefik_recreation_history(
@@ -60,6 +61,11 @@ def _normalize_entry(raw: object) -> dict[str, object] | None:
     source = raw.get("source")
     request_id = raw.get("request_id")
     actor = raw.get("actor")
+    alert_request_status = raw.get(
+        "alert_request_status",
+        "pending" if status == "unmanaged" else "not_needed",
+    )
+    alert_channel = raw.get("alert_channel")
     if (
         not _is_container_id(container_id)
         or (previous_container_id is not None and not _is_container_id(previous_container_id))
@@ -76,6 +82,10 @@ def _normalize_entry(raw: object) -> dict[str, object] | None:
         or (status == "unmanaged") != (source == "direct_or_unknown")
         or (request_id is not None and not _is_uuid(request_id))
         or not _is_actor(actor)
+        or alert_request_status not in ALERT_REQUEST_STATUSES
+        or alert_channel not in {None, "anubis"}
+        or (alert_request_status == "requested") != (alert_channel == "anubis")
+        or (status == "managed") != (alert_request_status == "not_needed")
     ):
         return None
     return {
@@ -88,6 +98,8 @@ def _normalize_entry(raw: object) -> dict[str, object] | None:
         "source": source,
         "request_id": request_id,
         "actor": actor,
+        "alert_request_status": alert_request_status,
+        "alert_channel": alert_channel,
     }
 
 
