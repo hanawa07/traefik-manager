@@ -198,10 +198,10 @@ Traefik 정적 설정을 수동으로 바꾼 뒤 재생성할 때도 직접 `doc
 - 대시보드는 최근 로컬 실패의 단계·대상, 완료 시각, 배포 revision과 이후 점검 성공 여부를 바로 표시합니다. 펼친 호스트 이력에서도 각 실패 원인을 확인할 수 있습니다.
 - Tailnet 전용 모드에서 GitHub 실행은 운영 상태가 아닌 참고 이력입니다. 대시보드는 GitHub API를 조회하지 않고, 설정에서 참고 이력을 열 때만 최대 30일 조회합니다. 콜백과 일별 통계 스냅샷은 365일 보관하며 GitHub 원본 실행 보존 기간은 저장소의 Actions 정책을 따릅니다.
 - 전용 계정 이름을 바꾸는 경우 backend의 `SMOKE_VIEWER_USERNAME`·`SMOKE_ADMIN_USERNAME`을 각각 같은 값으로 설정합니다.
-- 운영 호스트에서는 매월 1일 04:17에 두 계정을 회전하는 기존 사용자 cron을 사용합니다. 실행 로그는 `~/.local/state/traefik-manager/smoke-password-rotation.log`에 저장합니다.
+- 운영 호스트에서는 `scripts/install-smoke-rotation-timer.sh`로 설치한 user systemd timer가 매월 1일 04:17 KST에 두 계정을 회전합니다. 설치기는 timer를 먼저 활성화한 뒤 마커로 관리하던 기존 사용자 cron만 제거하며, 최초 설치 때 지난 일정을 즉시 보충 실행하지 않습니다. `systemctl --user list-timers traefik-manager-smoke-rotation.timer`로 다음 실행 시각을 확인하고 실행 로그는 `~/.local/state/traefik-manager/smoke-password-rotation.log`에서 확인합니다.
 - 회전 결과는 설정 화면의 `운영 로그인·화면 점검` 카드 안에 별도 표시되며, 실패하면 현재 설정 변경 알림 채널로 실패 단계가 전송됩니다.
 - 정기 회전의 viewer·admin 비밀번호 단독 변경은 감사 로그만 남기고 운영 알림에서는 제외하며, 수동 실패 시험 알림은 제목에 `[테스트]`를 표시합니다.
-- 회전 스크립트는 `~/.local/state/traefik-manager/smoke-password-rotation.lock` 잠금을 사용해 cron과 수동 실행의 중복 회전을 건너뜁니다.
+- 회전 스크립트는 `~/.local/state/traefik-manager/smoke-password-rotation.lock` 잠금을 사용해 timer와 수동 실행의 중복 회전을 건너뜁니다.
 - 마지막 성공 후 35일이 지나면 설정 화면의 회전 상태가 `점검 필요`로 표시됩니다.
 - 운영 로그인·화면 스모크는 보안 공격 검사가 아니라 viewer 로그인, 주요 API, 화면 로딩을 확인하는 가용성 점검입니다. 로그인 공격 방어는 별도 `로그인 보안 방어` 설정에서 관리합니다.
 - Tailnet 전용 배포에서는 관리자 설정의 예약 자동 점검을 꺼 둡니다. 기존 예약 설정과 GitHub 실행 이력은 호환용으로 조회할 수 있으며, 월간 비밀번호 회전 후 로컬 검증은 계속 실행합니다.
@@ -217,7 +217,7 @@ Traefik 정적 설정을 수동으로 바꾼 뒤 재생성할 때도 직접 `doc
 - `scripts/test-manager-health-watchdog.sh`는 가짜 health 응답과 가짜 Docker CLI로 정상→장애→복구 및 직접 알림 실패 기록을 검증하므로 운영 컨테이너와 실제 알림을 중단하거나 호출하지 않습니다.
 - Traefik 자기 차단의 즉시 감지·직접 Telegram 알림·정확한 ticket 자동 해제는 Manager 프로세스가 아니라 Anubis의 `anubis-traefik-self-ban-watchdog.timer`가 담당합니다. 결과 파일 `~/.local/state/traefik-manager/traefik-self-ban-watchdog.json`만 backend에 읽기 전용으로 공유하며, API는 내부 IP를 버리고 상태·Jail 이름·시각·해제 건수만 반환합니다.
 - 최근 24시간의 실패 알림은 5분 간격으로 최대 3회 자동 재시도하며, 각 재시도 결과도 감사 로그에 남깁니다.
-- 관리자 설정 카드의 `최근 cron 로그`에서 호스트 로그 마지막 12줄을 확인할 수 있으며, 상태 디렉터리는 backend에 읽기 전용으로 마운트됩니다.
+- 관리자 설정 카드의 `최근 정기 실행 로그`에서 호스트 로그 마지막 12줄을 확인할 수 있으며, 상태 디렉터리는 backend에 읽기 전용으로 마운트됩니다.
 - 로그인 후 서비스 추가 시 `traefik-config/dynamic/<domain>.yml` 파일이 생성됩니다.
 - Traefik 로그 또는 대시보드에서 새 라우터가 반영됩니다.
 - `docker compose logs -f backend`에 `/traefik-config/dynamic` 권한 오류가 없습니다.

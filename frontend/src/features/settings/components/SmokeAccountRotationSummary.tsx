@@ -106,13 +106,13 @@ export function SmokeAccountRotationSummary({
       ) : null}
       {status.is_stale ? (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
-          마지막 성공 후 {status.stale_after_days}일이 지났습니다. cron 실행 로그와 Tailnet
+          마지막 성공 후 {status.stale_after_days}일이 지났습니다. 정기 실행 로그와 Tailnet
           로컬 점검 경로를 확인하세요.
         </div>
       ) : null}
       <details className="mt-3 border-t border-gray-200 pt-3 dark:border-slate-700">
         <summary className="cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
-          최근 계정 회전 cron 로그 · {formatDateTime(status.log_updated_at, timezone)}
+          최근 계정 회전 정기 실행 로그 · {formatDateTime(status.log_updated_at, timezone)}
         </summary>
         {recentLogLines.length ? (
           <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-5 text-gray-600 dark:text-slate-300">
@@ -120,7 +120,7 @@ export function SmokeAccountRotationSummary({
           </pre>
         ) : (
           <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
-            표시할 cron 로그가 없습니다.
+            표시할 정기 실행 로그가 없습니다.
           </p>
         )}
       </details>
