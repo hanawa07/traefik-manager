@@ -20,9 +20,11 @@
 - 대상 `v3.1.0` 서버 이미지의 `linux/amd64`와 machine-learning CUDA 이미지 manifest 확인
 - 현재 compose를 `IMMICH_VERSION=v3.1.0`으로 해석했을 때 서버와 CUDA 이미지 태그가 함께 바뀌는 것을 확인
 
-현재 데이터베이스는 이미 공식 VectorChord 이미지 구조를 사용하므로 별도의 pgvecto.rs 전환 작업은 필요하지 않습니다. 최근 thumbnail 작업 오류는 손상되거나 지나치게 큰 원본 파일과 WebP 메모리 실패로 분류되며 데이터베이스 migration 오류는 없습니다.
+현재 데이터베이스는 이미 공식 VectorChord 이미지 구조를 사용하므로 별도의 pgvecto.rs 전환 작업은 필요하지 않습니다. 최근 thumbnail 작업 오류는 0바이트·손상 JPEG 원본, WebP 출력 형식의 크기 제한, ffmpeg thumbnail 처리 실패로 분류되며 데이터베이스 migration 오류는 없습니다.
 
-2026-08-26 기준 최근 96시간 thumbnail 오류를 고유 자산 27개로 중복 제거했습니다. 0바이트 원본 7개, JPEG 조기 종료 9개, JPEG DCT 손상 6개, WebP 메모리 부족 4개, ffmpeg 변환 실패 1개입니다. 원본 삭제나 자동 재인코딩은 하지 않았고 파일명과 경로가 포함된 보고서는 Git에서 제외되는 `/home/lizstudio/docker/immich/reports/thumbnail-errors-2026-08-26.csv`에 mode `600`으로 저장했습니다.
+2026-08-26 기준 최근 96시간 thumbnail 오류를 고유 자산 27개로 중복 제거했습니다. 0바이트 원본 7개, JPEG 조기 종료 9개, JPEG DCT 손상 6개, WebP 출력 크기 제한 4개, ffmpeg 변환 실패 1개입니다. 원본 삭제나 자동 재인코딩은 하지 않았고 파일명과 경로가 포함된 보고서는 Git에서 제외되는 `/home/lizstudio/docker/immich/reports/thumbnail-errors-2026-08-26.csv`에 mode `600`으로 저장했습니다.
+
+DB 저장값과 현재 원본을 대조한 결과 27개 모두 파일 크기와 수정시각이 일치했습니다. 외부 라이브러리 26개는 내용이 아닌 `sha1("path:" + originalPath)`를 저장하므로 현재 내용 SHA-256을 별도 기준값으로 남겼고, 내용 SHA-1을 저장한 1개는 현재 파일과 일치했습니다. WebP 제한 자산에 남은 파생 파일 6개는 모두 디코딩됐으며 ffmpeg 실패 영상 원본도 전체 디코딩을 통과했습니다. 0바이트 7개와 손상 JPEG 15개에는 복원 가능한 파생 파일이 없어 원본 백업 또는 수리가 필요합니다. 상세 결과는 `/home/lizstudio/docker/immich/reports/thumbnail-errors-forensics-2026-08-26.csv`에 mode `600`으로 저장했습니다.
 
 ### 백업과 보류 조건
 
@@ -40,7 +42,7 @@
 4. compose 전체를 재생성하고 네 컨테이너 health, 서버 버전, migration 로그를 확인합니다.
 5. 로그인, 사진 목록, 신규 업로드, 썸네일 생성과 machine-learning 작업을 확인합니다.
 
-근거: [Immich v3.1.0 릴리스](https://github.com/immich-app/immich/releases/tag/v3.1.0), [Immich 업그레이드 지침](https://docs.immich.app/install/upgrading/)
+근거: [Immich v3.1.0 릴리스](https://github.com/immich-app/immich/releases/tag/v3.1.0), [Immich 업그레이드 지침](https://docs.immich.app/install/upgrading/), [Immich v3.0.3 checksum 정의](https://github.com/immich-app/immich/blob/v3.0.3/server/src/enum.ts)
 
 ## Authentik 2026.8.0 (완료)
 
@@ -69,6 +71,7 @@
 3. proxy provider 13개, embedded outpost 1개와 유효 core session 130개를 업그레이드 후 확인했습니다.
 4. 직접 로그인 flow 화면은 `200`, 대표 ForwardAuth 서비스 3개는 비인증 요청을 `302`로 인증 화면에 전달했습니다.
 5. 준비 완료 이후 server와 worker에서 error 또는 critical 로그가 발생하지 않았습니다.
+6. 재사용 가능한 기존 Authentik 브라우저 세션이 없어 운영 계정의 비밀번호 제출은 수행하지 않았습니다. 세션 추출이나 임시 운영 계정 생성 없이 로그인 전환과 outpost 경계까지만 검증했습니다.
 
 Authentik은 major release 순서를 지켜야 하고 server와 모든 outpost 버전이 일치해야 하며 downgrade를 지원하지 않습니다. 이후 업데이트도 중앙 인증 점검 없이 자동 적용하지 않습니다.
 
