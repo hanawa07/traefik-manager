@@ -145,6 +145,67 @@ frontend_for_slot() {
   esac
 }
 
+deployment_state_matches() {
+  local state_file="$1"
+  local expected_slot="$2"
+  local expected_version="$3"
+  local expected_revision="$4"
+  local state_slot state_version state_revision
+  [[ -f "${state_file}" ]] || return 1
+  state_slot="$(awk -F= '$1 == "slot" { print $2; exit }' "${state_file}")"
+  state_version="$(awk -F= '$1 == "version" { print $2; exit }' "${state_file}")"
+  state_revision="$(awk -F= '$1 == "revision" { print $2; exit }' "${state_file}")"
+  [[ "${state_slot}" == "${expected_slot}" \
+    && "${state_version}" == "${expected_version}" \
+    && "${state_revision}" == "${expected_revision}" ]]
+}
+
+container_matches_deployment() {
+  local container_name="$1"
+  local expected_version="$2"
+  local expected_revision="$3"
+  local details health version revision
+  details="$(docker inspect --format \
+    '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}|{{ index .Config.Labels "org.opencontainers.image.version" }}|{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
+    "${container_name}" 2>/dev/null)" || return 1
+  IFS='|' read -r health version revision <<< "${details}"
+  [[ "${health}" == "healthy" \
+    && "${version}" == "${expected_version}" \
+    && "${revision}" == "${expected_revision}" ]]
+}
+
+container_health_status() {
+  docker inspect --format \
+    '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
+    "$1" 2>/dev/null
+}
+
+container_runtime_status() {
+  docker inspect --format '{{.State.Status}}' "$1" 2>/dev/null || printf 'missing\n'
+}
+
+is_current_deployment_active() {
+  local slot="$1"
+  local version="$2"
+  local revision="$3"
+  local state_file="${4:-${STATE_FILE}}"
+  local inactive_slot inactive_backend_status inactive_frontend_status
+  [[ "${slot}" == "blue" || "${slot}" == "green" ]] || return 1
+  deployment_state_matches "${state_file}" "${slot}" "${version}" "${revision}" || return 1
+  container_matches_deployment "$(backend_for_slot "${slot}")" "${version}" "${revision}" \
+    || return 1
+  container_matches_deployment "$(frontend_for_slot "${slot}")" "${version}" "${revision}" \
+    || return 1
+  [[ "$(container_health_status traefik-manager-dockerproxy)" == "healthy" ]] || return 1
+
+  inactive_slot="$(opposite_slot "${slot}")"
+  inactive_backend_status="$(container_runtime_status "$(backend_for_slot "${inactive_slot}")")"
+  inactive_frontend_status="$(container_runtime_status "$(frontend_for_slot "${inactive_slot}")")"
+  [[ "${inactive_backend_status}" == "exited" || "${inactive_backend_status}" == "missing" ]] \
+    || return 1
+  [[ "${inactive_frontend_status}" == "exited" || "${inactive_frontend_status}" == "missing" ]]
+}
+
 compose() {
   docker compose --project-directory "${REPO_ROOT}" --profile blue-green "$@"
 }

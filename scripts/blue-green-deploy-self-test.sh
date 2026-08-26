@@ -4,7 +4,9 @@
 # shellcheck disable=SC2154
 
 run_blue_green_deploy_self_test() {
-  local temporary_dir route_file curl_log
+  local temporary_dir route_file curl_log state_file
+  local test_backend_health test_frontend_health test_dockerproxy_health
+  local test_inactive_status test_version test_revision
   temporary_dir="$(mktemp -d)"
   trap 'rm -rf "${temporary_dir}"' RETURN
   route_file="${temporary_dir}/route.yml"
@@ -24,6 +26,53 @@ run_blue_green_deploy_self_test() {
   unset -f curl
   grep -q -- '--retry 2' "${curl_log}"
   grep -q -- 'https://storefront.example.com/products' "${curl_log}"
+  state_file="${temporary_dir}/deployment.state"
+  test_backend_health="healthy"
+  test_frontend_health="healthy"
+  test_dockerproxy_health="healthy"
+  test_inactive_status="exited"
+  test_version="v1.2.3"
+  test_revision="abcdef1234567890"
+  printf 'slot=blue\nversion=%s\nrevision=%s\n' \
+    "${test_version}" "${test_revision}" > "${state_file}"
+  # 중복 판정이 아래 Docker 테스트 대역을 간접 호출합니다.
+  # shellcheck disable=SC2317
+  docker() {
+    local format="${3:-}"
+    local container_name="${4:-}"
+    if [[ "${1:-}" != "inspect" || "${2:-}" != "--format" ]]; then
+      return 1
+    fi
+    if [[ "${format}" == *'org.opencontainers.image.version'* ]]; then
+      case "${container_name}" in
+        traefik-manager-backend-blue) printf '%s|%s|%s\n' "${test_backend_health}" "${test_version}" "${test_revision}" ;;
+        traefik-manager-frontend-blue) printf '%s|%s|%s\n' "${test_frontend_health}" "${test_version}" "${test_revision}" ;;
+        *) return 1 ;;
+      esac
+    elif [[ "${format}" == '{{.State.Status}}' ]]; then
+      printf '%s\n' "${test_inactive_status}"
+    elif [[ "${container_name}" == "traefik-manager-dockerproxy" ]]; then
+      printf '%s\n' "${test_dockerproxy_health}"
+    else
+      return 1
+    fi
+  }
+  is_current_deployment_active blue "${test_version}" "${test_revision}" "${state_file}"
+  ! is_current_deployment_active blue v1.2.4 "${test_revision}" "${state_file}"
+  ! is_current_deployment_active blue "${test_version}" deadbeef "${state_file}"
+  test_frontend_health="unhealthy"
+  ! is_current_deployment_active blue "${test_version}" "${test_revision}" "${state_file}"
+  test_frontend_health="healthy"
+  test_dockerproxy_health="unhealthy"
+  ! is_current_deployment_active blue "${test_version}" "${test_revision}" "${state_file}"
+  test_dockerproxy_health="healthy"
+  test_inactive_status="running"
+  ! is_current_deployment_active blue "${test_version}" "${test_revision}" "${state_file}"
+  test_inactive_status="exited"
+  printf 'slot=green\nversion=%s\nrevision=%s\n' \
+    "${test_version}" "${test_revision}" > "${state_file}"
+  ! is_current_deployment_active blue "${test_version}" "${test_revision}" "${state_file}"
+  unset -f docker
   "${HISTORY_SCRIPT}" --self-test >/dev/null
   manager_deployment_stage_timing_self_test
   echo "Manager blue-green 배포 self-test 통과"

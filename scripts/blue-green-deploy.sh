@@ -17,6 +17,7 @@ readonly HOST_ALERT_SCRIPT="${TM_HOST_OPERATION_ALERT_SCRIPT:-${SCRIPT_DIR}/requ
 readonly PROBE_INTERVAL_SECONDS="${TM_DEPLOY_PROBE_INTERVAL_SECONDS:-0.2}"
 readonly HEALTH_TIMEOUT_SECONDS="${TM_BLUE_GREEN_HEALTH_TIMEOUT_SECONDS:-180}"
 readonly DRAIN_SECONDS="${TM_BLUE_GREEN_DRAIN_SECONDS:-2}"
+readonly FORCE_REDEPLOY="${TM_BLUE_GREEN_FORCE_REDEPLOY:-0}"
 readonly TCG_CONTINUITY_URL="${TM_BLUE_GREEN_TCG_CONTINUITY_URL:-https://tcg.lizstudio.co.kr/products}"
 readonly HISTORY_MAX_ENTRIES="${TM_DEPLOY_HISTORY_MAX_ENTRIES:-200}"
 readonly HISTORY_RETAIN_ENTRIES="${TM_DEPLOY_HISTORY_RETAIN_ENTRIES:-100}"
@@ -71,6 +72,10 @@ if [[ ! "${DRAIN_SECONDS}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
   echo "drain 시간은 0 이상의 숫자여야 합니다: ${DRAIN_SECONDS}" >&2
   exit 2
 fi
+if [[ ! "${FORCE_REDEPLOY}" =~ ^[01]$ ]]; then
+  echo "강제 재배포 값은 0 또는 1이어야 합니다: ${FORCE_REDEPLOY}" >&2
+  exit 2
+fi
 for command_name in awk curl docker flock git grep mktemp; do
   command -v "${command_name}" >/dev/null || { echo "필수 명령을 찾을 수 없습니다: ${command_name}" >&2; exit 1; }
 done
@@ -93,10 +98,16 @@ if [[ "${previous_slot}" == "unknown" ]]; then
   echo "현재 Manager active route를 판별하지 못했습니다" >&2
   exit 1
 fi
+revision="$(git rev-parse HEAD)"
+if [[ "${FORCE_REDEPLOY}" == "0" ]] \
+  && is_current_deployment_active "${previous_slot}" "${version}" "${revision}"; then
+  echo "Manager blue-green 배포 건너뜀: ${version}, ${revision:0:12}가 ${previous_slot} 슬롯에서 정상 운영 중입니다"
+  trap - EXIT
+  exit 0
+fi
 candidate_slot="$(opposite_slot "${previous_slot}")"
 candidate_upstream="$(upstream_for_slot "${candidate_slot}")"
 snapshot_state
-revision="$(git rev-parse HEAD)"
 build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 deployment_started_at="${build_date}"
 history_record_enabled=1
