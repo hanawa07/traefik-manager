@@ -73,8 +73,13 @@ timer_unit="${config_dir}/systemd/user/traefik-manager-smoke-rotation.timer"
 stamp_file="${data_dir}/systemd/timers/stamp-traefik-manager-smoke-rotation.timer"
 grep -Fxq "WorkingDirectory=$(cd -- "${SCRIPT_DIR}/.." && pwd)" "${service_unit}"
 grep -Fxq "ConditionFileIsExecutable=${SCRIPT_DIR}/rotate-smoke-viewer-password.sh" "${service_unit}"
-grep -Fxq "ReadWritePaths=${state_dir} /var/run/docker.sock" "${service_unit}"
+grep -Fxq 'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6' "${service_unit}"
 grep -Fxq "StandardOutput=append:${state_dir}/smoke-password-rotation.log" "${service_unit}"
+if grep -Eq '^(NoNewPrivileges=yes|PrivateTmp=yes|ProtectSystem=|ProtectHome=|ReadWritePaths=)' \
+  "${service_unit}"; then
+  echo "Chrome SUID sandbox와 충돌하는 systemd 옵션이 생성되었습니다" >&2
+  exit 1
+fi
 grep -Fxq 'OnCalendar=*-*-01 04:17:00 Asia/Seoul' "${timer_unit}"
 grep -Fxq 'Persistent=true' "${timer_unit}"
 grep -Fq 'enable --now traefik-manager-smoke-rotation.timer' "${systemctl_log}"

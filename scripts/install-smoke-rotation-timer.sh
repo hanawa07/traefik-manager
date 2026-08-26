@@ -45,12 +45,8 @@ write_service_unit() {
     printf 'Environment=HOME=%s\n' "${HOME}"
     printf '%s\n' 'Environment=PATH=/usr/local/bin:/usr/bin:/bin'
     printf 'ExecStart=/usr/bin/bash %s/rotate-smoke-viewer-password.sh\n' "${SCRIPT_DIR}"
+    # User-service mount namespaces disable the installed Chrome SUID sandbox.
     printf '%s\n' 'UMask=0077'
-    printf '%s\n' 'NoNewPrivileges=yes'
-    printf '%s\n' 'PrivateTmp=yes'
-    printf '%s\n' 'ProtectSystem=strict'
-    printf '%s\n' 'ProtectHome=read-only'
-    printf 'ReadWritePaths=%s /var/run/docker.sock\n' "${STATE_DIR}"
     printf '%s\n' 'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6'
     printf '%s\n' 'LockPersonality=yes'
     printf '%s\n' 'TimeoutStartSec=20min'

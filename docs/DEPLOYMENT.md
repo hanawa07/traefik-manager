@@ -198,7 +198,7 @@ Traefik 정적 설정을 수동으로 바꾼 뒤 재생성할 때도 직접 `doc
 - 대시보드는 최근 로컬 실패의 단계·대상, 완료 시각, 배포 revision과 이후 점검 성공 여부를 바로 표시합니다. 펼친 호스트 이력에서도 각 실패 원인을 확인할 수 있습니다.
 - Tailnet 전용 모드에서 GitHub 실행은 운영 상태가 아닌 참고 이력입니다. 대시보드는 GitHub API를 조회하지 않고, 설정에서 참고 이력을 열 때만 최대 30일 조회합니다. 콜백과 일별 통계 스냅샷은 365일 보관하며 GitHub 원본 실행 보존 기간은 저장소의 Actions 정책을 따릅니다.
 - 전용 계정 이름을 바꾸는 경우 backend의 `SMOKE_VIEWER_USERNAME`·`SMOKE_ADMIN_USERNAME`을 각각 같은 값으로 설정합니다.
-- 운영 호스트에서는 `scripts/install-smoke-rotation-timer.sh`로 설치한 user systemd timer가 매월 1일 04:17 KST에 두 계정을 회전합니다. 설치기는 timer를 먼저 활성화한 뒤 마커로 관리하던 기존 사용자 cron만 제거하며, 최초 설치 때 지난 일정을 즉시 보충 실행하지 않습니다. `systemctl --user list-timers traefik-manager-smoke-rotation.timer`로 다음 실행 시각을 확인하고 실행 로그는 `~/.local/state/traefik-manager/smoke-password-rotation.log`에서 확인합니다.
+- 운영 호스트에서는 `scripts/install-smoke-rotation-timer.sh`로 설치한 user systemd timer가 매월 1일 04:17 KST에 두 계정을 회전합니다. 설치기는 timer를 먼저 활성화한 뒤 마커로 관리하던 기존 사용자 cron만 제거하며, 최초 설치 때 지난 일정을 즉시 보충 실행하지 않습니다. Chrome 자체 SUID 샌드박스와 충돌하는 user systemd mount namespace 옵션은 사용하지 않고 UMask·주소군·personality·실행시간 제한을 적용합니다. `systemctl --user list-timers traefik-manager-smoke-rotation.timer`로 다음 실행 시각을 확인하고 실행 로그는 `~/.local/state/traefik-manager/smoke-password-rotation.log`에서 확인합니다.
 - 회전 결과는 설정 화면의 `운영 로그인·화면 점검` 카드 안에 별도 표시되며, 실패하면 현재 설정 변경 알림 채널로 실패 단계가 전송됩니다.
 - 정기 회전의 viewer·admin 비밀번호 단독 변경은 감사 로그만 남기고 운영 알림에서는 제외하며, 수동 실패 시험 알림은 제목에 `[테스트]`를 표시합니다.
 - 회전 스크립트는 `~/.local/state/traefik-manager/smoke-password-rotation.lock` 잠금을 사용해 timer와 수동 실행의 중복 회전을 건너뜁니다.
