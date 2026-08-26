@@ -244,7 +244,10 @@ if [[ -s "${HOME}/.nvm/nvm.sh" ]]; then
 fi
 
 rotation_step="회전 후 viewer·admin 스모크 검증"
-base_url="$(read_env_value TAILNET_FRONTEND_URL)"
+base_url="${TM_SMOKE_BASE_URL:-}"
+if [[ -z "${base_url}" ]]; then
+  base_url="$(read_env_value TAILNET_FRONTEND_URL)"
+fi
 if [[ -z "${base_url}" ]]; then
   base_url="$(read_env_value FRONTEND_DOMAIN)"
 fi
@@ -255,7 +258,7 @@ if command -v node >/dev/null && [[ -n "${base_url}" ]]; then
     TM_SMOKE_ADMIN_USERNAME="${SMOKE_ADMIN_USERNAME}" \
     TM_SMOKE_ADMIN_PASSWORD="${admin_password}" \
     TM_SMOKE_ADMIN_EXPECT_READ_ONLY=1 \
-    node scripts/smoke-services-browser-session.mjs
+    "${SCRIPT_DIR}/check-services.sh"
 else
   echo "Node.js 또는 .env의 TAILNET_FRONTEND_URL/FRONTEND_DOMAIN이 없어 로컬 스모크 검증을 실행할 수 없습니다" >&2
   exit 1

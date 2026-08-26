@@ -64,6 +64,7 @@ def test_local_smoke_records_the_active_deployment_revision() -> None:
     script = (PROJECT_ROOT / "scripts/rotate-smoke-viewer-password.sh").read_text(
         encoding="utf-8"
     )
+    check_script = (PROJECT_ROOT / "scripts/check-services.sh").read_text(encoding="utf-8")
     workflow = (PROJECT_ROOT / ".github/workflows/release-final-check.yml").read_text(
         encoding="utf-8"
     )
@@ -75,4 +76,8 @@ def test_local_smoke_records_the_active_deployment_revision() -> None:
     assert "TM_SMOKE_ROTATION_REVISION" in script
     assert "TM_SMOKE_ROTATION_STARTED_AT" in script
     assert 'smoke_revision="$(resolve_deployed_revision)"' in script
+    assert 'base_url="${TM_SMOKE_BASE_URL:-}"' in script
+    assert '"${SCRIPT_DIR}/check-services.sh"' in script
+    assert 'exec "$ROOT_DIR/scripts/rotate-smoke-viewer-password.sh"' in check_script
+    assert "scripts/check-services.sh --self-test" in workflow
     assert "scripts/rotate-smoke-viewer-password.sh --self-test" in workflow

@@ -184,9 +184,9 @@ Traefik 정적 설정을 수동으로 바꾼 뒤 재생성할 때도 직접 `doc
 - 감사 로그 보존 정책은 기본 365일이며 backend 시작 시와 이후 24시간마다 실행됩니다. 아카이브가 켜져 있으면 삭제 전에 `AUDIT_ARCHIVE_DIR`의 gzip JSONL 파일에 저장하고 파일 권한을 `0600`으로 제한합니다. 관리자는 설정 화면에서 30~3650일 조정·즉시 실행·파일 다운로드·복원을 수행할 수 있습니다. 복원은 생성 파일명과 경로, 압축·해제 크기, 행 수, 모든 필드를 먼저 검증하고 기존 UUID는 건너뛰며, 손상된 파일은 일부도 반영하지 않습니다. 아카이브를 끄면 기간이 지난 로그는 영구 삭제됩니다.
 - 브라우저에서 `<MANAGER_BASE_URL>` 접속 시 로그인 페이지가 보입니다.
 - `curl -Ik <MANAGER_BASE_URL>` 응답이 `200` 또는 `302`입니다.
-- 서비스 목록과 의존 API, 모바일 다크모드 주요 화면을 함께 확인하려면 `TM_SMOKE_COOKIE='tm_session=...; tm_csrf=...' ./scripts/check-services.sh`를 실행합니다. `TM_SMOKE_BASE_URL`이 없으면 `.env`의 `TAILNET_FRONTEND_URL`, `FRONTEND_DOMAIN` 순서로 사용합니다.
+- 서비스 목록과 의존 API, 모바일 다크모드 주요 화면을 함께 확인하려면 운영 호스트에서 `./scripts/check-services.sh`를 실행합니다. 인증값이 없으면 전용 viewer·admin 비밀번호를 즉시 회전해 자식 스모크 프로세스에만 전달하고 저장하지 않습니다. `TM_SMOKE_BASE_URL`이 없으면 `.env`의 `TAILNET_FRONTEND_URL`, `FRONTEND_DOMAIN` 순서로 사용합니다.
 - 점검 안내 라우팅을 실제 Traefik file-provider까지 확인하려면 `scripts/smoke-maintenance-route.sh`를 실행합니다. 이 스모크는 `.invalid` 임시 Host만 사용하고 DB·DNS·인증서를 변경하지 않으며 확인 직후 라우터 파일을 제거합니다.
-- 운영 세션 쿠키 대신 테스트 계정으로 확인하려면 `TM_SMOKE_USERNAME`과 `TM_SMOKE_PASSWORD`를 사용합니다. Turnstile이 필요한 환경에서는 기존 세션 쿠키 방식이 더 안전합니다.
+- 기존 운영 세션이나 별도 테스트 계정을 사용하려면 `TM_SMOKE_COOKIE` 또는 `TM_SMOKE_USERNAME`과 `TM_SMOKE_PASSWORD`를 직접 전달할 수 있습니다. 불완전한 아이디·비밀번호 쌍은 실행 전에 거부합니다.
 - GitHub Actions의 `운영 스모크 도구 자가 점검`은 수동 실행만 지원하며 실제 Tailnet 앱이나 로그인 비밀값을 사용하지 않습니다. 코드 self-test와 실패 아티팩트·Telegram 알림 경로만 확인합니다.
 - 실제 운영 화면 검증은 Tailnet에 연결된 호스트에서 `scripts/check-services.sh` 또는 월간 `scripts/rotate-smoke-viewer-password.sh`로 수행합니다. 태그 릴리스의 `릴리스 최종 통합 검사`는 정적 검사와 전체 회귀 검사를 한 번 수행합니다.
 - Manager health 감시는 구조화 요청 로그에서 `/api/v1/settings/test-history`의 최근 60분 p95를 5분마다 계산합니다. 최소 5개 표본에서 750ms를 초과하면 운영 알림과 감사 로그를 남기고, 정상화되면 복구 이벤트를 한 번 기록합니다.
