@@ -26,11 +26,15 @@
 
 DB 저장값과 현재 원본을 대조한 결과 27개 모두 파일 크기와 수정시각이 일치했습니다. 외부 라이브러리 26개는 내용이 아닌 `sha1("path:" + originalPath)`를 저장하므로 현재 내용 SHA-256을 별도 기준값으로 남겼고, 내용 SHA-1을 저장한 1개는 현재 파일과 일치했습니다. WebP 제한 자산에 남은 파생 파일 6개는 모두 디코딩됐으며 ffmpeg 실패 영상 원본도 전체 디코딩을 통과했습니다. 0바이트 7개와 손상 JPEG 15개에는 복원 가능한 파생 파일이 없어 원본 백업 또는 수리가 필요합니다. 상세 결과는 `/home/lizstudio/docker/immich/reports/thumbnail-errors-forensics-2026-08-26.csv`에 mode `600`으로 저장했습니다.
 
+WebP 실패 4개는 높이 `16,707~28,800px`인 세로 이미지입니다. 현재 설정은 preview를 WebP로 덮어썼지만 Immich 기본값은 JPEG이며, 원본을 바꾸지 않은 `/tmp` 변환에서 JPEG preview 4개가 모두 생성됐습니다. 다만 전역 format 변경은 이후 모든 preview에 영향을 주고 지원 API를 호출할 관리자 세션도 없어 적용하지 않았습니다. 3.1초 HEVC 영상 1개는 메모리 부족이 아니라 `-skip_frame nointra` 뒤 필터에 전달되는 프레임이 없는 문제였고, 해당 옵션을 뺀 임시 WebP/JPEG 생성은 모두 성공했습니다. `3.1.0`에도 같은 코드가 있어 버전 업데이트만으로 해결되지 않으며 운영 이미지 패치는 만들지 않습니다.
+
 ### 백업과 보류 조건
 
 - 로컬 백업: `/home/lizstudio/db_backups/2026-08-25/immich_postgres_immich.sql.gz`
 - gzip 무결성과 main NAS의 동일 크기 사본을 확인했습니다.
 - sub NAS의 당일 사본은 이번 점검에서 확인하지 못했으므로 복구 사본으로 계산하지 않습니다.
+- 현재 Immich 백업은 PostgreSQL만 저장하며 `/mnt/hdd4tb/library`의 미디어는 복제하지 않습니다.
+- 주간 NAS 복제 대상에는 Synology `homes` 공유가 없고 NFS로 노출된 snapshot이나 다른 로컬 미디어 미러도 없습니다. 손상 원본 22개의 접근 가능한 서버 측 복구 사본은 0개이며, DSM 자체 snapshot 또는 Hyper Backup 존재 여부는 별도 확인이 필요합니다.
 - `3.1.0`의 배포·서버 breaking change는 없고 모바일의 iOS 14 지원 종료만 확인됐습니다.
 - 활성 iOS 세션은 있지만 서버 기록에 OS 상세 버전이 없어 iOS 15 이상임을 입증하지 못했습니다.
 
@@ -42,7 +46,7 @@ DB 저장값과 현재 원본을 대조한 결과 27개 모두 파일 크기와 
 4. compose 전체를 재생성하고 네 컨테이너 health, 서버 버전, migration 로그를 확인합니다.
 5. 로그인, 사진 목록, 신규 업로드, 썸네일 생성과 machine-learning 작업을 확인합니다.
 
-근거: [Immich v3.1.0 릴리스](https://github.com/immich-app/immich/releases/tag/v3.1.0), [Immich 업그레이드 지침](https://docs.immich.app/install/upgrading/), [Immich v3.0.3 checksum 정의](https://github.com/immich-app/immich/blob/v3.0.3/server/src/enum.ts)
+근거: [Immich v3.1.0 릴리스](https://github.com/immich-app/immich/releases/tag/v3.1.0), [Immich 업그레이드 지침](https://docs.immich.app/install/upgrading/), [Immich v3.0.3 checksum 정의](https://github.com/immich-app/immich/blob/v3.0.3/server/src/enum.ts), [Immich v3.1.0 thumbnail 구현](https://github.com/immich-app/immich/blob/v3.1.0/server/src/utils/media.ts), [I-frame 부족 thumbnail 분석](https://github.com/immich-app/immich/discussions/15133)
 
 ## Authentik 2026.8.0 (완료)
 
@@ -71,7 +75,7 @@ DB 저장값과 현재 원본을 대조한 결과 27개 모두 파일 크기와 
 3. proxy provider 13개, embedded outpost 1개와 유효 core session 130개를 업그레이드 후 확인했습니다.
 4. 직접 로그인 flow 화면은 `200`, 대표 ForwardAuth 서비스 3개는 비인증 요청을 `302`로 인증 화면에 전달했습니다.
 5. 준비 완료 이후 server와 worker에서 error 또는 critical 로그가 발생하지 않았습니다.
-6. 재사용 가능한 기존 Authentik 브라우저 세션이 없어 운영 계정의 비밀번호 제출은 수행하지 않았습니다. 세션 추출이나 임시 운영 계정 생성 없이 로그인 전환과 outpost 경계까지만 검증했습니다.
+6. 재사용 가능한 기존 Authentik 브라우저 세션과 스모크 전용 사용자가 없어 운영 계정의 비밀번호 제출은 수행하지 않았습니다. 세션 추출이나 임시 운영 계정 생성 없이 로그인 전환과 outpost 경계까지만 검증했습니다.
 
 Authentik은 major release 순서를 지켜야 하고 server와 모든 outpost 버전이 일치해야 하며 downgrade를 지원하지 않습니다. 이후 업데이트도 중앙 인증 점검 없이 자동 적용하지 않습니다.
 
