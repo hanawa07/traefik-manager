@@ -168,7 +168,7 @@ Compose 파일명이 기본 `docker-compose.yml`이 아니면 Traefik 디렉터�
 - 요청, 백업 위치, 검증, 롤백 결과는 `~/.local/state/traefik-manager/traefik-updates.jsonl`에 최대 200줄로 보관되며 대시보드에서 확인할 수 있습니다.
 - 관리·비관리 재생성 이력은 `~/.local/state/traefik-manager/traefik-recreations.jsonl`에 최대 200줄로 보관되며 같은 대시보드 카드에서 최근 상태를 확인할 수 있습니다.
 
-Traefik 정적 설정을 수동으로 바꾼 뒤 재생성할 때도 직접 `docker compose up -d traefik`를 실행하지 않고 `scripts/run-traefik-recreate-safely.sh`를 사용합니다. 같은 보호 구간과 업데이트 잠금을 공유하므로 자동 패치 작업과 충돌하지 않습니다. 장애 복구와 자동 롤백은 이 대기를 적용하지 않습니다.
+Traefik 정적 설정을 수동으로 바꾼 뒤 재생성할 때도 직접 `docker compose up -d traefik`를 실행하지 않고 `scripts/run-traefik-recreate-safely.sh`를 사용합니다. 설정·이미지 변화 없이 통제된 재생성을 검증할 때만 `--force-recreate`를 붙입니다. 같은 보호 구간과 업데이트 잠금을 공유하므로 자동 패치 작업과 충돌하지 않습니다. 장애 복구와 자동 롤백은 이 대기를 적용하지 않습니다.
 
 ## 검증 체크리스트
 

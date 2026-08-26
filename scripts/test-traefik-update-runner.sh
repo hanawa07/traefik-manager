@@ -168,6 +168,24 @@ run_runner() {
     "${SCRIPT_DIR}/traefik-update-runner.py"
 }
 
+run_safe_recreate() {
+  TM_MANAGER_DEPLOY_STATE_DIR="${state_dir}" \
+  TM_TRAEFIK_UPDATE_COMPOSE_DIR="${compose_dir}" \
+  TM_TRAEFIK_UPDATE_COMPOSE_FILES="${compose_filenames}" \
+  TM_TRAEFIK_UPDATE_SERVICE="${compose_service}" \
+  TM_TRAEFIK_UPDATE_CONTAINER="${traefik_container}" \
+  TM_TRAEFIK_UPDATE_DOCKER_BIN="${fake_docker}" \
+  TM_TRAEFIK_RECREATE_GUARD_SECONDS=0 \
+  TM_TEST_IMAGE_FILE="${temporary_dir}/image" \
+  TM_TEST_CONTAINER_ID_FILE="${container_id_file}" \
+  TM_TEST_CONTAINER_ID_COUNTER="${container_id_counter}" \
+  TM_TEST_DOCKER_LOG="${docker_log}" \
+  TM_TEST_SERVICE="${compose_service}" \
+  TM_TEST_CONTAINER="${traefik_container}" \
+  TM_TEST_NETWORK="${traefik_network}" \
+    "${SCRIPT_DIR}/run-traefik-recreate-safely.sh" "$@"
+}
+
 for history_index in $(seq 1 205); do
   printf '{"fixture":%s}\n' "${history_index}" >> "${state_dir}/traefik-updates.jsonl"
 done
@@ -266,24 +284,22 @@ run_runner legacy
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"status":"success"'
 grep -Fq '대상 버전이 이미 적용되어' "${state_dir}/traefik-updates.jsonl"
 
-TM_MANAGER_DEPLOY_STATE_DIR="${state_dir}" \
-TM_TRAEFIK_UPDATE_COMPOSE_DIR="${compose_dir}" \
-TM_TRAEFIK_UPDATE_COMPOSE_FILES="${compose_filenames}" \
-TM_TRAEFIK_UPDATE_SERVICE="${compose_service}" \
-TM_TRAEFIK_UPDATE_CONTAINER="${traefik_container}" \
-TM_TRAEFIK_UPDATE_DOCKER_BIN="${fake_docker}" \
-TM_TRAEFIK_RECREATE_GUARD_SECONDS=0 \
-TM_TEST_IMAGE_FILE="${temporary_dir}/image" \
-TM_TEST_CONTAINER_ID_FILE="${container_id_file}" \
-TM_TEST_CONTAINER_ID_COUNTER="${container_id_counter}" \
-TM_TEST_DOCKER_LOG="${docker_log}" \
-TM_TEST_SERVICE="${compose_service}" \
-TM_TEST_CONTAINER="${traefik_container}" \
-TM_TEST_NETWORK="${traefik_network}" \
-  "${SCRIPT_DIR}/run-traefik-recreate-safely.sh"
+run_safe_recreate
 grep -Fq "up|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_overlay_filename}|-d ${compose_service}" \
   "${docker_log}"
 tail -n 1 "${state_dir}/traefik-recreations.jsonl" | grep -Fq '"source":"manual_safe"'
+
+run_safe_recreate --force-recreate
+grep -Fq "up|${compose_dir}/${compose_base_filename} ${compose_dir}/${compose_overlay_filename}|-d --force-recreate ${compose_service}" \
+  "${docker_log}"
+tail -n 1 "${state_dir}/traefik-recreations.jsonl" | grep -Fq '"source":"manual_safe"'
+
+docker_calls_before="$(wc -l < "${docker_log}")"
+if run_safe_recreate --unknown; then
+  echo "지원하지 않는 안전 재생성 인자가 허용되었습니다" >&2
+  exit 1
+fi
+[[ "$(wc -l < "${docker_log}")" -eq "${docker_calls_before}" ]]
 
 alert_calls_before="$(wc -l < "${alert_call_log}")"
 printf '%s\n' 'abcdef012345abcdef012345abcdef012345abcdef012345abcdef012345abcd' \
