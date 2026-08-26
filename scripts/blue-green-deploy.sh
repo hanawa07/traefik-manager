@@ -17,6 +17,7 @@ readonly HOST_ALERT_SCRIPT="${TM_HOST_OPERATION_ALERT_SCRIPT:-${SCRIPT_DIR}/requ
 readonly PROBE_INTERVAL_SECONDS="${TM_DEPLOY_PROBE_INTERVAL_SECONDS:-0.2}"
 readonly HEALTH_TIMEOUT_SECONDS="${TM_BLUE_GREEN_HEALTH_TIMEOUT_SECONDS:-180}"
 readonly DRAIN_SECONDS="${TM_BLUE_GREEN_DRAIN_SECONDS:-2}"
+readonly TCG_CONTINUITY_URL="${TM_BLUE_GREEN_TCG_CONTINUITY_URL:-https://tcg.lizstudio.co.kr/products}"
 readonly HISTORY_MAX_ENTRIES="${TM_DEPLOY_HISTORY_MAX_ENTRIES:-200}"
 readonly HISTORY_RETAIN_ENTRIES="${TM_DEPLOY_HISTORY_RETAIN_ENTRIES:-100}"
 readonly HISTORY_DAILY_RETAIN_ENTRIES="${TM_DEPLOY_HISTORY_DAILY_RETAIN_ENTRIES:-365}"
@@ -86,6 +87,7 @@ trap 'rollback $?' EXIT
 
 health_url="$(resolve_health_url)"
 configure_health_probe "${health_url}"
+probe_public_continuity "${TCG_CONTINUITY_URL}"
 previous_slot="$(infer_active_slot "${ROUTE_FILE}")"
 if [[ "${previous_slot}" == "unknown" ]]; then
   echo "현재 Manager active route를 판별하지 못했습니다" >&2
@@ -122,6 +124,7 @@ docker stop --time 15 "$(backend_for_slot "${previous_slot}")" >/dev/null
 wait_background_leader_ready "$(backend_for_slot "${candidate_slot}")" "${candidate_slot}"
 manager_deployment_stage_start public_probe
 probe_health_url "${health_url}" >/dev/null
+probe_public_continuity "${TCG_CONTINUITY_URL}"
 sleep 1
 stop_probe
 "${PROBE_SCRIPT}" assert "${probe_file}" 5

@@ -137,6 +137,7 @@ scripts/blue-green-deploy.sh vX.Y.Z
 - 배포는 새 leader가 서비스·Authentik·대시보드 동적 설정 startup 동기화를 완료한 뒤에만 공개 검증과 상태 확정을 진행합니다.
 - route 반영 후 기존 연결을 기본 2초간 drain한 뒤 이전 backend를 종료합니다. 필요하면 `TM_BLUE_GREEN_DRAIN_SECONDS`로 조정합니다.
 - 전환 구간에는 공개 `/api/health`를 0.2초 간격으로 측정하며 한 건이라도 200이 아니면 이전 슬롯으로 자동 rollback합니다.
+- 컨테이너 변경 전과 새 leader의 서비스 라우트 동기화 후에 `https://tcg.lizstudio.co.kr/products`를 최대 3회 확인합니다. 사전 실패는 배포를 시작하지 않고, 후검증 실패는 이전 슬롯으로 자동 rollback합니다. 별도 환경에서는 `TM_BLUE_GREEN_TCG_CONTINUITY_URL`로 고정 URL을 바꿀 수 있습니다.
 - 호스트에서 자기 공인 IP로 돌아오는 self-hairpin이 실패하면 Traefik 컨테이너 IP를 자동 탐색하고, 같은 공개 호스트명·TLS SNI를 유지한 내부 경로로 health probe를 계속합니다.
 - active slot, revision, version은 `~/.local/state/traefik-manager/blue-green-deployment.state`에 원자 기록됩니다.
 - 배포 성공·전환 전 중단·자동 rollback·rollback 실패와 공개 probe 결과는 같은 디렉터리의 `blue-green-deployments.jsonl`에 추가됩니다. 대시보드에서 최근 20건을 상태별로 필터링하고 실패 단계별 건수를 확인하며 해당 커밋과 릴리즈를 바로 열 수 있습니다.

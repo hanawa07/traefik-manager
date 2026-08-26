@@ -61,6 +61,14 @@ probe_health_url() {
     "${resolve_args[@]}" "${url}"
 }
 
+probe_public_continuity() {
+  local url="$1"
+  curl --location --silent --show-error --fail \
+    --connect-timeout 5 --max-time 10 \
+    --retry 2 --retry-delay 1 --retry-all-errors \
+    --output /dev/null "${url}"
+}
+
 configure_health_probe() {
   local url="$1"
   local address
