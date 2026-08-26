@@ -216,6 +216,9 @@ Traefik 정적 설정을 수동으로 바꾼 뒤 재생성할 때도 직접 `doc
 - 운영 호스트에서는 `scripts/install-manager-health-watchdog-timer.sh`가 user systemd service/timer를 설치합니다. timer 활성화 3분 뒤 첫 점검을 시작하고 이후 완료 시점 기준 5분마다 실행하며, 활성·enable 상태를 확인한 뒤 마커로 관리하던 기존 cron만 제거합니다. 실행 로그는 `~/.local/state/traefik-manager/manager-health-watchdog.log`에 유지됩니다.
 - 기본 주소나 cooldown을 바꿔야 하면 `traefik-manager-health-watchdog.service`의 user systemd drop-in에 `TM_MANAGER_WATCHDOG_URL` 또는 `TM_MANAGER_WATCHDOG_COOLDOWN_SECONDS`를 설정합니다.
 - `scripts/test-manager-health-watchdog.sh`는 가짜 health 응답과 가짜 Docker CLI로 정상→장애→복구 및 직접 알림 실패 기록을 검증하므로 운영 컨테이너와 실제 알림을 중단하거나 호출하지 않습니다.
+- TCG 운영 사이트는 호스트의 `scripts/tcg-storefront-watchdog.sh`가 상품 목록·상품 상세·로그인·결제 화면, 활성 PortOne 결제수단, 카카오·네이버·구글 OAuth 시작 리다이렉트를 모두 읽기 전용 GET으로 확인합니다. 주문·결제·재고를 생성하거나 변경하지 않으며, 2회 연속 실패 후에만 Anubis 운영 알림을 보내고 정상화되면 복구 알림을 한 번 보냅니다. OAuth 공급자 오류 화면은 매일 06시 이후 첫 점검에 확인하고 설정 오류가 남아 있으면 15분마다 재검사합니다.
+- 운영 호스트에서는 `scripts/install-tcg-storefront-watchdog-timer.sh`로 user systemd timer를 설치합니다. `traefik-manager-tcg-storefront-watchdog.timer`가 15분마다 실행하며 상태와 로그는 각각 `~/.local/state/traefik-manager/tcg-storefront-watchdog.state`, `~/.local/state/traefik-manager/tcg-storefront-watchdog.log`에 기록됩니다. `systemctl --user list-timers traefik-manager-tcg-storefront-watchdog.timer`와 `systemctl --user status traefik-manager-tcg-storefront-watchdog.service`로 실행 상태를 확인합니다.
+- `scripts/test-tcg-storefront-watchdog.sh`와 `scripts/test-install-tcg-storefront-watchdog-timer.sh`는 가짜 사이트·가짜 알림·가짜 systemd만 사용하므로 실제 고객 메일이나 운영 알림을 전송하지 않습니다.
 - Traefik 자기 차단의 즉시 감지·직접 Telegram 알림·정확한 ticket 자동 해제는 Manager 프로세스가 아니라 Anubis의 `anubis-traefik-self-ban-watchdog.timer`가 담당합니다. 결과 파일 `~/.local/state/traefik-manager/traefik-self-ban-watchdog.json`만 backend에 읽기 전용으로 공유하며, API는 내부 IP를 버리고 상태·Jail 이름·시각·해제 건수만 반환합니다.
 - 최근 24시간의 실패 알림은 5분 간격으로 최대 3회 자동 재시도하며, 각 재시도 결과도 감사 로그에 남깁니다.
 - 관리자 설정 카드의 `최근 정기 실행 로그`에서 호스트 로그 마지막 12줄을 확인할 수 있으며, 상태 디렉터리는 backend에 읽기 전용으로 마운트됩니다.

@@ -75,6 +75,11 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      - name: TCG 외부 점검 도구 자가 점검
+        run: |
+          scripts/test-tcg-storefront-watchdog.sh
+          scripts/test-install-tcg-storefront-watchdog-timer.sh
+
       - name: 프론트 의존성 설치
         run: npm --prefix frontend ci
 
