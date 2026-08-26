@@ -24,11 +24,13 @@ alert_call_log="${temporary_dir}/host-alert-calls"
 docker_log="${temporary_dir}/docker.log"
 container_id_file="${temporary_dir}/container-id"
 container_id_counter="${temporary_dir}/container-id-counter"
+container_config_hash_file="${temporary_dir}/container-config-hash"
 mkdir -p "${request_dir}" "${compose_dir}/certificates"
 : > "${alert_call_log}"
 printf '%s\n' 'traefik:v3.7.8' > "${temporary_dir}/image"
 printf '%064x\n' 1 > "${container_id_file}"
 printf '%s\n' 1 > "${container_id_counter}"
+printf '%064x\n' 10 > "${container_config_hash_file}"
 printf '%s\n' 'acme-state' > "${compose_dir}/${acme_filename}"
 printf '%s\n' 'services:' "  ${compose_service}:" '    command: --api.insecure=true' \
   > "${compose_dir}/${compose_base_filename}"
@@ -50,6 +52,10 @@ if [[ "${1:-}" == "inspect" ]]; then
         "$(cat "${TM_TEST_IMAGE_FILE}")"
       ;;
     '{{.State.Running}}') printf '%s\n' 'true' ;;
+    '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}') printf '%s\n' 'healthy' ;;
+    '{{ index .Config.Labels "com.docker.compose.config-hash" }}')
+      cat "${TM_TEST_CONTAINER_CONFIG_HASH_FILE}"
+      ;;
     '{{json .NetworkSettings.Networks}}') printf '{"%s":{}}\n' "${TM_TEST_NETWORK}" ;;
     *) awk -F: '{print $NF}' "${TM_TEST_IMAGE_FILE}" ;;
   esac
@@ -67,7 +73,11 @@ if [[ "${1:-}" == "compose" ]]; then
   printf '%s|%s|%s\n' "${action}" "${compose_files[*]}" "$*" >> "${TM_TEST_DOCKER_LOG}"
   case "${action}" in
     config)
-      printf '%s\n' "${TM_TEST_SERVICE}"
+      if [[ "${1:-}" == "--hash" ]]; then
+        printf '%s %s\n' "${TM_TEST_SERVICE}" "$(cat "${TM_TEST_CONTAINER_CONFIG_HASH_FILE}")"
+      else
+        printf '%s\n' "${TM_TEST_SERVICE}"
+      fi
       ;;
     pull)
       if [[ "${TM_TEST_MUTATE_BASE_ON_PULL:-false}" == "true" ]]; then
@@ -160,6 +170,7 @@ run_runner() {
     TM_TEST_IMAGE_FILE="${temporary_dir}/image" \
     TM_TEST_CONTAINER_ID_FILE="${container_id_file}" \
     TM_TEST_CONTAINER_ID_COUNTER="${container_id_counter}" \
+    TM_TEST_CONTAINER_CONFIG_HASH_FILE="${container_config_hash_file}" \
     TM_TEST_DOCKER_LOG="${docker_log}" \
     TM_TEST_SERVICE="${compose_service}" \
     TM_TEST_CONTAINER="${traefik_container}" \
@@ -174,11 +185,15 @@ run_safe_recreate() {
   TM_TRAEFIK_UPDATE_COMPOSE_FILES="${compose_filenames}" \
   TM_TRAEFIK_UPDATE_SERVICE="${compose_service}" \
   TM_TRAEFIK_UPDATE_CONTAINER="${traefik_container}" \
+  TM_TRAEFIK_UPDATE_NETWORK="${traefik_network}" \
   TM_TRAEFIK_UPDATE_DOCKER_BIN="${fake_docker}" \
+  TM_TRAEFIK_UPDATE_CURL_BIN="${fake_curl}" \
+  TM_TRAEFIK_MANAGER_HEALTH_URL="https://manager.example.com/api/health" \
   TM_TRAEFIK_RECREATE_GUARD_SECONDS=0 \
   TM_TEST_IMAGE_FILE="${temporary_dir}/image" \
   TM_TEST_CONTAINER_ID_FILE="${container_id_file}" \
   TM_TEST_CONTAINER_ID_COUNTER="${container_id_counter}" \
+  TM_TEST_CONTAINER_CONFIG_HASH_FILE="${container_config_hash_file}" \
   TM_TEST_DOCKER_LOG="${docker_log}" \
   TM_TEST_SERVICE="${compose_service}" \
   TM_TEST_CONTAINER="${traefik_container}" \

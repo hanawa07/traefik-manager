@@ -40,6 +40,7 @@ jobs:
           scripts/manager-deployment-bottleneck-alert.sh --self-test
           scripts/request-host-operation-alert.sh --self-test
           scripts/test-traefik-update-runner.sh
+          python3 scripts/test_traefik_safe_recreate.py
           scripts/test-install-traefik-update-runner.sh
 
       - name: Python 준비

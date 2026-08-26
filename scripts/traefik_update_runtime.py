@@ -53,6 +53,17 @@ def _runtime_checks(
     checks.append(
         _validation("container_running", running, "Traefik 컨테이너 실행 상태")
     )
+    health = _safe_inspect(
+        config,
+        "{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}",
+    )
+    checks.append(
+        _validation(
+            "container_health",
+            health == "healthy",
+            f"컨테이너 health {health or '확인 실패'}",
+        )
+    )
     version = _safe_current_version(config)
     checks.append(
         _validation(
