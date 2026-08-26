@@ -5,9 +5,8 @@ ARG APP_GID=10001
 
 WORKDIR /app
 
-# 보안: OS 패치와 인증서 CLI 적용 후 비루트 사용자 생성
-RUN apk upgrade --no-cache \
-  && apk add --no-cache openssl \
+# 보안: 인증서 CLI 적용 후 비루트 사용자 생성
+RUN apk add --no-cache openssl \
   && addgroup -S -g ${APP_GID} appgroup \
   && adduser -S -D -H -u ${APP_UID} -G appgroup appuser
 
@@ -26,6 +25,9 @@ ARG TRAEFIK_MANAGER_VERSION=dev
 ARG TRAEFIK_MANAGER_GIT_SHA=unknown
 ARG TRAEFIK_MANAGER_BUILD_DATE=unknown
 ARG TRAEFIK_MANAGER_IMAGE_SOURCE=https://github.com/hanawa07/traefik-manager
+
+# build date 변경으로 릴리스마다 최신 OS 보안 패치를 확인합니다.
+RUN : "${TRAEFIK_MANAGER_BUILD_DATE}" && apk upgrade --no-cache
 
 LABEL org.opencontainers.image.title="Traefik Manager Backend" \
   org.opencontainers.image.description="FastAPI backend for Traefik Manager" \

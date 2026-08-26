@@ -18,8 +18,7 @@ FROM node:24-alpine3.24 AS runner
 WORKDIR /app
 
 # 보안: 실행 단계의 패키지 관리 도구 제거 후 비루트 사용자 생성
-RUN apk upgrade --no-cache \
-  && rm -rf /usr/local/lib/node_modules/npm \
+RUN rm -rf /usr/local/lib/node_modules/npm \
     /usr/local/lib/node_modules/corepack \
     /opt/yarn-v1.22.22 \
   && rm -f /usr/local/bin/npm /usr/local/bin/npx \
@@ -39,6 +38,9 @@ ARG TRAEFIK_MANAGER_VERSION=dev
 ARG TRAEFIK_MANAGER_GIT_SHA=unknown
 ARG TRAEFIK_MANAGER_BUILD_DATE=unknown
 ARG TRAEFIK_MANAGER_IMAGE_SOURCE=https://github.com/hanawa07/traefik-manager
+
+# build date 변경으로 릴리스마다 최신 OS 보안 패치를 확인합니다.
+RUN : "${TRAEFIK_MANAGER_BUILD_DATE}" && apk upgrade --no-cache
 
 LABEL org.opencontainers.image.title="Traefik Manager Frontend" \
   org.opencontainers.image.description="Next.js frontend for Traefik Manager" \

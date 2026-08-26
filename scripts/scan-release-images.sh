@@ -79,12 +79,14 @@ scan_image() {
 }
 
 printf '%s\n' '릴리스 후보 이미지를 빌드합니다.'
-docker build --pull --tag "${backend_image}" "${REPO_ROOT}/backend"
-docker build --pull --tag "${frontend_image}" "${REPO_ROOT}/frontend"
+docker build --pull --no-cache --tag "${backend_image}" "${REPO_ROOT}/backend"
+docker build --pull --no-cache --tag "${frontend_image}" "${REPO_ROOT}/frontend"
 
-printf '%s\n' 'Compose에 고정된 보조 이미지를 가져옵니다.'
-docker pull "${docker_proxy_image}"
-docker pull "${init_image}"
+printf '%s\n' 'Compose 런타임 지원 이미지를 빌드합니다.'
+APP_ENV_FILE="${COMPOSE_ENV_FILE}" docker compose \
+  --file "${COMPOSE_FILE}" \
+  --env-file "${COMPOSE_ENV_FILE}" \
+  build --pull --no-cache dockerproxy init-traefik-config
 
 docker pull "${TRIVY_IMAGE}"
 mkdir -p "${temporary_dir}/trivy-cache"

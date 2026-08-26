@@ -162,7 +162,8 @@ wait_container_healthy() {
   return 1
 }
 
-ensure_docker_proxy() {
+ensure_runtime_support() {
+  compose build dockerproxy init-traefik-config
   compose up -d dockerproxy
   wait_container_healthy traefik-manager-dockerproxy
 }

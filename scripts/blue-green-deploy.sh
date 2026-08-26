@@ -104,7 +104,7 @@ export TRAEFIK_MANAGER_BUILD_DATE="${build_date}"
 
 echo "Manager blue-green 배포: ${previous_slot} -> ${candidate_slot} (${version}, ${revision:0:12})"
 manager_deployment_stage_start prepare
-ensure_docker_proxy
+ensure_runtime_support
 manager_deployment_stage_start build
 compose build "backend-${candidate_slot}" "frontend-${candidate_slot}"
 manager_deployment_stage_start migration_preflight
