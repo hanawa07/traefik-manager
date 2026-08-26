@@ -134,9 +134,23 @@ export interface TraefikRecreationHistoryEntry {
   alert_channel: "anubis" | null;
 }
 
+export interface TraefikCheckpointSummary {
+  status: "ready" | "missing" | "invalid";
+  saved_at: string | null;
+  version: string | null;
+}
+
+export interface TraefikRecoverySummary {
+  status: "none" | "rolled_back" | "rollback_failed" | "invalid";
+  occurred_at: string | null;
+  source: "patch_update" | "manual_safe" | null;
+}
+
 export interface TraefikUpdateOperations {
   runner: TraefikUpdateRunner;
   pending_request: boolean;
+  checkpoint: TraefikCheckpointSummary;
+  latest_recovery: TraefikRecoverySummary;
   history: TraefikUpdateHistoryEntry[];
   recreation_history: TraefikRecreationHistoryEntry[];
 }

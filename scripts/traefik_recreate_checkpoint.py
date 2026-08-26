@@ -77,7 +77,7 @@ def save_runtime_checkpoint(config: RunnerConfig, expected_version: str) -> None
         atomic_write(
             _checkpoint_manifest_path(config),
             json.dumps(manifest, ensure_ascii=False, separators=(",", ":")) + "\n",
-            0o600,
+            0o644,
         )
     except Exception:
         shutil.rmtree(checkpoint_dir, ignore_errors=True)

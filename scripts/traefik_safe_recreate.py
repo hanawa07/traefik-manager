@@ -15,6 +15,7 @@ from traefik_recreate_checkpoint import (
     restore_runtime_checkpoint,
     save_runtime_checkpoint,
 )
+from traefik_recovery_state import write_recovery_result
 from traefik_update_models import RunnerConfig, ValidationError, message
 from traefik_update_runtime import _run_compose, _safe_current_version, _validate_runtime
 from traefik_update_storage import write_heartbeat
@@ -106,16 +107,23 @@ def _recover(
             actor,
         )
         alert_detail = _request_failure_alert(update_error, rollback_error)
+        recovery_state_error = _write_recovery_result_safely(config, "rollback_failed")
         _write_heartbeat_safely(
             config,
             "error",
-            f"수동 재생성과 자동 복구에 실패했습니다. {alert_detail}",
+            (
+                f"수동 재생성과 자동 복구에 실패했습니다. {alert_detail}"
+                + (f" · {recovery_state_error}" if recovery_state_error else "")
+            ),
         )
         return "rollback_failed"
 
     audit_errors = [
         error for error in (candidate_audit_error, rollback_audit_error) if error
     ]
+    recovery_state_error = _write_recovery_result_safely(config, "rolled_back")
+    if recovery_state_error:
+        audit_errors.append(recovery_state_error)
     _write_heartbeat_safely(
         config,
         "error" if audit_errors else "ready",
@@ -173,6 +181,14 @@ def _write_heartbeat_safely(config: RunnerConfig, status: str, detail: str) -> s
         return None
     except (OSError, RuntimeError, ValueError) as exc:
         return f"Traefik 상태 기록 실패: {message(exc)}"
+
+
+def _write_recovery_result_safely(config: RunnerConfig, result: str) -> str | None:
+    try:
+        write_recovery_result(config, result, "manual_safe")
+        return None
+    except (OSError, RuntimeError, ValueError) as exc:
+        return f"Traefik 자동 복구 결과 기록 실패: {message(exc)}"
 
 
 def _request_failure_alert(update_error: Exception, rollback_error: Exception) -> str:

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import os
 import sys
 import tempfile
@@ -58,6 +59,13 @@ class CheckpointTests(unittest.TestCase):
                 patch.object(checkpoint, "_run", return_value=f"traefik {CONFIG_HASH}"),
             ):
                 checkpoint.save_runtime_checkpoint(config, VERSION)
+                self.assertEqual(
+                    (config.state_dir / "traefik-safe-recreate-checkpoint.json")
+                    .stat()
+                    .st_mode
+                    & 0o777,
+                    0o644,
+                )
                 saved = checkpoint.load_runtime_checkpoint(config)
                 self.assertIsNotNone(saved)
                 config.compose_files[0].write_text("broken\n", encoding="utf-8")
@@ -138,6 +146,16 @@ class SafeRecreateTests(unittest.TestCase):
         )
         restore.assert_called_once_with(self.config, self.saved)
         alert.assert_not_called()
+        recovery = json.loads(
+            (self.config.state_dir / "traefik-recovery.json").read_text()
+        )
+        self.assertEqual(recovery["status"], "rolled_back")
+        self.assertEqual(recovery["source"], "manual_safe")
+        self.assertIn("occurred_at", recovery)
+        self.assertEqual(
+            (self.config.state_dir / "traefik-recovery.json").stat().st_mode & 0o777,
+            0o644,
+        )
 
     def test_failed_recovery_requests_alert(self) -> None:
         candidate_error = ValidationError("candidate failed", [])
@@ -164,6 +182,11 @@ class SafeRecreateTests(unittest.TestCase):
             result = safe_recreate.perform_recreate(self.config, False, "tester")
         self.assertEqual(result, "rollback_failed")
         alert.assert_called_once_with(candidate_error, rollback_error)
+        recovery = json.loads(
+            (self.config.state_dir / "traefik-recovery.json").read_text()
+        )
+        self.assertEqual(recovery["status"], "rollback_failed")
+        self.assertEqual(recovery["source"], "manual_safe")
 
     def test_recovered_runtime_is_not_failed_by_heartbeat_error(self) -> None:
         candidate_error = ValidationError("candidate failed", [])

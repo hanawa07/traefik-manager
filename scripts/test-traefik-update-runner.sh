@@ -243,6 +243,8 @@ if TM_TEST_FAIL_PULL=true TM_TEST_FAIL_UP=true TM_TEST_MUTATE_BASE_ON_PULL=true 
   exit 1
 fi
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"status":"rollback_failed"'
+grep -Fq '"status":"rollback_failed"' "${state_dir}/traefik-recovery.json"
+grep -Fq '"source":"patch_update"' "${state_dir}/traefik-recovery.json"
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_request_status":"requested"'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_channel":"anubis"'
 tail -n 1 "${state_dir}/traefik-updates.jsonl" | grep -Fq '"alert_run_url":null'

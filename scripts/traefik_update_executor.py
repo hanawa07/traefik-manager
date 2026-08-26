@@ -6,6 +6,7 @@ from traefik_recreate_audit import (
     record_managed_recreation,
     safe_current_container_id,
 )
+from traefik_recovery_state import write_recovery_result
 from traefik_update_models import (
     Preflight,
     RunnerConfig,
@@ -203,6 +204,19 @@ def _rollback(
                 {**check, "key": f"rollback_{check['key']}"}
                 for check in rollback_error.validations
             ]
+    try:
+        write_recovery_result(config, rollback_status, "patch_update")
+        recovery_state_check = {
+            "key": "recovery_state",
+            "status": "ok",
+            "message": "최근 자동 복구 결과 기록",
+        }
+    except (OSError, RuntimeError, ValueError) as recovery_state_error:
+        recovery_state_check = {
+            "key": "recovery_state",
+            "status": "fail",
+            "message": f"자동 복구 결과 기록 실패: {message(recovery_state_error)}",
+        }
     append_history(
         config,
         {
@@ -216,7 +230,7 @@ def _rollback(
             "alert_request_status": (
                 "pending" if rollback_status == "rollback_failed" else "not_needed"
             ),
-            "validations": [*validations, *rollback_validations],
+            "validations": [*validations, *rollback_validations, recovery_state_check],
         },
     )
     return rollback_status

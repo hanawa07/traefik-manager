@@ -140,6 +140,8 @@ def test_read_traefik_update_operations_returns_latest_request_state(tmp_path):
 
     assert result["runner"]["available"] is True
     assert result["pending_request"] is True
+    assert result["checkpoint"]["status"] == "missing"
+    assert result["latest_recovery"]["status"] == "none"
     assert len(result["history"]) == 1
     assert result["history"][0]["status"] == "success"
     assert result["history"][0]["backup_created"] is True

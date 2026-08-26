@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     TRAEFIK_UPDATE_RUNNER_STATUS_PATH: str = (
         "/host-state/traefik-manager/traefik-update-runner.json"
     )
+    TRAEFIK_SAFE_RECREATE_CHECKPOINT_PATH: str = (
+        "/host-state/traefik-manager/traefik-safe-recreate-checkpoint.json"
+    )
+    TRAEFIK_RECOVERY_PATH: str = (
+        "/host-state/traefik-manager/traefik-recovery.json"
+    )
 
     DOCKER_SOCKET_PATH: str = "/var/run/docker.sock"
     DOCKER_READ_API_URL: str | None = None

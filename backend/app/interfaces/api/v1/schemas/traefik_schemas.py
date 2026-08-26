@@ -152,9 +152,23 @@ class TraefikRecreationHistoryEntryResponse(BaseModel):
     alert_channel: Literal["anubis"] | None = None
 
 
+class TraefikCheckpointSummaryResponse(BaseModel):
+    status: Literal["ready", "missing", "invalid"]
+    saved_at: datetime | None = None
+    version: str | None = None
+
+
+class TraefikRecoverySummaryResponse(BaseModel):
+    status: Literal["none", "rolled_back", "rollback_failed", "invalid"]
+    occurred_at: datetime | None = None
+    source: Literal["patch_update", "manual_safe"] | None = None
+
+
 class TraefikUpdateOperationsResponse(BaseModel):
     runner: TraefikUpdateRunnerResponse
     pending_request: bool
+    checkpoint: TraefikCheckpointSummaryResponse
+    latest_recovery: TraefikRecoverySummaryResponse
     history: list[TraefikUpdateHistoryEntryResponse] = Field(default_factory=list)
     recreation_history: list[TraefikRecreationHistoryEntryResponse] = Field(
         default_factory=list

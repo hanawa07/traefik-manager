@@ -6,6 +6,11 @@ from app.core.config import settings
 from app.infrastructure.traefik_recreation_history import (
     read_traefik_recreation_history,
 )
+from app.infrastructure.traefik_safe_recreate_state import (
+    read_checkpoint_summary,
+    read_recovery_summary,
+    select_latest_recovery,
+)
 from app.infrastructure.traefik_update_history_codec import (
     normalize_traefik_update_alert_result as _normalize_alert_result,
     normalize_traefik_update_history_entry as _normalize_history_entry,
@@ -26,16 +31,26 @@ def read_traefik_update_operations(
     request_dir: str | Path | None = None,
     runner_status_path: str | Path | None = None,
     recreate_history_path: str | Path | None = None,
+    checkpoint_path: str | Path | None = None,
+    recovery_path: str | Path | None = None,
     now: datetime | None = None,
 ) -> dict[str, object]:
     directory = Path(request_dir or settings.TRAEFIK_UPDATE_REQUEST_DIR)
+    history = read_traefik_update_history(history_path)
+    recovery = read_recovery_summary(
+        recovery_path or settings.TRAEFIK_RECOVERY_PATH
+    )
     return {
         "runner": _read_runner_status(
             Path(runner_status_path or settings.TRAEFIK_UPDATE_RUNNER_STATUS_PATH),
             now=now or datetime.now(timezone.utc),
         ),
         "pending_request": (directory / REQUEST_FILENAME).is_file(),
-        "history": read_traefik_update_history(history_path),
+        "checkpoint": read_checkpoint_summary(
+            checkpoint_path or settings.TRAEFIK_SAFE_RECREATE_CHECKPOINT_PATH
+        ),
+        "latest_recovery": select_latest_recovery(history, recovery),
+        "history": history,
         "recreation_history": read_traefik_recreation_history(recreate_history_path),
     }
 
