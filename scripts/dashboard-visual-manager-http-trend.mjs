@@ -13,6 +13,7 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
     const monitor = document.querySelector('[data-testid="manager-http-error-monitor-status"]');
     const latencyMonitor = document.querySelector('[data-testid="manager-settings-history-latency-status"]');
     const route = document.querySelector('[data-testid="manager-route-status"]');
+    const userSystemd = document.querySelector('[data-testid="user-systemd-watchdog"]');
     const correlationAuditHrefs = Array.from(
       correlation?.querySelectorAll('[data-deployment-audit-link="true"]') || [],
     ).map((link) => link.getAttribute('href') || '');
@@ -45,6 +46,12 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
         provider: route.getAttribute('data-route-provider'),
         upstreamStatus: route.getAttribute('data-route-upstream-status'),
       } : null,
+      userSystemd: userSystemd ? {
+        stale: userSystemd.getAttribute('data-stale'),
+        status: userSystemd.getAttribute('data-status'),
+        text: userSystemd.textContent || '',
+        unitCount: Number(userSystemd.getAttribute('data-unit-count')),
+      } : null,
       logStorage: logStorage ? {
         capacityBytes: Number(logStorage.getAttribute('data-log-capacity-bytes')),
         fileCount: Number(logStorage.getAttribute('data-log-file-count')),
@@ -68,6 +75,20 @@ export async function checkManagerHttpErrorTrend({ cdp, timeoutMs = 15_000 }) {
   assert.equal(snapshot.route.healthy, "true", "Manager file-provider 라우터가 정상이 아닙니다");
   assert.equal(snapshot.route.provider, "file", "Manager 라우터 provider가 file이 아닙니다");
   assert.equal(snapshot.route.upstreamStatus, "UP", "Manager 라우터 upstream이 UP이 아닙니다");
+  assert.ok(snapshot.userSystemd, "사용자 systemd 감시 카드가 없습니다");
+  assert.ok(
+    ["healthy", "unhealthy", "unknown"].includes(snapshot.userSystemd.status),
+    "사용자 systemd 감시 상태가 올바르지 않습니다",
+  );
+  assert.ok(
+    Number.isInteger(snapshot.userSystemd.unitCount) && snapshot.userSystemd.unitCount >= 0,
+    "사용자 systemd 감시 unit 수가 올바르지 않습니다",
+  );
+  assert.match(
+    snapshot.userSystemd.text,
+    /사용자 systemd 실행 감시.*마지막 점검.*감시 대상/s,
+    "사용자 systemd 감시 핵심 정보가 없습니다",
+  );
   assert.equal(snapshot.available, "true", "Manager API 오류 로그를 조회하지 못했습니다");
   assert.ok(snapshot.clientCancellation, "Manager API 499 클라이언트 취소 상태가 없습니다");
   assert.equal(

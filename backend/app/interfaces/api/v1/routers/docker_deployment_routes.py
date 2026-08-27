@@ -39,6 +39,7 @@ def register_docker_deployment_routes(
     settings_latency_reader_provider: Callable[[], Any],
     watchdog_state_reader_provider: Callable[[], Any],
     self_ban_state_reader_provider: Callable[[], Any],
+    user_systemd_state_reader_provider: Callable[[], Any],
     run_status_reader_provider: Callable[[], Any],
     deployment_history_reader_provider: Callable[[], Any],
     deployment_archive_reader_provider: Callable[[], Any],
@@ -71,6 +72,7 @@ def register_docker_deployment_routes(
                 stale_after_minutes=stale_after_minutes
             )
             self_ban_state = self_ban_state_reader_provider()()
+            user_systemd_state = user_systemd_state_reader_provider()()
             alert_runs = watchdog_state["external_watchdog_alert_runs"]
             last_run_url = watchdog_state["external_watchdog_last_alert_run_url"]
             deployment_history = deployment_history_reader_provider()()
@@ -129,6 +131,7 @@ def register_docker_deployment_routes(
                 "manager_route": manager_route,
                 **watchdog_state,
                 "traefik_self_ban_watchdog": self_ban_state,
+                "user_systemd_watchdog": user_systemd_state,
                 **run_status,
                 "http_error_monitor": http_error_monitor,
                 "settings_history_latency_monitor": settings_history_latency_monitor,

@@ -59,6 +59,36 @@ class TraefikSelfBanWatchdogResponse(BaseModel):
     events: list[TraefikSelfBanEventResponse] = Field(default_factory=list)
 
 
+UserSystemdIssueCode = Literal[
+    "baseline-invalid",
+    "systemctl-unavailable",
+    "unexpected-timer",
+    "unit-not-loaded",
+    "timer-disabled",
+    "timer-inactive",
+    "service-failed",
+    "service-result",
+    "unit-drift",
+    "unit-unreadable",
+]
+
+
+class UserSystemdIssueResponse(BaseModel):
+    code: UserSystemdIssueCode
+    unit: str | None = None
+
+
+class UserSystemdWatchdogResponse(BaseModel):
+    status: Literal["healthy", "unhealthy", "unknown"] = "unknown"
+    checked_at: datetime | None = None
+    stale: bool = False
+    stale_after_minutes: int = Field(default=10, ge=1, le=60)
+    alert_active: bool = False
+    consecutive_failures: int = Field(default=0, ge=0, le=100_000)
+    monitored_unit_count: int = Field(default=0, ge=0, le=9_999)
+    issues: list[UserSystemdIssueResponse] = Field(default_factory=list)
+
+
 class ManagerSettingsHistoryLatencyResponse(BaseModel):
     enabled: bool
     available: bool
@@ -217,6 +247,9 @@ class DockerDeploymentInfoResponse(BaseModel):
     external_watchdog_alert_runs: list[ExternalWatchdogAlertRunResponse] = Field(default_factory=list)
     traefik_self_ban_watchdog: TraefikSelfBanWatchdogResponse = Field(
         default_factory=TraefikSelfBanWatchdogResponse
+    )
+    user_systemd_watchdog: UserSystemdWatchdogResponse = Field(
+        default_factory=UserSystemdWatchdogResponse
     )
     http_error_summary: ManagerHttpErrorSummaryResponse | None = None
     http_error_monitor: ManagerHttpErrorMonitorResponse | None = None

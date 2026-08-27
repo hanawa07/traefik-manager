@@ -6,6 +6,7 @@ from app.core.manager_watchdog_state import read_manager_watchdog_state
 from app.core.traefik_self_ban_watchdog_state import (
     read_traefik_self_ban_watchdog_state,
 )
+from app.core.user_systemd_watchdog_state import read_user_systemd_watchdog_state
 from app.infrastructure.docker.client import DockerClient
 from app.infrastructure.docker.manager_http_log_reader import read_manager_http_error_preview
 from app.infrastructure.docker.manager_settings_history_latency_monitor import (
@@ -68,6 +69,7 @@ _deployment_endpoints = register_docker_deployment_routes(
     settings_latency_reader_provider=lambda: read_manager_settings_history_latency_status,
     watchdog_state_reader_provider=lambda: read_manager_watchdog_state,
     self_ban_state_reader_provider=lambda: read_traefik_self_ban_watchdog_state,
+    user_systemd_state_reader_provider=lambda: read_user_systemd_watchdog_state,
     run_status_reader_provider=lambda: GitHubActionsRunStatusReader(),
     deployment_history_reader_provider=lambda: read_manager_deployment_history,
     deployment_archive_reader_provider=(

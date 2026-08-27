@@ -249,6 +249,7 @@ export interface DeploymentInfo {
   external_watchdog_last_alert_run_error: string | null;
   external_watchdog_alert_runs: ExternalWatchdogAlertRun[];
   traefik_self_ban_watchdog: TraefikSelfBanWatchdog;
+  user_systemd_watchdog: UserSystemdWatchdog;
   http_error_summary: ManagerHttpErrorSummary | null;
   http_error_monitor: ManagerHttpErrorMonitorStatus | null;
   settings_history_latency_monitor: ManagerSettingsHistoryLatencyStatus | null;
@@ -258,6 +259,34 @@ export interface DeploymentInfo {
   deployment_history_archive_summary: ManagerDeploymentHistoryArchiveSummary;
   deployment_bottleneck_alert: ManagerDeploymentBottleneckAlert;
   components: DeploymentComponent[];
+}
+
+export type UserSystemdIssueCode =
+  | "baseline-invalid"
+  | "systemctl-unavailable"
+  | "unexpected-timer"
+  | "unit-not-loaded"
+  | "timer-disabled"
+  | "timer-inactive"
+  | "service-failed"
+  | "service-result"
+  | "unit-drift"
+  | "unit-unreadable";
+
+export interface UserSystemdIssue {
+  code: UserSystemdIssueCode;
+  unit: string | null;
+}
+
+export interface UserSystemdWatchdog {
+  status: "healthy" | "unhealthy" | "unknown";
+  checked_at: string | null;
+  stale: boolean;
+  stale_after_minutes: number;
+  alert_active: boolean;
+  consecutive_failures: number;
+  monitored_unit_count: number;
+  issues: UserSystemdIssue[];
 }
 
 export interface TraefikSelfBanEvent {

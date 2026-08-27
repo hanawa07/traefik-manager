@@ -8,6 +8,7 @@ import type {
 import { formatDateTime } from "@/shared/lib/dateTimeFormat";
 
 import { getManagerApiAuditUrl } from "./managerAuditLinks";
+import { formatUserSystemdIssue } from "./userSystemdWatchdogPresentation";
 
 interface ManagerHealthAlertBannerProps {
   deployment?: DeploymentInfo;
@@ -27,6 +28,9 @@ export function ManagerHealthAlertBanner({
   const selfBan = deployment?.traefik_self_ban_watchdog;
   const selfBanBlocked = selfBan?.status === "blocked";
   const selfBanStale = selfBan?.stale === true;
+  const userSystemd = deployment?.user_systemd_watchdog;
+  const userSystemdUnhealthy = userSystemd?.status === "unhealthy";
+  const userSystemdStale = userSystemd?.stale === true;
   const httpMonitor = deployment?.http_error_monitor;
   const httpErrorsBreached = Boolean(
     httpMonitor?.enabled && httpMonitor.available && httpMonitor.breached,
@@ -44,13 +48,20 @@ export function ManagerHealthAlertBanner({
     !watchdogStale &&
     !selfBanBlocked &&
     !selfBanStale &&
+    !userSystemdUnhealthy &&
+    !userSystemdStale &&
     !httpErrorsBreached &&
     !httpMonitorUnavailable &&
     !latencyBreached
   ) return null;
 
   const critical =
-    unhealthyComponents.length > 0 || watchdogUnhealthy || selfBanBlocked || httpErrorsBreached || latencyBreached;
+    unhealthyComponents.length > 0 ||
+    watchdogUnhealthy ||
+    selfBanBlocked ||
+    userSystemdUnhealthy ||
+    httpErrorsBreached ||
+    latencyBreached;
   const details = unhealthyComponents.map(getFailureDetail);
   if (watchdogUnhealthy) {
     details.push(
@@ -65,6 +76,17 @@ export function ManagerHealthAlertBanner({
   }
   if (selfBanStale) {
     details.push(`Traefik 자기 차단 점검이 ${selfBan?.stale_after_minutes ?? 5}분 이상 지연됨`);
+  }
+  if (userSystemdUnhealthy) {
+    const firstIssue = userSystemd?.issues[0];
+    details.push(
+      firstIssue
+        ? `사용자 systemd ${formatUserSystemdIssue(firstIssue)}`
+        : "사용자 systemd 이상 감지",
+    );
+  }
+  if (userSystemdStale) {
+    details.push(`사용자 systemd 점검이 ${userSystemd?.stale_after_minutes ?? 10}분 이상 지연됨`);
   }
   if (httpErrorsBreached && httpMonitor) {
     details.push(
@@ -91,6 +113,9 @@ export function ManagerHealthAlertBanner({
         httpErrorsBreached ? "breached" : httpMonitorUnavailable ? "unavailable" : "none"
       }
       data-manager-latency-alert={latencyBreached ? "breached" : "none"}
+      data-user-systemd-alert={
+        userSystemdUnhealthy ? "unhealthy" : userSystemdStale ? "stale" : "none"
+      }
       data-testid="manager-health-alert-banner"
     >
       <div className="flex items-start gap-3">
@@ -110,6 +135,9 @@ export function ManagerHealthAlertBanner({
               : ""}
             {latencyMonitor?.checked_at
               ? ` · p95 점검: ${formatDateTime(latencyMonitor.checked_at, timezone)}`
+              : ""}
+            {userSystemd?.checked_at
+              ? ` · systemd 점검: ${formatDateTime(userSystemd.checked_at, timezone)}`
               : ""}
           </p>
           {httpErrorsBreached || httpMonitorUnavailable || latencyBreached ? (

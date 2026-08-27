@@ -19,6 +19,7 @@ import { ManagerRouteStatusCard } from "./ManagerRouteStatusCard";
 import { ManagerDeploymentStatusPanel } from "./ManagerDeploymentStatusPanel";
 import { ManagerWatchdogAlertHistory } from "./ManagerWatchdogAlertHistory";
 import { TraefikSelfBanWatchdogCard } from "./TraefikSelfBanWatchdogCard";
+import { UserSystemdWatchdogCard } from "./UserSystemdWatchdogCard";
 
 interface ManagerDeploymentCardProps {
   deployment?: DeploymentInfo;
@@ -132,6 +133,11 @@ export function ManagerDeploymentCard({
 
       <TraefikSelfBanWatchdogCard
         state={deployment?.traefik_self_ban_watchdog}
+        timezone={timezone}
+      />
+
+      <UserSystemdWatchdogCard
+        state={deployment?.user_systemd_watchdog}
         timezone={timezone}
       />
 
