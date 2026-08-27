@@ -11,6 +11,8 @@ readonly STATUS_FILE="${TEMP_DIR}/health-status"
 readonly CURL_LOG="${TEMP_DIR}/curl.log"
 readonly DISPATCH_LOG="${TEMP_DIR}/dispatch.log"
 readonly DISPATCH_STATUS_FILE="${TEMP_DIR}/dispatch-status"
+readonly USER_SYSTEMD_LOG="${TEMP_DIR}/user-systemd.log"
+readonly USER_SYSTEMD_BASELINE="${STATE_DIR}/user-systemd-unit-baseline.sha256"
 
 cleanup() {
   rm -rf "${TEMP_DIR}"
@@ -32,7 +34,14 @@ printf '%s\n' "$*" >> "${TM_WATCHDOG_FAKE_DISPATCH_LOG}"
 [[ "$(<"${TM_WATCHDOG_FAKE_DISPATCH_STATUS_FILE}")" == "success" ]] || exit 1
 printf 'ANUBIS_MANAGER_HEALTH_ALERT=sent\n'
 SCRIPT
-chmod +x "${FAKE_BIN}/curl" "${FAKE_BIN}/docker"
+cat > "${FAKE_BIN}/user-systemd-watchdog" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s|%s\n' "${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR}" \
+  "${TM_USER_SYSTEMD_BASELINE_FILE}" >> "${TM_WATCHDOG_FAKE_USER_SYSTEMD_LOG}"
+SCRIPT
+chmod +x "${FAKE_BIN}/curl" "${FAKE_BIN}/docker" "${FAKE_BIN}/user-systemd-watchdog"
+touch "${USER_SYSTEMD_BASELINE}"
 
 run_watchdog() {
   PATH="/usr/bin:/bin" \
@@ -41,10 +50,13 @@ run_watchdog() {
   TM_MANAGER_WATCHDOG_STATE_DIR="${STATE_DIR}" \
   TM_MANAGER_WATCHDOG_URL="https://watchdog.invalid" \
   TM_MANAGER_WATCHDOG_TIMEOUT_SECONDS=1 \
+  TM_USER_SYSTEMD_WATCHDOG_SCRIPT="${FAKE_BIN}/user-systemd-watchdog" \
+  TM_USER_SYSTEMD_BASELINE_FILE="${USER_SYSTEMD_BASELINE}" \
   TM_WATCHDOG_FAKE_STATUS_FILE="${STATUS_FILE}" \
   TM_WATCHDOG_FAKE_CURL_LOG="${CURL_LOG}" \
   TM_WATCHDOG_FAKE_DISPATCH_LOG="${DISPATCH_LOG}" \
   TM_WATCHDOG_FAKE_DISPATCH_STATUS_FILE="${DISPATCH_STATUS_FILE}" \
+  TM_WATCHDOG_FAKE_USER_SYSTEMD_LOG="${USER_SYSTEMD_LOG}" \
     "${SCRIPT_DIR}/manager-health-watchdog.sh"
 }
 
@@ -97,6 +109,8 @@ assert_state unhealthy 0 1 failure 0 anubis
 
 [[ "$(wc -l < "${CURL_LOG}")" -eq 5 ]]
 [[ "$(wc -l < "${DISPATCH_LOG}")" -eq 3 ]]
+[[ "$(wc -l < "${USER_SYSTEMD_LOG}")" -eq 4 ]]
+grep -Fxq "${STATE_DIR}|${USER_SYSTEMD_BASELINE}" "${USER_SYSTEMD_LOG}"
 if grep -v -q 'https://watchdog.invalid/api/health' "${CURL_LOG}"; then
   echo "watchdog 통합 시험이 예상하지 않은 URL을 호출했습니다" >&2
   exit 1

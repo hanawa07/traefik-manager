@@ -13,6 +13,8 @@ readonly COOLDOWN_SECONDS="${TM_MANAGER_WATCHDOG_COOLDOWN_SECONDS:-3600}"
 readonly REQUEST_TIMEOUT_SECONDS="${TM_MANAGER_WATCHDOG_TIMEOUT_SECONDS:-15}"
 readonly CURL_BIN="${TM_MANAGER_WATCHDOG_CURL_BIN:-curl}"
 readonly DOCKER_BIN="${TM_MANAGER_WATCHDOG_DOCKER_BIN:-docker}"
+readonly USER_SYSTEMD_WATCHDOG_SCRIPT="${TM_USER_SYSTEMD_WATCHDOG_SCRIPT:-${SCRIPT_DIR}/user-systemd-unit-watchdog.sh}"
+readonly USER_SYSTEMD_BASELINE_FILE="${TM_USER_SYSTEMD_BASELINE_FILE:-${STATE_DIR}/user-systemd-unit-baseline.sha256}"
 # shellcheck source=scripts/manager-health-watchdog-policy.sh
 source "${SCRIPT_DIR}/manager-health-watchdog-policy.sh"
 # shellcheck source=scripts/manager-health-watchdog-state.sh
@@ -74,6 +76,16 @@ send_direct_alert() {
       "${event}" "${detail}" "${failure_count}"
   )" || return 1
   [[ "${result}" == "ANUBIS_MANAGER_HEALTH_ALERT=sent" ]]
+}
+
+run_user_systemd_watchdog() {
+  [[ -x "${USER_SYSTEMD_WATCHDOG_SCRIPT}" && -f "${USER_SYSTEMD_BASELINE_FILE}" ]] || return 0
+  TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
+  TM_USER_SYSTEMD_BASELINE_FILE="${USER_SYSTEMD_BASELINE_FILE}" \
+    "${USER_SYSTEMD_WATCHDOG_SCRIPT}" || {
+      echo "사용자 systemd 교차 점검 실행에 실패했습니다" >&2
+      return 0
+    }
 }
 
 if [[ "${1:-}" == "--self-test" ]]; then
@@ -184,3 +196,5 @@ case "${action}" in
       "${dispatch_history}"
     ;;
 esac
+
+run_user_systemd_watchdog
