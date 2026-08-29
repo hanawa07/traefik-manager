@@ -13,6 +13,7 @@ readonly TIMER_NAME="traefik-manager-smoke-rotation.timer"
 readonly TIMER_STAMP="${TIMER_DATA_DIR}/stamp-${TIMER_NAME}"
 readonly LOG_FILE="${STATE_DIR}/smoke-password-rotation.log"
 readonly USER_SYSTEMD_WATCHDOG_SCRIPT="${TM_USER_SYSTEMD_WATCHDOG_SCRIPT:-${SCRIPT_DIR}/user-systemd-unit-watchdog.sh}"
+readonly USER_SYSTEMD_TRANSACTION_LIB="${TM_USER_SYSTEMD_TRANSACTION_LIB:-${SCRIPT_DIR}/lib/user-systemd-unit-transaction.sh}"
 readonly SCHEDULE="*-*-01 04:17:00 Asia/Seoul"
 readonly CRON_BEGIN="# BEGIN TRAEFIK_MANAGER_SMOKE_ROTATION"
 readonly CRON_END="# END TRAEFIK_MANAGER_SMOKE_ROTATION"
@@ -119,7 +120,8 @@ remove_legacy_cron_block() {
 
 for path_label in "저장소:${REPO_ROOT}" "스크립트:${SCRIPT_DIR}" "상태:${STATE_DIR}" \
   "unit:${UNIT_DIR}" "timer 상태:${TIMER_DATA_DIR}" \
-  "기준선 갱신:${USER_SYSTEMD_WATCHDOG_SCRIPT}"; do
+  "기준선 갱신:${USER_SYSTEMD_WATCHDOG_SCRIPT}" \
+  "unit 트랜잭션:${USER_SYSTEMD_TRANSACTION_LIB}"; do
   validate_path "${path_label%%:*}" "${path_label#*:}"
 done
 for command_name in awk crontab grep install mktemp systemctl systemd-analyze; do
@@ -136,6 +138,12 @@ done
   echo "사용자 systemd 기준선 갱신 스크립트를 실행할 수 없습니다" >&2
   exit 1
 }
+[[ -r "${USER_SYSTEMD_TRANSACTION_LIB}" ]] || {
+  echo "사용자 systemd unit 트랜잭션을 읽을 수 없습니다" >&2
+  exit 1
+}
+# shellcheck source=lib/user-systemd-unit-transaction.sh
+source "${USER_SYSTEMD_TRANSACTION_LIB}"
 systemd-analyze calendar "${SCHEDULE}" >/dev/null
 
 service_unit="${temporary_dir}/${SERVICE_NAME}"
@@ -154,18 +162,28 @@ if [[ -s "${verify_output}" ]]; then
   exit 1
 fi
 
+configure_user_bus
+transaction_backup="${temporary_dir}/unit-transaction"
+tm_snapshot_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" \
+  "${TIMER_NAME}" "${SERVICE_NAME}"
 install -d -m 0755 "${STATE_DIR}" "${UNIT_DIR}" "${TIMER_DATA_DIR}"
 install -m 0644 "${service_unit}" "${UNIT_DIR}/${SERVICE_NAME}"
 install -m 0644 "${timer_unit}" "${UNIT_DIR}/${TIMER_NAME}"
 seed_timer_stamp
 
-configure_user_bus
 systemctl --user daemon-reload
 systemctl --user enable --now "${TIMER_NAME}"
 systemctl --user is-enabled --quiet "${TIMER_NAME}"
 systemctl --user is-active --quiet "${TIMER_NAME}"
+if ! TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${STATE_DIR}}" \
+  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"; then
+  echo "기준선 갱신 실패로 기존 스모크 회전 unit을 복구합니다" >&2
+  tm_rollback_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" || {
+    echo "기존 스모크 회전 unit 복구에 실패했습니다" >&2
+    exit 1
+  }
+  exit 1
+fi
 remove_legacy_cron_block
-TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${STATE_DIR}}" \
-  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"
 
 echo "Traefik Manager 월간 스모크 계정 회전 timer 설치 완료"

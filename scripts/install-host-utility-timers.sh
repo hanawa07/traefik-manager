@@ -8,6 +8,7 @@ readonly UNIT_SOURCE_DIR="${REPO_ROOT}/deploy/systemd-user"
 readonly UNIT_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
 readonly STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/traefik-manager}"
 readonly USER_SYSTEMD_WATCHDOG_SCRIPT="${TM_USER_SYSTEMD_WATCHDOG_SCRIPT:-${SCRIPT_DIR}/user-systemd-unit-watchdog.sh}"
+readonly USER_SYSTEMD_TRANSACTION_LIB="${TM_USER_SYSTEMD_TRANSACTION_LIB:-${SCRIPT_DIR}/lib/user-systemd-unit-transaction.sh}"
 readonly -a AVAILABLE_TARGETS=(
   docker-dns-probe
   nvme-life-alert
@@ -32,7 +33,8 @@ validate_path() {
 }
 
 for item in "저장소:${REPO_ROOT}" "unit 원본:${UNIT_SOURCE_DIR}" "unit:${UNIT_DIR}" \
-  "상태:${STATE_DIR}" "기준선 갱신:${USER_SYSTEMD_WATCHDOG_SCRIPT}"; do
+  "상태:${STATE_DIR}" "기준선 갱신:${USER_SYSTEMD_WATCHDOG_SCRIPT}" \
+  "unit 트랜잭션:${USER_SYSTEMD_TRANSACTION_LIB}"; do
   validate_path "${item%%:*}" "${item#*:}"
 done
 for command_name in install mktemp systemctl systemd-analyze; do
@@ -45,6 +47,12 @@ done
   echo "사용자 systemd 감시 스크립트를 실행할 수 없습니다" >&2
   exit 1
 }
+[[ -r "${USER_SYSTEMD_TRANSACTION_LIB}" ]] || {
+  echo "사용자 systemd unit 트랜잭션을 읽을 수 없습니다" >&2
+  exit 1
+}
+# shellcheck source=lib/user-systemd-unit-transaction.sh
+source "${USER_SYSTEMD_TRANSACTION_LIB}"
 
 targets=("$@")
 [[ "${#targets[@]}" -gt 0 ]] || targets=("${AVAILABLE_TARGETS[@]}")
@@ -87,17 +95,26 @@ if [[ -s "${verify_output}" ]]; then
   exit 1
 fi
 
+configure_user_bus
+transaction_backup="${temporary_dir}/unit-transaction"
+tm_snapshot_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" "${unit_names[@]}"
 install -d -m 0755 "${STATE_DIR}" "${UNIT_DIR}"
 for unit_path in "${unit_paths[@]}"; do
   install -m 0644 "${unit_path}" "${UNIT_DIR}/${unit_path##*/}"
 done
-configure_user_bus
 systemctl --user daemon-reload
 for timer_name in "${timer_names[@]}"; do
   systemctl --user enable --now "${timer_name}"
   systemctl --user is-enabled --quiet "${timer_name}"
   systemctl --user is-active --quiet "${timer_name}"
 done
-TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
-  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${unit_names[@]}"
+if ! TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
+  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${unit_names[@]}"; then
+  echo "기준선 갱신 실패로 기존 host utility unit을 복구합니다" >&2
+  tm_rollback_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" || {
+    echo "기존 host utility unit 복구에 실패했습니다" >&2
+    exit 1
+  }
+  exit 1
+fi
 echo "호스트 utility timer 설치 완료 (${#timer_names[@]}개)"

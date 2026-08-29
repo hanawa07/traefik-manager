@@ -10,6 +10,7 @@ readonly SERVICE_NAME="traefik-manager-tcg-storefront-watchdog.service"
 readonly TIMER_NAME="traefik-manager-tcg-storefront-watchdog.timer"
 readonly LOG_FILE="${STATE_DIR}/tcg-storefront-watchdog.log"
 readonly USER_SYSTEMD_WATCHDOG_SCRIPT="${TM_USER_SYSTEMD_WATCHDOG_SCRIPT:-${SCRIPT_DIR}/user-systemd-unit-watchdog.sh}"
+readonly USER_SYSTEMD_TRANSACTION_LIB="${TM_USER_SYSTEMD_TRANSACTION_LIB:-${SCRIPT_DIR}/lib/user-systemd-unit-transaction.sh}"
 temporary_dir="$(mktemp -d)"
 trap 'rm -rf "${temporary_dir}"' EXIT
 
@@ -68,7 +69,8 @@ write_timer_unit() {
 }
 
 for item in "저장소:${REPO_ROOT}" "스크립트:${SCRIPT_DIR}" "상태:${STATE_DIR}" \
-  "unit:${UNIT_DIR}" "기준선 갱신:${USER_SYSTEMD_WATCHDOG_SCRIPT}"; do
+  "unit:${UNIT_DIR}" "기준선 갱신:${USER_SYSTEMD_WATCHDOG_SCRIPT}" \
+  "unit 트랜잭션:${USER_SYSTEMD_TRANSACTION_LIB}"; do
   validate_path "${item%%:*}" "${item#*:}"
 done
 for command_name in install mktemp systemctl systemd-analyze; do
@@ -87,6 +89,12 @@ done
   echo "사용자 systemd 기준선 갱신 스크립트를 실행할 수 없습니다" >&2
   exit 1
 }
+[[ -r "${USER_SYSTEMD_TRANSACTION_LIB}" ]] || {
+  echo "사용자 systemd unit 트랜잭션을 읽을 수 없습니다" >&2
+  exit 1
+}
+# shellcheck source=lib/user-systemd-unit-transaction.sh
+source "${USER_SYSTEMD_TRANSACTION_LIB}"
 
 service_unit="${temporary_dir}/${SERVICE_NAME}"
 timer_unit="${temporary_dir}/${TIMER_NAME}"
@@ -103,14 +111,24 @@ if [[ -s "${verify_output}" ]]; then
   exit 1
 fi
 
+configure_user_bus
+transaction_backup="${temporary_dir}/unit-transaction"
+tm_snapshot_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" \
+  "${TIMER_NAME}" "${SERVICE_NAME}"
 install -d -m 0755 "${STATE_DIR}" "${UNIT_DIR}"
 install -m 0644 "${service_unit}" "${UNIT_DIR}/${SERVICE_NAME}"
 install -m 0644 "${timer_unit}" "${UNIT_DIR}/${TIMER_NAME}"
-configure_user_bus
 systemctl --user daemon-reload
 systemctl --user enable --now "${TIMER_NAME}"
 systemctl --user is-enabled --quiet "${TIMER_NAME}"
 systemctl --user is-active --quiet "${TIMER_NAME}"
-TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${STATE_DIR}}" \
-  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"
+if ! TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${STATE_DIR}}" \
+  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"; then
+  echo "기준선 갱신 실패로 기존 TCG storefront watchdog unit을 복구합니다" >&2
+  tm_rollback_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" || {
+    echo "기존 TCG storefront watchdog unit 복구에 실패했습니다" >&2
+    exit 1
+  }
+  exit 1
+fi
 echo "TCG storefront 외부 watchdog timer 설치 완료"

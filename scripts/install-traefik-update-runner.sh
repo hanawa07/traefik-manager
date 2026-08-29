@@ -20,6 +20,9 @@ readonly PATH_NAME="traefik-manager-traefik-update.path"
 readonly TIMER_NAME="traefik-manager-traefik-update.timer"
 readonly BACKEND_UID="${TM_TRAEFIK_UPDATE_BACKEND_UID:-10001}"
 readonly USER_SYSTEMD_WATCHDOG_SCRIPT="${TM_USER_SYSTEMD_WATCHDOG_SCRIPT:-${SCRIPT_DIR}/user-systemd-unit-watchdog.sh}"
+readonly USER_SYSTEMD_TRANSACTION_LIB="${TM_USER_SYSTEMD_TRANSACTION_LIB:-${SCRIPT_DIR}/lib/user-systemd-unit-transaction.sh}"
+temporary_dir="$(mktemp -d)"
+trap 'rm -rf "${temporary_dir}"' EXIT
 
 configure_user_bus() {
   local runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
@@ -167,6 +170,7 @@ validate_path "상태" "${STATE_DIR}"
 validate_path "요청" "${REQUEST_DIR}"
 validate_path "Traefik" "${TRAEFIK_DIR}"
 validate_path "기준선 갱신" "${USER_SYSTEMD_WATCHDOG_SCRIPT}"
+validate_path "unit 트랜잭션" "${USER_SYSTEMD_TRANSACTION_LIB}"
 validate_compose_files "${TRAEFIK_COMPOSE_FILES}"
 validate_relative_path "ACME 파일" "${TRAEFIK_ACME_FILE}"
 validate_name "Compose 서비스" "${TRAEFIK_SERVICE}"
@@ -181,6 +185,10 @@ command -v setfacl >/dev/null || { echo "setfacl 명령이 필요합니다. 호�
 command -v systemctl >/dev/null || { echo "systemctl 명령을 찾을 수 없습니다" >&2; exit 1; }
 [[ -x "${USER_SYSTEMD_WATCHDOG_SCRIPT}" ]] \
   || { echo "사용자 systemd 기준선 갱신 스크립트를 실행할 수 없습니다" >&2; exit 1; }
+[[ -r "${USER_SYSTEMD_TRANSACTION_LIB}" ]] \
+  || { echo "사용자 systemd unit 트랜잭션을 읽을 수 없습니다" >&2; exit 1; }
+# shellcheck source=lib/user-systemd-unit-transaction.sh
+source "${USER_SYSTEMD_TRANSACTION_LIB}"
 IFS=',' read -r -a compose_files <<< "${TRAEFIK_COMPOSE_FILES}"
 for compose_file in "${compose_files[@]}"; do
   [[ -f "${TRAEFIK_DIR}/${compose_file}" ]] \
@@ -192,6 +200,9 @@ done
 install -d -m 0755 "${STATE_DIR}" "${UNIT_DIR}"
 prepare_request_dir
 configure_user_bus
+transaction_backup="${temporary_dir}/unit-transaction"
+tm_snapshot_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" \
+  "${PATH_NAME}" "${TIMER_NAME}" "${SERVICE_NAME}"
 health_url="$(resolve_health_url)"
 write_service_unit "${health_url}"
 write_path_unit
@@ -202,6 +213,13 @@ systemctl --user start "${SERVICE_NAME}"
 service_result="$(systemctl --user show "${SERVICE_NAME}" --property=Result --value)"
 [[ "${service_result}" == "success" ]] \
   || { echo "Traefik 업데이트 실행기 시작 실패: ${service_result}" >&2; exit 1; }
-TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${STATE_DIR}}" \
-  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"
+if ! TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${STATE_DIR}}" \
+  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"; then
+  echo "기준선 갱신 실패로 기존 Traefik 업데이트 unit을 복구합니다" >&2
+  tm_rollback_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" || {
+    echo "기존 Traefik 업데이트 unit 복구에 실패했습니다" >&2
+    exit 1
+  }
+  exit 1
+fi
 echo "Traefik 안전 업데이트 실행기 설치 완료"

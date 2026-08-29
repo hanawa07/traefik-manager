@@ -10,6 +10,7 @@ readonly UNIT_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
 readonly SERVICE_NAME="traefik-manager-user-systemd-watchdog.service"
 readonly TIMER_NAME="traefik-manager-user-systemd-watchdog.timer"
 readonly WATCHDOG_SCRIPT="${SCRIPT_DIR}/user-systemd-unit-watchdog.sh"
+readonly USER_SYSTEMD_TRANSACTION_LIB="${TM_USER_SYSTEMD_TRANSACTION_LIB:-${SCRIPT_DIR}/lib/user-systemd-unit-transaction.sh}"
 readonly LOG_FILE="${STATE_DIR}/user-systemd-unit-watchdog.log"
 readonly SYSTEMCTL_BIN="${TM_USER_SYSTEMD_SYSTEMCTL_BIN:-systemctl}"
 temporary_dir="$(mktemp -d)"
@@ -68,7 +69,8 @@ write_timer_unit() {
 }
 
 for path_label in "저장소:${REPO_ROOT}" "스크립트:${SCRIPT_DIR}" "상태:${STATE_DIR}" \
-  "기준선:${BASELINE_FILE}" "unit:${UNIT_DIR}"; do
+  "기준선:${BASELINE_FILE}" "unit:${UNIT_DIR}" \
+  "unit 트랜잭션:${USER_SYSTEMD_TRANSACTION_LIB}"; do
   validate_path "${path_label%%:*}" "${path_label#*:}"
 done
 for command_name in install mktemp "${SYSTEMCTL_BIN}" systemd-analyze; do
@@ -81,6 +83,12 @@ done
   echo "사용자 systemd watchdog 스크립트를 실행할 수 없습니다" >&2
   exit 1
 }
+[[ -r "${USER_SYSTEMD_TRANSACTION_LIB}" ]] || {
+  echo "사용자 systemd unit 트랜잭션을 읽을 수 없습니다" >&2
+  exit 1
+}
+# shellcheck source=lib/user-systemd-unit-transaction.sh
+source "${USER_SYSTEMD_TRANSACTION_LIB}"
 
 service_unit="${temporary_dir}/${SERVICE_NAME}"
 timer_unit="${temporary_dir}/${TIMER_NAME}"
@@ -98,25 +106,40 @@ if [[ -s "${verify_output}" ]]; then
   exit 1
 fi
 
+configure_user_bus
+transaction_backup="${temporary_dir}/unit-transaction"
+TM_USER_SYSTEMD_TRANSACTION_SYSTEMCTL_BIN="${SYSTEMCTL_BIN}" \
+  tm_snapshot_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" \
+    "${TIMER_NAME}" "${SERVICE_NAME}"
 install -d -m 0755 "${STATE_DIR}" "${UNIT_DIR}"
 install -m 0644 "${service_unit}" "${UNIT_DIR}/${SERVICE_NAME}"
 install -m 0644 "${timer_unit}" "${UNIT_DIR}/${TIMER_NAME}"
 
-configure_user_bus
 "${SYSTEMCTL_BIN}" --user daemon-reload
 "${SYSTEMCTL_BIN}" --user enable --now "${TIMER_NAME}"
 "${SYSTEMCTL_BIN}" --user is-enabled --quiet "${TIMER_NAME}"
 "${SYSTEMCTL_BIN}" --user is-active --quiet "${TIMER_NAME}"
+baseline_result=0
 if [[ -e "${BASELINE_FILE}" || -L "${BASELINE_FILE}" ]]; then
   TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
   TM_USER_SYSTEMD_BASELINE_FILE="${BASELINE_FILE}" \
   TM_USER_SYSTEMD_SYSTEMCTL_BIN="${SYSTEMCTL_BIN}" \
-    "${WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"
+    "${WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}" \
+    || baseline_result=$?
 else
   TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
   TM_USER_SYSTEMD_BASELINE_FILE="${BASELINE_FILE}" \
   TM_USER_SYSTEMD_SYSTEMCTL_BIN="${SYSTEMCTL_BIN}" \
-    "${WATCHDOG_SCRIPT}" --write-baseline
+    "${WATCHDOG_SCRIPT}" --write-baseline || baseline_result=$?
+fi
+if [[ "${baseline_result}" -ne 0 ]]; then
+  echo "기준선 저장 실패로 기존 user systemd watchdog unit을 복구합니다" >&2
+  TM_USER_SYSTEMD_TRANSACTION_SYSTEMCTL_BIN="${SYSTEMCTL_BIN}" \
+    tm_rollback_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" || {
+      echo "기존 user systemd watchdog unit 복구에 실패했습니다" >&2
+      exit 1
+    }
+  exit "${baseline_result}"
 fi
 grep -Eq "^[a-f0-9]{64} timer ${TIMER_NAME}$" "${BASELINE_FILE}"
 grep -Eq "^[a-f0-9]{64} service ${SERVICE_NAME}$" "${BASELINE_FILE}"
