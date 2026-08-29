@@ -137,7 +137,7 @@ tm_finish_user_systemd_unit_transaction() {
 
   [[ "${exit_status}" =~ ^([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$ ]] || return 2
   if [[ "${TM_USER_SYSTEMD_TRANSACTION_ACTIVE}" == 1 ]]; then
-    echo "사용자 systemd 설치가 완료되지 않아 기존 unit 상태를 복구합니다" >&2
+    echo "사용자 systemd 변경이 완료되지 않아 기존 unit 상태를 복구합니다" >&2
     TM_USER_SYSTEMD_TRANSACTION_SYSTEMCTL_BIN="${TM_USER_SYSTEMD_TRANSACTION_ACTIVE_SYSTEMCTL_BIN}" \
       tm_rollback_user_systemd_units \
         "${TM_USER_SYSTEMD_TRANSACTION_BACKUP_DIR}" \
@@ -151,7 +151,7 @@ tm_finish_user_systemd_unit_transaction() {
       return 1
     fi
     if [[ "${exit_status}" -eq 0 ]]; then
-      echo "커밋되지 않은 사용자 systemd 설치를 복구했습니다" >&2
+      echo "커밋되지 않은 사용자 systemd 변경을 복구했습니다" >&2
       return 1
     fi
   fi

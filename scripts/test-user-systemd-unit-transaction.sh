@@ -120,7 +120,7 @@ finish_status=$?
 set -e
 [[ "${finish_status}" == 1 ]]
 grep -Fxq 'committed service' "${UNIT_DIR}/sample.service"
-grep -Fq '커밋되지 않은 사용자 systemd 설치를 복구했습니다' \
+grep -Fq '커밋되지 않은 사용자 systemd 변경을 복구했습니다' \
   "${TEMP_DIR}/uncommitted-finish.out"
 
 echo "user systemd unit 트랜잭션 self-test 통과"
