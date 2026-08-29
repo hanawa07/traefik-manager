@@ -1,0 +1,8 @@
+[Unit]
+Description=OpenClaw post-boot healthcheck (Tailscale/Gateway)
+After=default.target
+ConditionFileIsExecutable=%h/docker/traefik-manager/scripts/openclaw-postboot-healthcheck.sh
+
+[Service]
+Type=oneshot
+ExecStart=%h/docker/traefik-manager/scripts/openclaw-postboot-healthcheck.sh

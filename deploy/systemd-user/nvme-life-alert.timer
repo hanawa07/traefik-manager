@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly NVMe SSD lifetime mail alert check
+
+[Timer]
+OnCalendar=*-*-* *:10:00
+Persistent=true
+RandomizedDelaySec=5m
+Unit=nvme-life-alert.service
+
+[Install]
+WantedBy=timers.target

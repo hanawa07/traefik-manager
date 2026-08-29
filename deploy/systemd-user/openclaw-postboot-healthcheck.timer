@@ -1,0 +1,10 @@
+[Unit]
+Description=Run OpenClaw post-boot healthcheck 2 minutes after boot
+
+[Timer]
+OnBootSec=2min
+Unit=openclaw-postboot-healthcheck.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,8 @@
+[Unit]
+Description=Check NVMe SSD lifetime and send mail alerts
+Documentation=man:nvme(1) man:smartd(8)
+ConditionFileIsExecutable=%h/docker/traefik-manager/scripts/nvme-life-alert.sh
+
+[Service]
+Type=oneshot
+ExecStart=%h/docker/traefik-manager/scripts/nvme-life-alert.sh

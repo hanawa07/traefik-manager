@@ -1,0 +1,7 @@
+[Unit]
+Description=Probe host and Docker DNS paths around hourly resolver bursts
+ConditionFileIsExecutable=%h/docker/traefik-manager/scripts/docker-dns-probe.sh
+
+[Service]
+Type=oneshot
+ExecStart=%h/docker/traefik-manager/scripts/docker-dns-probe.sh

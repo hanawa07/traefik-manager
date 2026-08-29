@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Docker DNS probe near minute 03 each hour
+
+[Timer]
+OnCalendar=*-*-* *:03:10
+AccuracySec=1s
+RandomizedDelaySec=0
+Persistent=true
+Unit=docker-dns-probe.service
+
+[Install]
+WantedBy=timers.target
