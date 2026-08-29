@@ -74,9 +74,10 @@ case "${2:-}" in
   cat)
     unit="${3:-}"
     if [[ "${unit}" == "sample.service" \
-      && "${mode}" =~ ^(drift|drift-and-unrelated|new-timer)$ ]]; then
+      && "${mode}" =~ ^(drift|drift-and-unrelated|new-timer|intruder-disabled|intruder-disabled-drift)$ ]]; then
       printf 'unit=%s;version=2\n' "${unit}"
-    elif [[ "${mode}" == "drift-and-unrelated" && "${unit}" == "sample.timer" ]]; then
+    elif [[ "${mode}" =~ ^(drift-and-unrelated|intruder-disabled-drift)$ \
+      && "${unit}" == "sample.timer" ]]; then
       printf 'unit=%s;version=2\n' "${unit}"
     else
       printf 'unit=%s;version=1\n' "${unit}"
@@ -123,6 +124,15 @@ refresh_baseline() {
   TM_USER_SYSTEMD_TEST_MODE_FILE="${MODE_FILE}" \
   TM_USER_SYSTEMD_TEST_SYSTEMCTL_LOG="${SYSTEMCTL_LOG}" \
     "${SCRIPT_DIR}/user-systemd-unit-watchdog.sh" --refresh-baseline "$@"
+}
+
+retire_baseline() {
+  TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
+  TM_USER_SYSTEMD_BASELINE_FILE="${BASELINE_FILE}" \
+  TM_USER_SYSTEMD_SYSTEMCTL_BIN="${FAKE_BIN}/systemctl" \
+  TM_USER_SYSTEMD_TEST_MODE_FILE="${MODE_FILE}" \
+  TM_USER_SYSTEMD_TEST_SYSTEMCTL_LOG="${SYSTEMCTL_LOG}" \
+    "${SCRIPT_DIR}/user-systemd-unit-watchdog.sh" --retire-baseline "$@"
 }
 
 printf '%s' healthy > "${MODE_FILE}"
@@ -224,5 +234,41 @@ refresh_baseline intruder.timer intruder.service
 [[ "$(wc -l < "${BASELINE_FILE}")" -eq 6 ]]
 grep -Eq '^[a-f0-9]{64} timer intruder.timer$' "${BASELINE_FILE}"
 grep -Eq '^[a-f0-9]{64} service intruder.service$' "${BASELINE_FILE}"
+
+cp "${BASELINE_FILE}" "${TEMP_DIR}/before-retire-baseline"
+if retire_baseline intruder.timer intruder.service > "${TEMP_DIR}/active-retire.out" 2>&1; then
+  echo "활성 unit이 기준선에서 폐기되었습니다" >&2
+  exit 1
+fi
+cmp "${TEMP_DIR}/before-retire-baseline" "${BASELINE_FILE}"
+grep -Fq '폐기 대상 unit이 아직 활성 기준선에 있습니다: intruder.' \
+  "${TEMP_DIR}/active-retire.out"
+
+printf '%s' intruder-disabled > "${MODE_FILE}"
+if retire_baseline intruder.timer > "${TEMP_DIR}/partial-retire.out" 2>&1; then
+  echo "연결 service를 제외한 timer 폐기가 허용되었습니다" >&2
+  exit 1
+fi
+cmp "${TEMP_DIR}/before-retire-baseline" "${BASELINE_FILE}"
+grep -Fq '기존 unit 삭제는 허용되지 않습니다: intruder.service' \
+  "${TEMP_DIR}/partial-retire.out"
+
+printf '%s' intruder-disabled-drift > "${MODE_FILE}"
+if retire_baseline intruder.timer intruder.service > "${TEMP_DIR}/drift-retire.out" 2>&1; then
+  echo "다른 unit 변경과 함께 기준선 폐기가 허용되었습니다" >&2
+  exit 1
+fi
+cmp "${TEMP_DIR}/before-retire-baseline" "${BASELINE_FILE}"
+grep -Fq '허용되지 않은 unit 변경: sample.timer' "${TEMP_DIR}/drift-retire.out"
+
+printf '%s' intruder-disabled > "${MODE_FILE}"
+retire_baseline intruder.timer intruder.service
+[[ "$(wc -l < "${BASELINE_FILE}")" -eq 4 ]]
+if grep -Eq ' intruder\.(timer|service)$' "${BASELINE_FILE}"; then
+  echo "폐기 unit이 기준선에 남았습니다" >&2
+  exit 1
+fi
+run_watchdog 500
+grep -Fxq 'status=healthy' "${STATE_DIR}/user-systemd-unit-watchdog.state"
 
 echo "사용자 systemd timer·service watchdog 통합 시험 통과"

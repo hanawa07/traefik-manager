@@ -152,10 +152,14 @@ read_baseline() {
   [[ "${timer_count}" -gt 0 ]]
 }
 
-refresh_baseline() {
+update_baseline() {
+  local mode="$1"
+  shift
   local inventory_file temporary_file hash role unit extra failure_reason=""
-  local -A allowed_units=()
+  local -A selected_units=()
   local -A candidate_units=()
+
+  [[ "${mode}" == refresh || "${mode}" == retire ]] || return 2
 
   read_baseline || {
     echo "기존 사용자 systemd 기준선이 없거나 올바르지 않습니다" >&2
@@ -166,11 +170,11 @@ refresh_baseline() {
       echo "허용 unit 이름이 올바르지 않습니다: ${unit}" >&2
       return 1
     }
-    [[ -z "${allowed_units[${unit}]+x}" ]] || {
-      echo "허용 unit이 중복되었습니다: ${unit}" >&2
+    [[ -z "${selected_units[${unit}]+x}" ]] || {
+      echo "대상 unit이 중복되었습니다: ${unit}" >&2
       return 1
     }
-    allowed_units["${unit}"]=1
+    selected_units["${unit}"]=1
   done
 
   inventory_file="$(mktemp "${STATE_DIR}/user-systemd-units.XXXXXX")"
@@ -188,12 +192,12 @@ refresh_baseline() {
     fi
     candidate_units["${unit}"]=1
     if [[ -z "${baseline_hashes[${unit}]+x}" ]]; then
-      [[ -n "${allowed_units[${unit}]+x}" ]] \
+      [[ "${mode}" == refresh && -n "${selected_units[${unit}]+x}" ]] \
         || failure_reason="허용되지 않은 unit 추가: ${unit}"
     elif [[ "${baseline_roles[${unit}]}" != "${role}" ]]; then
       failure_reason="unit 역할 변경은 허용되지 않습니다: ${unit}"
     elif [[ "${baseline_hashes[${unit}]}" != "${hash}" \
-      && -z "${allowed_units[${unit}]+x}" ]]; then
+      && ( "${mode}" != refresh || -z "${selected_units[${unit}]+x}" ) ]]; then
       failure_reason="허용되지 않은 unit 변경: ${unit}"
     fi
     [[ -z "${failure_reason}" ]] || break
@@ -202,15 +206,22 @@ refresh_baseline() {
   if [[ -z "${failure_reason}" ]]; then
     for unit in "${baseline_units[@]}"; do
       if [[ -z "${candidate_units[${unit}]+x}" ]]; then
-        failure_reason="기존 unit 삭제는 허용되지 않습니다: ${unit}"
-        break
+        [[ "${mode}" == retire && -n "${selected_units[${unit}]+x}" ]] \
+          || failure_reason="기존 unit 삭제는 허용되지 않습니다: ${unit}"
+        [[ -z "${failure_reason}" ]] || break
       fi
     done
   fi
   if [[ -z "${failure_reason}" ]]; then
-    for unit in "${!allowed_units[@]}"; do
-      if [[ -z "${candidate_units[${unit}]+x}" ]]; then
+    for unit in "${!selected_units[@]}"; do
+      if [[ "${mode}" == refresh && -z "${candidate_units[${unit}]+x}" ]]; then
         failure_reason="갱신 대상 unit이 활성 기준선에 없습니다: ${unit}"
+      elif [[ "${mode}" == retire && -z "${baseline_hashes[${unit}]+x}" ]]; then
+        failure_reason="폐기 대상 unit이 기존 기준선에 없습니다: ${unit}"
+      elif [[ "${mode}" == retire && -n "${candidate_units[${unit}]+x}" ]]; then
+        failure_reason="폐기 대상 unit이 아직 활성 기준선에 있습니다: ${unit}"
+      fi
+      if [[ -n "${failure_reason}" ]]; then
         break
       fi
     done
@@ -224,7 +235,19 @@ refresh_baseline() {
   chmod 644 "${temporary_file}"
   mv "${temporary_file}" "${BASELINE_FILE}"
   rm -f "${inventory_file}"
-  echo "사용자 systemd 기준선 제한 갱신 완료 (${baseline_candidate_count}개 unit)"
+  if [[ "${mode}" == refresh ]]; then
+    echo "사용자 systemd 기준선 제한 갱신 완료 (${baseline_candidate_count}개 unit)"
+  else
+    echo "사용자 systemd 기준선 제한 폐기 완료 (${baseline_candidate_count}개 unit)"
+  fi
+}
+
+refresh_baseline() {
+  update_baseline refresh "$@"
+}
+
+retire_baseline() {
+  update_baseline retire "$@"
 }
 
 add_issue() {
@@ -314,7 +337,7 @@ done
 mkdir -p "${STATE_DIR}" "${BASELINE_FILE%/*}"
 exec 9>"${LOCK_FILE}"
 if ! flock -n 9; then
-  if [[ "${1:-}" =~ ^--(write|refresh)-baseline$ ]]; then
+  if [[ "${1:-}" =~ ^--(write|refresh|retire)-baseline$ ]]; then
     echo "사용자 systemd 기준선이 다른 점검에서 사용 중입니다" >&2
     exit 1
   fi
@@ -335,8 +358,17 @@ if [[ "${1:-}" == "--refresh-baseline" ]]; then
   refresh_baseline "$@"
   exit 0
 fi
+if [[ "${1:-}" == "--retire-baseline" ]]; then
+  shift
+  [[ $# -gt 0 ]] || {
+    echo "사용법: $0 --retire-baseline <inactive-timer-or-service> [...]" >&2
+    exit 2
+  }
+  retire_baseline "$@"
+  exit 0
+fi
 [[ $# -eq 0 ]] || {
-  echo "사용법: $0 [--write-baseline|--refresh-baseline <unit> [...]]" >&2
+  echo "사용법: $0 [--write-baseline|--refresh-baseline <unit> [...]|--retire-baseline <unit> [...]]" >&2
   exit 2
 }
 command -v "${ALERT_SCRIPT}" >/dev/null || {
