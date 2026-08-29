@@ -12,6 +12,7 @@ readonly SERVICE_NAME="traefik-manager-smoke-rotation.service"
 readonly TIMER_NAME="traefik-manager-smoke-rotation.timer"
 readonly TIMER_STAMP="${TIMER_DATA_DIR}/stamp-${TIMER_NAME}"
 readonly LOG_FILE="${STATE_DIR}/smoke-password-rotation.log"
+readonly USER_SYSTEMD_WATCHDOG_SCRIPT="${TM_USER_SYSTEMD_WATCHDOG_SCRIPT:-${SCRIPT_DIR}/user-systemd-unit-watchdog.sh}"
 readonly SCHEDULE="*-*-01 04:17:00 Asia/Seoul"
 readonly CRON_BEGIN="# BEGIN TRAEFIK_MANAGER_SMOKE_ROTATION"
 readonly CRON_END="# END TRAEFIK_MANAGER_SMOKE_ROTATION"
@@ -117,7 +118,8 @@ remove_legacy_cron_block() {
 }
 
 for path_label in "저장소:${REPO_ROOT}" "스크립트:${SCRIPT_DIR}" "상태:${STATE_DIR}" \
-  "unit:${UNIT_DIR}" "timer 상태:${TIMER_DATA_DIR}"; do
+  "unit:${UNIT_DIR}" "timer 상태:${TIMER_DATA_DIR}" \
+  "기준선 갱신:${USER_SYSTEMD_WATCHDOG_SCRIPT}"; do
   validate_path "${path_label%%:*}" "${path_label#*:}"
 done
 for command_name in awk crontab grep install mktemp systemctl systemd-analyze; do
@@ -128,6 +130,10 @@ for command_name in awk crontab grep install mktemp systemctl systemd-analyze; d
 done
 [[ -x "${SCRIPT_DIR}/rotate-smoke-viewer-password.sh" ]] || {
   echo "스모크 계정 회전 스크립트를 실행할 수 없습니다" >&2
+  exit 1
+}
+[[ -x "${USER_SYSTEMD_WATCHDOG_SCRIPT}" ]] || {
+  echo "사용자 systemd 기준선 갱신 스크립트를 실행할 수 없습니다" >&2
   exit 1
 }
 systemd-analyze calendar "${SCHEDULE}" >/dev/null
@@ -159,5 +165,7 @@ systemctl --user enable --now "${TIMER_NAME}"
 systemctl --user is-enabled --quiet "${TIMER_NAME}"
 systemctl --user is-active --quiet "${TIMER_NAME}"
 remove_legacy_cron_block
+TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${STATE_DIR}}" \
+  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"
 
 echo "Traefik Manager 월간 스모크 계정 회전 timer 설치 완료"

@@ -53,15 +53,19 @@ printf '%s\n' "$*" >> "${TM_USER_SYSTEMD_INSTALL_TEST_ANALYZE_LOG}"
 SCRIPT
 chmod 700 "${FAKE_BIN}/systemctl" "${FAKE_BIN}/systemd-analyze"
 
-HOME="${HOME_DIR}" \
-XDG_CONFIG_HOME="${CONFIG_DIR}" \
-TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
-TM_USER_SYSTEMD_BASELINE_FILE="${BASELINE_FILE}" \
-TM_USER_SYSTEMD_SYSTEMCTL_BIN="${FAKE_BIN}/systemctl" \
-TM_USER_SYSTEMD_INSTALL_TEST_SYSTEMCTL_LOG="${SYSTEMCTL_LOG}" \
-TM_USER_SYSTEMD_INSTALL_TEST_ANALYZE_LOG="${ANALYZE_LOG}" \
-PATH="${FAKE_BIN}:${PATH}" \
-  "${SCRIPT_DIR}/install-user-systemd-unit-watchdog-timer.sh"
+run_installer() {
+  HOME="${HOME_DIR}" \
+  XDG_CONFIG_HOME="${CONFIG_DIR}" \
+  TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
+  TM_USER_SYSTEMD_BASELINE_FILE="${BASELINE_FILE}" \
+  TM_USER_SYSTEMD_SYSTEMCTL_BIN="${FAKE_BIN}/systemctl" \
+  TM_USER_SYSTEMD_INSTALL_TEST_SYSTEMCTL_LOG="${SYSTEMCTL_LOG}" \
+  TM_USER_SYSTEMD_INSTALL_TEST_ANALYZE_LOG="${ANALYZE_LOG}" \
+  PATH="${FAKE_BIN}:${PATH}" \
+    "${SCRIPT_DIR}/install-user-systemd-unit-watchdog-timer.sh"
+}
+
+run_installer
 
 service_unit="${CONFIG_DIR}/systemd/user/traefik-manager-user-systemd-watchdog.service"
 timer_unit="${CONFIG_DIR}/systemd/user/traefik-manager-user-systemd-watchdog.timer"
@@ -80,5 +84,8 @@ if grep -Fq 'start traefik-manager-user-systemd-watchdog.service' "${SYSTEMCTL_L
   echo "설치기가 watchdog service를 직접 실행했습니다" >&2
   exit 1
 fi
+
+run_installer > "${TEMP_DIR}/reinstall.out"
+grep -Fq '사용자 systemd 기준선 제한 갱신 완료' "${TEMP_DIR}/reinstall.out"
 
 echo "사용자 systemd watchdog timer 설치 self-test 통과"

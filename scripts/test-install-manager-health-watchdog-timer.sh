@@ -13,6 +13,7 @@ config_dir="${temporary_dir}/config"
 crontab_file="${temporary_dir}/crontab"
 systemctl_log="${temporary_dir}/systemctl.log"
 analyze_log="${temporary_dir}/systemd-analyze.log"
+baseline_log="${temporary_dir}/baseline.log"
 mkdir -p "${fake_bin}" "${home_dir}"
 
 cat > "${fake_bin}/systemctl" <<'SCRIPT'
@@ -38,7 +39,13 @@ if [[ "${1:-}" == "-l" ]]; then
 fi
 cp "$1" "${TM_TEST_CRONTAB_FILE}"
 SCRIPT
-chmod 700 "${fake_bin}/systemctl" "${fake_bin}/systemd-analyze" "${fake_bin}/crontab"
+cat > "${fake_bin}/baseline-refresh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "${TM_TEST_BASELINE_LOG}"
+SCRIPT
+chmod 700 "${fake_bin}/systemctl" "${fake_bin}/systemd-analyze" \
+  "${fake_bin}/crontab" "${fake_bin}/baseline-refresh"
 
 run_installer() {
   HOME="${home_dir}" \
@@ -47,6 +54,8 @@ run_installer() {
     TM_TEST_CRONTAB_FILE="${crontab_file}" \
     TM_TEST_SYSTEMCTL_LOG="${systemctl_log}" \
     TM_TEST_ANALYZE_LOG="${analyze_log}" \
+    TM_TEST_BASELINE_LOG="${baseline_log}" \
+    TM_USER_SYSTEMD_WATCHDOG_SCRIPT="${fake_bin}/baseline-refresh" \
     PATH="${fake_bin}:${PATH}" \
     "${SCRIPT_DIR}/install-manager-health-watchdog-timer.sh"
 }
@@ -73,6 +82,8 @@ grep -Fxq 'OnActiveSec=3min' "${timer_unit}"
 grep -Fxq 'OnUnitInactiveSec=5min' "${timer_unit}"
 grep -Fq 'enable --now traefik-manager-health-watchdog.timer' "${systemctl_log}"
 grep -Fq -- '--user verify' "${analyze_log}"
+grep -Fxq -- '--refresh-baseline traefik-manager-health-watchdog.timer traefik-manager-health-watchdog.service' \
+  "${baseline_log}"
 grep -Fq '# unrelated before' "${crontab_file}"
 grep -Fq '# unrelated after' "${crontab_file}"
 if grep -Fq 'TRAEFIK_MANAGER_HEALTH_WATCHDOG' "${crontab_file}"; then

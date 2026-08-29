@@ -10,6 +10,7 @@ readonly UNIT_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
 readonly SERVICE_NAME="traefik-manager-health-watchdog.service"
 readonly TIMER_NAME="traefik-manager-health-watchdog.timer"
 readonly LOG_FILE="${STATE_DIR}/manager-health-watchdog.log"
+readonly USER_SYSTEMD_WATCHDOG_SCRIPT="${TM_USER_SYSTEMD_WATCHDOG_SCRIPT:-${SCRIPT_DIR}/user-systemd-unit-watchdog.sh}"
 readonly CRON_BEGIN="# BEGIN TRAEFIK_MANAGER_HEALTH_WATCHDOG"
 readonly CRON_END="# END TRAEFIK_MANAGER_HEALTH_WATCHDOG"
 temporary_dir="$(mktemp -d)"
@@ -109,7 +110,7 @@ remove_legacy_cron_block() {
 }
 
 for path_label in "저장소:${REPO_ROOT}" "스크립트:${SCRIPT_DIR}" "상태:${STATE_DIR}" \
-  "unit:${UNIT_DIR}"; do
+  "unit:${UNIT_DIR}" "기준선 갱신:${USER_SYSTEMD_WATCHDOG_SCRIPT}"; do
   validate_path "${path_label%%:*}" "${path_label#*:}"
 done
 for command_name in awk crontab grep install mktemp systemctl systemd-analyze; do
@@ -120,6 +121,10 @@ for command_name in awk crontab grep install mktemp systemctl systemd-analyze; d
 done
 [[ -x "${SCRIPT_DIR}/manager-health-watchdog.sh" ]] || {
   echo "Manager health watchdog 스크립트를 실행할 수 없습니다" >&2
+  exit 1
+}
+[[ -x "${USER_SYSTEMD_WATCHDOG_SCRIPT}" ]] || {
+  echo "사용자 systemd 기준선 갱신 스크립트를 실행할 수 없습니다" >&2
   exit 1
 }
 
@@ -149,5 +154,7 @@ systemctl --user enable --now "${TIMER_NAME}"
 systemctl --user is-enabled --quiet "${TIMER_NAME}"
 systemctl --user is-active --quiet "${TIMER_NAME}"
 remove_legacy_cron_block
+TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${STATE_DIR}}" \
+  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"
 
 echo "Traefik Manager health watchdog timer 설치 완료"

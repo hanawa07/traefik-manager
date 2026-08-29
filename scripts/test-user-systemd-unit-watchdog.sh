@@ -23,6 +23,9 @@ case "${2:-}" in
     if [[ "${mode}" != "timer-disabled" ]]; then
       printf '%s\n' 'sample.timer enabled enabled'
     fi
+    if [[ "${mode}" == "new-timer" ]]; then
+      printf '%s\n' 'intruder.timer enabled enabled'
+    fi
     printf '%s\n' 'traefik-manager-user-systemd-watchdog.timer enabled enabled'
     ;;
   show)
@@ -70,7 +73,10 @@ case "${2:-}" in
     ;;
   cat)
     unit="${3:-}"
-    if [[ "${mode}" == "drift" && "${unit}" == "sample.service" ]]; then
+    if [[ "${unit}" == "sample.service" \
+      && "${mode}" =~ ^(drift|drift-and-unrelated|new-timer)$ ]]; then
+      printf 'unit=%s;version=2\n' "${unit}"
+    elif [[ "${mode}" == "drift-and-unrelated" && "${unit}" == "sample.timer" ]]; then
       printf 'unit=%s;version=2\n' "${unit}"
     else
       printf 'unit=%s;version=1\n' "${unit}"
@@ -110,11 +116,27 @@ write_baseline() {
     "${SCRIPT_DIR}/user-systemd-unit-watchdog.sh" --write-baseline
 }
 
+refresh_baseline() {
+  TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
+  TM_USER_SYSTEMD_BASELINE_FILE="${BASELINE_FILE}" \
+  TM_USER_SYSTEMD_SYSTEMCTL_BIN="${FAKE_BIN}/systemctl" \
+  TM_USER_SYSTEMD_TEST_MODE_FILE="${MODE_FILE}" \
+  TM_USER_SYSTEMD_TEST_SYSTEMCTL_LOG="${SYSTEMCTL_LOG}" \
+    "${SCRIPT_DIR}/user-systemd-unit-watchdog.sh" --refresh-baseline "$@"
+}
+
 printf '%s' healthy > "${MODE_FILE}"
 write_baseline
 [[ "$(wc -l < "${BASELINE_FILE}")" -eq 4 ]]
 grep -Eq '^[a-f0-9]{64} timer sample.timer$' "${BASELINE_FILE}"
 grep -Eq '^[a-f0-9]{64} service sample.service$' "${BASELINE_FILE}"
+cp "${BASELINE_FILE}" "${TEMP_DIR}/initial-baseline"
+if write_baseline > "${TEMP_DIR}/duplicate-write.out" 2>&1; then
+  echo "기존 기준선 전체 덮어쓰기가 허용되었습니다" >&2
+  exit 1
+fi
+cmp "${TEMP_DIR}/initial-baseline" "${BASELINE_FILE}"
+grep -Fq '명시적 unit 제한 갱신을 사용하세요' "${TEMP_DIR}/duplicate-write.out"
 
 run_watchdog 100
 grep -Fxq 'status=healthy' "${STATE_DIR}/user-systemd-unit-watchdog.state"
@@ -147,5 +169,60 @@ run_watchdog 300
 run_watchdog 310
 grep -Fq 'unit-drift:sample.service' "${ALERT_LOG}"
 [[ "$(stat --format='%a' "${STATE_DIR}/user-systemd-unit-watchdog.state")" == "644" ]]
+
+old_service_hash="$(awk '$3 == "sample.service" { print $1 }' "${BASELINE_FILE}")"
+refresh_baseline sample.service
+new_service_hash="$(awk '$3 == "sample.service" { print $1 }' "${BASELINE_FILE}")"
+[[ "${old_service_hash}" != "${new_service_hash}" ]]
+[[ "$(stat --format='%a' "${BASELINE_FILE}")" == "644" ]]
+exec 8>"${STATE_DIR}/user-systemd-unit-watchdog.lock"
+flock -n 8
+if refresh_baseline sample.service > "${TEMP_DIR}/locked.out" 2>&1; then
+  echo "잠긴 기준선 갱신이 성공으로 처리되었습니다" >&2
+  exit 1
+fi
+grep -Fq '기준선이 다른 점검에서 사용 중입니다' "${TEMP_DIR}/locked.out"
+flock -u 8
+rm -f "${STATE_DIR}/user-systemd-unit-watchdog.state"
+run_watchdog 400
+grep -Fxq 'status=healthy' "${STATE_DIR}/user-systemd-unit-watchdog.state"
+
+cp "${BASELINE_FILE}" "${TEMP_DIR}/accepted-baseline"
+printf '%s' timer-disabled > "${MODE_FILE}"
+if refresh_baseline sample.timer > "${TEMP_DIR}/removed-unit.out" 2>&1; then
+  echo "기존 unit 삭제가 기준선 갱신에 포함되었습니다" >&2
+  exit 1
+fi
+cmp "${TEMP_DIR}/accepted-baseline" "${BASELINE_FILE}"
+grep -Fq '기존 unit 삭제는 허용되지 않습니다' "${TEMP_DIR}/removed-unit.out"
+
+printf '%s' service-failed > "${MODE_FILE}"
+if refresh_baseline sample.service > "${TEMP_DIR}/failed-service.out" 2>&1; then
+  echo "실패 상태 service가 기준선 갱신에 포함되었습니다" >&2
+  exit 1
+fi
+cmp "${TEMP_DIR}/accepted-baseline" "${BASELINE_FILE}"
+grep -Fq '실패 상태 service는 기준선에 포함할 수 없습니다' \
+  "${TEMP_DIR}/failed-service.out"
+
+printf '%s' drift-and-unrelated > "${MODE_FILE}"
+if refresh_baseline sample.service > "${TEMP_DIR}/unrelated-drift.out" 2>&1; then
+  echo "허용하지 않은 unit 변경이 기준선에 포함되었습니다" >&2
+  exit 1
+fi
+cmp "${TEMP_DIR}/accepted-baseline" "${BASELINE_FILE}"
+grep -Fq '허용되지 않은 unit 변경: sample.timer' "${TEMP_DIR}/unrelated-drift.out"
+
+printf '%s' new-timer > "${MODE_FILE}"
+if refresh_baseline sample.service > "${TEMP_DIR}/unexpected-timer.out" 2>&1; then
+  echo "허용하지 않은 신규 timer가 기준선에 포함되었습니다" >&2
+  exit 1
+fi
+cmp "${TEMP_DIR}/accepted-baseline" "${BASELINE_FILE}"
+grep -Fq '허용되지 않은 unit 추가: intruder.' "${TEMP_DIR}/unexpected-timer.out"
+refresh_baseline intruder.timer intruder.service
+[[ "$(wc -l < "${BASELINE_FILE}")" -eq 6 ]]
+grep -Eq '^[a-f0-9]{64} timer intruder.timer$' "${BASELINE_FILE}"
+grep -Eq '^[a-f0-9]{64} service intruder.service$' "${BASELINE_FILE}"
 
 echo "사용자 systemd timer·service watchdog 통합 시험 통과"

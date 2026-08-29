@@ -19,6 +19,7 @@ readonly SERVICE_NAME="traefik-manager-traefik-update.service"
 readonly PATH_NAME="traefik-manager-traefik-update.path"
 readonly TIMER_NAME="traefik-manager-traefik-update.timer"
 readonly BACKEND_UID="${TM_TRAEFIK_UPDATE_BACKEND_UID:-10001}"
+readonly USER_SYSTEMD_WATCHDOG_SCRIPT="${TM_USER_SYSTEMD_WATCHDOG_SCRIPT:-${SCRIPT_DIR}/user-systemd-unit-watchdog.sh}"
 
 configure_user_bus() {
   local runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
@@ -165,6 +166,7 @@ validate_path "저장소" "${REPO_ROOT}"
 validate_path "상태" "${STATE_DIR}"
 validate_path "요청" "${REQUEST_DIR}"
 validate_path "Traefik" "${TRAEFIK_DIR}"
+validate_path "기준선 갱신" "${USER_SYSTEMD_WATCHDOG_SCRIPT}"
 validate_compose_files "${TRAEFIK_COMPOSE_FILES}"
 validate_relative_path "ACME 파일" "${TRAEFIK_ACME_FILE}"
 validate_name "Compose 서비스" "${TRAEFIK_SERVICE}"
@@ -177,6 +179,8 @@ validate_name "Docker 네트워크" "${TRAEFIK_NETWORK}"
 command -v docker >/dev/null || { echo "docker 명령을 찾을 수 없습니다" >&2; exit 1; }
 command -v setfacl >/dev/null || { echo "setfacl 명령이 필요합니다. 호스트에 acl 패키지를 설치하세요" >&2; exit 1; }
 command -v systemctl >/dev/null || { echo "systemctl 명령을 찾을 수 없습니다" >&2; exit 1; }
+[[ -x "${USER_SYSTEMD_WATCHDOG_SCRIPT}" ]] \
+  || { echo "사용자 systemd 기준선 갱신 스크립트를 실행할 수 없습니다" >&2; exit 1; }
 IFS=',' read -r -a compose_files <<< "${TRAEFIK_COMPOSE_FILES}"
 for compose_file in "${compose_files[@]}"; do
   [[ -f "${TRAEFIK_DIR}/${compose_file}" ]] \
@@ -198,4 +202,6 @@ systemctl --user start "${SERVICE_NAME}"
 service_result="$(systemctl --user show "${SERVICE_NAME}" --property=Result --value)"
 [[ "${service_result}" == "success" ]] \
   || { echo "Traefik 업데이트 실행기 시작 실패: ${service_result}" >&2; exit 1; }
+TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${STATE_DIR}}" \
+  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"
 echo "Traefik 안전 업데이트 실행기 설치 완료"

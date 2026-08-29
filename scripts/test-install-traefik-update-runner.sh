@@ -12,6 +12,7 @@ state_dir="${temporary_dir}/state"
 config_dir="${temporary_dir}/config"
 traefik_dir="${temporary_dir}/traefik"
 systemctl_log="${temporary_dir}/systemctl.log"
+baseline_log="${temporary_dir}/baseline.log"
 compose_base_file="deploy/compose.yml"
 compose_overlay_file="deploy/compose.prod.yml"
 compose_files="${compose_base_file},${compose_overlay_file}"
@@ -42,7 +43,13 @@ if [[ "$*" == *" show "* || "$*" == *" show"* ]]; then
   printf '%s\n' 'success'
 fi
 SCRIPT
-chmod 700 "${fake_bin}/docker" "${fake_bin}/setfacl" "${fake_bin}/systemctl"
+cat > "${fake_bin}/baseline-refresh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "${TM_TEST_BASELINE_LOG}"
+SCRIPT
+chmod 700 "${fake_bin}/docker" "${fake_bin}/setfacl" "${fake_bin}/systemctl" \
+  "${fake_bin}/baseline-refresh"
 
 run_installer() {
   local -a compose_environment
@@ -65,6 +72,8 @@ run_installer() {
     TM_TRAEFIK_UPDATE_NETWORK="${TM_TEST_NETWORK:-${traefik_network}}" \
     TM_TRAEFIK_MANAGER_HEALTH_URL="${TM_TEST_HEALTH_URL:-https://server-name.example.ts.net:8444/api/health}" \
     TM_TEST_SYSTEMCTL_LOG="${systemctl_log}" \
+    TM_TEST_BASELINE_LOG="${baseline_log}" \
+    TM_USER_SYSTEMD_WATCHDOG_SCRIPT="${fake_bin}/baseline-refresh" \
     PATH="${fake_bin}:${PATH}" \
     "${compose_environment[@]}" \
     "${SCRIPT_DIR}/install-traefik-update-runner.sh"
@@ -82,6 +91,8 @@ grep -Fxq 'Environment=TM_TRAEFIK_RECREATE_GUARD_SECONDS=120' "${service_unit}"
 grep -Fxq 'Environment=TM_TRAEFIK_MANAGER_HEALTH_URL=https://server-name.example.ts.net:8444/api/health' "${service_unit}"
 grep -Fq 'enable --now traefik-manager-traefik-update.path traefik-manager-traefik-update.timer' "${systemctl_log}"
 grep -Fq 'start traefik-manager-traefik-update.service' "${systemctl_log}"
+grep -Fxq -- '--refresh-baseline traefik-manager-traefik-update.timer traefik-manager-traefik-update.service' \
+  "${baseline_log}"
 
 if TM_TEST_COMPOSE_FILES='../outside.yml' run_installer > "${temporary_dir}/invalid.out" 2>&1; then
   echo "Compose 디렉터리 이탈 경로가 허용되었습니다" >&2

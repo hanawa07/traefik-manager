@@ -20,6 +20,7 @@ declare -a issues=()
 declare -A baseline_hashes=()
 declare -A baseline_roles=()
 declare -A issue_seen=()
+baseline_candidate_count=0
 
 get_property() {
   "${SYSTEMCTL_BIN}" --user show "$1" --property="$2" --value 2>/dev/null
@@ -81,11 +82,11 @@ service_is_healthy() {
   [[ -z "${result}" || "${result}" == "success" ]]
 }
 
-write_baseline() {
-  local inventory_file temporary_file role unit load active enabled hash count=0
-  inventory_file="$(mktemp "${STATE_DIR}/user-systemd-units.XXXXXX")"
-  temporary_file="$(mktemp "${BASELINE_FILE}.tmp.XXXXXX")"
-  trap 'rm -f "${inventory_file:-}" "${temporary_file:-}"' EXIT
+build_baseline_candidate() {
+  local inventory_file="$1"
+  local candidate_file="$2"
+  local role unit extra load active enabled hash
+  baseline_candidate_count=0
   discover_units > "${inventory_file}" || {
     echo "활성 사용자 systemd 타이머 목록을 만들 수 없습니다" >&2
     return 1
@@ -110,15 +111,28 @@ write_baseline() {
       return 1
     fi
     hash="$(hash_unit "${unit}")" || return 1
-    printf '%s %s %s\n' "${hash}" "${role}" "${unit}" >> "${temporary_file}"
-    count=$((count + 1))
+    printf '%s %s %s\n' "${hash}" "${role}" "${unit}" >> "${candidate_file}"
+    baseline_candidate_count=$((baseline_candidate_count + 1))
   done < "${inventory_file}"
-  [[ "${count}" -gt 0 ]] || return 1
+  [[ "${baseline_candidate_count}" -gt 0 ]]
+}
+
+write_baseline() {
+  local inventory_file temporary_file
+  if [[ -e "${BASELINE_FILE}" || -L "${BASELINE_FILE}" ]]; then
+    echo "기존 기준선이 있습니다. 명시적 unit 제한 갱신을 사용하세요" >&2
+    return 1
+  fi
+  inventory_file="$(mktemp "${STATE_DIR}/user-systemd-units.XXXXXX")"
+  temporary_file="$(mktemp "${BASELINE_FILE}.tmp.XXXXXX")"
+  if ! build_baseline_candidate "${inventory_file}" "${temporary_file}"; then
+    rm -f "${inventory_file}" "${temporary_file}"
+    return 1
+  fi
   chmod 644 "${temporary_file}"
   mv "${temporary_file}" "${BASELINE_FILE}"
-  trap - EXIT
   rm -f "${inventory_file}"
-  echo "사용자 systemd 기준선 저장 완료 (${count}개 unit)"
+  echo "사용자 systemd 기준선 저장 완료 (${baseline_candidate_count}개 unit)"
 }
 
 read_baseline() {
@@ -136,6 +150,81 @@ read_baseline() {
     [[ "${role}" == "timer" ]] && timer_count=$((timer_count + 1))
   done < "${BASELINE_FILE}"
   [[ "${timer_count}" -gt 0 ]]
+}
+
+refresh_baseline() {
+  local inventory_file temporary_file hash role unit extra failure_reason=""
+  local -A allowed_units=()
+  local -A candidate_units=()
+
+  read_baseline || {
+    echo "기존 사용자 systemd 기준선이 없거나 올바르지 않습니다" >&2
+    return 1
+  }
+  for unit in "$@"; do
+    valid_unit_name "${unit}" || {
+      echo "허용 unit 이름이 올바르지 않습니다: ${unit}" >&2
+      return 1
+    }
+    [[ -z "${allowed_units[${unit}]+x}" ]] || {
+      echo "허용 unit이 중복되었습니다: ${unit}" >&2
+      return 1
+    }
+    allowed_units["${unit}"]=1
+  done
+
+  inventory_file="$(mktemp "${STATE_DIR}/user-systemd-units.XXXXXX")"
+  temporary_file="$(mktemp "${BASELINE_FILE}.tmp.XXXXXX")"
+  if ! build_baseline_candidate "${inventory_file}" "${temporary_file}"; then
+    rm -f "${inventory_file}" "${temporary_file}"
+    return 1
+  fi
+
+  while read -r hash role unit extra; do
+    if [[ ! "${hash}" =~ ^[a-f0-9]{64}$ || -n "${extra:-}" ]] \
+      || ! valid_unit_name "${unit:-}"; then
+      failure_reason="새 기준선 후보가 올바르지 않습니다"
+      break
+    fi
+    candidate_units["${unit}"]=1
+    if [[ -z "${baseline_hashes[${unit}]+x}" ]]; then
+      [[ -n "${allowed_units[${unit}]+x}" ]] \
+        || failure_reason="허용되지 않은 unit 추가: ${unit}"
+    elif [[ "${baseline_roles[${unit}]}" != "${role}" ]]; then
+      failure_reason="unit 역할 변경은 허용되지 않습니다: ${unit}"
+    elif [[ "${baseline_hashes[${unit}]}" != "${hash}" \
+      && -z "${allowed_units[${unit}]+x}" ]]; then
+      failure_reason="허용되지 않은 unit 변경: ${unit}"
+    fi
+    [[ -z "${failure_reason}" ]] || break
+  done < "${temporary_file}"
+
+  if [[ -z "${failure_reason}" ]]; then
+    for unit in "${baseline_units[@]}"; do
+      if [[ -z "${candidate_units[${unit}]+x}" ]]; then
+        failure_reason="기존 unit 삭제는 허용되지 않습니다: ${unit}"
+        break
+      fi
+    done
+  fi
+  if [[ -z "${failure_reason}" ]]; then
+    for unit in "${!allowed_units[@]}"; do
+      if [[ -z "${candidate_units[${unit}]+x}" ]]; then
+        failure_reason="갱신 대상 unit이 활성 기준선에 없습니다: ${unit}"
+        break
+      fi
+    done
+  fi
+  if [[ -n "${failure_reason}" ]]; then
+    echo "${failure_reason}" >&2
+    rm -f "${inventory_file}" "${temporary_file}"
+    return 1
+  fi
+
+  chmod 644 "${temporary_file}"
+  mv "${temporary_file}" "${BASELINE_FILE}"
+  rm -f "${inventory_file}"
+  echo "사용자 systemd 기준선 제한 갱신 완료 (${baseline_candidate_count}개 unit)"
 }
 
 add_issue() {
@@ -224,13 +313,32 @@ done
 
 mkdir -p "${STATE_DIR}" "${BASELINE_FILE%/*}"
 exec 9>"${LOCK_FILE}"
-flock -n 9 || exit 0
+if ! flock -n 9; then
+  if [[ "${1:-}" =~ ^--(write|refresh)-baseline$ ]]; then
+    echo "사용자 systemd 기준선이 다른 점검에서 사용 중입니다" >&2
+    exit 1
+  fi
+  exit 0
+fi
 
 if [[ "${1:-}" == "--write-baseline" ]]; then
+  [[ $# -eq 1 ]] || { echo "사용법: $0 --write-baseline" >&2; exit 2; }
   write_baseline
   exit 0
 fi
-[[ $# -eq 0 ]] || { echo "사용법: $0 [--write-baseline]" >&2; exit 2; }
+if [[ "${1:-}" == "--refresh-baseline" ]]; then
+  shift
+  [[ $# -gt 0 ]] || {
+    echo "사용법: $0 --refresh-baseline <timer-or-service> [...]" >&2
+    exit 2
+  }
+  refresh_baseline "$@"
+  exit 0
+fi
+[[ $# -eq 0 ]] || {
+  echo "사용법: $0 [--write-baseline|--refresh-baseline <unit> [...]]" >&2
+  exit 2
+}
 command -v "${ALERT_SCRIPT}" >/dev/null || {
   echo "알림 스크립트를 찾을 수 없습니다: ${ALERT_SCRIPT}" >&2
   exit 1
