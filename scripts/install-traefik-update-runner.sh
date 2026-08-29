@@ -22,7 +22,19 @@ readonly BACKEND_UID="${TM_TRAEFIK_UPDATE_BACKEND_UID:-10001}"
 readonly USER_SYSTEMD_WATCHDOG_SCRIPT="${TM_USER_SYSTEMD_WATCHDOG_SCRIPT:-${SCRIPT_DIR}/user-systemd-unit-watchdog.sh}"
 readonly USER_SYSTEMD_TRANSACTION_LIB="${TM_USER_SYSTEMD_TRANSACTION_LIB:-${SCRIPT_DIR}/lib/user-systemd-unit-transaction.sh}"
 temporary_dir="$(mktemp -d)"
-trap 'rm -rf "${temporary_dir}"' EXIT
+
+finish_install() {
+  local exit_status=$?
+  trap - EXIT
+  set +e
+  if declare -F tm_finish_user_systemd_unit_transaction >/dev/null; then
+    tm_finish_user_systemd_unit_transaction "${exit_status}"
+    exit_status=$?
+  fi
+  rm -rf "${temporary_dir}"
+  exit "${exit_status}"
+}
+trap finish_install EXIT
 
 configure_user_bus() {
   local runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
@@ -201,7 +213,7 @@ install -d -m 0755 "${STATE_DIR}" "${UNIT_DIR}"
 prepare_request_dir
 configure_user_bus
 transaction_backup="${temporary_dir}/unit-transaction"
-tm_snapshot_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" \
+tm_begin_user_systemd_unit_transaction "${transaction_backup}" "${UNIT_DIR}" \
   "${PATH_NAME}" "${TIMER_NAME}" "${SERVICE_NAME}"
 health_url="$(resolve_health_url)"
 write_service_unit "${health_url}"
@@ -213,13 +225,7 @@ systemctl --user start "${SERVICE_NAME}"
 service_result="$(systemctl --user show "${SERVICE_NAME}" --property=Result --value)"
 [[ "${service_result}" == "success" ]] \
   || { echo "Traefik 업데이트 실행기 시작 실패: ${service_result}" >&2; exit 1; }
-if ! TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${STATE_DIR}}" \
-  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"; then
-  echo "기준선 갱신 실패로 기존 Traefik 업데이트 unit을 복구합니다" >&2
-  tm_rollback_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" || {
-    echo "기존 Traefik 업데이트 unit 복구에 실패했습니다" >&2
-    exit 1
-  }
-  exit 1
-fi
+TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${STATE_DIR}}" \
+  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"
+tm_commit_user_systemd_unit_transaction
 echo "Traefik 안전 업데이트 실행기 설치 완료"

@@ -15,7 +15,19 @@ readonly USER_SYSTEMD_TRANSACTION_LIB="${TM_USER_SYSTEMD_TRANSACTION_LIB:-${SCRI
 readonly CRON_BEGIN="# BEGIN TRAEFIK_MANAGER_HEALTH_WATCHDOG"
 readonly CRON_END="# END TRAEFIK_MANAGER_HEALTH_WATCHDOG"
 temporary_dir="$(mktemp -d)"
-trap 'rm -rf "${temporary_dir}"' EXIT
+
+finish_install() {
+  local exit_status=$?
+  trap - EXIT
+  set +e
+  if declare -F tm_finish_user_systemd_unit_transaction >/dev/null; then
+    tm_finish_user_systemd_unit_transaction "${exit_status}"
+    exit_status=$?
+  fi
+  rm -rf "${temporary_dir}"
+  exit "${exit_status}"
+}
+trap finish_install EXIT
 
 configure_user_bus() {
   local runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
@@ -154,7 +166,7 @@ fi
 
 configure_user_bus
 transaction_backup="${temporary_dir}/unit-transaction"
-tm_snapshot_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" \
+tm_begin_user_systemd_unit_transaction "${transaction_backup}" "${UNIT_DIR}" \
   "${TIMER_NAME}" "${SERVICE_NAME}"
 install -d -m 0755 "${STATE_DIR}" "${UNIT_DIR}"
 install -m 0644 "${service_unit}" "${UNIT_DIR}/${SERVICE_NAME}"
@@ -164,15 +176,9 @@ systemctl --user daemon-reload
 systemctl --user enable --now "${TIMER_NAME}"
 systemctl --user is-enabled --quiet "${TIMER_NAME}"
 systemctl --user is-active --quiet "${TIMER_NAME}"
-if ! TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${STATE_DIR}}" \
-  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"; then
-  echo "기준선 갱신 실패로 기존 Manager health watchdog unit을 복구합니다" >&2
-  tm_rollback_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" || {
-    echo "기존 Manager health watchdog unit 복구에 실패했습니다" >&2
-    exit 1
-  }
-  exit 1
-fi
+TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${TM_USER_SYSTEMD_WATCHDOG_STATE_DIR:-${STATE_DIR}}" \
+  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"
+tm_commit_user_systemd_unit_transaction
 remove_legacy_cron_block
 
 echo "Traefik Manager health watchdog timer 설치 완료"

@@ -15,7 +15,19 @@ readonly -a AVAILABLE_TARGETS=(
   openclaw-postboot-healthcheck
 )
 temporary_dir="$(mktemp -d)"
-trap 'rm -rf "${temporary_dir}"' EXIT
+
+finish_install() {
+  local exit_status=$?
+  trap - EXIT
+  set +e
+  if declare -F tm_finish_user_systemd_unit_transaction >/dev/null; then
+    tm_finish_user_systemd_unit_transaction "${exit_status}"
+    exit_status=$?
+  fi
+  rm -rf "${temporary_dir}"
+  exit "${exit_status}"
+}
+trap finish_install EXIT
 
 configure_user_bus() {
   local runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
@@ -97,7 +109,8 @@ fi
 
 configure_user_bus
 transaction_backup="${temporary_dir}/unit-transaction"
-tm_snapshot_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" "${unit_names[@]}"
+tm_begin_user_systemd_unit_transaction "${transaction_backup}" "${UNIT_DIR}" \
+  "${unit_names[@]}"
 install -d -m 0755 "${STATE_DIR}" "${UNIT_DIR}"
 for unit_path in "${unit_paths[@]}"; do
   install -m 0644 "${unit_path}" "${UNIT_DIR}/${unit_path##*/}"
@@ -108,13 +121,7 @@ for timer_name in "${timer_names[@]}"; do
   systemctl --user is-enabled --quiet "${timer_name}"
   systemctl --user is-active --quiet "${timer_name}"
 done
-if ! TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
-  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${unit_names[@]}"; then
-  echo "기준선 갱신 실패로 기존 host utility unit을 복구합니다" >&2
-  tm_rollback_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" || {
-    echo "기존 host utility unit 복구에 실패했습니다" >&2
-    exit 1
-  }
-  exit 1
-fi
+TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
+  "${USER_SYSTEMD_WATCHDOG_SCRIPT}" --refresh-baseline "${unit_names[@]}"
+tm_commit_user_systemd_unit_transaction
 echo "호스트 utility timer 설치 완료 (${#timer_names[@]}개)"

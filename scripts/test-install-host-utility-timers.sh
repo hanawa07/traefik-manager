@@ -18,7 +18,14 @@ trap 'rm -rf "${TEMP_DIR}"' EXIT
 mkdir -p "${FAKE_BIN}" "${HOME_DIR}"
 cat > "${FAKE_BIN}/systemctl" <<'SCRIPT'
 #!/usr/bin/env bash
+set -euo pipefail
 printf '%s\n' "$*" >> "${TM_HOST_UTILITY_TEST_SYSTEMCTL_LOG}"
+if [[ -n "${TM_HOST_UTILITY_TEST_SYSTEMCTL_FAIL_MATCH:-}" \
+  && "$*" == *"${TM_HOST_UTILITY_TEST_SYSTEMCTL_FAIL_MATCH}"* \
+  && ! -e "${TM_HOST_UTILITY_TEST_SYSTEMCTL_FAIL_MARKER}" ]]; then
+  : > "${TM_HOST_UTILITY_TEST_SYSTEMCTL_FAIL_MARKER}"
+  exit 55
+fi
 SCRIPT
 cat > "${FAKE_BIN}/systemd-analyze" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -81,6 +88,38 @@ fi
 for target in "${TARGETS[@]}"; do
   grep -Fxq "old ${target} service" "${rollback_unit_dir}/${target}.service"
   grep -Fxq "old ${target} timer" "${rollback_unit_dir}/${target}.timer"
+done
+
+failure_stages=(
+  daemon-reload
+  'enable --now docker-dns-probe.timer'
+  'is-enabled --quiet docker-dns-probe.timer'
+  'is-active --quiet docker-dns-probe.timer'
+)
+for stage_index in "${!failure_stages[@]}"; do
+  failure_config="${TEMP_DIR}/failure-config-${stage_index}"
+  failure_marker="${TEMP_DIR}/failure-marker-${stage_index}"
+  failure_output="${TEMP_DIR}/failure-output-${stage_index}"
+  if HOME="${HOME_DIR}" \
+    XDG_CONFIG_HOME="${failure_config}" \
+    TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
+    TM_USER_SYSTEMD_WATCHDOG_SCRIPT="${FAKE_BIN}/baseline-refresh" \
+    TM_HOST_UTILITY_TEST_SYSTEMCTL_LOG="${SYSTEMCTL_LOG}" \
+    TM_HOST_UTILITY_TEST_SYSTEMCTL_FAIL_MATCH="${failure_stages[${stage_index}]}" \
+    TM_HOST_UTILITY_TEST_SYSTEMCTL_FAIL_MARKER="${failure_marker}" \
+    TM_HOST_UTILITY_TEST_ANALYZE_LOG="${ANALYZE_LOG}" \
+    TM_HOST_UTILITY_TEST_BASELINE_LOG="${BASELINE_LOG}" \
+    PATH="${FAKE_BIN}:${PATH}" \
+      "${SCRIPT_DIR}/install-host-utility-timers.sh" docker-dns-probe \
+      > "${failure_output}" 2>&1; then
+    echo "systemctl 실패 단계가 설치 성공으로 처리되었습니다: ${failure_stages[${stage_index}]}" >&2
+    exit 1
+  fi
+  [[ -e "${failure_marker}" ]]
+  failure_unit_dir="${failure_config}/systemd/user"
+  [[ ! -e "${failure_unit_dir}/docker-dns-probe.service" ]]
+  [[ ! -e "${failure_unit_dir}/docker-dns-probe.timer" ]]
+  grep -Fq '기존 unit 상태를 복구합니다' "${failure_output}"
 done
 
 if HOME="${HOME_DIR}" \

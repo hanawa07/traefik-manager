@@ -130,9 +130,10 @@ write_baseline() {
     return 1
   fi
   chmod 644 "${temporary_file}"
-  mv "${temporary_file}" "${BASELINE_FILE}"
   rm -f "${inventory_file}"
-  echo "사용자 systemd 기준선 저장 완료 (${baseline_candidate_count}개 unit)"
+  mv "${temporary_file}" "${BASELINE_FILE}"
+  echo "사용자 systemd 기준선 저장 완료 (${baseline_candidate_count}개 unit)" || true
+  return 0
 }
 
 read_baseline() {
@@ -233,13 +234,14 @@ update_baseline() {
   fi
 
   chmod 644 "${temporary_file}"
-  mv "${temporary_file}" "${BASELINE_FILE}"
   rm -f "${inventory_file}"
+  mv "${temporary_file}" "${BASELINE_FILE}"
   if [[ "${mode}" == refresh ]]; then
-    echo "사용자 systemd 기준선 제한 갱신 완료 (${baseline_candidate_count}개 unit)"
+    echo "사용자 systemd 기준선 제한 갱신 완료 (${baseline_candidate_count}개 unit)" || true
   else
-    echo "사용자 systemd 기준선 제한 폐기 완료 (${baseline_candidate_count}개 unit)"
+    echo "사용자 systemd 기준선 제한 폐기 완료 (${baseline_candidate_count}개 unit)" || true
   fi
+  return 0
 }
 
 refresh_baseline() {

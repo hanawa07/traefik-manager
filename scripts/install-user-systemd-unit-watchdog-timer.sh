@@ -14,7 +14,19 @@ readonly USER_SYSTEMD_TRANSACTION_LIB="${TM_USER_SYSTEMD_TRANSACTION_LIB:-${SCRI
 readonly LOG_FILE="${STATE_DIR}/user-systemd-unit-watchdog.log"
 readonly SYSTEMCTL_BIN="${TM_USER_SYSTEMD_SYSTEMCTL_BIN:-systemctl}"
 temporary_dir="$(mktemp -d)"
-trap 'rm -rf "${temporary_dir}"' EXIT
+
+finish_install() {
+  local exit_status=$?
+  trap - EXIT
+  set +e
+  if declare -F tm_finish_user_systemd_unit_transaction >/dev/null; then
+    tm_finish_user_systemd_unit_transaction "${exit_status}"
+    exit_status=$?
+  fi
+  rm -rf "${temporary_dir}"
+  exit "${exit_status}"
+}
+trap finish_install EXIT
 
 configure_user_bus() {
   local runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
@@ -109,7 +121,7 @@ fi
 configure_user_bus
 transaction_backup="${temporary_dir}/unit-transaction"
 TM_USER_SYSTEMD_TRANSACTION_SYSTEMCTL_BIN="${SYSTEMCTL_BIN}" \
-  tm_snapshot_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" \
+  tm_begin_user_systemd_unit_transaction "${transaction_backup}" "${UNIT_DIR}" \
     "${TIMER_NAME}" "${SERVICE_NAME}"
 install -d -m 0755 "${STATE_DIR}" "${UNIT_DIR}"
 install -m 0644 "${service_unit}" "${UNIT_DIR}/${SERVICE_NAME}"
@@ -119,28 +131,18 @@ install -m 0644 "${timer_unit}" "${UNIT_DIR}/${TIMER_NAME}"
 "${SYSTEMCTL_BIN}" --user enable --now "${TIMER_NAME}"
 "${SYSTEMCTL_BIN}" --user is-enabled --quiet "${TIMER_NAME}"
 "${SYSTEMCTL_BIN}" --user is-active --quiet "${TIMER_NAME}"
-baseline_result=0
 if [[ -e "${BASELINE_FILE}" || -L "${BASELINE_FILE}" ]]; then
   TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
   TM_USER_SYSTEMD_BASELINE_FILE="${BASELINE_FILE}" \
   TM_USER_SYSTEMD_SYSTEMCTL_BIN="${SYSTEMCTL_BIN}" \
-    "${WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}" \
-    || baseline_result=$?
+    "${WATCHDOG_SCRIPT}" --refresh-baseline "${TIMER_NAME}" "${SERVICE_NAME}"
 else
   TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
   TM_USER_SYSTEMD_BASELINE_FILE="${BASELINE_FILE}" \
   TM_USER_SYSTEMD_SYSTEMCTL_BIN="${SYSTEMCTL_BIN}" \
-    "${WATCHDOG_SCRIPT}" --write-baseline || baseline_result=$?
+    "${WATCHDOG_SCRIPT}" --write-baseline
 fi
-if [[ "${baseline_result}" -ne 0 ]]; then
-  echo "기준선 저장 실패로 기존 user systemd watchdog unit을 복구합니다" >&2
-  TM_USER_SYSTEMD_TRANSACTION_SYSTEMCTL_BIN="${SYSTEMCTL_BIN}" \
-    tm_rollback_user_systemd_units "${transaction_backup}" "${UNIT_DIR}" || {
-      echo "기존 user systemd watchdog unit 복구에 실패했습니다" >&2
-      exit 1
-    }
-  exit "${baseline_result}"
-fi
+tm_commit_user_systemd_unit_transaction
 grep -Eq "^[a-f0-9]{64} timer ${TIMER_NAME}$" "${BASELINE_FILE}"
 grep -Eq "^[a-f0-9]{64} service ${SERVICE_NAME}$" "${BASELINE_FILE}"
 

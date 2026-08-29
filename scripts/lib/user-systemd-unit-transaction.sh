@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+TM_USER_SYSTEMD_TRANSACTION_ACTIVE=0
+TM_USER_SYSTEMD_TRANSACTION_BACKUP_DIR=""
+TM_USER_SYSTEMD_TRANSACTION_UNIT_DIR=""
+TM_USER_SYSTEMD_TRANSACTION_ACTIVE_SYSTEMCTL_BIN=""
+
 tm_transaction_valid_path() {
   [[ "$1" =~ ^/[A-Za-z0-9_./-]+$ ]]
 }
@@ -103,4 +108,52 @@ tm_rollback_user_systemd_units() {
     fi
   done < "${backup_dir}/manifest"
   [[ "${failed}" == 0 ]]
+}
+
+tm_begin_user_systemd_unit_transaction() {
+  local backup_dir="$1"
+  local unit_dir="$2"
+  shift 2
+
+  [[ "${TM_USER_SYSTEMD_TRANSACTION_ACTIVE}" == 0 ]] || return 2
+  tm_snapshot_user_systemd_units "${backup_dir}" "${unit_dir}" "$@" || return
+  TM_USER_SYSTEMD_TRANSACTION_BACKUP_DIR="${backup_dir}"
+  TM_USER_SYSTEMD_TRANSACTION_UNIT_DIR="${unit_dir}"
+  TM_USER_SYSTEMD_TRANSACTION_ACTIVE_SYSTEMCTL_BIN="${TM_USER_SYSTEMD_TRANSACTION_SYSTEMCTL_BIN:-systemctl}"
+  TM_USER_SYSTEMD_TRANSACTION_ACTIVE=1
+}
+
+tm_commit_user_systemd_unit_transaction() {
+  [[ "${TM_USER_SYSTEMD_TRANSACTION_ACTIVE}" == 1 ]] || return 2
+  TM_USER_SYSTEMD_TRANSACTION_ACTIVE=0
+  TM_USER_SYSTEMD_TRANSACTION_BACKUP_DIR=""
+  TM_USER_SYSTEMD_TRANSACTION_UNIT_DIR=""
+  TM_USER_SYSTEMD_TRANSACTION_ACTIVE_SYSTEMCTL_BIN=""
+}
+
+tm_finish_user_systemd_unit_transaction() {
+  local exit_status="$1"
+  local rollback_status=0
+
+  [[ "${exit_status}" =~ ^([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$ ]] || return 2
+  if [[ "${TM_USER_SYSTEMD_TRANSACTION_ACTIVE}" == 1 ]]; then
+    echo "사용자 systemd 설치가 완료되지 않아 기존 unit 상태를 복구합니다" >&2
+    TM_USER_SYSTEMD_TRANSACTION_SYSTEMCTL_BIN="${TM_USER_SYSTEMD_TRANSACTION_ACTIVE_SYSTEMCTL_BIN}" \
+      tm_rollback_user_systemd_units \
+        "${TM_USER_SYSTEMD_TRANSACTION_BACKUP_DIR}" \
+        "${TM_USER_SYSTEMD_TRANSACTION_UNIT_DIR}" || rollback_status=$?
+    TM_USER_SYSTEMD_TRANSACTION_ACTIVE=0
+    TM_USER_SYSTEMD_TRANSACTION_BACKUP_DIR=""
+    TM_USER_SYSTEMD_TRANSACTION_UNIT_DIR=""
+    TM_USER_SYSTEMD_TRANSACTION_ACTIVE_SYSTEMCTL_BIN=""
+    if [[ "${rollback_status}" -ne 0 ]]; then
+      echo "기존 사용자 systemd unit 상태 자동 복구에 실패했습니다" >&2
+      return 1
+    fi
+    if [[ "${exit_status}" -eq 0 ]]; then
+      echo "커밋되지 않은 사용자 systemd 설치를 복구했습니다" >&2
+      return 1
+    fi
+  fi
+  return "${exit_status}"
 }
