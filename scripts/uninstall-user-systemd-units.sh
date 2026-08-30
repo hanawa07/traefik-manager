@@ -14,7 +14,7 @@ readonly temporary_dir
 readonly baseline_backup="${temporary_dir}/baseline.before"
 
 usage() {
-  echo "사용법: $0 --confirm=REMOVE <timer> [path ...] <service> [...]" >&2
+  echo "사용법: $0 [--dry-run|--confirm=REMOVE] <timer> [path ...] <service> [...]" >&2
 }
 
 restore_baseline() {
@@ -81,7 +81,12 @@ configure_user_bus() {
   fi
 }
 
-[[ "${1:-}" == "--confirm=REMOVE" ]] || { usage; exit 2; }
+case "${1:-}" in
+  --dry-run) mode="DRY_RUN" ;;
+  --confirm=REMOVE) mode="REMOVE" ;;
+  *) usage; exit 2 ;;
+esac
+readonly mode
 shift
 [[ "$#" -ge 2 ]] || { usage; exit 2; }
 for path in "${STATE_DIR}" "${BASELINE_FILE}" "${UNIT_DIR}" "${WATCHDOG_SCRIPT}" \
@@ -198,6 +203,14 @@ for service in "${service_units[@]}"; do
     exit 1
   fi
 done
+
+if [[ "${mode}" == "DRY_RUN" ]]; then
+  echo "사용자 systemd unit 제거 사전 점검 완료(변경 없음)"
+  echo "중지·비활성화 예정: ${control_units[*]}"
+  echo "파일 제거 예정: ${units[*]}"
+  echo "감시 기준선 폐기 예정: ${retire_units[*]}"
+  exit 0
+fi
 
 cp -p -- "${BASELINE_FILE}" "${baseline_backup}"
 # shellcheck source=lib/user-systemd-unit-transaction.sh

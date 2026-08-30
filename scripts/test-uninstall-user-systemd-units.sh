@@ -100,6 +100,7 @@ reset_fixture() {
 }
 
 run_uninstaller() {
+  local mode="${1:---confirm=REMOVE}"
   TM_USER_SYSTEMD_UNIT_DIR="${UNIT_DIR}" \
   TM_USER_SYSTEMD_WATCHDOG_STATE_DIR="${STATE_DIR}" \
   TM_USER_SYSTEMD_BASELINE_FILE="${BASELINE_FILE}" \
@@ -110,8 +111,22 @@ run_uninstaller() {
   TM_UNINSTALL_TEST_SYSTEMCTL_LOG="${SYSTEMCTL_LOG}" \
   TM_UNINSTALL_TEST_RETIRE_FAIL="${TM_UNINSTALL_TEST_RETIRE_FAIL:-0}" \
     "${SCRIPT_DIR}/uninstall-user-systemd-units.sh" \
-      --confirm=REMOVE sample.timer sample.path sample.service
+      "${mode}" sample.timer sample.path sample.service
 }
+
+reset_fixture
+cp "${BASELINE_FILE}" "${TEMP_DIR}/baseline.before-dry-run"
+run_uninstaller --dry-run > "${TEMP_DIR}/dry-run.out"
+cmp "${TEMP_DIR}/baseline.before-dry-run" "${BASELINE_FILE}"
+for unit in sample.timer sample.path sample.service; do
+  [[ -e "${UNIT_DIR}/${unit}" ]]
+done
+[[ -e "${STATE_DIR}/enabled/sample.timer" && -e "${STATE_DIR}/active/sample.path" ]]
+if grep -Eq '^--user (stop|disable|daemon-reload)' "${SYSTEMCTL_LOG}"; then
+  echo "dry-run이 사용자 systemd 상태를 변경했습니다" >&2
+  exit 1
+fi
+grep -Fq '사전 점검 완료(변경 없음)' "${TEMP_DIR}/dry-run.out"
 
 reset_fixture
 run_uninstaller
