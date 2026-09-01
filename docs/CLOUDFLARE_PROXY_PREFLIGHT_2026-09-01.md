@@ -11,6 +11,7 @@
 - `vault`와 `jellyfin`에는 실제 장시간 소켓 연결이 있어 단순 HTTP 응답 확인만으로 전환 완료를 판정하면 안 됩니다.
 - 직접 연결 서비스가 같은 공인 IP의 80/443을 계속 사용하는 동안에는 호스트 방화벽을 Cloudflare 대역 전용으로 잠글 수 없습니다.
 - 근본적인 회선 DDoS 보호가 필요하면 Immich/Jellyfin을 Tailnet 전용으로 바꾸거나 별도 공인 IP·외부 릴레이로 분리한 뒤, 기존 80/443을 Cloudflare 전용으로 제한해야 합니다.
+- Manager의 `proxied`는 zone 단위이므로 `lizstudio.co.kr` 한 호스트 시험 중에는 zone을 Manager 자동 DNS에 등록하지 않습니다. DNS 기준선과 전환·롤백 절차는 [lizstudio.co.kr Cloudflare DNS 이관 기준선](LIZSTUDIO_CLOUDFLARE_DNS_MIGRATION_2026-09-01.md)에 기록했습니다.
 
 ## 현재 전제
 
@@ -84,11 +85,12 @@ Manager는 기존 레코드의 DNS 실효 필드인 `type`, `name`, `content`, `
 
 1. `lizstudio.co.kr`의 A·AAAA·CNAME뿐 아니라 MX·TXT·SRV·CAA와 DNSSEC 상태를 전수 대조해 Cloudflare에 DNS-only로 복제합니다.
 2. Free·Pro full setup이면 권한 네임서버를 Cloudflare로 이전하고 메일·인증·Tailnet 전용·보존 도메인을 먼저 확인합니다. 기존 DNS 사업자를 유지하는 partial setup은 Business·Enterprise에서만 선택합니다. [Cloudflare full setup](https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/), [Cloudflare partial setup](https://developers.cloudflare.com/dns/zone-setups/partial-setup/setup/)
-3. zone별 최소 권한 token과 원본 대상을 Manager에 등록하고 드리프트 0건을 확인합니다.
-4. `backup-dashboard` 한 개만 프록시한 뒤 로그인, POST, 실제 IP, rate limit과 5xx를 확인합니다.
-5. `dashy`, `dupe`, `english`, `glances`, `home`, `netdata`를 같은 유형의 후속 묶음으로 전환하고, 실제 POST·부분 응답 사용량이 많은 `tcg`는 별도 검증합니다.
-6. 조건부 후보는 앱별 WebSocket·SSE·업로드 시나리오를 통과한 뒤 전환합니다.
-7. `auth`는 마지막에 전환하고 모든 Authentik 보호 앱을 다시 확인합니다.
-8. Immich/Jellyfin 분리 경로를 확정하기 전에는 원본 80/443 방화벽을 Cloudflare 전용으로 바꾸지 않습니다.
+3. Fail2Ban의 Traefik Jail에서 Cloudflare edge 오차단을 해제하고 재발 방지 정책을 검증합니다.
+4. Manager에는 아직 zone을 등록하지 않고 `backup-dashboard` 한 개만 Cloudflare에서 수동 프록시한 뒤 로그인, POST, 실제 IP, rate limit과 5xx를 확인합니다.
+5. 선택적 프록시 검증이 끝나면 서비스별 proxy override 구현, 호환 서비스 전체 프록시, 수동 관리 유지 중 하나를 정한 뒤 Manager zone 등록 여부를 결정합니다.
+6. `dashy`, `dupe`, `english`, `glances`, `home`, `netdata`를 같은 유형의 후속 묶음으로 전환하고, 실제 POST·부분 응답 사용량이 많은 `tcg`는 별도 검증합니다.
+7. 조건부 후보는 앱별 WebSocket·SSE·업로드 시나리오를 통과한 뒤 전환합니다.
+8. `auth`는 마지막에 전환하고 모든 Authentik 보호 앱을 다시 확인합니다.
+9. Immich/Jellyfin 분리 경로를 확정하기 전에는 원본 80/443 방화벽을 Cloudflare 전용으로 바꾸지 않습니다.
 
 롤백은 해당 DNS 레코드를 기존 DNS-only 값으로 되돌리는 것으로 제한합니다. 원본 라우터와 인증 설정은 DNS 전환과 동시에 바꾸지 않아 원인과 복구 경계를 분리합니다.
