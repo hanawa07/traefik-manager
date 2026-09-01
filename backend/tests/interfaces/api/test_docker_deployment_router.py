@@ -266,6 +266,24 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
             "issues": [],
         },
     )
+    monkeypatch.setattr(
+        docker,
+        "read_cloudflare_ip_protection_state",
+        lambda: {
+            "status": "healthy",
+            "checked_at": requested_at,
+            "stale": False,
+            "stale_after_hours": 36,
+            "components": {
+                "traefik_web": "ok",
+                "traefik_websecure": "ok",
+                "hanastay_apache": "ok",
+                "fail2ban_auth": "ok",
+                "fail2ban_probe": "ok",
+                "fail2ban_slow": "ok",
+            },
+        },
+    )
     monkeypatch.setattr(docker, "GitHubActionsRunStatusReader", FakeRunStatusReader)
     monkeypatch.setattr(
         docker,
@@ -337,6 +355,7 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
         "auto_recovered"
     )
     assert result["user_systemd_watchdog"]["monitored_unit_count"] == 34
+    assert result["cloudflare_ip_protection"]["status"] == "healthy"
     assert result["deployment_history"][0]["alert_run_status"] == "completed"
     assert result["deployment_history"][0]["alert_run_conclusion"] == "success"
     assert result["deployment_history"][0]["alert_run_checked_at"] == requested_at

@@ -28,6 +28,7 @@ import {
   useTraefikRouterStatus,
 } from "@/features/traefik/hooks/useTraefik";
 import { CertificateAlertSummaryCard } from "./CertificateAlertSummaryCard";
+import { CloudflareIpProtectionCard } from "./CloudflareIpProtectionCard";
 import { DashboardServicesTable } from "./DashboardServicesTable";
 import { ManagerDeploymentCard } from "./ManagerDeploymentCard";
 import { ManagerHealthAlertBanner } from "./ManagerHealthAlertBanner";
@@ -141,6 +142,10 @@ export default function DashboardPage() {
         isError={isTraefikEncodedPathBlocksError}
         isLoading={isTraefikEncodedPathBlocksLoading}
         summary={traefikEncodedPathBlocks}
+        timezone={displayTimezone}
+      />
+      <CloudflareIpProtectionCard
+        state={deploymentInfo?.cloudflare_ip_protection}
         timezone={displayTimezone}
       />
       <ManagerDeploymentCard

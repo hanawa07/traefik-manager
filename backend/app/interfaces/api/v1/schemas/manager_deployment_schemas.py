@@ -89,6 +89,28 @@ class UserSystemdWatchdogResponse(BaseModel):
     issues: list[UserSystemdIssueResponse] = Field(default_factory=list)
 
 
+CloudflareIpComponentStatus = Literal["ok", "drift", "unavailable", "unknown"]
+
+
+class CloudflareIpProtectionComponentsResponse(BaseModel):
+    traefik_web: CloudflareIpComponentStatus = "unknown"
+    traefik_websecure: CloudflareIpComponentStatus = "unknown"
+    hanastay_apache: CloudflareIpComponentStatus = "unknown"
+    fail2ban_auth: CloudflareIpComponentStatus = "unknown"
+    fail2ban_probe: CloudflareIpComponentStatus = "unknown"
+    fail2ban_slow: CloudflareIpComponentStatus = "unknown"
+
+
+class CloudflareIpProtectionResponse(BaseModel):
+    status: Literal["healthy", "drift", "unavailable", "unknown"] = "unknown"
+    checked_at: datetime | None = None
+    stale: bool = False
+    stale_after_hours: int = Field(default=36, ge=24, le=168)
+    components: CloudflareIpProtectionComponentsResponse = Field(
+        default_factory=CloudflareIpProtectionComponentsResponse
+    )
+
+
 class ManagerSettingsHistoryLatencyResponse(BaseModel):
     enabled: bool
     available: bool
@@ -250,6 +272,9 @@ class DockerDeploymentInfoResponse(BaseModel):
     )
     user_systemd_watchdog: UserSystemdWatchdogResponse = Field(
         default_factory=UserSystemdWatchdogResponse
+    )
+    cloudflare_ip_protection: CloudflareIpProtectionResponse = Field(
+        default_factory=CloudflareIpProtectionResponse
     )
     http_error_summary: ManagerHttpErrorSummaryResponse | None = None
     http_error_monitor: ManagerHttpErrorMonitorResponse | None = None

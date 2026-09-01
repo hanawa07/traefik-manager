@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.application.manager_health_monitoring import read_external_watchdog_stale_minutes
 from app.application.manager_http_error_monitoring import read_manager_http_error_monitor_status
+from app.core.cloudflare_ip_protection_state import read_cloudflare_ip_protection_state
 from app.core.manager_watchdog_state import read_manager_watchdog_state
 from app.core.traefik_self_ban_watchdog_state import (
     read_traefik_self_ban_watchdog_state,
@@ -70,6 +71,7 @@ _deployment_endpoints = register_docker_deployment_routes(
     watchdog_state_reader_provider=lambda: read_manager_watchdog_state,
     self_ban_state_reader_provider=lambda: read_traefik_self_ban_watchdog_state,
     user_systemd_state_reader_provider=lambda: read_user_systemd_watchdog_state,
+    cloudflare_state_reader_provider=lambda: read_cloudflare_ip_protection_state,
     run_status_reader_provider=lambda: GitHubActionsRunStatusReader(),
     deployment_history_reader_provider=lambda: read_manager_deployment_history,
     deployment_archive_reader_provider=(

@@ -250,6 +250,7 @@ export interface DeploymentInfo {
   external_watchdog_alert_runs: ExternalWatchdogAlertRun[];
   traefik_self_ban_watchdog: TraefikSelfBanWatchdog;
   user_systemd_watchdog: UserSystemdWatchdog;
+  cloudflare_ip_protection: CloudflareIpProtection;
   http_error_summary: ManagerHttpErrorSummary | null;
   http_error_monitor: ManagerHttpErrorMonitorStatus | null;
   settings_history_latency_monitor: ManagerSettingsHistoryLatencyStatus | null;
@@ -259,6 +260,23 @@ export interface DeploymentInfo {
   deployment_history_archive_summary: ManagerDeploymentHistoryArchiveSummary;
   deployment_bottleneck_alert: ManagerDeploymentBottleneckAlert;
   components: DeploymentComponent[];
+}
+
+export type CloudflareIpComponentStatus = "ok" | "drift" | "unavailable" | "unknown";
+
+export interface CloudflareIpProtection {
+  status: "healthy" | "drift" | "unavailable" | "unknown";
+  checked_at: string | null;
+  stale: boolean;
+  stale_after_hours: number;
+  components: {
+    traefik_web: CloudflareIpComponentStatus;
+    traefik_websecure: CloudflareIpComponentStatus;
+    hanastay_apache: CloudflareIpComponentStatus;
+    fail2ban_auth: CloudflareIpComponentStatus;
+    fail2ban_probe: CloudflareIpComponentStatus;
+    fail2ban_slow: CloudflareIpComponentStatus;
+  };
 }
 
 export type UserSystemdIssueCode =
