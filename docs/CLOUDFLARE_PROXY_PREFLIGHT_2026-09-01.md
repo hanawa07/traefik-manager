@@ -73,7 +73,7 @@ Traefik JSON access log를 호스트별로 익명 집계했습니다. 요청 경
 
 `uptime` 서비스 수정 실패는 DNS 드리프트가 아니라, 이미 같은 레코드에도 Manager가 매번 Cloudflare `PUT`을 보낸 것이 원인이었습니다. 현재 token은 조회는 성공하지만 쓰기 요청은 `403`이므로 무관한 서비스 수정까지 실패했습니다. 기존 문서의 `DNS Settings:Edit`는 레코드 편집 권한이 아니며, 이 권한을 사용했거나 token의 zone 범위가 맞지 않으면 같은 응답이 발생할 수 있습니다.
 
-Manager는 기존 레코드의 `type`, `name`, `content`, `ttl`, `proxied`, `comment`가 모두 같으면 기존 ID를 반환하고 쓰기를 생략합니다. 실제 드리프트가 있으면 이전처럼 갱신을 시도하므로 자동 DNS 변경에는 대상 zone으로 제한한 `DNS Write`(대시보드의 `Zone:DNS:Edit`) 권한이 계속 필요합니다. [Cloudflare DNS record 갱신 권한](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/edit/)
+Manager는 기존 레코드의 DNS 실효 필드인 `type`, `name`, `content`, `ttl`, `proxied`가 모두 같으면 기존 ID를 반환하고 쓰기를 생략합니다. DNS 응답에 영향이 없는 `comment` 차이만으로 서비스 저장을 막지 않으며, 실제 드리프트가 있으면 이전처럼 갱신을 시도하므로 자동 DNS 변경에는 대상 zone으로 제한한 `DNS Write`(대시보드의 `Zone:DNS:Edit`) 권한이 계속 필요합니다. [Cloudflare DNS record 갱신 권한](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/edit/)
 
 이 수정은 다음 정상 blue-green 배포에 포함합니다. 운영 컨테이너에 파일을 직접 덮어쓰지 않습니다.
 

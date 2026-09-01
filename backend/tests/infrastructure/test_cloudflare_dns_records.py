@@ -50,11 +50,12 @@ def record_payload() -> dict[str, object]:
 
 
 @pytest.mark.asyncio
-async def test_upsert_skips_write_when_record_already_matches():
+async def test_upsert_skips_write_when_dns_effective_fields_match():
     existing = {
         "id": "existing-record",
         "modified_on": "2026-09-01T00:00:00Z",
         **record_payload(),
+        "comment": None,
     }
     client = FakeClient([existing])
 

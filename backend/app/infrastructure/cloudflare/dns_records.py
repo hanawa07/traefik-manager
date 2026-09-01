@@ -27,7 +27,7 @@ async def upsert_service_dns_record(
         )
         if existing and all(
             existing[0].get(field) == payload.get(field)
-            for field in ("type", "name", "content", "ttl", "proxied", "comment")
+            for field in ("type", "name", "content", "ttl", "proxied")
         ):
             return str(existing[0]["id"])
         if existing:
