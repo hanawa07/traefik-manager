@@ -51,7 +51,7 @@ assert_state() {
   grep -Fxq "provider_failure=$4" "${STATE_DIR}/tcg-storefront-watchdog.state"
 }
 
-/usr/bin/node "${SCRIPT_DIR}/tcg-storefront-probe.mjs" --self-test
+node "${SCRIPT_DIR}/tcg-storefront-probe.mjs" --self-test
 printf 'success' > "${ALERT_STATUS}"
 printf 'healthy' > "${PROBE_STATUS}"
 run_watchdog
