@@ -99,6 +99,8 @@ Traefik까지는 공개망에서 도달할 수 있고 애플리케이션 앞의 
 
 현재 여러 직접 공개 서비스가 동일한 원본 IP의 80/443을 공유하고 일부 서비스는 계속 직접 연결이 필요하다. 이 상태에서 호스트 방화벽을 Cloudflare 대역만 허용하도록 잠그면 직접 서비스도 함께 중단되며, L3/L4 방화벽은 TLS 안의 도메인별 예외를 구분할 수 없다. 모든 공개 웹 경로를 프록시하거나 직접 연결 예외를 별도 원본 IP·포트·Tunnel로 분리하기 전에는 원본 80/443을 Cloudflare 전용으로 제한하지 않는다. 이번 점검에서는 DNS와 호스트 방화벽을 변경하지 않았다.
 
+서비스별 호환성, Cloudflare 제한과 Immich/Jellyfin 분리 선택지는 [Cloudflare 공개 프록시 전환 사전 점검](CLOUDFLARE_PROXY_PREFLIGHT_2026-09-01.md)에 기록했다.
+
 ## 확인 근거
 
 - Traefik 런타임 API의 활성 HTTPS 라우터와 middleware
