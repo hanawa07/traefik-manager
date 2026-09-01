@@ -25,6 +25,11 @@ async def upsert_service_dns_record(
             domain=domain,
             record_type=str(payload["type"]),
         )
+        if existing and all(
+            existing[0].get(field) == payload.get(field)
+            for field in ("type", "name", "content", "ttl", "proxied", "comment")
+        ):
+            return str(existing[0]["id"])
         if existing:
             response = await client.put(
                 f"/zones/{zone_config.zone_id}/dns_records/{existing[0]['id']}",

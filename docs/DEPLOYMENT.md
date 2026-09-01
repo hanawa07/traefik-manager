@@ -20,10 +20,12 @@
 - Cloudflare를 사용하지 않는 도메인이 섞여 있어도 서비스 라우팅과 인증서 발급에는 영향이 없습니다. 다만 드리프트 진단과 재동기화는 Cloudflare 관리 대상 zone에 속한 도메인만 검사합니다.
 - Cloudflare 연결 테스트는 zone 접근만 확인합니다. 반면 드리프트 진단은 `dns_records` 목록 조회까지 수행하므로 `Zone:DNS:Read`(또는 `Zone:DNS:Edit`)와 `Zone:Zone:Read` 권한이 모두 필요합니다.
 - 드리프트 진단 결과가 `드리프트 0개`이면 오류가 아니라 정상 상태입니다. 이는 Cloudflare 관리 대상 도메인의 DNS 레코드가 Manager가 기대하는 값과 일치한다는 뜻입니다.
+- 서비스 생성·실제 DNS 변경·재동기화에는 대상 zone으로 제한한 `Zone:DNS:Edit` 권한이 필요합니다. 기존 레코드의 관리 필드가 모두 같으면 Manager는 쓰기를 생략하므로 읽기 전용 token 때문에 무관한 서비스 수정이 실패하지 않습니다.
 - 권장 토큰 권한 구성 예시:
-  - 리소스: `Zone` / 권한: `DNS Settings:Edit`
+  - 리소스: `Zone` / 권한: `DNS:Edit` (API 문서의 `DNS Write`)
   - 리소스: `Zone` / 권한: `Zone:Read`
-  - 리소스: `Zone` / 권한: `DNS:Read`
+
+`DNS Settings:Edit`는 zone DNS 설정용이며 DNS 레코드 생성·수정 권한을 대신하지 않습니다.
 
 ## Traefik File Provider 설정
 
