@@ -199,7 +199,7 @@ command -v systemctl >/dev/null || { echo "systemctl 명령을 찾을 수 없습
   || { echo "사용자 systemd 기준선 갱신 스크립트를 실행할 수 없습니다" >&2; exit 1; }
 [[ -r "${USER_SYSTEMD_TRANSACTION_LIB}" ]] \
   || { echo "사용자 systemd unit 트랜잭션을 읽을 수 없습니다" >&2; exit 1; }
-# shellcheck source=lib/user-systemd-unit-transaction.sh
+# shellcheck source=scripts/lib/user-systemd-unit-transaction.sh
 source "${USER_SYSTEMD_TRANSACTION_LIB}"
 IFS=',' read -r -a compose_files <<< "${TRAEFIK_COMPOSE_FILES}"
 for compose_file in "${compose_files[@]}"; do

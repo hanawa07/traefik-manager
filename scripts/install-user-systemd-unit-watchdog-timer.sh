@@ -99,7 +99,7 @@ done
   echo "사용자 systemd unit 트랜잭션을 읽을 수 없습니다" >&2
   exit 1
 }
-# shellcheck source=lib/user-systemd-unit-transaction.sh
+# shellcheck source=scripts/lib/user-systemd-unit-transaction.sh
 source "${USER_SYSTEMD_TRANSACTION_LIB}"
 
 service_unit="${temporary_dir}/${SERVICE_NAME}"

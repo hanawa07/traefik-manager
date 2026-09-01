@@ -213,7 +213,7 @@ if [[ "${mode}" == "DRY_RUN" ]]; then
 fi
 
 cp -p -- "${BASELINE_FILE}" "${baseline_backup}"
-# shellcheck source=lib/user-systemd-unit-transaction.sh
+# shellcheck source=scripts/lib/user-systemd-unit-transaction.sh
 source "${TRANSACTION_LIB}"
 transaction_backup="${temporary_dir}/unit-transaction"
 TM_USER_SYSTEMD_TRANSACTION_SYSTEMCTL_BIN="${SYSTEMCTL_BIN}" \

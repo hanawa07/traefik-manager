@@ -55,7 +55,7 @@ ln -s "${UNIT_DIR}/sample.timer.target" "${UNIT_DIR}/sample.timer"
 : > "${STATE_DIR}/enabled/sample.timer"
 : > "${STATE_DIR}/active/sample.timer"
 
-# shellcheck source=lib/user-systemd-unit-transaction.sh
+# shellcheck source=scripts/lib/user-systemd-unit-transaction.sh
 source "${SCRIPT_DIR}/lib/user-systemd-unit-transaction.sh"
 export TM_USER_SYSTEMD_TRANSACTION_SYSTEMCTL_BIN="${SYSTEMCTL_BIN}"
 export TM_TRANSACTION_TEST_SYSTEMCTL_LOG="${SYSTEMCTL_LOG}"
