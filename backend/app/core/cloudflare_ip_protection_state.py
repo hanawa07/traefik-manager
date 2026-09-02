@@ -8,7 +8,7 @@ CLOUDFLARE_IP_PROTECTION_STATE_PATH = (
 )
 CLOUDFLARE_IP_PROTECTION_STALE_AFTER_HOURS = 36
 MAX_STATE_BYTES = 16 * 1024
-COMPONENT_NAMES = (
+LEGACY_COMPONENT_NAMES = (
     "traefik_web",
     "traefik_websecure",
     "hanastay_apache",
@@ -16,6 +16,7 @@ COMPONENT_NAMES = (
     "fail2ban_probe",
     "fail2ban_slow",
 )
+COMPONENT_NAMES = (*LEGACY_COMPONENT_NAMES, "cloudflare_waf")
 VALID_STATUSES = {"healthy", "drift", "unavailable"}
 VALID_COMPONENT_STATUSES = {"ok", "drift", "unavailable"}
 
@@ -59,13 +60,18 @@ def read_cloudflare_ip_protection_state(
     status = payload.get("status")
     checked_at = _parse_checked_at(payload.get("checked_at"))
     components = payload.get("components")
+    schema_version = payload.get("schema_version")
+    expected_components = (
+        LEGACY_COMPONENT_NAMES if schema_version == 1 else COMPONENT_NAMES
+    )
     if (
-        payload.get("schema_version") != 1
+        type(schema_version) is not int
+        or schema_version not in {1, 2}
         or not isinstance(status, str)
         or status not in VALID_STATUSES
         or checked_at is None
         or not isinstance(components, dict)
-        or set(components) != set(COMPONENT_NAMES)
+        or set(components) != set(expected_components)
         or any(
             not isinstance(value, str) or value not in VALID_COMPONENT_STATUSES
             for value in components.values()
@@ -81,11 +87,15 @@ def read_cloudflare_ip_protection_state(
     ):
         return _unknown_state(stale_after_hours)
 
+    normalized_components = dict(components)
+    if schema_version == 1:
+        normalized_components["cloudflare_waf"] = "unknown"
+
     reference = now or datetime.now(timezone.utc)
     return {
         "status": status,
         "checked_at": checked_at,
         "stale": reference - checked_at >= timedelta(hours=stale_after_hours),
         "stale_after_hours": stale_after_hours,
-        "components": components,
+        "components": normalized_components,
     }

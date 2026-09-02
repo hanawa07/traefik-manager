@@ -99,6 +99,7 @@ class CloudflareIpProtectionComponentsResponse(BaseModel):
     fail2ban_auth: CloudflareIpComponentStatus = "unknown"
     fail2ban_probe: CloudflareIpComponentStatus = "unknown"
     fail2ban_slow: CloudflareIpComponentStatus = "unknown"
+    cloudflare_waf: CloudflareIpComponentStatus = "unknown"
 
 
 class CloudflareIpProtectionResponse(BaseModel):

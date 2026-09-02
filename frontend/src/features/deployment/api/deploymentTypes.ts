@@ -276,6 +276,7 @@ export interface CloudflareIpProtection {
     fail2ban_auth: CloudflareIpComponentStatus;
     fail2ban_probe: CloudflareIpComponentStatus;
     fail2ban_slow: CloudflareIpComponentStatus;
+    cloudflare_waf: CloudflareIpComponentStatus;
   };
 }
 

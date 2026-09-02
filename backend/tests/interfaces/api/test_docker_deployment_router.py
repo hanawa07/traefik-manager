@@ -281,6 +281,7 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
                 "fail2ban_auth": "ok",
                 "fail2ban_probe": "ok",
                 "fail2ban_slow": "ok",
+                "cloudflare_waf": "ok",
             },
         },
     )

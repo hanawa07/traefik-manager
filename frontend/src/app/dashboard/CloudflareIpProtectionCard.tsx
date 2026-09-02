@@ -18,6 +18,7 @@ const components: Array<{
   { key: "fail2ban_auth", label: "Fail2Ban 로그인" },
   { key: "fail2ban_probe", label: "빠른 스캔" },
   { key: "fail2ban_slow", label: "저속 스캔" },
+  { key: "cloudflare_waf", label: "Cloudflare WAF" },
 ];
 
 const statusView = (state?: CloudflareIpProtection) => {
@@ -73,7 +74,7 @@ export function CloudflareIpProtectionCard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-base font-semibold">
           <Icon className="h-5 w-5" />
-          Cloudflare IP 대역 보호
+          Cloudflare 엣지 보호
         </h2>
         <span className="rounded-full border border-current/20 px-2.5 py-1 text-xs font-semibold">
           {view.label}
@@ -82,7 +83,7 @@ export function CloudflareIpProtectionCard({
 
       <p className="mt-2 text-xs opacity-90">
         공식 프록시 대역의 전달 헤더 신뢰 설정과 Fail2Ban 예외·오차단을 하루 한 번 확인합니다.
-        Cloudflare WAF 규칙 본문은 현재 읽기 권한이 없어 이 상태에 포함하지 않습니다.
+        WAF 규칙은 동작 지문만 비교하며 규칙 본문과 인증정보는 표시하지 않습니다.
       </p>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
