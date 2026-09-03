@@ -62,7 +62,7 @@ export function UserSystemdWatchdogCard({ state, timezone }: UserSystemdWatchdog
       </p>
       <p className="mt-1">
         감시 대상: {state?.monitored_unit_count ? `${state.monitored_unit_count}개 unit` : "-"} ·
-        연속 이상 {state?.consecutive_failures ?? 0}회
+        연속 감지 {state?.consecutive_failures ?? 0}회
         {state?.alert_active ? " · 운영 알림 활성" : ""}
       </p>
       {state?.issues.length ? (

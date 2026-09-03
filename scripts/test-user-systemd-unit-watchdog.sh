@@ -168,7 +168,8 @@ grep -Fxq 'consecutive_failures=1' "${STATE_DIR}/user-systemd-unit-watchdog.stat
 [[ ! -s "${ALERT_LOG}" ]]
 run_watchdog 120
 [[ "$(wc -l < "${ALERT_LOG}")" -eq 1 ]]
-grep -Fq 'timer-disabled:sample.timer' "${ALERT_LOG}"
+grep -Fxq $'사용자 systemd 타이머·서비스 점검\t연속 감지 2회 · timer-disabled:sample.timer\tfailure' \
+  "${ALERT_LOG}"
 if grep -Fq 'timer-inactive:sample.timer' "${ALERT_LOG}"; then
   echo "장애 알림에 대표 원인 외의 상세가 포함되었습니다" >&2
   exit 1
@@ -179,7 +180,8 @@ run_watchdog 130
 printf '%s' healthy > "${MODE_FILE}"
 run_watchdog 140
 [[ "$(wc -l < "${ALERT_LOG}")" -eq 2 ]]
-grep -Fq $'\trecovery' "${ALERT_LOG}"
+grep -Fxq $'사용자 systemd 타이머·서비스 점검\t정상 복구 · 장애 중 연속 감지 3회\trecovery' \
+  "${ALERT_LOG}"
 
 rm -f "${STATE_DIR}/user-systemd-unit-watchdog.state"
 printf '%s' service-failed > "${MODE_FILE}"

@@ -420,7 +420,7 @@ fi
 
 if [[ "${action}" == "failure" ]]; then
   if "${ALERT_SCRIPT}" "${ALERT_SOURCE}" \
-    "연속 이상 ${current_failures}회 · ${issues[0]}" failure >/dev/null; then
+    "연속 감지 ${current_failures}회 · ${issues[0]}" failure >/dev/null; then
     alert_active="1"
     last_alert_at="${now_epoch}"
   else
@@ -431,7 +431,7 @@ if [[ "${action}" == "failure" ]]; then
   fi
 elif [[ "${action}" == "recovery" ]]; then
   if "${ALERT_SCRIPT}" "${ALERT_SOURCE}" \
-    "정상 복구 · 장애 중 연속 이상 ${consecutive_failures}회" recovery >/dev/null; then
+    "정상 복구 · 장애 중 연속 감지 ${consecutive_failures}회" recovery >/dev/null; then
     alert_active="0"
   else
     write_state unhealthy 1 "${last_alert_at}" "${consecutive_failures}" \
