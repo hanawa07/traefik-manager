@@ -40,6 +40,9 @@ case "${2:-}" in
           printf '%s\n' inactive
         elif [[ "${mode}" == "service-failed" && "${unit}" == "sample.service" ]]; then
           printf '%s\n' failed
+        elif [[ "${mode}" == "self-failed" \
+          && "${unit}" == "traefik-manager-user-systemd-watchdog.service" ]]; then
+          printf '%s\n' failed
         elif [[ "${unit}" == *.timer ]]; then
           printf '%s\n' active
         else
@@ -53,7 +56,9 @@ case "${2:-}" in
         printf '%s\n' loaded
         ;;
       Result)
-        [[ "${mode}" == "service-failed" && "${unit}" == "sample.service" ]] \
+        [[ ( "${mode}" == "service-failed" && "${unit}" == "sample.service" ) \
+          || ( "${mode}" == "self-failed" \
+            && "${unit}" == "traefik-manager-user-systemd-watchdog.service" ) ]] \
           && printf '%s\n' exit-code || printf '%s\n' success
         ;;
       ExecMainStatus)
@@ -152,6 +157,11 @@ run_watchdog 100
 grep -Fxq 'status=healthy' "${STATE_DIR}/user-systemd-unit-watchdog.state"
 [[ ! -s "${ALERT_LOG}" ]]
 
+printf '%s' self-failed > "${MODE_FILE}"
+run_watchdog 105
+grep -Fxq 'status=healthy' "${STATE_DIR}/user-systemd-unit-watchdog.state"
+refresh_baseline sample.service
+
 printf '%s' timer-disabled > "${MODE_FILE}"
 run_watchdog 110
 grep -Fxq 'consecutive_failures=1' "${STATE_DIR}/user-systemd-unit-watchdog.state"
@@ -159,6 +169,10 @@ grep -Fxq 'consecutive_failures=1' "${STATE_DIR}/user-systemd-unit-watchdog.stat
 run_watchdog 120
 [[ "$(wc -l < "${ALERT_LOG}")" -eq 1 ]]
 grep -Fq 'timer-disabled:sample.timer' "${ALERT_LOG}"
+if grep -Fq 'timer-inactive:sample.timer' "${ALERT_LOG}"; then
+  echo "장애 알림에 대표 원인 외의 상세가 포함되었습니다" >&2
+  exit 1
+fi
 run_watchdog 130
 [[ "$(wc -l < "${ALERT_LOG}")" -eq 1 ]]
 

@@ -14,6 +14,7 @@ readonly ALERT_SCRIPT="${TM_USER_SYSTEMD_ALERT_SCRIPT:-${SCRIPT_DIR}/request-hos
 readonly FAILURE_THRESHOLD="${TM_USER_SYSTEMD_FAILURE_THRESHOLD:-2}"
 readonly COOLDOWN_SECONDS="${TM_USER_SYSTEMD_COOLDOWN_SECONDS:-21600}"
 readonly ALERT_SOURCE="사용자 systemd 타이머·서비스 점검"
+readonly WATCHDOG_SERVICE_NAME="traefik-manager-user-systemd-watchdog.service"
 
 declare -a baseline_units=()
 declare -a issues=()
@@ -76,6 +77,8 @@ hash_unit() {
 
 service_is_healthy() {
   local active result
+  # The running watchdog sees its own previous Result until this invocation exits.
+  [[ "$1" == "${WATCHDOG_SERVICE_NAME}" ]] && return 0
   active="$(get_property "$1" ActiveState)" || return 1
   result="$(get_property "$1" Result)" || return 1
   [[ "${active}" != "failed" ]]
@@ -287,10 +290,12 @@ check_units() {
       [[ "${enabled}" == enabled* ]] || add_issue "timer-disabled:${unit}"
       [[ "${active}" == "active" ]] || add_issue "timer-inactive:${unit}"
     else
-      result="$(get_property "${unit}" Result 2>/dev/null || true)"
-      [[ "${active}" != "failed" ]] || add_issue "service-failed:${unit}"
-      [[ -z "${result}" || "${result}" == "success" ]] \
-        || add_issue "service-result:${unit}"
+      if [[ "${unit}" != "${WATCHDOG_SERVICE_NAME}" ]]; then
+        result="$(get_property "${unit}" Result 2>/dev/null || true)"
+        [[ "${active}" != "failed" ]] || add_issue "service-failed:${unit}"
+        [[ -z "${result}" || "${result}" == "success" ]] \
+          || add_issue "service-result:${unit}"
+      fi
     fi
     if current_hash="$(hash_unit "${unit}")"; then
       [[ "${current_hash}" == "${baseline_hashes[${unit}]}" ]] \
@@ -415,7 +420,7 @@ fi
 
 if [[ "${action}" == "failure" ]]; then
   if "${ALERT_SCRIPT}" "${ALERT_SOURCE}" \
-    "연속 이상 ${current_failures}회 · ${detail}" failure >/dev/null; then
+    "연속 이상 ${current_failures}회 · ${issues[0]}" failure >/dev/null; then
     alert_active="1"
     last_alert_at="${now_epoch}"
   else
