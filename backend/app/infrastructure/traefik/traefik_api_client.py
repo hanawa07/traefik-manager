@@ -36,6 +36,14 @@ from app.infrastructure.traefik.runtime_parsers import (
 )
 
 
+TRAEFIK_COLLECTION_PATHS = {
+    "/api/http/middlewares",
+    "/api/http/routers",
+    "/api/http/services",
+}
+TRAEFIK_COLLECTION_PAGE_SIZE = 1000
+
+
 class TraefikApiClientError(Exception):
     """Traefik API 호출 실패 예외"""
 
@@ -182,7 +190,12 @@ class TraefikApiClient:
     async def _get(self, path: str) -> dict | list:
         try:
             async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
-                response = await client.get(path)
+                params = (
+                    {"per_page": TRAEFIK_COLLECTION_PAGE_SIZE}
+                    if path in TRAEFIK_COLLECTION_PATHS
+                    else None
+                )
+                response = await client.get(path, params=params)
                 response.raise_for_status()
                 payload = response.json()
                 if not isinstance(payload, (dict, list)):

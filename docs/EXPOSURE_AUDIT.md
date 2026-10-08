@@ -1,18 +1,19 @@
 # 외부 노출 스냅샷
 
-노출 기준 시각: 2026-08-25, 앱 점검 갱신: 2026-09-01 (KST)
+노출 기준 시각: 2026-10-08, 앱 점검 갱신: 2026-09-01 (KST)
 
 이 문서는 Traefik 런타임의 활성 HTTPS `Host` 규칙을 기준으로 작성한 수동 스냅샷입니다. 공개 DNS가 존재하는 것과 인터넷에서 서비스에 접근할 수 있는 것은 구분합니다.
+2026-10-08 점검은 Traefik API의 기본 100개 제한을 사용하지 않고 `per_page=1000`으로 109개 라우터를 조회했으며, 내부 전용 `traefik-traefik` Host는 아래 외부 호스트 집계에서 제외했습니다.
 
 ## 요약
 
-- 활성 HTTPS 호스트: 29개
-- 공개 경로가 하나라도 있는 활성 호스트: 21개
+- 활성 HTTPS 호스트: 32개
+- 공개 경로가 하나라도 있는 활성 호스트: 24개
 - 전체 경로가 Tailnet 전용인 호스트: 8개
 - UI는 Tailnet 전용이고 공개 예외 경로가 있는 호스트: 1개
-- 일반 서비스 경로가 공개망에 도달하며 Authentik으로 보호되는 호스트: 12개
-- 일반 서비스 경로가 공개망에 도달하며 앱 또는 엣지 보안에 의존하는 호스트: 8개
-- DNS는 남았지만 활성 Traefik 라우터가 없는 호스트: 2개
+- 일반 서비스 경로가 공개망에 도달하며 Authentik으로 보호되는 호스트: 13개
+- 일반 서비스 경로가 공개망에 도달하며 앱 또는 엣지 보안에 의존하는 호스트: 10개
+- DNS는 남았지만 활성 Traefik 라우터가 없는 호스트: 1개
 
 ## Tailnet 전용
 
@@ -42,6 +43,7 @@
 - `english.lizstudio.co.kr`
 - `glances.lizstudio.co.kr`
 - `hanaai.lizstudio.co.kr`
+- `hanadays.co.kr`
 - `home.lizstudio.co.kr`
 - `netdata.lizstudio.co.kr`
 - `tax.hanadays.co.kr`
@@ -55,19 +57,20 @@ Traefik까지는 공개망에서 도달할 수 있고 애플리케이션 앞의 
 - `hanaspace.lizstudio.co.kr`
 - `immich.lizstudio.co.kr`
 - `jellyfin.lizstudio.co.kr`
+- `mcp.lizstudio.co.kr`
 - `tcg.lizstudio.co.kr`
 - `vault.lizstudio.co.kr`: `/admin`은 Traefik에서 차단
 - `hanastay.co.kr`: Cloudflare 프록시
 - `www.hanastay.co.kr`: Cloudflare 프록시 및 대표 도메인 리다이렉트
+- `www.hanadays.co.kr`: `hanadays.co.kr` 리다이렉트
 
 이 그룹은 Traefik 공통 SSO가 없으므로 각 앱의 로그인, 공개 서비스 설계 또는 Cloudflare 정책에 의존합니다.
 
 ## 라우터 없는 보존 도메인
 
 - `comfyui.lizstudio.co.kr`: Manager 서비스 비활성, 백엔드 중지, Traefik 404
-- `hanadays.co.kr`: 구형 OTA 서비스 비활성, 백엔드 중지, Traefik 404
 
-두 DNS 레코드와 Homepage·Dashy 링크는 중지된 서비스를 기억하고 나중에 재사용하기 위해 의도적으로 유지합니다. DNS 삭제 계획은 없으며 이 목적에는 `hosting.co.kr` 관리 권한도 필요하지 않습니다. `tax.hanadays.co.kr`과 Tailnet 전용 Portainer는 현재 활성 서비스입니다.
+ComfyUI DNS 레코드와 Homepage·Dashy 링크는 중지된 서비스를 기억하고 나중에 재사용하기 위해 의도적으로 유지합니다. DNS 삭제 계획은 없으며 이 목적에는 `hosting.co.kr` 관리 권한도 필요하지 않습니다. `hanadays.co.kr`, `tax.hanadays.co.kr`과 Tailnet 전용 Portainer는 현재 활성 서비스입니다.
 
 ## n8n 공개 webhook 판단
 
