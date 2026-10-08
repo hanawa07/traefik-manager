@@ -34,7 +34,7 @@ apiClient.interceptors.response.use(
       localStorage.removeItem("access_token");
       localStorage.removeItem("auth");
       if (!url.includes("/auth/login") && !url.includes("/auth/me") && typeof window !== "undefined") {
-        window.location.href = "/login";
+        window.location.replace(new URL("/login", window.location.origin));
       }
     }
     return Promise.reject(error);

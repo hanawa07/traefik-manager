@@ -256,6 +256,20 @@ API proxy와 설정 초기화 이미지도 같은 기준에서 0건입니다.
 
 ---
 
+### [DEPENDENCY-1] 2026-10-08 애플리케이션 의존성 보안 패치
+
+프론트 운영 의존성은 Next.js `16.4.0`, Axios `1.20.0`, Sharp `0.35.5`,
+PostCSS `8.5.29`로 올렸고 `npm audit --omit=dev` 결과는 0건입니다. 백엔드는
+PyJWT를 `2.15.0`으로 올렸으며 `pip-audit -r requirements.txt` 결과도 0건입니다.
+
+전체 `npm audit`에는 Tailwind CSS 3와 ESLint 하위의 빌드·린트 전용 항목 9건이
+남습니다. 자동 강제 수정은 Tailwind CSS 4 전환 또는 현재 Next.js와 맞지 않는
+ESLint 구성 변경을 요구하므로 운영 의존성 패치와 섞지 않습니다. 이 경로는 런타임
+이미지의 production dependency 감사에는 포함되지 않으며, Tailwind 4 전환은 별도
+UI 회귀 작업으로 진행합니다.
+
+---
+
 ## 후속 검토 상태
 
 Manager 코드와 Manager가 소유한 실행 이미지에 남은 필수 보안 수정은 없습니다.
