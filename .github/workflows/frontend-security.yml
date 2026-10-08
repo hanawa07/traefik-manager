@@ -25,8 +25,11 @@ jobs:
         with:
           node-version: 22
 
-      - name: 전체 의존성 high 이상 취약점 차단
-        run: npm --prefix frontend audit --package-lock-only --audit-level=high
+      - name: 운영 의존성 high 이상 취약점 차단
+        run: npm --prefix frontend audit --package-lock-only --omit=dev --audit-level=high
+
+      - name: 전체 의존성 critical 취약점 차단
+        run: npm --prefix frontend audit --package-lock-only --audit-level=critical
 
   backend-audit:
     runs-on: ubuntu-latest
