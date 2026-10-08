@@ -32,6 +32,7 @@ jobs:
       - name: 운영 스크립트 정적·회귀 검사
         run: |
           git ls-files -z '*.sh' | xargs -0 shellcheck
+          node scripts/check-exposure-snapshot.mjs --self-test
           scripts/test-manager-health-watchdog.sh
           scripts/blue-green-deploy.sh --self-test
           scripts/rotate-smoke-viewer-password.sh --self-test

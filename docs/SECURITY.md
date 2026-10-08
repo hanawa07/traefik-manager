@@ -265,9 +265,11 @@ PyJWT를 `2.15.0`으로 올렸으며 `pip-audit -r requirements.txt` 결과도 0
 전체 `npm audit`에는 Tailwind CSS 3와 ESLint 하위의 빌드·린트 전용 항목 9건이
 남습니다. 자동 강제 수정은 Tailwind CSS 4 전환 또는 현재 Next.js와 맞지 않는
 ESLint 구성 변경을 요구하므로 운영 의존성 패치와 섞지 않습니다. 이 경로는 런타임
-이미지의 production dependency 감사에는 포함되지 않으며, Tailwind 4 전환은 별도
-UI 회귀 작업으로 진행합니다. CI는 운영 의존성 high 이상과 전체 의존성 critical
-이상을 각각 차단해 이 예외가 운영 패키지나 critical 취약점까지 확대되지 않게 합니다.
+이미지의 production dependency 감사에는 포함되지 않습니다. Tailwind 4는 Safari
+16.4 이상만 지원하므로 iOS 15 접근 가능성을 유지하는 동안 전환하지 않습니다. 지원
+브라우저 하한을 올리기로 결정한 뒤 별도 UI 회귀 작업으로 진행합니다. CI는 운영
+의존성 high 이상과 전체 의존성 critical 이상을 각각 차단해 이 예외가 운영 패키지나
+critical 취약점까지 확대되지 않게 합니다.
 
 ---
 
