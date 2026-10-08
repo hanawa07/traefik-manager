@@ -19,7 +19,7 @@ export const auditFilters = [
   { key: "certificate_error", label: "인증서 만료" },
   { key: "certificate_recovered", label: "인증서 복구" },
   { key: "certificate_preflight", label: "인증서 사전 진단" },
-  { key: "certificate_preflight_repeated_failure", label: "인증서 반복 실패" },
+  { key: "certificate_preflight_repeated_failure", label: "인증서 사전 진단 반복 실패" },
 ] as const;
 
 export const managerSourceOptions = [

@@ -129,5 +129,8 @@ export const securityEventConfig: Record<string, BadgeConfig> = {
   certificate_error: { label: "인증서 만료", color: "bg-red-50 text-red-700 border-red-200" },
   certificate_recovered: { label: "인증서 복구", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   certificate_preflight: { label: "인증서 사전 진단", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  certificate_preflight_repeated_failure: { label: "인증서 반복 실패", color: "bg-rose-50 text-rose-700 border-rose-200" },
+  certificate_preflight_repeated_failure: {
+    label: "인증서 사전 진단 반복 실패",
+    color: "bg-rose-50 text-rose-700 border-rose-200",
+  },
 };

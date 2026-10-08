@@ -23,7 +23,7 @@ export const CHANGE_ALERT_EVENT_OPTIONS: Array<{
   { key: "middleware_change", label: "미들웨어 변경" },
   { key: "user_change", label: "사용자 변경" },
   { key: "certificate_status_change", label: "인증서 상태 전이" },
-  { key: "certificate_preflight_failure", label: "인증서 반복 실패" },
+  { key: "certificate_preflight_failure", label: "인증서 사전 진단 반복 실패" },
   { key: "manager_health", label: "Manager 상태" },
   { key: "rollback", label: "롤백" },
 ];

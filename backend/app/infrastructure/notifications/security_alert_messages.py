@@ -30,7 +30,7 @@ def build_message(event: str, resource_name: str, client_ip: Any, category: str)
         "certificate_warning": "인증서 만료 임박",
         "certificate_error": "인증서 만료",
         "certificate_recovered": "인증서 복구",
-        "certificate_preflight_repeated_failure": "인증서 발급 반복 실패",
+        "certificate_preflight_repeated_failure": "인증서 사전 진단 반복 실패",
         "smoke_rotation_failed": "스모크 계정 비밀번호 회전 실패",
         "smoke_admin_stale_test": "[테스트] 관리자 전용 점검 지연",
         "github_api_rate_limit_test": "[테스트] GitHub API 반복 제한",
