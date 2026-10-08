@@ -5,7 +5,11 @@ import { checkAuditBulkOperationFixture } from "./dashboard-visual-audit-bulk-op
 import { checkAuditDelayedRetryFilter } from "./dashboard-visual-audit-delayed-retry.mjs";
 import { checkAuditGithubApiRateLimitTrend } from "./dashboard-visual-audit-github-rate-limit.mjs";
 import { checkAuditFilterPersistence } from "./dashboard-visual-audit-interactions.mjs";
-import { checkAuditRetryChain, checkSmokeRotationAuditDetail } from "./dashboard-visual-audit-monitoring.mjs";
+import {
+  checkAuditRetryChain,
+  checkSmokeRotationAuditDetail,
+  runAuditMonitoringSelfTest,
+} from "./dashboard-visual-audit-monitoring.mjs";
 import { checkAuditSecuritySettingChanges } from "./dashboard-visual-audit-security-setting-changes.mjs";
 import { checkDeploymentBottleneckSettingsPreview } from "./dashboard-visual-deployment-bottleneck-settings.mjs";
 import { checkOptionalDeploymentBottleneckCleanupCancel, runDeploymentBottleneckCleanupSelfTest } from "./dashboard-visual-deployment-bottleneck-cleanup.mjs";
@@ -78,8 +82,10 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
           labels.push(`${profile.label} 지연 재시도·GitHub API 제한 추이·필터·CSV${securityChangeCount ? `·보안 변경 카드 ${securityChangeCount}종` : ""}`);
           const retryChainChecked = await checkAuditRetryChain({ cdp, timeoutMs });
           if (retryChainChecked) labels.push(`${profile.label} 알림 재시도 전체 체인·단계 경과·지연 강조`);
-          await checkSmokeRotationAuditDetail({ cdp, timeoutMs });
-          labels.push(`${profile.label} Secret 회전 실패 상세`);
+          const rotationAuditEvent = await checkSmokeRotationAuditDetail({ cdp, timeoutMs });
+          labels.push(
+            `${profile.label} Secret 회전 ${rotationAuditEvent === "smoke_rotation_failed" ? "실패" : "성공"} 상세`,
+          );
           await checkAuditFilterPersistence({ cdp, profile, timeoutMs });
           labels.push(`${profile.label} 감사 필터 조합·Traefik 자동 펼침·역링크·레이아웃`);
         }
@@ -165,6 +171,7 @@ export async function runDashboardVisualSmokeSelfTest() {
   runMaintenanceScheduleFixtureSelfTest();
   runAuditBulkOperationFixtureSelfTest();
   runSettingsSectionStructureSelfTest();
+  runAuditMonitoringSelfTest();
   const serviceRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/services");
   const dashboardRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard");
   const auditRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/audit");

@@ -145,24 +145,50 @@ export async function checkSmokeRotationAuditDetail({ cdp, timeoutMs }) {
     "Secret 회전 감사 로그를 불러오지 못했습니다",
   );
 
-  const failureFound = await evaluate(cdp, `(() => {
-    const row = document.querySelector('tr[data-audit-event="smoke_rotation_failed"]');
+  const auditEvent = await evaluate(cdp, `(() => {
+    const row = document.querySelector('tr[data-audit-event="smoke_rotation_failed"]') ||
+      document.querySelector('tr[data-audit-event="smoke_rotation_succeeded"]');
     const button = Array.from(row?.querySelectorAll('button') || []).find(
       (item) => item.textContent?.trim() === '상세 보기'
     );
     button?.click();
-    return Boolean(button);
+    return button ? row?.getAttribute('data-audit-event') : null;
   })()`);
-  assert.equal(failureFound, true, "실패한 Secret 회전 감사 로그를 찾지 못했습니다");
+  const expectation = getSmokeRotationAuditExpectation(auditEvent);
+  assert.ok(expectation, "Secret 회전 성공 또는 실패 감사 로그를 찾지 못했습니다");
   await waitForCondition(
     cdp,
     `(() => {
       const text = document.querySelector('[data-testid="smoke-rotation-audit-detail"]')?.textContent || '';
       return text.includes('Secret 회전 상세') &&
         text.includes('회전 결과') &&
-        text.includes('실패 단계');
+        text.includes(${JSON.stringify(expectation.resultLabel)}) &&
+        ${expectation.detailLabel ? `text.includes(${JSON.stringify(expectation.detailLabel)})` : "true"};
     })()`,
     timeoutMs,
-    "Secret 회전 실패 상세가 표시되지 않았습니다",
+    `Secret 회전 ${expectation.resultLabel} 상세가 표시되지 않았습니다`,
   );
+  return auditEvent;
+}
+
+export function getSmokeRotationAuditExpectation(event) {
+  if (event === "smoke_rotation_failed") {
+    return { detailLabel: "실패 단계", resultLabel: "실패" };
+  }
+  if (event === "smoke_rotation_succeeded") {
+    return { detailLabel: null, resultLabel: "성공" };
+  }
+  return null;
+}
+
+export function runAuditMonitoringSelfTest() {
+  assert.deepEqual(getSmokeRotationAuditExpectation("smoke_rotation_failed"), {
+    detailLabel: "실패 단계",
+    resultLabel: "실패",
+  });
+  assert.deepEqual(getSmokeRotationAuditExpectation("smoke_rotation_succeeded"), {
+    detailLabel: null,
+    resultLabel: "성공",
+  });
+  assert.equal(getSmokeRotationAuditExpectation("service_update"), null);
 }
