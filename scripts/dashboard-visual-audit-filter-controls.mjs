@@ -9,27 +9,37 @@ import {
 export async function assertAuditPagination(cdp, timeoutMs) {
   await waitForCondition(
     cdp,
-    `Boolean(document.querySelector('nav[aria-label="감사 로그 페이지"]'))`,
+    `Boolean(document.querySelector('nav[aria-label="감사 로그 페이지"]')) &&
+      document.querySelector('[data-visual-surface]')?.getAttribute('aria-busy') === 'false'`,
     timeoutMs,
-    "감사 로그 페이지네이션이 표시되지 않았습니다",
+    "감사 로그 페이지네이션 로드가 완료되지 않았습니다",
   );
   const snapshot = await evaluate(cdp, `(() => {
     const nav = document.querySelector('nav[aria-label="감사 로그 페이지"]');
+    const pageSize = Number(document.querySelector('select[aria-label="감사 로그 페이지 크기"]')?.value);
+    const currentPage = Number(nav?.getAttribute('data-audit-page'));
     const total = Number(nav?.getAttribute('data-audit-total'));
     const next = document.querySelector('button[aria-label="다음 감사 로그 페이지"]');
-    return { nextDisabled: next?.disabled, total };
+    return { currentPage, nextDisabled: next?.disabled, pageSize, total };
   })()`);
   assert.ok(Number.isInteger(snapshot.total) && snapshot.total >= 0, "감사 로그 총 건수가 올바르지 않습니다");
-  assert.equal(snapshot.nextDisabled, snapshot.total <= 50, "감사 로그 다음 페이지 상태가 총 건수와 맞지 않습니다");
-  if (snapshot.total > 50) {
+  assert.ok(Number.isInteger(snapshot.currentPage) && snapshot.currentPage >= 1, "감사 로그 현재 페이지가 올바르지 않습니다");
+  assert.ok(Number.isInteger(snapshot.pageSize) && snapshot.pageSize > 0, "감사 로그 페이지 크기가 올바르지 않습니다");
+  assert.equal(
+    snapshot.nextDisabled,
+    isAuditNextPageDisabled(snapshot),
+    "감사 로그 다음 페이지 상태가 페이지 정보와 맞지 않습니다",
+  );
+  if (!snapshot.nextDisabled) {
     await clickAriaLabel(cdp, "다음 감사 로그 페이지");
-    await waitForAuditQueryParam(cdp, "page", "2", timeoutMs);
+    const nextPage = snapshot.currentPage + 1;
+    await waitForAuditQueryParam(cdp, "page", String(nextPage), timeoutMs);
     await waitForCondition(
       cdp,
-      `document.querySelector('nav[aria-label="감사 로그 페이지"]')?.getAttribute('data-audit-page') === '2' &&
+      `document.querySelector('nav[aria-label="감사 로그 페이지"]')?.getAttribute('data-audit-page') === '${nextPage}' &&
         document.querySelector('[data-visual-surface]')?.getAttribute('aria-busy') === 'false'`,
       timeoutMs,
-      "감사 로그 2페이지 결과가 로드되지 않았습니다",
+      "감사 로그 다음 페이지 결과가 로드되지 않았습니다",
     );
   }
   const pageSizeChanged = await evaluate(cdp, `(() => {
@@ -71,6 +81,19 @@ export async function assertAuditPagination(cdp, timeoutMs) {
     timeoutMs,
     "감사 로그 직접 지정 페이지가 로드되지 않았습니다",
   );
+}
+
+export function isAuditNextPageDisabled({ currentPage, pageSize, total }) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  return currentPage >= totalPages;
+}
+
+export function runAuditFilterControlsSelfTest() {
+  assert.equal(isAuditNextPageDisabled({ currentPage: 1, pageSize: 50, total: 0 }), true);
+  assert.equal(isAuditNextPageDisabled({ currentPage: 1, pageSize: 50, total: 50 }), true);
+  assert.equal(isAuditNextPageDisabled({ currentPage: 1, pageSize: 50, total: 51 }), false);
+  assert.equal(isAuditNextPageDisabled({ currentPage: 2, pageSize: 50, total: 51 }), true);
+  assert.equal(isAuditNextPageDisabled({ currentPage: 2, pageSize: 100, total: 250 }), false);
 }
 
 export async function assertManagerCrossCount(cdp, timeoutMs) {

@@ -4,6 +4,7 @@ import { runAuditBulkOperationFixtureSelfTest } from "./dashboard-visual-audit-b
 import { checkAuditBulkOperationFixture } from "./dashboard-visual-audit-bulk-operations.mjs";
 import { checkAuditDelayedRetryFilter } from "./dashboard-visual-audit-delayed-retry.mjs";
 import { checkAuditGithubApiRateLimitTrend } from "./dashboard-visual-audit-github-rate-limit.mjs";
+import { runAuditFilterControlsSelfTest } from "./dashboard-visual-audit-filter-controls.mjs";
 import { checkAuditFilterPersistence } from "./dashboard-visual-audit-interactions.mjs";
 import {
   checkAuditRetryChain,
@@ -170,6 +171,7 @@ export async function runDashboardVisualSmokeSelfTest() {
   runDeploymentBottleneckCleanupSelfTest();
   runMaintenanceScheduleFixtureSelfTest();
   runAuditBulkOperationFixtureSelfTest();
+  runAuditFilterControlsSelfTest();
   runSettingsSectionStructureSelfTest();
   runAuditMonitoringSelfTest();
   const serviceRoute = DASHBOARD_ROUTES.find((route) => route.path === "/dashboard/services");
