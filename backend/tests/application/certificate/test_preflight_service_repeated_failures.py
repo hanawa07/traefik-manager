@@ -43,6 +43,65 @@ async def test_record_certificate_preflight_result_records_repeated_failure_when
 
 
 @pytest.mark.asyncio
+async def test_smoke_preflight_is_recorded_without_operational_failure_alert(monkeypatch):
+    captured_records = capture_audit_records(monkeypatch)
+    repeated_logs = [
+        make_preflight_log(checked_at=utc_dt(11, 55)),
+        make_preflight_log(checked_at=utc_dt(11, 50)),
+    ]
+
+    result = await preflight_service.record_certificate_preflight_result(
+        db=StubAuditDb(repeated_logs),
+        actor=preflight_service.settings.SMOKE_VIEWER_USERNAME,
+        domain="example.com",
+        result=make_preflight_result(),
+        client_ip="127.0.0.1",
+        config=CertificateDiagnosticsSettings(
+            auto_check_interval_minutes=60,
+            repeat_alert_threshold=3,
+            repeat_alert_window_minutes=240,
+            repeat_alert_cooldown_minutes=240,
+        ),
+    )
+
+    assert result["previous_result"] is not None
+    assert result["repeated_failure_streak"] == 0
+    assert result["repeated_failure_active"] is False
+    assert result["repeated_failure_emitted"] is False
+    assert [record["detail"]["event"] for record in captured_records] == ["certificate_preflight"]
+
+
+@pytest.mark.asyncio
+async def test_operational_preflight_excludes_previous_smoke_failures(monkeypatch):
+    captured_records = capture_audit_records(monkeypatch)
+    smoke_actor = preflight_service.settings.SMOKE_VIEWER_USERNAME
+    repeated_logs = [
+        make_preflight_log(checked_at=utc_dt(11, 55), actor=smoke_actor),
+        make_preflight_log(checked_at=utc_dt(11, 50), actor=smoke_actor),
+    ]
+
+    result = await preflight_service.record_certificate_preflight_result(
+        db=StubAuditDb(repeated_logs),
+        actor="system",
+        domain="example.com",
+        result=make_preflight_result(),
+        client_ip=None,
+        config=CertificateDiagnosticsSettings(
+            auto_check_interval_minutes=60,
+            repeat_alert_threshold=3,
+            repeat_alert_window_minutes=240,
+            repeat_alert_cooldown_minutes=240,
+        ),
+    )
+
+    assert result["previous_result"] is None
+    assert result["repeated_failure_streak"] == 1
+    assert result["repeated_failure_active"] is False
+    assert result["repeated_failure_emitted"] is False
+    assert [record["detail"]["event"] for record in captured_records] == ["certificate_preflight"]
+
+
+@pytest.mark.asyncio
 async def test_record_certificate_preflight_result_suppresses_repeated_failure_within_cooldown(monkeypatch):
     captured_records = capture_audit_records(monkeypatch)
     previous_logs = [

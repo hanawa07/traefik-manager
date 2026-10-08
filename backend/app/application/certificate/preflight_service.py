@@ -29,7 +29,11 @@ async def record_certificate_preflight_result(
     previous_results = await list_previous_preflight_results(db, domain)
     previous_alerts = await list_previous_repeated_failure_alerts(db, domain)
     previous_result = previous_results[0] if previous_results else None
-    repeated_failure_streak = calculate_preflight_failure_streak(result, previous_results, config=resolved_config)
+    repeated_failure_streak = (
+        0
+        if _is_smoke_actor(actor)
+        else calculate_preflight_failure_streak(result, previous_results, config=resolved_config)
+    )
     repeated_failure_active = repeated_failure_streak >= resolved_config.repeat_alert_threshold
 
     await audit_service.record(
@@ -88,6 +92,8 @@ async def get_certificate_preflight_state(
     logs = result.scalars().all()
     snapshots_by_domain: dict[str, list[dict]] = {}
     for log in logs:
+        if _is_smoke_actor(getattr(log, "actor", None)):
+            continue
         domain = getattr(log, "resource_name", None)
         if not isinstance(domain, str) or not domain:
             continue
@@ -122,6 +128,8 @@ async def list_previous_preflight_results(db: AsyncSession, domain: str) -> list
     logs = result.scalars().all()
     snapshots: list[dict] = []
     for log in logs:
+        if _is_smoke_actor(getattr(log, "actor", None)):
+            continue
         snapshot = deserialize_preflight_snapshot(log.detail)
         if snapshot is not None:
             snapshots.append(snapshot)
@@ -138,7 +146,16 @@ async def list_previous_repeated_failure_alerts(db: AsyncSession, domain: str) -
     logs = result.scalars().all()
     alerts: list[dict] = []
     for log in logs:
+        if _is_smoke_actor(getattr(log, "actor", None)):
+            continue
         alert = deserialize_repeated_failure_alert(log.detail)
         if alert is not None:
             alerts.append(alert)
     return alerts
+
+
+def _is_smoke_actor(actor: object) -> bool:
+    return actor in {
+        settings.SMOKE_VIEWER_USERNAME,
+        settings.SMOKE_ADMIN_USERNAME,
+    }

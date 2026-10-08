@@ -94,6 +94,7 @@ def make_preflight_log(
     items: list[dict] | None = None,
     failure_keys: list[str] | None = None,
     resource_name: str | None = None,
+    actor: str | None = None,
 ):
     detail = {
         "event": event,
@@ -112,4 +113,6 @@ def make_preflight_log(
     attrs = {"detail": detail, "created_at": checked_at}
     if resource_name is not None:
         attrs["resource_name"] = resource_name
+    if actor is not None:
+        attrs["actor"] = actor
     return SimpleNamespace(**attrs)
