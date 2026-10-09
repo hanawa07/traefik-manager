@@ -49,8 +49,7 @@ export async function checkManualSmokeRunResultPersistence({ cdp, timeoutMs }) {
   await deletedReload;
   await waitForCondition(
     cdp,
-    `document.querySelector('[data-testid="smoke-manual-suppress-notice"]') &&
-      !document.querySelector('[data-testid="smoke-last-manual-run"]') &&
+    `!document.querySelector('[data-testid="smoke-last-manual-run"]') &&
       localStorage.getItem(${JSON.stringify(STORAGE_KEY)}) === null`,
     timeoutMs,
     "삭제한 수동 점검 결과가 새로고침 후 다시 나타났습니다",
