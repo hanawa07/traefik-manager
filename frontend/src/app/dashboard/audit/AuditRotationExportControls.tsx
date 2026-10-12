@@ -45,7 +45,7 @@ export function AuditRotationExportControls({ linkClassName }: AuditRotationExpo
   return (
     <>
       <select
-        aria-label="Secret 회전 CSV 기간"
+        aria-label="스모크 계정 점검 CSV 기간"
         className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:shadow-none"
         value={rotationCsvPeriod}
         onChange={(event) => setRotationCsvPeriod(event.target.value as RotationCsvPeriod)}
@@ -59,7 +59,7 @@ export function AuditRotationExportControls({ linkClassName }: AuditRotationExpo
           <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:shadow-none">
             시작 (UTC)
             <input
-              aria-label="Secret 회전 CSV 시작일"
+              aria-label="스모크 계정 점검 CSV 시작일"
               className="bg-transparent text-xs text-slate-700 outline-none dark:text-slate-200"
               type="date"
               value={rotationStartDate}
@@ -70,7 +70,7 @@ export function AuditRotationExportControls({ linkClassName }: AuditRotationExpo
           <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:shadow-none">
             종료 (UTC)
             <input
-              aria-label="Secret 회전 CSV 종료일"
+              aria-label="스모크 계정 점검 CSV 종료일"
               className="bg-transparent text-xs text-slate-700 outline-none dark:text-slate-200"
               type="date"
               value={rotationEndDate}
@@ -81,14 +81,14 @@ export function AuditRotationExportControls({ linkClassName }: AuditRotationExpo
         </>
       ) : null}
       <a
-        aria-label="Secret 회전 CSV 다운로드"
+        aria-label="스모크 계정 점검 CSV 다운로드"
         aria-disabled={!isRotationRangeValid}
         className={`${linkClassName} ${isRotationRangeValid ? "" : "cursor-not-allowed opacity-50"}`}
         href={isRotationRangeValid ? smokeRotationExportUrl : undefined}
         tabIndex={isRotationRangeValid ? undefined : -1}
       >
         <Download className="h-4 w-4" />
-        Secret 회전 CSV
+        스모크 계정 점검 CSV
       </a>
       <span
         aria-live="polite"
@@ -107,13 +107,13 @@ export function AuditRotationExportControls({ linkClassName }: AuditRotationExpo
       ) : null}
       {isEmptyRotationExport && latestRotationDate ? (
         <button
-          aria-label="Secret 회전 CSV 최근 결과 날짜로"
+          aria-label="스모크 계정 점검 CSV 최근 결과 날짜로"
           className="self-center rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-800 hover:bg-cyan-100 dark:border-cyan-500/40 dark:bg-cyan-950 dark:text-cyan-200 dark:hover:bg-cyan-900"
           data-latest-date={latestRotationDate}
           data-latest-status={latestRotationStatus || undefined}
           data-testid="secret-rotation-export-latest"
           onClick={() => setRotationRange(latestRotationDate)}
-          title={`가장 최근 Secret 회전 결과가 있는 ${latestRotationDate} UTC로 이동합니다${latestRotationStatusLabel ? ` (${latestRotationStatusLabel})` : ""}`}
+          title={`가장 최근 스모크 계정 점검 결과가 있는 ${latestRotationDate} UTC로 이동합니다${latestRotationStatusLabel ? ` (${latestRotationStatusLabel})` : ""}`}
           type="button"
         >
           최근 결과 {latestRotationDate}{latestRotationStatusLabel ? ` · ${latestRotationStatusLabel}` : ""}
@@ -121,21 +121,21 @@ export function AuditRotationExportControls({ linkClassName }: AuditRotationExpo
       ) : null}
       {isEmptyRotationExport && latestRotationFailureDate && latestRotationFailureStep && latestRotationFailure ? (
         <Link
-          aria-label="최근 Secret 회전 실패 감사 상세"
+          aria-label="최근 스모크 계정 점검 실패 감사 상세"
           className="max-w-80 self-center truncate rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-950/60 dark:text-rose-200 dark:hover:bg-rose-900"
           data-latest-failure-audit-id={latestRotationFailure.id}
           data-latest-failure-date={latestRotationFailureDate}
           data-latest-failure-step={latestRotationFailureStep}
           data-testid="secret-rotation-export-latest-failure"
           href={`/dashboard/audit?q=${encodeURIComponent(latestRotationFailure.id)}&expand=${encodeURIComponent(latestRotationFailure.id)}`}
-          title={`최근 회전 실패 단계: ${latestRotationFailureStep}`}
+          title={`최근 계정 점검 실패 단계: ${latestRotationFailureStep}`}
         >
           최근 실패 {latestRotationFailureDate} UTC · 단계: {latestRotationFailureStep}
         </Link>
       ) : null}
       {isEmptyRotationExport && latestRotationFailureDate && latestRotationFailureExportUrl ? (
         <span
-          aria-label="최근 Secret 회전 실패 날짜 작업"
+          aria-label="최근 스모크 계정 점검 실패 날짜 작업"
           className="inline-flex self-center overflow-hidden rounded-lg border border-rose-200 bg-white dark:border-rose-500/30 dark:bg-slate-900"
           data-keyboard-navigation="horizontal"
           data-testid="secret-rotation-export-latest-failure-actions"
@@ -144,7 +144,7 @@ export function AuditRotationExportControls({ linkClassName }: AuditRotationExpo
           title="좌우 방향키로 작업을 이동할 수 있습니다"
         >
           <a
-            aria-label="최근 Secret 회전 실패 날짜 CSV 다운로드"
+            aria-label="최근 스모크 계정 점검 실패 날짜 CSV 다운로드"
             className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 dark:text-rose-200 dark:hover:bg-rose-950"
             data-latest-failure-date={latestRotationFailureDate}
             data-result-count={latestRotationFailureDateCount ?? ""}
@@ -156,7 +156,7 @@ export function AuditRotationExportControls({ linkClassName }: AuditRotationExpo
           </a>
           {latestRotationFailureListUrl && latestRotationFailureDateCount !== undefined ? (
             <a
-              aria-label="최근 Secret 회전 실패 날짜 감사 목록"
+              aria-label="최근 스모크 계정 점검 실패 날짜 감사 목록"
               className="border-l border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-950/60 dark:text-rose-200 dark:hover:bg-rose-900"
               data-latest-failure-date={latestRotationFailureDate}
               data-result-count={latestRotationFailureDateCount}
@@ -170,7 +170,7 @@ export function AuditRotationExportControls({ linkClassName }: AuditRotationExpo
       ) : null}
       {isEmptyRotationExport ? (
         <button
-          aria-label="Secret 회전 CSV 오늘 범위로"
+          aria-label="스모크 계정 점검 CSV 오늘 범위로"
           className="self-center rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900"
           data-testid="secret-rotation-export-today"
           onClick={() => setRotationRange(new Date().toISOString().slice(0, 10))}

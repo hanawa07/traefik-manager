@@ -106,7 +106,7 @@ export function AuditLogDetailPanel({
         logId={logId}
         rows={smokeRotationDetailRows}
         testId="smoke-rotation-audit-detail"
-        title="Secret 회전 상세"
+        title="스모크 계정 점검 상세"
       />
       <AuditSecuritySettingChanges event={event} diffRows={diffRows} />
       <AuditDiffDetails logId={logId} diffRows={diffRows} />

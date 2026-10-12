@@ -17,7 +17,7 @@ export function getSmokeRotationDetailRows(
   const rows: { key: string; label: string; value: unknown }[] = [
     {
       key: "result",
-      label: "회전 결과",
+      label: "점검 결과",
       value: event === "smoke_rotation_succeeded" ? "성공" : "실패",
     },
   ];

@@ -131,18 +131,18 @@ export async function checkAuditRetryChain({ cdp, timeoutMs }) {
 export async function checkSmokeRotationAuditDetail({ cdp, timeoutMs }) {
   const filterFound = await evaluate(cdp, `(() => {
     const button = Array.from(document.querySelectorAll('button')).find(
-      (item) => item.textContent?.trim() === 'Secret 회전 결과'
+      (item) => item.textContent?.trim() === '스모크 계정 점검 결과'
     );
     button?.click();
     return Boolean(button);
   })()`);
-  assert.equal(filterFound, true, "Secret 회전 결과 감사 필터를 찾지 못했습니다");
+  assert.equal(filterFound, true, "스모크 계정 점검 결과 감사 필터를 찾지 못했습니다");
   await waitForCondition(
     cdp,
     `new URLSearchParams(location.search).get('filter') === 'smoke_rotation_result' &&
       document.querySelector('[data-visual-surface]')?.getAttribute('aria-busy') === 'false'`,
     timeoutMs,
-    "Secret 회전 감사 로그를 불러오지 못했습니다",
+    "스모크 계정 점검 감사 로그를 불러오지 못했습니다",
   );
 
   const auditEvent = await evaluate(cdp, `(() => {
@@ -155,18 +155,18 @@ export async function checkSmokeRotationAuditDetail({ cdp, timeoutMs }) {
     return button ? row?.getAttribute('data-audit-event') : null;
   })()`);
   const expectation = getSmokeRotationAuditExpectation(auditEvent);
-  assert.ok(expectation, "Secret 회전 성공 또는 실패 감사 로그를 찾지 못했습니다");
+  assert.ok(expectation, "스모크 계정 점검 성공 또는 실패 감사 로그를 찾지 못했습니다");
   await waitForCondition(
     cdp,
     `(() => {
       const text = document.querySelector('[data-testid="smoke-rotation-audit-detail"]')?.textContent || '';
-      return text.includes('Secret 회전 상세') &&
-        text.includes('회전 결과') &&
+      return text.includes('스모크 계정 점검 상세') &&
+        text.includes('점검 결과') &&
         text.includes(${JSON.stringify(expectation.resultLabel)}) &&
         ${expectation.detailLabel ? `text.includes(${JSON.stringify(expectation.detailLabel)})` : "true"};
     })()`,
     timeoutMs,
-    `Secret 회전 ${expectation.resultLabel} 상세가 표시되지 않았습니다`,
+    `스모크 계정 점검 ${expectation.resultLabel} 상세가 표시되지 않았습니다`,
   );
   return auditEvent;
 }

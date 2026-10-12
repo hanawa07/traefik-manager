@@ -85,7 +85,7 @@ export async function runDashboardVisualSmoke({ artifactDir, baseUrl, capabiliti
           if (retryChainChecked) labels.push(`${profile.label} 알림 재시도 전체 체인·단계 경과·지연 강조`);
           const rotationAuditEvent = await checkSmokeRotationAuditDetail({ cdp, timeoutMs });
           labels.push(
-            `${profile.label} Secret 회전 ${rotationAuditEvent === "smoke_rotation_failed" ? "실패" : "성공"} 상세`,
+            `${profile.label} 스모크 계정 점검 ${rotationAuditEvent === "smoke_rotation_failed" ? "실패" : "성공"} 상세`,
           );
           await checkAuditFilterPersistence({ cdp, profile, timeoutMs });
           labels.push(`${profile.label} 감사 필터 조합·Traefik 자동 펼침·역링크·레이아웃`);

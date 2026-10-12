@@ -24,7 +24,7 @@ export async function checkAuditRotationExportRecovery({ cdp, timeoutMs }) {
         document.querySelector('[data-testid="secret-rotation-export-latest-failure-csv"]')
           ?.getAttribute('data-result-count') !== ''`,
       timeoutMs,
-      "최근 Secret 회전 실패 단계와 CSV 대상 건수를 불러오지 못했습니다",
+      "최근 스모크 계정 점검 실패 단계와 CSV 대상 건수를 불러오지 못했습니다",
     );
   }
   await waitForCondition(
@@ -32,7 +32,7 @@ export async function checkAuditRotationExportRecovery({ cdp, timeoutMs }) {
     `Boolean(document.querySelector('[data-testid="secret-rotation-export-latest"]')) &&
       Boolean(document.querySelector('[data-testid="secret-rotation-export-today"]'))`,
     timeoutMs,
-    "Secret 회전 CSV 복구 버튼을 불러오지 못했습니다",
+    "스모크 계정 점검 CSV 복구 버튼을 불러오지 못했습니다",
   );
   const latestRecovery = await evaluate(cdp, `(async () => {
     const button = document.querySelector('[data-testid="secret-rotation-export-latest"]');
@@ -86,55 +86,55 @@ export async function checkAuditRotationExportRecovery({ cdp, timeoutMs }) {
       text,
     };
   })()`);
-  assert.equal(latestRecovery.clicked, true, "Secret 회전 CSV 최근 결과 날짜 버튼이 없습니다");
+  assert.equal(latestRecovery.clicked, true, "스모크 계정 점검 CSV 최근 결과 날짜 버튼이 없습니다");
   assert.match(latestRecovery.latestDate || "", /^\d{4}-\d{2}-\d{2}$/);
-  assert.equal(latestRecovery.latestStatus, latestRecovery.expectedStatus, "최근 회전 결과 상태가 다릅니다");
+  assert.equal(latestRecovery.latestStatus, latestRecovery.expectedStatus, "최근 점검 결과 상태가 다릅니다");
   assert.match(
     latestRecovery.text,
     latestRecovery.latestStatus === "success" ? /성공/ : /실패/,
-    "최근 회전 결과 상태 문구가 없습니다",
+    "최근 점검 결과 상태 문구가 없습니다",
   );
   if (expectedLatestFailure) {
     const latestFailureUrl = new URL(latestRecovery.latestFailureHref);
     const latestFailureCsvUrl = new URL(latestRecovery.latestFailureCsvHref);
     const latestFailureListUrl = new URL(latestRecovery.latestFailureListHref);
-    assert.equal(latestRecovery.latestFailureAuditId, expectedLatestFailure.id, "최근 회전 실패 감사 ID가 다릅니다");
-    assert.equal(latestRecovery.latestFailureDate, expectedLatestFailure.date, "최근 회전 실패 날짜가 다릅니다");
-    assert.equal(latestRecovery.latestFailureStep, expectedLatestFailure.step, "최근 회전 실패 단계가 다릅니다");
-    assert.match(latestRecovery.latestFailureText, /최근 실패.*단계:/, "최근 회전 실패 단계 문구가 없습니다");
-    assert.equal(latestFailureUrl.pathname, "/dashboard/audit", "최근 회전 실패 링크 경로가 다릅니다");
-    assert.equal(latestFailureUrl.searchParams.get("q"), expectedLatestFailure.id, "최근 회전 실패 검색 ID가 다릅니다");
-    assert.equal(latestFailureUrl.searchParams.get("expand"), expectedLatestFailure.id, "최근 회전 실패 펼침 ID가 다릅니다");
-    assert.equal(latestRecovery.latestFailureActionsGrouped, true, "최근 회전 실패 날짜 작업이 한 그룹으로 묶이지 않았습니다");
-    assert.equal(latestRecovery.latestFailureActionsKeyboardValid, true, "최근 회전 실패 날짜 작업의 방향키 이동이 동작하지 않습니다");
-    assert.equal(latestRecovery.latestFailureCsvOk, true, "최근 회전 실패 날짜 CSV 응답을 받지 못했습니다");
-    assert.ok(latestRecovery.expectedLatestFailureCsvCount > 0, "최근 회전 실패 날짜 대상 건수가 없습니다");
-    assert.equal(latestRecovery.latestFailureCsvCount, latestRecovery.expectedLatestFailureCsvCount, "최근 회전 실패 날짜 CSV 대상 건수가 다릅니다");
-    assert.match(latestRecovery.latestFailureCsvText, /실패 날짜 CSV/, "최근 회전 실패 날짜 CSV 문구가 없습니다");
-    assert.equal(latestRecovery.latestFailureListCount, latestRecovery.expectedLatestFailureCsvCount, "최근 회전 실패 감사 목록 건수가 다릅니다");
-    assert.match(latestRecovery.latestFailureListText, /\d[\d,]*건 보기/, "최근 회전 실패 감사 목록 문구가 없습니다");
-    assert.equal(latestFailureCsvUrl.searchParams.get("event"), "smoke_rotation_failed", "최근 회전 실패 CSV 이벤트가 다릅니다");
-    assert.equal(latestFailureCsvUrl.searchParams.get("start_date"), expectedLatestFailure.date, "최근 회전 실패 CSV 시작일이 다릅니다");
-    assert.equal(latestFailureCsvUrl.searchParams.get("end_date"), expectedLatestFailure.date, "최근 회전 실패 CSV 종료일이 다릅니다");
-    assert.equal(latestFailureListUrl.pathname, "/dashboard/audit", "최근 회전 실패 감사 목록 경로가 다릅니다");
-    assert.equal(latestFailureListUrl.searchParams.get("filter"), "smoke_rotation_failed", "최근 회전 실패 감사 목록 필터가 다릅니다");
-    assert.equal(latestFailureListUrl.searchParams.get("start_date"), expectedLatestFailure.date, "최근 회전 실패 감사 목록 시작일이 다릅니다");
-    assert.equal(latestFailureListUrl.searchParams.get("end_date"), expectedLatestFailure.date, "최근 회전 실패 감사 목록 종료일이 다릅니다");
+    assert.equal(latestRecovery.latestFailureAuditId, expectedLatestFailure.id, "최근 계정 점검 실패 감사 ID가 다릅니다");
+    assert.equal(latestRecovery.latestFailureDate, expectedLatestFailure.date, "최근 계정 점검 실패 날짜가 다릅니다");
+    assert.equal(latestRecovery.latestFailureStep, expectedLatestFailure.step, "최근 계정 점검 실패 단계가 다릅니다");
+    assert.match(latestRecovery.latestFailureText, /최근 실패.*단계:/, "최근 계정 점검 실패 단계 문구가 없습니다");
+    assert.equal(latestFailureUrl.pathname, "/dashboard/audit", "최근 계정 점검 실패 링크 경로가 다릅니다");
+    assert.equal(latestFailureUrl.searchParams.get("q"), expectedLatestFailure.id, "최근 계정 점검 실패 검색 ID가 다릅니다");
+    assert.equal(latestFailureUrl.searchParams.get("expand"), expectedLatestFailure.id, "최근 계정 점검 실패 펼침 ID가 다릅니다");
+    assert.equal(latestRecovery.latestFailureActionsGrouped, true, "최근 계정 점검 실패 날짜 작업이 한 그룹으로 묶이지 않았습니다");
+    assert.equal(latestRecovery.latestFailureActionsKeyboardValid, true, "최근 계정 점검 실패 날짜 작업의 방향키 이동이 동작하지 않습니다");
+    assert.equal(latestRecovery.latestFailureCsvOk, true, "최근 계정 점검 실패 날짜 CSV 응답을 받지 못했습니다");
+    assert.ok(latestRecovery.expectedLatestFailureCsvCount > 0, "최근 계정 점검 실패 날짜 대상 건수가 없습니다");
+    assert.equal(latestRecovery.latestFailureCsvCount, latestRecovery.expectedLatestFailureCsvCount, "최근 계정 점검 실패 날짜 CSV 대상 건수가 다릅니다");
+    assert.match(latestRecovery.latestFailureCsvText, /실패 날짜 CSV/, "최근 계정 점검 실패 날짜 CSV 문구가 없습니다");
+    assert.equal(latestRecovery.latestFailureListCount, latestRecovery.expectedLatestFailureCsvCount, "최근 계정 점검 실패 감사 목록 건수가 다릅니다");
+    assert.match(latestRecovery.latestFailureListText, /\d[\d,]*건 보기/, "최근 계정 점검 실패 감사 목록 문구가 없습니다");
+    assert.equal(latestFailureCsvUrl.searchParams.get("event"), "smoke_rotation_failed", "최근 계정 점검 실패 CSV 이벤트가 다릅니다");
+    assert.equal(latestFailureCsvUrl.searchParams.get("start_date"), expectedLatestFailure.date, "최근 계정 점검 실패 CSV 시작일이 다릅니다");
+    assert.equal(latestFailureCsvUrl.searchParams.get("end_date"), expectedLatestFailure.date, "최근 계정 점검 실패 CSV 종료일이 다릅니다");
+    assert.equal(latestFailureListUrl.pathname, "/dashboard/audit", "최근 계정 점검 실패 감사 목록 경로가 다릅니다");
+    assert.equal(latestFailureListUrl.searchParams.get("filter"), "smoke_rotation_failed", "최근 계정 점검 실패 감사 목록 필터가 다릅니다");
+    assert.equal(latestFailureListUrl.searchParams.get("start_date"), expectedLatestFailure.date, "최근 계정 점검 실패 감사 목록 시작일이 다릅니다");
+    assert.equal(latestFailureListUrl.searchParams.get("end_date"), expectedLatestFailure.date, "최근 계정 점검 실패 감사 목록 종료일이 다릅니다");
   }
   await waitForCondition(
     cdp,
     `(() => {
-      const select = document.querySelector('select[aria-label="Secret 회전 CSV 기간"]');
-      const start = document.querySelector('input[aria-label="Secret 회전 CSV 시작일"]');
-      const end = document.querySelector('input[aria-label="Secret 회전 CSV 종료일"]');
+      const select = document.querySelector('select[aria-label="스모크 계정 점검 CSV 기간"]');
+      const start = document.querySelector('input[aria-label="스모크 계정 점검 CSV 시작일"]');
+      const end = document.querySelector('input[aria-label="스모크 계정 점검 CSV 종료일"]');
       return select?.value === 'custom' && start?.value === ${JSON.stringify(latestRecovery.latestDate)} &&
         end?.value === ${JSON.stringify(latestRecovery.latestDate)};
     })()`,
     timeoutMs,
-    "Secret 회전 CSV가 최근 결과 날짜로 복구되지 않았습니다",
+    "스모크 계정 점검 CSV가 최근 결과 날짜로 복구되지 않았습니다",
   );
   const latestResult = await assertRotationCount({ cdp, timeoutMs });
-  assert.ok(latestResult.actual > 0, "최근 결과 날짜에 Secret 회전 이력이 없습니다");
+  assert.ok(latestResult.actual > 0, "최근 결과 날짜에 스모크 계정 점검 이력이 없습니다");
   assert.equal(latestResult.startDate, latestRecovery.latestDate, "최근 결과 시작일이 다릅니다");
   assert.equal(latestResult.endDate, latestRecovery.latestDate, "최근 결과 종료일이 다릅니다");
   if (expectedLatestFailure) {
@@ -146,7 +146,7 @@ export async function checkAuditRotationExportRecovery({ cdp, timeoutMs }) {
         document.querySelector('input[aria-label="감사 종료일"]')?.value === ${JSON.stringify(expectedLatestFailure.date)} &&
         Number(document.querySelector('[data-audit-total]')?.getAttribute('data-audit-total')) === ${latestRecovery.expectedLatestFailureCsvCount}`,
       timeoutMs,
-      "최근 회전 실패 날짜 감사 목록이 동일 조건으로 열리지 않았습니다",
+      "최근 계정 점검 실패 날짜 감사 목록이 동일 조건으로 열리지 않았습니다",
     );
   }
 }
@@ -156,11 +156,11 @@ export async function assertRotationCount({ cdp, timeoutMs }) {
     cdp,
     `document.querySelector('[data-testid="secret-rotation-export-count"]')?.getAttribute('data-count-status') === 'ready'`,
     timeoutMs,
-    "Secret 회전 CSV 예상 건수를 불러오지 못했습니다",
+    "스모크 계정 점검 CSV 예상 건수를 불러오지 못했습니다",
   );
   const result = await evaluate(cdp, `(async () => {
     const count = document.querySelector('[data-testid="secret-rotation-export-count"]');
-    const link = document.querySelector('a[aria-label="Secret 회전 CSV 다운로드"]');
+    const link = document.querySelector('a[aria-label="스모크 계정 점검 CSV 다운로드"]');
     if (!link?.href) return null;
     const url = new URL(link.href);
     url.pathname = url.pathname.slice(0, -'/export.csv'.length);
@@ -175,8 +175,8 @@ export async function assertRotationCount({ cdp, timeoutMs }) {
       text: count?.textContent || '',
     };
   })()`);
-  assert.equal(result?.ok, true, "Secret 회전 CSV 예상 건수 API 응답을 받지 못했습니다");
-  assert.equal(result.actual, result.expected, "Secret 회전 CSV 예상 건수가 조회 조건과 일치하지 않습니다");
+  assert.equal(result?.ok, true, "스모크 계정 점검 CSV 예상 건수 API 응답을 받지 못했습니다");
+  assert.equal(result.actual, result.expected, "스모크 계정 점검 CSV 예상 건수가 조회 조건과 일치하지 않습니다");
   assert.match(result.text, new RegExp(`${result.expected.toLocaleString("ko-KR")}건`));
   return result;
 }
