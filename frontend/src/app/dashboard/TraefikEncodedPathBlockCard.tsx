@@ -140,6 +140,17 @@ export function TraefikEncodedPathBlockCard({
         </div>
       ) : null}
 
+      {!isError && summary?.available && summary.blocked_request_count > 0 ? (
+        <div className="mt-3 grid gap-2 text-xs text-gray-600 dark:text-slate-300 sm:grid-cols-2">
+          <p>
+            요청 메서드: {formatCounts(summary.request_methods)}
+          </p>
+          <p>
+            인코딩 조합: {formatCounts(summary.encoded_patterns)}
+          </p>
+        </div>
+      ) : null}
+
       {!isError && summary?.available ? (
         <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
           확인 {formatDateTime(summary.checked_at, timezone)}
@@ -153,4 +164,11 @@ export function TraefikEncodedPathBlockCard({
       ) : null}
     </section>
   );
+}
+
+function formatCounts(values: { value: string; request_count: number }[] | undefined) {
+  if (!values?.length) return "집계 없음";
+  return values
+    .map((item) => `${item.value} ${item.request_count.toLocaleString("ko-KR")}건`)
+    .join(", ");
 }

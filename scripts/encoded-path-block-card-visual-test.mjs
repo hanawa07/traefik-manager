@@ -69,6 +69,8 @@ try {
   assert.match(snapshot.text, /최근 24시간 영속 집계/);
   assert.match(snapshot.text, /11건/);
   assert.match(snapshot.text, /최근 15분 4건 \/ 임계치 20건/);
+  assert.match(snapshot.text, /요청 메서드: GET 10건, POST 1건/);
+  assert.match(snapshot.text, /인코딩 조합: %2F 7건/);
   assert.equal(snapshot.trendVisible, true);
   assert.equal(snapshot.barCount, 24);
   assert.ok(snapshot.activeBars >= 6, "차단 추이 fixture가 비어 있습니다");

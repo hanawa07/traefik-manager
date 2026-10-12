@@ -81,6 +81,12 @@ def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
             lines.append(f"대상 서비스: {target_services}")
         if detail.get("other_target_request_count"):
             lines.append(f"기타 대상 차단: {detail.get('other_target_request_count')}건")
+        request_methods = _format_count_values(detail.get("request_methods"))
+        if request_methods:
+            lines.append(f"요청 메서드: {request_methods}")
+        encoded_patterns = _format_count_values(detail.get("encoded_patterns"))
+        if encoded_patterns:
+            lines.append(f"인코딩 조합: {encoded_patterns}")
         lines.append(
             f"차단 횟수: {detail.get('blocked_request_count')}건 / "
             f"임계치 {detail.get('alert_threshold')}건"
@@ -117,6 +123,20 @@ def _format_target_services(value: object) -> str:
             continue
         label = f"{service_name} ({domain})" if isinstance(domain, str) else service_name
         labels.append(f"{label} {count}건")
+    return ", ".join(labels)
+
+
+def _format_count_values(value: object) -> str:
+    if not isinstance(value, list):
+        return ""
+    labels = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("value")
+        count = item.get("request_count")
+        if isinstance(name, str) and isinstance(count, int):
+            labels.append(f"{name} {count}건")
     return ", ".join(labels)
 
 

@@ -116,6 +116,8 @@ async def test_notify_if_needed_posts_encoded_path_surge_without_private_request
                 },
             ],
             "other_target_request_count": 0,
+            "request_methods": [{"value": "GET", "request_count": 25}],
+            "encoded_patterns": [{"value": "%2F+%25", "request_count": 20}],
             "alert_threshold": 20,
             "cooldown_minutes": 60,
         }
@@ -137,10 +139,12 @@ async def test_notify_if_needed_posts_encoded_path_surge_without_private_request
     assert result is True
     assert "Traefik 인코딩 경로 차단 급증" in posted[0][1]["text"]
     assert "대상 서비스: Homepage (home.lizstudio.co.kr) 20건" in posted[0][1]["text"]
+    assert "요청 메서드: GET 25건" in posted[0][1]["text"]
+    assert "인코딩 조합: %2F+%25 20건" in posted[0][1]["text"]
     assert "차단 횟수: 25건 / 임계치 20건" in posted[0][1]["text"]
     assert "전체 요청량: 1,250건 · 차단 비율 2.0%" in posted[0][1]["text"]
     assert "192.0.2" not in posted[0][1]["text"]
-    assert "%2F" not in posted[0][1]["text"]
+    assert "/admin" not in posted[0][1]["text"]
 
 
 @pytest.mark.asyncio

@@ -30,6 +30,15 @@ const summary: TraefikEncodedPathBlockSummary = {
     { encoded: "%5C", label: "백슬래시 (\\)", request_count: 3 },
     { encoded: "%00", label: "NUL", request_count: 1 },
   ],
+  request_methods: [
+    { value: "GET", request_count: 10 },
+    { value: "POST", request_count: 1 },
+  ],
+  encoded_patterns: [
+    { value: "%2F", request_count: 7 },
+    { value: "%5C+%3B", request_count: 3 },
+    { value: "%00", request_count: 1 },
+  ],
   buckets: BLOCK_COUNTS.map((blockedRequestCount, index) => ({
     started_at: new Date(CHECKED_AT.getTime() - (24 - index) * 60 * 60 * 1000).toISOString(),
     blocked_request_count: blockedRequestCount,

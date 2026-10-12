@@ -80,6 +80,8 @@ export function getManagerHttpErrorDetailRows(
     { key: "alert_threshold", label: "차단 임계치", value: withUnit(detail.alert_threshold, "건") },
     { key: "target_services", label: "대상 서비스", value: formatTargetServices(detail.target_services) },
     { key: "other_target_request_count", label: "기타 대상 차단", value: withUnit(detail.other_target_request_count, "건") },
+    { key: "request_methods", label: "요청 메서드", value: formatCountValues(detail.request_methods) },
+    { key: "encoded_patterns", label: "인코딩 조합", value: formatCountValues(detail.encoded_patterns) },
     { key: "total_request_count", label: "전체 요청량", value: withUnit(detail.total_request_count, "건") },
     { key: "blocked_request_percent", label: "차단 비율", value: withUnit(detail.blocked_request_percent, "%") },
     {
@@ -102,6 +104,15 @@ export function getManagerHttpErrorDetailRows(
     { key: "cooldown_minutes", label: "재알림 대기", value: withUnit(detail.cooldown_minutes, "분") },
   ];
   return rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== "");
+}
+
+function formatCountValues(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+  const labels = value.flatMap((item) => {
+    if (!isRecord(item) || typeof item.value !== "string" || typeof item.request_count !== "number") return [];
+    return [`${item.value} ${item.request_count}건`];
+  });
+  return labels.length ? labels.join(", ") : undefined;
 }
 
 export function isManagerHttpLogStorageEvent(value: unknown): value is string {

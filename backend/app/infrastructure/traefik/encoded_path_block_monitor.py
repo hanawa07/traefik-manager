@@ -124,6 +124,8 @@ async def check_encoded_path_blocks_once(
                     ),
                     "target_services": target_services,
                     "other_target_request_count": other_target_request_count,
+                    "request_methods": stats.get("request_methods", []),
+                    "encoded_patterns": stats.get("encoded_patterns", []),
                     "alert_threshold": monitoring.threshold,
                     "checked_at": current.isoformat(),
                     "cooldown_minutes": effective_cooldown_seconds // 60,

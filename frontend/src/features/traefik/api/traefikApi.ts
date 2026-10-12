@@ -23,6 +23,11 @@ export interface TraefikEncodedPathCharacter {
   request_count: number;
 }
 
+export interface TraefikEncodedPathCountValue {
+  value: string;
+  request_count: number;
+}
+
 export interface TraefikEncodedPathBlockBucket {
   started_at: string;
   blocked_request_count: number;
@@ -46,6 +51,8 @@ export interface TraefikEncodedPathBlockSummary {
   alert_threshold: number;
   recent_blocked_request_count: number;
   encoded_characters: TraefikEncodedPathCharacter[];
+  request_methods: TraefikEncodedPathCountValue[];
+  encoded_patterns: TraefikEncodedPathCountValue[];
   buckets: TraefikEncodedPathBlockBucket[];
 }
 

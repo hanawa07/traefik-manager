@@ -34,6 +34,7 @@ def test_encoded_path_blocks_count_only_reserved_encodings_in_400_paths():
 
     assert len(events) == 2
     assert events[0]["encoded_characters"] == ["%2F"]
+    assert events[0]["request_method"] == "GET"
     assert events[1]["encoded_characters"] == ["%5C", "%3B"]
     assert events[1]["occurred_at"] == datetime(
         2026, 8, 1, 11, 14, 42, tzinfo=timezone.utc
@@ -77,6 +78,7 @@ def test_access_log_events_capture_json_host_as_hash_only():
         {
             "DownstreamStatus": 400,
             "RequestHost": "Home.Lizstudio.co.kr:443",
+            "RequestMethod": "POST",
             "RequestPath": "/admin%2Ftest",
             "RouterName": "global-sensitive-paths-https@file",
         }
@@ -90,6 +92,7 @@ def test_access_log_events_capture_json_host_as_hash_only():
         "home.lizstudio.co.kr"
     )
     assert events[0]["encoded_characters"] == ["%2F"]
+    assert events[0]["request_method"] == "POST"
     assert "Home.Lizstudio.co.kr" not in repr(events[0])
 
 
@@ -180,6 +183,8 @@ def test_encoded_path_history_persists_deduplicated_private_summary(tmp_path):
     assert "192.0.2" not in stored
     assert "private" not in stored
     assert "%2F" in stored
+    assert '"GET":2' in stored
+    assert '"%2F":1' in stored
 
 
 def test_encoded_path_history_survives_log_disconnect_and_prunes_old_data(tmp_path):
@@ -293,6 +298,11 @@ def test_encoded_path_history_summarizes_targets_and_total_requests(tmp_path):
                 "blocked_request_count": 1,
             },
         ],
+        "request_methods": [{"value": "GET", "request_count": 2}],
+        "encoded_patterns": [
+            {"value": "%2F", "request_count": 1},
+            {"value": "%3B", "request_count": 1},
+        ],
     }
 
 
@@ -364,3 +374,25 @@ def test_encoded_path_history_hides_ratio_until_request_window_is_complete(tmp_p
     assert stats["total_request_count"] == 1
     assert stats["request_count_complete"] is False
     assert stats["blocked_request_percent"] is None
+
+
+def test_encoded_path_history_caps_distinct_patterns_per_minute(tmp_path):
+    history_path = tmp_path / "encoded-path-blocks.json"
+    checked_at = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+    paths = ["%2F", "%5C", "%00", "%3B", "%25", "%3F", "%23"]
+    update_encoded_path_block_history(
+        "\n".join(
+            f'2026-08-01T11:59:{index:02d}Z 192.0.2.1 - - '
+            f'"GET /{encoded}test HTTP/2.0" 400 0'
+            for index, encoded in enumerate(paths)
+        ),
+        checked_at=checked_at,
+        path=history_path,
+        tail_lines=2000,
+    )
+
+    stored = json.loads(history_path.read_text(encoding="utf-8"))
+    pattern_counts = next(iter(stored["minutes"].values()))["encoded_patterns"]
+
+    assert len(pattern_counts) == 6
+    assert pattern_counts["OTHER"] == 2

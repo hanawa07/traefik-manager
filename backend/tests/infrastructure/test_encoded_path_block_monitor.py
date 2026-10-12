@@ -43,6 +43,8 @@ class StubHistory:
     total_count = 100
     request_count_complete = True
     target_routers: list[dict[str, object]] = []
+    request_methods: list[dict[str, object]] = []
+    encoded_patterns: list[dict[str, object]] = []
     collection_available = True
     collect_calls = 0
     stats_calls = 0
@@ -64,6 +66,8 @@ class StubHistory:
             "blocked_request_percent": round(cls.count / cls.total_count * 100, 1),
             "request_count_complete": cls.request_count_complete,
             "target_routers": cls.target_routers,
+            "request_methods": cls.request_methods,
+            "encoded_patterns": cls.encoded_patterns,
         }
 
 
@@ -145,6 +149,8 @@ async def test_encoded_path_block_monitor_alerts_cools_down_and_recovers(monkeyp
             "blocked_request_count": 2,
         },
     ]
+    StubHistory.request_methods = [{"value": "GET", "request_count": 2}]
+    StubHistory.encoded_patterns = [{"value": "%2F", "request_count": 2}]
     recorded: list[dict] = []
     _patch_dependencies(monkeypatch, recorded)
 
@@ -190,6 +196,12 @@ async def test_encoded_path_block_monitor_alerts_cools_down_and_recovers(monkeyp
             "domain": "home.lizstudio.co.kr",
             "blocked_request_count": 2,
         }
+    ]
+    assert recorded[0]["detail"]["request_methods"] == [
+        {"value": "GET", "request_count": 2}
+    ]
+    assert recorded[0]["detail"]["encoded_patterns"] == [
+        {"value": "%2F", "request_count": 2}
     ]
     state = json.loads(StubSettingsRepository.store[ENCODED_PATH_BLOCK_STATE_KEY])
     assert state["alert_active"] is False

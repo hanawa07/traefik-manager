@@ -9,6 +9,8 @@ from app.infrastructure.traefik.encoded_path_blocks import (
 HISTORY_WINDOW_HOURS = 24
 MAX_CURSOR_FINGERPRINTS = 100
 MAX_TARGET_KEYS_PER_MINUTE = 5
+MAX_PATTERN_KEYS_PER_MINUTE = 5
+MAX_PATTERN_RESULTS = 5
 
 
 def merge_log_events(
@@ -117,6 +119,8 @@ def summarize_recent_blocks(
     blocked_request_count = 0
     total_request_count = 0
     router_counts: dict[str, int] = {}
+    method_counts: dict[str, int] = {}
+    pattern_counts: dict[str, int] = {}
     for key, value in minutes.items():
         if (
             not isinstance(value, dict)
@@ -133,6 +137,8 @@ def summarize_recent_blocks(
                     router_counts[router_name] = (
                         router_counts.get(router_name, 0) + int(count)
                     )
+        _merge_counts(method_counts, value.get("request_methods"))
+        _merge_counts(pattern_counts, value.get("encoded_patterns"))
 
     request_count_observed_since = parse_datetime(
         str(state.get("request_count_observed_since") or "")
@@ -158,6 +164,11 @@ def summarize_recent_blocks(
                 key=lambda item: (-item[1], item[0]),
             )
         ],
+        "request_methods": _rank_counts(method_counts),
+        "encoded_patterns": _rank_counts(
+            pattern_counts,
+            limit=MAX_PATTERN_RESULTS,
+        ),
     }
 
 
@@ -174,6 +185,8 @@ def build_summary(
         for index in range(HISTORY_WINDOW_HOURS)
     ]
     encoded_counts = {encoded: 0 for encoded, _ in ENCODED_RESERVED_CHARACTERS}
+    method_counts: dict[str, int] = {}
+    pattern_counts: dict[str, int] = {}
     last_blocked_at: datetime | None = None
     minutes = state.get("minutes") if isinstance(state.get("minutes"), dict) else {}
 
@@ -193,6 +206,8 @@ def build_summary(
         if isinstance(minute_counts, dict):
             for encoded in encoded_counts:
                 encoded_counts[encoded] += int(minute_counts.get(encoded, 0))
+        _merge_counts(method_counts, minute.get("request_methods"))
+        _merge_counts(pattern_counts, minute.get("encoded_patterns"))
         occurred_at = parse_datetime(str(minute.get("last_blocked_at") or ""))
         if occurred_at is not None:
             last_blocked_at = max(last_blocked_at or occurred_at, occurred_at)
@@ -226,6 +241,11 @@ def build_summary(
             }
             for encoded, label in ENCODED_RESERVED_CHARACTERS
         ],
+        "request_methods": _rank_counts(method_counts),
+        "encoded_patterns": _rank_counts(
+            pattern_counts,
+            limit=MAX_PATTERN_RESULTS,
+        ),
         "buckets": buckets,
     }
 
@@ -277,6 +297,8 @@ def _add_request_to_minute(
             "total_request_count": 0,
             "blocked_request_count": 0,
             "encoded_characters": {},
+            "request_methods": {},
+            "encoded_patterns": {},
             "router_counts": {},
             "last_blocked_at": None,
         },
@@ -295,6 +317,19 @@ def _add_request_to_minute(
         for encoded in encoded_characters:
             if isinstance(encoded, str):
                 encoded_counts[encoded] = int(encoded_counts.get(encoded, 0)) + 1
+    method_counts = minute.setdefault("request_methods", {})
+    method = event.get("request_method")
+    if isinstance(method_counts, dict) and isinstance(method, str):
+        method_counts[method] = int(method_counts.get(method, 0)) + 1
+    pattern_counts = minute.setdefault("encoded_patterns", {})
+    if isinstance(pattern_counts, dict):
+        pattern = "+".join(str(encoded).upper() for encoded in encoded_characters)
+        if (
+            pattern not in pattern_counts
+            and len(pattern_counts) >= MAX_PATTERN_KEYS_PER_MINUTE
+        ):
+            pattern = "OTHER"
+        pattern_counts[pattern] = int(pattern_counts.get(pattern, 0)) + 1
     router_counts = minute.setdefault("router_counts", {})
     if isinstance(router_counts, dict):
         request_host_hash = event.get("request_host_hash")
@@ -318,3 +353,22 @@ def _coverage_percent(checked_at: datetime, observed_since: datetime | None) -> 
         return 0
     elapsed = max(0.0, (checked_at - observed_since).total_seconds())
     return min(100, int(elapsed / timedelta(hours=HISTORY_WINDOW_HOURS).total_seconds() * 100))
+
+
+def _merge_counts(target: dict[str, int], value: object) -> None:
+    if not isinstance(value, dict):
+        return
+    for key, count in value.items():
+        if isinstance(key, str):
+            target[key] = target.get(key, 0) + int(count)
+
+
+def _rank_counts(
+    counts: dict[str, int],
+    *,
+    limit: int | None = None,
+) -> list[dict[str, object]]:
+    ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    if limit is not None:
+        ranked = ranked[:limit]
+    return [{"value": value, "request_count": count} for value, count in ranked]

@@ -7,7 +7,7 @@ from app.infrastructure.traefik.acme_datetime import parse_datetime
 
 
 ACCESS_LOG_REQUEST_RE = re.compile(
-    r'"[A-Z]+\s+(?P<target>\S+)\s+HTTP/[0-9.]+"\s+(?P<status>[0-9]{3})\b'
+    r'"(?P<method>[A-Z]+)\s+(?P<target>\S+)\s+HTTP/[0-9.]+"\s+(?P<status>[0-9]{3})\b'
 )
 ACCESS_LOG_ROUTER_RE = re.compile(
     r'\s+\d+\s+"(?P<router>[^"]*)"\s+"[^"]*"\s+\S+\s*$'
@@ -21,6 +21,17 @@ ENCODED_RESERVED_CHARACTERS = (
     ("%3F", "물음표 (?)"),
     ("%23", "해시 (#)"),
 )
+KNOWN_HTTP_METHODS = {
+    "GET",
+    "HEAD",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
+    "CONNECT",
+    "TRACE",
+}
 
 
 def parse_access_log_events(raw_text: str | None) -> list[dict[str, object]]:
@@ -28,11 +39,12 @@ def parse_access_log_events(raw_text: str | None) -> list[dict[str, object]]:
     for line in raw_text.splitlines() if raw_text is not None else []:
         json_event = _parse_json_access_log(line)
         if json_event is not None:
-            target, status, router_name, request_host_hash = json_event
+            method, target, status, router_name, request_host_hash = json_event
         else:
             match = ACCESS_LOG_REQUEST_RE.search(line)
             if match is None:
                 continue
+            method = match.group("method")
             target = match.group("target")
             status = match.group("status")
             router_match = ACCESS_LOG_ROUTER_RE.search(line[match.end():])
@@ -53,6 +65,7 @@ def parse_access_log_events(raw_text: str | None) -> list[dict[str, object]]:
                 "fingerprint": hashlib.sha256(line.encode()).hexdigest(),
                 "occurred_at": parse_datetime(line.split(" ", 1)[0]),
                 "encoded_characters": matched_encodings,
+                "request_method": _normalize_method(method),
                 "router_name": (
                     router_name if router_name not in {None, "", "-"} else None
                 ),
@@ -85,7 +98,7 @@ def hash_request_host(value: object) -> str | None:
 
 def _parse_json_access_log(
     line: str,
-) -> tuple[str, str, object, str | None] | None:
+) -> tuple[object, str, str, object, str | None] | None:
     _, separator, payload_text = line.partition(" ")
     if not separator or not payload_text.startswith("{"):
         return None
@@ -100,8 +113,16 @@ def _parse_json_access_log(
     if not isinstance(target, str) or not isinstance(status, int):
         return None
     return (
+        payload.get("RequestMethod"),
         target,
         str(status),
         payload.get("RouterName"),
         hash_request_host(payload.get("RequestHost")),
     )
+
+
+def _normalize_method(value: object) -> str:
+    if not isinstance(value, str):
+        return "OTHER"
+    method = value.upper()
+    return method if method in KNOWN_HTTP_METHODS else "OTHER"
