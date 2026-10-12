@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 import { getSmokeRotationDetailRows } from "../frontend/src/app/dashboard/audit/audit-page-helpers/smokeRotationDetailRows.ts";
 
 const failure = getSmokeRotationDetailRows("smoke_rotation_failed", {
+  failure_kind: "smoke_validation",
   step: "GitHub secret 갱신 실패: TM_SMOKE_ADMIN_PASSWORD (시도 3/3)",
 });
 assert.deepEqual(
   failure.map(({ label, value }) => [label, value]),
   [
     ["회전 결과", "실패"],
+    ["실패 유형", "로그인·API·화면 검증"],
     ["실패 Secret", "TM_SMOKE_ADMIN_PASSWORD"],
     ["시도 횟수", "3/3"],
     ["실패 단계", "GitHub secret 갱신 실패: TM_SMOKE_ADMIN_PASSWORD (시도 3/3)"],

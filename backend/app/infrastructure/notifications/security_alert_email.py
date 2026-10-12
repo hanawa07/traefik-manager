@@ -68,7 +68,8 @@ def send_email_sync(email_settings: dict[str, Any], audit_log: AuditLogModel, ev
     message = EmailMessage()
     detail = audit_log.detail or {}
     message["Subject"] = (
-        f"[Traefik Manager] {build_message(event, audit_log.resource_name, detail.get('client_ip'), category)}"
+        f"[Traefik Manager] "
+        f"{build_message(event, audit_log.resource_name, detail.get('client_ip'), category, detail)}"
     )
     message["From"] = email_settings["from_email"]
     message["To"] = ", ".join(email_settings["recipients"])

@@ -31,7 +31,39 @@ async def test_notify_if_needed_posts_smoke_rotation_failure(monkeypatch):
         resource_id="traefik-smoke-viewer",
         resource_name="traefik-smoke-viewer",
     )
-    audit_log.detail["step"] = "GitHub secret 갱신"
+    audit_log.detail.update(
+        {
+            "step": "회전 후 viewer·admin 스모크 검증",
+            "failure_kind": "smoke_validation",
+        }
+    )
+    patch_settings(
+        monkeypatch,
+        {
+            **TELEGRAM_CHANGE_SETTINGS,
+            "security_alert_change_route_settings_change": "default",
+        },
+    )
+    patch_http_client(monkeypatch, posted)
+
+    result = await security_alert_notifier.notify_if_needed(object(), audit_log)
+
+    assert result is True
+    assert "스모크 로그인·API·화면 검증 실패" in posted[0][1]["text"]
+    assert "실패 유형: 로그인·API·화면 검증" in posted[0][1]["text"]
+    assert "실패 단계: 회전 후 viewer·admin 스모크 검증" in posted[0][1]["text"]
+
+
+@pytest.mark.asyncio
+async def test_notify_if_needed_keeps_legacy_smoke_rotation_failure_title(monkeypatch):
+    posted = []
+    audit_log = make_audit_log(
+        "smoke_rotation_failed",
+        resource_type="user",
+        resource_id="traefik-smoke-viewer",
+        resource_name="traefik-smoke-viewer",
+    )
+    audit_log.detail["step"] = "과거 실패 단계"
     patch_settings(
         monkeypatch,
         {
@@ -45,7 +77,6 @@ async def test_notify_if_needed_posts_smoke_rotation_failure(monkeypatch):
 
     assert result is True
     assert "스모크 계정 비밀번호 회전 실패" in posted[0][1]["text"]
-    assert "실패 단계: GitHub secret 갱신" in posted[0][1]["text"]
 
 
 @pytest.mark.asyncio

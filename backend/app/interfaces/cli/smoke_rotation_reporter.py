@@ -13,6 +13,7 @@ from app.core.smoke_rotation_status import (
     SMOKE_ROTATION_LAST_SUCCESS_AT_KEY,
     SMOKE_ROTATION_STATUSES,
     SMOKE_ROTATION_STATUS_KEY,
+    classify_smoke_rotation_failure,
     normalize_smoke_revision,
 )
 from app.infrastructure.persistence.database import AsyncSessionLocal
@@ -72,6 +73,7 @@ async def record_smoke_rotation_status(
             audit_detail["revision"] = safe_revision
         if status == "failure":
             audit_detail["step"] = safe_detail or "알 수 없는 단계"
+            audit_detail["failure_kind"] = classify_smoke_rotation_failure(safe_detail)
         await audit_recorder(
             db=db,
             actor="system",

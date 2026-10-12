@@ -33,7 +33,9 @@ async def record_delivery_result(
         "event": delivery_event,
         "success": success,
         "provider": provider,
-        "message": build_message(event, audit_log.resource_name, detail.get("client_ip"), category),
+        "message": build_message(
+            event, audit_log.resource_name, detail.get("client_ip"), category, detail
+        ),
         "detail": delivery_detail,
         "source_event": event,
         "source_action": audit_log.action,

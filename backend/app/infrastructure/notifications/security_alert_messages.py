@@ -1,7 +1,25 @@
 from typing import Any
 
 
-def build_message(event: str, resource_name: str, client_ip: Any, category: str) -> str:
+SMOKE_ROTATION_FAILURE_TITLES = {
+    "account_update": "스모크 계정 비밀번호 변경 실패",
+    "smoke_validation": "스모크 로그인·API·화면 검증 실패",
+    "execution": "스모크 계정 운영 점검 실행 실패",
+}
+SMOKE_ROTATION_FAILURE_LABELS = {
+    "account_update": "계정 비밀번호 변경",
+    "smoke_validation": "로그인·API·화면 검증",
+    "execution": "운영 점검 실행",
+}
+
+
+def build_message(
+    event: str,
+    resource_name: str,
+    client_ip: Any,
+    category: str,
+    detail: dict[str, Any] | None = None,
+) -> str:
     if event == "traefik_encoded_path_blocks_high":
         return f"Traefik 인코딩 경로 차단 급증: {resource_name}"
     if event == "traefik_encoded_path_blocks_recovered":
@@ -14,6 +32,10 @@ def build_message(event: str, resource_name: str, client_ip: Any, category: str)
         return f"이상 징후 IP 차단: {client_ip or resource_name}"
     if event.startswith("settings_update_"):
         return f"설정 변경: {resource_name}"
+    if event == "smoke_rotation_failed" and detail:
+        title = SMOKE_ROTATION_FAILURE_TITLES.get(str(detail.get("failure_kind")))
+        if title:
+            return f"{title}: {resource_name}"
     event_labels = {
         "service_create": "서비스 생성",
         "service_update": "서비스 변경",
@@ -57,7 +79,7 @@ def build_telegram_message(audit_log: Any, event: str, category: str) -> str:
 def build_multiline_message(audit_log: Any, event: str, category: str) -> str:
     detail = audit_log.detail or {}
     lines = [
-        build_message(event, audit_log.resource_name, detail.get("client_ip"), category),
+        build_message(event, audit_log.resource_name, detail.get("client_ip"), category, detail),
         f"이벤트: {event}",
         f"대상: {audit_log.resource_name or '-'}",
         f"행위자: {audit_log.actor or '-'}",
@@ -155,8 +177,12 @@ def _append_change_details(lines: list[str], detail: dict[str, Any], event: str)
         lines.append(f"만료 시각: {detail.get('expires_at')}")
     if detail.get("source_audit_id"):
         lines.append(f"원본 변경 로그: {detail.get('source_audit_id')}")
-    if event == "smoke_rotation_failed" and detail.get("step"):
-        lines.append(f"실패 단계: {detail.get('step')}")
+    if event == "smoke_rotation_failed":
+        failure_label = SMOKE_ROTATION_FAILURE_LABELS.get(str(detail.get("failure_kind")))
+        if failure_label:
+            lines.append(f"실패 유형: {failure_label}")
+        if detail.get("step"):
+            lines.append(f"실패 단계: {detail.get('step')}")
     if event in {
         "github_api_rate_limit_test",
         "github_api_primary_rate_limit",

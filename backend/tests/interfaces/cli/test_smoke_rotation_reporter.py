@@ -108,14 +108,15 @@ async def test_record_smoke_rotation_failure_records_alert_event() -> None:
         db=object(),
         repo=repo,
         status="failure",
-        detail="GitHub secret 갱신",
+        detail="회전 후 viewer·admin 스모크 검증",
         audit_recorder=record_audit,
     )
 
     assert repo.values[SMOKE_ROTATION_STATUS_KEY] == "failure"
-    assert repo.values[SMOKE_ROTATION_DETAIL_KEY] == "GitHub secret 갱신"
+    assert repo.values[SMOKE_ROTATION_DETAIL_KEY] == "회전 후 viewer·admin 스모크 검증"
     assert recorded[0]["detail"] == {
         "event": "smoke_rotation_failed",
-        "step": "GitHub secret 갱신",
+        "step": "회전 후 viewer·admin 스모크 검증",
+        "failure_kind": "smoke_validation",
     }
     assert recorded[0]["resource_id"] == "smoke-accounts"

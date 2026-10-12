@@ -11,6 +11,20 @@ SMOKE_ROTATION_DETAIL_KEY = "smoke_viewer_rotation_detail"
 SMOKE_ROTATION_STATUSES = {"running", "success", "failure"}
 SMOKE_ROTATION_STALE_AFTER_DAYS = 35
 
+SMOKE_ROTATION_ACCOUNT_UPDATE_STEPS = {
+    "viewer 계정 갱신",
+    "admin 계정 갱신",
+}
+SMOKE_ROTATION_VALIDATION_STEP = "회전 후 viewer·admin 스모크 검증"
+
+
+def classify_smoke_rotation_failure(step: str | None) -> str:
+    if step in SMOKE_ROTATION_ACCOUNT_UPDATE_STEPS:
+        return "account_update"
+    if step == SMOKE_ROTATION_VALIDATION_STEP:
+        return "smoke_validation"
+    return "execution"
+
 
 def normalize_smoke_revision(revision: str | None) -> str | None:
     value = (revision or "").strip().lower()

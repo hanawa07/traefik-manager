@@ -20,12 +20,17 @@ def build_payload(audit_log: Any, event: str, category: str) -> dict[str, Any]:
         "client_ip": detail.get("client_ip"),
         "created_at": audit_log.created_at.isoformat(),
         "detail": detail,
-        "message": build_message(event, audit_log.resource_name, detail.get("client_ip"), category),
+        "message": build_message(
+            event, audit_log.resource_name, detail.get("client_ip"), category, detail
+        ),
     }
 
 
 def build_slack_payload(audit_log: Any, event: str, category: str) -> dict[str, Any]:
-    message = build_message(event, audit_log.resource_name, (audit_log.detail or {}).get("client_ip"), category)
+    detail = audit_log.detail or {}
+    message = build_message(
+        event, audit_log.resource_name, detail.get("client_ip"), category, detail
+    )
     title = "Traefik Manager 운영 알림" if category == "change" else "Traefik Manager 보안 경고"
     return {
         "text": f"[Traefik Manager] {message}",
@@ -49,7 +54,10 @@ def build_discord_payload(audit_log: Any, event: str, category: str) -> dict[str
     detail = audit_log.detail or {}
     title = "Traefik Manager 운영 알림" if category == "change" else "Traefik Manager 보안 경고"
     return {
-        "content": f"[Traefik Manager] {build_message(event, audit_log.resource_name, detail.get('client_ip'), category)}",
+        "content": (
+            f"[Traefik Manager] "
+            f"{build_message(event, audit_log.resource_name, detail.get('client_ip'), category, detail)}"
+        ),
         "embeds": [
             {
                 "title": title,
@@ -87,7 +95,13 @@ def build_teams_payload(audit_log: Any, event: str, category: str) -> dict[str, 
                         {
                             "type": "TextBlock",
                             "wrap": True,
-                            "text": build_message(event, audit_log.resource_name, detail.get("client_ip"), category),
+                            "text": build_message(
+                                event,
+                                audit_log.resource_name,
+                                detail.get("client_ip"),
+                                category,
+                                detail,
+                            ),
                         },
                         {
                             "type": "FactSet",
@@ -112,7 +126,9 @@ def build_pagerduty_payload(audit_log: Any, event: str, routing_key: str, catego
         "routing_key": routing_key,
         "event_action": "trigger",
         "payload": {
-            "summary": build_message(event, audit_log.resource_name, detail.get("client_ip"), category),
+            "summary": build_message(
+                event, audit_log.resource_name, detail.get("client_ip"), category, detail
+            ),
             "source": source,
             "severity": _build_pagerduty_severity(event, category),
             "component": "traefik-manager",
