@@ -23,9 +23,19 @@ mkdir -p "${FAKE_BIN}" "${STATE_DIR}"
 cat > "${FAKE_BIN}/curl" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
-printf '%s\n' "$*" >> "${TM_WATCHDOG_FAKE_CURL_LOG}"
+printf '%q ' "$@" >> "${TM_WATCHDOG_FAKE_CURL_LOG}"
+printf '\n' >> "${TM_WATCHDOG_FAKE_CURL_LOG}"
 status="$(<"${TM_WATCHDOG_FAKE_STATUS_FILE}")"
-if [[ "${status}" == "healthy" ]]; then printf '200'; else printf '503'; fi
+case "${status}" in
+  healthy) printf '200' ;;
+  unhealthy) printf '503' ;;
+  dns-failed) printf '000\nCould not resolve host: private.invalid'; exit 6 ;;
+  dns-timeout) printf '000\nResolving timed out after 15001 milliseconds'; exit 28 ;;
+  connect-failed) printf '000\nFailed to connect to private.invalid'; exit 7 ;;
+  request-timeout) printf '000\nOperation timed out'; exit 28 ;;
+  tls-failed) printf '000\nSSL certificate problem'; exit 60 ;;
+  connection-failed) printf '000\nprivate unknown error'; exit 52 ;;
+esac
 SCRIPT
 cat > "${FAKE_BIN}/docker" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -113,6 +123,18 @@ assert_state unhealthy 0 1 failure 0 anubis
 grep -Fxq "${STATE_DIR}|${USER_SYSTEMD_BASELINE}" "${USER_SYSTEMD_LOG}"
 if grep -v -q 'https://watchdog.invalid/api/health' "${CURL_LOG}"; then
   echo "watchdog 통합 시험이 예상하지 않은 URL을 호출했습니다" >&2
+  exit 1
+fi
+
+printf 'success' > "${DISPATCH_STATUS_FILE}"
+for failure_kind in dns-failed dns-timeout connect-failed request-timeout tls-failed connection-failed; do
+  rm -f "${STATE_DIR}/manager-health-watchdog.state"
+  printf '%s' "${failure_kind}" > "${STATUS_FILE}"
+  run_watchdog
+  grep -q -- "send-manager-health-alert.js failure ${failure_kind} 1" "${DISPATCH_LOG}"
+done
+if grep -Eq 'private.invalid|private unknown|Resolving timed out' "${DISPATCH_LOG}"; then
+  echo "watchdog이 원본 curl 오류를 알림으로 전달했습니다" >&2
   exit 1
 fi
 

@@ -51,17 +51,37 @@ resolve_health_url() {
 }
 
 check_health() {
-  local http_code
-  http_code="$(
-    "${CURL_BIN}" --location --silent --show-error \
+  local http_code curl_result curl_status curl_error
+  if curl_result="$(
+    LC_ALL=C "${CURL_BIN}" --location --silent \
       --max-time "${REQUEST_TIMEOUT_SECONDS}" \
       --output /dev/null \
-      --write-out '%{http_code}' \
-      "${health_url}"
-  )" || {
-    health_detail="connection-failed"
+      --write-out $'%{http_code}\n%{errormsg}' \
+      "${health_url}" 2>/dev/null
+  )"; then
+    curl_status=0
+  else
+    curl_status=$?
+  fi
+  http_code="${curl_result%%$'\n'*}"
+  curl_error="${curl_result#*$'\n'}"
+  if [[ "${curl_status}" != 0 ]]; then
+    case "${curl_status}" in
+      5|6) health_detail="dns-failed" ;;
+      7) health_detail="connect-failed" ;;
+      28)
+        if [[ "${curl_error}" == "Resolving timed out"* ]]; then
+          health_detail="dns-timeout"
+        else
+          health_detail="request-timeout"
+        fi
+        ;;
+      35|51|58|59|60|64|66|77|80|82|83|90|91) health_detail="tls-failed" ;;
+      *) health_detail="connection-failed" ;;
+    esac
     return 1
-  }
+  fi
+  [[ "${http_code}" =~ ^[1-5][0-9]{2}$ ]] || { health_detail="connection-failed"; return 1; }
   health_detail="HTTP ${http_code}"
   [[ "${http_code}" == "200" ]]
 }
