@@ -77,6 +77,11 @@ services:
     image: traefik-manager-dockerproxy
     container_name: traefik-manager-dockerproxy
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
     entrypoint: ["/usr/local/sbin/haproxy"]
     command: ["-f", "/usr/local/etc/haproxy/haproxy.cfg"]
     user: "65534:${DOCKER_SOCKET_GID:-988}"
