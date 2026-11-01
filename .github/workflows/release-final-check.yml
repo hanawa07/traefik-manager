@@ -117,6 +117,8 @@ jobs:
           npm --prefix frontend run test:smoke-failure-rate
           npm --prefix frontend run test:github-api-rate-limit
           npm --prefix frontend run test:service-routing
+          npm --prefix frontend run test:form-validation
+          npm --prefix frontend run test:redirect-security
           scripts/check-services.sh --self-test
 
       - name: 릴리스 구간 migration 호환성 검사

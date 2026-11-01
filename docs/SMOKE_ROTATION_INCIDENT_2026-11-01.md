@@ -83,4 +83,5 @@ blue-green과 rollback 실패 격리 검사를 통과했다.
 
 GitHub Actions를 반복 호출하지 않고 로컬·실제 운영 경로로 검증했다.
 원래 화면 장애의 수정·배포·점검 재실행·감시 복구는 완료됐으며,
-별도 Zod/follow-redirects 보안 경고와 다음 자연 예약 실행 관측은 후속 항목이다.
+별도 Zod/follow-redirects 보안 경고는 [의존성 보안 후속](DEPENDENCY_SECURITY_2026-11-01.md)에서
+추적한다. 다음 자연 예약 실행 관측은 이 기록과 별개다.

@@ -2,23 +2,9 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 
 import { RedirectHostCreate } from "../api/redirectApi";
-
-const schema = z.object({
-  domain: z
-    .string()
-    .regex(
-      /^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/,
-      "유효한 도메인 형식이 아닙니다"
-    ),
-  target_url: z.string().min(1, "리다이렉트 대상 URL을 입력하세요"),
-  permanent: z.boolean(),
-  tls_enabled: z.boolean(),
-});
-
-type FormData = z.infer<typeof schema>;
+import { redirectFormSchema, type RedirectFormData } from "./redirectFormSchema";
 
 interface RedirectFormDefaultValues {
   domain?: string;
@@ -44,8 +30,8 @@ export default function RedirectForm({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(schema),
+  } = useForm<RedirectFormData>({
+    resolver: zodResolver(redirectFormSchema),
     defaultValues: {
       domain: defaultValues?.domain || "",
       target_url: defaultValues?.target_url || "",

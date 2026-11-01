@@ -8,8 +8,8 @@ export const middlewareFormSchema = z.object({
   name: z.string().min(1, "템플릿 이름을 입력하세요"),
   type: z.enum(["ipAllowList", "rateLimit", "basicAuth", "headers"]),
   source_range_input: z.string().optional(),
-  rate_limit_average: z.coerce.number().int().positive("1 이상의 정수를 입력하세요").optional(),
-  rate_limit_burst: z.coerce.number().int().positive("1 이상의 정수를 입력하세요").optional(),
+  rate_limit_average: z.coerce.number<number>().int().positive("1 이상의 정수를 입력하세요").optional(),
+  rate_limit_burst: z.coerce.number<number>().int().positive("1 이상의 정수를 입력하세요").optional(),
   basic_auth_users_input: z.string().optional(),
   custom_headers: z.array(
     z.object({

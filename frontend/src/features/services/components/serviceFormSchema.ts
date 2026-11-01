@@ -10,7 +10,7 @@ const serviceFormBaseSchema = z.object({
     "유효한 도메인 형식이 아닙니다",
   ),
   upstream_host: z.string().min(1, "업스트림 호스트를 입력하세요"),
-  upstream_port: z.coerce.number().min(1).max(65535, "1~65535 범위의 포트를 입력하세요"),
+  upstream_port: z.coerce.number<number>().min(1).max(65535, "1~65535 범위의 포트를 입력하세요"),
   routing_mode: z.enum(["active", "disabled", "maintenance"]),
   maintenance_message: z.string().max(300, "점검 안내 문구는 300자 이하여야 합니다"),
   maintenance_until: z.string().refine(
@@ -35,8 +35,8 @@ const serviceFormBaseSchema = z.object({
   allowed_ips_input: z.string().optional(),
   blocked_paths_input: z.string().optional(),
   rate_limit_enabled: z.boolean(),
-  rate_limit_average: z.coerce.number().int().positive("1 이상의 정수를 입력하세요").optional(),
-  rate_limit_burst: z.coerce.number().int().positive("1 이상의 정수를 입력하세요").optional(),
+  rate_limit_average: z.coerce.number<number>().int().positive("1 이상의 정수를 입력하세요").optional(),
+  rate_limit_burst: z.coerce.number<number>().int().positive("1 이상의 정수를 입력하세요").optional(),
   custom_headers: z.array(
     z.object({
       key: z.string(),
@@ -46,7 +46,7 @@ const serviceFormBaseSchema = z.object({
   frame_policy: z.enum(["deny", "sameorigin", "off"]),
   healthcheck_enabled: z.boolean(),
   healthcheck_path: z.string(),
-  healthcheck_timeout_ms: z.coerce.number().int().positive("1 이상의 정수를 입력하세요"),
+  healthcheck_timeout_ms: z.coerce.number<number>().int().positive("1 이상의 정수를 입력하세요"),
   healthcheck_expected_statuses_input: z.string().optional(),
 });
 
