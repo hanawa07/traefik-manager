@@ -36,5 +36,25 @@
 
 ## 운영 상태
 
-이 기록 시점에는 소스 검증을 완료했으며 blue-green 배포와 실제 운영 브라우저
-검증은 아래 후속 결과를 기준으로 판단한다. 기존 운영 설정·백업은 보존한다.
+`474923f` 소스로 `v1.38.349`를 기존 blue-green 절차로 green → blue에 배포했다.
+후보 health와 migration 사전 검사를 통과한 뒤 전환했고 probe 18건 모두 HTTP
+200이었다. DB schema 변경은 없고, 전환 전 SQLite 백업의 integrity_check도
+정상이었다. 이전 green 컨테이너·이미지와 비추적 운영 설정·백업은 보존했다.
+
+- backend/frontend의 버전·revision은 `v1.38.349 / 474923f`로 일치하며 healthy다.
+- 실제 운영 클라이언트 번들에서 Zod `4.6.7` 버전 표식을 확인했다.
+  client 의존성은 번들에 들어가므로 standalone node_modules에 개별 패키지가
+  없다는 것을 설치 실패로 오해하지 않는다. follow-redirects는 수정된 lockfile과
+  실제 Docker `npm ci` 및 loopback 회귀 검사로 확인했다.
+- 기존 Tailnet HTTPS health가 `status=정상`으로 응답했다.
+- 실제 월간 회전 서비스를 실행해 점검 계정 2개를 회전한 뒤 서비스 30개,
+  10개 API, 모바일 다크·데스크톱 라이트 주요 화면, 로그인과 관리자 읽기 전용
+  403을 검증했다. 실제 서비스·미들웨어·사용자 관리 설정을 가짜 값으로 저장하지 않았다.
+- 18:08:24 KST에 종료 코드 0·`Result=success`로 끝났고, DB의 성공 시각과
+  성공 revision도 실제 `474923f`로 기록됐다.
+- 기존 사용자 systemd watchdog도 후속 실행해 `healthy / ok:46-units`,
+  연속 실패 0·활성 알림 0을 확인했다. 감시 기준선·임계값은 변경하지 않았다.
+
+GitHub Actions를 반복 호출하지 않고 로컬 검사와 실제 운영 경로로 검증했다.
+이번 두 운영 의존성 경고의 패치·호환성 확인·배포·운영 검증은 완료했다.
+개발용 moderate 17건의 영향 분류와 다음 자연 예약 점검 관측은 별도 후속이다.
