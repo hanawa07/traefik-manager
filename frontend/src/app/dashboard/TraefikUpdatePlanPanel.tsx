@@ -81,7 +81,7 @@ export function TraefikUpdatePlanPanel({
           ) : null}
         </div>
       </div>
-      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+      <div className="mt-3 grid min-w-0 grid-cols-1 gap-2 text-xs sm:grid-cols-3">
         <TraefikDeploymentFact label="현재 이미지" value={plan.currentImage || "-"} />
         <TraefikDeploymentFact label="목표 이미지" value={plan.targetImage || "-"} />
         <TraefikDeploymentFact label="Compose 위치" value={plan.composeWorkingDir || "-"} monospace />
@@ -156,7 +156,7 @@ export function TraefikUpdatePlanPanel({
 
 function TraefikDeploymentFact({ label, monospace = false, value }: { label: string; monospace?: boolean; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white/70 px-3 py-2 dark:border-slate-700 dark:bg-slate-950/60">
+    <div className="min-w-0 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 dark:border-slate-700 dark:bg-slate-950/60" data-testid="traefik-deployment-fact">
       <p className="text-[11px] text-slate-500 dark:text-slate-400">{label}</p>
       <p className={`mt-1 truncate text-xs font-semibold text-slate-800 dark:text-slate-100 ${monospace ? "font-mono" : ""}`}>
         {value}
