@@ -57,4 +57,42 @@
 
 GitHub Actions를 반복 호출하지 않고 로컬 검사와 실제 운영 경로로 검증했다.
 이번 두 운영 의존성 경고의 패치·호환성 확인·배포·운영 검증은 완료했다.
-개발용 moderate 17건의 영향 분류와 다음 자연 예약 점검 관측은 별도 후속이다.
+이 시점에 남은 개발용 moderate 17건의 분류와 자연 예약 점검은 아래 후속에서 확인했다.
+
+## 개발 의존성 후속 점검
+
+같은 날 후속 점검에서 moderate 17건은 독립 취약점 17개가 아니라 아래 두
+권고와 상위 패키지의 연쇄 경고임을 확인했다.
+
+| 원인 | 설치 경로와 판단 | 처리 |
+| --- | --- | --- |
+| [CSS selector CPU 소모](https://github.com/advisories/GHSA-rj75-hqrm-r3gf) | Tailwind 3.4.19와 postcss-nested 6.2.0의 빌드용 parser | 허용 범위 안에서 6.1.4 → 6.1.5 패치 |
+| [minimatch 패턴 증폭](https://github.com/advisories/GHSA-g3hv-75wg-m249) | ESLint·플러그인·TypeScript ESLint의 3.1.5/10.2.4 | 잔여 moderate 16건의 공통 원인으로 보류 |
+
+minimatch 권고는 외부 입력 패턴과 `optimizationLevel >= 2`의 증폭을 설명하며
+수정 버전은 11.0.1이다. 현재 앱 소스에는 minimatch 직접 호출이 없고 lint
+도구 경로에 설치되어 있다. 이것을 운영 HTTP 공격 경로나 위험 0의 증명으로
+확대하지 않는다. 신뢰할 수 없는 소스·lint 설정을 실행하는 경우에는 별도 검토한다.
+
+ESLint와 일부 플러그인은 3.x의 callable CommonJS API를 사용하므로 11.x를
+전역 override하지 않는다. audit의 ESLint 4.0.0·Next 설정 0.2.4 다운그레이드
+제안도 적용하지 않는다. 호환되는 구버전 보안 backport 또는 상위 도구의
+수정 minimatch 지원이 나오면 재검토한다. 외부 glob 입력을 처리하는 기능을
+추가하거나 untrusted lint 작업을 도입할 때도 이 보류를 다시 검토해야 한다.
+
+검증 결과:
+
+- lockfile 변경은 개발용 parser의 version·resolved·integrity 3개 필드뿐이다.
+  변경 전후 모든 비개발 패키지 항목의 구조적 동일성을 assertion으로 확인했다.
+- 새 lockfile의 `npm ci --ignore-scripts --no-audit --no-fund`, lint,
+  TypeScript 포함 production build가 성공했다.
+  일반·복합·반복 selector 3개의 parse/serialize 검사도 통과했다.
+- 전체 audit은 moderate 16건, high/critical 0건이다. `npm audit --omit=dev
+  --audit-level=low`는 취약점 0건이며 audit 경고를 숨기거나 예외 처리하지 않았다.
+- 이번 변경은 다음 빌드용 개발 의존성 패치다. 운영 재배포·계정 재회전은 하지
+  않았다. 운영은 검증된 `v1.38.349 / 474923f`를 유지하며 backend/frontend와
+  dockerproxy가 healthy이고 Tailnet HTTPS health는 `status=정상`이다.
+- 사용자 systemd watchdog은 수동 복구 확인 이후 18:11 정기 실행에서도
+  `Result=success / exit 0`이었다. 현재 상태는 `healthy / ok:46-units`, 연속
+  실패 0·활성 알림 0이다. 월간 회전의 다음 자연 실행은 12월 1일 04:17 KST로,
+  아직 관측한 결과가 아니며 이를 확인하려고 지금 다시 실행하지 않는다.
