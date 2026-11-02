@@ -15,6 +15,7 @@ from app.infrastructure.traefik.traefik_api_client import TraefikApiClient, Trae
 logger = logging.getLogger(__name__)
 
 CERTIFICATE_ALERT_STATE_KEY = "certificate_alert_state"
+AUTO_RENEWAL_PUSH_WARNING_DAYS = 7
 
 
 def _to_utc(value: datetime | None) -> datetime | None:
@@ -59,6 +60,18 @@ def _to_event_name(status: str, previous_status: str | None = None) -> str | Non
     if status == "error":
         return "certificate_error"
     return None
+
+
+def _notification_status(certificate: dict[str, Any], *, auto_renewal: bool) -> str | None:
+    status = certificate.get("status")
+    if status == "error":
+        return "error"
+    if status != "warning":
+        return None
+    days = certificate.get("days_remaining")
+    if auto_renewal and isinstance(days, (int, float)) and days > AUTO_RENEWAL_PUSH_WARNING_DAYS:
+        return None
+    return "warning"
 
 
 async def get_certificate_alert_state(
@@ -109,6 +122,13 @@ async def check_certificate_alerts_once(
             state_entry = _to_state_entry(certificate)
             previous_entry = previous_state.get(domain, {})
             previous_status = previous_entry.get("status")
+            auto_renewal = bool(certificate.get("cert_resolvers"))
+            notification_status = _notification_status(certificate, auto_renewal=auto_renewal)
+            previous_notification_status = previous_entry.get(
+                "notification_status",
+                _notification_status(previous_entry, auto_renewal=auto_renewal),
+            )
+            state_entry["notification_status"] = notification_status
             if previous_status == status:
                 state_entry["status_started_at"] = previous_entry.get("status_started_at") or current_time.isoformat()
             else:
@@ -119,9 +139,16 @@ async def check_certificate_alerts_once(
             if event_name is None:
                 continue
 
-            if previous_status == status:
+            if previous_status == status and (
+                notification_status is None or previous_notification_status == notification_status
+            ):
                 continue
 
+            notify = (
+                previous_notification_status is not None
+                if status == "active"
+                else notification_status is not None
+            )
             expires_at = _to_utc(certificate.get("expires_at"))
             detail = {
                 "event": event_name,
@@ -132,6 +159,8 @@ async def check_certificate_alerts_once(
                 "router_names": certificate.get("router_names") or [],
                 "checked_at": current_time.isoformat(),
                 "status_started_at": state_entry["status_started_at"],
+                "auto_renewal": auto_renewal,
+                "notification_suppressed": not notify,
             }
             await audit_service.record(
                 db=session,
@@ -141,6 +170,7 @@ async def check_certificate_alerts_once(
                 resource_id=domain,
                 resource_name=domain,
                 detail=detail,
+                notify=notify,
             )
             recorded_event_count += 1
 

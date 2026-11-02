@@ -83,6 +83,91 @@ async def test_check_certificate_alerts_once_records_warning_and_persists_state(
     assert stored_state["example.com"]["status_started_at"] == "2026-03-12T00:00:00+00:00"
 
 
+@pytest.fixture
+def renewal_monitor(monkeypatch):
+    StubSettingsRepository.store = {}
+    StubTraefikClient.certificates = []
+    recorded = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(certificate_alert_monitor, "SQLiteSystemSettingsRepository", StubSettingsRepository)
+    monkeypatch.setattr(certificate_alert_monitor, "TraefikApiClient", StubTraefikClient)
+    monkeypatch.setattr(certificate_alert_monitor.audit_service, "record", fake_record)
+
+    async def check(days, status="warning", resolvers=None):
+        StubTraefikClient.certificates = [{
+            "domain": "renewal.example.com",
+            "status": status,
+            "days_remaining": days,
+            "cert_resolvers": ["letsencrypt"] if resolvers is None else resolvers,
+            "expires_at": datetime(2026, 12, 2, tzinfo=timezone.utc),
+        }]
+        return await certificate_alert_monitor.check_certificate_alerts_once(
+            session_factory=make_session,
+            now=datetime(2026, 11, 2, tzinfo=timezone.utc),
+        )
+
+    return check, recorded
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("days,notify", [(30, False), (8, False), (7, True), (1, True), (None, True)])
+async def test_auto_renewal_keeps_warning_history_but_only_pushes_urgent_expiry(renewal_monitor, days, notify):
+    check, recorded = renewal_monitor
+    result = await check(days)
+    assert result["warning_count"] == 1
+    assert result["recorded_event_count"] == 1
+    assert recorded[0]["detail"]["event"] == "certificate_warning"
+    assert recorded[0]["notify"] is notify
+
+
+@pytest.mark.asyncio
+async def test_auto_renewal_pushes_once_when_existing_warning_reaches_seven_days(renewal_monitor):
+    check, recorded = renewal_monitor
+    for days in [30, 29, 8, 7, 7, 6]:
+        await check(days)
+    await check(90, "active")
+    assert [(row["detail"]["event"], row["notify"]) for row in recorded] == [
+        ("certificate_warning", False),
+        ("certificate_warning", True),
+        ("certificate_recovered", True),
+    ]
+    assert recorded[1]["detail"]["days_remaining"] == 7
+
+
+@pytest.mark.asyncio
+async def test_auto_renewal_routine_warning_recovery_stays_silent(renewal_monitor):
+    check, recorded = renewal_monitor
+    await check(30)
+    await check(90, "active")
+    assert [(row["detail"]["event"], row["notify"]) for row in recorded] == [
+        ("certificate_warning", False),
+        ("certificate_recovered", False),
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("days,status,resolvers", [(30, "warning", []), (-1, "error", ["letsencrypt"])])
+async def test_manual_certificates_and_expired_certificates_still_push(renewal_monitor, days, status, resolvers):
+    check, recorded = renewal_monitor
+    await check(days, status, resolvers)
+    assert recorded[0]["notify"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("days,status,notify", [(7, "warning", True), (90, "active", False)])
+async def test_legacy_routine_warning_state_preserves_escalation_and_silent_recovery(renewal_monitor, days, status, notify):
+    check, recorded = renewal_monitor
+    StubSettingsRepository.store[certificate_alert_monitor.CERTIFICATE_ALERT_STATE_KEY] = json.dumps({
+        "renewal.example.com": {"status": "warning", "days_remaining": 30},
+    })
+    await check(days, status)
+    assert len(recorded) == 1
+    assert recorded[0]["notify"] is notify
+
+
 @pytest.mark.asyncio
 async def test_check_certificate_alerts_once_deduplicates_same_warning_status(monkeypatch):
     StubSettingsRepository.store = {
