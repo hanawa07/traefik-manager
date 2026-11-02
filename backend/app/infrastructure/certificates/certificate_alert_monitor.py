@@ -15,7 +15,6 @@ from app.infrastructure.traefik.traefik_api_client import TraefikApiClient, Trae
 logger = logging.getLogger(__name__)
 
 CERTIFICATE_ALERT_STATE_KEY = "certificate_alert_state"
-AUTO_RENEWAL_PUSH_WARNING_DAYS = 7
 
 
 def _to_utc(value: datetime | None) -> datetime | None:
@@ -66,12 +65,9 @@ def _notification_status(certificate: dict[str, Any], *, auto_renewal: bool) -> 
     status = certificate.get("status")
     if status == "error":
         return "error"
-    if status != "warning":
-        return None
-    days = certificate.get("days_remaining")
-    if auto_renewal and isinstance(days, (int, float)) and days > AUTO_RENEWAL_PUSH_WARNING_DAYS:
-        return None
-    return "warning"
+    if status == "warning" and not auto_renewal:
+        return "warning"
+    return None
 
 
 async def get_certificate_alert_state(

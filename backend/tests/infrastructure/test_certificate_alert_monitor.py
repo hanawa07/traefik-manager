@@ -113,28 +113,30 @@ def renewal_monitor(monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("days,notify", [(30, False), (8, False), (7, True), (1, True), (None, True)])
-async def test_auto_renewal_keeps_warning_history_but_only_pushes_urgent_expiry(renewal_monitor, days, notify):
+@pytest.mark.parametrize("days", [30, 8, 7, 1, 0, None])
+async def test_auto_renewal_keeps_warning_history_without_expiry_countdown_push(renewal_monitor, days):
     check, recorded = renewal_monitor
     result = await check(days)
     assert result["warning_count"] == 1
     assert result["recorded_event_count"] == 1
     assert recorded[0]["detail"]["event"] == "certificate_warning"
-    assert recorded[0]["notify"] is notify
+    assert recorded[0]["notify"] is False
 
 
 @pytest.mark.asyncio
-async def test_auto_renewal_pushes_once_when_existing_warning_reaches_seven_days(renewal_monitor):
+async def test_auto_renewal_stays_silent_until_expired_and_then_reports_recovery(renewal_monitor):
     check, recorded = renewal_monitor
-    for days in [30, 29, 8, 7, 7, 6]:
+    for days in [30, 29, 8, 7, 7, 6, 1, 0]:
         await check(days)
+    await check(-1, "error")
+    await check(-2, "error")
     await check(90, "active")
     assert [(row["detail"]["event"], row["notify"]) for row in recorded] == [
         ("certificate_warning", False),
-        ("certificate_warning", True),
+        ("certificate_error", True),
         ("certificate_recovered", True),
     ]
-    assert recorded[1]["detail"]["days_remaining"] == 7
+    assert recorded[1]["detail"]["days_remaining"] == -1
 
 
 @pytest.mark.asyncio
@@ -157,15 +159,18 @@ async def test_manual_certificates_and_expired_certificates_still_push(renewal_m
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("days,status,notify", [(7, "warning", True), (90, "active", False)])
-async def test_legacy_routine_warning_state_preserves_escalation_and_silent_recovery(renewal_monitor, days, status, notify):
+@pytest.mark.parametrize("days,status", [(7, "warning"), (90, "active")])
+async def test_legacy_routine_warning_state_stays_silent(renewal_monitor, days, status):
     check, recorded = renewal_monitor
     StubSettingsRepository.store[certificate_alert_monitor.CERTIFICATE_ALERT_STATE_KEY] = json.dumps({
         "renewal.example.com": {"status": "warning", "days_remaining": 30},
     })
     await check(days, status)
-    assert len(recorded) == 1
-    assert recorded[0]["notify"] is notify
+    if status == "warning":
+        assert recorded == []
+    else:
+        assert len(recorded) == 1
+        assert recorded[0]["notify"] is False
 
 
 @pytest.mark.asyncio

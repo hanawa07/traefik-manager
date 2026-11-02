@@ -234,9 +234,9 @@ traefik-manager/
       → 이전 상태(system_settings.certificate_alert_state)와 비교
         → `warning/error` 진입 시 `certificate_warning` / `certificate_error` 감사 이벤트 기록
         → `warning/error → active` 복귀 시 `certificate_recovered` 감사 이벤트 기록
-        → ACME certResolver가 있는 인증서의 8~30일 만료 예고와 그 정상 갱신은 감사 기록만 남기고 외부 푸시는 생략
-        → 자동 갱신 대상이 갱신되지 않은 채 7일 이하가 되면 같은 warning 상태라도 한 번 푸시
-        → 실제 만료, 수동 관리 인증서의 경고, 긴급 경고 후 복구 알림은 유지
+        → ACME certResolver가 있는 인증서의 남은 기간 예고(30일·7일 포함)와 정상 갱신은 감사 기록만 남기고 외부 푸시는 생략
+        → 실제 만료, 수동 관리 인증서의 경고, 실패 후 복구 알림은 유지
+        → 갱신·발급 실패는 기존 ACME 실패·사전 진단 반복 실패 감시와 알림을 유지
         → 상태와 푸시 경고 단계가 같은 반복 검사는 중복 전송 억제
   dashboard
     → 현재 인증서 상태는 `/certificates` 응답으로 집계
