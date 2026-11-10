@@ -85,8 +85,8 @@ export function ManagerHealthAlertBanner({
         : "사용자 systemd 이상 감지",
     );
   }
-  if (userSystemdStale) {
-    details.push(`사용자 systemd 점검이 ${userSystemd?.stale_after_minutes ?? 10}분 이상 지연됨`);
+  if (userSystemd?.stale) {
+    details.push(`사용자 systemd 점검이 ${userSystemd.stale_after_minutes}분 이상 지연됨`);
   }
   if (httpErrorsBreached && httpMonitor) {
     details.push(

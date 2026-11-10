@@ -259,7 +259,7 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
             "status": "healthy",
             "checked_at": requested_at,
             "stale": False,
-            "stale_after_minutes": 10,
+            "stale_after_minutes": 20,
             "alert_active": False,
             "consecutive_failures": 0,
             "monitored_unit_count": 34,
@@ -356,6 +356,7 @@ async def test_deployment_info_enriches_watchdog_and_recent_deployment_runs(monk
         "auto_recovered"
     )
     assert result["user_systemd_watchdog"]["monitored_unit_count"] == 34
+    assert result["user_systemd_watchdog"]["stale_after_minutes"] == 20
     assert result["cloudflare_ip_protection"]["status"] == "healthy"
     assert result["deployment_history"][0]["alert_run_status"] == "completed"
     assert result["deployment_history"][0]["alert_run_conclusion"] == "success"

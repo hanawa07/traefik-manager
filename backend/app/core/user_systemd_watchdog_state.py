@@ -6,7 +6,8 @@ from pathlib import Path
 USER_SYSTEMD_WATCHDOG_PATH = (
     "/host-state/traefik-manager/user-systemd-unit-watchdog.state"
 )
-USER_SYSTEMD_STALE_AFTER_MINUTES = 10
+# Allow the 15-minute timer interval plus scheduling and execution margin.
+USER_SYSTEMD_STALE_AFTER_MINUTES = 20
 MAX_STATE_BYTES = 16 * 1024
 SAFE_UNIT_PATTERN = re.compile(r"^[A-Za-z0-9_.@:-]{1,100}\.(?:timer|service)$")
 MONITORED_COUNT_PATTERN = re.compile(r"^ok:(\d{1,4})-units$")

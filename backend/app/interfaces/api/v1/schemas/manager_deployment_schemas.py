@@ -3,6 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.core.user_systemd_watchdog_state import USER_SYSTEMD_STALE_AFTER_MINUTES
 from app.interfaces.api.v1.schemas.manager_http_error_schemas import (
     ManagerHttpErrorMonitorResponse,
     ManagerHttpErrorSummaryResponse,
@@ -82,7 +83,7 @@ class UserSystemdWatchdogResponse(BaseModel):
     status: Literal["healthy", "unhealthy", "unknown"] = "unknown"
     checked_at: datetime | None = None
     stale: bool = False
-    stale_after_minutes: int = Field(default=10, ge=1, le=60)
+    stale_after_minutes: int = Field(default=USER_SYSTEMD_STALE_AFTER_MINUTES, ge=1, le=60)
     alert_active: bool = False
     consecutive_failures: int = Field(default=0, ge=0, le=100_000)
     monitored_unit_count: int = Field(default=0, ge=0, le=9_999)
