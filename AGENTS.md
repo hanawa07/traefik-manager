@@ -47,6 +47,7 @@ Automated tests are not fully wired yet; treat lint/build and manual API checks 
 - 코드 변경이 완료되면 변경 단위별로 파일을 나눠 스테이징하고, `<영역>: <변경 요약>` 형식의 한글 커밋을 만든 뒤 현재 브랜치를 GitHub에 푸시한다.
 - 개발 중에는 로컬 테스트와 로컬 브라우저 재현을 우선하고, GitHub Actions는 완성된 작업 묶음의 최종 푸시 후 1회만 확인한다. 중간 진단 커밋마다 workflow를 실행하지 않으며, 릴리스·배포 후 운영 스모크도 최종 1회만 실행한다.
 - 관련 없는 사용자 변경, 로컬 백업, `.env`, 비밀값, 생성물은 커밋에 포함하지 않는다.
+- 감시 대상 사용자 systemd timer·service는 해당 `scripts/install-*-timer*.sh` 설치기로 설치·갱신하고 호스트 utility는 승인된 대상을 명시한다. 신규 설치 경로도 unit 검증, `scripts/lib/user-systemd-unit-transaction.sh`의 파일·활성 상태 복구, `scripts/user-systemd-unit-watchdog.sh --refresh-baseline <해당 unit들>`과 격리 설치 테스트를 포함해야 한다. 첫 기준선 초기화 외의 전체 기준선 재생성, 미등록 타이머 자동 승인, 경고를 숨기기 위한 상태 초기화는 금지한다. 설치 시 놓친 정기 작업이 실행될 수 있으므로 운영 검증만을 위해 설치기를 재실행하지 않는다.
 - Traefik 자기 차단의 즉시 감지와 복구는 Traefik 밖의 호스트 watchdog이 담당한다. Manager 화면은 복구 후 상태·이력만 표시하며 장애 중에도 보인다고 설명하지 않고, watchdog 상태에서 내부 IP를 API나 화면에 노출하지 않는다.
 - Traefik 컨테이너를 재생성하는 수동 설정 변경은 `scripts/run-traefik-recreate-safely.sh`로 실행한다. 이 경로는 마지막 정상 Compose 체크포인트와 재생성 후 health·route 검증을 사용하고 실패하면 자동 복구한다. 이 경로와 패치 업데이트 실행기는 매시 00·15·30·45분 전후 2분을 피해 TCG 운영 점검과 겹치지 않게 하며, 장애 복구·자동 롤백은 지연시키지 않는다.
 - 호스트 업데이트 실행기는 Traefik 컨테이너 ID를 매분 비교한다. 패치 업데이트·자동 롤백·`run-traefik-recreate-safely.sh`가 기록하지 않은 새 ID는 `unmanaged` 재생성으로 보관하고 Anubis에 컨테이너 ID별 알림을 한 번 요청하므로, 직접 `docker compose up -d traefik`를 실행해 감시를 우회하지 않는다.
