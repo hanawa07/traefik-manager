@@ -38,8 +38,12 @@ case "${2:-}" in
       ActiveState)
         if [[ "${mode}" == "timer-disabled" && "${unit}" == "sample.timer" ]]; then
           printf '%s\n' inactive
-        elif [[ "${mode}" == "service-failed" && "${unit}" == "sample.service" ]]; then
-          printf '%s\n' failed
+        elif [[ "${unit}" == "sample.service" ]]; then
+          case "${mode}" in
+            service-failed) printf '%s\n' failed ;;
+            service-starting) printf '%s\n' activating ;;
+            *) printf '%s\n' inactive ;;
+          esac
         elif [[ "${mode}" == "self-failed" \
           && "${unit}" == "traefik-manager-user-systemd-watchdog.service" ]]; then
           printf '%s\n' failed
@@ -62,8 +66,14 @@ case "${2:-}" in
           && printf '%s\n' exit-code || printf '%s\n' success
         ;;
       ExecMainStatus)
-        [[ "${mode}" == "service-failed" && "${unit}" == "sample.service" ]] \
+        [[ "${mode}" =~ ^(service-failed|service-reset)$ && "${unit}" == "sample.service" ]] \
           && printf '%s\n' 1 || printf '%s\n' 0
+        ;;
+      ActiveState,Result,Type,ExecMainCode,ExecMainStatus)
+        for key in ActiveState Result ExecMainStatus; do
+          printf '%s=%s\n' "${key}" "$("$0" --user show "${unit}" "--property=${key}" --value)"
+        done
+        printf '%s\n' Type=oneshot ExecMainCode=1
         ;;
       *) exit 2 ;;
     esac
@@ -188,6 +198,40 @@ printf '%s' service-failed > "${MODE_FILE}"
 run_watchdog 200
 run_watchdog 210
 grep -Fq 'service-failed:sample.service' "${ALERT_LOG}"
+alert_count="$(wc -l < "${ALERT_LOG}")"
+
+# The first run after upgrading must also recognize the old state format.
+sed -i '/^service_issues=/d' "${STATE_DIR}/user-systemd-unit-watchdog.state"
+printf '%s' service-starting > "${MODE_FILE}"
+run_watchdog 1250
+grep -Fxq 'status=unhealthy' "${STATE_DIR}/user-systemd-unit-watchdog.state"
+grep -Fxq 'consecutive_failures=2' "${STATE_DIR}/user-systemd-unit-watchdog.state"
+grep -Fxq 'service_issues=service-failed:sample.service,service-result:sample.service' \
+  "${STATE_DIR}/user-systemd-unit-watchdog.state"
+[[ "$(wc -l < "${ALERT_LOG}")" -eq "${alert_count}" ]]
+
+printf '%s' service-failed > "${MODE_FILE}"
+run_watchdog 1260
+grep -Fxq 'consecutive_failures=3' "${STATE_DIR}/user-systemd-unit-watchdog.state"
+[[ "$(wc -l < "${ALERT_LOG}")" -eq $((alert_count + 1)) ]]
+
+# An inactive unit with its failure flag cleared still has the old exit status.
+printf '%s' service-reset > "${MODE_FILE}"
+run_watchdog 1270
+grep -Fxq 'status=unhealthy' "${STATE_DIR}/user-systemd-unit-watchdog.state"
+[[ "$(wc -l < "${ALERT_LOG}")" -eq $((alert_count + 1)) ]]
+
+printf '%s' healthy > "${MODE_FILE}"
+run_watchdog 1280
+grep -Fxq 'status=healthy' "${STATE_DIR}/user-systemd-unit-watchdog.state"
+grep -Fxq $'사용자 systemd 타이머·서비스 점검\t정상 복구 · 장애 중 연속 감지 3회\trecovery' <(tail -n 1 "${ALERT_LOG}")
+[[ "$(wc -l < "${ALERT_LOG}")" -eq $((alert_count + 2)) ]]
+
+# Other healthy units are allowed to start without opening a new incident.
+printf '%s' service-starting > "${MODE_FILE}"
+run_watchdog 1290
+grep -Fxq 'status=healthy' "${STATE_DIR}/user-systemd-unit-watchdog.state"
+[[ "$(wc -l < "${ALERT_LOG}")" -eq $((alert_count + 2)) ]]
 
 rm -f "${STATE_DIR}/user-systemd-unit-watchdog.state"
 printf '%s' drift > "${MODE_FILE}"

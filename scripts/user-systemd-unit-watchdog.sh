@@ -18,6 +18,7 @@ readonly WATCHDOG_SERVICE_NAME="traefik-manager-user-systemd-watchdog.service"
 
 declare -a baseline_units=()
 declare -a issues=()
+declare -a held_service_issues=()
 declare -A baseline_hashes=()
 declare -A baseline_roles=()
 declare -A issue_seen=()
@@ -261,8 +262,44 @@ add_issue() {
   issues+=("$1")
 }
 
+hold_service_issue() {
+  local issue
+  for issue in "service-failed:$1" "service-result:$1"; do
+    if [[ ",${previous_service_issues}," == *",${issue},"* ]]; then
+      held_service_issues+=("${issue}")
+    fi
+  done
+}
+
+check_service() {
+  local unit="$1" output key value active="" result="" type="" code="" status=""
+  [[ "${unit}" != "${WATCHDOG_SERVICE_NAME}" ]] || return 0
+  if ! output="$("${SYSTEMCTL_BIN}" --user show "${unit}" \
+    --property=ActiveState,Result,Type,ExecMainCode,ExecMainStatus 2>/dev/null)"; then
+    add_issue "unit-unreadable:${unit}"
+    hold_service_issue "${unit}"
+    return
+  fi
+  while IFS='=' read -r key value; do
+    case "${key}" in
+      ActiveState) active="${value}" ;;
+      Result) result="${value}" ;;
+      Type) type="${value}" ;;
+      ExecMainCode) code="${value}" ;;
+      ExecMainStatus) status="${value}" ;;
+    esac
+  done <<< "${output}"
+  [[ "${active}" != "failed" ]] || add_issue "service-failed:${unit}"
+  [[ -z "${result}" || "${result}" == "success" ]] || add_issue "service-result:${unit}"
+  # systemd clears Result when a retry begins; a cleared failure flag is not completion.
+  if [[ ! "${active}" =~ ^(active|inactive|failed)$ || -z "${result}" || \
+    ( "${type}" == "oneshot" && ( "${code}" != "1" || "${status}" != "0" ) ) ]]; then
+    hold_service_issue "${unit}"
+  fi
+}
+
 check_units() {
-  local current_timers timer unit role load active enabled result current_hash
+  local current_timers timer unit role load active enabled current_hash
   if ! read_baseline; then
     add_issue "baseline-invalid"
     return
@@ -282,20 +319,16 @@ check_units() {
     role="${baseline_roles[${unit}]}"
     if ! load="$(get_property "${unit}" LoadState)" || [[ "${load}" != "loaded" ]]; then
       add_issue "unit-not-loaded:${unit}"
+      [[ "${role}" != "service" ]] || hold_service_issue "${unit}"
       continue
     fi
-    active="$(get_property "${unit}" ActiveState 2>/dev/null || true)"
     if [[ "${role}" == "timer" ]]; then
+      active="$(get_property "${unit}" ActiveState 2>/dev/null || true)"
       enabled="$("${SYSTEMCTL_BIN}" --user is-enabled "${unit}" 2>/dev/null || true)"
       [[ "${enabled}" == enabled* ]] || add_issue "timer-disabled:${unit}"
       [[ "${active}" == "active" ]] || add_issue "timer-inactive:${unit}"
     else
-      if [[ "${unit}" != "${WATCHDOG_SERVICE_NAME}" ]]; then
-        result="$(get_property "${unit}" Result 2>/dev/null || true)"
-        [[ "${active}" != "failed" ]] || add_issue "service-failed:${unit}"
-        [[ -z "${result}" || "${result}" == "success" ]] \
-          || add_issue "service-result:${unit}"
-      fi
+      check_service "${unit}"
     fi
     if current_hash="$(hash_unit "${unit}")"; then
       [[ "${current_hash}" == "${baseline_hashes[${unit}]}" ]] \
@@ -313,7 +346,12 @@ read_state() {
 }
 
 write_state() {
-  local temporary_file
+  local temporary_file issue service_issues=""
+  for issue in "${issues[@]}"; do
+    case "${issue}" in
+      service-failed:*|service-result:*) service_issues+="${service_issues:+,}${issue}" ;;
+    esac
+  done
   temporary_file="$(mktemp "${STATE_FILE}.tmp.XXXXXX")"
   {
     printf 'status=%s\n' "$1"
@@ -322,6 +360,7 @@ write_state() {
     printf 'consecutive_failures=%s\n' "$4"
     printf 'last_check_at=%s\n' "$5"
     printf 'detail=%s\n' "$6"
+    printf 'service_issues=%s\n' "${service_issues}"
   } > "${temporary_file}"
   chmod 644 "${temporary_file}"
   mv "${temporary_file}" "${STATE_FILE}"
@@ -387,12 +426,18 @@ previous_status="$(read_state status)"
 alert_active="$(read_state alert_active)"
 last_alert_at="$(read_state last_alert_at)"
 consecutive_failures="$(read_state consecutive_failures)"
+previous_service_issues="$(read_state service_issues)"
+[[ -n "${previous_service_issues}" ]] || previous_service_issues="$(read_state detail)"
 [[ "${previous_status}" =~ ^(healthy|unhealthy)$ ]] || previous_status="unknown"
 [[ "${alert_active}" =~ ^[01]$ ]] || alert_active="0"
 [[ "${last_alert_at}" =~ ^[0-9]+$ ]] || last_alert_at="0"
 [[ "${consecutive_failures}" =~ ^[0-9]+$ ]] || consecutive_failures="0"
 
 check_units
+observed_issue_count="${#issues[@]}"
+for held_issue in "${held_service_issues[@]}"; do
+  add_issue "${held_issue}"
+done
 now_epoch="${TM_USER_SYSTEMD_NOW_EPOCH:-$(date +%s)}"
 [[ "${now_epoch}" =~ ^[0-9]+$ ]] || { echo "현재 시각이 올바르지 않습니다" >&2; exit 2; }
 if [[ "${#issues[@]}" -eq 0 ]]; then
@@ -401,9 +446,13 @@ if [[ "${#issues[@]}" -eq 0 ]]; then
   detail="ok:${#baseline_units[@]}-units"
 else
   current_status="unhealthy"
-  [[ "${previous_status}" == "unhealthy" ]] \
-    && current_failures=$((consecutive_failures + 1)) \
-    || current_failures=1
+  if [[ "${observed_issue_count}" -eq 0 ]]; then
+    current_failures="${consecutive_failures}"
+  elif [[ "${previous_status}" == "unhealthy" ]]; then
+    current_failures=$((consecutive_failures + 1))
+  else
+    current_failures=1
+  fi
   detail="$(IFS=,; printf '%s' "${issues[*]}")"
   detail="${detail:0:500}"
 fi
@@ -412,7 +461,7 @@ action="none"
 if [[ "${current_status}" == "healthy" && "${previous_status}" == "unhealthy" && \
   "${alert_active}" == "1" ]]; then
   action="recovery"
-elif [[ "${current_status}" == "unhealthy" && "${current_failures}" -ge "${FAILURE_THRESHOLD}" ]]; then
+elif [[ "${observed_issue_count}" -gt 0 && "${current_failures}" -ge "${FAILURE_THRESHOLD}" ]]; then
   if [[ "${alert_active}" == "0" || $((now_epoch - last_alert_at)) -ge "${COOLDOWN_SECONDS}" ]]; then
     action="failure"
   fi
